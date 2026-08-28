@@ -86,20 +86,73 @@ lohnen sich sofort:
   Datei, wenn nur ein Feld zu prüfen ist.
 
 Fehler tragen jetzt einen Code (`nicht_gefunden`, `konflikt`, `pfad_zu_lang`,
-`kein_zugriff`, …) und ein `wiederholbar`-Feld — daran ablesen, ob ein
+`kein_zugriff`, `existiert_bereits`, `nicht_eindeutig`, …) und ein
+`wiederholbar`-Feld — daran ablesen, ob ein
 zweiter Versuch Sinn hat, statt zu raten.
 
-**Was die Schicht NICHT tut:** `_INDEX.md` und Artefakte unter `_`-Ordnern
-sind für sie gesperrt — dafür bleiben `stand_setzen`, `themen_setzen` und
-`twins_synchronisieren` zuständig. `verschieben` zieht **keine Twin-Familien**
-mit; das bleibt `familie_umziehen`. Und `loeschen` verweigert den Dienst,
-wenn der Speicher keinen Papierkorb hat (Filesystem-Mounts) — für
-Archiv-Quellen gilt weiter `quelle_verwerfen`.
+**Was die Schicht NICHT tut (Stand 2.10.0):** Bei der `_INDEX.md` ist der
+**Feldkern** gesperrt, nicht die ganze Datei — Frontmatter setzen, sie ganz
+ersetzen, löschen oder etwas an ihre Stelle verschieben geht nicht; dafür
+bleiben `stand_setzen` und `themen_setzen` zuständig. **Fließtext ändern
+(`datei_patchen` mit `ersetze`/`abschnitt_ersetzen`) und eine fehlende
+`_INDEX.md` anlegen (`datei_anlegen`) sind erlaubt** — sonst bekäme ein neuer
+Ordner nie seinen Contract. Artefakte unter `_`-Ordnern bleiben vollständig
+gesperrt (`twins_synchronisieren`).
+
+`verschieben` prüft dieselbe Sperre auf Ziel **und** Quelle — der Umweg über
+zwei Schritte ist geschlossen. Twin-Familien zieht es weiterhin nicht mit;
+das bleibt `familie_umziehen`. Und `loeschen` verweigert den Dienst, wenn der
+Speicher keinen Papierkorb hat (Filesystem-Mounts) — für Archiv-Quellen gilt
+weiter `quelle_verwerfen`.
 
 **Vor Umlaut- oder Pfadlängen-kritischen Aktionen `speicher_info` lesen.**
 Es sagt Groß-/Kleinschreibung, Pfadlimit, Papierkorb und
 Unicode-Normalisierung je Bibliothek — und `null` heißt dort ausdrücklich
 „nicht sicher bekannt", nicht „egal".
+
+**1d. Vor einem Transformations-Stapel die Vorlage prüfen.**
+`vorlagen_auflisten` (ab 2.11.0) nennt die Vorlagen der Library mit `docType`
+und Beschreibung, dazu das Standard-Template. **Das Standard-Template passt
+nicht überall:** Am 28.08.2026 liefen fünfzehn Vertrags- und
+Vergabeunterlagen gegen `standard-meeting` — vierzehn Template-Schritte
+scheiterten, und bezahlt waren sie trotzdem. Verträge, AGB und Anlagen sind
+keine Besprechungen.
+
+**Die Vorlage folgt aus dem INHALT, nicht aus dem Dateinamen.**
+„Anlage A1 de.pdf" oder „Copia con segnatura.pdf" sagen nichts darüber, was
+drinsteht. Bei unbekanntem Material geht die Erschließung deshalb in zwei
+Schritten:
+
+1. **Erst nur transkribieren** — `quelle_erschliessen` mit
+   `template: "nur_transkript"`. Das ist der billige Schritt und er kann
+   nicht am Template scheitern.
+2. **Dann das Transkript lesen** (`datei_lesen`, notfalls nur
+   `bereich: {art: "zeilen", von: 1, bis: 60}` — der Anfang verrät die
+   Dokumentart fast immer) und **daraus** die Vorlage ableiten. Erst jetzt
+   `transformation_starten` mit dem passenden `template`.
+
+Bei einem Stapel reicht **eine Probe**: eine Datei transkribieren, lesen,
+Vorlage bestimmen, und wenn die Transformation dieser einen Datei durchläuft,
+den Rest hinterherwerfen. Das ist dieselbe Regel wie bei jeder neuen Job-Art
+(Schritt 3) — sie gilt für Vorlagen genauso.
+
+Passt keine Vorlage zum Inhalt, ist `template: "nur_transkript"` der
+ehrliche Weg — dann bleibt es beim Transkript, und der Befund
+`transformation_missing` bleibt offen, statt Geld in einen sicheren
+Fehlschlag zu stecken. Das ist eine Entscheidung für Peter, keine eigene.
+
+**Scheitert eine Transformation trotzdem, nicht raten:** `job_status` liefert
+seit 2.12.0 bei gescheiterten Jobs `fehlerDetails` aus dem Job-Trace —
+welcher Schritt, welcher Code, die Meldung des Dienstes, HTTP-Status und ein
+Auszug der Antwort. Das ist die Auskunft, für die früher jemand in die
+Datenbank sehen musste. Erst lesen, dann entscheiden, ob es an der Vorlage,
+am Dokument oder am Dienst lag.
+
+**Format-Zwillinge:** Liegt dasselbe Dokument als `.docx` **und** `.pdf`
+(**und** `_signed.pdf`) vor, zahlt jede Erschließung denselben Inhalt
+mehrfach. Nach Zielbild §7 sind das Ableitungen. Einen „Beleg"-Schalter, der
+sie aus der Abdeckung nimmt, gibt es nicht — also vorher fragen, nicht
+hinterher berichten.
 
 **2. Vor jedem Schreibvorgang fragen.** Besonders vor `quelle_erschliessen`
 und `transformation_starten` — das sind kostenpflichtige Jobs. Bei größeren
@@ -385,8 +438,10 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Fehlen `datei_patchen` und
-`speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
+`protokoll_lesen`, ist sie älter als 2.6.0. Liefert `job_status` bei einem gescheiterten
+Job keine `fehlerDetails`, ist sie älter als 2.12.0. Fehlt `vorlagen_auflisten`, ist sie älter als 2.11.0.
+Lässt sich der Fließtext einer `_INDEX.md` nicht patchen oder geht
+`verschieben` an einer gesperrten Stelle durch, ist sie älter als 2.10.0. Fehlen `datei_patchen` und `speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
 über die Datei-Bridge, und Nextcloud-Bibliotheken bleiben unerreichbar.
 
 Zweiter Test, wenn die Soll-Liste selbst verdächtig ist: Ein schreibendes

@@ -79,7 +79,14 @@ export function registerStoragePatchTool(server: McpServer): void {
             const provider = await requireProvider(userEmail, libraryId)
 
             const adresse = await loeseAdresse({ provider, pfad, id, erwartet: 'file' })
-            pruefeSchreibschutz(adresse.pfad)
+            // Welle ST5: Der Modus entscheidet mit. Am Fliesstext einer
+            // _INDEX.md darf gearbeitet werden, an ihrem Feldkern nicht —
+            // sonst steht Ordnerarbeit (Cowork-Befund 28.08.2026).
+            const gelesenerModus = leseModus(modus)
+            pruefeSchreibschutz(
+              adresse.pfad,
+              gelesenerModus.art === 'frontmatter_setzen' ? 'frontmatter' : 'fliesstext',
+            )
 
             if (!supportsVersioning(provider)) {
               throw new Error(
@@ -90,7 +97,7 @@ export function registerStoragePatchTool(server: McpServer): void {
 
             const { blob } = await provider.getBinary(adresse.id)
             const vorher = await blob.text()
-            const { inhalt, beschreibung } = wendePatchAn(vorher, leseModus(modus))
+            const { inhalt, beschreibung } = wendePatchAn(vorher, gelesenerModus)
 
             // Ein Patch, der nichts aendert, wird nicht geschrieben: Der
             // Schreibvorgang wuerde die Datei altern lassen (bericht_veraltet)

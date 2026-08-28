@@ -1728,13 +1728,20 @@ export class OneDriveProvider implements StorageProvider, StorageVersioning, Sto
       // nicht gewusst: ein Agent wuerde darauf bauen und Dateien nicht
       // finden, die da sind.
       unicodeNormalisierung: null,
-      zeitstempelGenauigkeit: 'millisekunde',
+      // Welle ST5 (Cowork-Befund 28.08.2026): Hier stand 'millisekunde',
+      // aber jeder Zeitstempel aus stat/ordner_listen endete auf .000Z —
+      // sekundengenau. Millisekunden kamen nur bei Artefakten aus der
+      // eigenen Pipeline. Die Selbstauskunft versprach mehr, als sie hielt;
+      // `bericht_veraltet` haette sich darauf verlassen. Jetzt `null`
+      // (= nicht sicher bekannt), bis es jemand belastbar misst.
+      zeitstempelGenauigkeit: null,
       // Graph fuehrt cTag (Inhalt) getrennt von eTag (Inhalt ODER Metadaten).
       trenntInhaltVonMetadaten: true,
       hinweise: [
         'Pfadlimit gilt fuer den gesamten Pfad — "_"-Twin-Ordner verdoppeln den Dateinamen darin.',
         'Unicode-Normalform nicht zugesichert: bei Umlauten im Namen exakte Schreibweise verwenden, nicht rekonstruieren.',
         'Frisch angelegte Items sind fuer die API teils bis zu einer Minute unsichtbar.',
+        'Zeitstempel kamen in der Praxis sekundengenau (.000Z) zurueck, obwohl Graph Millisekunden vorsieht — fuer Veraltet-Regeln nicht auf Millisekunden bauen.',
       ],
     };
   }

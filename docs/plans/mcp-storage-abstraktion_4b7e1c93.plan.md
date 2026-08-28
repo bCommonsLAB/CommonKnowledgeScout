@@ -40,6 +40,9 @@ todos:
   - id: st4-doku
     content: "Welle ST4, Teil 3 — docs/contracts/storage-contracts.md um einen §9 'Versionierung & generischer Schreibweg' ergänzen (Capability-Interface, ifVersion-Semantik, Schreibschutz-Pfadmuster); CLAUDE.md Routing-Index um die Zeile src/lib/mcp/storage/** ergänzen; den Skill archiv-aufraeumen um die neuen Werkzeuge erweitern und den Werkzeugsatz in tools-info.ts hochziehen (TOOLSET_VERSION), damit bruecke_info veraltete Client-Toollisten weiter sichtbar macht."
     status: completed
+  - id: st5-live-befunde
+    content: "Welle ST5 (erledigt) — die drei Befunde aus dem Live-Test vom 28.08.2026: (a) Schreibschutz kennt jetzt die AKTION, nicht nur den Pfad — geschützt ist der Feldkern der _INDEX.md (Frontmatter, Voll-Ersatz, Löschen, Verschiebe-Ziel), Fließtext und Anlegen sind frei; damit bekommt ein neuer Ordner wieder seinen Contract. (b) SICHERHEITSLÜCKE: verschieben prüfte den Schreibschutz gar nicht — mit ueberschreiben:true ließ sich eine fremde _INDEX.md samt Bearbeitungsstand ersetzen, ohne ifVersion und ohne Schutzstufen; jetzt werden Ziel- UND Quellpfad geprüft. (c) Q5-Codes existiert_bereits und nicht_eindeutig statt unbekannt. Dazu: OneDrive meldete zeitstempelGenauigkeit millisekunde, lieferte aber .000Z — steht jetzt auf null. TOOLSET_VERSION 2.10.0."
+    status: completed
   - id: verschoben-stufe3
     content: "BEWUSST NICHT in diesem Strang (Stufe 3 der Anforderungen): suchen (kein Provider kann es heute einheitlich — OneDrive per Graph-Search, Nextcloud/Filesystem nur per Scan; braucht zusätzlich indexStand in der Antwort), wiederherstellen aus dem Papierkorb, dateien_lesen (Stapel), binaer_lesen mit range, kopieren, sperren/entsperren, Job-Modus mit jobId für lange Läufe (Q7). aenderungen_seit existiert bereits scanbasiert. Erst aufgreifen, wenn ST1–ST4 stehen und ein konkreter Bedarf da ist (G3, bedarfsgetrieben)."
     status: pending
@@ -363,6 +366,40 @@ die Schleife, die die Zuordnung verhindern soll. Ein generischer
 
 **`verschieben` zieht erst um, dann benennt es um.** Andersherum könnte der
 neue Name im ALTEN Ordner kollidieren.
+
+## 4f. Live-Test 28.08.2026 und Welle ST5
+
+Der erste echte Lauf gegen das Deployment. Bericht:
+[`mcp-storage-testbericht-2026-08-28.md`](../concepts/mcp-storage-testbericht-2026-08-28.md),
+Gesamtstand: [`mcp-storage-stand.md`](../concepts/mcp-storage-stand.md).
+
+**Was der Test bestätigt hat:** `datei_patchen` ersetzte `datei_schreiben`
+jedes Mal; `bereich: frontmatter` lieferte 518 statt 10.672 Bytes; der
+Konflikt kam mit vollem aktuellen Inhalt zurück; Nextcloud läuft lesend ohne
+Sonderbehandlung.
+
+**Was er gefunden hat — und was ich daraus gelernt habe:**
+
+- **Ein Riegel, der breiter ist als sein Zweck, blockiert die Arbeit.** Die
+  `_INDEX.md`-Sperre sollte den Bearbeitungsstand schützen, sperrte aber auch
+  Fließtext und Anlegen. Ergebnis: Ein neuer Ordner konnte seinen Contract nie
+  bekommen. Ich hatte die Sperre am Pfad festgemacht; richtig ist, sie am
+  **Feldkern** festzumachen — also die Aktion mitzuentscheiden.
+- **Ein Riegel, der nur an einer Tür hängt, ist keiner.** `verschieben` prüfte
+  den Schreibschutz nicht — die Lücke wurde in der Sitzung zweimal benutzt, um
+  die erste zu umgehen. Schlimmer: mit `ueberschreiben: true` wäre eine fremde
+  `_INDEX.md` samt Bearbeitungsstand zu ersetzen gewesen. Das war die einzige
+  sicherheitsrelevante Lücke der Schicht.
+- **Eine Selbstauskunft, die mehr verspricht als sie hält, ist schlimmer als
+  keine.** OneDrive meldete `zeitstempelGenauigkeit: "millisekunde"`, lieferte
+  aber durchweg `.000Z`. Genau die Regel `bericht_veraltet` hätte sich darauf
+  verlassen. Steht jetzt auf `null` — dieselbe Regel, die ich in ST4 für
+  Unicode und Groß-/Kleinschreibung schon angewandt hatte, nur an einer Stelle
+  nicht konsequent.
+
+**Eine Korrektur am Testbericht:** Er sagt, `idGeaendert` gebe es nicht. Es
+gibt es in allen drei Schreibwerkzeugen — nur erscheint es ausschließlich bei
+einem tatsächlichen Wechsel, und bei OneDrive wechselte nichts.
 
 ## 5. Offene Entscheidungen — mit Empfehlung
 

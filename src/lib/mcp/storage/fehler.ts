@@ -32,6 +32,10 @@ export type FehlerCode =
   | 'gesperrt'
   | 'nicht_unterstuetzt'
   | 'zeitueberschreitung'
+  /** Anlegen scheiterte, weil es die Datei schon gibt (ST5). */
+  | 'existiert_bereits'
+  /** Ein Patch traf mehrdeutig oder gar nicht (ST5). */
+  | 'nicht_eindeutig'
   | 'unbekannt'
 
 export interface Fehlerbild {
@@ -55,6 +59,10 @@ const WIEDERHOLBAR: Record<FehlerCode, boolean> = {
   pfad_zu_lang: false,
   zu_gross: false,
   nicht_unterstuetzt: false,
+  // Beide sind wiederholbar, aber NICHT unveraendert: erst den Aufruf
+  // korrigieren (anderer Name bzw. mehr Kontext im altText), dann erneut.
+  existiert_bereits: false,
+  nicht_eindeutig: false,
   unbekannt: false,
 }
 
@@ -107,6 +115,13 @@ function bestimmeCode(fehler: unknown, meldung: string): FehlerCode {
 
   // Letzter Versuch am Text — Graph und WebDAV formulieren teils nur dort.
   // Nur eindeutige Signale, kein Raten an Teilwoertern.
+  //
+  // Welle ST5 (Cowork-Befund 28.08.2026): „existiert bereits" und „altText
+  // kommt n-mal vor" sind VORHERGESEHENE Faelle, kamen aber als `unbekannt`
+  // heraus. Der Agent musste die deutsche Meldung parsen, um sie von einem
+  // echten Ausfall zu unterscheiden — genau das soll Q5 ersparen.
+  if (/existiert bereits/i.test(meldung)) return 'existiert_bereits'
+  if (/kommt \d+-mal vor|kommt in der Datei nicht vor|ist mehrdeutig/i.test(meldung)) return 'nicht_eindeutig'
   if (/\bnicht gefunden\b|\bnot ?found\b/i.test(meldung)) return 'nicht_gefunden'
   if (/nicht versioniert schreiben|kann diese Operation nicht/i.test(meldung)) return 'nicht_unterstuetzt'
   return 'unbekannt'
