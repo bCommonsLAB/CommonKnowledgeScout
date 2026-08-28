@@ -92,6 +92,48 @@ Vier-Zeilen-Funktion unverhältnismäßig.
 `git mv` keine Option und `--follow` geht für das neue Stück verloren. Das ist
 zu benennen, nicht zu behaupten.
 
+## Nachtrag: der Build-Fehler auf master und was daraus folgte
+
+M4b ging mit grünen Cloud-Gates (Tests, Lint, `typecheck:packages`) in den
+Merge und **brach den Build auf master**:
+
+```
+Failed to collect configuration for /event-monitor/batches/[batchId]
+cause: TypeError: (0 , o.createContext) is not a function
+```
+
+**Ursache**: 33 der 40 Dateien in `@ks/ui` hatten kein `"use client"` — schon
+vorher nicht, als sie noch unter `src/components/ui/` lagen. Dort fiel es nie
+auf, weil jeder Importeur selbst eine Client-Komponente war und die Grenze
+damit weiter oben lag. Das Barrel hat das gekippt: `src/lib/utils.ts` reichte
+`cn` durch `@ks/ui` durch und wird von vielen **Server**-Modulen importiert —
+damit landete der gesamte Barrel-Graph im react-server-Layer, wo `chart.tsx`
+und `form.tsx` beim Laden `createContext` aufrufen.
+
+Die Extraktion hat den Fehler nicht erzeugt, sondern eine latente Lücke
+sichtbar gemacht. **Die Regel daraus** (jetzt in Landkarte §4): Ein Paket darf
+sich nicht darauf verlassen, dass seine Aufrufer die Client-Grenze für es
+ziehen. Jedes Primitive deklariert sie selbst.
+
+**Zwei Nachbesserungen**, beide bereits umgesetzt:
+
+1. **`@ks/util`** — `cn` liegt jetzt dort statt in `@ks/ui`. Korrekte
+   Client-Grenzen haben den Build repariert, aber die Ursache blieb: Eine
+   reine Funktion, die serverseitig gebraucht wird, darf nicht an einem Paket
+   voller Client-Komponenten hängen. `@ks/ui` hängt jetzt an `@ks/util`; das
+   UI-Barrel exportiert `cn` nicht mehr (ein Zuhause, nicht zwei).
+2. **`scripts/welle-pre-merge-check.sh`** kannte `pnpm typecheck:packages`
+   nicht (das Skript ist älter als der Wächter aus M2b). Ist ergänzt, läuft als
+   Schritt 2 vor Lint und Build, und der Build-Fehlerhinweis nennt jetzt den
+   `use client`-Fall als erste Vermutung.
+
+**Was prozessual schiefging**: `check-build` (PR-Workflow) und `ci-main`
+(Push auf master) prüfen nicht dasselbe — der PR-Check fährt den
+Docker-Build nicht. Der lokale `pnpm build` war als verbleibende Lücke
+benannt, wurde aber als Nachlauf behandelt statt als Merge-Voraussetzung.
+Für A-Wellen gilt: **Ohne grünen Build kein Merge**, und der Build gehört vor
+den Merge-Button, nicht dahinter.
+
 ## Definition of Done — erreicht
 
 - `pnpm test`: **3329 grün, 3 rot** — nur `tests/unit/mcp/tools-stand.test.ts`
@@ -101,7 +143,8 @@ zu benennen, nicht zu behaupten.
   nachweislich nicht in die App zurück.
 - `npx tsc --noEmit -p tsconfig.json`: 0 Fehler in `src/` und `packages/`.
 - Keine Referenz auf `@/components/ui/` mehr im Repo.
-- Lokal vor Merge: `bash scripts/welle-pre-merge-check.sh`.
+- `pnpm build`: grün, 101 Seiten erzeugt (nach den Nachbesserungen oben —
+  beim ersten Anlauf war genau das rot, siehe Nachtrag).
 
 ## Hand-off für die nächste Welle
 

@@ -25,6 +25,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 | `@ks/ui` | shadcn-Basis, Icons, Theme | `src/components/ui/`, `src/components/theme-provider.tsx`, `src/components/icons.tsx`<br>**M4b erledigt**: 39 shadcn-Dateien + `cn`. `theme-provider` liegt seit M3 in `@ks/shell/providers` (Provider-Kette); `icons.tsx` hat null Importeure und bleibt als Löschkandidat liegen; `llm-model-selector` ist kein Primitive und ging nach `src/components/shared/` |
 | `@ks/viewers` | Markdown-Viewer, PDF-Viewer, Audio-Player, Image-Preview | `src/components/library/markdown-preview/`, `src/lib/markdown/`, `src/lib/pdf/`, `src/components/library/audio-player.tsx`, `src/components/library/image-preview.tsx` |
 | `@ks/api-client` | typisierter Fetch-Client + TanStack-Query-Hooks für Core- und Modul-APIs, BaseURL/Token aus SiteConfig | heute verstreute `fetch`-Aufrufe in Komponenten/Hooks |
+| `@ks/util` | `cn` (clsx + tailwind-merge). **Nicht im urspruenglichen Zielbild** — entstanden aus einem Build-Befund in M4b: `cn` lag in `@ks/ui`, und jedes Server-Modul, das es brauchte, zog darueber den gesamten Client-Graph in den react-server-Layer. Regel: nur, was in JEDER Umgebung laeuft (Server, Client, Edge) | `src/lib/utils.ts` (Teil) |
 | `@ks/i18n` | Locale-Ermittlung + Provider, Strings | `src/lib/i18n/`, `src/components/providers/*locale*`, `src/lib/strings/` |
 
 ### Schicht 2 — Schale
@@ -220,6 +221,15 @@ graph TD
      eigenes `tsconfig.json` (ohne die Root-`paths`). Das ist der schärfere
      Nachweis: Ein Rückwärts-Import scheitert hier mit `TS2307`, auch wenn der
      Gesamt-Build ihn über die Root-Pfade auflösen würde.
+- **Client-Grenze gehoert ins Paket** (Befund M4b): Jede Paket-Datei, die
+  React-Hooks, Context oder eine Client-Bibliothek (Radix, cmdk, recharts)
+  benutzt, traegt selbst `"use client"`. Ein Paket darf sich NICHT darauf
+  verlassen, dass seine Aufrufer die Grenze fuer es ziehen — in der App ging
+  das gut, weil jeder Importeur zufaellig selbst Client war; ueber ein Barrel
+  landet derselbe Code im react-server-Layer und bricht mit
+  `createContext is not a function`. Umgekehrt gilt: Was serverseitig
+  gebraucht wird (`cn`), darf NICHT in einem Paket voller Client-Komponenten
+  liegen — dafuer gibt es `@ks/util`.
 - Muster, wenn ein Paket etwas aus der App braucht: **Injection**, nicht Import
   — siehe `packages/viewers/src/logger.ts` (Interface + Setter mit
   No-op-Default) und `src/components/providers/viewer-logger-bridge.tsx`.

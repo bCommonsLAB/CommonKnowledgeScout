@@ -1,10 +1,10 @@
 /**
- * App-Helfer. `cn` lebt seit Welle M4b in `@ks/ui` (shadcn-Basis) und wird
+ * App-Helfer. `cn` lebt in `@ks/util` (abhaengigkeitsfrei, auch serverseitig nutzbar) und wird
  * hier fuer die bestehenden Importeure re-exportiert — die Funktion existiert
  * also weiterhin nur EINMAL.
  */
 
-export { cn } from '@ks/ui'
+export { cn } from '@ks/util'
 
 export function formatFileSize(size?: number): string {
   if (!size) return '-';

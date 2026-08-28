@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "./cn";
+import { cn } from "@ks/util";
 import { ChevronDown } from "lucide-react";
 
 type AccordionProps = React.HTMLAttributes<HTMLDivElement> & {
