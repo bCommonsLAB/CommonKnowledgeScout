@@ -6,6 +6,15 @@ const config = {
   content: [
     './src/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
+    // Workspace-Pakete (@ks/*) MUESSEN hier stehen: Seit Welle M4b liegen die
+    // shadcn-Primitives in `packages/ui/`. Ohne diesen Glob erzeugt Tailwind
+    // deren Klassen nicht mehr — die Komponenten rendern unformatiert (weisse
+    // Flaeche statt Menue, Dropdown ohne z-50 hinter dem Inhalt). Kein Test,
+    // kein Typecheck und auch `next build` schlagen dabei an; der Fehler ist
+    // rein visuell. Bewacht von tests/unit/tailwind-content-packages.test.ts.
+    // Bewusst `*/src/`, nicht `**`: sonst wuerde pnpm's packages/*/node_modules
+    // mitgescannt.
+    './packages/*/src/**/*.{ts,tsx}',
   ],
   theme: {
   	container: {
