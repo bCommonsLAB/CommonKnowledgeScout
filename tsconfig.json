@@ -29,6 +29,7 @@
       "@ks/shell/react": ["./packages/shell/src/react/index.ts"],
       "@ks/shell/testing": ["./packages/shell/src/testing/index.ts"],
       "@ks/module-explorer": ["./packages/module-explorer/src/index.ts"],
+      "@ks/module-explorer/react": ["./packages/module-explorer/src/react/index.ts"],
       "@ks/ui": ["./packages/ui/src/index.ts"],
       "@ks/util": ["./packages/util/src/index.ts"],
       "@ks/i18n": ["./packages/i18n/src/index.ts"],

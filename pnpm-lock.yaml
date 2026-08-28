@@ -426,9 +426,24 @@ importers:
       '@ks/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@ks/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@ks/shell':
         specifier: workspace:*
         version: link:../shell
+      '@ks/ui':
+        specifier: workspace:*
+        version: link:../ui
+      jotai:
+        specifier: ^2.11.0
+        version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
+      lucide-react:
+        specifier: ^0.312.0
+        version: 0.312.0(react@18.2.0)
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
 
   packages/shell:
     dependencies:
@@ -438,6 +453,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.101.1
         version: 5.101.1(react@18.2.0)
+      jotai:
+        specifier: ^2.11.0
+        version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
       next-themes:
         specifier: ^0.4.4
         version: 0.4.6(react-dom@18.2.0(react@18.2.0))(react@18.2.0)

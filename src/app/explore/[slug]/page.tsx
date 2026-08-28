@@ -9,8 +9,14 @@ import dynamic from "next/dynamic"
 import { useTranslation } from "@ks/i18n/react"
 import { useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { LibraryVerificationWarning } from '@/components/library/library-verification-warning'
-import type { ClientLibrary } from '@/types/library'
-import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
+import {
+  fetchAccessStatus,
+  postAccessRequest,
+  toClientLibrary,
+  type ExplorerAccessStatus,
+  type ExplorerContext,
+  type ExplorerLibraryPayload,
+} from '@ks/module-explorer/react'
 
 const GalleryClient = dynamic(() => import("@/app/library/gallery/client").then(m => ({ default: m.default })), {
   ssr: false,
@@ -21,103 +27,26 @@ const GalleryClient = dynamic(() => import("@/app/library/gallery/client").then(
   )
 })
 
-/** Antwort von GET /api/public/libraries/[slug] oder /api/library/explore-by-slug/[slug] */
-interface ExploreLibraryPayload {
-  id: string
-  label: string
-  slugName: string
-  description?: string
-  icon?: string
-  requiresAuth?: boolean
-  /** Nur bei Member-Explore: ob die Library öffentlich geschaltet ist */
-  isPublic?: boolean
-  siteEnabled?: boolean
-  /** Website-Logo (Phase C2): oeffentliche URL fuer die TopNav im Site-Kontext */
-  logoUrl?: string
-  /** Galerie-Texte aus den Public-Settings (leer = Standard-Texte des detailViewType) */
-  gallery?: {
-    headline?: string
-    subtitle?: string
-    description?: string
-    filterDescription?: string
-    menuLabel?: string
-    moreLinkLabel?: string
-  }
-  exploreContext?: 'public' | 'member'
-  chat?: {
-    gallery?: {
-      detailViewType?: 'book' | 'session'
-      facets?: Array<{
-        metaKey: string
-        label?: string
-        type?: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
-        multi?: boolean
-        visible?: boolean
-        buckets?: Array<{ label: string; min: number; max: number }>
-      }>
-    }
-    placeholder?: string
-    maxChars?: number
-    maxCharsWarningMessage?: string
-    footerText?: string
-    companyLink?: string
-    targetLanguage?: TargetLanguage
-    character?: Character[]
-    socialContext?: SocialContext
-    genderInclusive?: boolean
-    userPreferences?: {
-      targetLanguage?: TargetLanguage
-      character?: Character[]
-      socialContext?: SocialContext
-      genderInclusive?: boolean
-    }
-  }
-}
-
 export default function ExplorePage() {
   const params = useParams()
   const { t } = useTranslation()
   const { user, isLoaded: userLoaded } = useUser()
   const slug = params?.slug as string
-  const [library, setLibrary] = useState<ExploreLibraryPayload | null>(null)
-  const [exploreContext, setExploreContext] = useState<'public' | 'member' | null>(null)
+  const [library, setLibrary] = useState<ExplorerLibraryPayload | null>(null)
+  const [exploreContext, setExploreContext] = useState<ExplorerContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [accessStatus, setAccessStatus] = useState<{
-    hasAccess: boolean
-    status?: 'pending' | 'approved' | 'rejected'
-    requiresAuth?: boolean
-    message?: string
-    rateLimited?: boolean
-  } | null>(null)
+  const [accessStatus, setAccessStatus] = useState<ExplorerAccessStatus | null>(null)
   const [requestingAccess, setRequestingAccess] = useState(false)
 
   const setLibraries = useSetLibraries()
   const setActiveLibraryId = useSetActiveLibraryId()
 
-  const loadLibraryIntoState = useCallback((loadedLibrary: ExploreLibraryPayload, ctx: 'public' | 'member') => {
-    const clientLibrary: ClientLibrary = {
-      id: loadedLibrary.id,
-      label: loadedLibrary.label,
-      type: 'local',
-      path: '',
-      isEnabled: true,
-      config: {
-        chat: loadedLibrary.chat,
-        publicPublishing: {
-          slugName: loadedLibrary.slugName,
-          publicName: loadedLibrary.label,
-          description: loadedLibrary.description || '',
-          icon: loadedLibrary.icon,
-          isPublic: ctx === 'public' ? true : (loadedLibrary.isPublic === true),
-          requiresAuth: loadedLibrary.requiresAuth,
-          siteEnabled: loadedLibrary.siteEnabled,
-          logoUrl: loadedLibrary.logoUrl,
-          gallery: loadedLibrary.gallery,
-        }
-      }
-    }
-    setLibraries([clientLibrary])
+  const loadLibraryIntoState = useCallback((
+    loadedLibrary: ExplorerLibraryPayload,
+    ctx: ExplorerContext,
+  ) => {
+    setLibraries([toClientLibrary(loadedLibrary, ctx)])
     setActiveLibraryId(loadedLibrary.id)
   }, [setLibraries, setActiveLibraryId])
 
@@ -126,8 +55,8 @@ export default function ExplorePage() {
 
   const checkAccess = useCallback(async (
     libraryId: string,
-    libraryToLoad: ExploreLibraryPayload | undefined,
-    ctx: 'public' | 'member',
+    libraryToLoad: ExplorerLibraryPayload | undefined,
+    ctx: ExplorerContext,
   ) => {
     const now = Date.now()
     const lastCheck = lastAccessCheckRef.current
@@ -135,47 +64,13 @@ export default function ExplorePage() {
       return
     }
 
-    try {
-      lastAccessCheckRef.current = { libraryId, timestamp: now }
+    lastAccessCheckRef.current = { libraryId, timestamp: now }
 
-      const response = await fetch(`/api/libraries/${libraryId}/access-check`, {
-        cache: 'no-store',
-      })
+    const status = await fetchAccessStatus(libraryId)
+    setAccessStatus(status)
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-
-        if (response.status === 429) {
-          setAccessStatus({
-            hasAccess: false,
-            requiresAuth: true,
-            message: errorData.message || 'Zu viele Anfragen. Bitte warten Sie einen Moment.',
-            rateLimited: true,
-          })
-          return
-        }
-
-        setAccessStatus({
-          hasAccess: false,
-          requiresAuth: true,
-          message: errorData.error || 'Fehler beim Prüfen des Zugriffs',
-        })
-        return
-      }
-
-      const data = await response.json()
-      setAccessStatus(data)
-
-      if (data.hasAccess && libraryToLoad) {
-        loadLibraryIntoState(libraryToLoad, ctx)
-      }
-    } catch (err) {
-      console.error('[ExplorePage] Fehler beim Prüfen des Zugriffs:', err)
-      setAccessStatus({
-        hasAccess: false,
-        requiresAuth: true,
-        message: 'Fehler beim Prüfen des Zugriffs',
-      })
+    if (status.hasAccess && libraryToLoad) {
+      loadLibraryIntoState(libraryToLoad, ctx)
     }
   }, [loadLibraryIntoState])
 
@@ -199,11 +94,11 @@ export default function ExplorePage() {
         const data = await pubRes.json()
         // Standard: anonyme / fremde Nutzer = public. Eingeloggte Owner/Co-Autoren zusätzlich
         // explore-by-slug → "member", damit Startseiten-Toggle + Storage-Draft (web/) sichtbar sind.
-        let loaded: ExploreLibraryPayload = {
+        let loaded: ExplorerLibraryPayload = {
           ...data.library,
           exploreContext: 'public',
         }
-        let ctx: 'public' | 'member' = 'public'
+        let ctx: ExplorerContext = 'public'
 
         if (userLoaded && user) {
           const memRes = await fetch(
@@ -247,7 +142,7 @@ export default function ExplorePage() {
         if (cancelled) return
         if (memRes.ok) {
           const data = await memRes.json()
-          const loaded: ExploreLibraryPayload = {
+          const loaded: ExplorerLibraryPayload = {
             ...data.library,
             exploreContext: 'member',
           }
@@ -281,22 +176,7 @@ export default function ExplorePage() {
 
     setRequestingAccess(true)
     try {
-      const response = await fetch(`/api/libraries/${library.id}/access-request`, {
-        method: 'POST',
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Fehler beim Erstellen der Zugriffsanfrage')
-      }
-
-      setAccessStatus({
-        hasAccess: false,
-        status: 'pending',
-        requiresAuth: true,
-        message: 'Ihre Anfrage wurde erfolgreich erstellt und wird bearbeitet',
-      })
+      setAccessStatus(await postAccessRequest(library.id))
     } catch (err) {
       console.error('Fehler beim Erstellen der Zugriffsanfrage:', err)
       setError(err instanceof Error ? err.message : 'Fehler beim Erstellen der Zugriffsanfrage')
