@@ -4,5 +4,8 @@
   "private": true,
   "description": "KnowledgeScout — geteilte Types/DTOs (Storage-Provider, Core-API-Contracts)",
   "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@ks/i18n": "workspace:*"
+  }
 }

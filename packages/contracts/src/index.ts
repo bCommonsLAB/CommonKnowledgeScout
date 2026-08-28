@@ -29,6 +29,14 @@ export type { UserInfoDto, UserInfoEmailDto } from './user-info'
 export type { LibraryIdentityDto } from './library-identity'
 
 export type {
+  StorageProviderType,
+  TranslationsConfig,
+  CaptureWizardRef,
+  CaptureWizardsConfig,
+} from './library-config'
+export type { GalleryGraphConfig, LibraryChatConfig } from './library-chat'
+
+export type {
   TargetLanguage,
   Character,
   SocialContext,
