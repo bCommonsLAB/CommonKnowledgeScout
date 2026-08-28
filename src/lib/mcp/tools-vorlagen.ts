@@ -19,8 +19,19 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { TemplateDocument } from '@/lib/templates/template-types'
 import { listTemplatesFromMongoDB } from '@/lib/templates/template-service-mongodb'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
+
+/** Feldliste je Vorlage begrenzen (Q2: Antwortgroessen sind begrenzt, immer). */
+const MAX_FELDER = 40
+
+/** Beschreibung eines benannten Frontmatter-Felds der Vorlage, falls vorhanden. */
+function feldBeschreibung(vorlage: TemplateDocument, key: string): string | null {
+  const feld = vorlage.metadata?.fields?.find((eintrag) => eintrag.key === key)
+  const beschreibung = feld?.description?.trim()
+  return beschreibung ? beschreibung : null
+}
 
 /** Registriert `vorlagen_auflisten`. */
 export function registerVorlagenTool(server: McpServer): void {
@@ -53,8 +64,16 @@ export function registerVorlagenTool(server: McpServer): void {
           anzahl: vorlagen.length,
           vorlagen: vorlagen.map((vorlage) => ({
             name: vorlage.name,
-            docType: vorlage.metadata?.docType ?? null,
-            beschreibung: vorlage.metadata?.description ?? null,
+            // `docType` ist KEIN Feld auf `metadata`, sondern ein Eintrag in
+            // `metadata.fields` — und seine `description` ist der Hinweis,
+            // den das Template dem LLM gibt („Eine aus: report, other. Nutze
+            // report fuer Besprechungsprotokolle …"). Genau der sagt einem
+            // Agenten, wofuer die Vorlage gedacht ist.
+            docTypeHinweis: feldBeschreibung(vorlage, 'docType'),
+            beschreibung: vorlage.creation?.ui?.description ?? null,
+            detailAnsicht: vorlage.metadata?.detailViewType ?? null,
+            /** Welche Metadaten die Vorlage ueberhaupt extrahiert. */
+            felder: (vorlage.metadata?.fields ?? []).map((feld) => feld.key).slice(0, MAX_FELDER),
             aktualisiertAm: vorlage.updatedAt instanceof Date
               ? vorlage.updatedAt.toISOString()
               : (vorlage.updatedAt ?? null),

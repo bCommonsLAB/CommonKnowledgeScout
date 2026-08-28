@@ -99,6 +99,22 @@ erledigt. Erst wieder aufgreifen, wenn der Owner es sagt.
 `pnpm build` (kostet 3-5 USD pro Lauf, lokal kostenlos). Ausnahme:
 einmal bei konkretem Build-Fehler-Verdacht.
 
+**ACHTUNG, Luecke zwischen den Gates (Befund 28.08.2026):** `pnpm test` und
+`pnpm lint` pruefen KEINE Typen im App-Code. Eine falsche Property auf einem
+Interface laeuft durch beide gruen durch und bricht erst `pnpm build` — also
+erst nach dem Merge, im Docker-Build von `ci-main`. `check-build` an der PR
+faengt es NICHT.
+
+Wer App-Code (`src/**`) anfasst, prueft deshalb zusaetzlich:
+
+```bash
+npx tsc --noEmit -p tsconfig.json 2>&1 | grep '^src/'
+```
+
+Muss LEER sein. (Die uebrigen Treffer liegen in `tests/**` und sind
+vorbestehend — der Next-Build typprueft sie nicht.) **Nicht auf einzelne
+Dateien filtern:** Genau daran ist der Fehler vom 28.08. vorbeigerutscht.
+
 **Beim User lokal vor Merge (Pflicht):**
 
 ```bash
