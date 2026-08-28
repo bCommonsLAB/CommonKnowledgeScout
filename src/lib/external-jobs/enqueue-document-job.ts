@@ -44,6 +44,8 @@ export async function enqueueSourceDocumentJob(args: {
   source: SourceRef
   mediaKind: DocumentMediaKind
   template?: string
+  /** LLM-Modell fuer die Template-Transformation (siehe parameters unten). */
+  llmModel?: string
   targetLanguage?: string
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
@@ -51,6 +53,7 @@ export async function enqueueSourceDocumentJob(args: {
   const jobSecret = crypto.randomBytes(24).toString('base64url')
   const jobSecretHash = repo.hashSecret(jobSecret)
   const template = args.template?.trim() || undefined
+  const llmModel = args.llmModel?.trim() || undefined
   const targetLanguage = args.targetLanguage ?? 'de'
   const jobType = mediaKindToJobType(args.mediaKind)
   const isOffice = args.mediaKind !== 'pdf'
@@ -89,6 +92,14 @@ export async function enqueueSourceDocumentJob(args: {
     parameters: {
       targetLanguage,
       ...(template ? { template } : {}),
+      // Welle ST8 (Live-Befund 28.08.2026): Ohne dieses Feld faellt der
+      // Secretary auf SEINEN Default zurueck — und der stand tagelang auf
+      // `deepseek/deepseek-v4-flash-latest`, einer Modell-Id, die es bei
+      // OpenRouter nicht gibt. Jede Transformation ueber die Bruecke starb
+      // nach ~100 ms mit HTTP 400, waehrend derselbe Weg aus der Werkbank
+      // lief: die gibt ein Modell mit. Ein stiller Rueckfall auf fremde
+      // Konfiguration ist genau das, was `no-silent-fallbacks` verbietet.
+      ...(llmModel ? { llmModel } : {}),
       phases: { extract: true, template: Boolean(template), ingest: Boolean(template) },
       policies: {
         extract: 'do',

@@ -141,6 +141,25 @@ ehrliche Weg — dann bleibt es beim Transkript, und der Befund
 `transformation_missing` bleibt offen, statt Geld in einen sicheren
 Fehlschlag zu stecken. Das ist eine Entscheidung für Peter, keine eigene.
 
+**Bei `template_failed` zuerst an das Modell denken.** Der Secretary nimmt
+ohne Angabe SEINEN Default — der ist von hier aus nicht einsehbar und stand
+am 28.08.2026 tagelang auf einer Modell-Id, die es beim Anbieter nicht gibt.
+Jede Transformation starb nach ~100 ms mit HTTP 400, ohne ein einziges
+Token. Kennzeichen: Fehlschlag in **unter einer Sekunde** — ein echter
+LLM-Lauf über 14.000 Zeichen braucht rund zwölf.
+
+Seit 2.14.0 nimmt die Brücke **immer** das Standard-Modell der Library
+(Einstellungen → Secretary), genau wie die Werkbank. **Eine Modellwahl im
+Aufruf gibt es bewusst nicht**: Deine Entscheidung ist die *Vorlage* — welche
+Transformation zum Dokument passt. Welches Modell sie ausführt, gehört dem
+Betreiber der Library, nicht dir. Die Antwort von
+`quelle_erschliessen`/`transformation_starten` nennt in `modellHerkunft` das
+konfigurierte Modell. Steht dort „KEIN LLM-Modell in der Library
+konfiguriert", entscheidet der Secretary allein — das ist die Lage, in der es
+zuletzt tagelang scheiterte. Dann **Peter melden**, damit er in den
+Einstellungen ein Modell hinterlegt; selbst beheben kannst du das nicht, und
+Vorlagen durchzuprobieren hilft nicht.
+
 **Scheitert eine Transformation trotzdem, nicht raten:** `job_status` liefert
 seit 2.12.0 bei gescheiterten Jobs `fehlerDetails` aus dem Job-Trace —
 welcher Schritt, welcher Code, die Meldung des Dienstes, HTTP-Status und ein
@@ -438,8 +457,9 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Liefert `job_status` bei einem gescheiterten
-Job keine `fehlerDetails`, ist sie älter als 2.12.0. Fehlt `vorlagen_auflisten`, ist sie älter als 2.11.0.
+`protokoll_lesen`, ist sie älter als 2.6.0. Meldet `transformation_starten` keine `modellHerkunft`
+(oder nimmt es noch ein `llmModel` an), ist sie älter als 2.14.0. Liefert `job_status` bei einem gescheiterten Job keine
+`fehlerDetails`, ist sie älter als 2.12.0. Fehlt `vorlagen_auflisten`, ist sie älter als 2.11.0.
 Lässt sich der Fließtext einer `_INDEX.md` nicht patchen oder geht
 `verschieben` an einer gesperrten Stelle durch, ist sie älter als 2.10.0. Fehlen `datei_patchen` und `speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
 über die Datei-Bridge, und Nextcloud-Bibliotheken bleiben unerreichbar.

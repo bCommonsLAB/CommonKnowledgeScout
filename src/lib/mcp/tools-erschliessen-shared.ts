@@ -43,6 +43,43 @@ export async function resolveSourceItem(
   return { itemId: item.id, parentId: item.parentId, name: item.metadata.name }
 }
 
+/**
+ * Standard-LLM-Modell der Library fuer die Template-Transformation.
+ *
+ * Dasselbe Feld, aus dem die Werkbank ihres zieht
+ * (`file-preview.tsx` → `secretaryService.llmModel`) — die Bruecke verhaelt
+ * sich exakt wie der Knopf, und zwar OHNE Wahlmoeglichkeit im Aufruf: Der
+ * Client entscheidet die Vorlage, der Betreiber das Modell.
+ *
+ * Kein Wurf bei fehlender Konfiguration: Bibliotheken ohne eigenes Modell
+ * laufen heute ueber den Default des Secretary, und den abzuschneiden waere
+ * eine Verhaltensaenderung, die niemand bestellt hat. Aber der Aufrufer
+ * ERFAEHRT es — siehe {@link modellHinweis}: Am 28.08.2026 stand dieser
+ * Default tagelang auf einer ungueltigen Modell-Id, und niemand konnte es
+ * sehen.
+ */
+export function standardLlmModell(library: Library): string | undefined {
+  return library.config?.secretaryService?.llmModel?.trim() || undefined
+}
+
+/**
+ * Sagt dem Aufrufer, welches Modell die Library vorgibt — und warnt, wenn
+ * keines gesetzt ist. Eine Modellwahl im AUFRUF gibt es bewusst nicht
+ * (Owner-Entscheid 28.08.2026): Der Client waehlt die Vorlage, das Modell
+ * gehoert dem Betreiber der Library.
+ */
+export function modellHinweis(modell: string | undefined): string {
+  if (modell) {
+    return `LLM-Modell aus der Library-Konfiguration: ${modell}. Nicht je Aufruf waehlbar.`
+  }
+  return (
+    'KEIN LLM-Modell in der Library konfiguriert (Einstellungen → Secretary → ' +
+    'Standard-LLM-Modell). Der Secretary nimmt dann seinen eigenen Default, der von hier aus ' +
+    'nicht einsehbar ist; am 28.08.2026 war er ungueltig und jede Transformation starb nach ' +
+    '~100 ms. Das behebt NUR der Betreiber in den Einstellungen — nicht der Agent.'
+  )
+}
+
 export function standardTemplate(library: Library): string {
   const template = library.config?.secretaryService?.template?.trim() ?? ''
   if (template === '') {

@@ -27,7 +27,7 @@ import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/exter
 import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
-import { JOB_HINWEIS, runForSources, standardTemplate } from './tools-erschliessen-shared'
+import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 
 const SOURCE_INPUTS = {
@@ -65,6 +65,14 @@ export function registerErschliessenTools(server: McpServer): void {
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
+          // Das Modell kommt AUSSCHLIESSLICH aus der Library-Konfiguration
+          // (Owner-Entscheid 28.08.2026): Der Client waehlt die VORLAGE —
+          // eine fachliche Entscheidung. Welches Modell sie ausfuehrt, ist
+          // Infrastruktur und gehoert dem Betreiber der Library, nicht dem
+          // Agenten. Eine Modellwahl je Aufruf hiesse: zwei Laeufe derselben
+          // Vorlage koennten verschieden ausfallen, ohne dass das Archiv es
+          // einem ansieht.
+          const effectiveModell = standardLlmModell(library)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -72,7 +80,7 @@ export function registerErschliessenTools(server: McpServer): void {
               if (kind === 'audio' || kind === 'video') {
                 const { jobId } = await enqueueSourceTranscribeJob({
                   libraryId, userEmail, source, mediaType: kind,
-                  template: effectiveTemplate, targetLanguage: zielsprache,
+                  template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                 })
                 return jobId
               }
@@ -80,7 +88,7 @@ export function registerErschliessenTools(server: McpServer): void {
               if (documentKind) {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
-                  template: effectiveTemplate, targetLanguage: zielsprache,
+                  template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                 })
                 return jobId
               }
@@ -96,6 +104,8 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate ?? null,
+            llmModell: effectiveModell ?? null,
+            modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,
           })
         })
@@ -130,6 +140,8 @@ export function registerErschliessenTools(server: McpServer): void {
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template ?? standardTemplate(library)
+          // Modell nur aus der Library-Konfiguration — siehe quelle_erschliessen.
+          const effectiveModell = standardLlmModell(library)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -144,7 +156,7 @@ export function registerErschliessenTools(server: McpServer): void {
               }
               const { jobId } = await enqueueTemplateOnTextJob({
                 libraryId, userEmail, source,
-                template: effectiveTemplate, targetLanguage: zielsprache,
+                template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                 extractedText: transcript.markdown,
               })
               return jobId
@@ -156,6 +168,8 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate,
+            llmModell: effectiveModell ?? null,
+            modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,
           })
         })

@@ -1,6 +1,6 @@
 # KnowledgeScout-Schnittstelle: was trägt, was fehlt
 
-Stand 28.08.2026, Werkzeugsatz **2.12.0**.
+Stand 28.08.2026, Werkzeugsatz **2.14.0**.
 
 Grundlage sind zwei Quellen, die sich gegenseitig prüfen:
 
@@ -227,6 +227,58 @@ Eingabe und der einzige Teil, der nichts erklärt.
 
 Damit ist der nächste Lauf beweisend. Bis dahin gilt: **Transformationen über
 die Brücke sind nicht benutzbar**; `nur_transkript` funktioniert.
+
+## 4d. Die Ursache: ein ungültiges LLM-Modell im Secretary
+
+Die Secretary-Logs vom 28.08.2026 beenden die Suche:
+
+```
+'deepseek/deepseek-v4-flash-latest is not a valid model ID', code: 400
+```
+
+Der Dienst war auf eine Modell-Id konfiguriert, die es bei OpenRouter nicht
+gibt. **Jeder** Aufruf starb nach 100–280 ms mit HTTP 400 — ohne ein einziges
+Token. Weder Vorlage noch Dokument hatten damit zu tun.
+
+Warum es aus der Werkbank trotzdem lief: Sie **gibt ein Modell mit**. Der
+erfolgreiche Lauf um 15:49 benutzte `google/gemini-2.5-flash` — 12,3
+Sekunden, 8.374 Tokens, sauberes Ergebnis.
+
+**Der Anteil, der uns gehört:** Die MCP-Brücke gab gar kein Modell mit und
+fiel damit still auf den Default eines fremden Dienstes zurück. Der
+Code-Kommentar sagte es sogar („Secretary Service verwendet sonst Default") —
+und genau das verbietet `no-silent-fallbacks`: Als der Default brach, konnte
+KnowledgeScout weder davon wissen noch es benennen.
+
+Behoben mit 2.13.0/2.14.0, in zwei Schritten mit einer Korrektur dazwischen:
+
+Das Feld `secretaryService.llmModel` existierte die ganze Zeit — direkt neben
+`template`, aus dem `standardTemplate()` längst liest. Die Werkbank benutzt
+es (`file-preview.tsx`), die Brücke nicht. **2.13.0** ließ die Brücke es
+lesen, gab dem Werkzeug aber zusätzlich einen `llmModel`-Parameter.
+
+**2.14.0 entfernt diesen Parameter wieder** (Owner-Entscheid): Der Client
+wählt die *Vorlage* — eine fachliche Entscheidung. Welches Modell sie
+ausführt, ist Infrastruktur und gehört dem Betreiber der Library. Eine
+Modellwahl je Aufruf hieße, dass zwei Läufe derselben Vorlage verschieden
+ausfallen können, ohne dass das Archiv es einem ansieht. Die Brücke verhält
+sich damit exakt wie der Knopf in der Werkbank — gleiche Vorlage, gleiches
+Modell, gleiche Konfigurationsquelle.
+
+Bewusst KEIN Wurf bei fehlender Konfiguration — Bibliotheken ohne eigenes
+Modell laufen heute über den Secretary-Default, und den abzuschneiden wäre
+eine Verhaltensänderung, die niemand bestellt hat. Stattdessen wird die
+Abhängigkeit **sichtbar**: Jede Start-Antwort trägt `modellHerkunft`; fehlt
+die Konfiguration, sagt sie ausdrücklich, dass nur der Betreiber das beheben
+kann. Genau diese Unsichtbarkeit war das Problem.
+
+**Die eigentliche Reparatur liegt beim Secretary**: Solange dessen Default
+ungültig ist, scheitert jeder Aufruf, der kein Modell mitgibt — auch aus
+anderen Clients.
+
+**Erkennungsmerkmal für die Zukunft:** Ein Fehlschlag in unter einer Sekunde
+ist nie ein LLM-Problem. Ein echter Lauf über 14.000 Zeichen braucht rund
+zwölf Sekunden.
 
 ## 5. Reihenfolge für das, was bleibt
 
