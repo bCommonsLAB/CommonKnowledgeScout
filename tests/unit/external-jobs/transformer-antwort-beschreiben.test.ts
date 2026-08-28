@@ -37,7 +37,7 @@ describe('beschreibeAntwort', () => {
     expect(beschreibung).toContain('KEIN `data`-Feld')
     // Der Volltext des Dokuments darf NICHT in der Meldung landen.
     expect(beschreibung).not.toContain('Provincia Autonoma')
-    expect(beschreibung.length).toBeLessThan(600)
+    expect(beschreibung.length).toBeLessThan(1600)
   })
 
   it('unterscheidet fehlendes, leeres und null structured_data', () => {
@@ -48,6 +48,23 @@ describe('beschreibeAntwort', () => {
     expect(beschreibeAntwort({ data: { structured_data: [1, 2] } })).toContain('Array mit 2 Eintraegen')
   })
 
+  it('gibt ein error-OBJEKT preis, nicht nur einen error-String (Befund 28.08. II)', () => {
+    // Die erste Fassung gab nur Strings aus. Der Dienst antwortete aber mit
+    // `error: { code, message }` neben `status: "success"` — und die Ursache
+    // blieb unsichtbar, obwohl sie in der Antwort stand.
+    const beschreibung = beschreibeAntwort({
+      status: 'success',
+      request: { parameters: { text: 'Volltext…'.repeat(200) } },
+      error: { code: 'template_parse_failed', message: 'placeholder syntax invalid' },
+      data: {},
+      translation: null,
+    })
+    expect(beschreibung).toContain('template_parse_failed')
+    expect(beschreibung).toContain('placeholder syntax invalid')
+    // Das Echo bleibt trotzdem draussen.
+    expect(beschreibung).not.toContain('Volltext')
+  })
+
   it('reicht eine Fehlermeldung des Dienstes durch, auch neben status=success', () => {
     const beschreibung = beschreibeAntwort({
       status: 'success', message: 'LLM output was not valid JSON', data: {},
@@ -56,7 +73,7 @@ describe('beschreibeAntwort', () => {
   })
 
   it('kürzt lange Dienst-Meldungen, statt die Antwort zu fluten', () => {
-    expect(beschreibeAntwort({ error: 'x'.repeat(1000) }).length).toBeLessThan(400)
+    expect(beschreibeAntwort({ error: 'x'.repeat(5000) }).length).toBeLessThan(1600)
   })
 
   it('kommt mit Nicht-Objekten klar', () => {

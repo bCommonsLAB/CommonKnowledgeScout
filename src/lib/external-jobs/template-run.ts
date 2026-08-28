@@ -51,6 +51,26 @@ export function beschreibeAntwort(data: unknown): string {
     }
   }
 
+  // Live-Befund 28.08.2026, zweiter Anlauf: Die Antwort trug ein
+  // `error`-Feld — und der Fehlschlag kam nach 360 ms, also lange bevor ein
+  // LLM gearbeitet haette. Die erste Fassung dieser Beschreibung hat es
+  // trotzdem verschwiegen, weil sie nur STRINGS ausgab; ein
+  // `error: { code, message }` fiel durchs Raster.
+  //
+  // Deshalb jetzt: alles ausser dem `request`-Echo woertlich mitgeben. Das
+  // Echo ist unsere eigene Eingabe und der einzige Teil, der nichts erklaert
+  // — alles andere ist Signal, auch wenn wir seine Form nicht kennen.
+  const { request: _echo, ...ohneEcho } = wurzel
+  void _echo
+  try {
+    const auszug = JSON.stringify(ohneEcho)
+    teile.push(`Antwort ohne request-Echo: ${auszug.length > 1200 ? `${auszug.slice(0, 1200)}…` : auszug}`)
+  } catch {
+    // Zirkulaere oder nicht serialisierbare Antwort — die Schluesselliste
+    // oben bleibt trotzdem die beste verfuegbare Aussage.
+    teile.push('Antwort ohne request-Echo: nicht serialisierbar.')
+  }
+
   const inhalt = wurzel['data']
   if (inhalt === undefined) {
     teile.push('KEIN `data`-Feld in der Antwort.')
