@@ -54,6 +54,19 @@ describe('ordneFehlerZu', () => {
     expect(ordneFehlerZu(new FolderPathNotFoundError('weg')).code).toBe('nicht_gefunden')
   })
 
+  it('gibt den vorhergesehenen Faellen eigene Codes statt "unbekannt" (ST5)', () => {
+    // Beide kamen im Live-Test als `unbekannt` heraus — der Agent musste die
+    // deutsche Meldung parsen, um sie von einem echten Ausfall zu trennen.
+    expect(ordneFehlerZu(new Error('"a/b.md" existiert bereits (id x, version v1)')).code)
+      .toBe('existiert_bereits')
+    expect(ordneFehlerZu(new Error('`altText` kommt 2-mal vor — nichts geaendert.')).code)
+      .toBe('nicht_eindeutig')
+    expect(ordneFehlerZu(new Error('`altText` kommt in der Datei nicht vor')).code)
+      .toBe('nicht_eindeutig')
+    // Beide sind nicht durch blosses Wiederholen zu beheben.
+    expect(ordneFehlerZu(new Error('existiert bereits')).wiederholbar).toBe(false)
+  })
+
   it('sortiert Unbekanntes NICHT wohlwollend ein', () => {
     const bild = ordneFehlerZu(new Error('irgendwas ganz anderes'))
     expect(bild.code).toBe('unbekannt')

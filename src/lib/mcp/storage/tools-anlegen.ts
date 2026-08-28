@@ -48,7 +48,7 @@ export function registerStorageAnlegenTools(server: McpServer): void {
             const userEmail = mcpUserEmail()
             await requireLibrary(userEmail, libraryId)
             const provider = await requireProvider(userEmail, libraryId)
-            pruefeSchreibschutz(pfad)
+            pruefeSchreibschutz(pfad, 'anlegen')
 
             const { eltern, name } = trenne(pfad)
             const ordnerId = await ordnerSicherstellen(provider, eltern, elternAnlegen === true)

@@ -55,7 +55,7 @@ export function registerStorageSchreibTools(server: McpServer): void {
             const provider = await requireProvider(userEmail, libraryId)
 
             const adresse = await loeseAdresse({ provider, pfad, id, erwartet: 'file' })
-            pruefeSchreibschutz(adresse.pfad)
+            pruefeSchreibschutz(adresse.pfad, 'ganz_ersetzen')
 
             if (!supportsVersioning(provider)) {
               throw new Error(

@@ -117,7 +117,7 @@ export function registerStorageInfoLoeschenTools(server: McpServer): void {
             } catch {
               adresse = await loeseAdresse({ provider, pfad, id, erwartet: 'folder' })
             }
-            pruefeSchreibschutz(adresse.pfad)
+            pruefeSchreibschutz(adresse.pfad, 'loeschen')
 
             if (!supportsCapabilities(provider)) {
               throw new Error(

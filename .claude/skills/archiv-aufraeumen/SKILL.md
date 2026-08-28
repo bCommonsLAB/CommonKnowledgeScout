@@ -86,15 +86,24 @@ lohnen sich sofort:
   Datei, wenn nur ein Feld zu prüfen ist.
 
 Fehler tragen jetzt einen Code (`nicht_gefunden`, `konflikt`, `pfad_zu_lang`,
-`kein_zugriff`, …) und ein `wiederholbar`-Feld — daran ablesen, ob ein
+`kein_zugriff`, `existiert_bereits`, `nicht_eindeutig`, …) und ein
+`wiederholbar`-Feld — daran ablesen, ob ein
 zweiter Versuch Sinn hat, statt zu raten.
 
-**Was die Schicht NICHT tut:** `_INDEX.md` und Artefakte unter `_`-Ordnern
-sind für sie gesperrt — dafür bleiben `stand_setzen`, `themen_setzen` und
-`twins_synchronisieren` zuständig. `verschieben` zieht **keine Twin-Familien**
-mit; das bleibt `familie_umziehen`. Und `loeschen` verweigert den Dienst,
-wenn der Speicher keinen Papierkorb hat (Filesystem-Mounts) — für
-Archiv-Quellen gilt weiter `quelle_verwerfen`.
+**Was die Schicht NICHT tut (Stand 2.10.0):** Bei der `_INDEX.md` ist der
+**Feldkern** gesperrt, nicht die ganze Datei — Frontmatter setzen, sie ganz
+ersetzen, löschen oder etwas an ihre Stelle verschieben geht nicht; dafür
+bleiben `stand_setzen` und `themen_setzen` zuständig. **Fließtext ändern
+(`datei_patchen` mit `ersetze`/`abschnitt_ersetzen`) und eine fehlende
+`_INDEX.md` anlegen (`datei_anlegen`) sind erlaubt** — sonst bekäme ein neuer
+Ordner nie seinen Contract. Artefakte unter `_`-Ordnern bleiben vollständig
+gesperrt (`twins_synchronisieren`).
+
+`verschieben` prüft dieselbe Sperre auf Ziel **und** Quelle — der Umweg über
+zwei Schritte ist geschlossen. Twin-Familien zieht es weiterhin nicht mit;
+das bleibt `familie_umziehen`. Und `loeschen` verweigert den Dienst, wenn der
+Speicher keinen Papierkorb hat (Filesystem-Mounts) — für Archiv-Quellen gilt
+weiter `quelle_verwerfen`.
 
 **Vor Umlaut- oder Pfadlängen-kritischen Aktionen `speicher_info` lesen.**
 Es sagt Groß-/Kleinschreibung, Pfadlimit, Papierkorb und
@@ -385,8 +394,9 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Fehlen `datei_patchen` und
-`speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
+`protokoll_lesen`, ist sie älter als 2.6.0. Lässt sich der Fließtext einer `_INDEX.md`
+nicht patchen oder geht `verschieben` an einer gesperrten Stelle durch, ist sie
+älter als 2.10.0. Fehlen `datei_patchen` und `speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
 über die Datei-Bridge, und Nextcloud-Bibliotheken bleiben unerreichbar.
 
 Zweiter Test, wenn die Soll-Liste selbst verdächtig ist: Ein schreibendes

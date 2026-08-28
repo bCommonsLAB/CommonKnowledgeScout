@@ -17,6 +17,7 @@ import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider }
 import { storageFehler } from './fehler'
 import { loeseAdresse, normalisiere } from './adressierung'
 import { ordnerSicherstellen, trenne } from './pfad-helfer'
+import { pruefeSchreibschutz } from './schreibschutz'
 
 export function registerStorageVerschiebenTool(server: McpServer): void {
   server.registerTool(
@@ -45,6 +46,17 @@ export function registerStorageVerschiebenTool(server: McpServer): void {
             const userEmail = mcpUserEmail()
             await requireLibrary(userEmail, libraryId)
             const provider = await requireProvider(userEmail, libraryId)
+
+            // Welle ST5, Sicherheitsluecke (Cowork-Befund 28.08.2026): Bis
+            // hierher pruefte `verschieben` den Schreibschutz NICHT. Damit
+            // liess sich der Riegel in zwei Schritten umgehen — und mit
+            // `ueberschreiben: true` sogar eine fremde _INDEX.md samt
+            // Bearbeitungsstand ersetzen, ohne ifVersion, ohne Schutzstufen
+            // und ohne dass ein Coverage-Befund entsteht. Geprueft wird
+            // BEIDES: das Ziel (dorthin wuerde geschrieben) und die Quelle
+            // (das Wegbenennen einer _INDEX.md war der Umweg von heute).
+            pruefeSchreibschutz(nach, 'verschieben_ziel')
+            pruefeSchreibschutz(von, 'verschieben_ziel')
 
             // Quelle darf Datei ODER Ordner sein.
             let quelle
