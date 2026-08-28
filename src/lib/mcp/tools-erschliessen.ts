@@ -53,12 +53,18 @@ export function registerErschliessenTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Transformations-Template; weglassen = Standard-Template der Library; "nur_transkript" = bewusst ohne Transformation'),
+        llmModel: z.string().min(1).optional().describe(
+          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = der ' +
+          'Secretary nimmt SEINEN Default — der ist nicht von hier aus einsehbar und war am ' +
+          '28.08.2026 auf eine ungueltige Modell-Id gesetzt, sodass jede Transformation nach ' +
+          '~100 ms mit HTTP 400 starb. Bei Fehlschlaegen mit `template_failed` zuerst hier ein ' +
+          'bekannt funktionierendes Modell setzen.'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, llmModel, zielsprache , begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -72,7 +78,7 @@ export function registerErschliessenTools(server: McpServer): void {
               if (kind === 'audio' || kind === 'video') {
                 const { jobId } = await enqueueSourceTranscribeJob({
                   libraryId, userEmail, source, mediaType: kind,
-                  template: effectiveTemplate, targetLanguage: zielsprache,
+                  template: effectiveTemplate, llmModel, targetLanguage: zielsprache,
                 })
                 return jobId
               }
@@ -80,7 +86,7 @@ export function registerErschliessenTools(server: McpServer): void {
               if (documentKind) {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
-                  template: effectiveTemplate, targetLanguage: zielsprache,
+                  template: effectiveTemplate, llmModel, targetLanguage: zielsprache,
                 })
                 return jobId
               }
@@ -118,12 +124,18 @@ export function registerErschliessenTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Template; weglassen = Standard-Template der Library'),
+        llmModel: z.string().min(1).optional().describe(
+          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = der ' +
+          'Secretary nimmt SEINEN Default — der ist nicht von hier aus einsehbar und war am ' +
+          '28.08.2026 auf eine ungueltige Modell-Id gesetzt, sodass jede Transformation nach ' +
+          '~100 ms mit HTTP 400 starb. Bei Fehlschlaegen mit `template_failed` zuerst hier ein ' +
+          'bekannt funktionierendes Modell setzen.'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, llmModel, zielsprache , begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'transformation_starten', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -144,7 +156,7 @@ export function registerErschliessenTools(server: McpServer): void {
               }
               const { jobId } = await enqueueTemplateOnTextJob({
                 libraryId, userEmail, source,
-                template: effectiveTemplate, targetLanguage: zielsprache,
+                template: effectiveTemplate, llmModel, targetLanguage: zielsprache,
                 extractedText: transcript.markdown,
               })
               return jobId

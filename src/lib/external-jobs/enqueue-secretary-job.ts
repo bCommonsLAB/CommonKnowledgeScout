@@ -56,9 +56,12 @@ export function buildSourceTranscribeJob(args: {
   source: SourceRef
   mediaType: 'audio' | 'video'
   template?: string
+  /** LLM-Modell fuer die Template-Transformation. */
+  llmModel?: string
   targetLanguage?: string
 }): EnqueueJob {
   const template = args.template?.trim() || undefined
+  const llmModel = args.llmModel?.trim() || undefined
   const policies: PhasePolicies = template
     ? { extract: 'do', metadata: 'do', ingest: 'do' }
     : { extract: 'do', metadata: 'ignore', ingest: 'ignore' }
@@ -85,6 +88,14 @@ export function buildSourceTranscribeJob(args: {
     },
     parameters: {
       ...(template ? { template } : {}),
+      // Welle ST8 (Live-Befund 28.08.2026): Ohne dieses Feld faellt der
+      // Secretary auf SEINEN Default zurueck — und der stand tagelang auf
+      // `deepseek/deepseek-v4-flash-latest`, einer Modell-Id, die es bei
+      // OpenRouter nicht gibt. Jede Transformation ueber die Bruecke starb
+      // nach ~100 ms mit HTTP 400, waehrend derselbe Weg aus der Werkbank
+      // lief: die gibt ein Modell mit. Ein stiller Rueckfall auf fremde
+      // Konfiguration ist genau das, was `no-silent-fallbacks` verbietet.
+      ...(llmModel ? { llmModel } : {}),
       policies,
       phases: {
         extract: true,
@@ -105,9 +116,12 @@ export function buildTemplateOnTextJob(args: {
   /** Die QUELLE der Familie — dort landet die Transformation. */
   source: SourceRef
   template: string
+  /** LLM-Modell fuer die Template-Transformation (siehe parameters unten). */
+  llmModel?: string
   targetLanguage?: string
 }): EnqueueJob {
   const template = args.template.trim()
+  const llmModel = args.llmModel?.trim() || undefined
   if (!template) throw new Error('template ist Pflicht fuer Template-auf-Text-Jobs')
   return {
     jobId: args.jobId,
@@ -132,6 +146,10 @@ export function buildTemplateOnTextJob(args: {
     },
     parameters: {
       template,
+      // Welle ST8: siehe buildSourceTranscribeJob — ohne dieses Feld faellt
+      // der Secretary auf seinen eigenen Default zurueck, und der war am
+      // 28.08.2026 eine ungueltige Modell-Id.
+      ...(llmModel ? { llmModel } : {}),
       policies: { extract: 'ignore', metadata: 'do', ingest: 'do' },
       phases: { extract: false, template: true, ingest: true, images: false },
     },
@@ -145,6 +163,7 @@ export async function enqueueSourceTranscribeJob(args: {
   source: SourceRef
   mediaType: 'audio' | 'video'
   template?: string
+  llmModel?: string
   targetLanguage?: string
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
@@ -219,6 +238,7 @@ export async function enqueueTemplateOnTextJob(args: {
   userEmail: string
   source: SourceRef
   template: string
+  llmModel?: string
   targetLanguage?: string
   extractedText: string
 }): Promise<{ jobId: string }> {
