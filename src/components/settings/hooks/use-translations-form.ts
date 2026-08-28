@@ -12,7 +12,6 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { toast } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'

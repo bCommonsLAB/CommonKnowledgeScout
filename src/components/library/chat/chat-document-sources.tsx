@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useActiveLibraryId } from '@ks/shell/react'
 import { Button, Badge, Tooltip, TooltipContent, TooltipTrigger } from '@ks/ui'

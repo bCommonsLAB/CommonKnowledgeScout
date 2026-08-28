@@ -15,7 +15,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 import { toast } from '@ks/ui'
 import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'

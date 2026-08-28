@@ -29,7 +29,7 @@
 
 import * as React from "react"
 import { useCallback, useEffect } from "react"
-import { useAtom, useAtomValue } from "jotai"
+import { useAtom } from "jotai"
 
 import { LibraryHeader } from "./library-header"
 import { FileTree } from "./file-tree"

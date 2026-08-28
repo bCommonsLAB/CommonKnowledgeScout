@@ -21,7 +21,6 @@ import { shadowTwinStateAtom, FrontendShadowTwinState } from '@/atoms/shadow-twi
 import { ShadowTwinState } from '@/lib/shadow-twin/shared';
 import { batchResolveArtifactsClient } from '@/lib/shadow-twin/artifact-client';
 import { FileLogger } from '@/lib/debug/logger';
-import { useAtomValue } from 'jotai';
 import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { shadowTwinImportActivityAtom, type ShadowTwinImportActivity } from '@/atoms/shadow-twin-atom';
 import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';

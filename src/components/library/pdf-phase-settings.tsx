@@ -19,7 +19,6 @@ import {
 import { loadPdfDefaults, savePdfDefaults } from "@/lib/pdf-defaults";
 import { useStorage } from "@/contexts/storage-context";
 import { useAtom } from "jotai";
-import { useAtomValue } from "jotai";
 import { pdfOverridesAtom, getEffectivePdfDefaults } from "@/atoms/pdf-defaults";
 import type { PdfTransformOptions } from "@/lib/transform/transform-service";
 import {

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAtomValue } from 'jotai'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { useLibraries } from '@ks/shell/react'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'

@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useState, useEffect, useMemo } from "react"
-import { useAtom } from "jotai"
 import { useRouter } from "next/navigation"
 
 import {

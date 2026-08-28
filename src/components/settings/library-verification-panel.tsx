@@ -7,7 +7,6 @@
  * Reparieren (auto-fixbare Fälle) mit Live-Fortschritt (SSE). Nach einem Lauf
  * wird der persistierte Status neu geladen. Die UI kennt nur die API.
  */
-import { useAtomValue } from 'jotai'
 
 import { Loader2, RefreshCw, Wrench } from 'lucide-react'
 import { Button } from '@ks/ui'

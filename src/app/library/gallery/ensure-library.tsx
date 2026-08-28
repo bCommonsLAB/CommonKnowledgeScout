@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useAtomValue } from 'jotai'
 import { useActiveLibraryId } from '@ks/shell/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { useAtomValue } from 'jotai'
 import { useActiveLibraryId } from '@ks/shell/react'
 import {
   Accordion,

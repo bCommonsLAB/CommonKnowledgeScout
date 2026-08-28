@@ -16,7 +16,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useAtomValue } from 'jotai';
 import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { Button } from '@ks/ui'
 import { SubmissionInboxList } from '@/components/submissions/submission-inbox-list';

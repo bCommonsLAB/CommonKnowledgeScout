@@ -18,7 +18,6 @@ import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-
 import { IngestionRefurbedDeviceDetail } from '@/components/library/ingestion-refurbed-device-detail'
 import { IngestionWebsiteDetail } from '@/components/library/ingestion-website-detail'
 import { useTranslation } from '@ks/i18n/react'
-import { useAtomValue } from 'jotai'
 import { useLibraries } from '@ks/shell/react'
 import { SdgProfile } from '@/components/library/gallery/sdg-profile'
 import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/gallery/sdg-meta'

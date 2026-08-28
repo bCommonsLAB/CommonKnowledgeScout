@@ -14,7 +14,6 @@
  */
 
 import { useMemo, useState, useRef } from 'react'
-import { useAtomValue } from 'jotai'
 import {
   Accordion,
   AccordionContent,

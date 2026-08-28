@@ -16,7 +16,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { useAtom, useAtomValue } from "jotai"
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { toast } from "sonner"
 import { StorageProviderType, type ClientLibrary } from "@/types/library"

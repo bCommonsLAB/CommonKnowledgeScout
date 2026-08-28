@@ -11,7 +11,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAtom } from "jotai"
 import { useActiveLibraryId } from '@ks/shell/react'
 import { MembersList } from "@/components/settings/members-list"
 import { ReadersList } from "@/components/settings/readers-list"

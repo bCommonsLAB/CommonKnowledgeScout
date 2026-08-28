@@ -5,7 +5,6 @@ import { Settings2, ChevronLeft } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
-import { useAtomValue } from 'jotai'
 import { useActiveLibraryId } from '@ks/shell/react'
 
 interface StoryHeaderProps {

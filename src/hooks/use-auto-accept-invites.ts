@@ -14,7 +14,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useStorage } from '@/contexts/storage-context'
-import { useAtom } from 'jotai'
 import { useSetActiveLibraryId } from '@ks/shell/react'
 import type { PendingInvite } from '@/app/api/user/accept-pending-invites/route'
 

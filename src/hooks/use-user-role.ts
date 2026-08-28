@@ -11,7 +11,6 @@
 "use client"
 
 import { useUser } from "@clerk/nextjs"
-import { useAtomValue } from "jotai"
 import { useLibraries } from '@ks/shell/react'
 
 export type UserRole = 'creator' | 'guest'

@@ -19,7 +19,6 @@
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
-import { useAtomValue } from "jotai"
 import { useLibraries } from '@ks/shell/react'
 import { WebsiteDetail } from "@/components/library/website-detail"
 import { DocumentCard } from "@/components/library/gallery/document-card"

@@ -6,7 +6,6 @@ import { SessionDetail, type SessionDetailData } from "@/components/library/sess
 import { useIngestionDataContext } from "./ingestion-data-context"
 import { mapToBookDetail, mapToSessionDetail } from "@/lib/mappers/doc-meta-mappers"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
-import { useAtomValue } from "jotai"
 import { useLibraries } from '@ks/shell/react'
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 

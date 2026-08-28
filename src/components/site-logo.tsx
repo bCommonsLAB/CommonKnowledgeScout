@@ -18,7 +18,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useAtomValue } from "jotai"
 import { useLibraries } from '@ks/shell/react'
 
 interface SiteLogoProps {

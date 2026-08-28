@@ -2,7 +2,6 @@
 
 import { Separator } from '@ks/ui'
 import { SidebarNav, type SidebarNavGroup } from "@/components/settings/sidebar-nav"
-import { useAtomValue } from "jotai"
 import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { useMemo } from "react"
 import { usePathname } from "next/navigation"

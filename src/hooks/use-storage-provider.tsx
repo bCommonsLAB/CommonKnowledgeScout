@@ -25,7 +25,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAtomValue } from "jotai"
 import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { StorageProvider } from "@/lib/storage/types"
 import { StorageFactory } from "@/lib/storage/storage-factory"

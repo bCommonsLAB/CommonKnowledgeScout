@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAtomValue } from 'jotai'
 import { useLibraries } from '@ks/shell/react'
 import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@ks/i18n/react'

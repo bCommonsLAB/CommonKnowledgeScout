@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useAtomValue } from "jotai"
 import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { Button, Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { Plus, BookOpen, Info } from "lucide-react"

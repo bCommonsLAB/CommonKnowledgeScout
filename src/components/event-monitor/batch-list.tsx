@@ -56,7 +56,6 @@ import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
 import { formatDateTime } from '@/lib/utils';
 import React from 'react';
 import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
-import { useAtom } from 'jotai';
 import { useActiveLibraryId } from '@ks/shell/react'
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 import BatchArchiveDialog from './batch-archive-dialog';

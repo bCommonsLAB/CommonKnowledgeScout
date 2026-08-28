@@ -10,7 +10,6 @@
  *
  * @see docs/concepts/projektauftrag-agentensicht.md (F1, F1b)
  */
-import { useAtomValue } from 'jotai'
 
 import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { AgentViewPanel } from '@/components/library/agent-view/agent-view-panel'

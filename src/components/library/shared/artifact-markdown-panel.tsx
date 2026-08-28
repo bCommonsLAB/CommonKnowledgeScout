@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useAtomValue, useSetAtom } from "jotai"
+import { useSetAtom } from "jotai"
 import {
   Alert,
   AlertDescription,

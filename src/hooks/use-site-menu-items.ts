@@ -17,7 +17,6 @@
  */
 
 import * as React from "react"
-import { useAtomValue } from "jotai"
 import { useLibraries } from '@ks/shell/react'
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
 import { selectMainMenuDocs, getSiteParamForDoc } from "@/lib/website/site-navigation"

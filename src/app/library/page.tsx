@@ -3,7 +3,6 @@
 import React, { Suspense } from "react";
 import { Library } from "@/components/library/library";
 import { useAuth } from "@clerk/nextjs";
-import { useAtom, useAtomValue } from "jotai";
 import { useLibraries, useSetActiveLibraryId } from '@ks/shell/react'
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";

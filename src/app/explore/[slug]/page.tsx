@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { useSetAtom } from 'jotai'
 import { useUser, SignInButton } from "@clerk/nextjs"
 import { Alert, AlertDescription, AlertTitle, Button } from '@ks/ui'
 import { AlertCircle, Loader2, Lock } from "lucide-react"

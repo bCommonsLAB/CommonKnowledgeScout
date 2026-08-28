@@ -6,7 +6,6 @@
  */
 
 import { useEffect, useState } from 'react'
-import { useAtomValue } from 'jotai'
 import { useLibraries } from '@ks/shell/react'
 import { characterArrayToString } from '@/lib/chat/constants'
 

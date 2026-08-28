@@ -1,5 +1,4 @@
 "use client"
-import { useAtomValue } from "jotai"
 
 import { useActiveLibrary } from '@ks/shell/react'
 import { getLibraryCreationConfig } from "@/lib/templates/library-creation-config"

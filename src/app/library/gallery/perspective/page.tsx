@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PerspectivePageContent } from '@/components/library/shared/perspective-page-content'
-import { useAtomValue } from 'jotai'
 import { useLibraries } from '@ks/shell/react'
 
 /**

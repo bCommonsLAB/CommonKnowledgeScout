@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import * as React from "react"
 import { Moon, Sun, Settings, Plus, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useAtom, useAtomValue } from "jotai"
+import { useAtomValue } from "jotai"
 
 import { cn } from "@/lib/utils"
 import {

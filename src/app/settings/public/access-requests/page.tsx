@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAtom } from "jotai"
 import { useActiveLibraryId } from '@ks/shell/react'
 import { AccessRequestsList } from "@/components/settings/access-requests-list"
 import { Alert, AlertDescription, AlertTitle, Separator } from '@ks/ui'

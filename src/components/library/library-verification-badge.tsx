@@ -8,7 +8,6 @@
  * und zeigt das Abzeichen NUR Mitgliedern (Owner/Co-Creator). Die UI kennt kein
  * Storage-Backend — sie liest nur den Status ueber die API.
  */
-import { useAtomValue } from 'jotai'
 
 import { Badge } from '@ks/ui'
 import { useActiveLibraryId } from '@ks/shell/react'

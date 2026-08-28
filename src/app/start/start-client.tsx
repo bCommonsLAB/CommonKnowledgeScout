@@ -11,7 +11,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAtomValue, useSetAtom } from "jotai"
 import { Loader2, Plus } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { Button, Card } from '@ks/ui'

@@ -30,7 +30,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAtom } from 'jotai';
 import { usePathname } from 'next/navigation';
 import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibraries, useSetLibraryStatus } from '@ks/shell/react'
 import { StorageFactory } from '@/lib/storage/storage-factory';

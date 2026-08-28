@@ -11,7 +11,6 @@
  * zeigt den Hinweis NUR Mitgliedern (Owner/Co-Creator) — analog zum A2-Abzeichen
  * und zur authentifizierten Verify-API. Die UI kennt kein Storage-Backend.
  */
-import { useAtomValue } from 'jotai'
 
 import { AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@ks/ui'

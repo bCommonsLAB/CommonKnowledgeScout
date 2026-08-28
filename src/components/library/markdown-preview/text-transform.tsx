@@ -20,7 +20,6 @@
  */
 
 import * as React from 'react'
-import { useAtomValue } from 'jotai'
 import { useActiveLibrary, useLibraryStatus } from '@ks/shell/react'
 import { useStorage } from '@/contexts/storage-context'
 import { StorageItem, StorageProvider } from '@/lib/storage/types'

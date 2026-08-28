@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { useSetAtom, useAtomValue } from 'jotai';
+import { useSetAtom } from 'jotai';
 import { upsertJobStatusAtom, upsertJobInfoAtom, clearJobInfoAtom } from '@/atoms/job-status';
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom';
 import { useActiveLibraryId } from '@ks/shell/react'
