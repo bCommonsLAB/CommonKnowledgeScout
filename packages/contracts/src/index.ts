@@ -26,7 +26,6 @@ export { supportsCapabilities } from './storage-capabilities'
 
 export type { LlmModelDto } from './llm-model'
 export type { UserInfoDto, UserInfoEmailDto } from './user-info'
-export type { LibraryIdentityDto } from './library-identity'
 
 export type {
   StorageProviderType,
@@ -35,6 +34,8 @@ export type {
   CaptureWizardsConfig,
 } from './library-config'
 export type { GalleryGraphConfig, LibraryChatConfig } from './library-chat'
+export type { ClientLibrary } from './library-client'
+export type { LibraryProfile } from './library-profile'
 
 export type {
   TargetLanguage,
