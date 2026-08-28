@@ -126,17 +126,103 @@ Schritt 1+2 passen zusammen in eine PR und machen Schritt 3 zu reinem
 Verschieben. 22 Dateien importieren `ClientLibrary` — die Liste steht in der
 Welle selbst per `grep -rl "ClientLibrary" src/ packages/`.
 
-## Definition of Done
+## Definition of Done — Stand nach der Welle
 
-- [ ] `src/types/library.ts` importiert nichts aus `react` mehr
-- [ ] TopNav zeigt nur den Library-Namen; Startseiten-Kacheln unverändert
-- [ ] `@ks/contracts` enthält Vokabular-Typen + kurzen/vollen Steckbrief
-- [ ] `PublicLibrary` in `library-grid.tsx` ist ersetzt, nicht dupliziert
-- [ ] `LibraryIdentityDto` ist Teilmenge oder entfernt — keine dritte Variante
-- [ ] Secretary bleibt pro Library konfigurierbar (Formulare unangetastet)
-- [ ] `pnpm test`, `pnpm lint`, `pnpm typecheck:packages` grün
+- [x] `src/types/library.ts` importiert nichts aus `react` mehr
+- [x] TopNav zeigt nur den Library-Namen; Startseiten-Kacheln unverändert
+- [x] `@ks/contracts` enthält Vokabular-Typen + kurzen/vollen Steckbrief
+- [x] `PublicLibrary` in `library-grid.tsx` ist ersetzt, nicht dupliziert
+- [x] `LibraryIdentityDto` ist entfernt — keine dritte Variante
+- [x] Secretary bleibt pro Library konfigurierbar (Formulare unangetastet —
+      `git diff` gegen `src/components/settings/` ist leer)
+- [x] `pnpm test` (3409 grün), `pnpm lint` (0 Errors),
+      `pnpm typecheck:packages` grün, `tsc -p tsconfig.json` 0 Fehler in
+      `src/` und `packages/` (die 131 Altfehler unter `tests/` sind
+      unverändert — vorher wie nachher dieselbe Liste)
 - [ ] `bash scripts/welle-pre-merge-check.sh` lokal grün **vor** dem Merge
-- [ ] Voll-App unverändert (Verhaltensneutralität, Migrationsstrategie G4)
+      — **offen, gehört dem Owner** (der Cloud-Agent faehrt keinen Build)
+- [x] Voll-App unverändert (Verhaltensneutralität, Migrationsstrategie G4)
+
+### Was den Build betrifft
+
+Der M4b-Fehlermodus (React im react-server-Layer) ist hier strukturell
+ausgeschlossen, nicht nur unauffällig: **jeder** Import in
+`packages/contracts/src/` ist ein `import type` und damit zur Laufzeit
+erased — auch der neue auf `@ks/i18n`. Im ganzen Paket kommt weder `react`
+noch Jotai noch Radix vor; die Laufzeit-Exporte sind reine Funktionen und
+Arrays. Das ersetzt den lokalen `pnpm build` nicht, engt aber ein, wonach
+zu suchen wäre, falls er doch rot wird.
+
+## Abweichungen vom Brief (bewusst, nicht übersehen)
+
+1. **Die Werteliste wird re-exportiert statt ihre Verwender umzuhängen.**
+   Der Brief nennt `chat-config-bar.tsx`, `chat-welcome-assistant.tsx` und
+   `model-config-section.tsx` als Verwender — es sind **vier**,
+   `src/hooks/use-story-context.ts` kommt dazu. Alle vier holen
+   `SOCIAL_CONTEXT_VALUES` im selben Import wie `SOCIAL_CONTEXT_DEFAULT` und
+   `SOCIAL_CONTEXT_LABELS`, die in `constants.ts` bleiben. Sie umzuhängen
+   risse Geschwister auseinander; der Re-Export ist die G2-Fassade, und es
+   gibt weiterhin genau eine Definition.
+2. **`library-switcher.tsx` verliert drei `icon`-Ausgaben, nicht eine.**
+   Der Brief nennt Z. 148 (den Trigger). Die Auswahlliste rendert dasselbe
+   Feld noch zweimal (Z. 161, 180) — mit `icon?: string` stünde dort wörtlich
+   „Globe". „Kein Symbol in der TopNav" heißt hier: alle drei.
+3. **Der kurze Steckbrief trägt `logoUrl`.** Die Handkopie hatte es nicht,
+   `GET /api/public/libraries` sendet es. Genau die Drift, wegen der der Typ
+   umzieht.
+4. **`ClientLibrary` zieht mit seinen Bausteinen um**, nicht allein:
+   `StorageProviderType`, `TranslationsConfig`, `CaptureWizards*`,
+   `GalleryGraphConfig`, `LibraryChatConfig`. Ohne sie wäre der Typ im Paket
+   nicht übersetzbar. `Library`, `StorageConfig`, `FavoriteEntry`,
+   `FileListItem` und `FilePreview` bleiben in der App (G3) — sie beschreiben,
+   was nur der Server kennt.
+5. **Vier Dateien statt einer** in `@ks/contracts`: `library-config.ts` (65),
+   `library-chat.ts` (186), `library-client.ts` (197),
+   `library-profile.ts` (60). Die 200-Zeilen-Regel aus `AGENTS.md`.
+6. **Schritt 3 sind zwei Commits (3a/3b), nicht einer.** Am Stück hatte er
+   1.067 Zeilen Diff und riss damit das harte 1.000-Zeilen-Limit aus
+   [`refactor-batch-strategy.md`](../../contracts/refactor-batch-strategy.md).
+   Der Schnitt liegt an der natürlichen Naht: 3a bringt die Bausteine ins
+   Paket (ohne sie wäre `ClientLibrary` dort nicht übersetzbar), 3b teilt und
+   verschiebt den Steckbrief selbst. Beide Zwischenstände sind übersetzbar
+   und getestet.
+
+## Hand-off für die nächste Welle
+
+**Zurück zur Landkarten-Zeile M4**: die montierbare
+Explorer-Wurzelkomponente. Das Fundament ist damit vollständig — `@ks/ui`
+(M4b), `@ks/i18n` (M4c), Library-Steckbrief (M4d). Kein benannter Blocker
+mehr offen.
+
+**Erste Entscheidung der nächsten Welle** — unverändert die aus M4c, aber
+jetzt ohne Vorbedingung: TopNav zuerst oder direkt die Explorer-Wurzel?
+
+- **TopNav** (`src/components/top-nav.tsx`, 450 Z.) ist der kleinere Test.
+  M4c listete als Hindernisse: `library-atom` (hing an `ClientLibrary` —
+  **erledigt**), `use-user-role`, `use-site-menu-items`, `site-logo`,
+  `create-library-wizard`, Clerk. Der Rest ist ungelöst; die Frage aus M4c
+  bleibt: erst prüfen, ob eine Props-Oberfläche (die Schale reicht herein,
+  was die TopNav braucht) den Schnitt ermöglicht, statt die Abhängigkeiten
+  mitzunehmen. Clerk ist dabei der eigentliche Prüfstein — die Schale soll
+  Auth abschaltbar tragen (Landkarte §1, Schicht 2).
+- **`library-atom` in die Schale** ist jetzt neu möglich und wäre der
+  kleinste ehrliche Schritt: Landkarte §6 nennt die Hook-Oberfläche als
+  Muster (`@ks/i18n/react` hält sein Atom paketintern). Wer die TopNav will,
+  braucht das Atom ohnehin.
+- **Explorer-Wurzel** ist das eigentliche Ziel, aber breiter.
+
+**Was diese Welle NICHT angefasst hat und als Nächstes auffallen wird**:
+`src/lib/chat/constants.ts` ist mit 892 Zeilen unverändert der größte
+Brocken unter den Contracts-Kandidaten, und `src/types/library.ts` hat mit
+442 Zeilen die 200-Zeilen-Regel weiterhin gerissen. Beides ist bewusst
+liegen geblieben (G3) — beides ist eine eigene Welle, keine Beifang-Arbeit.
+
+**Modellempfehlung**: Opus mit hohem Thinking-Level, wenn die Wahl auf die
+Explorer-Wurzel oder die TopNav fällt (Entwurfsarbeit, kein Verschieben).
+Für `library-atom` allein reicht Sonnet.
+
+**Zwingend für jede weitere A-Welle** (Lehre aus M4b): `pnpm build` gehört
+vor den Merge, nicht danach. `check-build` fährt den Docker-Build nicht.
 
 ## Stop-Bedingungen (zusätzlich zu AGENTS.md)
 
