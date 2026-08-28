@@ -43,6 +43,42 @@ export async function resolveSourceItem(
   return { itemId: item.id, parentId: item.parentId, name: item.metadata.name }
 }
 
+/**
+ * Standard-LLM-Modell der Library fuer die Template-Transformation.
+ *
+ * Dasselbe Feld, aus dem die Werkbank ihres zieht
+ * (`file-preview.tsx` → `secretaryService.llmModel`) — die Bruecke soll sich
+ * nicht anders verhalten als der Knopf.
+ *
+ * Kein Wurf bei fehlender Konfiguration: Bibliotheken ohne eigenes Modell
+ * laufen heute ueber den Default des Secretary, und den abzuschneiden waere
+ * eine Verhaltensaenderung, die niemand bestellt hat. Aber der Aufrufer
+ * ERFAEHRT es — siehe {@link modellHinweis}: Am 28.08.2026 stand dieser
+ * Default tagelang auf einer ungueltigen Modell-Id, und niemand konnte es
+ * sehen.
+ */
+export function standardLlmModell(library: Library): string | undefined {
+  return library.config?.secretaryService?.llmModel?.trim() || undefined
+}
+
+/**
+ * Sagt dem Aufrufer, WOHER das Modell kommt — und warnt, wenn es aus einer
+ * Quelle kommt, die von hier aus niemand einsehen kann.
+ */
+export function modellHinweis(modell: string | undefined, ausAufruf: boolean): string {
+  if (modell) {
+    return ausAufruf
+      ? `LLM-Modell aus dem Aufruf: ${modell}`
+      : `LLM-Modell aus der Library-Konfiguration: ${modell}`
+  }
+  return (
+    'KEIN LLM-Modell gesetzt — weder im Aufruf noch in der Library ' +
+    '(Einstellungen → Secretary → Standard-LLM-Modell). Der Secretary nimmt seinen eigenen ' +
+    'Default, der von hier aus nicht einsehbar ist; am 28.08.2026 war er ungueltig und jede ' +
+    'Transformation starb nach ~100 ms. Bei `template_failed` zuerst `llmModel` setzen.'
+  )
+}
+
 export function standardTemplate(library: Library): string {
   const template = library.config?.secretaryService?.template?.trim() ?? ''
   if (template === '') {

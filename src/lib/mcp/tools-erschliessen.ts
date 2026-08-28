@@ -27,7 +27,7 @@ import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/exter
 import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
-import { JOB_HINWEIS, runForSources, standardTemplate } from './tools-erschliessen-shared'
+import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 
 const SOURCE_INPUTS = {
@@ -54,11 +54,12 @@ export function registerErschliessenTools(server: McpServer): void {
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Transformations-Template; weglassen = Standard-Template der Library; "nur_transkript" = bewusst ohne Transformation'),
         llmModel: z.string().min(1).optional().describe(
-          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = der ' +
-          'Secretary nimmt SEINEN Default — der ist nicht von hier aus einsehbar und war am ' +
-          '28.08.2026 auf eine ungueltige Modell-Id gesetzt, sodass jede Transformation nach ' +
-          '~100 ms mit HTTP 400 starb. Bei Fehlschlaegen mit `template_failed` zuerst hier ein ' +
-          'bekannt funktionierendes Modell setzen.'),
+          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = das ' +
+          'Standard-Modell der Library (Einstellungen → Secretary) — dasselbe, das die Werkbank ' +
+          'nimmt. Ist auch dort keines gesetzt, entscheidet der Secretary allein, und das ist ' +
+          'von hier aus nicht einsehbar: Am 28.08.2026 stand sein Default auf einer ungueltigen ' +
+          'Modell-Id, jede Transformation starb nach ~100 ms mit HTTP 400. Die Antwort sagt ' +
+          'jeweils, woher das Modell kam.'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         begruendung: BEGRUENDUNG,
       },
@@ -71,6 +72,8 @@ export function registerErschliessenTools(server: McpServer): void {
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
+          // Wie beim Template: Aufruf schlaegt Library-Konfiguration.
+          const effectiveModell = llmModel ?? standardLlmModell(library)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -78,7 +81,7 @@ export function registerErschliessenTools(server: McpServer): void {
               if (kind === 'audio' || kind === 'video') {
                 const { jobId } = await enqueueSourceTranscribeJob({
                   libraryId, userEmail, source, mediaType: kind,
-                  template: effectiveTemplate, llmModel, targetLanguage: zielsprache,
+                  template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                 })
                 return jobId
               }
@@ -86,7 +89,7 @@ export function registerErschliessenTools(server: McpServer): void {
               if (documentKind) {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
-                  template: effectiveTemplate, llmModel, targetLanguage: zielsprache,
+                  template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                 })
                 return jobId
               }
@@ -102,6 +105,8 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate ?? null,
+            llmModell: effectiveModell ?? null,
+            modellHerkunft: modellHinweis(effectiveModell, Boolean(llmModel)),
             hinweis: JOB_HINWEIS,
           })
         })
@@ -125,11 +130,12 @@ export function registerErschliessenTools(server: McpServer): void {
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Template; weglassen = Standard-Template der Library'),
         llmModel: z.string().min(1).optional().describe(
-          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = der ' +
-          'Secretary nimmt SEINEN Default — der ist nicht von hier aus einsehbar und war am ' +
-          '28.08.2026 auf eine ungueltige Modell-Id gesetzt, sodass jede Transformation nach ' +
-          '~100 ms mit HTTP 400 starb. Bei Fehlschlaegen mit `template_failed` zuerst hier ein ' +
-          'bekannt funktionierendes Modell setzen.'),
+          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = das ' +
+          'Standard-Modell der Library (Einstellungen → Secretary) — dasselbe, das die Werkbank ' +
+          'nimmt. Ist auch dort keines gesetzt, entscheidet der Secretary allein, und das ist ' +
+          'von hier aus nicht einsehbar: Am 28.08.2026 stand sein Default auf einer ungueltigen ' +
+          'Modell-Id, jede Transformation starb nach ~100 ms mit HTTP 400. Die Antwort sagt ' +
+          'jeweils, woher das Modell kam.'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         begruendung: BEGRUENDUNG,
       },
@@ -142,6 +148,7 @@ export function registerErschliessenTools(server: McpServer): void {
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template ?? standardTemplate(library)
+          const effectiveModell = llmModel ?? standardLlmModell(library)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -156,7 +163,7 @@ export function registerErschliessenTools(server: McpServer): void {
               }
               const { jobId } = await enqueueTemplateOnTextJob({
                 libraryId, userEmail, source,
-                template: effectiveTemplate, llmModel, targetLanguage: zielsprache,
+                template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                 extractedText: transcript.markdown,
               })
               return jobId
@@ -168,6 +175,8 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate,
+            llmModell: effectiveModell ?? null,
+            modellHerkunft: modellHinweis(effectiveModell, Boolean(llmModel)),
             hinweis: JOB_HINWEIS,
           })
         })

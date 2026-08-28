@@ -250,10 +250,19 @@ Code-Kommentar sagte es sogar („Secretary Service verwendet sonst Default") �
 und genau das verbietet `no-silent-fallbacks`: Als der Default brach, konnte
 KnowledgeScout weder davon wissen noch es benennen.
 
-Behoben mit 2.13.0: `quelle_erschliessen` und `transformation_starten` nehmen
-ein optionales `llmModel` und reichen es bis in die Job-Parameter durch — den
-Weg, den die Werkbank längst nimmt. Die Werkzeug-Beschreibung nennt den
-Vorfall, damit ein Agent bei `template_failed` zuerst dort nachsieht.
+Behoben mit 2.13.0, und zwar an der richtigen Stelle: Das Feld
+`secretaryService.llmModel` existierte die ganze Zeit — direkt neben
+`template`, aus dem `standardTemplate()` längst liest. Die Werkbank benutzt
+es (`file-preview.tsx`), die Brücke nicht. Jetzt löst sie es genauso auf:
+**Aufruf schlägt Library-Konfiguration**, wie beim Template. Ein optionales
+`llmModel` am Werkzeug bleibt für den Einzelfall.
+
+Bewusst KEIN Wurf bei fehlender Konfiguration — Bibliotheken ohne eigenes
+Modell laufen heute über den Secretary-Default, und den abzuschneiden wäre
+eine Verhaltensänderung, die niemand bestellt hat. Stattdessen wird die
+Abhängigkeit **sichtbar**: Jede Start-Antwort trägt `modellHerkunft` und
+sagt, ob das Modell aus dem Aufruf, aus der Konfiguration oder von nirgends
+kam. Genau diese Unsichtbarkeit war das Problem.
 
 **Die eigentliche Reparatur liegt beim Secretary**: Solange dessen Default
 ungültig ist, scheitert jeder Aufruf, der kein Modell mitgibt — auch aus

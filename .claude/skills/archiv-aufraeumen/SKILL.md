@@ -146,9 +146,17 @@ ohne Angabe SEINEN Default — der ist von hier aus nicht einsehbar und stand
 am 28.08.2026 tagelang auf einer Modell-Id, die es beim Anbieter nicht gibt.
 Jede Transformation starb nach ~100 ms mit HTTP 400, ohne ein einziges
 Token. Kennzeichen: Fehlschlag in **unter einer Sekunde** — ein echter
-LLM-Lauf über 14.000 Zeichen braucht rund zwölf. Dann `llmModel` an
-`quelle_erschliessen`/`transformation_starten` mitgeben (bewährt:
-`google/gemini-2.5-flash`), statt Vorlagen durchzuprobieren.
+LLM-Lauf über 14.000 Zeichen braucht rund zwölf.
+
+Seit 2.13.0 nimmt die Brücke das **Standard-Modell der Library**
+(Einstellungen → Secretary), genau wie die Werkbank. Die Antwort von
+`quelle_erschliessen`/`transformation_starten` nennt in `modellHerkunft`,
+woher es kam — aus dem Aufruf, aus der Konfiguration, oder gar nicht. Steht
+dort „KEIN LLM-Modell gesetzt", entscheidet der Secretary allein, und das ist
+die Lage, in der es zuletzt tagelang scheiterte. Dann entweder in den
+Einstellungen ein Modell hinterlegen (die bessere Lösung, sie gilt dann
+überall) oder `llmModel` im Aufruf mitgeben — statt Vorlagen
+durchzuprobieren.
 
 **Scheitert eine Transformation trotzdem, nicht raten:** `job_status` liefert
 seit 2.12.0 bei gescheiterten Jobs `fehlerDetails` aus dem Job-Trace —
