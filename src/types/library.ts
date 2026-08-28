@@ -30,7 +30,7 @@
 import { ReactNode } from 'react';
 import type { Character, AccessPerspective, TargetLanguage } from '@/lib/chat/constants';
 import type { SocialContext } from '@/lib/chat/constants';
-import type { Locale } from '@/lib/i18n';
+import type { Locale } from '@ks/i18n';
 
 /**
  * Ein einzelner Favoriten-Eintrag (Ordner-Lesezeichen innerhalb einer Library).

@@ -4,7 +4,7 @@ import { Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { ViewModeToggle } from '@/components/library/gallery/view-mode-toggle'
 import { GalleryCardDensityToggle } from '@/components/library/gallery/gallery-card-density-toggle'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'

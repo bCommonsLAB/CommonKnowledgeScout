@@ -21,7 +21,7 @@ import { EventSlides } from "@/components/event-slides";
 import { EventSummary } from "@/components/event-summary";
 import type { Slide } from "@/components/library/slide-accordion";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 import type { StorageProvider } from "@/lib/storage/types";
 import QRCode from "react-qr-code";
 import { useLibraryRole } from "@/hooks/use-library-role";

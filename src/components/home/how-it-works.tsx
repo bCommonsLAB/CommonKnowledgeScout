@@ -2,7 +2,7 @@
 
 import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { Library, MessageSquare, Lightbulb, Copyright } from "lucide-react"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 
 export function HowItWorks() {
   const { t } = useTranslation()

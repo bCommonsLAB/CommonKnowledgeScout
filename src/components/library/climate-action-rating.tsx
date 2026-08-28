@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 
 /**

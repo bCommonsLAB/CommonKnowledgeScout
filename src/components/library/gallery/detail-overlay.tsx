@@ -17,7 +17,7 @@ import { IngestionDivaDocumentDetail } from '@/components/library/ingestion-diva
 import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-texture-detail'
 import { IngestionRefurbedDeviceDetail } from '@/components/library/ingestion-refurbed-device-detail'
 import { IngestionWebsiteDetail } from '@/components/library/ingestion-website-detail'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useAtomValue } from 'jotai'
 import { librariesAtom } from '@/atoms/library-atom'
 import { SdgProfile } from '@/components/library/gallery/sdg-profile'

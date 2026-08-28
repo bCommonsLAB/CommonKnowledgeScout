@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle2, Circle, XCircle } from 'lucide-react'
 import type { ChatProcessingStep } from '@/types/chat-processing'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface ProcessingStatusProps {
   steps: ChatProcessingStep[]

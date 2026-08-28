@@ -14,7 +14,7 @@ import type {
   SocialContext,
   LlmModelId,
 } from '@/lib/chat/constants'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import type { QueryLog } from '@/types/query-log'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'

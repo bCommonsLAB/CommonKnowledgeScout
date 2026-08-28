@@ -16,7 +16,7 @@ import { Loader2, Send } from 'lucide-react'
 import type { AnswerLength } from '@/lib/chat/constants'
 import { ANSWER_LENGTH_VALUES } from '@/lib/chat/constants'
 import { cn } from '@/lib/utils'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface ChatInputProps {
   input: string

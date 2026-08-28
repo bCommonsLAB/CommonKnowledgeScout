@@ -3,7 +3,7 @@
 import React from 'react'
 import { Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'

@@ -12,7 +12,7 @@ import {
   toast,
 } from '@ks/ui'
 import { Copy, Check, ExternalLink } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface IndexDefinitionDialogProps {
   open: boolean

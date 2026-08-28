@@ -6,7 +6,7 @@ const nextConfig = {
   reactStrictMode: process.env.NODE_ENV === 'production',
   // Workspace-Pakete (pnpm-workspace.yaml) werden als Source konsumiert,
   // kein separater Paket-Build-Schritt im Deployment (Migrationsstrategie G1).
-  transpilePackages: ['@ks/viewers', '@ks/contracts', '@ks/api-client', '@ks/shell', '@ks/module-explorer', '@ks/ui', '@ks/util'],
+  transpilePackages: ['@ks/viewers', '@ks/contracts', '@ks/api-client', '@ks/shell', '@ks/module-explorer', '@ks/ui', '@ks/util', '@ks/i18n'],
   env: {
     BUILD_TARGET: process.env.BUILD_TARGET || 'web',
     IS_PACKAGE_BUILD: process.env.IS_PACKAGE_BUILD || 'false'

@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@ks/ui'
 import { Settings2, X } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { colorForValue } from './graph-encodings'
 
 interface GraphControlsProps {

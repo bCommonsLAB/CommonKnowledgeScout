@@ -16,7 +16,7 @@ import { useUser } from '@clerk/nextjs'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatFiltersDisplay } from './chat-filters-display'
 import { AppLogo } from '@/components/shared/app-logo'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'

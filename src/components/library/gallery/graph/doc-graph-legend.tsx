@@ -7,7 +7,7 @@
  * `colorMap` konfiguriert ist — die Farb-Zuordnung. Rein darstellend.
  */
 
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface DocGraphLegendProps {
   sizeField?: string

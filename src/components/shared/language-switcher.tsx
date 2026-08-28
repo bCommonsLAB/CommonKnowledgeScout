@@ -1,7 +1,7 @@
 'use client'
 
-import { useTranslation, useSetLocale } from '@/lib/i18n/hooks'
-import { SUPPORTED_LOCALES, type Locale } from '@/lib/i18n'
+import { useTranslation, useSetLocale } from '@ks/i18n/react'
+import { SUPPORTED_LOCALES, type Locale } from '@ks/i18n'
 import {
   DropdownMenu,
   DropdownMenuContent,

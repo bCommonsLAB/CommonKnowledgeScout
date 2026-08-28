@@ -7,7 +7,7 @@ import type { ChatMessage } from './utils/chat-utils'
 import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface ChatMessagesListProps {
   messages: ChatMessage[]

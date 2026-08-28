@@ -3,7 +3,7 @@
 import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'

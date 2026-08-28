@@ -20,7 +20,7 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('@/lib/i18n/hooks', () => ({
+vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),

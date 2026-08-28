@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@ks/ui'
 import { Shield, Eye, Users2, FileText } from "lucide-react"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 
 export function PhilosophySection() {
   const { t } = useTranslation()

@@ -12,7 +12,7 @@ import {
 } from '@ks/ui'
 import { Calendar, Clock, MapPin, ExternalLink, FileText, Video } from "lucide-react";
 import type { SessionDetailData } from "./session-detail";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 
 interface EventDetailsAccordionProps {
   data: SessionDetailData;

@@ -42,7 +42,7 @@ import { useChatStream } from './hooks/use-chat-stream'
 import { useChatTOC } from './hooks/use-chat-toc'
 import type { QueryLog } from '@/types/query-log'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
 

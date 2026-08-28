@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { libraryAtom } from '@/atoms/library-atom'
 import type { GalleryTexts } from '@/lib/gallery/types'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 /** Alle unterstützten DetailViewTypes */
 type DetailViewType = 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website'

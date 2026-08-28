@@ -7,7 +7,7 @@ import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer'
 import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
-import { getLocale } from '@/lib/i18n'
+import { getLocale } from '@ks/i18n'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,

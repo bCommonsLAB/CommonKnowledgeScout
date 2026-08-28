@@ -10,7 +10,7 @@ import { GroupedItemsView } from './grouped-items-view'
 import { ItemsView } from './items-view'
 import { ViewModeToggle } from './view-mode-toggle'
 import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { ViewMode } from './gallery-sticky-header'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 

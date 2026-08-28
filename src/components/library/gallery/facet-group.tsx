@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 /**
  * Eine Facetten-Option:

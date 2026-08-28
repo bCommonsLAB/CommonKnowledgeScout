@@ -3,7 +3,7 @@
 import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, ScrollArea } from '@ks/ui'
 import { Filter } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { DocumentFilterGroup } from './document-filter-group'
 import { FacetsList } from './facets-list'
 

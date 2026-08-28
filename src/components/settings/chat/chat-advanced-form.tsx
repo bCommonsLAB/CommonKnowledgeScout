@@ -12,7 +12,7 @@
 import { Button, Form } from '@ks/ui'
 import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
 import { SearchIndexDialog } from '@/components/settings/search-index-dialog'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useChatForm } from './hooks/use-chat-form'
 import { RetrievalConfigSection } from './retrieval-config-section'
 import { LlmModelSection } from './llm-model-section'

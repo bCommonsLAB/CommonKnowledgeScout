@@ -15,7 +15,7 @@ import {
   Button,
 } from '@ks/ui'
 import { ArrowLeft, X } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'

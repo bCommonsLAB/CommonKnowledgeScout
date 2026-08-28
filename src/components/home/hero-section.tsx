@@ -3,7 +3,7 @@
 import { Button } from '@ks/ui'
 import { ArrowRight, BookOpen } from "lucide-react"
 import Link from "next/link"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 import { AppLogo } from "@/components/shared/app-logo"
 
 export function HeroSection() {

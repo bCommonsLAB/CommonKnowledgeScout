@@ -6,7 +6,7 @@ import { useAtom } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { MessageCircle, ArrowRight } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 export interface SwitchToStoryModeButtonProps {

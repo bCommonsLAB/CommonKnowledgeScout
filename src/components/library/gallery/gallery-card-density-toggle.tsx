@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { LayoutGrid, StretchHorizontal } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { cn } from '@/lib/utils'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 

@@ -29,6 +29,9 @@ importers:
       '@ks/contracts':
         specifier: workspace:*
         version: link:packages/contracts
+      '@ks/i18n':
+        specifier: workspace:*
+        version: link:packages/i18n
       '@ks/module-explorer':
         specifier: workspace:*
         version: link:packages/module-explorer
@@ -401,6 +404,18 @@ importers:
         version: 18.2.0
 
   packages/contracts: {}
+
+  packages/i18n:
+    dependencies:
+      jotai:
+        specifier: ^2.11.0
+        version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
+      next:
+        specifier: ^15.1.4
+        version: 15.3.8(@playwright/test@1.60.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
 
   packages/module-explorer:
     dependencies:

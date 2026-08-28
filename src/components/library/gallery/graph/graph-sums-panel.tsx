@@ -19,7 +19,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import type { SimilarityNeighborEdge } from '@/hooks/gallery/use-similarity-edges'
 import { computeSynergyAdjustedSum } from '@/lib/graph/synergy-sum'
 import { getSummableFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { OverlapReportDialog } from '../overlap-report-dialog'
 
 export interface GraphSumsPanelProps {
