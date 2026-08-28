@@ -1,6 +1,6 @@
 # KnowledgeScout-Schnittstelle: was trägt, was fehlt
 
-Stand 28.08.2026, Werkzeugsatz **2.10.0**.
+Stand 28.08.2026, Werkzeugsatz **2.11.0**.
 
 Grundlage sind zwei Quellen, die sich gegenseitig prüfen:
 
@@ -140,6 +140,41 @@ sehen. Die Beobachtung stimmt also, die Schlussfolgerung nicht.
   Fasst als erstes Stück `src/components/**` an — also M3/M4-Gebiet.
 
 ---
+
+## 4b. Befund aus dem Aufräum-Lauf 28.08. (Werkzeugsatz 2.11.0)
+
+Der erste echte Aufräum-Versuch über die Brücke lief auf einen teuren
+Fehlschlag: Fünfzehn Vertrags- und Vergabeunterlagen wurden mit dem
+Library-Standard `standard-meeting` transformiert. **Vierzehn
+Template-Schritte scheiterten**, `ingest_rag` lief dadurch nie — bezahlt
+waren die Jobs trotzdem.
+
+Zwei Ursachen, beide behoben:
+
+- **Der Agent konnte die Vorlage nicht prüfen.** `transformation_starten`
+  nimmt ein `template` und kennt sogar `nur_transkript` — aber kein Werkzeug
+  sagte, *welche* Vorlagen es gibt. Die Wahl fiel auf den Standard, weil die
+  Alternativen unsichtbar waren. Neu: **`vorlagen_auflisten`**, mit `docType`
+  und Beschreibung je Vorlage.
+- **Die Fehlermeldung diagnostizierte nicht.** Sie hängte ein blindes
+  `substring(0, 500)` der Antwort an — die aber mit einem Echo *unserer
+  eigenen Anfrage* samt Volltext beginnt. Die 500 Zeichen waren restlos vom
+  Echo belegt; ob es `data` überhaupt gab, blieb offen. Jetzt wird die
+  **Struktur** berichtet (Schlüssel, `data`, Typ von `structured_data`, eine
+  etwaige Dienst-Meldung) statt eines Präfixes.
+
+**Noch offen aus diesem Lauf:**
+
+- **Format-Zwillinge zahlen doppelt.** Dasselbe Dokument als `.docx`, `.pdf`
+  und `_signed.pdf` wird dreimal erschlossen. Nach Zielbild §7 sind das
+  Ableitungen — aber es gibt keinen „Beleg"-Schalter, der sie aus der
+  Abdeckung nimmt. Was nicht erschlossen wird, bleibt als `error` stehen und
+  sperrt die Abnahme.
+- **Ein Job blieb auf `running` hängen**, obwohl sein erster Schritt
+  `failed` war. Status-Konsistenz der Job-Schritte, nicht geprüft.
+- Ob der Fehlschlag wirklich am unpassenden Template lag, ist damit
+  **immer noch nicht bewiesen** — die verbesserte Meldung liefert beim
+  nächsten Lauf die Antwort.
 
 ## 5. Reihenfolge für das, was bleibt
 

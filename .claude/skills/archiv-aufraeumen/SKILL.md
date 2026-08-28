@@ -110,6 +110,25 @@ Es sagt Groß-/Kleinschreibung, Pfadlimit, Papierkorb und
 Unicode-Normalisierung je Bibliothek — und `null` heißt dort ausdrücklich
 „nicht sicher bekannt", nicht „egal".
 
+**1d. Vor einem Transformations-Stapel die Vorlage prüfen.**
+`vorlagen_auflisten` (ab 2.11.0) nennt die Vorlagen der Library mit `docType`
+und Beschreibung, dazu das Standard-Template. **Das Standard-Template passt
+nicht überall:** Am 28.08.2026 liefen fünfzehn Vertrags- und
+Vergabeunterlagen gegen `standard-meeting` — vierzehn Template-Schritte
+scheiterten, und bezahlt waren sie trotzdem. Verträge, AGB und Anlagen sind
+keine Besprechungen.
+
+Passt keine Vorlage zum Dokument, ist `template: "nur_transkript"` der
+ehrliche Weg — dann bleibt es beim Transkript, und der Befund
+`transformation_missing` bleibt offen, statt Geld in einen sicheren
+Fehlschlag zu stecken. Das ist eine Entscheidung für Peter, keine eigene.
+
+**Format-Zwillinge:** Liegt dasselbe Dokument als `.docx` **und** `.pdf`
+(**und** `_signed.pdf`) vor, zahlt jede Erschließung denselben Inhalt
+mehrfach. Nach Zielbild §7 sind das Ableitungen. Einen „Beleg"-Schalter, der
+sie aus der Abdeckung nimmt, gibt es nicht — also vorher fragen, nicht
+hinterher berichten.
+
 **2. Vor jedem Schreibvorgang fragen.** Besonders vor `quelle_erschliessen`
 und `transformation_starten` — das sind kostenpflichtige Jobs. Bei größeren
 Mengen einmal pro Gruppe fragen, nicht pro Datei; aber immer sagen, was und
@@ -394,9 +413,9 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Lässt sich der Fließtext einer `_INDEX.md`
-nicht patchen oder geht `verschieben` an einer gesperrten Stelle durch, ist sie
-älter als 2.10.0. Fehlen `datei_patchen` und `speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
+`protokoll_lesen`, ist sie älter als 2.6.0. Fehlt `vorlagen_auflisten`, ist sie älter als 2.11.0.
+Lässt sich der Fließtext einer `_INDEX.md` nicht patchen oder geht
+`verschieben` an einer gesperrten Stelle durch, ist sie älter als 2.10.0. Fehlen `datei_patchen` und `speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
 über die Datei-Bridge, und Nextcloud-Bibliotheken bleiben unerreichbar.
 
 Zweiter Test, wenn die Soll-Liste selbst verdächtig ist: Ein schreibendes

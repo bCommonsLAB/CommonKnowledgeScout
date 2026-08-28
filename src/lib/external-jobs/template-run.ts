@@ -28,6 +28,53 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { callTemplateTransform } from '@/lib/secretary/adapter'
 import { getSecretaryConfig } from '@/lib/env'
 
+/**
+ * Beschreibt die FORM einer Transformer-Antwort fuer die Fehlermeldung.
+ *
+ * Bewusst ohne Inhalte (PII/Groesse) und ohne das `request`-Echo — das ist
+ * unsere eigene Eingabe und sagt ueber den Fehler nichts. Was zaehlt: welche
+ * Schluessel kamen zurueck, gab es `data`, was steckte in `structured_data`,
+ * und hat Secretary selbst eine Fehlermeldung mitgeschickt.
+ */
+export function beschreibeAntwort(data: unknown): string {
+  if (data === null || typeof data !== 'object') {
+    return `Antwort war kein Objekt (${data === null ? 'null' : typeof data}).`
+  }
+  const wurzel = data as Record<string, unknown>
+  const teile: string[] = [`Schluessel: [${Object.keys(wurzel).join(', ')}]`]
+
+  // Secretary meldet Fehler teils im Klartext neben `status: "success"`.
+  for (const feld of ['status', 'message', 'error', 'detail'] as const) {
+    const wert = wurzel[feld]
+    if (typeof wert === 'string' && wert.trim() !== '') {
+      teile.push(`${feld}="${wert.slice(0, 200)}"`)
+    }
+  }
+
+  const inhalt = wurzel['data']
+  if (inhalt === undefined) {
+    teile.push('KEIN `data`-Feld in der Antwort.')
+  } else if (inhalt === null || typeof inhalt !== 'object') {
+    teile.push(`\`data\` ist ${inhalt === null ? 'null' : typeof inhalt}, kein Objekt.`)
+  } else {
+    const d = inhalt as Record<string, unknown>
+    teile.push(`data-Schluessel: [${Object.keys(d).join(', ')}]`)
+    const sd = d['structured_data']
+    if (sd === undefined) {
+      teile.push('KEIN `data.structured_data`.')
+    } else if (sd === null) {
+      teile.push('`data.structured_data` ist null — das LLM hat vermutlich kein gueltiges JSON geliefert (haeufig, wenn das Template nicht zum Dokument passt).')
+    } else if (Array.isArray(sd)) {
+      teile.push(`\`data.structured_data\` ist ein Array mit ${sd.length} Eintraegen — erwartet wird ein Objekt.`)
+    } else if (typeof sd === 'object') {
+      teile.push(`\`data.structured_data\` ist ein leeres Objekt (${Object.keys(sd as object).length} Schluessel).`)
+    } else {
+      teile.push(`\`data.structured_data\` ist ${typeof sd}, erwartet wird ein Objekt.`)
+    }
+  }
+  return teile.join(' ')
+}
+
 function normalizeStructuredData(raw: unknown): Frontmatter | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const r = raw as Record<string, unknown>
@@ -278,7 +325,17 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
         return { meta: normalized }
       } else {
         // Secretary Service hat erfolgreich geantwortet, aber kein gültiges structured_data zurückgegeben
-        const errorMsg = `Transformer lieferte kein gültiges structured_data. Response-Struktur: ${JSON.stringify(data).substring(0, 500)}`
+        //
+        // Live-Befund 28.08.2026: Hier stand ein blindes
+        // `JSON.stringify(data).substring(0, 500)`. Die Antwort beginnt aber
+        // mit `{"status":"success","request":{…}}` — einem Echo UNSERER
+        // eigenen Anfrage samt Volltext. Die 500 Zeichen waren damit restlos
+        // vom Echo belegt, und die eine Frage, auf die es ankommt, blieb
+        // unbeantwortet: Gab es `data` ueberhaupt? Was stand darin?
+        //
+        // Ein Fehler, der laut fehlschlaegt, aber nichts verraet, ist nur die
+        // halbe Miete. Deshalb jetzt die STRUKTUR statt eines Praefixes.
+        const errorMsg = `Transformer lieferte kein gültiges structured_data. ${beschreibeAntwort(data)}`
         bufferLog(jobId, { phase: 'transform_meta_failed', message: errorMsg })
         
         // Werfe Fehler mit Response-Details, damit er im Trace-Event erfasst wird
