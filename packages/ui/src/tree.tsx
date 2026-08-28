@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
-import { cn } from './cn';
+import { cn } from '@ks/util';
 
 interface TreeProps {
   children?: React.ReactNode;

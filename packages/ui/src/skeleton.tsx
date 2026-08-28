@@ -1,4 +1,6 @@
-import { cn } from "./cn"
+"use client"
+
+import { cn } from "@ks/util"
 
 function Skeleton({
   className,

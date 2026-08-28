@@ -38,6 +38,9 @@ importers:
       '@ks/ui':
         specifier: workspace:*
         version: link:packages/ui
+      '@ks/util':
+        specifier: workspace:*
+        version: link:packages/util
       '@ks/viewers':
         specifier: workspace:*
         version: link:packages/viewers
@@ -425,6 +428,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@ks/util':
+        specifier: workspace:*
+        version: link:../util
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.4
         version: 1.1.14(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -518,6 +524,15 @@ importers:
       recharts:
         specifier: ^2.15.0
         version: 2.15.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      tailwind-merge:
+        specifier: ^2.6.0
+        version: 2.6.0
+
+  packages/util:
+    dependencies:
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.0

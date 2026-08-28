@@ -1,6 +1,8 @@
+"use client"
+
 import * as React from "react"
 
-import { cn } from "./cn"
+import { cn } from "@ks/util"
 
 const Table = React.forwardRef<
   HTMLTableElement,
