@@ -10,7 +10,6 @@ import { Tabs, TabsContent, toast, Button, ScrollArea } from '@ks/ui'
 import { FilterContextBar } from '@/components/library/filter-context-bar'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
-import { CaptureContentButton } from '@/components/submissions/capture-content-button'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ViewTypeLeadFilter } from '@/components/library/gallery/view-type-lead-filter'
 import { ItemsView } from '@/components/library/gallery/items-view'
@@ -68,6 +67,15 @@ export interface GalleryRootProps {
    * in der oeffentlichen Slug-Ansicht kein Galerie-Inhalt.
    */
   hideWebsiteDocs?: boolean
+  /**
+   * Bedienelemente des Gastgebers im Kopf der Galerie — heute der
+   * Erfassungs-Knopf der Voll-App. Als Slot statt als Import, weil Erfassung
+   * ein anderes Modul ist (Galerie-Audit, Gruppe B).
+   *
+   * Bekommt die aufgeloeste `libraryId`, weil sie erst hier feststeht: Sie
+   * kann aus `libraryIdProp` ODER aus dem Auswahl-Atom kommen.
+   */
+  kopfAktionen?: (libraryId: string) => React.ReactNode
 }
 
 const LazyChatPanel = dynamic(
@@ -92,6 +100,7 @@ export function GalleryRoot({
   showSiteTab = false,
   defaultToSite = false,
   hideWebsiteDocs = false,
+  kopfAktionen,
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useActiveLibraryId()
@@ -1090,7 +1099,7 @@ export function GalleryRoot({
             cardDensity={cardDensity}
             onCardDensityChange={handleCardDensityChange}
             showGraph={graphEnabled}
-            actions={<CaptureContentButton libraryId={libraryId} />}
+            actions={kopfAktionen?.(libraryId)}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>

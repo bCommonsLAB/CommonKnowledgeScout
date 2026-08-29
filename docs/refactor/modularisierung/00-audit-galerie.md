@@ -704,3 +704,48 @@ Galerie braucht. Es fehlt ein Ort fuer **geteilte Dokument-Fachlogik ohne
 UI** — heute behilft sich das Repo mit `src/lib/documents/`, was aus einem
 Paket nicht erreichbar ist. Das ist keine Schwanz-Frage mehr, sondern eine
 Zuschnitt-Frage fuer den Umzug.
+
+## Nachtrag (2026-08-30): Gruppe B — die Galerie oeffnet keine fremden Bedienflaechen mehr
+
+Von **17 Importgruppen auf 15**. Gruppe B war mit sechs Importen angesetzt;
+einer davon war falsch einsortiert.
+
+| Posten | Befund | Loesung |
+|---|---|---|
+| `jobMonitorPanelOpenAtom` (4) | Alle vier schreiben nur (`useSetAtom`) — die Galerie klappt nach einem angestossenen Job die **Werkbank**-Anzeige auf | Gastgeber-Vertrag: `jobGestartet()` |
+| `components/submissions/capture-content-button` (1) | Erfassung ist ein anderes Modul | Slot `kopfAktionen` |
+| `atoms/story-context-atom` (1) | **Falsch einsortiert.** Nutzer sind Chat, Galerie und ein Story-Hook — alle im selben Modul | zieht mit, keine Injektion |
+
+### Der Gastgeber-Vertrag
+
+Dritte Bruecke nach Betrachter (wer schaut zu) und Adressierung (wie wird
+adressiert). Dieselbe Form: Die Galerie sagt WAS, der Gastgeber entscheidet WIE.
+
+```ts
+interface GalleryHost {
+  jobGestartet(): void   // ohne Rueckgabewert — die Galerie darf nicht
+}                        // davon abhaengen, dass jemand reagiert
+```
+
+`STILLER_GASTGEBER` ist der Embed-Fall: Eine fremde Seite hat keinen
+Job-Monitor. Bewusst ein benanntes Objekt und kein Default im Kontext — wer
+nichts anzeigen will, sagt das, statt es zu vergessen.
+
+### Der Slot
+
+`kopfAktionen?: (libraryId: string) => ReactNode` — als Render-Funktion, weil
+die `libraryId` erst in `GalleryRoot` feststeht: Sie kann aus der Prop ODER aus
+dem Auswahl-Atom kommen.
+
+### Was die Pruefung gezeigt hat
+
+- **Live belegt**: Der Erfassungs-Knopf rendert als echter `<button>` mit
+  aufgeloester `libraryId` — der Slot traegt.
+- **Nicht live belegt**: Die vier Job-Melder sind besitzer-only und rendern in
+  einer abgemeldeten Sitzung nicht; der Hook wird also nie ausgefuehrt. Ein
+  Owner-Durchgang haette einen echten Neuberechnungs-Job gegen die
+  Produktivdatenbank gestartet. Stattdessen deckt
+  `tests/unit/contexts/gallery-host-context.test.tsx` den Vertrag ab: wirft
+  ohne Anbieter, reicht durch, und der stille Gastgeber tut nichts.
+- **`pnpm lint` hat vier verwaiste `useSetAtom`-Importe gefunden, `tsc` nicht.**
+  Unbenutzte Importe sind keine Typfehler — dafuer gibt es beide Tore.
