@@ -40,9 +40,7 @@ import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useOwnFavoriteIds, useUserStates } from '@/hooks/gallery/use-user-states'
-import { useUser } from '@clerk/nextjs'
-import { getPreferredUserEmail } from '@/lib/auth/user-email'
-import { getPreferredUserDisplayName } from '@/lib/auth/user-display-name'
+import { useGalleryViewer } from '@/contexts/gallery-viewer-context'
 import { applyFavoriteToggleOptimistic, findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
@@ -317,9 +315,11 @@ export function GalleryRoot({
   // Eigene Favoriten-IDs nur laden, wenn der "Nur Favoriten"-Filter
   // aktiv ist - Fallback bis `isFavorite` auf allen Karten verfuegbar ist.
   const { favoriteIds } = useOwnFavoriteIds(libraryId, { enabled: onlyFavoritesActive })
-  const { user } = useUser()
-  const selfEmail = useMemo(() => getPreferredUserEmail(user), [user])
-  const selfName = useMemo(() => getPreferredUserDisplayName(user), [user])
+  // Eigene Kennung fuer optimistische Stern-/Kommentar-Anzeigen: Die Galerie
+  // muss sich in einer Voter-Liste selbst wiedererkennen. Kommt aus dem
+  // hereingereichten Betrachter, nicht aus Clerk — sonst haengt die Galerie an
+  // einem Auth-Anbieter und ist nicht einbettbar.
+  const { email: selfEmail, displayName: selfName } = useGalleryViewer()
   const { setState: setUserStarState } = useUserStates(libraryId, [])
 
   // Gemeinsames Praedikat fuer die clientseitigen Engagement-Filter:
