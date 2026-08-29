@@ -6,7 +6,7 @@
  * daher Auflösung über dieselben API-Endpunkte wie die Job-Vorschau.
  */
 
-import { parseTwinRelativeImageRef } from '@/lib/storage/shadow-twin-folder-name'
+import { parseTwinRelativeImageRef } from '@ks/util'
 
 /** true, wenn die Referenz nicht direkt als Bild-URL verwendet werden kann */
 export function coverRefNeedsApiResolution(ref: string): boolean {

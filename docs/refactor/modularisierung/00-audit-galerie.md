@@ -653,3 +653,54 @@ Dass der Test greift, ist nachgewiesen — ohne die Ausnahme wird er rot.
 genau das, was der Betrachter traegt. Von fuenf weiteren Aufrufern hat aber nur
 einer den Wert zur Hand; der Umbau haette vier Chat-Dateien und einen App-Hook
 mitgezogen. Eigene kleine Welle, keine Nebenwirkung dieser hier.
+
+## Nachtrag (2026-08-30): Gruppe C, erste Haelfte
+
+Von **20 Importgruppen auf 17**. Entschieden wurde nach drei Fragen: Wie viele
+Zeilen? Welche Importe (also: rein oder nicht)? Wie viele Nutzer ausserhalb der
+Galerie?
+
+| Posten | Zeilen | Importe | Nutzer ausserhalb | Entscheidung |
+|---|---:|---|---:|---|
+| `shadow-twin-folder-name` | 81 | **keine** | 12 | → `@ks/util` |
+| `synergy-sum` | 121 | **keine** | **0** | → `src/lib/gallery/` (zieht mit) |
+| `use-debounced-value` | 25 | nur React | **0** | → `src/hooks/gallery/` (zieht mit) |
+| `TemplatePreviewDetailViewType` | — | — | — | war laengst ein Alias auf `DetailViewType` → direkt aus `@ks/contracts` |
+
+Die dritte Spalte war der Entscheider. **Null Importe und null Fremdnutzer**
+heisst: zieht mit dem Modul, keine Diskussion. **Null Importe und zwoelf
+Fremdnutzer** heisst: gehoert allen, also in den Werkzeugkasten.
+
+### Was noch offen ist — 17 Gruppen
+
+**Zieht mit (19 Importe)**: `utils/document-slug`, `atoms/gallery-filters`,
+`atoms/chat-references-atom`, `atoms/gallery-data`, `utils/document-navigation`.
+
+**Muss injiziert werden (6)**: `atoms/job-monitor-panel-open-atom` (4),
+`components/submissions` (1), `atoms/story-context-atom` (1).
+
+**Braucht je ein Urteil (12)**:
+
+| Posten | Befund | Schwierigkeit |
+|---|---|---|
+| `lib/detail-view-types` (3) | `getSummableFields`, `getPresentDetailViewTypes` rechnen ueber die Registry; die Registry-DATEN sind rein (Audit-Befund 3b), der Rest nicht | mittel — Registry-Daten koennten in den Vertrag |
+| `types/item` (1) | **444 Nutzer** im Repo | eigene Welle, kein Schwanz-Posten |
+| `lib/i18n/get-localized` (1) | 259 Z., haengt an `@ks/i18n` und `@/types/doc-meta`, 8 Fremdnutzer | mittel |
+| `lib/templates/detail-view-type-utils` (1) | 41 Z., drei Importe, 7 Fremdnutzer | bleibt App |
+| `lib/mappers/doc-meta-mappers` (1) | 689 Z., Detailansichten-Mapper | zieht mit dem Modul |
+| `lib/documents/sdg-meta` (1) | rein, aber **Fachlogik** — `@ks/util` verbietet die ausdruecklich, `@ks/contracts` rechnet nicht | **Luecke in der Paketstruktur** |
+| `hooks/use-session-headers` (2) | seit der Entkopplung Clerk-frei | zieht mit; die App nimmt dann `useClerkSessionHeaders` aus dem Paket |
+| `hooks/use-scroll-visibility` (1) | 62 Z., React, 3 Fremdnutzer | → `@ks/ui` |
+| `types/source-user-state` (1) | Rest-Typen | → `@ks/contracts` |
+
+### Ein Befund, der ueber den Schwanz hinausgeht
+
+`sdg-meta` passt in kein vorhandenes Paket: Es ist rein und wird von beiden
+Seiten gebraucht, ist aber **Fachlogik** — und `@ks/util` schliesst Fachlogik
+ausdruecklich aus, waehrend `@ks/contracts` beschreibt statt zu rechnen.
+
+Dasselbe wird fuer `synergy-sum` gelten, sobald es jemand ausserhalb der
+Galerie braucht. Es fehlt ein Ort fuer **geteilte Dokument-Fachlogik ohne
+UI** — heute behilft sich das Repo mit `src/lib/documents/`, was aus einem
+Paket nicht erreichbar ist. Das ist keine Schwanz-Frage mehr, sondern eine
+Zuschnitt-Frage fuer den Umzug.

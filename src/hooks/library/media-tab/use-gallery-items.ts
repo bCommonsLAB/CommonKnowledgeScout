@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { UILogger } from '@/lib/debug/logger'
-import { buildTwinRelativeMediaRef } from '@/lib/storage/shadow-twin-folder-name'
+import { buildTwinRelativeMediaRef } from '@ks/util'
 import type { ViewTypeMediaConfig } from '@/lib/detail-view-types/registry'
 import type { SiblingFile } from '@/app/api/library/[libraryId]/sibling-files/route'
 import {

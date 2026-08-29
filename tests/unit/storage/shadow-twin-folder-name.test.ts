@@ -4,7 +4,7 @@ import {
   generateShadowTwinFolderName,
   parseTwinRelativeImageRef,
   shouldFilterShadowTwinFolders,
-} from '@/lib/storage/shadow-twin-folder-name'
+} from '@ks/util'
 
 describe('shadow-twin-folder-name', () => {
   it('buildTwinRelativeMediaRef erzeugt Obsidian-kompatiblen Pfad', () => {

@@ -21,7 +21,7 @@
 import { getAllShadowTwins, getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { compileExcludeGlobs, isExcludedPath } from './scan-exclude'
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { isShadowTwinFolderName } from '@ks/util'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { FolderCache } from './folder-cache'
 import { listFoldersParallel } from './list-folders-parallel'

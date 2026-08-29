@@ -18,7 +18,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { findShadowTwinFolder, findSourceFileMatchingTwinFolder } from '@/lib/storage/shadow-twin'
-import { parseTwinRelativeImageRef } from '@/lib/storage/shadow-twin-folder-name'
+import { parseTwinRelativeImageRef } from '@ks/util'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { FileLogger } from '@/lib/debug/logger'
 

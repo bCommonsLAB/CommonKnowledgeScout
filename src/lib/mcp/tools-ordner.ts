@@ -15,7 +15,7 @@
 import { z } from 'zod'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { isShadowTwinFolderName } from '@ks/util'
 import { resolveFolderIdByPath, resolveItemByPath } from './resolve-folder'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 

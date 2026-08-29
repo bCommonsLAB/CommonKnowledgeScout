@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import type { DocReference, QuerySource } from '@ks/contracts'
+import type { DocReference, QuerySource, DetailViewType } from '@ks/contracts'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -18,7 +18,7 @@ import { GroupedItemsView } from '@/components/library/gallery/grouped-items-vie
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
-import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { useDebouncedValue } from '@/hooks/gallery/use-debounced-value'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
 import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
@@ -32,7 +32,6 @@ import { getSummableFields } from '@/lib/detail-view-types/registry'
 import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
@@ -651,14 +650,14 @@ export function GalleryRoot({
   // Bestimme viewType für DetailOverlay:
   // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
   // - Fallback: Library-Config
-  const detailViewTypeForDoc = useMemo<TemplatePreviewDetailViewType>(() => {
+  const detailViewTypeForDoc = useMemo<DetailViewType>(() => {
     // Library-Fallback bestimmen (zentral via util)
     const activeLibraryForFallback = libraries.find(lib => lib.id === libraryId)
     const libraryConfig = activeLibraryForFallback?.config?.chat
-    const libraryFallback = getDetailViewType({}, libraryConfig) as TemplatePreviewDetailViewType
+    const libraryFallback = getDetailViewType({}, libraryConfig) as DetailViewType
 
     // Wenn kein Dokument ausgewaehlt: nimm den (gerade aktiven) detailViewType der Galerie
-    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType
+    if (!selectedDoc) return detailViewType as DetailViewType
 
     // Helper kuemmert sich um Validierung + 'book'-Fallback (kein silent fallback)
     return resolveDetailViewTypeForDoc(selectedDoc.detailViewType, libraryFallback)

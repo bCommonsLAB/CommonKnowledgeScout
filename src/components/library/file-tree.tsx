@@ -16,7 +16,7 @@ import { useStorage } from '@/contexts/storage-context';
 import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { toast } from "sonner";
-import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
+import { shouldFilterShadowTwinFolders } from '@ks/util';
 import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
 // TreeItem-Render-Logik liegt in eigener Datei (Welle 3-I, Schritt 4a-Split):

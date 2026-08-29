@@ -18,3 +18,7 @@ export { cn } from './cn'
 // werden von Galerie, Archiv und Job-Ansicht gleichermassen gebraucht.
 export { formatUpsertedAt } from './format-upserted-at'
 export { tryDecodeRelativePathFromFileId } from './decode-storage-file-id'
+
+// Pfad-Zerlegung fuer Shadow-Twin-Ordner: reine Zeichenketten-Arbeit, ohne
+// Storage-Zugriff — und von zwoelf Stellen quer durch App und Galerie genutzt.
+export * from './shadow-twin-folder-name'
