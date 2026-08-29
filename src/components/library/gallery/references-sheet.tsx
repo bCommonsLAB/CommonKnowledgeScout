@@ -1,11 +1,10 @@
 'use client'
 
 import React from 'react'
+import type { DocReference, QuerySource } from '@ks/contracts'
 import { Sheet, SheetContent, SheetTitle, ScrollArea, Button } from '@ks/ui'
 import { X } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { ChatResponse } from '@/types/chat-response'
-import type { QueryLog } from '@/types/query-log'
 import { GroupedItemsView } from './grouped-items-view'
 import { ItemsView } from './items-view'
 import { ViewModeToggle } from './view-mode-toggle'
@@ -31,7 +30,7 @@ interface ReferencesSheetProps {
   cardDensity?: GalleryCardDensity
   onCardDensityChange?: (density: GalleryCardDensity) => void
   /** Referenzen für Antwort-Modus */
-  references?: ChatResponse['references']
+  references?: DocReference[]
   /** QueryId für Antwort-Modus */
   queryId?: string
   /** Callback für Dokument-Öffnen (optional: Fallback für Dokumente ohne slug) */
@@ -45,7 +44,7 @@ interface ReferencesSheetProps {
   usedDocs?: DocCardMeta[]
   unusedDocs?: DocCardMeta[]
   /** Sources für Answer-Modus */
-  sources?: QueryLog['sources']
+  sources?: QuerySource[]
   /** Loading-State */
   loading?: boolean
   /** Error-State */

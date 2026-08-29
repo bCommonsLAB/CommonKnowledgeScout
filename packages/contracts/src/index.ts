@@ -50,6 +50,8 @@ export { DETAIL_VIEW_TYPES, isDetailViewType } from './detail-view-type'
 
 export type { DocCardMeta, DetailDoc, ChapterInfo, FavoriteVoter } from './doc-card-meta'
 
+export type { DocReference, QuerySource } from './doc-reference'
+
 export type {
   SiteModule,
   SitePrimaryLibrary,

@@ -1,9 +1,8 @@
 'use client'
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ks/ui'
-import type { ChatResponse } from '@/types/chat-response'
-import type { QueryLog } from '@/types/query-log'
-import { ChatReferenceList } from '@/components/library/chat/chat-reference-list'
+import type { DocReference, QuerySource } from '@ks/contracts'
+import { ReferenceList } from '@/components/library/gallery/reference-list'
 
 interface ReferenceGroupHeaderProps {
   /** Titel der Gruppe */
@@ -11,9 +10,9 @@ interface ReferenceGroupHeaderProps {
   /** Anzahl der Dokumente in dieser Gruppe */
   docCount: number
   /** Referenzen für diese Gruppe (für verwendete Dokumente) */
-  references?: ChatResponse['references']
+  references?: DocReference[]
   /** Sources für diese Gruppe (für nicht verwendete Dokumente) */
-  sources?: QueryLog['sources']
+  sources?: QuerySource[]
   /** QueryId zum Laden der Sources */
   queryId?: string
   /** LibraryId */
@@ -52,7 +51,7 @@ export function ReferenceGroupHeader({
         <AccordionContent className="pt-2 pb-4">
           {/* Zeige Referenzliste nur für verwendete Dokumente (kompakte Variante) */}
           {hasReferences && (
-            <ChatReferenceList
+            <ReferenceList
               references={references}
               libraryId={libraryId}
               queryId={queryId}

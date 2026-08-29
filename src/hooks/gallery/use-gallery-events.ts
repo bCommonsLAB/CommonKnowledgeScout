@@ -6,10 +6,10 @@ import { useAtom, useSetAtom } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { ChatResponse } from '@/types/chat-response'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import type { DocReference } from '@ks/contracts'
 
 export function useGalleryEvents(
   libraryId: string | undefined,
@@ -100,7 +100,7 @@ export function useGalleryEvents(
 
   useEffect(() => {
     const handleShowLegend = (event: Event) => {
-      const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string; queryId?: string }>
+      const customEvent = event as CustomEvent<{ references: DocReference[]; libraryId: string; queryId?: string }>
       const { references: refs, queryId } = customEvent.detail || {}
       if (!refs || refs.length === 0) return
       

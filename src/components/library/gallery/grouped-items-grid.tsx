@@ -1,9 +1,8 @@
 'use client'
 
 import React from 'react'
+import type { DocReference, QuerySource } from '@ks/contracts'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { ChatResponse } from '@/types/chat-response'
-import type { QueryLog } from '@/types/query-log'
 import { DocumentCard } from './document-card'
 import { ReferenceGroupHeader } from './reference-group-header'
 import { useTranslation } from '@ks/i18n/react'
@@ -28,9 +27,9 @@ interface GroupedItemsGridProps {
   /** Dokumente, die gefunden wurden, aber nicht verwendet wurden */
   unusedDocs: DocCardMeta[]
   /** Referenzen für verwendete Dokumente */
-  references: ChatResponse['references']
+  references: DocReference[]
   /** Sources für nicht verwendete Dokumente */
-  sources?: QueryLog['sources']
+  sources?: QuerySource[]
   /** QueryId zum Laden der Sources */
   queryId?: string
   /** LibraryId */
@@ -78,7 +77,7 @@ export function GroupedItemsGrid({
   // Berechne die Anzahl der eindeutigen Dokumente aus references
   // WICHTIG: Diese Anzahl muss aus den eindeutigen fileId-Werten in references berechnet werden,
   // nicht aus usedDocs.length, da usedDocs nur Dokumente enthält, die im docs-Array vorhanden sind.
-  // Die ChatReferenceList zeigt jedoch alle eindeutigen Dokumente aus references an.
+  // Die ReferenceList zeigt jedoch alle eindeutigen Dokumente aus references an.
   const uniqueUsedDocsCount = React.useMemo(() => {
     if (!references || references.length === 0) return 0
     const uniqueFileIds = new Set(references.map(ref => ref.fileId))

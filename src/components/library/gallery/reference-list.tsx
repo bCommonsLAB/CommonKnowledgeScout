@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
+import type { DocReference, QuerySource } from '@ks/contracts'
 import { useActiveLibraryId } from '@ks/shell/react'
 import {
   Accordion,
@@ -15,17 +16,15 @@ import {
 } from '@ks/ui'
 import { FileText, ExternalLink } from 'lucide-react'
 import { ViewTypeBadge } from '@/components/library/view-type-badge'
-import type { ChatResponse } from '@/types/chat-response'
-import type { QueryLog } from '@/types/query-log'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useTranslation } from '@ks/i18n/react'
 import {
   getSourceTypeLabel,
   groupReferencesByFileId,
-} from './chat-reference-list/helpers'
+} from './reference-list/helpers'
 
-interface ChatReferenceListProps {
-  references: ChatResponse['references']
+interface ReferenceListProps {
+  references: DocReference[]
   libraryId: string
   queryId?: string // Optional: Falls vorhanden, werden sources aus QueryLog geladen
   onDocumentClick?: (fileId: string, fileName?: string) => void
@@ -44,11 +43,11 @@ interface ChatReferenceListProps {
  * - Tooltip mit Quelle-Typen (slides, body, video_transcript, chapter)
  * - Klick auf Dokument → Öffnet Detailansicht
  */
-export function ChatReferenceList({ references, libraryId, queryId, onDocumentClick, variant = 'full' }: ChatReferenceListProps) {
+export function ReferenceList({ references, libraryId, queryId, onDocumentClick, variant = 'full' }: ReferenceListProps) {
   const { t } = useTranslation()
   const activeLibraryId = useActiveLibraryId()
   const sessionHeaders = useSessionHeaders()
-  const [sources, setSources] = useState<QueryLog['sources']>([])
+  const [sources, setSources] = useState<QuerySource[]>([])
   const [isLoadingSources, setIsLoadingSources] = useState(false)
 
   // Lade sources aus QueryLog, falls queryId vorhanden ist
@@ -78,7 +77,7 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
           return
         }
         
-        const queryLog = await res.json() as QueryLog
+        const queryLog = await res.json() as { sources?: QuerySource[] }
         
         if (cancelled) {
           setIsLoadingSources(false)
@@ -91,7 +90,7 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
         
         setIsLoadingSources(false)
       } catch (error) {
-        console.error('[ChatReferenceList] Fehler beim Laden der Sources:', error)
+        console.error('[ReferenceList] Fehler beim Laden der Sources:', error)
         setSources([])
         setIsLoadingSources(false)
       }
@@ -104,7 +103,7 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
     }
   }, [queryId, libraryId, sessionHeaders])
 
-  // extractSourceType, groupReferencesByFileId, getSourceTypeLabel sind in ./chat-reference-list/helpers.ts
+  // extractSourceType, groupReferencesByFileId, getSourceTypeLabel sind in ./reference-list/helpers.ts
   // (Welle 3-III-b: Pure-Helper-Extraktion)
 
   // Erstelle Map von Referenznummer zu Score (aus Sources)
@@ -177,7 +176,7 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
     const map = new Map<string, { 
       fileName?: string
       fileId: string
-      sources: NonNullable<QueryLog['sources']>
+      sources: QuerySource[]
     }>()
     
     for (const source of unusedSources) {

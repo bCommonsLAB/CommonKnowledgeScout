@@ -4,8 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { galleryDataAtom } from '@/atoms/gallery-data'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { ChatResponse } from '@/types/chat-response'
-import type { QueryLog } from '@/types/query-log'
+import type { DocReference, QuerySource } from '@ks/contracts'
 
 /**
  * Patcht ein einzelnes Dokument im aktuellen Galerie-State (`docs` und
@@ -344,8 +343,8 @@ export function useGalleryData(
  */
 export function groupDocsByReferences(
   docs: DocCardMeta[],
-  references: ChatResponse['references'],
-  sources?: QueryLog['sources']
+  references: DocReference[],
+  sources?: QuerySource[]
 ): { usedDocs: DocCardMeta[]; unusedDocs: DocCardMeta[] } {
   // Extrahiere fileIds aus references
   const usedFileIds = new Set(references.map(ref => ref.fileId))

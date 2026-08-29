@@ -1,7 +1,8 @@
+import type { DocReference } from '@ks/contracts'
 /**
- * Pure-Helper fuer ChatReferenceList (Welle 3-III-b).
+ * Pure-Helper fuer ReferenceList (Welle 3-III-b).
  *
- * Extrahiert aus chat-reference-list.tsx:
+ * Extrahiert aus reference-list.tsx (frueher chat-reference-list.tsx):
  * - extractSourceType  — Quell-Typ aus Beschreibungstext
  * - getSourceTypeLabel — Lesbares Label fuer Quell-Typ
  * - groupReferencesByFileId — Gruppiert Referenzen nach Dokument
@@ -9,7 +10,6 @@
  * Alle Funktionen sind seiteneffektfrei und deterministisch (testbar!).
  */
 
-import type { ChatResponse } from '@/types/chat-response'
 
 /** Extrahiert den Quell-Typ aus dem Beschreibungstext einer Referenz */
 export function extractSourceType(description: string): string | undefined {
@@ -42,8 +42,8 @@ export interface GroupedReference {
   fileId: string
   /** Inhaltstyp des Dokuments (A4) — aus der ersten Referenz mit Typ. */
   detailViewType?: string
-  sourceGroups: Map<string, { sourceType: string; references: ChatResponse['references'] }>
-  references: ChatResponse['references']
+  sourceGroups: Map<string, { sourceType: string; references: DocReference[] }>
+  references: DocReference[]
 }
 
 /**
@@ -52,7 +52,7 @@ export interface GroupedReference {
  * @param refs - Flache Referenz-Liste aus der Chat-Response
  * @returns Gruppierte Liste, eine Eintraege pro Dokument
  */
-export function groupReferencesByFileId(refs: ChatResponse['references']): GroupedReference[] {
+export function groupReferencesByFileId(refs: DocReference[]): GroupedReference[] {
   const map = new Map<string, GroupedReference>()
 
   for (const ref of refs) {
@@ -80,7 +80,7 @@ export function groupReferencesByFileId(refs: ChatResponse['references']): Group
         existing.detailViewType = ref.detailViewType
       }
     } else {
-      const sourceGroups = new Map<string, { sourceType: string; references: ChatResponse['references'] }>()
+      const sourceGroups = new Map<string, { sourceType: string; references: DocReference[] }>()
       sourceGroups.set(sourceType, {
         sourceType,
         references: [ref],

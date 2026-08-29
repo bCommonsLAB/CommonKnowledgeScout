@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import type { DocReference, QuerySource } from '@ks/contracts'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -18,8 +19,6 @@ import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
-import type { QueryLog } from '@/types/query-log'
-import type { ChatResponse } from '@/types/chat-response'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
 import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
@@ -115,7 +114,7 @@ export function GalleryRoot({
   const [showReferencesSheet, setShowReferencesSheet] = useState(false)
   const [referencesSheetMode, setReferencesSheetMode] = useState<'answer' | 'toc' | null>(null)
   const [referencesSheetData, setReferencesSheetData] = useState<{
-    references?: ChatResponse['references']
+    references?: DocReference[]
     queryId?: string
   } | null>(null)
   const prevQueryIdRef = React.useRef<string | undefined>(undefined)
@@ -123,7 +122,7 @@ export function GalleryRoot({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const sessionHeaders = useSessionHeaders()
-  const [sources, setSources] = React.useState<QueryLog['sources']>([])
+  const [sources, setSources] = React.useState<QuerySource[]>([])
   
   // Nur den Character-Atomwert lesen (leichtgewichtig).
   // Vermeidet den schweren useStoryContext-Hook inkl. Modell-Fetch im Gallery-Load.
@@ -522,7 +521,7 @@ export function GalleryRoot({
           return
         }
         
-        const queryLog = await res.json() as QueryLog
+        const queryLog = await res.json() as { sources?: QuerySource[] }
         
         if (cancelled) {
           return
@@ -757,7 +756,7 @@ export function GalleryRoot({
   // Dieser Handler wird zusätzlich zu useGalleryEvents ausgeführt
   React.useEffect(() => {
     const handleShowAnswerReferences = (event: Event) => {
-      const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string; queryId?: string }>
+      const customEvent = event as CustomEvent<{ references: DocReference[]; libraryId: string; queryId?: string }>
       const { references: refs, queryId: eventQueryId, libraryId: eventLibraryId } = customEvent.detail || {}
       if (eventLibraryId === libraryId && refs && refs.length > 0) {
         // Auf Mobile: Öffne Sheet mit den Referenzen
