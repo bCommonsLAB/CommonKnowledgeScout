@@ -469,3 +469,42 @@ wandern.
 
 **Damit ist der Weg fuer die Adressierung frei** — die Adressierung. Danach ist der Kern am
 Stueck bewegbar.
+
+## Nachtrag (2026-08-29): das Netz fuer Galerie-Adressierung liegt
+
+Die Welle **Galerie-Adressierung** wurde bewusst NICHT begonnen. Zwei Gruende,
+beide aus den eigenen Regeln:
+
+- **Garantie G3 (Bedarfsgetrieben)**: `AGENTS.md` verbietet vorauseilendes
+  Extrahieren ohne konkretes Ziel. Es gibt noch keine fremde Seite, in die
+  eingebettet wird — M5 waere die erste und haengt an zwei offenen
+  Owner-Entscheidungen (Token-Modell, Basis-URL). Die Schnittstelle wuerde
+  gegen eine Vermutung entworfen statt gegen eine Anforderung.
+- **Garantie G4 (Verhaltensneutralitaet)**: Diese Welle ist die einzige der
+  drei, deren Ergebnis `tsc`, `vitest` und `pnpm build` NICHT belegen koennen.
+  Sie aendert Zurueck-Taste, geteilte Links und den `?doc=`-Parameter.
+
+**Die Fläche ist groesser als in Befund 2 gemessen.** Es sind drei
+ineinandergreifende Stellen, nicht eine:
+
+| Stelle | Was sie ueber Routen weiss |
+|---|---|
+| `utils/document-navigation.ts` | sechs Verzweigungen auf `/explore/` und `/library` |
+| `hooks/gallery/use-gallery-mode.ts:101` | eigene Verzweigung auf `/explore/` |
+| `hooks/gallery/use-gallery-events.ts` | reicht Router, Pfad und Parameter durch |
+
+**Was stattdessen entstanden ist**:
+`tests/unit/utils/document-navigation-routen.test.ts` — 16 Characterization
+Tests, die das HEUTIGE Verhalten festschreiben. Vorher gab es dafuer kein Netz;
+der einzige vorhandene Test (`document-navigation-slug.test.ts`, 51 Zeilen)
+deckt nur die Slug-Ableitung ab, nicht die Routen-Verzweigung.
+
+Zwei Eigenheiten sind darin absichtlich festgenagelt, weil sie beim Umbau
+unbemerkt verschwinden wuerden:
+
+1. Auf einer `/library`-Route, die nicht die Galerie ist, wird `push` benutzt
+   (neuer History-Eintrag) — sonst ueberall `replace`.
+2. Im Unbekannt-Fall gehen bestehende URL-Parameter **verloren**: dieser Zweig
+   baut die Parameter neu auf, statt die vorhandenen zu uebernehmen.
+
+Ob Punkt 2 gewollt ist, ist offen. Der Test bewertet nicht — er haelt fest.
