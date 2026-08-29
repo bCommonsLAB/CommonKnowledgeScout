@@ -17,6 +17,7 @@ import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } fro
 import { fehlerDetailsAusTrace } from './job-fehler-details'
 import { zaehleKuerzlichGescheitert } from './job-liste-ehrlich'
 import { beschreibeSchritte, uebersprungenHinweis } from './job-schritte'
+import { holePoolSicht } from './job-pool-sicht'
 
 /**
  * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
@@ -103,7 +104,12 @@ export function registerJobTools(server: McpServer): void {
         'Listet Jobs einer Library (Default: nur queued/running — die „was laeuft noch?“-Sicht ' +
         'nach einem Sessionabbruch, wenn jobIds verloren sind). Ohne status-Filter nennt die ' +
         'Antwort zusaetzlich die Fehlschlaege der letzten Stunde (gescheitertKuerzlich) — eine ' +
-        'leere Liste heisst NICHT, dass alles gut ging. Mit status auch abgeschlossene. Liest nur.',
+        'leere Liste heisst NICHT, dass alles gut ging. Mit status auch abgeschlossene. ' +
+        'Der Block `pool` sagt, WARUM eine Warteschlange stillsteht: Worker-Slots insgesamt, ' +
+        'belegte und steckengebliebene POOL-WEIT (alle Libraries, alle User) — die Concurrency-' +
+        'Grenze gilt global, die Liste daneben nur fuer diese Library. Sind alle Slots von Jobs ' +
+        'ohne Lebenszeichen belegt, wartet man nicht auf Arbeit, sondern auf Karteileichen ' +
+        '(wegraeumen: jobs_aufraeumen). Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         status: z.enum(['queued', 'running', 'completed', 'failed']).optional()
@@ -131,10 +137,19 @@ export function registerJobTools(server: McpServer): void {
               (await repo.listByUserWithFilters(userEmail, { libraryId, status: ['failed'], limit: 100 })).items,
             )
           : null
+        // Befund 29.08.2026: Sechs Karteileichen belegten alle Worker-Slots, 19
+        // eigene Jobs standen dahinter — ueber die Bruecke war der Grund
+        // unsichtbar. Die Warteschlange braucht ihre Erklaerung daneben.
+        const wartend = (
+          await repo.listByUserWithFilters(userEmail, { libraryId, status: ['queued'], limit: 1 })
+        ).total
+        const poolSicht = await holePoolSicht(wartend)
         return jsonResult({
           libraryId,
           statusFilter: status ?? 'queued+running',
           jobAnzahl: total,
+          wartend,
+          ...poolSicht,
           ...(gescheitertKuerzlich ? { gescheitertKuerzlich } : {}),
           gekappt: items.length < total,
           jobs: items.map((job) => ({
