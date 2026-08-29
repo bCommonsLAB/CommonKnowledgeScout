@@ -194,7 +194,13 @@ Detail (warum, Symptome, Ausnahmen):
 - Vorgeschlagen: `docs/adr/0008-deployment-ziele.md` — Ein Deployment, viele
   Sites (Host→SiteConfig zur Laufzeit, `next/dynamic` je Modul); eigene
   Compilate nur bei anderer Laufzeit (Electron, npm-Embed); Module exportieren
-  montierbare Wurzelkomponenten
+  montierbare Wurzelkomponenten.
+  **Nachtrag 2026-08-29 (Owner-Entscheidung, bindend)**: Die Huelle `embed`
+  liefert AUSSCHLIESSLICH oeffentliche Inhalte — kein Site-Token, keine
+  Besucher-Anmeldung, keine Uebernahme fremder Identitaeten. Geschuetztes gibt
+  es nur in der eigenstaendigen Anwendung. Folge: `@ks/embed` braucht keine
+  Anmelde-Mechanik, die Remote-Lese-API ist anonym, und die offene
+  TopNav-Auth-Frage wird dadurch kleiner. P8 (Headless-API) bleibt unberuehrt
 - Vorgeschlagen: `docs/adr/0009-library-foederation.md` — mehrere Libraries
   pro Site (primary + federated); Frage- und Inhalts-Bruecken auf Basis des
   Perspektiven-Bruecken-Zielbilds; Inhalts-Bruecken vorberechnet
