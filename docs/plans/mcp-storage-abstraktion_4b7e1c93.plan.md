@@ -43,6 +43,15 @@ todos:
   - id: st5-live-befunde
     content: "Welle ST5 (erledigt) — die drei Befunde aus dem Live-Test vom 28.08.2026: (a) Schreibschutz kennt jetzt die AKTION, nicht nur den Pfad — geschützt ist der Feldkern der _INDEX.md (Frontmatter, Voll-Ersatz, Löschen, Verschiebe-Ziel), Fließtext und Anlegen sind frei; damit bekommt ein neuer Ordner wieder seinen Contract. (b) SICHERHEITSLÜCKE: verschieben prüfte den Schreibschutz gar nicht — mit ueberschreiben:true ließ sich eine fremde _INDEX.md samt Bearbeitungsstand ersetzen, ohne ifVersion und ohne Schutzstufen; jetzt werden Ziel- UND Quellpfad geprüft. (c) Q5-Codes existiert_bereits und nicht_eindeutig statt unbekannt. Dazu: OneDrive meldete zeitstempelGenauigkeit millisekunde, lieferte aber .000Z — steht jetzt auf null. TOOLSET_VERSION 2.10.0."
     status: completed
+  - id: st9-stapel-und-ehrliche-jobliste
+    content: "Welle ST9 (erledigt, aus der Praxisbilanz 28.08.2026) — (a) familie_umziehen nimmt sourceIds (bis 30, alle in DENSELBEN Ziel-Ordner, Umbenennen bleibt Einzeloperation): 'besprechungen/ zu zerlegen kostete 26 Aufrufe' — der größte Zeitfresser, der einfachste Fix, dasselbe Stapel-Muster wie bei den Jobs (Fehler einer Quelle bricht den Stapel nicht ab). (b) job_liste ohne Filter nennt zusätzlich gescheitertKuerzlich (Fehlschläge der letzten Stunde, mit jobIds für job_status): die Liste meldete Ruhe, während 14 von 15 Jobs gescheitert waren. TOOLSET_VERSION 2.15.0."
+    status: completed
+  - id: coverage-nachfuehrung-ordner-umzug
+    content: "Coverage-Nachführung nach Ordner-Umzug (Praxisbilanz 28.08.2026): `verschieben` auf einen Ordner hinterlässt die Coverage-Sicht am alten Pfad — nur ein voller Scan über die Werkbank räumt das weg, bei 19 Vorhaben also 19-mal Handarbeit für Peter. Gehört NICHT in die Storage-Schicht (Abgrenzung §4), sondern als Nachführung in die Agent-View. Vorab zu entscheiden: Umzug merged den Teilbaum im gespeicherten Report um (analog zum Teilbaum-Scan-Merge aus W8), ODER er markiert ihn nur als veraltet und der nächste Teilbaum-Scan zieht nach. Die Merge-Variante ist die bessere Nutzererfahrung, braucht aber Pfad-Umschreibung im Report-Baum."
+    status: pending
+  - id: q7-job-modus-scans
+    content: "Q7/Job-Modus für lange Storage-Operationen (Praxisbilanz 28.08.2026, zweite Anforderung aus der Praxis): Scans über mehr als ~50 Ordner sind über die Brücke unmöglich (60-Sekunden-Limit) — der Skill fordert Gegenprüfen nach jedem Schritt, das geht nur teilbaumweise. War in den Anforderungen (Q7) benannt und bewusst auf Stufe 3 verschoben; die Praxis hat den Bedarf jetzt bestätigt. Zuschnitt: langlaufende Aufrufe (abdeckung_scannen ohne Scope, twins_pruefen ohne Scope, rekursives ordner_listen über die MAX_LISTINGS-Grenze) antworten sofort mit jobId statt zu blockieren; Ergebnis über job_status. Die External-Jobs-Infrastruktur (Worker, Repository, Trace) existiert — zu klären ist, ob Scan-Jobs dieselbe Collection nutzen oder eine eigene leichte Job-Art werden (ADR 0001 beachten: event-job vs. external-jobs sind getrennte Domänen)."
+    status: pending
   - id: verschoben-stufe3
     content: "BEWUSST NICHT in diesem Strang (Stufe 3 der Anforderungen): suchen (kein Provider kann es heute einheitlich — OneDrive per Graph-Search, Nextcloud/Filesystem nur per Scan; braucht zusätzlich indexStand in der Antwort), wiederherstellen aus dem Papierkorb, dateien_lesen (Stapel), binaer_lesen mit range, kopieren, sperren/entsperren, Job-Modus mit jobId für lange Läufe (Q7). aenderungen_seit existiert bereits scanbasiert. Erst aufgreifen, wenn ST1–ST4 stehen und ein konkreter Bedarf da ist (G3, bedarfsgetrieben)."
     status: pending
@@ -400,6 +409,38 @@ Sonderbehandlung.
 **Eine Korrektur am Testbericht:** Er sagt, `idGeaendert` gebe es nicht. Es
 gibt es in allen drei Schreibwerkzeugen — nur erscheint es ausschließlich bei
 einem tatsächlichen Wechsel, und bei OneDrive wechselte nichts.
+
+## 4g. Praxisbilanz 28.08.2026 — Konzept gegen Realität
+
+Nach dem ersten vollen Arbeitstag über die Brücke (Naturmuseum abgeschlossen,
+Bestandsaufnahme über 1.655 Befunde, NatureScout strukturiert) hat die
+Cowork-Sitzung Bilanz gezogen. Kernsatz:
+
+> „Das Konzept unterstellt implizit, dass Schritt 2 (Erschließen) der teure
+> ist und Schritt 1 (Strukturieren) schnell geht. Es ist umgekehrt."
+
+Das ist richtig — und kein Konzeptbruch, sondern der normale Gang: Die
+Anforderungsliste vom 27.08. hat die Ökonomie von Schritt 2/3 optimiert
+(Patchen, Q2-Grenzen, Job-Stapel), weil dort an jenem Tag das Geld
+verbrannte. Strukturieren kam in der Kostenrechnung nicht vor; der behobene
+Engpass hat den nächsten freigelegt.
+
+Die vier Befunde, verifiziert gegen den Code:
+
+| Befund | Einordnung | Stand |
+|---|---|---|
+| Kein Stapel-Umzug | echter blinder Fleck des Konzepts | **ST9** ✓ |
+| `job_liste` meldet Ruhe trotz 14 Fehlschlägen | Default war dokumentiert, aber die falsche Vorgabe | **ST9** ✓ |
+| Ordner-Umzug ohne Coverage-Nachführung | Folge der bewussten §4-Abgrenzung, nicht durchdacht | Todo `coverage-nachfuehrung-ordner-umzug` |
+| 60-Sekunden-Limit für große Scans | in Q7 benannt, bewusst verschoben — Praxis bestätigt den Bedarf | Todo `q7-job-modus-scans` |
+
+Nicht als Mangel gewertet: die Denkarbeit der Zuordnung (vier
+Korrekturrunden). Das ist das Werkbank-Modell, wie es gemeint ist — die
+Entscheidungen, die falsch zu raten wären, liegen beim Menschen.
+
+Offen aus der Bilanz, noch ohne Reproduktion: „completed mit drei grünen
+Schritten, obwohl nichts geschrieben wurde". Braucht erst einen Fall mit
+`fehlerDetails`, bevor sich sagen lässt, ob Worker oder Meldung lügt.
 
 ## 5. Offene Entscheidungen — mit Empfehlung
 

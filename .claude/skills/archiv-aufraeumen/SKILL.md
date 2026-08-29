@@ -66,6 +66,18 @@ Werkzeuge). Was in einem vorhandenen `ORDNUNGSZUSTAND.md` an Begründungen
 steht, gehört beim nächsten Anfassen in die `begruendung` der jeweiligen
 Aktion — nicht in eine neue Zeile der Datei.
 
+**1b-ii. Strukturieren im Stapel (seit 2.15.0).** `familie_umziehen` nimmt
+`sourceIds` (bis 30) — mehrere Quellen ziehen in EINEN Ziel-Ordner, ein
+Aufruf statt einem je Datei. Beim Zerlegen eines Sammelordners also je
+Ziel-Ereignisordner EIN Aufruf mit allen zugehörigen Dateien. Umbenennen
+bleibt Einzeloperation. Danach EIN `abdeckung_scannen` über den betroffenen
+Teilbaum — nicht je Datei.
+
+**1b-iii. Eine leere Job-Liste ist kein Erfolg.** `job_liste` ohne Filter
+nennt seit 2.15.0 zusätzlich `gescheitertKuerzlich` — die Fehlschläge der
+letzten Stunde samt jobIds. Steht dort etwas, zuerst `job_status` auf diese
+Jobs (liefert `fehlerDetails`), bevor irgendetwas nachgestartet wird.
+
 **1c. Für alles Übrige gibt es seit Werkzeugsatz 2.9.0 die Storage-Schicht.**
 `ordner_listen`, `datei_lesen`, `stat`, `pfad_aufloesen`, `datei_patchen`,
 `datei_schreiben`, `datei_anlegen`, `ordner_anlegen`, `verschieben`,
@@ -457,7 +469,9 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Meldet `transformation_starten` keine `modellHerkunft`
+`protokoll_lesen`, ist sie älter als 2.6.0. Nimmt `familie_umziehen` keine `sourceIds` oder fehlt
+`gescheitertKuerzlich` in der ungefilterten `job_liste`, ist sie älter als
+2.15.0. Meldet `transformation_starten` keine `modellHerkunft`
 (oder nimmt es noch ein `llmModel` an), ist sie älter als 2.14.0. Liefert `job_status` bei einem gescheiterten Job keine
 `fehlerDetails`, ist sie älter als 2.12.0. Fehlt `vorlagen_auflisten`, ist sie älter als 2.11.0.
 Lässt sich der Fließtext einer `_INDEX.md` nicht patchen oder geht

@@ -15,6 +15,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
 import { fehlerDetailsAusTrace } from './job-fehler-details'
+import { zaehleKuerzlichGescheitert } from './job-liste-ehrlich'
 
 /**
  * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
@@ -94,7 +95,9 @@ export function registerJobTools(server: McpServer): void {
       title: 'Offene Jobs einer Library',
       description:
         'Listet Jobs einer Library (Default: nur queued/running — die „was laeuft noch?“-Sicht ' +
-        'nach einem Sessionabbruch, wenn jobIds verloren sind). Mit status auch abgeschlossene. Liest nur.',
+        'nach einem Sessionabbruch, wenn jobIds verloren sind). Ohne status-Filter nennt die ' +
+        'Antwort zusaetzlich die Fehlschlaege der letzten Stunde (gescheitertKuerzlich) — eine ' +
+        'leere Liste heisst NICHT, dass alles gut ging. Mit status auch abgeschlossene. Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         status: z.enum(['queued', 'running', 'completed', 'failed']).optional()
@@ -107,15 +110,26 @@ export function registerJobTools(server: McpServer): void {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
-        const { items, total } = await new ExternalJobsRepository().listByUserWithFilters(userEmail, {
+        const repo = new ExternalJobsRepository()
+        const { items, total } = await repo.listByUserWithFilters(userEmail, {
           libraryId,
           status: status ?? ['queued', 'running'],
           limit: maxJobs ?? 20,
         })
+        // ST9 (Praxisbilanz 28.08.2026): Ohne Filter meldete die Liste Ruhe,
+        // waehrend 14 von 15 Jobs gescheitert waren — wer auf seinen Stapel
+        // wartet, liest Ruhe als Erfolg. Die Fehlschlaege der letzten Stunde
+        // gehoeren deshalb ungefragt in die Antwort.
+        const gescheitertKuerzlich = status === undefined
+          ? zaehleKuerzlichGescheitert(
+              (await repo.listByUserWithFilters(userEmail, { libraryId, status: ['failed'], limit: 100 })).items,
+            )
+          : null
         return jsonResult({
           libraryId,
           statusFilter: status ?? 'queued+running',
           jobAnzahl: total,
+          ...(gescheitertKuerzlich ? { gescheitertKuerzlich } : {}),
           gekappt: items.length < total,
           jobs: items.map((job) => ({
             jobId: job.jobId,
