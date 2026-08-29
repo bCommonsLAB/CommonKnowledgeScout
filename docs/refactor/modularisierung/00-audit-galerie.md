@@ -376,7 +376,11 @@ sein, nicht dokumentiert.
 - **Die Zuordnung der 11 `/api/chat/*`-Routen.** M4 hat den Namensraum dem
   Explorer zugeschrieben; was davon der Galerie gehoert und was dem Chat, ist
   offen — und die Kuratierungs-Routen widersprechen der M4-Ausnahmeliste.
-- **Story und Chat.** Dieses Audit misst nur die Galerie.
+- **Story und Chat.** Dieses Audit misst nur die Galerie. Die Chat-Kopplung ist
+  inzwischen nachgemessen:
+  [`01-audit-galerie-chat.md`](01-audit-galerie-chat.md) — Ergebnis: sie ist
+  fast nur Vokabular, und die Abhaengigkeit zeigt ueberwiegend in die
+  Gegenrichtung.
   `src/components/library/story/` und `src/components/library/chat/` gehoeren
   laut Landkarte §5 in dasselbe Modul und sind nicht vermessen.
 

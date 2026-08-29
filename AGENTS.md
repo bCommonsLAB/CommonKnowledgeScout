@@ -56,8 +56,18 @@ Sessions nicht doppelt bauen:
     serverseitige Fachlogik nach `src/lib/documents/`
   - **Galerie-Eine-Quelle** (erledigt): eine Werteliste statt dreizehn Kopien,
     eine Verteilstelle statt vier Typ-Zweigen
+  - **Galerie-Betrachter** (erledigt): kein Auth-Anbieter mehr im Modul; der
+    Betrachter wird hereingereicht (vier Felder), in der App aus Clerk
   - **Galerie-Adressierung** (offen): Protokoll statt `next/navigation` — die
-    Welle, die das Einbetten freischaltet, und die riskanteste der drei
+    Welle, die das Einbetten freischaltet, und die riskanteste. Wartet auf
+    einen Konsumenten (Garantie G3), Netz liegt
+    (`tests/unit/utils/document-navigation-routen.test.ts`)
+  - **Galerie-Chat-Mittelschicht** (offen, vermessen): siehe
+    [`01-audit-galerie-chat.md`](docs/refactor/modularisierung/01-audit-galerie-chat.md).
+    Befund: Die Kopplung ist fast nur Vokabular, `ChatReferenceList` liegt im
+    Chat-Ordner und wird **nur** von der Galerie benutzt, und der Chat haengt
+    an der Galerie staerker (7 Dateien) als umgekehrt (3). Empfohlen ist,
+    die Mittelschicht zu benennen statt den Chat mitzunehmen
 
   **Pakete pro `detailViewType` wurden geprueft und verworfen** — die
   Faehigkeiten (Kommentare, Sterne, Graph) spannen bereits ueber alle Typen;
