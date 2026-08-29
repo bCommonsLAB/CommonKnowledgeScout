@@ -32,13 +32,13 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 
 | Paket | Inhalt | Heutige Quellen |
 |---|---|---|
-| `@ks/shell` | Provider-Kette (Theme, Jotai, QueryClient, Locale, Storage-Context), Auth (Clerk, abschaltbar), Library-Bootstrap (Libraries laden, aktive Library aus SiteConfig/URL), konfigurierbare TopNav, Host→Library-Mapping | `src/app/layout.tsx` (Logik), `src/components/layouts/`, `src/components/top-nav*.{ts,tsx}`, `src/atoms/library-atom.ts`, `src/contexts/storage-context.tsx`, `src/hooks/use-library-config.ts`, `src/lib/root-landing.ts`, `src/lib/domain-library-map.ts`<br>**M3 verschoben**: `top-nav-config.ts`, `domain-library-map.ts`, `theme-provider.tsx`, `query-provider.tsx`; Rest blockiert bis `@ks/ui`/`@ks/i18n` (Begruendung: `docs/refactor/modularisierung/AGENT-BRIEF-M3.md`) |
+| `@ks/shell` | Provider-Kette (Theme, Jotai, QueryClient, Locale, Storage-Context), Auth (Clerk, abschaltbar), Library-Bootstrap (Libraries laden, aktive Library aus SiteConfig/URL), konfigurierbare TopNav, Host→Library-Mapping | `src/app/layout.tsx` (Logik), `src/components/layouts/`, `src/components/top-nav*.{ts,tsx}`, `src/contexts/storage-context.tsx`, `src/hooks/use-library-config.ts`, `src/lib/root-landing.ts`, `src/lib/domain-library-map.ts`<br>**M3 verschoben**: `top-nav-config.ts`, `domain-library-map.ts`, `theme-provider.tsx`, `query-provider.tsx`<br>**M4e erledigt**: die Library-Auswahl aus `src/atoms/library-atom.ts` als DRITTER Einstiegspunkt `@ks/shell/react` — Atome paketintern, nach aussen acht Hooks. Der Ordner-/Dateizustand blieb in der App (`src/atoms/folder-navigation.ts`, `library-atom.ts`) und geht spaeter nach `@ks/module-archive`. Folgen des Bibliothekswechsels reicht die App per `registerActiveLibraryChangeEffect` herein; `@ks/shell/testing` setzt den Zustand in Tests |
 
 ### Schicht 3 — Modul-Pakete (UI + Hooks + API-Handler)
 
 | Paket | Inhalt | Heutige Quellen (Auszug) | API-Namespace |
 |---|---|---|---|
-| `@ks/module-explorer` | Galerie, Story, Chat/RAG, Doc-Detail, Website-Rendering | `src/app/explore/`, `src/components/library/{gallery,story,chat,website}/`, `src/components/public/`, `src/hooks/gallery/`, `src/lib/{chat,gallery,website}/` | `chat/[libraryId]/*` (Lese-Teil), `public/*`, `markdown/*` |
+| `@ks/module-explorer` | Galerie, Story, Chat/RAG, Doc-Detail, Website-Rendering | `src/app/explore/`, `src/components/library/{gallery,story,chat,website}/`, `src/components/public/`, `src/hooks/gallery/`, `src/lib/{chat,gallery,website}/`<br>**M4 erledigt**: Gate + API-Namensraum (Wurzel-Barrel, React-frei) und die montierbare Wurzelkomponente unter `@ks/module-explorer/react` — Eintrittsprotokoll, Zugriffspruefung, Kopf. Galerie/Story/Chat liegen weiter in der App und kommen als Slots herein | `chat/[libraryId]/*` (Lese-Teil), `public/*`, `markdown/*` |
 | `@ks/module-archive` | Archiv: Datei-Liste/-Baum/-Vorschau, Shadow-Twin-UI, Upload, Ingestion | `src/components/library/{file-list,file-preview,…}/`, `src/lib/{shadow-twin,ingestion,storage}/` | `library/[libraryId]/*` (ohne `agent-view`), `storage/*`, `chat/[libraryId]/ingest*` (heute falsch einsortiert, s. §3) |
 | `@ks/module-agent-view` | Agentensicht/Werkbank — nach W1–W8 + A1–A6 das **größte** Modul (111 Dateien): Coverage-Scan, Vorhaben-Baum, Artefakt-Abnahme, Kuration nach ADR 0006, Themen, Worklists, MCP-Anbindung | `src/components/library/agent-view/`, `src/hooks/agent-view/`, `src/lib/agent-view/`, `src/lib/mcp/` | `library/[libraryId]/agent-view/*`, `mcp/*`, `account/mcp-*` |
 | `@ks/module-creation` | Creation-Wizard, Wartekorb/Submissions, Secretary-Erfassung | `src/components/creation-wizard/`, `src/components/submissions/`, `src/lib/{creation,secretary,submissions}/` | `secretary/*`, `submissions/*`, `wizard-sessions/*`, `creation/*`, `stream-ingest/*` |
@@ -255,7 +255,7 @@ Strang und beginnt mit M1.
 | A | M1 | `pnpm-workspace.yaml` + `transpilePackages` + `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build, Voll-App unverändert |
 | A | M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
 | A | M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + Host→SiteConfig-Resolver | Voll-App läuft als Default-Site der Registry |
-| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate<br>**Stand**: Gate + API-Namensraum erledigt; Wurzelkomponente offen. Fundament steht: `@ks/ui` (M4b), `@ks/i18n` (M4c), `ClientLibrary` in `@ks/contracts` (M4d) | Voll-App mountet Explorer aus dem Paket |
+| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate<br>**Erledigt**: Gate + API-Namensraum (M4), Fundament in M4b–M4e, `ExplorerRoot` unter `@ks/module-explorer/react`. Die Galerie bleibt vorerst in der App und wird als Slot hereingereicht (G3) — sie ist eine eigene Welle | **erreicht**: `/explore/[slug]` ist der Montagepunkt (59 Zeilen); der Wurzel-Test montiert ohne Next-Router und ohne Clerk |
 | B | M5 | **AECED-Pilot**: `@ks/embed` (npm-React-Komponente) + Headless-Lese-API mit Token auf der bestehenden Instanz | Galerie/Story in der Fremdanwendung, KEIN neues Deployment |
 | B | M6 | „Oldies for Future" als erster SiteConfig-Eintrag der Multi-Site-Runtime | schlanker Client (nur Explorer-Chunks) ohne zweites Deployment |
 | B | M7 | `@ks/module-agent-view` inkl. MCP-Export; Electron-Hülle auf Paketbasis (Peters Archiv, Diva-Werkbank) | zweites Modul + `local-first`-Hülle |
@@ -266,17 +266,24 @@ läuft (Kriterien in der Migrationsstrategie).
 
 ## 6. Offene Fragen
 
-- ~~**Jotai über Paketgrenzen**~~ — **entschieden in M3, umgesetzt in M4c**:
-  `@ks/i18n/react` hält `localeAtom` paketintern und exportiert ausschließlich
-  Hooks (`useTranslation`, `useSetLocale`, `useApplyLocale`). Damit ist die
-  Richtung nicht nur festgehalten, sondern einmal durchgezogen — das Muster für
-  jedes weitere Paket. Nachtrag zu M3: Die Locale-Provider gehören ins
+- ~~**Jotai über Paketgrenzen**~~ — **entschieden in M3, umgesetzt in M4c,
+  bestätigt in M4e**: Pakete halten ihre Atome intern und exportieren
+  ausschließlich Hooks — `@ks/i18n/react` (`localeAtom`) und `@ks/shell/react`
+  (Library-Auswahl). Nachtrag zu M3: Die Locale-Provider gehören ins
   i18n-Paket, NICHT in die Schale; läge `LocaleGate` in `@ks/shell`, müsste das
-  Atom doch exportiert werden. ~~Weitere Atome bleiben vorerst in der App:
-  `library-atom` hängt an `ClientLibrary`~~ — **der Grund ist mit M4d weg**:
-  `ClientLibrary` liegt in `@ks/contracts`, `library-atom` ist damit nicht mehr
-  an die App gebunden. Die Frage, ob es als Hook-Oberfläche in die Schale geht,
-  ist jetzt entscheidbar (nächste Welle).
+  Atom doch exportiert werden.
+
+  **Zwei Befunde aus M4e**, die für jedes weitere Paket gelten:
+  1. **Ein Atom kann keinen Hook lesen.** Wer die Hook-Oberfläche einführt,
+     muss jede App-seitige Ableitung auf dem Zustand mit umbauen — in M4e
+     waren das fünf abgeleitete Atome, die zu reinen Funktionen mit Hooks
+     davor wurden (`src/lib/file-list/`). Das ist der eigentliche Aufwand,
+     nicht der Umzug des Atoms.
+  2. **Tests setzen Zustand vor dem ersten Render**, also außerhalb von React.
+     Dafür bekommt ein Paket einen schmalen, ausschließlich SCHREIBENDEN
+     Testeinstieg (`@ks/shell/testing`: `seedLibrarySelection`) — keinen
+     Atom-Export. Eine Lesefunktion dort wäre der Atom-Export durch die
+     Hintertür.
 - ~~**`storage-context` / `use-storage-provider`**~~ — **entschieden in M3**:
   gehört NICHT in die Schale. Der Kontext hängt an `StorageFactory`,
   Clerk-Hooks und einem Reauth-Dialog; er ist die Zugriffsschicht des Archivs,

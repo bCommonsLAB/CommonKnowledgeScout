@@ -11,11 +11,10 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAtomValue, useSetAtom } from "jotai"
 import { Loader2, Plus } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { Button, Card } from '@ks/ui'
-import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
+import { useLibraries, useSetActiveLibraryId } from '@ks/shell/react'
 import { useStorage } from "@/contexts/storage-context"
 import { LibraryTeasers } from "@/components/start/library-teasers"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
@@ -23,8 +22,8 @@ import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 export function StartClient() {
   const router = useRouter()
   const { user, isLoaded: isUserLoaded } = useUser()
-  const libraries = useAtomValue(librariesAtom)
-  const setActiveLibraryId = useSetAtom(activeLibraryIdAtom)
+  const libraries = useLibraries()
+  const setActiveLibraryId = useSetActiveLibraryId()
   const { isLoading: isLibrariesLoading } = useStorage()
   const [wizardOpen, setWizardOpen] = useState(false)
 

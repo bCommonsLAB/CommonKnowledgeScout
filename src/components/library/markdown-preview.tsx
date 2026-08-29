@@ -8,7 +8,8 @@ import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ks/ui'
 import { Wand2, Maximize2, X as CloseIcon, Copy, Check, Pencil } from 'lucide-react';
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { selectedFileAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
+import { selectedFileAtom } from "@/atoms/library-atom";
+import { useActiveLibraryId } from '@ks/shell/react'
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { SearchPopover } from './markdown-preview/search-popover'
@@ -133,7 +134,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   const proseStil = proseGroesse === undefined ? undefined : { fontSize: proseGroesse };
   const proseUeberschriften = schriftstufe === 'normal' ? undefined : FLACHE_UEBERSCHRIFTEN;
   const currentItem = useAtomValue(selectedFileAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);

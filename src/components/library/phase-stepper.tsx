@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 import { Settings2, Play } from "lucide-react";
 import { Button } from '@ks/ui'
 import { useAtomValue } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom } from "@/atoms/library-atom";
+import { selectedFileAtom } from "@/atoms/library-atom";
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { loadPdfDefaults } from "@/lib/pdf-defaults";
 import { pdfOverridesAtom, getEffectivePdfDefaults } from "@/atoms/pdf-defaults";
 import { TransformService, type PdfTransformOptions } from "@/lib/transform/transform-service";
@@ -28,8 +29,8 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [forceRecreate, setForceRecreate] = React.useState<boolean>(false);
   const [phase, setPhase] = useAtom(activePdfPhaseAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const activeLibrary = useActiveLibrary();
   const item = useAtomValue(selectedFileAtom);
   const { provider, refreshItems } = useStorage();
   const pdfOverrides = useAtomValue(pdfOverridesAtom);

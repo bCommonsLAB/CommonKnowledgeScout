@@ -28,7 +28,7 @@ import JobDetailsPanel from '@/components/event-monitor/job-details-panel';
 import BatchArchiveDialog from '@/components/event-monitor/batch-archive-dialog';
 import { createAllTrackSummaries, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
-import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { useActiveLibraryId } from '@ks/shell/react'
 import { selectedEventAtom } from '@/atoms/event-filter-atom'; // 🆕 Event-Filter Atom
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 import EventFilterDropdown from '@/components/event-monitor/event-filter-dropdown';
@@ -65,7 +65,7 @@ export default function EventMonitorPage() {
   const [summarizing, setSummarizing] = useState(false);
   
   // Verwende useAtom statt useAtomValue für activeLibraryIdAtom
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   const [selectedEvent] = useAtom(selectedEventAtom); // 🆕 Event-Filter State
   
   // Debug-Logging für die aktive Bibliothek

@@ -14,7 +14,6 @@
  */
 
 import { useMemo, useState, useRef } from 'react'
-import { useAtomValue } from 'jotai'
 import {
   Accordion,
   AccordionContent,
@@ -31,7 +30,7 @@ import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
 import { useTranslation } from '@ks/i18n/react'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { QueryDetailsDialog } from '@/components/library/chat/query-details-dialog'
 import { ProcessingStatus } from '@/components/library/chat/processing-status'
@@ -120,7 +119,7 @@ export function StoryTopics({
   const [showDetails, setShowDetails] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const accordionRef = useRef<HTMLDivElement>(null)
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
 
   // Verwende ersten Character-Wert fuer Farben (falls vorhanden)
   const characterValue = cachedTOC?.character && cachedTOC.character.length > 0 ? cachedTOC.character[0] : undefined

@@ -25,15 +25,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAtomValue } from "jotai"
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { StorageProvider } from "@/lib/storage/types"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 import { SUPPORTED_LIBRARY_TYPES } from "@/lib/storage/supported-types"
 
 export function useStorageProvider() {
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
-  const libraries = useAtomValue(librariesAtom)
+  const activeLibraryId = useActiveLibraryId()
+  const libraries = useLibraries()
   const [provider, setProvider] = useState<StorageProvider | null>(null)
 
   useEffect(() => {

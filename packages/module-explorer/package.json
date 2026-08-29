@@ -2,11 +2,22 @@
   "name": "@ks/module-explorer",
   "version": "0.0.0",
   "private": true,
-  "description": "KnowledgeScout — Modul Explorer (Galerie, Story, Chat/RAG, Website): API-Namensraum und Site-Gate",
+  "description": "KnowledgeScout \u2014 Modul Explorer (Galerie, Story, Chat/RAG, Website): API-Namensraum und Site-Gate",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
     "@ks/contracts": "workspace:*",
-    "@ks/shell": "workspace:*"
+    "@ks/i18n": "workspace:*",
+    "@ks/shell": "workspace:*",
+    "@ks/ui": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react/index.ts"
+  },
+  "peerDependencies": {
+    "jotai": "^2.11.0",
+    "lucide-react": "^0.312.0",
+    "react": "^18.2.0"
   }
 }

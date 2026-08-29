@@ -26,7 +26,7 @@ import {
 } from '@ks/ui'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { DETAIL_VIEW_TYPES, type DetailViewType } from '@/lib/detail-view-types/registry'
 import { MediaTab } from './media-tab'
@@ -92,7 +92,7 @@ export function JobReportTab({
   onEditClick,
   effectiveMdIdRef,
 }: JobReportTabProps) {
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const activeLibrary = libraries.find((lib) => lib.id === libraryId)
   const libraryConfig = activeLibrary?.config?.chat
   const [loading, setLoading] = useState(false)

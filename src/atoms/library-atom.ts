@@ -1,224 +1,57 @@
 /**
- * @fileoverview Library State Atoms - Jotai State Management for Libraries
- * 
+ * @fileoverview Datei-Listen- und Annotations-Zustand der Bibliothek.
+ *
  * @description
- * Provides Jotai atoms for managing library state across the application. Handles
- * active library selection, folder navigation, file caching, and library status.
- * Uses atomFamily for folder-specific state management and provides derived atoms
- * for computed values.
- * 
+ * Was die Dateiliste zeigt: geladene Items, Auswahl, Suche/Sortierung je
+ * Library, Annotationen (DIVA und generisch) und der Review-Modus.
+ *
+ * Welche Bibliotheken es gibt und welche aktiv ist, steht seit dieser Welle
+ * NICHT mehr hier, sondern in `@ks/shell/react` — dort als Hooks, nicht als
+ * Atome. Die Ordner-Navigation liegt in `@/atoms/folder-navigation` und wird
+ * hier re-exportiert, damit bestehende Importpfade gueltig bleiben
+ * (Migrationsstrategie G2).
+ *
  * @module library
- * 
- * @exports
- * - libraryAtom: Main library state atom
- * - activeLibraryIdAtom: Active library ID atom
- * - librariesAtom: Libraries list atom
- * - activeLibraryAtom: Active library object atom
- * - currentFolderIdAtom: Current folder ID atom
- * - currentPathAtom: Current path atom
- * - libraryStatusAtom: Library loading status atom
- * - folderItemsAtom: Folder items atom family
- * 
+ *
  * @usedIn
  * - src/contexts/storage-context.tsx: Uses library atoms for state management
  * - src/components/library: Library components use atoms
  * - src/hooks/use-storage-provider.tsx: Uses library atoms
- * 
+ *
+ * Die Filter-/Sortier-Regel und die Pfad-Berechnung sind seit dieser Welle
+ * keine Atome mehr, sondern reine Funktionen in `@/lib/file-list/` mit den
+ * Hooks in `@/hooks/use-file-list-view` davor — sie brauchen die aktive
+ * Bibliothek, und die ist nach dem Umzug in die Schale nur ueber Hooks
+ * erreichbar.
+ *
  * @dependencies
  * - jotai: State management library
  * - @/lib/storage/types: StorageItem type
- * - @/types/library: ClientLibrary type
- * - @/atoms/transcription-options: File category filter
  */
 
 import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { StorageItem } from "@/lib/storage/types"
-import { ClientLibrary } from "@/types/library"
-import { fileCategoryFilterAtom, getFileCategory } from '@/atoms/transcription-options'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
-import { isBasecolorFileName } from '@/lib/diva-texture/preprocess-folder'
 
-// Basis-Typen für den Library-State
-export interface LibraryState {
-  libraries: ClientLibrary[];
-  activeLibraryId: string;
-  currentFolderId: string;
-  folderCache: Record<string, StorageItem>;
-}
-
-// Typen für den Loading-State
-export interface LoadingState {
-  isLoading: boolean;
-  loadingFolderId: string | null;
-}
-
-// Initialer State
-const initialState: LibraryState = {
-  libraries: [],
-  activeLibraryId: "",
-  currentFolderId: "root",
-  folderCache: {}
-}
-
-// Hauptatom für Library-State
-export const libraryAtom = atom<LibraryState>(initialState)
-libraryAtom.debugLabel = "libraryAtom"
-
-// Derivierte Atome für spezifische Eigenschaften
-export const activeLibraryIdAtom = atom(
-  get => get(libraryAtom).activeLibraryId,
-  (get, set, newId: string) => {
-    const prev = get(libraryAtom).activeLibraryId
-    set(libraryAtom, {
-      ...get(libraryAtom),
-      activeLibraryId: newId
-    })
-    // Galerie-/Story-Filter (Facetten, shortTitle, …) sind an die aktive Library gebunden.
-    // Beim Wechsel zurücksetzen, damit keine Filter der vorherigen Library „hängen bleiben“.
-    if (newId !== prev) {
-      set(galleryFiltersAtom, {})
-    }
-  }
-)
-activeLibraryIdAtom.debugLabel = "activeLibraryIdAtom"
-
-// Klares Signal fuer den "keine Library gewaehlt"-Zustand: true, solange keine
-// aktive Library gesetzt ist (z.B. nach dem Login ohne gespeicherte Auswahl oder
-// nach dem Deselektieren im Re-Auth-Dialog). UI/Guards pruefen dieses Atom statt
-// ueberall activeLibraryId === "" zu streuen.
-export const noLibrarySelectedAtom = atom(get => get(activeLibraryIdAtom) === "")
-noLibrarySelectedAtom.debugLabel = "noLibrarySelectedAtom"
-
-// Bibliotheken-Atom
-export const librariesAtom = atom(
-  get => get(libraryAtom).libraries,
-  (get, set, newLibraries: ClientLibrary[]) => {
-    set(libraryAtom, {
-      ...get(libraryAtom),
-      libraries: newLibraries
-    })
-  }
-)
-librariesAtom.debugLabel = "librariesAtom"
-
-// Aktive Bibliothek
-export const activeLibraryAtom = atom(
-  get => {
-    const state = get(libraryAtom)
-    return state.libraries.find(lib => lib.id === state.activeLibraryId)
-  }
-)
-activeLibraryAtom.debugLabel = "activeLibraryAtom"
-
-// Aktuelles Verzeichnis
-export const currentFolderIdAtom = atom(
-  get => get(libraryAtom).currentFolderId,
-  (get, set, newFolderId: string) => {
-    set(libraryAtom, {
-      ...get(libraryAtom),
-      currentFolderId: newFolderId
-    })
-  }
-)
-currentFolderIdAtom.debugLabel = "currentFolderIdAtom"
-
-// Automatische Pfad-Berechnung
-export const currentPathAtom = atom(
-  get => {
-    const currentLibrary = get(activeLibraryAtom);
-    const currentFolderId = get(currentFolderIdAtom);
-    const libraryState = get(libraryAtom);
-    
-    if (!currentLibrary || !currentFolderId) {
-      return [];
-    }
-
-    // Root-Item immer als erstes
-    const rootItem: StorageItem = {
-      id: 'root',
-      parentId: '',
-      type: 'folder',
-      metadata: {
-        name: currentLibrary.label || '/',
-        size: 0,
-        modifiedAt: new Date(),
-        mimeType: 'application/folder'
-      }
-    };
-
-    // Bei root nur das Root-Item zurückgeben
-    if (currentFolderId === 'root') {
-      return [rootItem];
-    }
-
-    // Pfad aus dem Ordner-Cache berechnen
-    const folderCache = libraryState.folderCache;
-    if (!folderCache) {
-      return [rootItem];
-    }
-
-    // Pfad aufbauen
-    const path: StorageItem[] = [];
-    let currentId = currentFolderId;
-    const missingIds: string[] = [];
-    
-    while (currentId && currentId !== 'root') {
-      const folder = folderCache[currentId];
-      if (!folder) {
-        // Debug: Fehlende Ordner im Cache protokollieren
-        missingIds.push(currentId);
-        console.warn('[currentPathAtom] Ordner nicht im Cache gefunden', {
-          currentId,
-          currentFolderId,
-          cacheKeys: Object.keys(folderCache),
-          missingIds
-        });
-        break;
-      }
-      path.unshift(folder);
-      currentId = folder.parentId;
-    }
-
-    return [rootItem, ...path];
-  }
-)
-currentPathAtom.debugLabel = "currentPathAtom"
+// Fassade auf die Ordner-Navigation (G2) — bestehende Importe bleiben gueltig.
+export type { FolderNavigationState, LoadingState } from "@/atoms/folder-navigation"
+export {
+  folderNavigationAtom,
+  currentFolderIdAtom,
+  fileTreeReadyAtom,
+  loadedChildrenAtom,
+  expandedFoldersAtom,
+  lastLoadedFolderAtom,
+  loadingStateAtom,
+} from "@/atoms/folder-navigation"
 
 // Ausgewählte Datei
 export const selectedFileAtom = atom<StorageItem | null>(null)
 selectedFileAtom.debugLabel = "selectedFileAtom"
 
-// FileTree Ready Status
-export const fileTreeReadyAtom = atom<boolean>(false)
-fileTreeReadyAtom.debugLabel = "fileTreeReadyAtom"
-
 // Ordner-Items
 export const folderItemsAtom = atom<StorageItem[]>([])
 folderItemsAtom.debugLabel = "folderItemsAtom"
-
-// Geladene Kinder im FileTree
-export const loadedChildrenAtom = atom<Record<string, StorageItem[]>>({})
-loadedChildrenAtom.debugLabel = "loadedChildrenAtom"
-
-// Lade-Status
-export const loadingStateAtom = atom<LoadingState>({
-  isLoading: false,
-  loadingFolderId: null
-})
-loadingStateAtom.debugLabel = "loadingStateAtom"
-
-// Expandierte Ordner im FileTree
-export const expandedFoldersAtom = atom<Set<string>>(new Set(['root']))
-expandedFoldersAtom.debugLabel = "expandedFoldersAtom"
-
-// Letzter geladener Ordner
-export const lastLoadedFolderAtom = atom<string | null>(null)
-lastLoadedFolderAtom.debugLabel = "lastLoadedFolderAtom"
-
-// Library Status (für Template Management)
-export const libraryStatusAtom = atom<'ready' | 'waitingForAuth' | 'loading'>('loading')
-libraryStatusAtom.debugLabel = "libraryStatusAtom"
 
 // Library-spezifische Sort/Filter-Konfiguration
 export interface SortFilterConfig {
@@ -234,49 +67,6 @@ export const librarySortFilterConfigAtom = atomFamily(
     sortField: 'name',
     sortOrder: 'asc'
   })
-)
-
-// Getter-Atome für die aktuelle Library
-export const searchTermAtom = atom(
-  (get) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return ''
-    return get(librarySortFilterConfigAtom(libraryId)).searchTerm
-  },
-  (get, set, newSearchTerm: string) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return
-    const config = get(librarySortFilterConfigAtom(libraryId))
-    set(librarySortFilterConfigAtom(libraryId), { ...config, searchTerm: newSearchTerm })
-  }
-)
-
-export const sortFieldAtom = atom(
-  (get) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return 'name' as const
-    return get(librarySortFilterConfigAtom(libraryId)).sortField
-  },
-  (get, set, newSortField: 'name' | 'size' | 'date' | 'type') => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return
-    const config = get(librarySortFilterConfigAtom(libraryId))
-    set(librarySortFilterConfigAtom(libraryId), { ...config, sortField: newSortField })
-  }
-)
-
-export const sortOrderAtom = atom(
-  (get) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return 'asc' as const
-    return get(librarySortFilterConfigAtom(libraryId)).sortOrder
-  },
-  (get, set, newSortOrder: 'asc' | 'desc') => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return
-    const config = get(librarySortFilterConfigAtom(libraryId))
-    set(librarySortFilterConfigAtom(libraryId), { ...config, sortOrder: newSortOrder })
-  }
 )
 
 // Nur Dateien, keine Verzeichnisse
@@ -340,74 +130,10 @@ divaSidecarStatusAtom.debugLabel = "divaSidecarStatusAtom"
 export const groupByAttributeAtom = atom<string | null>(null)
 groupByAttributeAtom.debugLabel = "groupByAttributeAtom"
 
-// Sortiert & gefiltert (nur Dateien)
-export const sortedFilteredFilesAtom = atom((get) => {
-  const files = get(filesOnlyAtom)
-  const searchTerm = get(searchTermAtom).toLowerCase()
-  const sortField = get(sortFieldAtom)
-  const sortOrder = get(sortOrderAtom)
-
-  // Importiere die Filter-Funktionen
-  const categoryFilter = get(fileCategoryFilterAtom)
-  const annotationFilter = get(annotationFilterModeAtom)
-  const annotations = get(itemAnnotationsAtom)
-  const activeLibrary = get(activeLibraryAtom)
-  const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true
-
-  let filtered = files.filter(item => {
-    // Basis-Filter
-    const basicFilter = !item.metadata.name.startsWith('.') &&
-      !item.metadata.isTwin &&
-      (searchTerm === '' || item.metadata.name.toLowerCase().includes(searchTerm))
-
-    if (!basicFilter) return false
-
-    // DIVA-Filter: immer nur *_basecolor, dann alle / mit / ohne Sidecar-Treffer.
-    if (divaEnabled) {
-      if (!isBasecolorFileName(item.metadata.name)) return false
-      const hasAnnotation = annotations.has(item.metadata.name)
-      if (annotationFilter === 'with' && !hasAnnotation) return false
-      if (annotationFilter === 'without' && hasAnnotation) return false
-    } else if (annotationFilter !== 'all') {
-      // Generischer Annotation-Filter ohne DIVA (kein Basecolor-Zwang).
-      const hasAnnotation = annotations.has(item.metadata.name)
-      if (annotationFilter === 'with' && !hasAnnotation) return false
-      if (annotationFilter === 'without' && hasAnnotation) return false
-    }
-
-    // Kategorie-Filter
-    if (categoryFilter === 'all') return true
-
-    const itemCategory = getFileCategory(item)
-    return itemCategory === categoryFilter
-  })
-
-  filtered = filtered.sort((a, b) => {
-    let cmp = 0
-    switch (sortField) {
-      case 'type':
-        cmp = (a.metadata.mimeType || '').localeCompare(b.metadata.mimeType || '')
-        break
-      case 'name':
-        cmp = a.metadata.name.localeCompare(b.metadata.name)
-        break
-      case 'size':
-        cmp = (a.metadata.size || 0) - (b.metadata.size || 0)
-        break
-      case 'date':
-        cmp = new Date(a.metadata.modifiedAt ?? 0).getTime() - new Date(b.metadata.modifiedAt ?? 0).getTime()
-        break
-    }
-    return sortOrder === 'asc' ? cmp : -cmp
-  })
-
-  return filtered
-}) 
-
 // Review-Mode-Atoms für das neue Layout-Feature
 export const reviewModeAtom = atom<boolean>(false)
 reviewModeAtom.debugLabel = "reviewModeAtom"
 
 // Ausgewähltes Shadow-Twin für Review-Modus
 export const selectedShadowTwinAtom = atom<StorageItem | null>(null)
-selectedShadowTwinAtom.debugLabel = "selectedShadowTwinAtom" 
+selectedShadowTwinAtom.debugLabel = "selectedShadowTwinAtom"

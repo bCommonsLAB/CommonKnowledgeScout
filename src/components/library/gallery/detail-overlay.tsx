@@ -18,8 +18,7 @@ import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-
 import { IngestionRefurbedDeviceDetail } from '@/components/library/ingestion-refurbed-device-detail'
 import { IngestionWebsiteDetail } from '@/components/library/ingestion-website-detail'
 import { useTranslation } from '@ks/i18n/react'
-import { useAtomValue } from 'jotai'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import { SdgProfile } from '@/components/library/gallery/sdg-profile'
 import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/gallery/sdg-meta'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
@@ -99,7 +98,7 @@ export function DetailOverlay({
   // SDG-Profil ist ein library-uebergreifendes Anzeige-Flag (kein Secret).
   // Wohnt unter der Story-/Galerie-Config (config.chat.gallery.showSdgProfile),
   // nicht in der Library-Storage-Config.
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const sdgEnabled = libraries.find((l) => l.id === libraryId)?.config?.chat?.gallery?.showSdgProfile === true
   // Sichtbare/relevante fileIds: aktuelle Quelle + Geschwister fuer
   // den Tinder-Modus (sonst kann der Sequencer nicht filtern, was

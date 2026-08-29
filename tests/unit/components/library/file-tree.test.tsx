@@ -17,13 +17,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import {
-  activeLibraryIdAtom,
   currentFolderIdAtom,
   expandedFoldersAtom,
   fileTreeReadyAtom,
-  librariesAtom,
   folderItemsAtom,
 } from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 import type { ClientLibrary } from '@/types/library'
 import type { StorageItem } from '@/lib/storage/types'
 
@@ -84,8 +83,7 @@ describe('FileTree', () => {
 
   it('rendert Root-Ordner, sobald folderItemsAtom Root-Items enthaelt', async () => {
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     // folderItemsAtom liefert die Root-Items, der FileTree-Effekt
     // (Zeile 347 in file-tree.tsx) uebernimmt sie nach Mount in
@@ -116,8 +114,7 @@ describe('FileTree', () => {
         shadowTwin: { primaryStore: 'filesystem', persistToFilesystem: true },
       } as ClientLibrary['config'],
     })
-    store.set(librariesAtom, [lib])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [lib], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     store.set(folderItemsAtom, [
       makeFolder('folder-1', 'Sichtbar'),
@@ -146,8 +143,7 @@ describe('FileTree', () => {
         shadowTwin: { primaryStore: 'mongo', persistToFilesystem: false },
       } as ClientLibrary['config'],
     })
-    store.set(librariesAtom, [lib])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [lib], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     store.set(folderItemsAtom, [makeFolder('folder-twin', '_Mein Ordner')])
     store.set(expandedFoldersAtom, new Set(['root']))
@@ -165,8 +161,7 @@ describe('FileTree', () => {
 
   it('rendert ohne Crash, wenn folderItems leer sind', () => {
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     store.set(folderItemsAtom, [])
     store.set(expandedFoldersAtom, new Set(['root']))

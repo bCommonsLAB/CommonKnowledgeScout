@@ -16,10 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import { CreateLibraryDialog } from '@/components/library/create-library-dialog'
-import {
-  activeLibraryIdAtom,
-  librariesAtom,
-} from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 import type { ClientLibrary } from '@/types/library'
 
 // Teil-Mock: `useToast`/`toast` liegen seit Welle M4b im Barrel `@ks/ui`.
@@ -78,8 +75,7 @@ describe('CreateLibraryDialog', () => {
   it('zeigt Clone-Checkbox NUR wenn eine aktive Library existiert', () => {
     // Ohne aktive Library → keine Clone-Option.
     const storeNoActive = createStore()
-    storeNoActive.set(librariesAtom, [])
-    storeNoActive.set(activeLibraryIdAtom, '')
+    seedLibrarySelection(storeNoActive, { libraries: [], activeLibraryId: '' })
 
     const { unmount } = render(
       <Provider store={storeNoActive}>
@@ -92,8 +88,7 @@ describe('CreateLibraryDialog', () => {
     // Mit aktiver Library → Clone-Option sichtbar.
     const storeActive = createStore()
     const lib = makeLibrary({ id: 'lib-1', label: 'Quelle' })
-    storeActive.set(librariesAtom, [lib])
-    storeActive.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(storeActive, { libraries: [lib], activeLibraryId: 'lib-1' })
 
     render(
       <Provider store={storeActive}>

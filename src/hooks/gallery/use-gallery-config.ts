@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAtomValue } from 'jotai'
-import { libraryAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@ks/i18n/react'
 
@@ -29,7 +28,7 @@ export function useGalleryConfig(
   initialDetailViewType?: DetailViewType
 ) {
   const { t } = useTranslation()
-  const { libraries } = useAtomValue(libraryAtom)
+  const libraries = useLibraries()
   const configured = libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing?.gallery
 
   // Verwende initialDetailViewType direkt - kein State-Management mehr nötig

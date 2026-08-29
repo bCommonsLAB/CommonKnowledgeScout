@@ -30,9 +30,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAtom } from 'jotai';
 import { usePathname } from 'next/navigation';
-import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/library-atom';
+import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibraries, useSetLibraryStatus } from '@ks/shell/react'
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
@@ -127,13 +126,15 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
   // Auth-Debug-Logging entfernt (zu viele Logs bei jedem Auth-Status-Update)
   
-  const [libraries, setLibraries] = useAtom(librariesAtom);
+  const libraries = useLibraries();
+  const setLibraries = useSetLibraries();
   const [currentLibrary, setCurrentLibrary] = useState<ClientLibrary | null>(null);
   const [provider, setProvider] = useState<ExtendedStorageProvider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
-  const [, setLibraryStatusAtom] = useAtom(libraryStatusAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const setActiveLibraryId = useSetActiveLibraryId();
+  const setLibraryStatusAtom = useSetLibraryStatus();
   const providerFromHook = useStorageProvider();
   const [isProviderLoading, setIsProviderLoading] = useState(false);
   const previousProviderRef = React.useRef<ExtendedStorageProvider | null>(null);
@@ -415,8 +416,8 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             } else {
               // KEIN Auto-Select der ersten Bibliothek mehr: Ohne gueltige
               // gespeicherte Auswahl bleibt der Zustand bewusst "keine Library
-              // gewaehlt" (siehe noLibrarySelectedAtom). Das verhindert, dass eine
-              // Library mit abgelaufenem Token automatisch geladen wird und den
+              // gewaehlt" (siehe useNoLibrarySelected in @ks/shell/react). Das verhindert,
+              // dass eine Library mit abgelaufenem Token automatisch geladen wird und den
               // globalen Re-Auth-Dialog erzwingt. Die Auswahl trifft der Nutzer
               // auf dem Dashboard (/start) oder ueber den Library-Switcher.
               if (storedLibraryId) {

@@ -18,10 +18,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
-import {
-  activeLibraryIdAtom,
-  librariesAtom,
-} from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 import type { ClientLibrary } from '@/types/library'
 
 const mockUseAuth = vi.fn()
@@ -80,8 +77,7 @@ describe('LibraryPage', () => {
       refreshAuthStatus: vi.fn(),
     })
     const store = createStore()
-    store.set(librariesAtom, [])
-    store.set(activeLibraryIdAtom, '')
+    seedLibrarySelection(store, { libraries: [], activeLibraryId: '' })
 
     const { container } = render(
       <Provider store={store}>
@@ -104,7 +100,7 @@ describe('LibraryPage', () => {
       refreshAuthStatus: vi.fn(),
     })
     const store = createStore()
-    store.set(librariesAtom, [])
+    seedLibrarySelection(store, { libraries: [] })
 
     render(
       <Provider store={store}>
@@ -124,7 +120,7 @@ describe('LibraryPage', () => {
       refreshAuthStatus: vi.fn(),
     })
     const store = createStore()
-    store.set(librariesAtom, [])
+    seedLibrarySelection(store, { libraries: [] })
 
     render(
       <Provider store={store}>
@@ -135,7 +131,7 @@ describe('LibraryPage', () => {
     expect(screen.getByText('Storage konnte nicht initialisiert werden')).toBeTruthy()
   })
 
-  it('zeigt "Keine Bibliotheken"-Card, wenn signed in und librariesAtom leer ist', () => {
+  it('zeigt "Keine Bibliotheken"-Card, wenn signed in und die Bibliotheks-Liste leer ist', () => {
     mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true })
     mockUseStorage.mockReturnValue({
       isLoading: false,
@@ -143,7 +139,7 @@ describe('LibraryPage', () => {
       refreshAuthStatus: vi.fn(),
     })
     const store = createStore()
-    store.set(librariesAtom, [])
+    seedLibrarySelection(store, { libraries: [] })
 
     render(
       <Provider store={store}>
@@ -163,7 +159,7 @@ describe('LibraryPage', () => {
       refreshAuthStatus: vi.fn(),
     })
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
+    seedLibrarySelection(store, { libraries: [makeLibrary()] })
 
     render(
       <Provider store={store}>

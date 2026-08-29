@@ -15,10 +15,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 import { toast } from '@ks/ui'
-import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
+import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { StorageProviderType } from "@/types/library";
 import type { CaptureWizardsConfig } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
@@ -202,8 +201,10 @@ export function useLibraryForm(createNew: boolean) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [libraries, setLibraries] = useAtom(librariesAtom);
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const libraries = useLibraries();
+  const setLibraries = useSetLibraries();
+  const activeLibraryId = useActiveLibraryId();
+  const setActiveLibraryId = useSetActiveLibraryId();
 
   // Shadow-Twin-Flags (v2-only Runtime: mode und primaryStore sind fixiert
   // — beim Speichern wird immer v2/Cache geschrieben, das UI zeigt nur noch

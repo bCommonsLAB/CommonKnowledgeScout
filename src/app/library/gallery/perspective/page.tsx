@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PerspectivePageContent } from '@/components/library/shared/perspective-page-content'
-import { useAtomValue } from 'jotai'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 
 /**
  * Perspektivenauswahl-Seite für Story Mode (normale Library-Seiten)
@@ -20,7 +19,7 @@ interface Library {
 export default function LibraryPerspectivePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const libraryId = searchParams?.get('libraryId')
   
   // Prüfe, ob die Seite vom Story Mode aufgerufen wurde (via Query-Parameter)

@@ -19,7 +19,8 @@ import { toast } from "sonner"
 import { useStorage } from "@/contexts/storage-context"
 import { useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
-import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { currentFolderIdAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 import { buildCreationFileName } from "@/lib/creation/file-name"
 import { computeFileMediaDraft } from "@/lib/creation/wizard-file-compute"
 import { buildCaptureComputeFields } from "@/lib/creation/capture-compute-fields"
@@ -102,7 +103,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   const [resumeFileIdState] = useState<string | undefined>(resumeFileId)
   const [seedFileIdState, setSeedFileIdState] = useState<string | undefined>(seedFileId)
   const { provider, refreshItems } = useStorage()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const currentFolderIdAtomValue = useAtomValue(currentFolderIdAtom)
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue

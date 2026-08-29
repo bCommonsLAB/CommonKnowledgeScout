@@ -18,7 +18,6 @@
  */
 
 import * as React from 'react'
-import { useAtomValue } from 'jotai'
 import { toast } from 'sonner'
 import { HardDriveDownload, HardDriveUpload, Loader2, Search, Wrench } from 'lucide-react'
 import {
@@ -33,7 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@ks/ui'
-import { activeLibraryAtom } from '@/atoms/library-atom'
+import { useActiveLibrary } from '@ks/shell/react'
 import { ShadowTwinSyncReportView, type SyncReportView } from './shadow-twin-sync-report-view'
 
 type PanelAction = 'check' | 'repair' | 'export' | 'import'
@@ -55,7 +54,7 @@ async function callSyncEngine(
 }
 
 export function ShadowTwinReconcilePanel() {
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const libraryId = activeLibrary?.id
   const [busy, setBusy] = React.useState<PanelAction | null>(null)
   const [report, setReport] = React.useState<SyncReportView | null>(null)

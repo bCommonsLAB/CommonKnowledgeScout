@@ -9,9 +9,8 @@
  * Storage-Backend — sie liest nur den Status ueber die API.
  */
 
-import { useAtomValue } from 'jotai'
 import { Badge } from '@ks/ui'
-import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'
 import { getVerificationStatusDisplay } from '@/lib/library-verification/status-display'
@@ -32,7 +31,7 @@ export interface LibraryVerificationBadgeProps {
 }
 
 export function LibraryVerificationBadge({ libraryId: libraryIdProp }: LibraryVerificationBadgeProps) {
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const libraryId = libraryIdProp || activeLibraryId
   const { isMember, isLoading: roleLoading } = useLibraryRole(libraryId)
   const { status } = useLibraryVerificationStatus(libraryId, isMember && !roleLoading)

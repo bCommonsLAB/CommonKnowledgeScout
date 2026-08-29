@@ -45,7 +45,7 @@ import {
 import { StructuredTemplateEditor } from "@/components/templates/structured-template-editor"
 import { Loader2, Save, Eye, Play, FolderOpen, Info, Upload, Download } from "lucide-react"
 import { useAtom, useAtomValue } from "jotai"
-import { activeLibraryAtom, libraryStatusAtom } from "@/atoms/library-atom"
+import { useActiveLibrary, useLibraryStatus } from '@ks/shell/react'
 import { useUser } from "@clerk/nextjs"
 import { 
   templatesAtom, 
@@ -115,8 +115,8 @@ export function TemplateManagement() {
   const [error, setError] = useAtom(templateErrorAtom)
 
   // Library und Storage
-  const activeLibrary = useAtomValue(activeLibraryAtom)
-  const libraryStatus = useAtomValue(libraryStatusAtom)
+  const activeLibrary = useActiveLibrary()
+  const libraryStatus = useLibraryStatus()
   const { 
     provider: providerInstance, 
     listItems

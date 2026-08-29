@@ -21,14 +21,12 @@ import {
 } from '@ks/ui'
 
 import {
-  activeLibraryAtom,
-  activeLibraryIdAtom,
   currentFolderIdAtom,
   folderItemsAtom,
   lastLoadedFolderAtom,
-  librariesAtom,
-  libraryAtom,
+  folderNavigationAtom,
 } from "@/atoms/library-atom"
+import { useActiveLibrary, useLibraries, useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { StateLogger } from "@/lib/debug/logger"
 import { StorageProviderType } from "@/types/library"
 
@@ -69,10 +67,11 @@ export function CreateLibraryDialog({
   const [isLoading, setIsLoading] = useState(false)
 
   // Atoms für Library-Management
-  const [libraries, setLibraries] = useAtom(librariesAtom)
-  const [activeLibrary] = useAtom(activeLibraryAtom)
-  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
-  const [, setLibraryState] = useAtom(libraryAtom)
+  const libraries = useLibraries()
+  const setLibraries = useSetLibraries()
+  const activeLibrary = useActiveLibrary()
+  const setActiveLibraryId = useSetActiveLibraryId()
+  const [, setFolderNav] = useAtom(folderNavigationAtom)
   const [, setFolderItems] = useAtom(folderItemsAtom)
   const [, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom)
   const [, setCurrentFolderId] = useAtom(currentFolderIdAtom)
@@ -94,11 +93,11 @@ export function CreateLibraryDialog({
     StateLogger.info('CreateLibraryDialog', 'Resetting library state for new library')
     
     // WICHTIG: Alle States synchron zurücksetzen
-    setLibraryState(state => ({ ...state, folderCache: {} }))
+    setFolderNav(state => ({ ...state, folderCache: {} }))
     setFolderItems([])
     setLastLoadedFolder(null)
     setCurrentFolderId('root')
-  }, [setLibraryState, setFolderItems, setLastLoadedFolder, setCurrentFolderId])
+  }, [setFolderNav, setFolderItems, setLastLoadedFolder, setCurrentFolderId])
 
   /**
    * Erstellt eine neue Bibliothek und führt einen sauberen Library-Wechsel durch.

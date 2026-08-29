@@ -30,15 +30,22 @@ Sessions nicht doppelt bauen:
   (`ClientLibrary` → `@ks/contracts`, in kurz und voll geteilt; TopNav ohne
   Symbol; Chat-Vokabular samt Werteliste mitgewandert; `LibraryIdentityDto`
   abgeloest)
-- **Naechster Schritt**: Zurueck zur Landkarten-Zeile **M4** — die montierbare
-  Explorer-Wurzelkomponente. Das Fundament steht jetzt vollstaendig: `@ks/ui`
-  (M4b), `@ks/i18n` (M4c) und der Library-Steckbrief in `@ks/contracts` (M4d).
-  Damit ist auch die seit M3 blockierte TopNav erreichbar, und `library-atom`
-  haengt nicht mehr an einem App-Typ. Vorab zu entscheiden: TopNav zuerst
-  (kleiner, in `@ks/shell`) oder direkt die Explorer-Wurzel — siehe Hand-off
-  in AGENT-BRIEF-M4d.md. Voll-App bleibt unveraendert
-  (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
-  Namenshinweis: `M5` ist im Wellenplan fuer den AECED-Pilot reserviert.
+- **Agent-Brief M4e** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4e.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4e.md)
+  (Library-Auswahl → `@ks/shell/react`, Atome paketintern, acht Hooks;
+  Ordner-/Dateizustand bleibt in der App; Galerie-Filter-Reset per Injection;
+  `@ks/shell/testing` fuer Tests. Enthaelt den TopNav-Befund)
+- **Landkarten-Zeile M4 abgeschlossen** (2026-08-28): `ExplorerRoot` liegt in
+  `@ks/module-explorer/react`, `/explore/[slug]` ist nur noch der Montagepunkt.
+  Slug als Prop, Betrachter als zwei Booleans, Galerie und Hinweis als Slots —
+  kein Next-Routing, kein Auth-Anbieter im Modul. Nachtrag am Ende von
+  [`AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md).
+- **Naechster Schritt**: Phase B beginnt mit **M5** (AECED-Pilot: `@ks/embed` +
+  Headless-Lese-API). Was dafuer noch fehlt, steht im M4-Nachtrag: eine
+  Basis-URL fuer die Modul-Fetches (bewusst noch nicht eingebaut, G3) und die
+  Galerie selbst — sie liegt mit ~15.000 Zeilen noch in der App und ist die
+  naechste grosse Extraktion, wenn der Explorer wirklich einbettbar werden soll.
+  Voll-App bleibt unveraendert (Verhaltensneutralitaet ist Abnahmekriterium
+  jeder A-Welle).
 - **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
   bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
   Docker-Build nicht — gruene PR-Checks sind kein Beleg.

@@ -11,8 +11,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAtom } from "jotai"
-import { activeLibraryIdAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId } from '@ks/shell/react'
 import { MembersList } from "@/components/settings/members-list"
 import { ReadersList } from "@/components/settings/readers-list"
 import { Alert, AlertDescription, AlertTitle, Separator } from '@ks/ui'
@@ -25,7 +24,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
  * Nur für Owner zugänglich.
  */
 export default function MembersPage() {
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)

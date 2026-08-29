@@ -39,8 +39,10 @@ Zwei weitere Gründe für B, die in der Tabelle nicht sichtbar sind:
   Fassaden. B benutzt ausschließlich das Barrel-Muster, das in diesem Repo
   schon viermal trägt.
 
-**Nicht geliefert und bewusst offen**: die montierbare Wurzelkomponente aus
-der Landkarten-Zeile M4. Sie braucht `@ks/ui` + `@ks/i18n` — siehe Hand-off.
+**Zunächst nicht geliefert**: die montierbare Wurzelkomponente aus der
+Landkarten-Zeile M4. Sie brauchte `@ks/ui` + `@ks/i18n` — siehe Hand-off.
+**Nachgeliefert am 2026-08-28**, nach M4b–M4e; der Nachtrag am Ende dieses
+Briefs beschreibt sie.
 
 ## Was M4 liefert
 
@@ -204,3 +206,78 @@ tests/unit/mcp/tools-stand.test.ts — 3 Tests, auch auf master rot.
 
 **Kosten-Schätzung**: mittel. Viel Datei-Berührung, wenig Denkarbeit — die
 Messwerte oben nehmen die Analysephase vorweg.
+
+## Nachtrag (2026-08-28): die Wurzelkomponente
+
+Nachgereicht, nachdem M4b (`@ks/ui`), M4c (`@ks/i18n`), M4d (`ClientLibrary`
+in `@ks/contracts`) und M4e (Library-Auswahl in `@ks/shell/react`) das
+Fundament gelegt hatten. Damit ist die Landkarten-Zeile M4 eingelöst.
+
+### Was die Wurzelkomponente überhaupt schwierig machte
+
+`src/app/explore/[slug]/page.tsx` (448 Zeilen) war dreifach an die Anwendung
+gebunden. ADR 0008 §4 verlangt genau das Gegenteil:
+
+| Bindung | Warum sie die Montage verhinderte | Lösung |
+|---|---|---|
+| `useParams()` | Next.js-Datei-Routing; im Embed und in Electron gibt es das nicht | Slug ist eine Prop |
+| Clerk (`useUser`, `SignInButton`) | AECED hat kein Clerk; die Landkarte verlangt „Auth, abschaltbar" | `ExplorerViewer { isLoaded, isSignedIn }` + Slot für die Anmelde-Aufforderung |
+| `GalleryClient`, `LibraryVerificationWarning` | ein Paket darf nicht in die App zurückgreifen (Landkarte §4) | Slots |
+
+Der Clerk-Schnitt ist der interessante: Das Modul fragt nicht mehr, **wer**
+da ist, sondern nur, **ob** jemand da ist. Wer angemeldet ist, entscheidet
+ohnehin der Server bei jedem Request selbst. Zwei Booleans genügen — und
+damit hängt das Modul an keinem Auth-Anbieter mehr. Das ist dieselbe Frage,
+an der die TopNav noch hängt (siehe AGENT-BRIEF-M4e, TopNav-Befund); hier
+ließ sie sich lokal beantworten, weil der Explorer Clerk nur für eine
+Ja/Nein-Auskunft und einen Button brauchte.
+
+### Was im Paket liegt — und was nicht
+
+**Im Paket** (`@ks/module-explorer/react`, 636 Zeilen): das Eintrittsprotokoll.
+Laden über den Slug (öffentliche Route, mit Member-Sicht für angemeldete
+Owner/Co-Autoren), Zugriffsprüfung samt Anfrage und Wartezustand, das
+Schreiben in den Auswahl-Zustand der Schale, Kopfbereich und Zustände.
+
+**Nicht im Paket**: die Galerie. `gallery-root.tsx` hat 1.319 Zeilen und 38
+App-Importe, die auf rund 15.000 Zeilen kaskadieren (`src/lib/gallery/`,
+`src/hooks/gallery/`, Detail-View-Registry, Story, Chat). Das ist eine eigene
+Welle. Nach G3 wird extrahiert, was ein Ziel braucht — nicht, was eine Zeile
+im Plan vollständig aussehen ließe.
+
+### Warum nicht `@ks/api-client`
+
+`apiGet` wirft bei jedem Nicht-OK-Response (bewusst, `no-silent-fallbacks.md`).
+Das Eintrittsprotokoll **braucht** aber die Status-Codes: 404 heißt „nicht
+öffentlich, versuch die Member-Route", 429 heißt „zu viele Anfragen" und
+trägt eine eigene Meldung. Ein geworfener Fehler verschluckt genau diese
+Unterscheidung. Das Modul benutzt deshalb eigenes `fetch`; die Fälle sind in
+`explorer-access.test.ts` festgenagelt.
+
+Für M5 (Embed gegen eine entfernte Instanz) fehlt damit noch eine Basis-URL.
+Sie wurde hier bewusst NICHT eingebaut: heute wäre sie eine unbenutzte Prop
+(G3), und `ApiClientConfig` liegt für den Tag bereit, an dem sie gebraucht
+wird.
+
+### Beweis-Ziel
+
+`tests/unit/packages/module-explorer/explorer-root.test.tsx` montiert
+`ExplorerRoot` **ohne Next-Router und ohne Clerk** — nur mit einem
+Jotai-Store und `fetch`-Attrappen. Genau das braucht M5. 19 neue Tests
+(Wurzel, Zugriffsprotokoll, Steckbrief-Übersetzung).
+
+### Abweichung, die eine Erwähnung verdient
+
+Der Lade-Effekt hängt jetzt an `isSignedIn` statt am Clerk-`user`-Objekt.
+Dessen Identität wechselt auch bei einer bloßen Profil-Aktualisierung und
+löste dann ein überflüssiges Neuladen der Library aus. Ein echter
+Nutzerwechsel geht weiter durch (`isSignedIn` läuft true→false→true).
+
+### Was als Nächstes auffällt
+
+- **`/explore/[slug]/perspective`** (90 Zeilen) ist ein zweiter Explorer-
+  Einstieg und noch eine Seite. Klein, aber dieselbe Bindung an `useParams`.
+- **Die Galerie** ist der große Brocken und die nächste sinnvolle Welle, wenn
+  der Explorer wirklich einbettbar werden soll.
+- **`src/lib/chat/constants.ts`** (892 Zeilen) bleibt der größte
+  Contracts-Kandidat.

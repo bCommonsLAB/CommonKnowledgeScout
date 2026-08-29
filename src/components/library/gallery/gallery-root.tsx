@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { Tabs, TabsContent, toast, Button, ScrollArea } from '@ks/ui'
@@ -98,10 +98,10 @@ export function GalleryRoot({
   hideWebsiteDocs = false,
 }: GalleryRootProps) {
   const { t } = useTranslation()
-  const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
+  const libraryIdFromAtom = useActiveLibraryId()
   const libraryId = libraryIdProp || libraryIdFromAtom
-  const libraries = useAtomValue(librariesAtom)
-  const setLibraries = useSetAtom(librariesAtom)
+  const libraries = useLibraries()
+  const setLibraries = useSetLibraries()
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
   const isClosingRef = React.useRef(false)

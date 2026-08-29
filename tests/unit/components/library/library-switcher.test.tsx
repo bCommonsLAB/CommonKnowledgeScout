@@ -16,10 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import { LibrarySwitcher } from '@/components/library/library-switcher'
-import {
-  activeLibraryIdAtom,
-  librariesAtom,
-} from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 import type { ClientLibrary } from '@/types/library'
 
 vi.mock('next/navigation', () => ({
@@ -59,8 +56,7 @@ describe('LibrarySwitcher', () => {
   it('zeigt das Label der aktiven Library im Trigger', () => {
     const store = createStore()
     const lib = makeLibrary({ id: 'lib-1', label: 'Mein Archiv' })
-    store.set(librariesAtom, [lib])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [lib], activeLibraryId: 'lib-1' })
 
     render(
       <Provider store={store}>
@@ -74,8 +70,7 @@ describe('LibrarySwitcher', () => {
 
   it('rendert keinen Trigger-Label, wenn keine Library aktiv ist', () => {
     const store = createStore()
-    store.set(librariesAtom, [])
-    store.set(activeLibraryIdAtom, '')
+    seedLibrarySelection(store, { libraries: [], activeLibraryId: '' })
 
     render(
       <Provider store={store}>
@@ -87,14 +82,13 @@ describe('LibrarySwitcher', () => {
     expect(screen.queryByText('Mein Archiv')).toBeNull()
   })
 
-  it('rendert weiterhin sicher, wenn die librariesAtom-Liste ungueltige Eintraege enthaelt', () => {
-    // librariesAtom kann theoretisch corrupted sein (id leer);
+  it('rendert weiterhin sicher, wenn die Bibliotheks-Liste ungueltige Eintraege enthaelt', () => {
+    // Die Bibliotheks-Liste kann theoretisch corrupted sein (id leer);
     // der Switcher filtert solche Eintraege via `safe`-Liste.
     const store = createStore()
     const valid = makeLibrary({ id: 'lib-1', label: 'Valid' })
     const invalid = makeLibrary({ id: '', label: 'Invalid' })
-    store.set(librariesAtom, [valid, invalid])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [valid, invalid], activeLibraryId: 'lib-1' })
 
     render(
       <Provider store={store}>

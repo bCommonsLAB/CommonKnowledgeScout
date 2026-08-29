@@ -4,7 +4,9 @@ import * as React from "react";
 import { useAtomValue } from "jotai";
 import { cn } from "@/lib/utils";
 import { NavigationLogger, UILogger } from "@/lib/debug/logger";
-import { currentPathAtom, currentFolderIdAtom, activeLibraryAtom } from "@/atoms/library-atom";
+import { currentFolderIdAtom } from "@/atoms/library-atom";
+import { useActiveLibrary } from '@ks/shell/react'
+import { useCurrentPath } from "@/hooks/use-file-list-view";
 import { useCallback } from "react";
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { loadFavorites, toggleFavorite } from "@/lib/library/favorites";
@@ -17,9 +19,9 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ className }: BreadcrumbProps) {
   // Globale Atoms
-  const currentPath = useAtomValue(currentPathAtom);
+  const currentPath = useCurrentPath();
   const currentFolderId = useAtomValue(currentFolderIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibrary = useActiveLibrary();
 
   // Ref für horizontales Scrollen
   const breadcrumbRef = React.useRef<HTMLDivElement>(null);

@@ -8,7 +8,8 @@ import { DocumentPreview } from "./document-preview";
 // MarkdownPreview ungenutzt entfernt
 import { JobReportTab } from "./job-report-tab";
 import { PhaseStepper } from "./phase-stepper";
-import { activeLibraryIdAtom, selectedShadowTwinAtom } from "@/atoms/library-atom";
+import { selectedShadowTwinAtom } from "@/atoms/library-atom";
+import { useActiveLibraryId } from '@ks/shell/react'
 import { FileLogger } from "@/lib/debug/logger";
 import { PdfCanvasViewer } from "./pdf-canvas-viewer";
 import { useStorage } from "@/contexts/storage-context";
@@ -24,7 +25,7 @@ interface PdfPhasesViewProps {
 
 export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesViewProps) {
   const [phase] = useAtom(activePdfPhaseAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   const shadowTwin = useAtomValue(selectedShadowTwinAtom);
   const [twinContent, setTwinContent] = React.useState<string>(markdownContent || "");
   const { provider: storageProvider } = useStorage();

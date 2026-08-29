@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { useAtomValue } from 'jotai'
-import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 import {
   Accordion,
   AccordionContent,
@@ -47,7 +46,7 @@ interface ChatReferenceListProps {
  */
 export function ChatReferenceList({ references, libraryId, queryId, onDocumentClick, variant = 'full' }: ChatReferenceListProps) {
   const { t } = useTranslation()
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const sessionHeaders = useSessionHeaders()
   const [sources, setSources] = useState<QueryLog['sources']>([])
   const [isLoadingSources, setIsLoadingSources] = useState(false)

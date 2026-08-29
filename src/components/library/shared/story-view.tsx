@@ -6,8 +6,7 @@ import { SessionDetail, type SessionDetailData } from "@/components/library/sess
 import { useIngestionDataContext } from "./ingestion-data-context"
 import { mapToBookDetail, mapToSessionDetail } from "@/lib/mappers/doc-meta-mappers"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
-import { useAtomValue } from "jotai"
-import { librariesAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 
 interface StoryViewProps {
@@ -28,7 +27,7 @@ interface StoryViewProps {
  */
 export function StoryView({ libraryId, viewType }: StoryViewProps) {
   const { data, loading, error } = useIngestionDataContext()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const activeLibrary = libraryId ? libraries.find(lib => lib.id === libraryId) : undefined
   const libraryConfig = activeLibrary?.config?.chat
 

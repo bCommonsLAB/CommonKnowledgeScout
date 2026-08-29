@@ -17,8 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { useState, useEffect } from "react"
-import { useAtom } from "jotai"
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { toast } from '@ks/ui'
 import { mergeTemplateNames } from "@/lib/templates/template-options"
 import {
@@ -52,8 +51,9 @@ export const secretaryServiceFormSchema = z.object({
 export type SecretaryServiceFormValues = z.infer<typeof secretaryServiceFormSchema>
 
 export function useSecretaryServiceForm() {
-  const [libraries, setLibraries] = useAtom(librariesAtom)
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
+  const libraries = useLibraries()
+  const setLibraries = useSetLibraries()
+  const activeLibraryId = useActiveLibraryId()
   const [isLoading, setIsLoading] = useState(false)
   const [availableTemplateNames, setAvailableTemplateNames] = useState<string[]>([])
   // F11: Vorlagen-Metadaten (detailViewType + Felder) fuer die Konsistenz-Pruefung

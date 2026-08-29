@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -14,11 +18,31 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "paths": {
-      "@ks/contracts": ["../contracts/src/index.ts"],
-      "@ks/shell": ["../shell/src/index.ts"]
+      "@ks/contracts": [
+        "../contracts/src/index.ts"
+      ],
+      "@ks/shell": [
+        "../shell/src/index.ts"
+      ],
+      "@ks/shell/react": [
+        "../shell/src/react/index.ts"
+      ],
+      "@ks/i18n/react": [
+        "../i18n/src/react/index.ts"
+      ],
+      "@ks/ui": [
+        "../ui/src/index.ts"
+      ]
     },
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

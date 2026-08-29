@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useAtomValue } from "jotai";
-import { activeLibraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import {
   Dialog,
   DialogContent,
@@ -35,8 +34,8 @@ interface PdfPhaseSettingsProps {
 
 export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) {
   const { t } = useTranslation()
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const activeLibrary = useActiveLibrary();
   // provider wird aktuell nicht verwendet, aber für zukünftige Verwendung bereitgehalten
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { provider: _unused_provider } = useStorage();

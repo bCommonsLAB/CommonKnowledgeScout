@@ -1,7 +1,6 @@
 "use client"
 
-import { useAtomValue } from "jotai"
-import { activeLibraryAtom } from "@/atoms/library-atom"
+import { useActiveLibrary } from '@ks/shell/react'
 import { findCreationType } from "@/lib/templates/library-creation-config"
 import { CreationWizard } from "@/components/creation-wizard/creation-wizard"
 import { use, useEffect, useState } from "react"
@@ -38,7 +37,7 @@ function BackLink({ href, label }: { href: string; label: string }) {
 export default function CreateWizardPage({ params }: { params: Promise<{ typeId: string }> }) {
   const { typeId } = use(params)
   const searchParams = useSearchParams()
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const [creationType, setCreationType] = useState<LibraryCreationType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   

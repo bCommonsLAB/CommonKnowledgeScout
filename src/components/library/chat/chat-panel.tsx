@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import { ScrollArea, Button } from '@ks/ui'
 import { StoryTopics } from '../story/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
@@ -168,7 +168,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Dokumente-Lade-Status wird nur intern für Render-Entscheidungen verwendet.
   
   // Detail View Type aus Library Config (direkt aus Atom, wie in gallery-root.tsx)
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
   const galleryConfig = activeLibrary?.config?.chat?.gallery
   // Alle gültigen DetailViewTypes akzeptieren

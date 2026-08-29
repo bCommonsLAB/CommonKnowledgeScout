@@ -12,8 +12,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useAtom } from 'jotai'
-import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { toast } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { SUPPORTED_LOCALES, type Locale, DEFAULT_LOCALE } from '@ks/i18n'
@@ -46,8 +45,9 @@ interface UseTranslationsFormReturn {
  */
 export function useTranslationsForm(): UseTranslationsFormReturn {
   const { t } = useTranslation()
-  const [libraries, setLibraries] = useAtom(librariesAtom)
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
+  const libraries = useLibraries()
+  const setLibraries = useSetLibraries()
+  const activeLibraryId = useActiveLibraryId()
   const [isLoading, setIsLoading] = useState(false)
 
   const activeLibrary = libraries.find((lib) => lib.id === activeLibraryId)

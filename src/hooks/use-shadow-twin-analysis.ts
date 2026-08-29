@@ -21,8 +21,7 @@ import { shadowTwinStateAtom, FrontendShadowTwinState } from '@/atoms/shadow-twi
 import { ShadowTwinState } from '@/lib/shadow-twin/shared';
 import { batchResolveArtifactsClient } from '@/lib/shadow-twin/artifact-client';
 import { FileLogger } from '@/lib/debug/logger';
-import { useAtomValue } from 'jotai';
-import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom';
+import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { shadowTwinImportActivityAtom, type ShadowTwinImportActivity } from '@/atoms/shadow-twin-atom';
 import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
@@ -96,8 +95,8 @@ export function useShadowTwinAnalysis(
 ): Map<string, ShadowTwinState> {
   const setShadowTwinState = useSetAtom(shadowTwinStateAtom);
   const setImportActivity = useSetAtom(shadowTwinImportActivityAtom);
-  const libraryId = useAtomValue(activeLibraryIdAtom);
-  const libraries = useAtomValue(librariesAtom);
+  const libraryId = useActiveLibraryId();
+  const libraries = useLibraries();
   
   const activeLibrary = libraries.find(lib => lib.id === libraryId);
 

@@ -9,7 +9,7 @@
  */
 import { useCallback } from 'react';
 import { useAtom } from 'jotai';
-import { libraryAtom } from '@/atoms/library-atom';
+import { folderNavigationAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { StateLogger } from '@/lib/debug/logger';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ import { StorageItem } from '@/lib/storage/types';
 
 export function useFolderNavigation() {
   const { provider, listItems } = useStorage();
-  const [libraryState, setLibraryState] = useAtom(libraryAtom);
+  const [folderNav, setFolderNav] = useAtom(folderNavigationAtom);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -30,7 +30,7 @@ export function useFolderNavigation() {
     if (!provider) return;
 
     // Prüfe, ob der gesamte Pfad schon im Cache ist
-    const folderCache = libraryState.folderCache || {};
+    const folderCache = folderNav.folderCache || {};
     let currentId = folderId;
     let allInCache = true;
     const missingIds: string[] = [];
@@ -45,9 +45,9 @@ export function useFolderNavigation() {
 
     if (allInCache && folderCache[folderId]) {
       StateLogger.info('FolderNavigation', 'Cache hit for folder path', { folderId });
-      // Beide Updates atomar in einem setLibraryState-Call kombinieren
+      // Beide Updates atomar in einem setFolderNav-Call kombinieren
       // (auch bei Cache-Hit, um Konsistenz zu gewährleisten)
-      setLibraryState(state => ({
+      setFolderNav(state => ({
         ...state,
         currentFolderId: folderId
       }));
@@ -119,15 +119,15 @@ export function useFolderNavigation() {
     };
     const finalPathItems = [rootItem, ...pathItems];
     
-    // Beide Updates atomar in einem setLibraryState-Call kombinieren
-    // (setCurrentFolderId aktualisiert auch libraryAtom, daher kombinieren wir beide)
-    // currentFolderIdAtom ist ein derived atom, das libraryAtom.currentFolderId liest,
-    // daher wird es automatisch aktualisiert, wenn libraryAtom aktualisiert wird
-    setLibraryState(state => {
+    // Beide Updates atomar in einem setFolderNav-Call kombinieren
+    // (setCurrentFolderId schreibt in dasselbe Atom, daher kombinieren wir beide)
+    // currentFolderIdAtom ist ein derived atom, das folderNavigationAtom.currentFolderId
+    // liest, und wird daher automatisch aktualisiert
+    setFolderNav(state => {
       const newCache = { ...state.folderCache };
       // Alle Pfad-Items in den Cache schreiben (inkl. Root, falls vorhanden)
       finalPathItems.forEach(folder => {
-        // Root-Ordner wird nicht in den Cache geschrieben (wird in currentPathAtom dynamisch erzeugt)
+        // Root-Ordner wird nicht in den Cache geschrieben (buildCurrentPath erzeugt ihn)
         if (folder.id !== 'root') {
           newCache[folder.id] = folder;
         }
@@ -146,7 +146,7 @@ export function useFolderNavigation() {
       const url = `${pathname}?${params.toString()}`;
       router.replace(url);
     } catch {}
-  }, [provider, listItems, setLibraryState, libraryState.folderCache, router, pathname, searchParams]);
+  }, [provider, listItems, setFolderNav, folderNav.folderCache, router, pathname, searchParams]);
 
   return navigateToFolder;
 } 

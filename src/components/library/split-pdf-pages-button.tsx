@@ -34,7 +34,8 @@ import { ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@ks/ui'
-import { activeLibraryIdAtom, selectedFileAtom } from '@/atoms/library-atom'
+import { selectedFileAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 import { UILogger } from '@/lib/debug/logger'
 
 interface SplitPdfPagesButtonProps {
@@ -50,7 +51,7 @@ function isPdfFile(name: string | undefined, mimeType: string | undefined): bool
 
 export function SplitPdfPagesButton({ onCompleted }: SplitPdfPagesButtonProps) {
   const selectedFile = useAtomValue(selectedFileAtom)
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const [isRunning, setIsRunning] = React.useState(false)
 
   // Nur fuer PDF-Dateien sichtbar.

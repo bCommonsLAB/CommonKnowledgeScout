@@ -21,7 +21,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Provider as JotaiProvider, createStore } from 'jotai'
-import { selectedFileAtom, activeLibraryIdAtom } from '@/atoms/library-atom'
+import { selectedFileAtom } from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 
 // Mock useStorage-Context, damit MarkdownPreview ohne echtes Storage
 // rendern kann.
@@ -48,7 +49,7 @@ import { MarkdownPreview } from '@/components/library/markdown-preview'
 function renderWithJotai(node: React.ReactElement) {
   const store = createStore()
   store.set(selectedFileAtom, null)
-  store.set(activeLibraryIdAtom, '')
+  seedLibrarySelection(store, { activeLibraryId: '' })
   return render(<JotaiProvider store={store}>{node}</JotaiProvider>)
 }
 
