@@ -52,6 +52,8 @@ export type { DocCardMeta, DetailDoc, ChapterInfo, FavoriteVoter } from './doc-c
 
 export type { DocReference, QuerySource } from './doc-reference'
 
+export type { GalleryFilters } from './gallery-filters'
+
 export type {
   SiteModule,
   SitePrimaryLibrary,

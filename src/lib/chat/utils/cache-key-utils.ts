@@ -10,7 +10,7 @@
 
 import crypto from 'crypto'
 import type { Character, AccessPerspective } from '@/lib/chat/constants'
-import type { GalleryFilters } from '@/atoms/gallery-filters'
+import type { GalleryFilters } from '@ks/contracts'
 
 /**
  * Normalisiert ein Character-Array für Vergleich (sortiert, um Reihenfolge zu ignorieren)

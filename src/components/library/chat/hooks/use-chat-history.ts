@@ -184,7 +184,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   accessPerspective: queryData.cacheParams?.accessPerspective ?? queryData.accessPerspective,
                   socialContext: (queryData.cacheParams?.socialContext ?? queryData.socialContext) as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,
                   genderInclusive: queryData.cacheParams?.genderInclusive ?? queryData.genderInclusive,
-                  facetsSelected: (queryData.cacheParams?.facetsSelected ?? queryData.facetsSelected) as import('@/atoms/gallery-filters').GalleryFilters | undefined,
+                  facetsSelected: (queryData.cacheParams?.facetsSelected ?? queryData.facetsSelected) as import('@ks/contracts').GalleryFilters | undefined,
                   cacheParams: queryData.cacheParams, // Übergebe cacheParams für Extraktion in createMessagesFromQueryLog
                 })
                 historyMessages.push(...msgs)
