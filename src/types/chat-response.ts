@@ -1,18 +1,19 @@
+import type { DocReference } from '@ks/contracts'
+
 /**
  * Strukturierte Chat-Antwort mit Referenzen und vorgeschlagenen Fragen
  */
 export interface ChatResponse {
   /** Markdown-formatierter Antworttext mit Referenz-Nummern [1], [2], etc. */
   answer: string
-  /** Array von Referenz-Objekten für auf/zu klappbare Anzeige im Frontend */
-  references: Array<{
-    number: number
-    fileId: string
-    fileName?: string
-    description: string
-    /** Inhaltstyp des referenzierten Dokuments (A4: formatgerechte Story-Verweise). */
-    detailViewType?: string
-  }>
+  /**
+   * Zitierte Dokumente für die auf/zu klappbare Anzeige im Frontend.
+   *
+   * Die Form liegt seit der Welle „Galerie-Chat-Mittelschicht" in
+   * `@ks/contracts` — die Galerie braucht sie ebenso und griff vorher an zehn
+   * Stellen als `ChatResponse['references']` durch diesen Chat-Typ hindurch.
+   */
+  references: DocReference[]
   /** Array mit 7 nächsten sinnvollen Fragen basierend auf dem Kontext */
   suggestedQuestions: string[]
 }

@@ -1,5 +1,6 @@
 import type { SocialContext, TargetLanguage, AnswerLength, Retriever, Character, AccessPerspective } from '@/lib/chat/constants'
 import type { StoryTopicsData } from '@/types/story-topics'
+import type { DocReference, QuerySource } from '@ks/contracts'
 
 export interface QueryRetrievalResultItem {
   id: string;
@@ -108,9 +109,12 @@ export interface QueryLog {
   retrieval?: QueryRetrievalStep[];
   prompt?: QueryPromptInfo;
   answer?: string;
-  references?: Array<{ number: number; fileId: string; fileName?: string; description: string }>; // Referenzen für die Antwort
+  // Referenzen und Treffer teilen ihre Form seit der Welle
+  // „Galerie-Chat-Mittelschicht" mit der Galerie (@ks/contracts) — vorher
+  // stand sie hier und in chat-response.ts je einmal ausgeschrieben.
+  references?: DocReference[]; // Referenzen für die Antwort
   suggestedQuestions?: string[]; // Vorgeschlagene Folgefragen
-  sources?: Array<{ id: string; fileName?: string; chunkIndex?: number; score?: number }>; // zur schnellen Sicht
+  sources?: QuerySource[]; // zur schnellen Sicht
   timing?: { retrievalMs?: number; llmMs?: number; totalMs?: number };
   tokenUsage?: QueryTokenUsage;
   questionAnalysis?: QuestionAnalysisInfo; // Analyse-Ergebnis für Retriever-Auswahl

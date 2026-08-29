@@ -21,7 +21,7 @@ import type {
   AccessPerspective,
   LlmModelId,
 } from '@/lib/chat/constants'
-import type { GalleryFilters } from '@/atoms/gallery-filters'
+import type { GalleryFilters } from '@ks/contracts'
 
 /** Eingabe-Parameter fuer den useChatStream Hook */
 export interface UseChatStreamParams {

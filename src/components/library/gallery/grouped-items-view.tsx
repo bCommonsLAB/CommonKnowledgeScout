@@ -1,9 +1,8 @@
 'use client'
 
 import React from 'react'
+import type { DocReference, QuerySource } from '@ks/contracts'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { ChatResponse } from '@/types/chat-response'
-import type { QueryLog } from '@/types/query-log'
 import { GroupedItemsGrid } from './grouped-items-grid'
 import { GroupedItemsTable } from './grouped-items-table'
 import type { ViewMode } from './gallery-sticky-header'
@@ -19,9 +18,9 @@ export interface GroupedItemsViewProps {
   /** Dokumente, die gefunden wurden, aber nicht verwendet wurden */
   unusedDocs: DocCardMeta[]
   /** Referenzen für verwendete Dokumente */
-  references: ChatResponse['references']
+  references: DocReference[]
   /** Sources für nicht verwendete Dokumente */
-  sources?: QueryLog['sources']
+  sources?: QuerySource[]
   /** QueryId zum Laden der Sources */
   queryId?: string
   /** LibraryId */

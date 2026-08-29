@@ -106,4 +106,35 @@ describe('Galerie-Schnitt', () => {
         'hereingereicht — in der App per ClerkGalleryViewerBridge.'
     ).toEqual([])
   })
+
+  it('die Galerie importiert keinen Chat-Code', () => {
+    // Welle „Galerie-Chat-Mittelschicht": Was wie eine Abhaengigkeit vom Chat
+    // aussah, war ein geteilter Begriff ohne Zuhause — das Referenz-Vokabular
+    // liegt jetzt in @ks/contracts, und `ReferenceList` ist dorthin gezogen,
+    // wo sie ohnehin ausschliesslich benutzt wurde (01-audit-galerie-chat.md).
+    const GALLERY_ROOTS = ['src/components/library/gallery', 'src/hooks/gallery']
+
+    // Bewusste Ausnahme, mit Begruendung statt stillschweigend:
+    // `gallery-root` laedt das Chat-Panel als SLOT per `next/dynamic`. Fuer ein
+    // Paket muesste es als Prop hereinkommen — dieselbe Frage wie bei der
+    // Galerie im Explorer, und sie faellt mit der Adressierungs-Welle zusammen.
+    const SLOT_EXCEPTIONS = new Set(['src/components/library/gallery/gallery-root.tsx'])
+
+    const offenders: string[] = []
+    for (const root of GALLERY_ROOTS) {
+      for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
+        const relPath = relative(REPO_ROOT, file).replace(/\\/g, '/')
+        if (SLOT_EXCEPTIONS.has(relPath)) continue
+        const content = readFileSync(file, 'utf-8')
+        if (/['"]@\/(components\/library\/chat|lib\/chat|types\/chat-response|types\/query-log)/.test(content)) {
+          offenders.push(relPath)
+        }
+      }
+    }
+    expect(
+      offenders,
+      `Galerie-Code greift auf den Chat zu:\n${offenders.join('\n')}\n` +
+        'Geteiltes Referenz-Vokabular liegt in @ks/contracts (DocReference, QuerySource).'
+    ).toEqual([])
+  })
 })

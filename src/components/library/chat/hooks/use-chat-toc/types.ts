@@ -19,7 +19,7 @@ import type {
   AccessPerspective,
   LlmModelId,
 } from '@/lib/chat/constants'
-import type { GalleryFilters } from '@/atoms/gallery-filters'
+import type { GalleryFilters } from '@ks/contracts'
 
 /** Gecachte TOC-Daten mit Query-Parametern */
 export interface CachedTOC {

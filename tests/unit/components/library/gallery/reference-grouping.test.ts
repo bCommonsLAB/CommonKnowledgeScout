@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupReferencesByFileId } from '@/components/library/chat/chat-reference-list/helpers'
+import { groupReferencesByFileId } from '@/components/library/gallery/reference-list/helpers'
 import type { ChatResponse } from '@/types/chat-response'
 
 describe('groupReferencesByFileId — detailViewType (A4)', () => {

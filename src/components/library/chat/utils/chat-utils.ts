@@ -1,6 +1,6 @@
 import type { ChatResponse } from '@/types/chat-response'
 import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
-import type { GalleryFilters } from '@/atoms/gallery-filters'
+import type { GalleryFilters } from '@ks/contracts'
 
 /**
  * Interface für Chat-Messages innerhalb des ChatPanels

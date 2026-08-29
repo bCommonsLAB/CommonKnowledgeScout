@@ -1,13 +1,13 @@
 'use client'
 
 import React from 'react'
+import type { DocReference } from '@ks/contracts'
 import { Button } from '@ks/ui'
-import { ChatReferenceList } from '@/components/library/chat/chat-reference-list'
+import { ReferenceList } from '@/components/library/gallery/reference-list'
 import { X } from 'lucide-react'
-import type { ChatResponse } from '@/types/chat-response'
 
 export interface ReferencesLegendProps {
-  references: ChatResponse['references']
+  references: DocReference[]
   libraryId: string
   queryId?: string // Optional: Falls vorhanden, werden sources aus QueryLog geladen
   onClose: () => void
@@ -27,7 +27,7 @@ export function ReferencesLegend({ references, libraryId, queryId, onClose, onOp
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mb-3">{description}</p>
-      <ChatReferenceList
+      <ReferenceList
         references={references}
         libraryId={libraryId}
         queryId={queryId}
