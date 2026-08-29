@@ -4,9 +4,9 @@ import { useMemo } from 'react'
 import { useLibraries } from '@ks/shell/react'
 import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@ks/i18n/react'
-
-/** Alle unterstützten DetailViewTypes */
-type DetailViewType = 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website'
+// Alle unterstuetzten DetailViewTypes kommen aus der zentralen Registry —
+// hier stand frueher eine eigene Kopie der Liste (Galerie-Audit, Befund 3c).
+import type { DetailViewType } from '@/lib/detail-view-types/registry'
 
 /**
  * Hook für Gallery-Konfiguration.

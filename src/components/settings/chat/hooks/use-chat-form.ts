@@ -21,6 +21,7 @@ import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/rea
 import type { ClientLibrary } from '@/types/library'
 import { toast } from '@ks/ui'
 import { buildVectorSearchIndexDefinitionForLibrary, getCollectionNameForLibrary } from '@/lib/chat/vector-search-index'
+import { detailViewTypeSchema, isValidDetailViewType, type DetailViewType } from '@/lib/detail-view-types/registry'
 import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
@@ -82,7 +83,8 @@ export const chatFormSchema = z.object({
         if (val === '' || val === undefined || val === null) return 'book';
         return val;
       },
-      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website']).default('book')
+      // Werteliste aus der zentralen Registry (Galerie-Audit, Befund 3c)
+      detailViewTypeSchema.default('book')
     ),
     // Gruppierung: 'none' = keine, 'year' = nach Jahr, oder ein Facetten-Key
     groupByField: z.preprocess(
@@ -311,11 +313,10 @@ export function useChatForm(): UseChatFormResult {
       } | undefined
       const detailViewType = galleryConfig?.detailViewType
 
-      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website'] as const
-      type DetailViewType = typeof validDetailViewTypes[number]
+      // Gueltigkeit gegen die zentrale Registry (Galerie-Audit, Befund 3c)
       let finalViewType: DetailViewType = 'book'
-      if (typeof detailViewType === 'string' && validDetailViewTypes.includes(detailViewType as DetailViewType)) {
-        finalViewType = detailViewType as DetailViewType
+      if (isValidDetailViewType(detailViewType)) {
+        finalViewType = detailViewType
       }
 
       let finalTargetLanguage: typeof TARGET_LANGUAGE_DEFAULT = TARGET_LANGUAGE_DEFAULT

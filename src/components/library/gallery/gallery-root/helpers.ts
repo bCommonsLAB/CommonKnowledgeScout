@@ -9,24 +9,17 @@
  */
 
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
+import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
 
 /**
  * Liste aller gueltigen DetailViewTypes (Plan-Welle 3-III).
  *
  * Konstante ausserhalb der Komponente, damit useMemo-Dependencies stabil
- * bleiben (eslint react-hooks/exhaustive-deps).
+ * bleiben (eslint react-hooks/exhaustive-deps). Die Werte kommen aus der
+ * zentralen Registry — hier stand frueher eine eigene Kopie der Liste
+ * (Galerie-Audit, Befund 3c).
  */
-export const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [
-  'book',
-  'session',
-  'climateAction',
-  'testimonial',
-  'blog',
-  'divaDocument',
-  'divaTexture',
-  'refurbedDevice',
-  'website',
-]
+export const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [...DETAIL_VIEW_TYPES]
 
 /**
  * Pure-Helper fuer detailViewType-Validierung.

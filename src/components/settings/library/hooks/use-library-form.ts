@@ -21,6 +21,7 @@ import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibrarie
 import { StorageProviderType } from "@/types/library";
 import type { CaptureWizardsConfig } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
+import { detailViewTypeSchema } from "@/lib/detail-view-types/registry";
 
 /** Im Settings-Formular waehlbare Storage-Typen ('inbox' ist intern, ADR-0004 II). */
 const LIBRARY_FORM_STORAGE_TYPES = ["local", "onedrive", "gdrive", "nextcloud"] as const;
@@ -52,9 +53,8 @@ export const libraryFormSchema = z.object({
   isEnabled: z.boolean().default(true),
   // Inhaltstyp bei der Erstellung (Onboarding "Name + Inhaltstyp = fertig",
   // Petra-Review Punkt 2). Wird nur bei isNew in config.chat.gallery gesendet.
-  detailViewType: z
-    .enum(["book", "session", "climateAction", "testimonial", "blog", "divaDocument", "divaTexture", "refurbedDevice", "website"])
-    .default("book"),
+  // Werteliste aus der zentralen Registry (Galerie-Audit, Befund 3c)
+  detailViewType: detailViewTypeSchema.default("book"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
   // Welle 0b: eine Zeile pro Muster (Form als Text, Persistenz als Array)

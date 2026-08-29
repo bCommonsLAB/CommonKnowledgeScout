@@ -201,23 +201,40 @@ unterscheidet sich:
   Konsumenten (`climate-action-detail.tsx`, `detail-overlay.tsx`,
   `doc-meta-mappers.ts`), alle klimabezogen.
 
-### Befund 3c — es gibt fuenf Kopien der Typ-Liste
+### Befund 3c — die Typ-Liste stand dreizehnmal neben der Quelle
 
-Die neun Typen stehen **fuenfmal** hartkodiert im Repo:
+Erste Zaehlung ergab fuenf Kopien. Beim Umbau (Welle G3) kamen weitere dazu —
+die vollstaendige Liste, wie sie vorgefunden wurde:
 
 | Ort | Form |
 |---|---|
-| `detail-view-types/registry.ts:31` | `DETAIL_VIEW_TYPES` — die Quelle |
-| `lib/chat/config.ts:128` | `z.enum([...])`, obwohl `detailViewTypeSchema` daneben liegt |
+| `detail-view-types/registry.ts:31` | `DETAIL_VIEW_TYPES` — galt als Quelle |
+| `packages/contracts/src/library-chat.ts:147` | Union im Vertrag; **konnte die App-Quelle nicht importieren** |
+| `lib/chat/config.ts:128` | `z.enum([...])`, obwohl `detailViewTypeSchema` daneben lag |
 | `chat/chat-panel.tsx:175` | `validDetailViewTypes` |
 | `hooks/gallery/use-gallery-config.ts:9` | lokale `type DetailViewType`-Union |
 | `gallery/gallery-root/helpers.ts:19` | `VALID_DETAIL_VIEW_TYPES` |
+| `lib/templates/template-types.ts:73` | `TemplatePreviewDetailViewType` |
+| `lib/templates/detail-view-type-utils.ts:27` und `:35` | zwei Arrays in einer Funktion |
+| `settings/chat/hooks/use-chat-form.ts:85` und `:314` | `z.enum` + `validDetailViewTypes` |
+| `settings/library/hooks/use-library-form.ts:56` | `z.enum` |
+| `templates/structured-template-editor.tsx:631–639` | neun feste `<SelectItem>` |
+| `gallery/detail-overlay.tsx:38` | Prop-Union |
 
-Fuenf Listen, von Hand synchron gehalten. Dazu die Negativ-Liste aus Befund 3
-und der stille Wegwurf im Parser (`template-parser.ts:85`).
+Dazu eine kuratierte Teilliste in `settings/chat/content-type-section.tsx`
+(sieben von neun, mit Erklaertexten) — keine Drift-Kopie, aber eine Stelle, aus
+der ein neuer Typ still herausfaellt.
+
+Und dazu die Negativ-Liste aus Befund 3 sowie der stille Wegwurf im Parser
+(`template-parser.ts:85`).
 
 **Das ist die eigentliche Krankheit** — nicht die Modulgrenze. Wer nur Pakete
-schneidet und diese fuenf Listen stehen laesst, hat Kosmetik betrieben.
+schneidet und diese Listen stehen laesst, hat Kosmetik betrieben.
+
+Bemerkenswert ist die zweite Zeile: `@ks/contracts` **konnte** die Quelle gar
+nicht benutzen, weil ein Paket nicht aus `src/` importiert. Solange die
+Aufzaehlung in der App lag, war eine Kopie im Vertrag unvermeidlich. Das ist
+der Grund, warum die Liste in G3 ins Paket gewandert ist und nicht umgekehrt.
 
 ### Befund 3d — die Faehigkeiten spannen ueber die Typen, die Typ-Bindung ist klein
 

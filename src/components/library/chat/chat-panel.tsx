@@ -45,6 +45,7 @@ import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useTranslation } from '@ks/i18n/react'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
+import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 
 interface ChatPanelProps {
   libraryId: string
@@ -171,12 +172,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const libraries = useLibraries()
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
   const galleryConfig = activeLibrary?.config?.chat?.gallery
-  // Alle gültigen DetailViewTypes akzeptieren
-  const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website'] as const
+  // Gueltigkeit gegen die zentrale Registry pruefen — hier stand frueher eine
+  // eigene Kopie der Werteliste (Galerie-Audit, Befund 3c).
   const rawDetailViewType = galleryConfig?.detailViewType
-  const detailViewType = validDetailViewTypes.includes(rawDetailViewType as typeof validDetailViewTypes[number]) 
-    ? rawDetailViewType 
-    : 'book'
+  const detailViewType = isValidDetailViewType(rawDetailViewType) ? rawDetailViewType : 'book'
   const typeKey = detailViewType === 'session' ? 'talks' : 'documents'
   
   // Chat History
