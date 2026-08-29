@@ -24,8 +24,8 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getCollectionNameForLibrary, findDocs, findDocSummaries } from '@/lib/repositories/vector-repo'
 import { callLlmJson } from '@/lib/chat/common/llm'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { MAX_LIBRARY_FOCUS } from '@/lib/gallery/relations-limits'
-import { computeCatalogHash } from '@/lib/gallery/relations-staleness'
+import { MAX_LIBRARY_FOCUS } from '@/lib/documents/relations-limits'
+import { computeCatalogHash } from '@/lib/documents/relations-staleness'
 import {
   replaceEdgesForSource,
   replaceEdgesForSources,

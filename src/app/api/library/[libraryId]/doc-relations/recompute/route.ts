@@ -6,7 +6,7 @@ import { enqueueDocRelationsJob } from '@/lib/external-jobs/enqueue-doc-relation
 import { LibraryService } from '@/lib/services/library-service'
 import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/vector-repo'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { RELATIONS_BATCH_SIZE } from '@/lib/gallery/relations-limits'
+import { RELATIONS_BATCH_SIZE } from '@/lib/documents/relations-limits'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

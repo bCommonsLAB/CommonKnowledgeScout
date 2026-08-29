@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { STAKEHOLDER_KONSENT } from "@/lib/gallery/stakeholder-meta";
+import { STAKEHOLDER_KONSENT } from "@/lib/documents/stakeholder-meta";
 
 /**
  * src/components/library/gallery/stakeholder-positions.tsx

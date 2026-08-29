@@ -7,6 +7,7 @@ import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { findDocMetaByFileId } from '@/lib/gallery/apply-favorite-optimistic'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useTinderSequencer } from '@/hooks/gallery/use-tinder-sequencer'
+import type { DetailViewType } from '@/lib/detail-view-types/registry'
 import { SourceStarsCell } from './source-stars-cell'
 import { RatingModeBar } from './rating/rating-mode-bar'
 import { SourceCommentsPanel } from './source-comments-panel'
@@ -20,7 +21,7 @@ import { IngestionWebsiteDetail } from '@/components/library/ingestion-website-d
 import { useTranslation } from '@ks/i18n/react'
 import { useLibraries } from '@ks/shell/react'
 import { SdgProfile } from '@/components/library/gallery/sdg-profile'
-import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/gallery/sdg-meta'
+import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/documents/sdg-meta'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
 import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
 import type { BookDetailData } from '@/components/library/book-detail'
@@ -34,8 +35,8 @@ export interface DetailOverlayProps {
   onClose: () => void
   libraryId: string
   fileId: string
-  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog, divaDocument, divaTexture, refurbedDevice, website) */
-  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website'
+  /** Typ der Detailansicht — Werteliste aus der zentralen Registry */
+  viewType: DetailViewType
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -434,55 +435,77 @@ interface DetailBodyProps {
   fallbackLocale?: string
 }
 
-function DetailBody({
-  viewType,
-  libraryId,
-  fileId,
-  prefetchedSessionData,
-  prefetchedBookData,
-  isDocMetaReady,
-  fallbackLocale,
-}: DetailBodyProps) {
+/** Was ein Renderer braucht, um eine Detailansicht zu bauen. */
+type DetailRenderProps = Omit<DetailBodyProps, 'viewType'>
+
+type DetailRenderer = (props: DetailRenderProps) => React.ReactElement
+
+const renderBookDetail: DetailRenderer = ({ libraryId, fileId, prefetchedBookData, isDocMetaReady, fallbackLocale }) => (
+  <IngestionBookDetail
+    libraryId={libraryId}
+    fileId={fileId}
+    initialData={prefetchedBookData || undefined}
+    suspendInitialFetch={!isDocMetaReady}
+    fallbackLocale={fallbackLocale}
+  />
+)
+
+/**
+ * Zuordnung Renderer-Typ → Detailansicht.
+ *
+ * `Record<DetailViewType, …>` ist hier der eigentliche Punkt: Wer in
+ * `@ks/contracts` einen neuen `detailViewType` ergaenzt, bekommt an dieser
+ * Stelle einen Typfehler, bis er eine Ansicht zuordnet. Vorher stand hier eine
+ * Negativ-Liste (`viewType !== 'session' && …`), durch die jeder unbekannte
+ * Typ still als Buch gerendert wurde — ein stiller Fallback
+ * (`docs/contracts/no-silent-fallbacks.md`, Galerie-Audit Befund 3).
+ *
+ * `testimonial` und `blog` zeigen bewusst die Buch-Ansicht. Fuer `testimonial`
+ * existiert mit `testimonial-detail.tsx` zwar eine eigene Komponente, sie war
+ * aber nie angeschlossen; sie jetzt zu verdrahten waere eine
+ * Verhaltensaenderung und braucht eine Entscheidung, keine Refactoring-Welle.
+ */
+const DETAIL_RENDERERS: Record<DetailViewType, DetailRenderer> = {
+  book: renderBookDetail,
+  testimonial: renderBookDetail,
+  blog: renderBookDetail,
+  session: ({ libraryId, fileId, prefetchedSessionData, isDocMetaReady, fallbackLocale }) => (
+    <IngestionSessionDetail
+      libraryId={libraryId}
+      fileId={fileId}
+      initialData={prefetchedSessionData || undefined}
+      suspendInitialFetch={!isDocMetaReady}
+      fallbackLocale={fallbackLocale}
+    />
+  ),
+  climateAction: ({ libraryId, fileId, fallbackLocale }) => (
+    <IngestionClimateActionDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+  ),
+  divaDocument: ({ libraryId, fileId, fallbackLocale }) => (
+    <IngestionDivaDocumentDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+  ),
+  divaTexture: ({ libraryId, fileId }) => (
+    <IngestionDivaTextureDetail libraryId={libraryId} fileId={fileId} />
+  ),
+  refurbedDevice: ({ libraryId, fileId, fallbackLocale }) => (
+    <IngestionRefurbedDeviceDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+  ),
+  website: ({ libraryId, fileId, fallbackLocale }) => (
+    <IngestionWebsiteDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+  ),
+}
+
+function DetailBody({ viewType, ...renderProps }: DetailBodyProps) {
+  // Die Typgrenze deckt den Normalfall ab. Sollte ein ungeprueftes
+  // detailViewType aus alter Library-Config doch durchkommen, wird das
+  // ausdruecklich gemeldet statt still zur Buch-Ansicht zu werden.
+  const render = DETAIL_RENDERERS[viewType]
+  if (!render) {
+    console.error(`[DetailBody] Unbekannter detailViewType "${viewType}" — es wird die Buch-Ansicht gezeigt.`)
+  }
   return (
     <div className='p-0 w-full max-w-full overflow-x-hidden'>
-      {viewType === 'session' && (
-        <IngestionSessionDetail
-          libraryId={libraryId}
-          fileId={fileId}
-          initialData={prefetchedSessionData || undefined}
-          suspendInitialFetch={!isDocMetaReady}
-          fallbackLocale={fallbackLocale}
-        />
-      )}
-      {viewType === 'climateAction' && (
-        <IngestionClimateActionDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-      )}
-      {viewType === 'divaDocument' && (
-        <IngestionDivaDocumentDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-      )}
-      {viewType === 'divaTexture' && (
-        <IngestionDivaTextureDetail libraryId={libraryId} fileId={fileId} />
-      )}
-      {viewType === 'refurbedDevice' && (
-        <IngestionRefurbedDeviceDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-      )}
-      {viewType === 'website' && (
-        <IngestionWebsiteDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-      )}
-      {viewType !== 'session' &&
-        viewType !== 'climateAction' &&
-        viewType !== 'divaDocument' &&
-        viewType !== 'divaTexture' &&
-        viewType !== 'refurbedDevice' &&
-        viewType !== 'website' && (
-          <IngestionBookDetail
-            libraryId={libraryId}
-            fileId={fileId}
-            initialData={prefetchedBookData || undefined}
-            suspendInitialFetch={!isDocMetaReady}
-            fallbackLocale={fallbackLocale}
-          />
-        )}
+      {(render ?? renderBookDetail)(renderProps)}
     </div>
   )
 }

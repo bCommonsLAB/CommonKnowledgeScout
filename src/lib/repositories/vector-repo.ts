@@ -38,10 +38,10 @@ import type { FacetDef } from '@/lib/chat/dynamic-facets'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { FileLogger } from '@/lib/debug/logger'
 import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-meta-formatter'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import { buildFavoriteLookupStages } from './source-user-states-repo'
 import { buildCommentLookupStages } from './source-comments-repo'
-import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/gallery/column-sort'
+import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/documents/column-sort'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -1214,7 +1214,7 @@ export async function findDocs(
     /**
      * Globale Spalten-Sortierung (Tabellenansicht): validierte Spec aus dem
      * API-Layer. Hat Vorrang vor `sort`; leere Werte sortieren ans Ende
-     * (siehe lib/gallery/column-sort.ts).
+     * (siehe lib/documents/column-sort.ts).
      */
     columnSort?: GalleryColumnSortSpec
   } = {}

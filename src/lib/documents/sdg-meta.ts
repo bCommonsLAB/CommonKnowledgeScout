@@ -1,5 +1,5 @@
 /**
- * src/lib/gallery/sdg-meta.ts
+ * src/lib/documents/sdg-meta.ts
  *
  * Generische Stammdaten + Helfer fuer das SDG-Profil (17 UN-Nachhaltigkeitsziele).
  * Library-uebergreifend nutzbar: liest die flachen Metadatenfelder

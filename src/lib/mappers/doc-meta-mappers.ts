@@ -11,7 +11,7 @@ import type { DivaDocumentDetailData } from '@/components/library/diva-document-
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
 import type { WebsiteDetailData } from '@/components/library/website-detail'
-import { extractSdgValues, extractSdgBegruendung } from '@/lib/gallery/sdg-meta'
+import { extractSdgValues, extractSdgBegruendung } from '@/lib/documents/sdg-meta'
 
 /**
  * Mapper: API-Response → BookDetailData

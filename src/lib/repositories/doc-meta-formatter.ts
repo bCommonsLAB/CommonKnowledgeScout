@@ -1,4 +1,4 @@
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import type { VectorDocument } from './vector-repo'
 import { localizeDocMetaJson } from '@/lib/i18n/get-localized'
 import type { DocTranslationsMeta } from '@/types/doc-meta'

@@ -36,54 +36,102 @@ import { ChevronDown, ChevronRight, Info } from "lucide-react"
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
 import type { z } from "zod"
+import { DETAIL_VIEW_TYPES, type DetailViewType } from "@/lib/detail-view-types/registry"
 
 interface ContentTypeSectionProps {
   /** React-Hook-Form Instanz aus useChatForm() */
   form: UseFormReturn<z.infer<typeof chatFormSchema>>
 }
 
-/** Kern-Inhaltstypen mit Anwender-Erklaerung (Petra-Pfad) */
-export const CORE_CONTENT_TYPES = [
-  {
-    value: 'book' as const,
+export interface ContentTypeOption {
+  value: DetailViewType
+  title: string
+  description: string
+}
+
+/**
+ * Katalog aller Inhaltstypen mit Anwender-Erklaerung und Einsortierung.
+ *
+ * Bewusst ein `Record<DetailViewType, …>`: Wer in `@ks/contracts` einen Typ
+ * ergaenzt, bekommt hier einen Typfehler, bis er entscheidet, ob und wo der
+ * Typ in den Einstellungen auftaucht. Vorher waren es zwei feste Arrays, aus
+ * denen ein neuer Typ still herausfiel (Galerie-Audit, Befund 3c).
+ *
+ * `placement`:
+ * - `core` — prominent, der Petra-Pfad
+ * - `special` — branchenspezifisch, hinter dem Aufklapper
+ * - `hidden` — wird nicht zur Auswahl gestellt
+ *
+ * `testimonial` und `blog` sind `hidden`: beide haben heute keine eigene
+ * Detailansicht (sie rendern die Buch-Ansicht, siehe `detail-overlay.tsx`).
+ * Sie anzubieten waere ein Versprechen, das die Anzeige nicht einloest.
+ */
+const CONTENT_TYPE_CATALOG: Record<
+  DetailViewType,
+  { title: string; description: string; placement: 'core' | 'special' | 'hidden' }
+> = {
+  book: {
     title: 'Bücher & Dokumente',
     description: 'PDFs, Texte und Publikationen — der Standard für Dokumenten-Sammlungen.',
+    placement: 'core',
   },
-  {
-    value: 'session' as const,
+  session: {
     title: 'Event & Sessions',
     description: 'Vorträge und Gespräche einer Veranstaltung, mit Sprechern und Medien.',
+    placement: 'core',
   },
-  {
-    value: 'climateAction' as const,
+  climateAction: {
     title: 'Klima-Maßnahmen',
     description: 'Maßnahmenkatalog mit Bewertungen, Zuständigkeiten und SDG-Bezug.',
+    placement: 'core',
   },
-]
-
-/** Branchenspezifische Typen — fuer die meisten Anwender irrelevant (Aufklapper) */
-export const SPECIAL_CONTENT_TYPES = [
-  {
-    value: 'divaDocument' as const,
+  divaDocument: {
     title: 'DIVA-Dokumente',
     description: 'Dokumente aus dem DIVA-Liefersystem.',
+    placement: 'special',
   },
-  {
-    value: 'divaTexture' as const,
+  divaTexture: {
     title: 'DIVA-Texturen',
     description: 'Textur-Bibliothek mit Material-Attributen.',
+    placement: 'special',
   },
-  {
-    value: 'refurbedDevice' as const,
+  refurbedDevice: {
     title: 'Refurbished-Geräte',
     description: 'Geräte-Katalog mit technischen Daten.',
+    placement: 'special',
   },
-  {
-    value: 'website' as const,
+  website: {
     title: 'Webseiten / Landingpages',
     description: 'Seiten mit Hero, Inhalts-Sektionen und Aufruf zur Handlung.',
+    placement: 'special',
   },
-]
+  testimonial: {
+    title: 'Testimonial',
+    description: 'Erfahrungsberichte. Heute ohne eigene Detailansicht.',
+    placement: 'hidden',
+  },
+  blog: {
+    title: 'Blog',
+    description: 'Blog-Beiträge. Heute ohne eigene Detailansicht.',
+    placement: 'hidden',
+  },
+}
+
+function optionsWithPlacement(placement: 'core' | 'special'): ContentTypeOption[] {
+  return DETAIL_VIEW_TYPES.filter((value) => CONTENT_TYPE_CATALOG[value].placement === placement).map(
+    (value) => ({
+      value,
+      title: CONTENT_TYPE_CATALOG[value].title,
+      description: CONTENT_TYPE_CATALOG[value].description,
+    })
+  )
+}
+
+/** Kern-Inhaltstypen mit Anwender-Erklaerung (Petra-Pfad) */
+export const CORE_CONTENT_TYPES: ContentTypeOption[] = optionsWithPlacement('core')
+
+/** Branchenspezifische Typen — fuer die meisten Anwender irrelevant (Aufklapper) */
+export const SPECIAL_CONTENT_TYPES: ContentTypeOption[] = optionsWithPlacement('special')
 
 const SPECIAL_VALUES: string[] = SPECIAL_CONTENT_TYPES.map(o => o.value)
 

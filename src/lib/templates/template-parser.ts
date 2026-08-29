@@ -83,10 +83,18 @@ export function parseTemplate(
       const frontmatterObj = parseFrontmatterObjectFromBlock(rawFrontmatter)
       const dvt = frontmatterObj.detailViewType
       if (isValidDetailViewType(dvt)) {
-        detailViewType = dvt as TemplatePreviewDetailViewType
+        detailViewType = dvt
+      } else if (dvt !== undefined && dvt !== null && dvt !== '') {
+        // Frueher fiel ein unbekannter Wert hier stillschweigend weg. Die
+        // Vorlage lief dann ohne Renderer weiter und landete stromabwaerts in
+        // der Buch-Ansicht. Vorlagen im Repo, die das ausloesen: `musterkarte`,
+        // `methode`, `divaProductProfile` (Galerie-Audit, Befund 3b).
+        console.error(
+          `[parseTemplate] Unbekannter detailViewType "${String(dvt)}" im Frontmatter — die Vorlage bekommt keinen Renderer zugewiesen.`
+        )
       }
-    } catch {
-      // Ignoriere Parsing-Fehler für detailViewType
+    } catch (error) {
+      console.error('[parseTemplate] Frontmatter fuer detailViewType nicht lesbar:', error)
     }
   }
   

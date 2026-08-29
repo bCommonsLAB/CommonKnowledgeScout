@@ -19,20 +19,15 @@ import {
   pickFacetsForTableColumns,
   resolveDetailViewTypeForDoc,
 } from '@/components/library/gallery/gallery-root/helpers'
+import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
 
 describe('VALID_DETAIL_VIEW_TYPES', () => {
-  it('enthaelt alle 9 erwarteten DetailViewTypes', () => {
-    expect(VALID_DETAIL_VIEW_TYPES).toEqual([
-      'book',
-      'session',
-      'climateAction',
-      'testimonial',
-      'blog',
-      'divaDocument',
-      'divaTexture',
-      'refurbedDevice',
-      'website',
-    ])
+  // Die Liste wird seit Welle Galerie-Eine-Quelle aus DETAIL_VIEW_TYPES abgeleitet, statt hier
+  // ein zweites Mal ausgeschrieben zu werden. Geprueft wird deshalb die
+  // Vollstaendigkeit gegen die Quelle — nicht mehr eine feste Reihenfolge:
+  // die Liste dient nur der Gueltigkeitspruefung (`includes`), nie der Anzeige.
+  it('enthaelt genau die Typen aus DETAIL_VIEW_TYPES', () => {
+    expect([...VALID_DETAIL_VIEW_TYPES].sort()).toEqual([...DETAIL_VIEW_TYPES].sort())
   })
 })
 

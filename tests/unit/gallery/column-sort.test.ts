@@ -3,7 +3,7 @@ import {
   resolveColumnSort,
   buildColumnSortStages,
   type FacetDefLike,
-} from '@/lib/gallery/column-sort'
+} from '@/lib/documents/column-sort'
 
 const defs: FacetDefLike[] = [
   { metaKey: 'co2_einsparung_kt', type: 'number' },

@@ -4,7 +4,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getByFileIds, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from '@/lib/repositories/doc-meta-formatter'
 import { canSeeDrafts } from '@/lib/chat/publication-filter'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import type { Document } from 'mongodb'
 import { explorerGate } from '@ks/module-explorer'
 

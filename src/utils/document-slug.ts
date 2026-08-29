@@ -1,4 +1,4 @@
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 
 /**

@@ -45,6 +45,11 @@ export type {
 } from './chat-vocabulary'
 export { SOCIAL_CONTEXT_VALUES } from './chat-vocabulary'
 
+export type { DetailViewType } from './detail-view-type'
+export { DETAIL_VIEW_TYPES, isDetailViewType } from './detail-view-type'
+
+export type { DocCardMeta, DetailDoc, ChapterInfo, FavoriteVoter } from './doc-card-meta'
+
 export type {
   SiteModule,
   SitePrimaryLibrary,

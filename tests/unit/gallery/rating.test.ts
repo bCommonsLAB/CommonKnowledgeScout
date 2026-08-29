@@ -3,7 +3,7 @@ import {
   computeRatingRaw,
   computeRatingPercentile,
   assignRatingPercentiles,
-} from '@/lib/gallery/rating'
+} from '@/lib/documents/rating'
 
 describe('computeRatingRaw', () => {
   it('berechnet impact * feasibility / cost bei vollstaendigen Daten', () => {

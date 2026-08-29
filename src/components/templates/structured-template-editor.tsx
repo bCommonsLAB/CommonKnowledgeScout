@@ -37,7 +37,26 @@ import { buildCreationFileName } from '@/lib/creation/file-name'
 import { isTemplateCreationConfig } from '@/lib/creation/creation-flow-validation'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 import { validateTemplateForViewType, getRequiredFields, getOptionalFields, type ValidationResult } from '@/lib/detail-view-types'
+import { DETAIL_VIEW_TYPES, type DetailViewType } from '@/lib/detail-view-types/registry'
 import { AlertTriangle, CheckCircle2, Check } from 'lucide-react'
+
+/**
+ * Beschriftungen der Auswahl. Bewusst ein `Record<DetailViewType, string>`:
+ * Wer in `@ks/contracts` einen Typ ergaenzt, bekommt hier einen Typfehler,
+ * bis er ihn benennt. Frueher stand die Liste hier als neun feste
+ * `<SelectItem>` (Galerie-Audit, Befund 3c) und lief still auseinander.
+ */
+const DETAIL_VIEW_TYPE_LABELS: Record<DetailViewType, string> = {
+  book: 'Book',
+  session: 'Session',
+  testimonial: 'Testimonial',
+  blog: 'Blog',
+  climateAction: 'ClimateAction',
+  divaDocument: 'DivaDocument',
+  divaTexture: 'DivaTexture (Texturanalyse)',
+  refurbedDevice: 'RefurbedDevice (Gebrauchte PCs/Notebooks)',
+  website: 'Webseite (Landingpage)',
+}
 // Input entfällt nach UI-Verschlankung
 
 export interface StructuredTemplateEditorProps {
@@ -628,15 +647,11 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
                 <SelectValue placeholder="Detail-View-Type auswählen" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="book">Book</SelectItem>
-                <SelectItem value="session">Session</SelectItem>
-                <SelectItem value="testimonial">Testimonial</SelectItem>
-                <SelectItem value="blog">Blog</SelectItem>
-                <SelectItem value="climateAction">ClimateAction</SelectItem>
-                <SelectItem value="divaDocument">DivaDocument</SelectItem>
-                <SelectItem value="divaTexture">DivaTexture (Texturanalyse)</SelectItem>
-                <SelectItem value="refurbedDevice">RefurbedDevice (Gebrauchte PCs/Notebooks)</SelectItem>
-                <SelectItem value="website">Webseite (Landingpage)</SelectItem>
+                {DETAIL_VIEW_TYPES.map((viewType) => (
+                  <SelectItem key={viewType} value={viewType}>
+                    {DETAIL_VIEW_TYPE_LABELS[viewType]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             

@@ -11,6 +11,8 @@
  * zu validieren und Views für unterschiedliche Consumer bereitzustellen.
  */
 
+import type { DetailViewType } from '@/lib/detail-view-types/registry'
+
 /**
  * Unterstützte Source-Typen für Creation-Inputs
  */
@@ -70,7 +72,12 @@ export interface TemplateCreationWelcomeConfig {
   markdown: string
 }
 
-export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website'
+/**
+ * Alias auf den zentralen Renderer-Typ. Frueher stand hier eine eigene
+ * Werteliste — eine von sechs Kopien im Repo (Galerie-Audit, Befund 3c).
+ * Quelle ist jetzt ausschliesslich `DETAIL_VIEW_TYPES`.
+ */
+export type TemplatePreviewDetailViewType = DetailViewType
 
 export interface TemplateCreationPreviewConfig {
   /**

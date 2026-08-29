@@ -10,7 +10,7 @@ import { ClimateActionRating } from "./climate-action-rating";
 import { StakeholderPositions } from "./gallery/stakeholder-positions";
 import { SdgProfile } from "./gallery/sdg-profile";
 import { AiText, OriginalQuote } from "./gallery/provenance-text";
-import type { SdgValue } from "@/lib/gallery/sdg-meta";
+import type { SdgValue } from "@/lib/documents/sdg-meta";
 import { cn } from "@/lib/utils";
 
 // Status-Mapping (wie im Teaser)

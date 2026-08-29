@@ -19,22 +19,21 @@
  */
 
 import { z } from 'zod'
+import { DETAIL_VIEW_TYPES, isDetailViewType, type DetailViewType } from '@ks/contracts'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ZENTRALE DEFINITION ALLER VIEWTYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Alle verfügbaren DetailViewTypes als const Array.
- * Dies ist die einzige Stelle, an der neue ViewTypes hinzugefügt werden müssen.
+ * Die Werteliste selbst liegt in `@ks/contracts` — sie ist Teil des
+ * Library-Steckbriefs, nicht ein Galerie-Detail. Hier wird sie nur
+ * weitergereicht, damit bestehende Importpfade unveraendert bleiben.
+ *
+ * Neue ViewTypes werden in `packages/contracts/src/detail-view-type.ts`
+ * ergaenzt — und dann von `VIEW_TYPE_REGISTRY` unten eingefordert.
  */
-export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website'] as const
-
-/**
- * Union Type aller gültigen DetailViewTypes.
- * Abgeleitet aus dem DETAIL_VIEW_TYPES Array.
- */
-export type DetailViewType = typeof DETAIL_VIEW_TYPES[number]
+export { DETAIL_VIEW_TYPES, type DetailViewType }
 
 /**
  * Zod-Schema für DetailViewType-Validierung.
@@ -46,9 +45,7 @@ export const detailViewTypeSchema = z.enum(DETAIL_VIEW_TYPES)
  * Prüft ob ein Wert ein gültiger DetailViewType ist.
  * Type Guard für Runtime-Checks.
  */
-export function isValidDetailViewType(value: unknown): value is DetailViewType {
-  return typeof value === 'string' && DETAIL_VIEW_TYPES.includes(value as DetailViewType)
-}
+export const isValidDetailViewType = isDetailViewType
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // KONFIGURATION PRO VIEWTYPE
