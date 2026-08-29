@@ -521,3 +521,72 @@ unbemerkt verschwinden wuerden:
    baut die Parameter neu auf, statt die vorhandenen zu uebernehmen.
 
 Ob Punkt 2 gewollt ist, ist offen. Der Test bewertet nicht — er haelt fest.
+
+## Neubewertung (2026-08-29): die Adressierung ist dreigeteilt
+
+Befund 2 nannte „10 Dateien mit `next/navigation`" und drei Stellen mit
+Routen-Wissen. Beide Zahlen waren zu grob. Nachgemessen:
+
+**Es sind vier Stellen mit Routen-Wissen, nicht drei** — `gallery-root.tsx`
+selbst kennt `/explore/:slug/perspective` und `/library/gallery`
+(Zeilen 210–217). Das war uebersehen.
+
+**Aber die zehn Dateien zerfallen in drei sehr ungleiche Gruppen:**
+
+| Gruppe | Dateien | Was sie tun | Risiko |
+|---|---:|---|---|
+| **Durchreicher** | 6 | holen `useRouter`/`usePathname`/`useSearchParams` NUR, um sie an `openDocumentBySlug(slug, libraryId, router, pathname, searchParams)` weiterzugeben. Sie navigieren nicht selbst | trivial |
+| **Teiler** | 1 | `document-share-button` baut einen Link aus `window.location.origin` + Pfad + Parametern | trivial |
+| **Echte Navigierer** | 3 | `gallery-root`, `switch-to-story-mode-button`, `use-gallery-mode`: eigene `push`/`replace` UND Routen-Formen | die eigentliche Arbeit |
+
+Die Durchreicher sind `document-card`, `grouped-items-grid`,
+`grouped-items-table`, `items-table`, `virtualized-items-view` und
+`use-gallery-events`.
+
+### Was das aendert
+
+**Die Schnittstelle muss nicht mehr erraten werden.** Die erste Bewertung
+verschob die Welle, weil man „gegen eine Vermutung entwerfen" wuerde. Das
+stimmt so nicht mehr: Was das Modul koennen muss, steht im Code —
+
+- ein Dokument oeffnen (`openDocument(slug)`)
+- ein Dokument schliessen
+- in den Story-Modus wechseln
+- die Perspektiven-Ansicht oeffnen
+- einen teilbaren Link bauen
+
+Das ist abgelesen, nicht ausgedacht. Fuer die **sechs Durchreicher** braucht es
+zudem gar keine Entwurfsentscheidung: Sie bekommen statt dreier Router-Objekte
+eine Funktion hereingereicht und verlieren die Next-Bindung ersatzlos.
+
+**Ein Fehler, der im Embed sicher auftreten wird**: `document-share-button`
+baut den Teilen-Link aus `window.location.origin`. In einer fremden Seite ist
+das die Adresse der fremden Seite — der geteilte Link zeigt dann ins Leere.
+Das ist kein Entwurfsproblem, sondern eine fehlende Basis-URL; dieselbe, die
+die Modul-Fetches ohnehin brauchen (P2-Skizze in `einsatz-szenarien.md`).
+
+### Neue Empfehlung: die Welle teilen
+
+| Teil | Umfang | Wann |
+|---|---|---|
+| **A — Durchreicher entkoppeln** | 6 Dateien, je ~7 Zeilen (drei Importe, drei Hook-Aufrufe, eine Aufrufstelle) | **jetzt.** Verhaltensneutral, mechanisch, vom Netz gedeckt |
+| **C — Teilen-Link mit Basis-URL** | 1 Datei | **jetzt.** Behebt einen sicheren Embed-Fehler, unabhaengig vom Rest |
+| **B — die drei echten Navigierer** | `gallery-root`, `switch-to-story-mode-button`, `use-gallery-mode` + `document-navigation.ts` | **weiter warten.** Hier faellt die Entscheidung, ob das Modul URL-Zustand ueberhaupt anfasst |
+
+Nach A und C haengen noch **drei statt zehn** Dateien an `next/navigation`,
+und die verbleibende Entscheidung ist scharf umrissen statt diffus.
+
+### Was unveraendert gilt
+
+Teil B laesst sich weiterhin **nicht** durch `tsc`, `vitest` oder `pnpm build`
+belegen — er aendert Zurueck-Taste, geteilte Links und den `?doc=`-Parameter.
+Das Netz dafuer liegt seit dem 2026-08-29
+(`tests/unit/utils/document-navigation-routen.test.ts`, 16 Faelle).
+
+Und die Leitfrage fuer B bleibt offen, weil sie eine Produktfrage ist: **Soll
+eine eingebettete Galerie die Adresse der Wirtsseite veraendern?** Die
+naheliegende Antwort ist nein — der Gast fasst die Adressleiste des Gastgebers
+nicht an, ausser der Gastgeber bittet darum. Dann waere die Loesung nicht
+„Protokoll injizieren", sondern: Das Modul fuehrt seinen Zustand selbst, und
+die Voll-App klinkt sich optional in die URL ein. Das ist eine Entscheidung,
+die der Owner treffen sollte, bevor jemand baut.
