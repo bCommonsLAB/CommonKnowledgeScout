@@ -441,6 +441,45 @@ Entscheidungen, die falsch zu raten wären, liegen beim Menschen.
 Offen aus der Bilanz, noch ohne Reproduktion: „completed mit drei grünen
 Schritten, obwohl nichts geschrieben wurde". Braucht erst einen Fall mit
 `fehlerDetails`, bevor sich sagen lässt, ob Worker oder Meldung lügt.
+→ **Aufgeklärt in 4h**: weder Worker noch Meldung lügen — das Extract-Gate
+überspringt, und die Brücke verschwieg die Skips.
+
+## 4h. Befund 29.08.2026 („24.09 KnowledgeScout") und Welle ST11
+
+Cowork meldete: Zehn `quelle_erschliessen`-Jobs auf frisch migrierte
+Alt-Familien (Transformation vorhanden, Transkript fehlt) wurden `completed`
+und schrieben nichts; Diagnose „der Contract-Check prüft die falsche Sache",
+Hochrechnung „236 Familien über die Brücke nicht mehr zu vervollständigen".
+
+Verifiziert gegen den Code — die Beobachtung stimmte, die Diagnose nicht:
+
+- **Täter ist das Extract-Gate**, nicht der Contract-Check:
+  `gateExtractPdf` wertet mit `includeSupersets` eine vorhandene
+  Transformation als Beweis fürs Transkript („Transformation impliziert
+  Extract"). Für Pipeline-Familien immer wahr; die Alt-Format-Migration hat
+  erstmals Familien erzeugt, die die Annahme verletzen. Gate überspringt →
+  `completed (all phases skipped)` → Contract löst `savedItemId` auf das
+  VORHANDENE Artefakt auf. Alles ehrlich — in MongoDB.
+- **Die Brücke verschwieg es**: `job_status` warf `steps[].details`
+  (`skipped`/`reason`) beim Mappen weg; übersprungen und gearbeitet sahen
+  identisch aus.
+- **Der Gate-Fallback zementierte den Fehl-Skip**: `previous_job_saved` las
+  jeden completed-Job mit `savedItemId` als früheren Erfolg — auch einen, der
+  selbst nur übersprungen hatte. Damit war nach dem ersten Fehl-Skip auch
+  `nur_transkript` verriegelt.
+- **Nicht übernommen**: „Contract-Check aufs Transkript ausweiten" — bräche
+  `transformation_starten` (Text aus MongoDB) und `nur_transkript`-Jobs.
+- **G7 (10-Minuten-Timeout)**: Zahl real, liegt aber KS-seitig (Watchdog
+  600 s hart, SSE-Stream-Timeout 10 min, `EXTERNAL_REQUEST_TIMEOUT_MS`
+  Default 600000) — nicht nachweislich beim Video-Worker.
+
+**Welle ST11 (2.16.0):** (a) `erzwingen: true` an `quelle_erschliessen` →
+`policies.extract: 'force'` in beiden Enqueue-Pfaden (transcribe + document);
+(b) `job_status` markiert übersprungene Schritte (`uebersprungen`/`grund`)
+und nennt bei Komplett-Skip `nichtsGeschrieben` im Klartext
+(`job-schritte.ts`); (c) der `previous_job_saved`-Fallback ignoriert Jobs mit
+übersprungenem Extract-Schritt (`wurdeExtractUebersprungen` in `gates.ts`).
+Handover an Cowork: `docs/concepts/handover-cowork-2026-08-29.md`.
 
 ## 5. Offene Entscheidungen — mit Empfehlung
 

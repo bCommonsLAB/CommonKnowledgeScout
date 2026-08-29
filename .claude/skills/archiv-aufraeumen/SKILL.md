@@ -78,6 +78,23 @@ nennt seit 2.15.0 zusätzlich `gescheitertKuerzlich` — die Fehlschläge der
 letzten Stunde samt jobIds. Steht dort etwas, zuerst `job_status` auf diese
 Jobs (liefert `fehlerDetails`), bevor irgendetwas nachgestartet wird.
 
+**1b-iv. `completed` heißt nicht „hat geschrieben".** Die Pipeline überspringt
+Schritte, wenn vorhandene Artefakte die Arbeit überflüssig erscheinen lassen
+(Gate) — der Job wird trotzdem `completed`. Seit 2.16.0 zeigt `job_status`
+das ehrlich: übersprungene Schritte tragen `uebersprungen: true` mit `grund`,
+und hat ein Job ALLE Schritte übersprungen, steht `nichtsGeschrieben` mit
+Klartext in der Antwort. **Nach jedem Stapel deshalb nicht nur den Status
+lesen, sondern prüfen, ob die erwarteten Artefakte entstanden sind**
+(Schritt 4, Gegenprüfen).
+
+Der wichtigste Fall (Befund 29.08.2026): **Alt-Familien mit Transformation,
+aber ohne Transkript** — etwa nach einer Alt-Format-Migration mit
+`twins_synchronisieren`. Das Gate liest die vorhandene Zusammenfassung als
+Beweis fürs Transkript und überspringt die Transkription. Für solche Familien
+`quelle_erschliessen` mit `erzwingen: true` aufrufen (ab 2.16.0) — das
+übergeht das Gate und transkribiert wirklich. `erzwingen` ist die Ausnahme,
+nicht der Default: Ohne konkreten Grund kostet es nur doppelt.
+
 **1c. Für alles Übrige gibt es seit Werkzeugsatz 2.9.0 die Storage-Schicht.**
 `ordner_listen`, `datei_lesen`, `stat`, `pfad_aufloesen`, `datei_patchen`,
 `datei_schreiben`, `datei_anlegen`, `ordner_anlegen`, `verschieben`,
@@ -469,7 +486,9 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Nimmt `familie_umziehen` keine `sourceIds` oder fehlt
+`protokoll_lesen`, ist sie älter als 2.6.0. Nimmt `quelle_erschliessen` kein
+`erzwingen` oder markiert `job_status` übersprungene Schritte nicht
+(`uebersprungen`/`nichtsGeschrieben`), ist sie älter als 2.16.0. Nimmt `familie_umziehen` keine `sourceIds` oder fehlt
 `gescheitertKuerzlich` in der ungefilterten `job_liste`, ist sie älter als
 2.15.0. Meldet `transformation_starten` keine `modellHerkunft`
 (oder nimmt es noch ein `llmModel` an), ist sie älter als 2.14.0. Liefert `job_status` bei einem gescheiterten Job keine
