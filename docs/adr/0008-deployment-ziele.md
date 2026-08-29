@@ -140,3 +140,74 @@ nicht wissen, wer bei uns angemeldet ist, und wir wollen ihr das auch nicht
 beibringen müssen. Öffentlich bleibt öffentlich, geschützt bleibt in der
 eigenen Anwendung. Das hält `@ks/embed` klein genug, um es überhaupt
 auszuliefern.
+
+## Nachtrag (2026-08-29): Die Headless-API (P8) nutzt den MCP-Konto-Schlüssel
+
+**Entschieden vom Owner.** Für Fremdanwendungen, die Inhalte abfragen, wird
+**kein zweiter Schlüssel-Mechanismus** gebaut. Es gilt derselbe API-Key wie für
+die MCP-Brücke: ein Schlüssel, eine Verwaltung, eine Rotation.
+
+### Korrektur am Konzeptpapier
+
+[`einsatz-szenarien.md`](../architecture/einsatz-szenarien.md) nannte bei P8
+`api/libraries/[id]/tokens` als „vorhandenen Baustein". **Das ist falsch.**
+Diese Route liefert die OAuth-Zugangsdaten des Speicher-Anbieters
+(`accessToken`, `refreshToken`, `tokenExpiry` aus der Library-Konfiguration) —
+also OneDrive-Credentials, keine Konsumenten-Schlüssel. Sie hat mit P8 nichts
+zu tun.
+
+Der tatsächlich vorhandene Baustein ist der **MCP-Konto-Schlüssel**:
+
+- `src/lib/mcp/account-key.ts` — Format und Signatur (edge-tauglich)
+- `src/lib/mcp/account-key-service.ts` — Erzeugen, Rotieren, Auflösen
+- `src/app/api/account/mcp-key/route.ts` — Ausgabe an den Besitzer
+
+### Wie der Schlüssel gebaut ist
+
+```
+ksm_<b64url(email)>~<nonceHex>~<hmacHex>
+```
+
+HMAC-SHA256 über `email.nonce`, Secret ist `MCP_API_KEY`. Zwei Prüfungen
+hintereinander:
+
+1. **Middleware** (Edge, ohne Datenbank) prüft nur die Signatur — sie muss
+   valide Schlüssel erkennen, ohne Mongo erreichen zu können.
+2. **Route** prüft zusätzlich den Hash gegen die Datenbank. Deshalb entwertet
+   eine Rotation alte Schlüssel trotz gültiger Signatur.
+
+Der Klartext existiert genau einmal: als Rückgabe beim Rotieren.
+
+Das Trennzeichen ist `~` und nicht `.` — drei punktgetrennte Segmente sehen für
+Clerk wie ein Session-JWT aus, und die Clerk-Middleware wirft dann einen 500
+(Live-Befund aus dem Pilot-Smoke-Test).
+
+### Die Folge, die dabei mitgekauft wird
+
+Der Schlüssel löst zu **einer Person** auf und gilt anschließend mit **deren
+vollen Rechten**. Er kennt heute **keine Bereiche (Scopes)** und keine
+Beschränkung auf eine Bibliothek.
+
+Praktisch heißt das: Wer einen Schlüssel bekommt, kann damit nicht nur die
+Lese-API benutzen, sondern auch die MCP-Werkzeuge — darunter schreibende wie
+`datei_schreiben`, `verschieben`, `loeschen`. P8 fordert im Konzeptpapier
+„Token-Scopes read-only"; die gibt es noch nicht.
+
+**Das ist kein Widerspruch zur Entscheidung, sondern ihre offene Kante.** Zwei
+Wege stehen offen, wenn ein Konsument dazukommt, dem man nicht schreiben
+anvertrauen will:
+
+- Ein Nur-Lese-Kennzeichen am Schlüssel, das die schreibenden MCP-Werkzeuge
+  und die schreibenden Routen ablehnen.
+- Ein technisches Konto pro Konsument, das nur Leserechte auf die freigegebene
+  Bibliothek hat — ohne Änderung am Schlüssel-Mechanismus.
+
+Der zweite Weg kommt ohne neuen Code aus und ist deshalb der Vorschlag, bis
+ein Fall den ersten erzwingt. **Bis dahin gilt: Einen Schlüssel bekommt nur,
+wem man auch Schreibzugriff anvertraut.**
+
+### Abgrenzung zum Embed
+
+Das Embed (P2) ist davon unberührt: Es liefert nur öffentliche Inhalte und
+braucht überhaupt keinen Schlüssel (siehe vorheriger Nachtrag). Schlüssel
+gibt es ausschließlich für Fremdanwendungen ohne KnowledgeScout-Oberfläche.

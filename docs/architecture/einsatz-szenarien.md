@@ -143,12 +143,26 @@ Scraping + JSON-Annotation + Bild-LLM-Klassifikation großer Bestände;
 
 Eine externe Anwendung fragt Library-Inhalte strukturiert ab — keine
 KnowledgeScout-UI beteiligt. **Libraries**: AECED.
-**Module**: keine UI; Explorer-Lese-Handler + Token. **Hülle**: `headless`
-auf der bestehenden Instanz. **Auth**: API-Token pro Konsument
-(vorhandener Baustein: `api/libraries/[id]/tokens`).
+**Module**: keine UI; Explorer-Lese-Handler + Schlüssel. **Hülle**: `headless`
+auf der bestehenden Instanz. **Auth**: **derselbe MCP-Konto-Schlüssel**, kein
+zweiter Mechanismus (Owner-Entscheidung 2026-08-29, Nachtrag in
+[ADR 0008](../adr/0008-deployment-ziele.md)).
+
+> **Korrektur 2026-08-29**: Hier stand `api/libraries/[id]/tokens` als
+> „vorhandener Baustein". Das ist falsch — diese Route liefert die
+> OAuth-Zugangsdaten des Speicher-Anbieters (OneDrive), keine
+> Konsumenten-Schlüssel. Der tatsächliche Baustein ist
+> `src/lib/mcp/account-key-service.ts` mit `api/account/mcp-key`.
 
 **Fordert**: stabiler, versionierter Lese-Vertrag in `@ks/contracts`
-(Dokumente + Frontmatter-Metadaten + Facetten); Token-Scopes read-only.
+(Dokumente + Frontmatter-Metadaten + Facetten).
+
+**Offene Kante**: Der Schlüssel löst zu einer Person auf und gilt mit deren
+vollen Rechten — er kennt heute keine Bereiche und keine Beschränkung auf eine
+Bibliothek. Wer einen Schlüssel hat, erreicht damit auch die schreibenden
+MCP-Werkzeuge. Bis das anders ist, gilt: Einen Schlüssel bekommt nur, wem man
+auch Schreibzugriff anvertraut. Ein technisches Konto pro Konsument mit reinen
+Leserechten löst das ohne neuen Code.
 
 ## P9 — Konferenz-/Event-Aufbereitung aus Multi-Quellen
 
@@ -169,13 +183,13 @@ als Messlatte.
 | Muster | Module | Hülle | Datenzugang | Auth | Libraries |
 |---|---|---|---|---|---|
 | P1 Kampagnen-Website | explorer | Site auf Instanz | local | public | Oldies, Klima (Endkunden), SwapToLearn, Tamera |
-| P2 Embed-Komponente | explorer | embed (npm/iframe) | remote | public/Token | AECED, SFSCON, CAST, Naturmuseum, Tamera |
+| P2 Embed-Komponente | explorer | embed (npm/iframe) | remote | **nur public** | AECED, SFSCON, CAST, Naturmuseum, Tamera |
 | P3 Laie+Experte-Archiv | explorer (+archive) | Site (+pwa, +electron) | local | public→clerk | Umweltarchiv, Pluriversum, Klima (Experten) |
 | P4 Team-Archiv | explorer+archive | Site/Voll-App | local | clerk | Stakeholder Klimaarchiv |
 | P5 Feld-Erfassung | creation (+explorer) | Site, mobil | local | capture/offen | Judith-Libraries, SwapToLearn, Peters Archiv |
 | P6 Privates Agenten-Archiv | archive+agent-view | electron+mcp | local-first | Besitzer | Peters Archiv |
 | P7 Werkbank | workbench+archive | electron | local-first | Anwender | Diva-Texturen |
-| P8 Headless-API | — (Lese-Handler) | headless | Token | Token | AECED |
+| P8 Headless-API | — (Lese-Handler) | headless | Schluessel | **MCP-Konto-Schluessel** | AECED |
 | P9 Multi-Quellen-Import | import+explorer | Voll-App → P2 | local | Creator | SFSCON, CAST |
 
 Jede beschriebene Library trägt mindestens ein Muster; Klimamaßnahmen
@@ -188,8 +202,10 @@ kombiniert P1+P3 plus Föderation (ADR 0009); AECED kombiniert P2+P8.
    ausschließlich öffentliche Inhalte, ein Site-Token entfällt ersatzlos.
    Geschütztes gibt es nur in der eigenständigen Anwendung mit Anmeldung.
    Siehe Nachtrag in [ADR 0008](../adr/0008-deployment-ziele.md).
-   **Für P8 unverändert offen**: Die Headless-API für Fremdanwendungen ist
-   keine eingebettete Oberfläche und behält ihre API-Token pro Konsument.
+   **Für P8 ebenfalls geschlossen** (Owner, 2026-08-29): Die Headless-API nutzt
+   denselben MCP-Konto-Schlüssel, kein zweiter Mechanismus. Was offen bleibt,
+   ist nicht der Schlüssel, sondern seine Reichweite — er gilt heute mit den
+   vollen Rechten seines Besitzers. Siehe die „offene Kante" bei P8.
 2. **Detail-View-Registry als Site-Plugin** (P1/P3: Klimamaßnahmen-Widgets
    wie CO2-Rechner; Spezialansichten) — Schnittstelle ab M2 in `@ks/contracts`.
 3. **Trennung Lese-/Ingestion-Teil im `chat/*`-Namespace** — beim
