@@ -78,4 +78,32 @@ describe('Galerie-Schnitt', () => {
     }
     expect(offenders, `'use client' in geteilter Fachlogik:\n${offenders.join('\n')}`).toEqual([])
   })
+
+  it('die Galerie kennt keinen Auth-Anbieter', () => {
+    // Welle „Galerie-Betrachter": Drei Stellen fragten direkt bei Clerk nach,
+    // wer da ist. Damit haette das Modul einen Auth-Anbieter mitgeschleppt —
+    // im Embed gibt es aber gar keine Anmeldung (ADR 0008). Der Betrachter
+    // wird jetzt hereingereicht (`useGalleryViewer`).
+    const GALLERY_ROOTS = [
+      'src/components/library/gallery',
+      'src/hooks/gallery',
+      'src/lib/gallery',
+    ]
+    const offenders: string[] = []
+    for (const root of GALLERY_ROOTS) {
+      for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
+        const content = readFileSync(file, 'utf-8')
+        if (/from ['"]@clerk\//.test(content)) {
+          offenders.push(relative(REPO_ROOT, file).replace(/\\/g, '/'))
+        }
+      }
+    }
+    expect(
+      offenders,
+      `Galerie-Code importiert einen Auth-Anbieter:\n${offenders.join('\n')}\n` +
+        'Was die Galerie ueber den Betrachter wissen muss, steht in ' +
+        'GalleryViewer (src/contexts/gallery-viewer-context.tsx) und wird ' +
+        'hereingereicht — in der App per ClerkGalleryViewerBridge.'
+    ).toEqual([])
+  })
 })

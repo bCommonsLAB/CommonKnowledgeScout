@@ -1,9 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAuth, useUser } from '@clerk/nextjs'
 import { useLibraries } from '@ks/shell/react'
-import { getPreferredUserEmail } from '@/lib/auth/user-email'
+import { useGalleryViewer } from '@/contexts/gallery-viewer-context'
 
 /**
  * Mögliche Rollen des aktuellen Users in einer bestimmten Library.
@@ -43,12 +42,13 @@ export interface UseLibraryRoleResult {
  * UI-Elemente gedacht.
  */
 export function useLibraryRole(libraryId?: string): UseLibraryRoleResult {
-  const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
+  // Der Betrachter wird hereingereicht, nicht bei Clerk erfragt — sonst haengt
+  // die Galerie an einem Auth-Anbieter und ist nicht einbettbar.
+  const { isLoaded, isSignedIn, email } = useGalleryViewer()
   const libraries = useLibraries()
 
   return useMemo<UseLibraryRoleResult>(() => {
-    const userEmail = isSignedIn ? getPreferredUserEmail(user) : ''
+    const userEmail = isSignedIn ? email : ''
 
     if (!isLoaded) {
       return {
@@ -94,5 +94,5 @@ export function useLibraryRole(libraryId?: string): UseLibraryRoleResult {
     const role: LibraryRoleClient = lib.accessRole ?? 'owner'
     const isMember = role === 'owner' || role === 'co-creator'
     return { role, isMember, isSignedIn: true, isLoading: false, userEmail }
-  }, [isLoaded, isSignedIn, user, libraryId, libraries])
+  }, [isLoaded, isSignedIn, email, libraryId, libraries])
 }

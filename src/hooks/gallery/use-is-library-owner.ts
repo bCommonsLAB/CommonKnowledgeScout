@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAuth } from '@clerk/nextjs'
 import { useLibraries } from '@ks/shell/react'
+import { useGalleryViewer } from '@/contexts/gallery-viewer-context'
 
 /**
  * Hook zur Prüfung, ob der aktuelle User Owner einer bestimmten Library ist
@@ -13,7 +13,8 @@ import { useLibraries } from '@ks/shell/react'
  * - isLoading: boolean - true wenn Auth-Status noch geladen wird
  */
 export function useIsLibraryOwner(libraryId?: string) {
-  const { isLoaded, isSignedIn } = useAuth()
+  // Betrachter hereingereicht statt bei Clerk erfragt (siehe use-library-role).
+  const { isLoaded, isSignedIn } = useGalleryViewer()
   const libraries = useLibraries()
 
   const isOwner = useMemo(() => {

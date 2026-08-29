@@ -44,6 +44,8 @@ import { ConditionalFooter } from "@/components/home/conditional-footer"
 import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
 import { ViewerLoggerBridge } from "@/components/providers/viewer-logger-bridge"
 import { LibraryChangeBridge } from "@/components/providers/library-change-bridge"
+import { ClerkGalleryViewerBridge } from "@/components/providers/clerk-gallery-viewer-bridge"
+import { GalleryViewerProvider, ANONYMOUS_VIEWER } from "@/contexts/gallery-viewer-context"
 import { headers, cookies } from 'next/headers'
 import { getLocale, type Locale } from '@ks/i18n'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
@@ -103,16 +105,20 @@ export default async function RootLayout({
                   <QueryProvider>
                     <ViewerLoggerBridge />
                     <LibraryChangeBridge />
-                    <TooltipProvider>
-                      <NuqsAdapter>
-                        <HomeLayout>
-                          {children}
-                        </HomeLayout>
-                      </NuqsAdapter>
-                      <ConditionalFooter />
-                      <Toaster richColors />
-                      <HookToaster />
-                    </TooltipProvider>
+                    {/* Build-Zeit: kein Clerk verfuegbar, also der anonyme
+                        Betrachter. Ohne Provider wuerfe `useGalleryViewer`. */}
+                    <GalleryViewerProvider viewer={ANONYMOUS_VIEWER}>
+                      <TooltipProvider>
+                        <NuqsAdapter>
+                          <HomeLayout>
+                            {children}
+                          </HomeLayout>
+                        </NuqsAdapter>
+                        <ConditionalFooter />
+                        <Toaster richColors />
+                        <HookToaster />
+                      </TooltipProvider>
+                    </GalleryViewerProvider>
                   </QueryProvider>
                 </StorageContextProvider>
               </LocaleGate>
@@ -148,21 +154,27 @@ export default async function RootLayout({
                     <AutoAcceptInvites />
                     <ViewerLoggerBridge />
                     <LibraryChangeBridge />
-                    <TooltipProvider>
-                      <div className="relative min-h-screen flex flex-col">
-                        <NuqsAdapter>
-                          <AppLayout rootLandingSlug={rootLandingSlug}>
-                            {children}
-                          </AppLayout>
-                        </NuqsAdapter>
-                        {/* Gleiche Host-Entscheidung wie AppLayout: auf der
-                            gemappten Domain-Root entfaellt der KS-Footer
-                            (die Website rendert ihre eigene Fusszeile). */}
-                        <ConditionalFooter rootLandingSlug={rootLandingSlug} />
-                      </div>
-                      <Toaster richColors />
-                      <HookToaster />
-                    </TooltipProvider>
+                    {/* Reicht den angemeldeten Nutzer als Galerie-Betrachter
+                        herein. Muss ALLES umschliessen, was `useLibraryRole`
+                        nutzt — auch `LibraryVerificationWarning` auf
+                        /explore/[slug] und die Filterleiste. */}
+                    <ClerkGalleryViewerBridge>
+                      <TooltipProvider>
+                        <div className="relative min-h-screen flex flex-col">
+                          <NuqsAdapter>
+                            <AppLayout rootLandingSlug={rootLandingSlug}>
+                              {children}
+                            </AppLayout>
+                          </NuqsAdapter>
+                          {/* Gleiche Host-Entscheidung wie AppLayout: auf der
+                              gemappten Domain-Root entfaellt der KS-Footer
+                              (die Website rendert ihre eigene Fusszeile). */}
+                          <ConditionalFooter rootLandingSlug={rootLandingSlug} />
+                        </div>
+                        <Toaster richColors />
+                        <HookToaster />
+                      </TooltipProvider>
+                    </ClerkGalleryViewerBridge>
                   </QueryProvider>
                 </StorageContextProvider>
               </LocaleGate>
