@@ -4,7 +4,7 @@ import type { Item } from '@/types/item';
 import type { DocCardMeta } from '@ks/contracts';
 
 /**
- * DocCardMeta, DetailDoc und ChapterInfo liegen seit Welle G1 in
+ * DocCardMeta, DetailDoc und ChapterInfo liegen seit Welle Galerie-Vertrag in
  * `@ks/contracts` — sie werden auch serverseitig gebraucht (vector-repo,
  * doc-meta-formatter, external-jobs), diese Datei traegt aber `'use client'`
  * (Galerie-Audit, Befund 1). Hier nur weitergereicht, damit die

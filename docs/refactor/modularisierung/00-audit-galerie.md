@@ -7,8 +7,8 @@ folgt nicht dem Playbook-Format der Welle-3-Audits (Rules/Tests/Docs-Inventar),
 sondern dem Muster der Eingangsmessung aus
 [`AGENT-BRIEF-M4.md`](AGENT-BRIEF-M4.md) — messen, dann Optionen, dann Verdikt.
 
-Die Messung selbst hat keinen Code angefasst. **G3 und G1 wurden anschliessend
-umgesetzt** — siehe die Nachtraege am Ende. **G2 steht noch aus** und ist die
+Die Messung selbst hat keinen Code angefasst. **Galerie-Eine-Quelle und Galerie-Vertrag wurden anschliessend
+umgesetzt** — siehe die Nachtraege am Ende. **Galerie-Adressierung steht noch aus** und ist die
 Welle, die das Einbetten tatsaechlich freischaltet.
 
 ## Warum ueberhaupt
@@ -192,7 +192,7 @@ M4b gekostet hat.
 **Drei Typen waeren die Kandidaten, falls je Pakete entstehen**: `divaTexture`,
 `refurbedDevice` und `climateAction` — alle drei fachlich sehr speziell. Ob es
 dazu kommt, entscheidet aber erst M6 per Messung, nicht dieses Audit; die
-Begruendung steht in Befund 3d und im Abschnitt „G3 im Detail". Ihre Bauart
+Begruendung steht in Befund 3d und im Abschnitt „Eine-Quelle im Detail". Ihre Bauart
 unterscheidet sich:
 
 - `divaTexture` und `refurbedDevice` tragen ihre Besonderheit **in eigenen
@@ -206,7 +206,7 @@ unterscheidet sich:
 
 ### Befund 3c — die Typ-Liste stand dreizehnmal neben der Quelle
 
-Erste Zaehlung ergab fuenf Kopien. Beim Umbau (Welle G3) kamen weitere dazu —
+Erste Zaehlung ergab fuenf Kopien. Beim Umbau (Welle Galerie-Eine-Quelle) kamen weitere dazu —
 die vollstaendige Liste, wie sie vorgefunden wurde:
 
 | Ort | Form |
@@ -237,7 +237,8 @@ schneidet und diese Listen stehen laesst, hat Kosmetik betrieben.
 Bemerkenswert ist die zweite Zeile: `@ks/contracts` **konnte** die Quelle gar
 nicht benutzen, weil ein Paket nicht aus `src/` importiert. Solange die
 Aufzaehlung in der App lag, war eine Kopie im Vertrag unvermeidlich. Das ist
-der Grund, warum die Liste in G3 ins Paket gewandert ist und nicht umgekehrt.
+der Grund, warum die Liste in Galerie-Eine-Quelle ins Paket gewandert ist
+und nicht umgekehrt.
 
 ### Befund 3d — die Faehigkeiten spannen ueber die Typen, die Typ-Bindung ist klein
 
@@ -306,14 +307,15 @@ trotzdem. Diese Spannung ist offen.
 | Option | Umfang (gemessen) | Verdikt |
 |---|---|---|
 | **A — Kern am Stueck** nach `@ks/module-explorer/react` | 103 Dateien / 15.594 Zeilen Kern + ~8.240 Zeilen Fremdkegel; 24 Rueckwaerts-Importe | **nein.** Reisst das PR-Budget (5.000 Zeilen brutto, `AGENTS.md`) um das Vierfache und laesst sich nicht schneiden, ohne Server-Code mitzunehmen (Befund 1). |
-| **B — drei Vorarbeits-Wellen** (G1 Typen, G2 Adressierung, G3 eine Quelle) | G1: `types.ts` (346 Z.) nach `@ks/contracts`, 54 Importstellen. G2: Adressier-Protokoll statt `next/navigation`, 10 Dateien + `document-navigation` (130 Z.). G3: vier Verteilstellen fragen die Registry, vier Listen-Kopien fallen weg (siehe unten) | **empfohlen.** Jede Welle passt einzeln ins Budget, jede ist fuer sich verhaltensneutral (G4). **G3 traegt sich selbst** — es repariert die stillen Fallbacks und haengt an keiner Modularisierungs-Entscheidung. |
+| **B — drei Vorarbeits-Wellen** (Vertrag, Adressierung, Eine-Quelle) | Vertrag: `types.ts` (346 Z.) nach `@ks/contracts`, 54 Importstellen. Adressierung: Protokoll statt `next/navigation`, 10 Dateien + `document-navigation` (130 Z.). Eine-Quelle: vier Verteilstellen fragen die Registry, vier Listen-Kopien fallen weg (siehe unten) | **empfohlen.** Jede Welle passt einzeln ins Budget, jede ist fuer sich verhaltensneutral (G4). **Eine-Quelle traegt sich selbst** — es repariert die stillen Fallbacks und haengt an keiner Modularisierungs-Entscheidung. |
 | **C — nur die Kachelwand** (`document-card` + Raster, ohne Tabelle, Graph, Detail) | ~2.400 Zeilen | zurueckgestellt. Liefert schnell etwas Einbettbares, verschiebt Befund 2 aber nur (`document-card.tsx` importiert selbst `next/navigation` und `next/image`) — und Landkarte §5 will fuer M5 „Galerie/Story", nicht Kacheln. |
 
-**Empfehlung: B, in der Reihenfolge G1 → G2 → G3.** G2 ist die Welle, die das
-Einbetten tatsaechlich freischaltet; G1 muss davor, weil sonst jede Bewegung
+**Empfehlung: B, in der Reihenfolge Vertrag → Adressierung → Eine-Quelle.**
+Die Adressierung ist die Welle, die das Einbetten tatsaechlich freischaltet;
+der Vertrag muss davor, weil sonst jede Bewegung
 des Kerns Server-Code mitreisst.
 
-### G3 im Detail — eine Quelle, eine Verteilstelle. Keine Pakete.
+### Eine-Quelle im Detail — eine Quelle, eine Verteilstelle. Keine Pakete.
 
 Die erste Fassung dieses Audits empfahl „ein Paket pro `detailViewType`".
 **Das wird hier zurueckgenommen**, weil Befund 3d es widerlegt: die
@@ -324,7 +326,7 @@ soll, umfasst nur 8 von 103 Dateien.
 
 Was stattdessen zaehlt und fuer sich allein traegt:
 
-- **G3 — eine Quelle statt fuenf Listen, eine Verteilstelle statt vier
+- **Eine-Quelle — eine Quelle statt fuenf Listen, eine Verteilstelle statt vier
   Zweigen.** Die vier Verteilstellen aus Befund 3d fragen die Registry, statt
   Typen zu vergleichen; die vier Kopien der Typ-Liste verschwinden zugunsten
   von `DETAIL_VIEW_TYPES`; `template-parser.ts:85` meldet einen unbekannten
@@ -332,7 +334,7 @@ Was stattdessen zaehlt und fuer sich allein traegt:
   ein Typ ohne Renderer ist ein Fehler statt einer Buch-Ansicht.
   Das ist die Welle mit dem besten Verhaeltnis von Aufwand zu Wirkung — und
   sie haengt an keiner Modularisierungs-Entscheidung.
-- **G3+ (klein, optional) — die Prio-Spalte entkosten.** Aus
+- **Zusatz (klein, optional) — die Prio-Spalte entkosten.** Aus
   `libraryDetailViewType === 'climateAction'` wird ein Konfigurations-Schalter.
   Das ist das Muster fuer jede Faehigkeit, die spaeter auch auf einem anderen
   Typ gebraucht wird.
@@ -349,13 +351,13 @@ kostet jedes Mal, was der Build-Fehler nach M4b gekostet hat.
 Nach M4-Muster (`api-gate-coverage.test.ts`): der Schnitt soll **zugesichert**
 sein, nicht dokumentiert.
 
-- **Nach G1**: ein Test, der Importe aus `src/lib/gallery/**` in
+- **Nach Galerie-Vertrag**: ein Test, der Importe aus `src/lib/gallery/**` in
   `src/lib/repositories/**` und `src/lib/external-jobs/**` verbietet.
-- **Nach G2**: ein Test, der `next/navigation` im Galerie-Baum verbietet.
-- **Nach G3**: ein Test, der jeden Wert aus `DETAIL_VIEW_TYPES` auf einen
+- **Nach Galerie-Adressierung**: ein Test, der `next/navigation` im Galerie-Baum verbietet.
+- **Nach Galerie-Eine-Quelle**: ein Test, der jeden Wert aus `DETAIL_VIEW_TYPES` auf einen
   angemeldeten Renderer abbildet — ein neuer `detailViewType` ohne Renderer
   laesst ihn rot werden. **Heute waere dieser Test rot** (`testimonial`, `blog`),
-  er ist also zugleich der Nachweis, dass G3 etwas repariert. Ein zweiter Test
+  er ist also zugleich der Nachweis, dass die Welle etwas repariert. Ein zweiter Test
   haelt fest, dass die Typ-Liste nur EINMAL existiert.
 
 ## 6. Was dieses Audit NICHT beantwortet
@@ -374,7 +376,7 @@ sein, nicht dokumentiert.
   `src/components/library/story/` und `src/components/library/chat/` gehoeren
   laut Landkarte §5 in dasselbe Modul und sind nicht vermessen.
 
-## Nachtrag (2026-08-29): G3 ist umgesetzt
+## Nachtrag (2026-08-29): Galerie-Eine-Quelle ist umgesetzt
 
 Umgesetzt in derselben Session, Branch
 `claude/welle-g3-detailviewtype-eine-quelle`.
@@ -424,7 +426,7 @@ unter Vollast reissen sie das 5-Sekunden-Limit. Ein zweiter Vollauf mit
 identischem Code war komplett gruen (462/462 Dateien, 3470/3470 Tests). Wer
 diese Dateien rot sieht, hat eine Lastspitze vor sich, keinen Regress.
 
-## Nachtrag (2026-08-29): G1 ist umgesetzt
+## Nachtrag (2026-08-29): Galerie-Vertrag ist umgesetzt
 
 Umgesetzt in derselben Session, gleicher Branch. Befund 1 ist damit erledigt;
 die Tabelle dort beschreibt den Zustand VOR dieser Welle.
@@ -465,5 +467,5 @@ zweiter Fall haelt fest, dass `src/lib/documents/` rahmenneutral bleibt — kein
 `table-sort.ts`, `types.ts`. Alles davon ist UI-nah und kann mit dem Modul
 wandern.
 
-**Damit ist der Weg fuer G2 frei** — die Adressierung. Danach ist der Kern am
+**Damit ist der Weg fuer die Adressierung frei** — die Adressierung. Danach ist der Kern am
 Stueck bewegbar.

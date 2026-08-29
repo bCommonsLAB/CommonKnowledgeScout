@@ -22,7 +22,7 @@ import {
 import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
 
 describe('VALID_DETAIL_VIEW_TYPES', () => {
-  // Die Liste wird seit Welle G3 aus DETAIL_VIEW_TYPES abgeleitet, statt hier
+  // Die Liste wird seit Welle Galerie-Eine-Quelle aus DETAIL_VIEW_TYPES abgeleitet, statt hier
   // ein zweites Mal ausgeschrieben zu werden. Geprueft wird deshalb die
   // Vollstaendigkeit gegen die Quelle — nicht mehr eine feste Reihenfolge:
   // die Liste dient nur der Gueltigkeitspruefung (`includes`), nie der Anzeige.

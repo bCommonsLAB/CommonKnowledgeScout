@@ -45,7 +45,7 @@ export interface SourceUserState {
 }
 
 /**
- * Voter-Eintrag fuer aggregierte Favoriten. Liegt seit Welle G1 in
+ * Voter-Eintrag fuer aggregierte Favoriten. Liegt seit Welle Galerie-Vertrag in
  * `@ks/contracts`, weil `DocCardMeta` ihn braucht und der Vertrag nicht aus
  * `src/` importieren kann. Hier weitergereicht, damit die Importpfade bleiben.
  */

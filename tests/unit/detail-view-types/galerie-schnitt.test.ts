@@ -1,5 +1,5 @@
 /**
- * Beweis-Ziel der Welle G1: Server-Code kennt die Galerie nicht mehr.
+ * Beweis-Ziel der Welle Galerie-Vertrag: Server-Code kennt die Galerie nicht mehr.
  *
  * Vor dieser Welle importierten `vector-repo`, `doc-meta-formatter`, drei
  * `external-jobs`-Phasen und die Website-Navigation aus `src/lib/gallery/` —

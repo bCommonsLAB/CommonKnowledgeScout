@@ -1,5 +1,5 @@
 /**
- * Beweis-Ziel der Welle G3: die Liste der Renderer-Typen existiert genau
+ * Beweis-Ziel der Welle Galerie-Eine-Quelle: die Liste der Renderer-Typen existiert genau
  * EINMAL, und jeder Typ hat eine zugeordnete Ansicht.
  *
  * Vor dieser Welle stand die Werteliste elfmal hartkodiert im Repo
