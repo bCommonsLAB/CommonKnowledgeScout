@@ -42,10 +42,23 @@ Sessions nicht doppelt bauen:
 - **Naechster Schritt**: Phase B beginnt mit **M5** (AECED-Pilot: `@ks/embed` +
   Headless-Lese-API). Was dafuer noch fehlt, steht im M4-Nachtrag: eine
   Basis-URL fuer die Modul-Fetches (bewusst noch nicht eingebaut, G3) und die
-  Galerie selbst — sie liegt mit ~15.000 Zeilen noch in der App und ist die
-  naechste grosse Extraktion, wenn der Explorer wirklich einbettbar werden soll.
+  Galerie selbst — sie liegt noch in der App und ist die naechste grosse
+  Extraktion, wenn der Explorer wirklich einbettbar werden soll.
   Voll-App bleibt unveraendert (Verhaltensneutralitaet ist Abnahmekriterium
   jeder A-Welle).
+- **Galerie-Audit** (2026-08-29):
+  [`00-audit-galerie.md`](docs/refactor/modularisierung/00-audit-galerie.md).
+  Gemessen: 15.594 Zeilen Kern **plus ~8.240 Zeilen Fremdkegel** — am Stueck
+  nicht schneidbar. Empfohlen sind drei Vorarbeits-Wellen (G1 `DocCardMeta`
+  nach `@ks/contracts`, G2 Adressier-Protokoll statt `next/navigation`,
+  G3 eine Quelle statt fuenf Kopien der Typ-Liste + eine Verteilstelle statt
+  vier Typ-Zweigen). **Pakete pro `detailViewType` wurden geprueft und
+  verworfen** — die Faehigkeiten (Kommentare, Sterne, Graph) spannen bereits
+  ueber alle Typen; erneut zu pruefen erst in M6, per Bundle-Messung. Der
+  Blocker
+  fuers Einbetten ist nicht die Groesse, sondern
+  `src/utils/document-navigation.ts`: die Datei kennt zwei fest verdrahtete
+  Routen-Formen und faellt sonst auf `/library/gallery` zurueck.
 - **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
   bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
   Docker-Build nicht — gruene PR-Checks sind kein Beleg.
