@@ -16,6 +16,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
 import { fehlerDetailsAusTrace } from './job-fehler-details'
 import { zaehleKuerzlichGescheitert } from './job-liste-ehrlich'
+import { beschreibeSchritte, uebersprungenHinweis } from './job-schritte'
 
 /**
  * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
@@ -45,8 +46,10 @@ export function registerJobTools(server: McpServer): void {
         'queued/running/completed/failed plus letzte Meldung. Bei einem GESCHEITERTEN Job ' +
         'kommen die Fehlerdetails aus dem Job-Trace automatisch mit (fehlerDetails): welcher ' +
         'Schritt, welcher Code, die eigentliche Meldung des Dienstes, HTTP-Status und ein ' +
-        'Auszug der Antwort. Damit ist ein Fehlschlag OHNE Blick in die Datenbank zu ' +
-        'analysieren. Liest nur.',
+        'Auszug der Antwort. UEBERSPRUNGENE Schritte sind je Schritt markiert (uebersprungen/' +
+        'grund); hat ein completed-Job ALLE Schritte uebersprungen, sagt ein Hinweis explizit, ' +
+        'dass NICHTS geschrieben wurde. Damit ist ein Fehlschlag OHNE Blick in die Datenbank ' +
+        'zu analysieren. Liest nur.',
       inputSchema: { jobId: z.string().min(1).describe('jobId aus der Start-Antwort') },
       annotations: { readOnlyHint: true },
     },
@@ -67,11 +70,14 @@ export function registerJobTools(server: McpServer): void {
           fortschritt: lastLog?.progress ?? null,
           phase: lastLog?.phase ?? null,
           meldung: lastLog?.message ?? null,
-          schritte: (job.steps ?? []).map((step) => ({
-            name: step.name,
-            status: step.status,
-            ...(step.durationMs !== undefined ? { dauerMs: step.durationMs } : {}),
-          })),
+          // Welle ST11: Skips bleiben sichtbar (Befund 29.08.2026 — ein
+          // komplett uebersprungener Job sah aus wie einer, der gearbeitet
+          // hat; die Wahrheit lag in step.details und wurde hier verworfen).
+          schritte: beschreibeSchritte(job.steps),
+          ...(() => {
+            const hinweis = uebersprungenHinweis({ status: job.status, steps: job.steps })
+            return hinweis ? { nichtsGeschrieben: hinweis } : {}
+          })(),
           fehler: job.error?.message ?? null,
           // Welle ST7: Bei einem Fehlschlag ist `job.error.message` der Satz,
           // der das Scheitern benennt („Template-Transformation

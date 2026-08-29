@@ -54,11 +54,16 @@ export function registerErschliessenTools(server: McpServer): void {
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Transformations-Template; weglassen = Standard-Template der Library; "nur_transkript" = bewusst ohne Transformation'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
+        erzwingen: z.boolean().optional().describe(
+          'true = Extract-Gate uebergehen: transkribiert/extrahiert auch dann, wenn vorhandene ' +
+          'Artefakte den Schritt sonst ueberspringen wuerden. Noetig fuer Familien mit ' +
+          'Transformation OHNE Transkript (Alt-Format-Migration) — ohne erzwingen wird so ein ' +
+          'Job completed, ohne etwas zu schreiben (job_status zeigt die uebersprungenen Schritte).'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen , begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -81,6 +86,7 @@ export function registerErschliessenTools(server: McpServer): void {
                 const { jobId } = await enqueueSourceTranscribeJob({
                   libraryId, userEmail, source, mediaType: kind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
+                  erzwingen,
                 })
                 return jobId
               }
@@ -89,6 +95,7 @@ export function registerErschliessenTools(server: McpServer): void {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
+                  erzwingen,
                 })
                 return jobId
               }
@@ -104,6 +111,7 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate ?? null,
+            erzwungen: erzwingen === true,
             llmModell: effectiveModell ?? null,
             modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,

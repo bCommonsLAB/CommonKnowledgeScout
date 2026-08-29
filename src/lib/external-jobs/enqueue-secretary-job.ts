@@ -59,12 +59,22 @@ export function buildSourceTranscribeJob(args: {
   /** LLM-Modell fuer die Template-Transformation. */
   llmModel?: string
   targetLanguage?: string
+  /**
+   * Welle ST11: Extract-Gate uebergehen (`policies.extract: 'force'`).
+   * Noetig fuer Familien, die die Gate-Annahme „Transformation impliziert
+   * Transkript" verletzen (Alt-Format-Migration, Befund 29.08.2026): Das
+   * Gate liest die vorhandene Zusammenfassung als Beweis fuers Transkript
+   * und ueberspringt die Transkription — der Job wird completed, ohne je
+   * etwas zu schreiben.
+   */
+  erzwingen?: boolean
 }): EnqueueJob {
   const template = args.template?.trim() || undefined
   const llmModel = args.llmModel?.trim() || undefined
+  const extractPolicy = args.erzwingen === true ? 'force' : 'do'
   const policies: PhasePolicies = template
-    ? { extract: 'do', metadata: 'do', ingest: 'do' }
-    : { extract: 'do', metadata: 'ignore', ingest: 'ignore' }
+    ? { extract: extractPolicy, metadata: 'do', ingest: 'do' }
+    : { extract: extractPolicy, metadata: 'ignore', ingest: 'ignore' }
   return {
     jobId: args.jobId,
     jobSecretHash: args.jobSecretHash,
@@ -165,6 +175,7 @@ export async function enqueueSourceTranscribeJob(args: {
   template?: string
   llmModel?: string
   targetLanguage?: string
+  erzwingen?: boolean
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const { jobId, jobSecretHash } = newJobIdentity(repo)
