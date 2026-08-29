@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { sdgIconPath } from "@/lib/documents/sdg-meta";
+import { sdgIconPath } from "@ks/util";
 
 /**
  * src/components/library/gallery/sdg-icon.tsx

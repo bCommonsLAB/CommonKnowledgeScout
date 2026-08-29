@@ -749,3 +749,44 @@ dem Auswahl-Atom kommen.
   ohne Anbieter, reicht durch, und der stille Gastgeber tut nichts.
 - **`pnpm lint` hat vier verwaiste `useSetAtom`-Importe gefunden, `tsc` nicht.**
   Unbenutzte Importe sind keine Typfehler — dafuer gibt es beide Tore.
+
+## Nachtrag (2026-08-30): die Luecke war keine — SDG ist generisch
+
+Der vorige Nachtrag nannte `sdg-meta` eine **Luecke in der Paketstruktur**: rein
+und geteilt, aber Fachlogik — also weder `@ks/util` (verbietet Fachlogik) noch
+`@ks/contracts` (beschreibt, rechnet nicht).
+
+**Owner-Klarstellung (2026-08-30): SDG ist generisch.** Damit loest sich die
+Luecke auf, und die Regel in `@ks/util` war nur zu grob formuliert.
+
+Die Grenze laeuft nicht zwischen „Daten" und „Fachlogik", sondern zwischen
+**oeffentlichem Standard** und **Kundenwissen**:
+
+| Datei | Inhalt | Wohin |
+|---|---|---|
+| `sdg-meta` | die 17 UN-Nachhaltigkeitsziele, Auslesehilfen auf `Record<string, unknown>` | `@ks/util` — so wenig Fachlogik wie eine Liste von Laendercodes |
+| `stakeholder-meta` | enthaelt `LANDESVERWALTUNG` — die Suedtiroler Landesverwaltung | bleibt: das ist ein Kunde, kein Standard |
+
+Die Regel im Kopf von `packages/util/src/index.ts` ist entsprechend
+praezisiert, mit genau diesem Beispielpaar als Grenzmarkierung — damit die
+naechste Person nicht dieselbe Frage neu stellt.
+
+`synergy-sum` bleibt davon unberuehrt: Es ist KnowledgeScout-eigene Bewertung,
+kein Standard, und hat null Nutzer ausserhalb der Galerie — es zieht mit.
+
+**Stand: 14 Importgruppen.** `lib/documents` ist aus dem Galerie-Kegel raus.
+
+### Nebenbefund, unabhaengig von der Modularisierung
+
+Es gibt `document-slug.ts` **zweimal**, mit verschiedenen Zwecken und
+verschiedenen Slug-Regeln:
+
+- `src/lib/documents/document-slug.ts` (22 Z., 5 Nutzer) — beim Persistieren
+- `src/utils/document-slug.ts` (62 Z., 12 Nutzer) — beim Navigieren
+
+Beide leiten fuer Dokumente ohne persistierten `meta.slug` einen Slug aus
+demselben Dateinamen ab, aber mit unterschiedlichen Regeln
+(Extension-Behandlung, Laengenbegrenzung, Ziffern-Praefix). Weichen sie ab,
+findet `docMatchesNavigationSlug` das Dokument nicht — ein geteilter Link zeigt
+ins Leere. Vorbestehend (die zweite Datei stammt aus Commit b0d99469) und als
+eigene Aufgabe notiert.

@@ -8,8 +8,17 @@
  * Funktion darf nicht an einem Paket voller Client-Komponenten haengen.
  *
  * Regel fuer dieses Paket: nur, was in JEDER Umgebung laufen kann — Server,
- * Client, Edge. Kein React, kein Storage, keine Fachlogik. Was das nicht
- * erfuellt, gehoert woandershin.
+ * Client, Edge. Kein React, kein Storage, keine Abhaengigkeiten.
+ *
+ * Zu "keine Fachlogik" (Stand 2026-08-30, Owner-Klarstellung): Gemeint ist
+ * KUNDEN- oder BIBLIOTHEKS-spezifisches Wissen — das gehoert nicht hierher.
+ * OEFFENTLICHE Standards dagegen schon: Die 17 UN-Nachhaltigkeitsziele sind
+ * so wenig KnowledgeScout-Fachlogik wie eine Liste von Laendercodes.
+ *
+ * Die Grenze laeuft an einem konkreten Beispiel entlang: `sdg-meta` liegt hier
+ * (oeffentlicher Standard, arbeitet auf einem schlichten Record).
+ * `stakeholder-meta` liegt es NICHT (enthaelt die Suedtiroler
+ * Landesverwaltung — ein Kunde, kein Standard).
  */
 
 export { cn } from './cn'
@@ -22,3 +31,8 @@ export { tryDecodeRelativePathFromFileId } from './decode-storage-file-id'
 // Pfad-Zerlegung fuer Shadow-Twin-Ordner: reine Zeichenketten-Arbeit, ohne
 // Storage-Zugriff — und von zwoelf Stellen quer durch App und Galerie genutzt.
 export * from './shadow-twin-folder-name'
+
+// Die 17 UN-Nachhaltigkeitsziele samt Auslesehilfen. Oeffentlicher Standard,
+// null Abhaengigkeiten, arbeitet auf `Record<string, unknown>` — siehe die
+// Abgrenzung im Kopf dieser Datei.
+export * from './sdg-meta'

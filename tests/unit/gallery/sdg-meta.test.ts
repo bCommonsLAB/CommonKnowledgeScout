@@ -7,7 +7,7 @@ import {
   extractSdgBegruendung,
   hasSdgData,
   sdgIconPath,
-} from '@/lib/documents/sdg-meta'
+} from '@ks/util'
 import {
   spokeAngleDeg,
   fillRadius,
