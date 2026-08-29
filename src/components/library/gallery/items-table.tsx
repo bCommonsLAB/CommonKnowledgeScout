@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge } 
 import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import { DeleteDocumentButton } from './delete-document-button'
 import { PublishDocumentButton } from './publish-document-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'

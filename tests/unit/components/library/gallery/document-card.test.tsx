@@ -43,7 +43,7 @@ vi.mock('@/utils/document-navigation', () => ({
   openDocumentBySlug: (...args: unknown[]) => openDocumentBySlugMock(...args),
 }))
 
-vi.mock('@/utils/document-slug', () => ({
+vi.mock('@/utils/document-slug-navigation', () => ({
   getEffectiveDocumentNavigationSlug: (doc: DocCardMeta) => doc.fileId || doc.id || null,
 }))
 

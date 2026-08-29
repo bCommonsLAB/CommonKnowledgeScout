@@ -12,7 +12,7 @@ import {
 import { Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 
 export interface DocumentShareButtonProps {
   /** Das Dokument, das geteilt werden soll */

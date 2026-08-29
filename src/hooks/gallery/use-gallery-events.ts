@@ -8,7 +8,7 @@ import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import type { DocReference } from '@ks/contracts'
 
 export function useGalleryEvents(

@@ -7,7 +7,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from '@
 import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
