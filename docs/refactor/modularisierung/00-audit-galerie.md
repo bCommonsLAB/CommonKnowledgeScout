@@ -6,7 +6,9 @@ Dieses Audit liegt bewusst hier und nicht unter `docs/refactor/galerie/`: Es
 folgt nicht dem Playbook-Format der Welle-3-Audits (Rules/Tests/Docs-Inventar),
 sondern dem Muster der Eingangsmessung aus
 [`AGENT-BRIEF-M4.md`](AGENT-BRIEF-M4.md) — messen, dann Optionen, dann Verdikt.
-Es ist reine Doku; es wurde kein Code geaendert.
+
+Die Messung selbst hat keinen Code angefasst. **G3 wurde anschliessend
+umgesetzt** — siehe den Nachtrag am Ende; G1 und G2 stehen noch aus.
 
 ## Warum ueberhaupt
 
@@ -370,3 +372,53 @@ sein, nicht dokumentiert.
 - **Story und Chat.** Dieses Audit misst nur die Galerie.
   `src/components/library/story/` und `src/components/library/chat/` gehoeren
   laut Landkarte §5 in dasselbe Modul und sind nicht vermessen.
+
+## Nachtrag (2026-08-29): G3 ist umgesetzt
+
+Umgesetzt in derselben Session, Branch
+`claude/welle-g3-detailviewtype-eine-quelle`.
+
+**Was sich beim Umbau gegenueber der Messung geaendert hat:** Aus den fuenf
+gefundenen Kopien wurden dreizehn (Befund 3c ist entsprechend korrigiert). Das
+Messraster der ersten Runde suchte nur nach zwei Mustern; erst das Umstellen
+foerderte `z.enum`-Kopien in Settings-Formularen, zwei Arrays innerhalb einer
+Funktion und neun feste `<SelectItem>` zutage.
+
+**Die Entscheidung, die das Audit nicht vorweggenommen hatte:** Die Liste ist
+nach `@ks/contracts` gewandert, nicht innerhalb der App zusammengezogen worden.
+Grund ist die Kopie in `packages/contracts/src/library-chat.ts` — ein Paket
+kann nicht aus `src/` importieren. Solange die Aufzaehlung in der App lag, war
+diese eine Kopie unvermeidbar. Das Paket haelt jetzt die Werte
+(`detail-view-type.ts`), die App behaelt alles Rechnende: Zod-Schema,
+`VIEW_TYPE_REGISTRY`, Labels, Renderer-Zuordnung.
+
+**Was jetzt erzwungen ist statt dokumentiert** — drei `Record<DetailViewType, …>`:
+
+| Ort | Was ein neuer Typ ausloest |
+|---|---|
+| `gallery/detail-overlay.tsx` | Typfehler, bis eine Detailansicht zugeordnet ist |
+| `templates/structured-template-editor.tsx` | Typfehler, bis er eine Beschriftung hat |
+| `settings/chat/content-type-section.tsx` | Typfehler, bis entschieden ist, ob er angeboten wird |
+
+Dazu `tests/unit/detail-view-types/eine-quelle.test.ts`: der Test wird rot,
+sobald irgendwo im Repo eine zwoelfte Kopie der Werteliste entsteht.
+
+**Bewusst NICHT geaendert (Verhaltensneutralitaet):**
+
+- `testimonial` und `blog` zeigen weiter die Buch-Ansicht. Fuer `testimonial`
+  existiert `testimonial-detail.tsx`, angeschlossen war sie nie. Das Anschliessen
+  ist eine Produktentscheidung, keine Refactoring-Welle.
+- Die kuratierte Auswahl in den Einstellungen bleibt wie sie war: drei
+  Kern-Typen, vier Branchen-Typen, `testimonial`/`blog` verborgen.
+- Die Sonderfaelle aus Befund 3d (Kartenvariante, Prio-Spalte, Graph-Zweig)
+  stehen unveraendert. Sie in die Anmeldung zu heben ist eine eigene Welle —
+  und die Prio-Spalte gehoert dabei zur mittleren Zeile der Dreiteilung: sie
+  wird ein Konfigurations-Schalter, kein Typ-Zweig.
+
+**Ein Befund fuer den naechsten Testlauf:** Der erste lokale Vollauf meldete 14
+rote Tests, alle vom Typ „Export-Vertrag" (dynamische Imports in
+`chat-panel-facade`, `story-topics-contract`, `perspective-*`,
+`settings/*-sections`). Einzeln brauchen sie 2,6–3,5 Sekunden und laufen gruen;
+unter Vollast reissen sie das 5-Sekunden-Limit. Ein zweiter Vollauf mit
+identischem Code war komplett gruen (462/462 Dateien, 3470/3470 Tests). Wer
+diese Dateien rot sieht, hat eine Lastspitze vor sich, keinen Regress.
