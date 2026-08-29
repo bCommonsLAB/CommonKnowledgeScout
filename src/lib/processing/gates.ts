@@ -121,7 +121,13 @@ export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
   if (source?.itemId && library?.id) {
     try {
       const latest = await repo.findLatestBySourceItem(userEmail, library.id, source.itemId);
-      if (latest?.result?.savedItemId) {
+      // Welle ST11 (Befund 29.08.2026): Ein Job, dessen Extract-Schritt selbst
+      // nur uebersprungen wurde, beweist KEINE geleistete Arbeit — sein
+      // savedItemId zeigt auf ein Artefakt, das schon vorher da war. Wuerde er
+      // hier zaehlen, zementierte jeder Fehl-Skip alle folgenden Versuche
+      // (die Alt-Familien „Transformation ohne Transkript" waren danach auch
+      // mit nur_transkript nicht mehr erschliessbar).
+      if (latest?.result?.savedItemId && !wurdeExtractUebersprungen(latest)) {
         return { exists: true, reason: 'previous_job_saved', details: { savedItemId: latest.result.savedItemId } };
       }
     } catch {
@@ -129,6 +135,14 @@ export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
     }
   }
   return { exists: false };
+}
+
+/** True, wenn der Extract-Schritt des Jobs als uebersprungen markiert ist. */
+export function wurdeExtractUebersprungen(job: {
+  steps?: Array<{ name: string; details?: Record<string, unknown> }>
+}): boolean {
+  const extractStep = (job.steps ?? []).find((s) => s.name.startsWith('extract_'))
+  return extractStep?.details?.skipped === true
 }
 
 export async function gateTransformTemplate(ctx: GateContext): Promise<GateResult> {

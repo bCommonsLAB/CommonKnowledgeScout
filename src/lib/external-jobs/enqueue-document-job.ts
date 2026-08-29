@@ -47,6 +47,8 @@ export async function enqueueSourceDocumentJob(args: {
   /** LLM-Modell fuer die Template-Transformation (siehe parameters unten). */
   llmModel?: string
   targetLanguage?: string
+  /** Welle ST11: Extract-Gate uebergehen — siehe `buildSourceTranscribeJob`. */
+  erzwingen?: boolean
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()
@@ -102,7 +104,7 @@ export async function enqueueSourceDocumentJob(args: {
       ...(llmModel ? { llmModel } : {}),
       phases: { extract: true, template: Boolean(template), ingest: Boolean(template) },
       policies: {
-        extract: 'do',
+        extract: args.erzwingen === true ? 'force' : 'do',
         metadata: template ? 'do' : 'ignore',
         ingest: template ? 'do' : 'ignore',
       },

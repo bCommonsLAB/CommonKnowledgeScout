@@ -1,6 +1,9 @@
 # KnowledgeScout-Schnittstelle: was trägt, was fehlt
 
-Stand 28.08.2026, Werkzeugsatz **2.14.0**.
+Stand 29.08.2026, Werkzeugsatz **2.16.0** (2.15.0: Stapel-Umzug + ehrliche
+Job-Liste; 2.16.0: `erzwingen`, sichtbare Skips in `job_status`,
+Gate-Fallback-Fix — Details in Plan §4h und
+[`handover-cowork-2026-08-29.md`](handover-cowork-2026-08-29.md)).
 
 Grundlage sind zwei Quellen, die sich gegenseitig prüfen:
 
