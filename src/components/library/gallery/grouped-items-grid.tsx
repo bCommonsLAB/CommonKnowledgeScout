@@ -10,8 +10,7 @@ import { Button } from '@ks/ui'
 import { ArrowLeft, X } from 'lucide-react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { openDocumentBySlug } from '@/utils/document-navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { ViewModeToggle } from './view-mode-toggle'
 import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
@@ -69,10 +68,8 @@ export function GroupedItemsGrid({
   onCardDensityChange,
 }: GroupedItemsGridProps) {
   const { t } = useTranslation()
+  const { openDocument } = useGalleryNavigation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   // Berechne die Anzahl der eindeutigen Dokumente aus references
   // WICHTIG: Diese Anzahl muss aus den eindeutigen fileId-Werten in references berechnet werden,
@@ -93,7 +90,7 @@ export function GroupedItemsGrid({
     if (doc) {
       const slug = getEffectiveDocumentNavigationSlug(doc)
       if (slug) {
-        openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
+        openDocument(slug)
       } else if (onOpenDocument) {
       onOpenDocument(doc)
       } else {

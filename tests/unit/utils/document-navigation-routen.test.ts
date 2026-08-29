@@ -18,12 +18,16 @@
  *    benutzt (neuer History-Eintrag), sonst ueberall `replace`.
  * 2. Im Unbekannt-Fall gehen bestehende URL-Parameter VERLOREN — dieser Zweig
  *    baut die Parameter neu auf, statt die vorhandenen zu uebernehmen.
+ *
+ * Signatur-Aenderung (Teil A der Adressierungs-Welle): `libraryId` war ein
+ * Parameter, den die Funktion nie gelesen hat — sechs Aufrufstellen reichten
+ * ihn umsonst durch. Er ist entfallen; das Verhalten ist unveraendert.
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 
-type FakeRouter = Parameters<typeof openDocumentBySlug>[2]
+type FakeRouter = Parameters<typeof openDocumentBySlug>[1]
 
 function createRouter() {
   return {
@@ -52,7 +56,8 @@ const params = (query: string) => new URLSearchParams(query)
 describe('openDocumentBySlug', () => {
   it('tut nichts ohne Slug', () => {
     const router = createRouter()
-    openDocumentBySlug('', 'lib-1', router as unknown as FakeRouter, '/explore/klima', params(''))
+    openDocumentBySlug(
+        '', router as unknown as FakeRouter, '/explore/klima', params(''))
     expect(router.push).not.toHaveBeenCalled()
     expect(router.replace).not.toHaveBeenCalled()
   })
@@ -62,7 +67,6 @@ describe('openDocumentBySlug', () => {
       const router = createRouter()
       openDocumentBySlug(
         'mein-doc',
-        'lib-1',
         router as unknown as FakeRouter,
         '/explore/klima',
         params('view=grid&jahr=2024')
@@ -78,7 +82,6 @@ describe('openDocumentBySlug', () => {
       const router = createRouter()
       openDocumentBySlug(
         'neu',
-        'lib-1',
         router as unknown as FakeRouter,
         '/explore/klima',
         params('doc=alt')
@@ -88,7 +91,8 @@ describe('openDocumentBySlug', () => {
 
     it('navigiert nicht, wenn der Library-Slug im Pfad fehlt', () => {
       const router = createRouter()
-      openDocumentBySlug('mein-doc', 'lib-1', router as unknown as FakeRouter, '/explore/', params(''))
+      openDocumentBySlug(
+        'mein-doc', router as unknown as FakeRouter, '/explore/', params(''))
       expect(router.push).not.toHaveBeenCalled()
       expect(router.replace).not.toHaveBeenCalled()
     })
@@ -99,7 +103,6 @@ describe('openDocumentBySlug', () => {
       const router = createRouter()
       openDocumentBySlug(
         'mein-doc',
-        'lib-1',
         router as unknown as FakeRouter,
         '/library/gallery',
         params('view=table')
@@ -114,7 +117,6 @@ describe('openDocumentBySlug', () => {
       const router = createRouter()
       openDocumentBySlug(
         'mein-doc',
-        'lib-1',
         router as unknown as FakeRouter,
         '/library/gallery/details',
         params('')
@@ -127,7 +129,6 @@ describe('openDocumentBySlug', () => {
       const router = createRouter()
       openDocumentBySlug(
         'mein-doc',
-        'lib-1',
         router as unknown as FakeRouter,
         '/library/archiv',
         params('ordner=abc')
@@ -145,7 +146,6 @@ describe('openDocumentBySlug', () => {
       const router = createRouter()
       openDocumentBySlug(
         'mein-doc',
-        'lib-1',
         router as unknown as FakeRouter,
         '/irgendwo',
         params('view=grid&jahr=2024')
@@ -155,7 +155,8 @@ describe('openDocumentBySlug', () => {
 
     it('behandelt einen fehlenden Pfad wie eine unbekannte Route', () => {
       const router = createRouter()
-      openDocumentBySlug('mein-doc', 'lib-1', router as unknown as FakeRouter, null, params(''))
+      openDocumentBySlug(
+        'mein-doc', router as unknown as FakeRouter, null, params(''))
       expect(router.push).toHaveBeenCalledWith('/library/gallery?doc=mein-doc', { scroll: false })
     })
   })

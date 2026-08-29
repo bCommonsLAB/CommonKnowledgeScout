@@ -5,8 +5,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from '@ks/ui'
 // Badge Import entfernt - wurde nicht verwendet
 import { useTranslation } from '@ks/i18n/react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { openDocumentBySlug } from '@/utils/document-navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
@@ -133,9 +132,7 @@ export function VirtualizedItemsView({
   tableSums,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { openDocument } = useGalleryNavigation()
   const { isOwner } = useIsLibraryOwner(libraryId)
   const { isSignedIn, isMember } = useLibraryRole(libraryId)
   // Liefert die aktuell sichtbaren fileIds fuer Bulk-Counts.
@@ -254,7 +251,7 @@ export function VirtualizedItemsView({
   const handleRowClick = (doc: DocCardMeta) => {
     const slug = getEffectiveDocumentNavigationSlug(doc)
     if (slug && libraryId) {
-      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
+      openDocument(slug)
     } else if (onOpen) {
       onOpen(doc)
     }

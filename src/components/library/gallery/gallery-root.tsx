@@ -699,7 +699,7 @@ export function GalleryRoot({
       setReferencesSheetData(null)
     }
     // Nutze zentrale Utility-Funktion für URL-basierte Navigation
-    openDocumentBySlug(slug, libraryId || '', router, pathname, searchParams)
+    openDocumentBySlug(slug, router, pathname, searchParams)
   }
   
   const handleCloseDocument = () => {

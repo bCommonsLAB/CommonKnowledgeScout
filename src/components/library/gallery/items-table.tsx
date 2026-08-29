@@ -4,8 +4,7 @@ import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { openDocumentBySlug } from '@/utils/document-navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { DeleteDocumentButton } from './delete-document-button'
 import { PublishDocumentButton } from './publish-document-button'
@@ -57,9 +56,7 @@ export function ItemsTable({
   onToggleFavorite,
 }: ItemsTableProps) {
   const { t, locale } = useTranslation()
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { openDocument } = useGalleryNavigation()
   const { isOwner } = useIsLibraryOwner(libraryId)
   const { isSignedIn, isMember } = useLibraryRole(libraryId)
   const visibleFileIds = React.useMemo(
@@ -103,7 +100,7 @@ export function ItemsTable({
   const handleRowClick = (doc: DocCardMeta) => {
     const slug = getEffectiveDocumentNavigationSlug(doc)
     if (slug && libraryId) {
-      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
+      openDocument(slug)
     } else if (onOpen) {
       onOpen(doc)
     }

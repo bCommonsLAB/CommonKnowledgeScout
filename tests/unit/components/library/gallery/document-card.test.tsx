@@ -6,15 +6,18 @@
  * Sicherheitsnetz fuer den document-card Sub-Komponenten-Split. Fixiert:
  * - Switch-Logik: welche Card wird bei welchem detailViewType gerendert?
  * - Fallback: doc.detailViewType > libraryDetailViewType
- * - Klick-Verhalten: openDocumentBySlug wird mit korrektem Slug aufgerufen,
+ * - Klick-Verhalten: die Adressierung wird mit korrektem Slug aufgerufen,
  *   sonst onClick-Fallback
  * - Default-Card (kein bekannter Type) rendert mit Titel
  *
  * Mocks:
  * - next/image (vermeidet Next.js-Image-Loader)
- * - next/navigation (Router/Pathname/SearchParams)
  * - resolve-cover-url-client (DivaTextureCard ruft API)
- * - utils/document-navigation (openDocumentBySlug)
+ * - gallery-navigation-context (die Adressierung)
+ *
+ * Seit Teil A der Adressierungs-Welle holt `DocumentCard` keinen Router mehr.
+ * Sie sagt nur noch `openDocument(slug)`; wer daraus eine Adresse macht,
+ * entscheidet der Montagepunkt. Der Mock sitzt deshalb am Kontext.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -22,9 +25,9 @@ import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { DocumentCard } from '@/components/library/gallery/document-card'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
-// Sammle Aufrufe von openDocumentBySlug zentral, damit Tests die
+// Sammle Aufrufe der Adressierung zentral, damit Tests die
 // Aufrufe pro Klick gegenzaehlen koennen.
-const openDocumentBySlugMock = vi.fn()
+const openDocumentMock = vi.fn()
 
 vi.mock('next/image', () => ({
   default: (props: { src?: string; alt?: string }) => (
@@ -33,14 +36,12 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  usePathname: () => '/library/test/gallery',
-  useSearchParams: () => new URLSearchParams(),
-}))
-
-vi.mock('@/utils/document-navigation', () => ({
-  openDocumentBySlug: (...args: unknown[]) => openDocumentBySlugMock(...args),
+vi.mock('@/contexts/gallery-navigation-context', () => ({
+  useGalleryNavigation: () => ({
+    openDocument: (...args: unknown[]) => openDocumentMock(...args),
+    closeDocument: vi.fn(),
+    documentShareUrl: () => '',
+  }),
 }))
 
 vi.mock('@/utils/document-slug', () => ({
@@ -93,7 +94,7 @@ function makeDoc(overrides: Partial<DocCardMeta> = {}): DocCardMeta {
 
 describe('DocumentCard (Switch)', () => {
   beforeEach(() => {
-    openDocumentBySlugMock.mockClear()
+    openDocumentMock.mockClear()
   })
 
   afterEach(() => {
@@ -168,12 +169,12 @@ describe('DocumentCard (Switch)', () => {
     expect(screen.getByText('Test Speaker')).toBeTruthy()
   })
 
-  it('ruft openDocumentBySlug bei Klick auf, wenn libraryId + slug vorhanden', () => {
+  it('oeffnet das Dokument bei Klick, wenn libraryId + slug vorhanden', () => {
     render(<DocumentCard doc={makeDoc()} libraryId="lib-1" />)
     const card = screen.getByText('Mein Dokument').closest('[onclick], div[role], article, .cursor-pointer')
     if (!card) throw new Error('Keine klickbare Card gefunden')
     fireEvent.click(card)
-    expect(openDocumentBySlugMock).toHaveBeenCalledTimes(1)
+    expect(openDocumentMock).toHaveBeenCalledTimes(1)
   })
 
   it('ruft onClick-Fallback auf, wenn libraryId fehlt', () => {
@@ -183,7 +184,7 @@ describe('DocumentCard (Switch)', () => {
     if (!card) throw new Error('Keine klickbare Card gefunden')
     fireEvent.click(card)
     expect(onClick).toHaveBeenCalledTimes(1)
-    expect(openDocumentBySlugMock).not.toHaveBeenCalled()
+    expect(openDocumentMock).not.toHaveBeenCalled()
   })
 
   it('reicht libraryId + fileId an die SourceStarsBadge in jeder Card-Variante durch', () => {
