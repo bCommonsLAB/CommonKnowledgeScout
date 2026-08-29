@@ -31,6 +31,37 @@ import { getCollection } from '@/lib/mongodb-service';
 import { currentWorkerPoolMongoMatch, getJobsWorkerPoolId } from '@/lib/env';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
+/** Eine vom Reaper aufgeraeumte Karteileiche — genug, um sie zu benennen. */
+export interface ReapedJob {
+  jobId: string;
+  jobType: string | null;
+  fileName: string | null;
+  /** Letztes Lebenszeichen (ISO) oder null, wenn der Zeitstempel unlesbar war. */
+  lastUpdatedAt: string | null;
+  /** Wie lange der Job stillstand, in ms — null bei unlesbarem Zeitstempel. */
+  stillstandMs: number | null;
+}
+
+export interface ReapResult {
+  reaped: number;
+  ids: string[];
+  details: ReapedJob[];
+}
+
+/**
+ * Mongo liefert `updatedAt` je nach Schreibweg als Date, ISO-String oder Zahl.
+ * Unlesbare Werte werden NICHT geraten, sondern als `null` gemeldet — ein
+ * erfundenes Alter waere schlimmer als ein fehlendes.
+ */
+function toMillis(raw: unknown): number | null {
+  if (raw instanceof Date) return raw.getTime();
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const ms = new Date(raw).getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  return null;
+}
+
 export class ExternalJobsRepository {
   private collectionName = 'external_jobs';
 
@@ -625,28 +656,56 @@ export class ExternalJobsRepository {
    * Race-Hinweis:
    * Updates sind atomar pro Dokument. Der Filter prueft `status: 'running'` weiterhin, falls
    * ein paralleler Callback den Job inzwischen sauber abgeschlossen haben sollte.
+   *
+   * `options.filter` grenzt auf User und/oder Library ein — der Hand-Reap ueber die MCP-Bruecke
+   * (`jobs_aufraeumen`) raeumt damit ausschliesslich eigene Jobs. Der Worker ruft ohne Filter
+   * auf und bleibt fuer den ganzen Pool zustaendig.
    */
   async reapStaleRunning(
     maxAgeMs: number,
-    options: { workerId?: string } = {}
-  ): Promise<{ reaped: number; ids: string[] }> {
-    if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return { reaped: 0, ids: [] };
+    options: {
+      workerId?: string;
+      filter?: { userEmail?: string; libraryId?: string };
+      /** true = von Hand ueber die MCP-Bruecke ausgeloest, nicht vom Tick-Reaper. */
+      handAusgeloest?: boolean;
+    } = {}
+  ): Promise<ReapResult> {
+    if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return { reaped: 0, ids: [], details: [] };
     const col = await this.getCollection();
     const now = new Date();
     const cutoff = new Date(now.getTime() - maxAgeMs);
     const pool = currentWorkerPoolMongoMatch();
+    // Eingrenzung fuer den Hand-Reap ueber die MCP-Bruecke: dort darf ein Agent nur
+    // SEINE eigenen Karteileichen wegraeumen. Der Worker ruft ohne Filter auf und
+    // raeumt weiterhin den ganzen Pool.
+    const scope: Record<string, unknown> = {};
+    if (options.filter?.userEmail) scope['userEmail'] = options.filter.userEmail;
+    if (options.filter?.libraryId) scope['libraryId'] = options.filter.libraryId;
 
     const stale = await col
       .find(
-        { status: 'running', updatedAt: { $lt: cutoff }, ...pool },
-        { projection: { jobId: 1, updatedAt: 1, userEmail: 1, _id: 0 } }
+        { status: 'running', updatedAt: { $lt: cutoff }, ...pool, ...scope },
+        { projection: { jobId: 1, updatedAt: 1, userEmail: 1, correlation: 1, job_type: 1, _id: 0 } }
       )
       .limit(50)
       .toArray();
 
-    if (stale.length === 0) return { reaped: 0, ids: [] };
+    if (stale.length === 0) return { reaped: 0, ids: [], details: [] };
+
+    // Der automatische Reaper darf den Prozess-Restart als wahrscheinlichste
+    // Ursache nennen — er schlaegt erst nach seiner langen Schwelle zu. Ein
+    // Hand-Reap kann mit einer viel kuerzeren Schwelle laufen; dort waere
+    // dieselbe Ursache geraten, also wird sie nicht behauptet.
+    const sekunden = Math.floor(maxAgeMs / 1000);
+    const meldung = options.handAusgeloest
+      ? `Job > ${sekunden}s in „running“ ohne Lebenszeichen — ueber die Bruecke (jobs_aufraeumen) ` +
+        'auf „failed" gesetzt, um den Worker-Slot freizugeben. Der Job ist gescheitert, nicht ' +
+        'erledigt: bei Bedarf neu starten.'
+      : `Job > ${sekunden}s in „running“ ohne Lebenszeichen — Reaper hat ihn auf „failed“ gesetzt ` +
+        '(Watchdog war wahrscheinlich durch Prozess-Restart verloren).';
 
     const reapedIds: string[] = [];
+    const details: ReapedJob[] = [];
     for (const doc of stale) {
       const jobId = (doc as unknown as { jobId?: string }).jobId;
       const lastUpdatedRaw = (doc as unknown as { updatedAt?: unknown }).updatedAt;
@@ -660,8 +719,9 @@ export class ExternalJobsRepository {
             updatedAt: now,
             error: {
               code: 'stale_running_reaped',
-              message: `Job > ${Math.floor(maxAgeMs / 1000)}s in „running“ ohne Lebenszeichen — Reaper hat ihn auf „failed“ gesetzt (Watchdog war wahrscheinlich durch Prozess-Restart verloren).`,
+              message: meldung,
               details: {
+                handAusgeloest: options.handAusgeloest === true,
                 reapedAtMs: now.getTime(),
                 lastUpdatedAtMs:
                   lastUpdatedRaw instanceof Date
@@ -679,6 +739,15 @@ export class ExternalJobsRepository {
       if (upd.modifiedCount !== 1) continue;
 
       reapedIds.push(jobId);
+      const lastUpdatedMs = toMillis(lastUpdatedRaw);
+      details.push({
+        jobId,
+        jobType: (doc as unknown as { job_type?: string }).job_type ?? null,
+        fileName:
+          (doc as unknown as { correlation?: { source?: { name?: string } } }).correlation?.source?.name ?? null,
+        lastUpdatedAt: lastUpdatedMs === null ? null : new Date(lastUpdatedMs).toISOString(),
+        stillstandMs: lastUpdatedMs === null ? null : now.getTime() - lastUpdatedMs,
+      });
 
       // Job-Root-Span sauber beenden, wie in setStatus(failed)
       try {
@@ -715,7 +784,7 @@ export class ExternalJobsRepository {
       }
     }
 
-    return { reaped: reapedIds.length, ids: reapedIds };
+    return { reaped: reapedIds.length, ids: reapedIds, details };
   }
 
   // ---- Trace-Unterstützung ----

@@ -95,6 +95,38 @@ Beweis fürs Transkript und überspringt die Transkription. Für solche Familien
 übergeht das Gate und transkribiert wirklich. `erzwingen` ist die Ausnahme,
 nicht der Default: Ohne konkreten Grund kostet es nur doppelt.
 
+**1b-v. Steht die Warteschlange, liegt es selten an dir.** Die
+Nebenläufigkeit gilt für den **ganzen Worker-Pool** — alle Bibliotheken, alle
+Nutzer —, deine Job-Liste dagegen nur für eine Bibliothek. Deshalb trägt
+`job_liste` seit 2.17.0 einen `pool`-Block: `slots`, `laufend`, `freieSlots`,
+`steckengeblieben` und dazu einen Klartext-`hinweis`. Ihn lesen, bevor du auf
+etwas wartest:
+
+- **Alle Slots belegt, `steckengeblieben: 0`** — es wird wirklich gearbeitet.
+  Warten ist richtig. Nichts aufräumen.
+- **Alle Slots belegt, `steckengeblieben > 0`** — Karteileichen halten die
+  Plätze: Jobs, die auf `running` stehen, aber seit
+  `stillstandSchwelleMinuten` kein Lebenszeichen mehr geben (Prozess-Neustart
+  killt den In-Memory-Watchdog). Sie werden **nie** fertig. Der eingebaute
+  Reaper räumt sie von selbst weg, aber erst nach seiner Schwelle — im Befund
+  vom 29.08.2026 standen dahinter dreißig Minuten lang neunzehn Jobs still.
+
+`jobs_aufraeumen` (2.17.0) ist der Handgriff an denselben Hebel: Es setzt
+**eigene** Jobs **dieser** Bibliothek, die länger als
+`mindestStillstandMinuten` stillstehen, auf `failed` und gibt die Slots frei.
+Drei Regeln dazu:
+
+1. **Erst `job_liste` lesen, dann räumen.** Ein Job, der arbeitet, meldet
+   minutenlang nichts — Transkription und LLM-Transformation laufen ohne
+   Zwischenstand. Ohne `steckengeblieben > 0` tötest du Arbeit und zahlst sie
+   noch einmal.
+2. **Aufgeräumt heißt gescheitert, nicht erledigt.** Was gebraucht wird, mit
+   `quelle_erschliessen`/`transformation_starten` neu starten.
+3. **Liegen die Leichen woanders**, meldet die Antwort `aufgeraeumt: 0` bei
+   weiter vollem Pool — dann in der betreffenden Bibliothek aufrufen
+   (`bibliotheken_auflisten` + `job_liste`). Fremde Jobs räumt die Brücke
+   nicht weg; dort bleibt nur der Reaper.
+
 **1c. Für alles Übrige gibt es seit Werkzeugsatz 2.9.0 die Storage-Schicht.**
 `ordner_listen`, `datei_lesen`, `stat`, `pfad_aufloesen`, `datei_patchen`,
 `datei_schreiben`, `datei_anlegen`, `ordner_anlegen`, `verschieben`,
@@ -298,7 +330,8 @@ Peter abnehmen kann.
 
 ### 3 — Lange Jobs zuerst, dann parallel arbeiten
 
-**Der größte Zeithebel.** Der Worker arbeitet seriell — die Warteschlange soll
+**Der größte Zeithebel.** Der Worker fährt mehrere Jobs gleichzeitig, aber die
+Zahl der Slots ist begrenzt und gilt pool-weit (1b-v) — die Warteschlange soll
 nie leer stehen, und der Agent nie nur warten.
 
 1. **Den längsten Job zuerst starten.** Eine 135-MB-Aufnahme braucht
@@ -308,7 +341,9 @@ nie leer stehen, und der Agent nie nur warten.
    auswerten, `_INDEX.md` prüfen, den Berichtsentwurf schreiben. Nicht schlafen.
 4. **Dann `job_liste` abfragen** statt fester Wartezeiten. Ohne Filter zeigt
    sie `queued` und `running` — ist sie leer, ist alles durch. Mit
-   `status: "failed"` prüfen, ob etwas gescheitert ist.
+   `status: "failed"` prüfen, ob etwas gescheitert ist. Bewegt sich die
+   Schlange gar nicht, den `pool`-Block lesen (1b-v): Slots sind pool-weit,
+   und steckengebliebene Jobs halten sie fest, bis jemand sie wegräumt.
 
 Bei einer neuen Job-Art **erst eine kleine Probe**, dann der Stapel. Ein PDF vor
 sechzehn PDFs, die kleine Aufnahme vor der großen. Das hat im Pilot einen
@@ -486,7 +521,8 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Nimmt `quelle_erschliessen` kein
+`protokoll_lesen`, ist sie älter als 2.6.0. Fehlt `jobs_aufraeumen` oder trägt `job_liste`
+keinen `pool`-Block, ist sie älter als 2.17.0. Nimmt `quelle_erschliessen` kein
 `erzwingen` oder markiert `job_status` übersprungene Schritte nicht
 (`uebersprungen`/`nichtsGeschrieben`), ist sie älter als 2.16.0. Nimmt `familie_umziehen` keine `sourceIds` oder fehlt
 `gescheitertKuerzlich` in der ungefilterten `job_liste`, ist sie älter als
