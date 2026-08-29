@@ -148,11 +148,11 @@ describe('Galerie-Schnitt', () => {
     // Galerie-Kegel, und ziehen DIESE einen Auth-Anbieter?
     const GALLERY_ROOTS = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
 
-    // Bekannter Umweg, mit Begruendung statt stillschweigend:
-    // `useSessionHeaders` braucht von Clerk nur `isSignedIn` — genau das, was
-    // der Betrachter schon traegt. Der Umbau haette aber vier Chat-Dateien und
-    // einen App-Hook mitgezogen; das gehoert in eine eigene Welle.
-    const BEKANNTE_UMWEGE = new Set(['hooks/use-session-headers'])
+    // Keine Ausnahmen mehr. `use-session-headers` war die letzte: Der Hook
+    // bekommt den Anmeldezustand jetzt hereingereicht, statt ihn bei Clerk zu
+    // erfragen. Wer Clerk ohnehin kennt, nimmt `useClerkSessionHeaders` — dort
+    // sitzt die Anbindung, an genau einer Stelle.
+    const BEKANNTE_UMWEGE = new Set<string>([])
 
     const modulPfade = new Set<string>()
     for (const root of GALLERY_ROOTS) {

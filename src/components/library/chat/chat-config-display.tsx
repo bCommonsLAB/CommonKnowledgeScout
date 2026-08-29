@@ -15,7 +15,7 @@ import type {
   LlmModelId,
 } from '@/lib/chat/constants'
 import { useTranslation } from '@ks/i18n/react'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import type { QueryLog } from '@/types/query-log'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
 
@@ -51,7 +51,7 @@ export function ChatConfigDisplay({
   filters: filtersProp,
 }: ChatConfigDisplayProps) {
   const { t } = useTranslation()
-  const sessionHeaders = useSessionHeaders()
+  const sessionHeaders = useClerkSessionHeaders()
   const [filters, setFilters] = useState<Record<string, unknown> | null>(null)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label?: string }>>([])
   const [isLoadingParams, setIsLoadingParams] = useState(false)

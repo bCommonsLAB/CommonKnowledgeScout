@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from 'react'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 
 export function useLibraryRole(libraryId?: string) {
-  const sessionHeaders = useSessionHeaders()
+  const sessionHeaders = useClerkSessionHeaders()
   const [isOwnerOrModerator, setIsOwnerOrModerator] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)

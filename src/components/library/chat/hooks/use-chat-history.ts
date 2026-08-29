@@ -8,7 +8,7 @@
 import { useEffect, useState, useRef } from 'react'
 import type { ChatMessage } from '../utils/chat-utils'
 import { createMessagesFromQueryLog } from '../utils/chat-utils'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import type { ChatResponse } from '@/types/chat-response'
 import type { TargetLanguage } from '@/lib/chat/constants'
 
@@ -35,7 +35,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
   const { libraryId, activeChatId } = params
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const prevMessagesLengthRef = useRef(0)
-  const sessionHeaders = useSessionHeaders()
+  const sessionHeaders = useClerkSessionHeaders()
 
   useEffect(() => {
     let cancelled = false

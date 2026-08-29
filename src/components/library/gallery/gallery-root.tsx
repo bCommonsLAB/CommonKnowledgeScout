@@ -121,7 +121,11 @@ export function GalleryRoot({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const sessionHeaders = useSessionHeaders()
+  // Der Betrachter kommt hereingereicht, nicht aus Clerk. `selfEmail`/`selfName`
+  // braucht die Galerie, um sich in einer Voter-Liste selbst wiederzuerkennen;
+  // `isSignedIn` speist die Session-Header fuer anonyme Aufrufe.
+  const { isSignedIn: viewerIsSignedIn, email: selfEmail, displayName: selfName } = useGalleryViewer()
+  const sessionHeaders = useSessionHeaders(viewerIsSignedIn)
   const [sources, setSources] = React.useState<QuerySource[]>([])
   
   // Nur den Character-Atomwert lesen (leichtgewichtig).
@@ -314,11 +318,6 @@ export function GalleryRoot({
   // Eigene Favoriten-IDs nur laden, wenn der "Nur Favoriten"-Filter
   // aktiv ist - Fallback bis `isFavorite` auf allen Karten verfuegbar ist.
   const { favoriteIds } = useOwnFavoriteIds(libraryId, { enabled: onlyFavoritesActive })
-  // Eigene Kennung fuer optimistische Stern-/Kommentar-Anzeigen: Die Galerie
-  // muss sich in einer Voter-Liste selbst wiedererkennen. Kommt aus dem
-  // hereingereichten Betrachter, nicht aus Clerk — sonst haengt die Galerie an
-  // einem Auth-Anbieter und ist nicht einbettbar.
-  const { email: selfEmail, displayName: selfName } = useGalleryViewer()
   const { setState: setUserStarState } = useUserStates(libraryId, [])
 
   // Gemeinsames Praedikat fuer die clientseitigen Engagement-Filter:
