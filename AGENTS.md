@@ -194,7 +194,21 @@ Detail (warum, Symptome, Ausnahmen):
 - Vorgeschlagen: `docs/adr/0008-deployment-ziele.md` — Ein Deployment, viele
   Sites (Host→SiteConfig zur Laufzeit, `next/dynamic` je Modul); eigene
   Compilate nur bei anderer Laufzeit (Electron, npm-Embed); Module exportieren
-  montierbare Wurzelkomponenten
+  montierbare Wurzelkomponenten.
+  **Nachtrag 2026-08-29 (zwei Owner-Entscheidungen, bindend)**:
+  (a) Die Huelle `embed` liefert AUSSCHLIESSLICH oeffentliche Inhalte — kein
+  Site-Token, keine Besucher-Anmeldung, keine Uebernahme fremder Identitaeten.
+  Geschuetztes gibt es nur in der eigenstaendigen Anwendung. Folge:
+  `@ks/embed` braucht keine Anmelde-Mechanik, die Remote-Lese-API ist anonym,
+  und die offene TopNav-Auth-Frage wird dadurch kleiner.
+  (b) Die Headless-API (P8) nutzt DENSELBEN MCP-Konto-Schluessel
+  (`src/lib/mcp/account-key-service.ts`), kein zweiter Mechanismus. Das
+  Konzeptpapier nannte hier faelschlich `api/libraries/[id]/tokens` — diese
+  Route liefert OneDrive-Zugangsdaten, keine Konsumenten-Schluessel.
+  **Offene Kante**: Der Schluessel gilt mit den vollen Rechten seines
+  Besitzers und kennt keine Scopes; wer ihn hat, erreicht auch die
+  schreibenden MCP-Werkzeuge. Bis das anders ist: Schluessel nur an Parteien,
+  denen man auch Schreibzugriff anvertraut
 - Vorgeschlagen: `docs/adr/0009-library-foederation.md` — mehrere Libraries
   pro Site (primary + federated); Frage- und Inhalts-Bruecken auf Basis des
   Perspektiven-Bruecken-Zielbilds; Inhalts-Bruecken vorberechnet
