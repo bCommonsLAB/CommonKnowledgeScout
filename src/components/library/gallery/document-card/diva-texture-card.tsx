@@ -16,7 +16,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import {
   coverRefNeedsApiResolution,

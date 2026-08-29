@@ -5,8 +5,8 @@ import { Star } from 'lucide-react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { cn } from '@/lib/utils'
-import type { FavoriteVoter } from '@/types/source-user-state'
+import { cn } from '@ks/util'
+import type { FavoriteVoter } from '@ks/contracts'
 
 export interface SourceStarsCellProps {
   libraryId: string

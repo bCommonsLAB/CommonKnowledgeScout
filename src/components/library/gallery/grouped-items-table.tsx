@@ -22,7 +22,7 @@ import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { ReferenceGroupHeader } from './reference-group-header'
 import { ViewModeToggle } from './view-mode-toggle'
 import type { ViewMode } from './gallery-sticky-header'
-import { formatUpsertedAt } from '@/utils/format-upserted-at'
+import { formatUpsertedAt } from '@ks/util'
 
 interface GroupedItemsTableProps {
   /** Dokumente, die in der Antwort verwendet wurden */

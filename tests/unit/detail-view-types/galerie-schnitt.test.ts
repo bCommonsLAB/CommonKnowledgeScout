@@ -137,4 +137,51 @@ describe('Galerie-Schnitt', () => {
         'Geteiltes Referenz-Vokabular liegt in @ks/contracts (DocReference, QuerySource).'
     ).toEqual([])
   })
+
+  it('die Galerie erreicht den Auth-Anbieter auch nicht ueber einen Umweg', () => {
+    // Der Test darueber prueft nur DIREKTE Importe. Beim Abarbeiten des langen
+    // Schwanzes kam heraus, dass die Galerie Clerk weiterhin erreicht — ueber
+    // `use-session-headers`, das intern `useUser()` ruft. Die Aussage „die
+    // Galerie kennt keinen Auth-Anbieter" galt also nur eine Ebene tief.
+    //
+    // Dieser Test geht eine Ebene weiter: Welche App-Module importiert der
+    // Galerie-Kegel, und ziehen DIESE einen Auth-Anbieter?
+    const GALLERY_ROOTS = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
+
+    // Bekannter Umweg, mit Begruendung statt stillschweigend:
+    // `useSessionHeaders` braucht von Clerk nur `isSignedIn` — genau das, was
+    // der Betrachter schon traegt. Der Umbau haette aber vier Chat-Dateien und
+    // einen App-Hook mitgezogen; das gehoert in eine eigene Welle.
+    const BEKANNTE_UMWEGE = new Set(['hooks/use-session-headers'])
+
+    const modulPfade = new Set<string>()
+    for (const root of GALLERY_ROOTS) {
+      for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
+        const content = readFileSync(file, 'utf-8')
+        for (const treffer of content.matchAll(/from ['"]@\/([a-zA-Z0-9/_-]+)['"]/g)) {
+          modulPfade.add(treffer[1])
+        }
+      }
+    }
+
+    const offenders: string[] = []
+    for (const modulPfad of modulPfade) {
+      if (BEKANNTE_UMWEGE.has(modulPfad)) continue
+      for (const endung of ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
+        let inhalt: string
+        try {
+          inhalt = readFileSync(join(REPO_ROOT, 'src', `${modulPfad}${endung}`), 'utf-8')
+        } catch {
+          continue
+        }
+        if (/from ['"]@clerk\//.test(inhalt)) offenders.push(modulPfad)
+      }
+    }
+
+    expect(
+      offenders,
+      `Die Galerie erreicht einen Auth-Anbieter ueber:\n${offenders.join('\n')}\n` +
+        'Solche Helfer bekommen den Anmeldezustand hereingereicht, statt ihn zu erfragen.'
+    ).toEqual([])
+  })
 })

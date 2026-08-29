@@ -1,5 +1,5 @@
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { tryDecodeRelativePathFromFileId } from '@/utils/decode-storage-file-id'
+import { tryDecodeRelativePathFromFileId } from '@ks/util'
 
 /** Verzeichnis + Dateiname für die zweizeilige Tabellen-Unterzeile (Owner). */
 export type GalleryDocSourcePathParts = {

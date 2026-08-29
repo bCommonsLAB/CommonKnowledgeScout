@@ -4,7 +4,7 @@ import React from 'react'
 import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 
 export interface SourceCommentToggleButtonProps {
   open: boolean

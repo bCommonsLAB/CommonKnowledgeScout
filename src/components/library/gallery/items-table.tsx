@@ -19,7 +19,7 @@ import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
 import { ViewTypeBadge } from '@/components/library/view-type-badge'
 import { getPresentDetailViewTypes } from '@/lib/detail-view-types/view-type-display'
-import { formatUpsertedAt } from '@/utils/format-upserted-at'
+import { formatUpsertedAt } from '@ks/util'
 
 export interface ItemsTableProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>

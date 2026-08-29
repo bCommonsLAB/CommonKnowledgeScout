@@ -13,3 +13,8 @@
  */
 
 export { cn } from './cn'
+
+// Reine Formatierer ohne Umgebungsbezug — sie erfuellen die Regel oben und
+// werden von Galerie, Archiv und Job-Ansicht gleichermassen gebraucht.
+export { formatUpsertedAt } from './format-upserted-at'
+export { tryDecodeRelativePathFromFileId } from './decode-storage-file-id'

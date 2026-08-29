@@ -9,7 +9,7 @@
  */
 
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
-import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
+import { DETAIL_VIEW_TYPES } from '@ks/contracts'
 
 /**
  * Liste aller gueltigen DetailViewTypes (Plan-Welle 3-III).

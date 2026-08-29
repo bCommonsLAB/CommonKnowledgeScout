@@ -5,7 +5,7 @@ import { useLibraryRole } from './use-library-role'
 import type {
   SourceComment,
   SourceCommentThreadResponse,
-} from '@/types/source-comment'
+} from '@ks/contracts'
 
 interface UseSourceCommentsResult {
   comments: SourceComment[]

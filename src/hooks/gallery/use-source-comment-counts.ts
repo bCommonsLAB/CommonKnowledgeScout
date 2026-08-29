@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLibraryRole } from './use-library-role'
-import type { SourceCommentCountsResponse } from '@/types/source-comment'
+import type { SourceCommentCountsResponse } from '@ks/contracts'
 
 interface UseSourceCommentCountsResult {
   /** Map fileId -> sichtbare Kommentaranzahl (0 wenn unbekannt). */

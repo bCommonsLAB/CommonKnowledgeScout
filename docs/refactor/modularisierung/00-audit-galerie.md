@@ -590,3 +590,66 @@ nicht an, ausser der Gastgeber bittet darum. Dann waere die Loesung nicht
 „Protokoll injizieren", sondern: Das Modul fuehrt seinen Zustand selbst, und
 die Voll-App klinkt sich optional in die URL ein. Das ist eine Entscheidung,
 die der Owner treffen sollte, bevor jemand baut.
+
+## Nachtrag (2026-08-29): der lange Schwanz, abgearbeitet und sortiert
+
+Vor dem Paketumzug muss die Galerie aufhoeren, an der App zu ziehen. Gemessen
+waren es **30 Importgruppen**; nach dieser Welle sind es **20**, und die
+verbleibenden sind sortiert.
+
+### Erledigt
+
+| Was | Wohin | Umfang |
+|---|---|---|
+| `cn` | `@ks/util` | 10 Importe |
+| `FavoriteVoter`, `GalleryGraphConfig`, `DetailViewType`, `DETAIL_VIEW_TYPES`, `isValidDetailViewType` | `@ks/contracts` | 15 Dateien |
+| `formatUpsertedAt`, `tryDecodeRelativePathFromFileId` | `@ks/util` (`git mv` + Weiterleitung) | 5 Importe |
+| Kommentar-Typen (6 Interfaces) | `@ks/contracts` (`git mv` + Weiterleitung) | 2 Importe |
+
+**Der groesste Teil war kein Umzug, sondern ein Zeigefehler**: Diese Dinge
+lagen laengst im Vertrag oder in `@ks/util`; die Galerie holte sie ueber
+App-Weiterleitungen. Das faellt bei einer Paketgrenze sofort auf die Fuesse,
+weil ein Paket `@/*` nicht aufloesen kann.
+
+### Was bleibt — mit Entscheidung
+
+**A. Zieht mit dem Modul um (keine Arbeit, das IST der Umzug)** — 19 Importe:
+`utils/document-slug`, `atoms/gallery-filters`, `atoms/chat-references-atom`,
+`atoms/gallery-data`, `utils/document-navigation`.
+
+**B. Muss injiziert werden — echtes App-Wissen** — 6 Importe:
+
+| Posten | Warum | Muster |
+|---|---|---|
+| `atoms/job-monitor-panel-open-atom` (4) | Job-Monitor ist Werkbank, nicht Galerie | wie Betrachter/Adressierung |
+| `components/submissions/capture-content-button` (1) | Erfassung ist ein anderes Modul | Slot |
+| `atoms/story-context-atom` (1) | Story-Zustand; gehoert zum selben Modul, aber quer | mitziehen oder Slot |
+
+**C. Braucht je ein Urteil** — 12 Importe:
+
+| Posten | Vorschlag |
+|---|---|
+| `lib/templates` (3) | `TemplatePreviewDetailViewType` ist schon ein Alias auf `DetailViewType` → Import direkt aus `@ks/contracts`; `getDetailViewType` rechnet → bleibt App oder zieht mit |
+| `lib/detail-view-types` (3) | `getSummableFields`, `getPresentDetailViewTypes` rechnen ueber die Registry → bleiben App-seitig, Galerie bekommt das Ergebnis hereingereicht |
+| `hooks/use-session-headers` (2) | siehe unten — braucht nur `isSignedIn` |
+| `types/item` (1) | `Item` ist das Mongo-Modell → `@ks/contracts`, wie `DocCardMeta` |
+| `types/source-user-state` (1) | Rest-Typen → `@ks/contracts` |
+| `lib/{storage,mappers,i18n,graph,documents}` (5) | je eine Funktion; pruefen, ob sie mitzieht oder in `@ks/util`/`@ks/contracts` gehoert |
+| `hooks/use-scroll-visibility`, `use-debounced-value` (2) | generische React-Hooks; `@ks/util` scheidet aus (React-frei), also `@ks/ui` oder mitziehen |
+
+### Ein Befund, der eine frueher Aussage einschraenkt
+
+Der Nachtrag zur Welle „Galerie-Betrachter" sagt, die Galerie kenne keinen
+Auth-Anbieter mehr. **Das galt nur eine Ebene tief.** `use-session-headers`
+ruft intern `useUser()` von Clerk, und die Galerie nutzt den Hook an zwei
+Stellen.
+
+`galerie-schnitt.test.ts` prueft das jetzt eine Ebene weiter: Ziehen die
+App-Module, die die Galerie importiert, ihrerseits einen Anmeldedienst? Der
+bekannte Umweg steht als **begruendete Ausnahme** darin, nicht stillschweigend.
+Dass der Test greift, ist nachgewiesen — ohne die Ausnahme wird er rot.
+
+**Warum nicht gleich behoben**: Der Hook braucht von Clerk nur `isSignedIn` —
+genau das, was der Betrachter traegt. Von fuenf weiteren Aufrufern hat aber nur
+einer den Wert zur Hand; der Umbau haette vier Chat-Dateien und einen App-Hook
+mitgezogen. Eigene kleine Welle, keine Nebenwirkung dieser hier.

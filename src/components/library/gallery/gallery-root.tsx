@@ -454,7 +454,7 @@ export function GalleryRoot({
   // (config.chat.gallery.graph). Gilt fuer ALLE Nutzer der Library -> nur Owner.
   // chat wird serverseitig flach gemergt -> die VOLLSTAENDIGE gallery senden,
   // damit detailViewType/facets nicht verloren gehen.
-  const handleSaveGraphDefault = React.useCallback(async (nextGraph: import('@/types/library').GalleryGraphConfig) => {
+  const handleSaveGraphDefault = React.useCallback(async (nextGraph: import('@ks/contracts').GalleryGraphConfig) => {
     if (!libraryId || !activeLibrary || !isOwner) return
     const existingGallery = (activeLibrary.config?.chat?.gallery ?? {}) as Record<string, unknown>
     const galleryPayload = { ...existingGallery, graph: nextGraph }

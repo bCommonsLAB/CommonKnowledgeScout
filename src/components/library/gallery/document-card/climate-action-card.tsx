@@ -19,7 +19,7 @@
 import React from 'react'
 import Image from 'next/image'
 import { Gauge } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { mapBewertungToStatus, STATUS_CONFIG, STATUS_ICON_MAP } from './status-config'
 import { SourceStarsBadge } from '../source-stars-badge'

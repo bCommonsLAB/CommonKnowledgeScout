@@ -1,7 +1,7 @@
 'use client'
 
 import { MessageCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
