@@ -47,7 +47,7 @@ import {
 } from './overlap-report-build'
 import { runLeveragePass } from './overlap-report-leverage'
 import type { ExternalJob } from '@/types/external-job'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import type { Library } from '@/types/library'
 
 const DEFAULT_MODEL = 'gpt-4.1-mini'

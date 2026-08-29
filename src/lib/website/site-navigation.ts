@@ -12,7 +12,7 @@
  * verschwindet aus den Menues, statt falsch einsortiert zu werden.
  */
 
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import {
   docMatchesNavigationSlug,
   getEffectiveDocumentNavigationSlug,

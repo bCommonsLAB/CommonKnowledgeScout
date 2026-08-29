@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { SDG_LIST, type SdgValue } from "@/lib/gallery/sdg-meta";
+import { SDG_LIST, type SdgValue } from "@/lib/documents/sdg-meta";
 
 /**
  * src/components/library/gallery/sdg-wheel.tsx

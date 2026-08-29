@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeCatalogHash } from '@/lib/gallery/relations-staleness'
+import { computeCatalogHash } from '@/lib/documents/relations-staleness'
 
 describe('computeCatalogHash — Staleness über den Katalog-Stand', () => {
   it('ist reihenfolge-unabhängig (sortiert intern)', () => {

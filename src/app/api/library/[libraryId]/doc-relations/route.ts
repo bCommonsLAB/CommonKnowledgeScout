@@ -4,7 +4,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/vector-repo'
 import { getDocRelations, getLatestCatalogHash } from '@/lib/repositories/doc-relations-repo'
-import { computeCatalogHash } from '@/lib/gallery/relations-staleness'
+import { computeCatalogHash } from '@/lib/documents/relations-staleness'
 import type { Library } from '@/types/library'
 
 /**

@@ -21,7 +21,7 @@ import { IngestionWebsiteDetail } from '@/components/library/ingestion-website-d
 import { useTranslation } from '@ks/i18n/react'
 import { useLibraries } from '@ks/shell/react'
 import { SdgProfile } from '@/components/library/gallery/sdg-profile'
-import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/gallery/sdg-meta'
+import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/documents/sdg-meta'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
 import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
 import type { BookDetailData } from '@/components/library/book-detail'

@@ -7,7 +7,7 @@ import {
   extractSdgBegruendung,
   hasSdgData,
   sdgIconPath,
-} from '@/lib/gallery/sdg-meta'
+} from '@/lib/documents/sdg-meta'
 import {
   spokeAngleDeg,
   fillRadius,

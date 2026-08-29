@@ -34,7 +34,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getMetaByFileId, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
-import { computeRatingRaw } from '@/lib/gallery/rating'
+import { computeRatingRaw } from '@/lib/documents/rating'
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 

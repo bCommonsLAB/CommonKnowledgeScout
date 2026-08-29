@@ -44,12 +44,12 @@ export interface SourceUserState {
   updatedAt: Date;
 }
 
-/** Voter-Eintrag fuer aggregierte Favoriten (E-Mail + persistierter Display-Name). */
-export interface FavoriteVoter {
-  email: string;
-  /** Display-Name aus `source_user_states.userDisplayName`. Fallback E-Mail-Prefix. */
-  name: string;
-}
+/**
+ * Voter-Eintrag fuer aggregierte Favoriten. Liegt seit Welle G1 in
+ * `@ks/contracts`, weil `DocCardMeta` ihn braucht und der Vertrag nicht aus
+ * `src/` importieren kann. Hier weitergereicht, damit die Importpfade bleiben.
+ */
+export type { FavoriteVoter } from '@ks/contracts';
 
 /** Antwort von `GET /api/library/[libraryId]/source-user-states`. */
 export interface OwnUserStatesResponse {

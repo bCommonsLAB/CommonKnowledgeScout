@@ -5,7 +5,7 @@
  * auf den Standard zurueck.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { buildGallerySort } from '@/lib/gallery/gallery-sort'
+import { buildGallerySort } from '@/lib/documents/gallery-sort'
 
 const DEFS = [{ metaKey: 'date' }, { metaKey: 'year' }, { metaKey: 'event' }]
 

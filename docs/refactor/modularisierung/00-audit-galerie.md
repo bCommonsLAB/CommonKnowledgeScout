@@ -7,8 +7,9 @@ folgt nicht dem Playbook-Format der Welle-3-Audits (Rules/Tests/Docs-Inventar),
 sondern dem Muster der Eingangsmessung aus
 [`AGENT-BRIEF-M4.md`](AGENT-BRIEF-M4.md) — messen, dann Optionen, dann Verdikt.
 
-Die Messung selbst hat keinen Code angefasst. **G3 wurde anschliessend
-umgesetzt** — siehe den Nachtrag am Ende; G1 und G2 stehen noch aus.
+Die Messung selbst hat keinen Code angefasst. **G3 und G1 wurden anschliessend
+umgesetzt** — siehe die Nachtraege am Ende. **G2 steht noch aus** und ist die
+Welle, die das Einbetten tatsaechlich freischaltet.
 
 ## Warum ueberhaupt
 
@@ -422,3 +423,47 @@ rote Tests, alle vom Typ „Export-Vertrag" (dynamische Imports in
 unter Vollast reissen sie das 5-Sekunden-Limit. Ein zweiter Vollauf mit
 identischem Code war komplett gruen (462/462 Dateien, 3470/3470 Tests). Wer
 diese Dateien rot sieht, hat eine Lastspitze vor sich, keinen Regress.
+
+## Nachtrag (2026-08-29): G1 ist umgesetzt
+
+Umgesetzt in derselben Session, gleicher Branch. Befund 1 ist damit erledigt;
+die Tabelle dort beschreibt den Zustand VOR dieser Welle.
+
+**Der Auslöser, den die Messung nicht benannt hatte**: `src/lib/gallery/types.ts`
+trug `'use client'` — und `vector-repo`, `doc-meta-formatter`, drei
+`external-jobs`-Phasen sowie die Website-Navigation importierten daraus. Eine
+Client-Datei als Typquelle des Servers.
+
+**Was wohin gegangen ist:**
+
+| Was | Wohin | Warum |
+|---|---|---|
+| `DocCardMeta`, `DetailDoc`, `ChapterInfo`, `FavoriteVoter` | `@ks/contracts/doc-card-meta.ts` | Form, von beiden Seiten gebraucht |
+| `column-sort`, `gallery-sort`, `rating`, `relations-limits`, `relations-staleness` | `src/lib/documents/` | rechnen, und zwar ausschliesslich serverseitig — sie waren nie Galerie |
+| `sdg-meta`, `stakeholder-meta` | `src/lib/documents/` | Dokument-Fachdaten; `doc-meta-mappers` (beidseitig genutzt) haengt daran |
+| `mapItemToDocCardMeta` | bleibt in `src/lib/gallery/types.ts` | rechnet und haengt am `Item`-Modell — das Paket beschreibt, es rechnet nicht |
+| `GalleryTexts`, `StatsTotals`, `StatsResponse` | bleiben | drei bzw. eine Nutzungsstelle, rein UI-nah |
+
+`src/lib/gallery/types.ts` und `src/types/source-user-state.ts` reichen die
+gewanderten Typen weiter, damit die rund 70 UI-Importpfade unveraendert
+bleiben. Die sechs Server-Dateien lesen dagegen direkt aus `@ks/contracts` —
+sonst waere die Abhaengigkeit nur indirekt geworden statt aufgeloest.
+
+**Ein Pfad, der beinahe durchgerutscht waere**: `external-jobs/phase-translations.ts`
+→ `lib/mappers/doc-meta-mappers.ts` → `lib/gallery/sdg-meta.ts`. Indirekt, aber
+genauso bindend. Deshalb sind SDG- und Stakeholder-Daten mitgewandert.
+
+**Beweis-Ziel** (`tests/unit/detail-view-types/galerie-schnitt.test.ts`): kein
+Bereich unter `src/lib/{repositories,external-jobs,website,mappers,chat}`,
+`src/app/api` oder `src/utils` importiert noch aus `src/lib/gallery/`. Ein
+zweiter Fall haelt fest, dass `src/lib/documents/` rahmenneutral bleibt — kein
+`'use client'` in geteilter Fachlogik.
+
+**Was in `src/lib/gallery/` bleibt** (10 → 3 Dateien plus UI-Helfer):
+`api.ts`, `apply-favorite-optimistic.ts`, `cover-ref-display-name.ts`,
+`doc-source-path.ts`, `gallery-card-density.ts`, `resolve-cover-url-client.ts`,
+`table-sort.ts`, `types.ts`. Alles davon ist UI-nah und kann mit dem Modul
+wandern.
+
+**Damit ist der Weg fuer G2 frei** — die Adressierung. Danach ist der Kern am
+Stueck bewegbar.

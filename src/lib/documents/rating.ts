@@ -1,5 +1,5 @@
 /**
- * src/lib/gallery/rating.ts
+ * src/lib/documents/rating.ts
  *
  * Prioritaets-Rating fuer bewertete Dokumente (z. B. Klimamassnahmen).
  *

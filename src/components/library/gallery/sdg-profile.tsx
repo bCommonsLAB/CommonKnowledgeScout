@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useTranslation } from "@ks/i18n/react";
-import { SDG_LIST, type SdgValue } from "@/lib/gallery/sdg-meta";
+import { SDG_LIST, type SdgValue } from "@/lib/documents/sdg-meta";
 import { SdgWheelLabeled } from "./sdg-wheel-labeled";
 
 /**

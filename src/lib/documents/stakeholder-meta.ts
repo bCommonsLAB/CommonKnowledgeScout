@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 /**
- * src/lib/gallery/stakeholder-meta.ts
+ * src/lib/documents/stakeholder-meta.ts
  *
  * Feste Taxonomie der Interessengruppen fuer den Konsent-Vergleich
  * (Schachbrett). Die Landesverwaltung ist KEIN Akteur unter vielen, sondern die
