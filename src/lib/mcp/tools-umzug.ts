@@ -27,6 +27,7 @@ import { moveFamily } from '@/lib/shadow-twin/move-family'
 import type { StorageProvider } from '@/lib/storage/types'
 import { resolveFolderIdByPath, resolveItemByPath } from './resolve-folder'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+import { MAX_UMZUEGE, fuehreStapelUmzugAus } from './umzug-stapel'
 
 /** Name des Klaer-Ordners (C4) — bewusst deutsch und sichtbar, kein .trash. */
 const KLAER_ORDNER = 'zu klären'
@@ -61,28 +62,52 @@ export function registerUmzugTools(server: McpServer): void {
         'Benennt eine QUELLDATEI um und/oder verschiebt sie MIT ihrer Twin-Familie — in fester ' +
         'Reihenfolge: Import (Handkorrekturen retten) → Siblings → Quelle → MongoDB nachziehen → ' +
         'alter Spiegel weg → Export am neuen Ort. Dateien ohne Twin-Familie (z. B. Sync-Reste, ' +
-        'Befund datei_ohne_endung) werden einfach umbenannt/verschoben. NIE Dateien direkt im ' +
-        'Dateisystem anfassen — sonst zeigen die Mongo-Dokumente ins Leere. SCHREIBT in Storage ' +
-        'und MongoDB; nur nach Bestaetigung durch den Menschen ausfuehren.',
+        'Befund datei_ohne_endung) werden einfach umbenannt/verschoben. STAPEL: sourceIds (bis ' +
+        `${MAX_UMZUEGE}) zieht mehrere Quellen in DENSELBEN Ziel-Ordner — ein Aufruf statt einem je ` +
+        'Datei; Fehler einer Quelle brechen den Stapel nicht ab. Umbenennen bleibt Einzeloperation. ' +
+        'NIE Dateien direkt im Dateisystem anfassen — sonst zeigen die Mongo-Dokumente ins Leere. ' +
+        'SCHREIBT in Storage und MongoDB; nur nach Bestaetigung durch den Menschen ausfuehren.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         sourceId: z.string().min(1).optional().describe('Storage-Id der Quelldatei (targetId aus Befunden / sourceId aus Familien)'),
         quellPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad der Quelldatei'),
-        neuerName: z.string().min(1).optional().describe('Neuer Dateiname INKL. Endung'),
+        sourceIds: z.array(z.string().min(1)).min(1).max(MAX_UMZUEGE).optional()
+          .describe(`STAPEL statt sourceId/quellPfad: bis ${MAX_UMZUEGE} Quelldateien, alle in DENSELBEN Ziel-Ordner (neuerOrdnerId/-Pfad Pflicht, neuerName verboten)`),
+        neuerName: z.string().min(1).optional().describe('Neuer Dateiname INKL. Endung (nur Einzel-Umzug)'),
         neuerOrdnerId: z.string().min(1).optional().describe('Ziel-Ordner-Id (aus der Ordnerliste von abdeckung_lesen)'),
         neuerOrdnerPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad des Ziel-Ordners'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, neuerName, neuerOrdnerId, neuerOrdnerPfad , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, neuerName, neuerOrdnerId, neuerOrdnerPfad , begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'familie_umziehen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
-          const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
           const newParentId = await resolveTargetFolder(provider, neuerOrdnerId, neuerOrdnerPfad)
+
+          // Stapel (ST9): mehrere Quellen, EIN Ziel-Ordner, kein Umbenennen.
+          if (sourceIds && sourceIds.length > 0) {
+            if (sourceId || quellPfad) throw new Error('Entweder sourceId/quellPfad ODER sourceIds — nicht beides')
+            if (neuerName) throw new Error('neuerName ist im Stapel nicht erlaubt — Umbenennen bleibt Einzeloperation')
+            if (!newParentId) throw new Error('Stapel braucht einen Ziel-Ordner (neuerOrdnerId/neuerOrdnerPfad)')
+            const batch = await fuehreStapelUmzugAus({
+              sourceIds,
+              name: async (id) => (await provider.getItemById(id)).metadata.name,
+              bewege: async (id) => {
+                await moveFamily({ library, libraryId, userEmail, provider, sourceId: id, newParentId })
+              },
+            })
+            return jsonResult({
+              ok: batch.gescheitert === 0,
+              ...batch,
+              hinweis: 'Danach EIN abdeckung_scannen ueber den betroffenen Teilbaum — nicht je Datei.',
+            })
+          }
+
+          const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
           if (!neuerName && !newParentId) {
             throw new Error('neuerName und/oder ein Ziel-Ordner (neuerOrdnerId/neuerOrdnerPfad) ist Pflicht')
           }
