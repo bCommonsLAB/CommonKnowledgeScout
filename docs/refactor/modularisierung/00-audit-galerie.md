@@ -365,10 +365,14 @@ sein, nicht dokumentiert.
 - **Ob die Galerie ohne Clerk laeuft.** Drei Dateien lesen `useAuth`/`useUser`
   direkt (`gallery-root.tsx:43`, `use-library-role.ts:4`,
   `use-is-library-owner.ts:4`). Beim Explorer reichten zwei Booleans; ob das
-  hier traegt, ist ungeprueft. Haengt an derselben offenen Frage wie die TopNav:
-  wie traegt `@ks/shell` Auth abschaltbar? Das ist ein ADR, keine Welle.
-- **Die Basis-URL fuer Modul-Fetches.** Offen aus M4, bewusst nicht gebaut (G3),
-  braucht das Token-Modell aus ADR 0008.
+  hier traegt, ist ungeprueft. Die verwandte TopNav-Frage ist seit der
+  Owner-Entscheidung vom 2026-08-29 kleiner: Im Embed gibt es keine Anmeldung,
+  die Schale muss Auth dort also nicht abschaltbar tragen, sondern gar nicht.
+- **Die Basis-URL fuer Modul-Fetches.** Offen aus M4, bewusst nicht gebaut
+  (Garantie G3). **Kein Token-Modell noetig** — der Owner hat am 2026-08-29
+  entschieden, dass das Embed ausschliesslich oeffentliche Inhalte liefert
+  (Nachtrag in ADR 0008). Die Basis-URL ist damit eine Prop, keine
+  Architekturfrage.
 - **Die Zuordnung der 11 `/api/chat/*`-Routen.** M4 hat den Namensraum dem
   Explorer zugeschrieben; was davon der Galerie gehoert und was dem Chat, ist
   offen — und die Kuratierungs-Routen widersprechen der M4-Ausnahmeliste.
@@ -477,9 +481,14 @@ beide aus den eigenen Regeln:
 
 - **Garantie G3 (Bedarfsgetrieben)**: `AGENTS.md` verbietet vorauseilendes
   Extrahieren ohne konkretes Ziel. Es gibt noch keine fremde Seite, in die
-  eingebettet wird — M5 waere die erste und haengt an zwei offenen
-  Owner-Entscheidungen (Token-Modell, Basis-URL). Die Schnittstelle wuerde
-  gegen eine Vermutung entworfen statt gegen eine Anforderung.
+  eingebettet wird — M5 waere die erste. Die Schnittstelle wuerde gegen eine
+  Vermutung entworfen statt gegen eine Anforderung.
+
+  *Nachtrag 2026-08-29*: Die urspruengliche Fassung nannte hier zwei offene
+  Owner-Entscheidungen als Blocker. Das war zu streng. Die Auth-Frage ist
+  entschieden (Embed nur oeffentlich, ADR 0008), und die Basis-URL ist eine
+  Prop. Es bleibt das Argument oben: es fehlt der Konsument, nicht die
+  Entscheidung.
 - **Garantie G4 (Verhaltensneutralitaet)**: Diese Welle ist die einzige der
   drei, deren Ergebnis `tsc`, `vitest` und `pnpm build` NICHT belegen koennen.
   Sie aendert Zurueck-Taste, geteilte Links und den `?doc=`-Parameter.

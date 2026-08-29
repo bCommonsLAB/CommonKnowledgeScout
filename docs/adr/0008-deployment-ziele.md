@@ -89,3 +89,54 @@ Jedes Auslieferungsziel wird beschrieben als `Modul-Set × Hülle × Datenzugang
   (electron + mcp + local-first), Naturmuseum (pwa auf der Instanz + electron
   + embed), Diva (electron), Oldies for Future / SwapToLearn / Tamera (Sites
   auf der einen Instanz).
+
+## Nachtrag (2026-08-29): Die Hülle `embed` liefert ausschließlich öffentliche Inhalte
+
+**Entschieden vom Owner.** Die offene Frage „Auth im Remote-Modus" (P2 in
+[`einsatz-szenarien.md`](../architecture/einsatz-szenarien.md), Konzept-Lücke 1)
+ist damit für die Einbettung geschlossen — und zwar nicht vertagt, sondern
+verneint.
+
+### Die Regel
+
+Eine eingebettete Galerie oder Story zeigt **nur, was auch ohne Anmeldung
+sichtbar ist**. Es gibt im Embed keine geschützten Inhalte, keine
+Besucher-Anmeldung und keinen Site-Token.
+
+Wer geschützte Inhalte braucht, nutzt KnowledgeScout **als eigenständige
+Anwendung** und meldet sich dort an. Das ist kein Notbehelf, sondern die
+vorgesehene Antwort: Die Voll-App hat bereits alles dafür.
+
+### Was das ausschließt
+
+Zwei Ausbaustufen, die vorher als „später" galten, sind hiermit **kein
+Planungsziel mehr**:
+
+- Ein Schlüssel pro Partner-Seite, damit deren Besucher eine geschützte
+  Bibliothek sehen.
+- Übertragung fremder Besucher-Identitäten in die Rechteprüfung von
+  KnowledgeScout (Vertrauensbeziehung zwischen zwei Anmeldesystemen).
+
+Beide würden `@ks/embed` an fremde Anmeldesysteme binden. Genau das entfällt.
+
+### Was daraus folgt
+
+- **`@ks/embed` braucht keine Anmelde-Mechanik.** Kein Token-Handling, kein
+  Clerk, keine Sitzungsweitergabe. Die Wurzelkomponente bekommt eine Basis-URL
+  und eine Library — mehr nicht.
+- **Die Lese-API für den Remote-Modus ist anonym.** Für sie gilt CORS und
+  öffentlicher Lese-Zugriff; sie darf per Definition nichts liefern, was eine
+  Rechteprüfung bräuchte.
+- **Die offene TopNav-Frage wird kleiner.** Die Schale muss Auth nicht
+  „abschaltbar" tragen — im Embed ist sie schlicht nicht vorhanden.
+- **P8 bleibt unberührt.** Die Headless-API für Fremdanwendungen ist etwas
+  anderes als eine eingebettete Oberfläche; sie behält ihre API-Token pro
+  Konsument (`api/libraries/[id]/tokens`).
+
+### Warum das trägt
+
+Die Grenze verläuft dort, wo sie ohnehin verläuft: Eine fremde Seite kann
+nicht wissen, wer bei uns angemeldet ist, und wir wollen ihr das auch nicht
+beibringen müssen. Öffentlich bleibt öffentlich, geschützt bleibt in der
+eigenen Anwendung. Das hält `@ks/embed` klein genug, um es überhaupt
+auszuliefern.

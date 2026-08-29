@@ -40,8 +40,10 @@ Galerie/Story laufen INNERHALB einer fremden Webseite — als React-Komponente
 **Libraries**: AECED (React-Komponente, Pilot M5), SFSCON, CAST, Naturmuseum
 (Museums-Website), Tamera.
 **Module**: `explorer` (Wurzelkomponente). **Hülle**: `embed` ×
-Datenzugang `remote`. **Auth**: public lesend; Site-Token für geschützte
-Inhalte (offen, M5/M7).
+Datenzugang `remote`. **Auth**: ausschließlich öffentlich lesend — **kein**
+Site-Token, keine Besucher-Anmeldung (Owner-Entscheidung 2026-08-29, Nachtrag
+in [ADR 0008](../adr/0008-deployment-ziele.md)). Geschützte Inhalte gibt es im
+Embed nicht; dafür wird KnowledgeScout als eigenständige Anwendung genutzt.
 
 ```tsx
 <KnowledgeScoutExplorer
@@ -181,8 +183,13 @@ kombiniert P1+P3 plus Föderation (ADR 0009); AECED kombiniert P2+P8.
 
 ## Verbleibende Konzept-Lücken (vor der jeweiligen Welle zu schließen)
 
-1. **Site-/Embed-Token** für Remote-Zugriff auf nicht-öffentliche Inhalte
-   (P2/P8) — Minimalfall „anonym + öffentliche Library" reicht für M5-Start.
+1. ~~**Site-/Embed-Token** für Remote-Zugriff auf nicht-öffentliche Inhalte
+   (P2/P8)~~ — **für P2 geschlossen** (Owner, 2026-08-29): Das Embed liefert
+   ausschließlich öffentliche Inhalte, ein Site-Token entfällt ersatzlos.
+   Geschütztes gibt es nur in der eigenständigen Anwendung mit Anmeldung.
+   Siehe Nachtrag in [ADR 0008](../adr/0008-deployment-ziele.md).
+   **Für P8 unverändert offen**: Die Headless-API für Fremdanwendungen ist
+   keine eingebettete Oberfläche und behält ihre API-Token pro Konsument.
 2. **Detail-View-Registry als Site-Plugin** (P1/P3: Klimamaßnahmen-Widgets
    wie CO2-Rechner; Spezialansichten) — Schnittstelle ab M2 in `@ks/contracts`.
 3. **Trennung Lese-/Ingestion-Teil im `chat/*`-Namespace** — beim
