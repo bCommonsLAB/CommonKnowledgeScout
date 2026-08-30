@@ -790,3 +790,48 @@ demselben Dateinamen ab, aber mit unterschiedlichen Regeln
 findet `docMatchesNavigationSlug` das Dokument nicht — ein geteilter Link zeigt
 ins Leere. Vorbestehend (die zweite Datei stammt aus Commit b0d99469) und als
 eigene Aufgabe notiert.
+
+## Nachtrag (2026-08-30): Gruppe C, Rest — 12 Gruppen
+
+Von **14 auf 12**. Zwei Posten nach derselben Regel einsortiert wie zuvor:
+
+| Posten | Befund | Wohin |
+|---|---|---|
+| `types/source-user-state` | API-Antwortformen (Sterne, „nicht wichtig"), 5 Nutzer | → `@ks/contracts`, wie die Kommentar-Typen |
+| `use-scroll-visibility` | 62 Z., nur React, generisches Scroll-Verhalten, 3 Fremdnutzer | → `@ks/ui`, wo `use-toast` schon liegt |
+
+**Eine Falle dabei**: Nach dem Verschieben zeigte die Galerie weiterhin auf die
+Weiterleitungen an den alten Orten — der Zaehler blieb stehen. Erst das
+Umbiegen der zwei Importe brachte die Gruppen wirklich weg. Weiterleitungen
+halten die App am Laufen, aber sie loesen die Kopplung nicht; das muss man
+getrennt pruefen.
+
+### Was bleibt — 12 Gruppen, davon 8 ohne Arbeit
+
+**Zieht mit dem Modul (19 Importe, keine Arbeit)**: `utils/document-slug` (8),
+`atoms/gallery-filters` (5), `atoms/chat-references-atom` (4),
+`utils/document-navigation` (1), `atoms/gallery-data` (1),
+`atoms/story-context-atom` (1), `lib/mappers/doc-meta-mappers` (1),
+`hooks/use-session-headers` (2, seit der Entkopplung Clerk-frei).
+
+**Braucht noch ein Urteil (6 Importe)**:
+
+| Posten | Warum offen |
+|---|---|
+| `lib/detail-view-types` (3) | `getSummableFields` braucht `VIEW_TYPE_REGISTRY` — 681 Zeilen mit i18n-Schluesseln, geteilt mit Einstellungen, Vorlagen und Chat. Das ist eine eigene Entscheidung, kein Schwanz-Posten |
+| `types/item` (1) | **444 Nutzer** im Repo — eigene Welle |
+| `lib/i18n/get-localized` (1) | 259 Z., haengt an `@ks/i18n` und `@/types/doc-meta`, 8 Fremdnutzer |
+| `lib/templates/detail-view-type-utils` (1) | 41 Z., drei Importe, 7 Fremdnutzer — bleibt App |
+
+### Geprueft und bewusst nicht geaendert
+
+`view-type-display.ts` haelt `VIEW_TYPE_LABELS` (deutsche Endnutzer-Namen:
+„Buch", „Klimamassnahme"). Der Vorlagen-Editor hat daneben eine eigene Tabelle
+mit technischen Namen („Book", „ClimateAction") — angelegt in der
+Eine-Quelle-Welle, um die dort vorher fest verdrahteten Beschriftungen
+unveraendert zu lassen.
+
+Das sieht nach Duplikat aus, ist aber **zwei Zielgruppen**: Endnutzer sehen
+Deutsch, wer Vorlagen bearbeitet sieht den technischen Wert neben dem
+`detailViewType`. Beide sind `Record<DetailViewType, string>` und erzwingen
+weiterhin eine Entscheidung bei einem neuen Typ. Bleibt so.

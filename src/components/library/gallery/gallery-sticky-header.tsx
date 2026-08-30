@@ -3,7 +3,7 @@
 import React from 'react'
 import { Input } from '@ks/ui'
 import { Search } from 'lucide-react'
-import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
+import { useScrollVisibility } from '@ks/ui'
 import { ViewModeToggle } from './view-mode-toggle'
 import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
 import { LibraryVerificationBadge } from '@/components/library/library-verification-badge'

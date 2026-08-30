@@ -6,7 +6,7 @@ import type {
   OwnUserStatesResponse,
   SetUserStateResponse,
   SourceUserStateValue,
-} from '@/types/source-user-state'
+} from '@ks/contracts'
 
 /**
  * Per-User-Zustand pro Quelle: lazy bulk-loaded ueber

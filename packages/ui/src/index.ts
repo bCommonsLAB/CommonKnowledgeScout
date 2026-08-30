@@ -50,3 +50,6 @@ export * from './toaster'
 export * from './tooltip'
 export * from './tree'
 export * from './use-toast'
+// Generisches Scroll-Verhalten: kein Fachwissen, drei Anwender quer durch die
+// App. Wie use-toast ein UI-Hook, kein Baustein.
+export * from './use-scroll-visibility'
