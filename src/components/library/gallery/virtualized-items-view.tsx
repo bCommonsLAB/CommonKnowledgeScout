@@ -6,7 +6,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from '@
 // Badge Import entfernt - wurde nicht verwendet
 import { useTranslation } from '@ks/i18n/react'
 import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'

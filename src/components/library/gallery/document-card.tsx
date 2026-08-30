@@ -22,7 +22,7 @@
 import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import { DivaTextureCard } from './document-card/diva-texture-card'
 import { ClimateActionCard } from './document-card/climate-action-card'
 import { SessionCard } from './document-card/session-card'

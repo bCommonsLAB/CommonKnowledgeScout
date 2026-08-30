@@ -7,7 +7,7 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
-import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import type { DocReference } from '@ks/contracts'
 
 export function useGalleryEvents(
