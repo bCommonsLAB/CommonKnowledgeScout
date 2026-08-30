@@ -59,10 +59,13 @@ ausführbaren Auftrag tragen kann.
 | Befund + Notiz für Agenten sichtbar | `compactGap` gibt `gap.detail` aus | die Notiz ist über `abdeckung_lesen` **lesbar** |
 | Werkbank auf kleinem Schirm | `werkbank-layout.tsx:39,57` | Listen-/Detail-Umschaltung vorhanden |
 
-**Das Wichtigste daraus:** Der Weg „diktierter Kontext → LLM interpretiert neu →
-Kontext bleibt am Artefakt gespeichert" existiert bereits. Er hängt nur am
-falschen Ort — in der Datei-Vorschau des Archivs, hinter dem Pipeline-Sheet,
-nicht in der Werkbank und nicht über die Brücke.
+**Das Wichtigste daraus:** Diktieren, Text am Artefakt festhalten und ihn beim
+nächsten Lauf wieder hervorholen — diese Mechanik ist gebaut und erprobt. Sie
+zeigt, dass der schwierige Teil gelöst ist.
+
+**Aber Vorsicht, das ist NICHT dasselbe Feld** (§5): `customHint` steuert den
+Inhalt einer Transformation, nicht die Arbeit an der Datei. Was hier zählt, ist
+das Muster, nicht das Feld.
 
 ## 4. Was fehlt
 
@@ -71,16 +74,16 @@ nicht in der Werkbank und nicht über die Brücke.
 Mikrofon, begrenzt auf 280 Zeichen (`MAX_NOTIZ_LAENGE`). Der Contract sagt
 ausdrücklich „eine Zeile, kein Aufsatz". Ein erzählter Kontext sind 1000+ Zeichen.
 
-**L2 — Diagnose und Anweisung sind zwei getrennte Welten.**
-`flagged_note` sagt *was nicht stimmt*, `customHint` sagt *wie es zu machen ist*.
-Die Werkbank schreibt nur das erste, das Pipeline-Sheet nur das zweite. Kein Weg
-verbindet sie.
+**L2 — Es gibt kein Feld für einen Arbeitsauftrag an den Agenten.**
+`flagged_note` ist eine Diagnose („stimmt nicht"), `customHint` ein Prompt-Zusatz
+für das LLM. Was fehlt, ist die dritte Sache: *„lieber Agent, tu mit dieser Datei
+Folgendes."* Dafür ist keines der beiden Felder gedacht, und keines darf dafür
+umgewidmet werden (§5).
 
-**L3 — Kein MCP-Werkzeug reicht den Kontext durch.**
+**L3 — Der Agent kann eine Neu-Transformation nicht steuern.**
 `quelle_erschliessen` und `transformation_starten` (`tools-erschliessen.ts`)
-kennen kein `customHint`-Argument. Cowork kann den Kontext also lesen, aber keine
-Neu-Transformation damit fahren — es müsste ihn vorher ins Frontmatter schreiben
-und auf den undokumentierten Fallback hoffen.
+nehmen kein Hinweis-Argument. Schließt der Agent aus einem Auftrag, dass eine
+Transformation mit anderem Wissen laufen muss, hat er keinen Weg, das zu sagen.
 
 **L4 — Kein Sammelblick „was ist zu korrigieren".**
 `abdeckung_lesen` mit `akteur: 'mensch'` kommt nahe, liefert aber alle
@@ -93,110 +96,184 @@ Nach der Reparatur bleibt `twin_status: flagged` stehen (korrekt nach ADR 0006:
 nicht melden „erledigt, bitte ansehen". Peter müsste raten, welche Markierungen
 schon bearbeitet sind.
 
-**L6 — Der Kontext wirkt nur auf die Transformation, nicht auf Ort und Namen.**
-`customHint` landet im LLM-Prompt. Für `familie_umziehen` und `ordner_umbenennen`
-ist er unsichtbar — der Agent muss ihn selbst lesen und deuten.
+**L6 — Keine Antwort auf die Reichweiten-Frage.**
+Weder „zeig mir alle offenen Korrekturen der Library" noch „nur die dieses
+Ordners" ist heute formulierbar. Ohne beides muss man entweder jedes Verzeichnis
+einzeln prüfen oder sich beim Arbeiten an einem Ordner Fremdes einfangen. Siehe §7.
 
-**L7 (klein) — `customHint` verstößt gegen die Frontmatter-Konvention.**
-camelCase, obwohl AGENTS.md flach + `snake_case` verlangt.
+**L7 — Kein Anstoß, den Bericht nachzuziehen.**
+Die Befunde dafür existieren (§8), aber nichts verknüpft sie mit der Korrektur —
+der Skill sagt heute nicht, dass nach einem ordnerübergreifenden Umzug ZWEI
+Vorhaben neu zu scannen sind.
 
-## 5. Vorschlag
+## 5. Zwei Ebenen, die nicht vermischt werden dürfen
 
-**Der Korrekturauftrag wird ein eigenes Feld — und ein eigener Befund, der auf
-Cowork zeigt.**
+**Klarstellung (Peter, 30.08.2026):** `customHint` ist der Prompt-Zusatz **einer
+Transformation** — er beeinflusst, was das LLM aus einem Text macht (Feld-Ebene:
+„Händler ist Maximode"). Der Korrekturauftrag ist etwas anderes: eine Anweisung
+an den **Agenten**, was er mit der *Datei* tun soll (Datei-Ebene: „gehört unter
+26.02, gesprochen hat Maria S., Name ist falsch").
 
-Der Unterschied, an dem alles hängt: ob ein ausführbarer Auftrag dranhängt.
-
-| | ohne Auftrag | mit Auftrag |
+| | `customHint` (vorhanden) | `korrektur_auftrag` (neu) |
 |---|---|---|
-| Feld | `flagged_note` (280 Z., „stimmt nicht") | `korrektur_auftrag` (lang, diktiert) |
+| Adressat | das LLM in der Transformation | Cowork über die MCP-Brücke |
+| Wirkt auf | Inhalt eines Artefakts | Ort, Name, Einordnung, Bericht |
+| Gesetzt in | Pipeline-Sheet der Datei-Vorschau | Werkbank, diktiert |
+| Gelesen von | `phase-template.ts` | `korrekturen_lesen` |
+
+Sie treffen sich an genau einer Stelle: Wenn der Agent aus dem Auftrag schließt,
+dass eine Neu-Transformation nötig ist, **formuliert er selbst** einen passenden
+`customHint` daraus. Der Agent ist der Übersetzer zwischen beiden Ebenen — der
+Auftragstext wird NICHT roh in den Prompt gereicht. Er kann Sätze enthalten
+(„liegt im falschen Ordner"), die im LLM-Prompt nur Schaden anrichten.
+
+## 6. Der Vorschlag
+
+**Ein eigenes Feld, ein eigener Befund, der auf Cowork zeigt.**
+
+| | `flagged_note` (bleibt) | `korrektur_auftrag` (neu) |
+|---|---|---|
+| Inhalt | „stimmt nicht", 280 Zeichen | erzählter Kontext, diktiert |
 | Befund | `twin_flagged` · **Mensch** | `korrektur_offen` · **Cowork** |
-| Bedeutung | Peter muss entscheiden, was zu tun ist | Cowork weiß, was zu tun ist |
+| Bedeutung | Peter muss entscheiden | Cowork weiß, was zu tun ist |
 
-`twin_flagged` bleibt unverändert — Modell B aus ADR 0006 wird nicht angefasst.
+`twin_flagged` und ADR 0006 bleiben unangetastet: `twin_status` bleibt `flagged`,
+die Abnahme bleibt Peters Klick.
 
-### 5.1 Felder (flach, snake_case, Obsidian-kompatibel)
+### 6.1 Wo der Auftrag liegt
 
-```yaml
-twin_status: flagged
-flagged_by: human:peter.aichner@crystal-design.com
-flagged_at: 2026-08-30T09:12:00.000Z
-flagged_note: Ort und Datum stimmen nicht          # bleibt kurz, unverändert
-# NEU: der diktierte Kontext, auf eine Zeile normalisiert
-korrektur_auftrag: "Das Audio entstand am Rand des Workshops in Bozen, gesprochen hat Maria S. über das Genossenschaftsmodell — nicht über Commoning allgemein. Gehört unter 26.02, nicht unter 25.11."
-korrektur_gestellt_at: 2026-08-30T09:12:00.000Z    # NEU
-korrektur_erledigt_at: 2026-08-30T11:40:00.000Z    # NEU: Cowork stempelt
+Zwei Orte, wie bei jedem Twin-Feld — MongoDB ist Wahrheit, das Dateisystem
+Spiegel (Twin-Contract §4):
+
+- **MongoDB, Top-Level am Twin-Dokument:** `korrektur: { auftrag, gestelltVon,
+  gestelltAt, pfadBeiAuftrag, erledigtAt }`. Verschachtelt ist hier erlaubt und
+  richtig (AGENTS.md: „Verschachtelte Datenmodelle entstehen erst downstream").
+  Top-Level, damit die Übersicht (§7) es ohne Scan und ohne Wildcard-Index findet.
+- **Frontmatter des Artefakts, flach gespiegelt:** `korrektur_auftrag`,
+  `korrektur_gestellt_at`, `korrektur_erledigt_at` — snake_case, einzeilig, damit
+  es in Obsidian sichtbar ist und einen Export überlebt.
+
+`pfadBeiAuftrag` ist ein **Schnappschuss**, kein Wahrheitswert: Die Datei zieht ja
+gerade deshalb um. Wahrheit bleibt die `sourceId`; der Pfad dient nur der
+Gruppierung in der Übersicht und wird als „Stand bei Auftragserteilung"
+ausgewiesen. (Nötig, weil `ShadowTwinDocument` nur `parentId` kennt, keinen Pfad —
+sonst kostete jede Übersicht so viele Storage-Auflösungen wie es Treffer gibt.)
+
+## 7. Reichweite: Übersicht ODER Ordner — dasselbe Werkzeug
+
+Das ist die Frage, an der sich entscheidet, ob das Ding im Alltag trägt: Peter
+will weder in jedes Verzeichnis einzeln schauen müssen, noch beim Aufräumen von
+`25.11` plötzlich Korrekturen aus `26.02` mitgeschleppt bekommen.
+
+**Lösung: ein Werkzeug, ein Scope-Parameter, zwei Verdichtungsgrade.**
+
+```
+korrekturen_lesen(libraryId)              → ÜBERSICHT  (aggregiert, library-weit)
+korrekturen_lesen(libraryId, folderId)    → ARBEITSLISTE (Volltext, nur dieser Teilbaum)
 ```
 
-Ein Feld, ein Wert, eine Ebene. `korrektur_auftrag` wird wie `flagged_note` auf
-eine Zeile normalisiert — das hält das Frontmatter flach und Obsidian-freundlich,
-so wie `customHint` heute schon geschrieben wird. Kein 280er-Limit; Vorschlag
-2000 Zeichen. (Der Serializer könnte mehrzeilig — er escaped Umbrüche per
-`JSON.stringify` —, aber eine lange Zeile bleibt das robustere Format.)
+**Ohne `folderId` — die Übersicht.** Je Vorhaben EINE Zeile: Pfad, Anzahl offener
+Aufträge, ältester Zeitpunkt, ein gekürzter Auszug des ersten. Keine Volltexte.
+Das ist der Blick, mit dem entschieden wird — *„14 Korrekturen in 5 Vorhaben,
+7 davon in `26.02` — da fange ich an"*:
 
-### 5.2 Der Weg, Schritt für Schritt
+```
+26.02 Commoning Methoden      7 offen   ältester 28.08.  „Sprecher ist Maria S., nicht …"
+25.11 Bozen Workshop          4 offen   ältester 29.08.  „gehört eigentlich unter 26.02 …"
+24.09 Genossenschaft          2 offen   ältester 30.08.  „Datum im Titel ist falsch …"
+Organisation/Ablage           1 offen   ältester 30.08.  „das ist kein Protokoll, sondern …"
+```
 
-1. **Aufnehmen (Werkbank, Smartphone).** Neben „stimmt nicht" ein zweiter Knopf
-   „Korrektur diktieren". Dahinter die vorhandene `DictationTextarea` — dieselbe
-   Komponente wie im Pipeline-Sheet, kein neuer Aufnahme-Code. Der Text ist
-   vor dem Senden korrigierbar.
-2. **Schreiben.** Über die bestehende Kurations-Route (`shadow-twins/curation`),
-   erweitert um `korrigiere: { auftrag }`. Damit gelten Drift-Guard, Feld-Patch
-   und Spiegel-Logik unverändert; Urheber und Zeit stempelt der Server.
-3. **Sichtbar werden.** Neuer Gap-Typ `korrektur_offen`, `actor: 'cowork'`,
-   Zyklus-Schritt 2, severity `error` — mit dem Auftragstext: *„Cowork: Quelle X
-   nach Peters Korrekturauftrag neu interpretieren: `<Auftrag>`. Danach
-   einsortieren/umbenennen, Bericht nachziehen, `korrektur_melden` aufrufen."*
-   Damit steht der Auftrag in derselben Liste wie jede andere Cowork-Aufgabe.
-4. **Abholen (neu, ohne Scan).** `korrekturen_lesen(libraryId, ordner?)` liest
-   die offenen Aufträge direkt aus MongoDB — Pfad, `sourceId`, Auftragstext,
-   Zeitpunkt. Kein `abdeckung_scannen` nötig; das Frontmatter ist Wahrheit.
-5. **Ausführen.** `quelle_erschliessen` und `transformation_starten` bekommen
-   einen Parameter `korrekturhinweis`, der auf den bestehenden `customHint`-Kanal
-   gelegt wird. Ab da wirkt die fertige Mechanik: Preamble, höchste Priorität,
-   Persistenz im Frontmatter. Einsortieren und Umbenennen macht Cowork wie bisher
-   mit `familie_umziehen` — den Auftragstext hat es dabei im Kontext (L6 löst
-   sich dadurch, ohne neue Mechanik).
-6. **Zurückmelden.** `korrektur_melden(sourceId, artefakt, was_getan)` stempelt
-   `korrektur_erledigt_at` und die Begründung ins Protokoll. `twin_status`
-   bleibt `flagged` — die Abnahme gehört weiter Peter (ADR 0006 unangetastet).
-   In der Werkbank wechselt die Zeile von „wartet auf Cowork" zu **„repariert —
-   bitte ansehen"**. Peters Verifizieren löst dann beides auf.
+**Mit `folderId` — die Arbeitsliste.** Volltexte, `sourceId`, Pfad, Zeitpunkt —
+und ausschließlich aus diesem Teilbaum. Beim Aufräumen von `25.11` sieht der
+Agent nur die Aufträge aus `25.11`. Keine Streuung.
 
-### 5.3 Was das für den Alltag heißt
+**Entscheidend: beides braucht keinen Scan.** Die Aufträge stehen in MongoDB, das
+ist Wahrheit, nicht abgeleitet. Genau darum kann die Übersicht library-weit sein,
+ohne dass 7337 Dateien angefasst werden — der Unterschied zum Report, an dem die
+Werkbank bisher hing.
 
-Peter geht am Handy die Werkbank durch, hört rein, drückt bei einem Fehlgriff auf
-Mikrofon und erzählt den Kontext. Nach zwanzig Artefakten sagt er in Cowork einen
-Satz — oder Cowork fragt beim nächsten Lauf von sich aus `korrekturen_lesen` ab —
-und alle Korrekturen laufen in einem Arbeitsgang durch. Danach steht in der
-Werkbank, was repariert wurde und auf seinen Blick wartet.
+### 7.1 Die zwei Betriebsarten im Skill
 
-## 6. Wellen-Schnitt
+Der Skill `archiv-aufraeumen` bekommt **einen** neuen Absatz, der beide Wege
+benennt:
+
+**(A) Beiläufig — beim Aufräumen eines Ordners.** `korrekturen_lesen(folderId)`
+wird **Schritt 0**, vor allem anderen. Das passt exakt zur bestehenden Regel des
+Skills: *„alle Umbenennungen gehören vor die Erschließung"* — ein Korrekturauftrag
+löst typischerweise genau eine Umbenennung oder einen Umzug aus. Wer ihn erst nach
+dem Erschließen liest, arbeitet zweimal.
+
+**(B) Gezielt — die Korrektur-Runde.** `korrekturen_lesen()` ohne Ordner →
+Übersicht → das Vorhaben mit den meisten offenen Aufträgen zuerst → dann für
+dieses Vorhaben der normale Ablauf (A). Das ist der Modus für „Peter hat gestern
+Abend zwanzig Sachen diktiert".
+
+Beide enden gleich: `korrektur_melden` je erledigtem Auftrag, dann ein
+Teilbaum-Scan.
+
+### 7.2 Wenn ein Auftrag über die Ordnergrenze zeigt
+
+Der häufigste Fall — *„gehört unter 26.02, nicht unter 25.11"* — wird **im
+Quellordner gefunden** (dort liegt die Datei) und **berührt den Zielordner**, in
+dem gar kein Auftrag steht. Das ist unvermeidlich und in Ordnung, solange der
+Agent es weiß. Regel für den Skill:
+
+> Zieht eine Korrektur eine Familie über eine Vorhabensgrenze, gehören **beide**
+> Ordner in den anschließenden `abdeckung_scannen`-Aufruf — der Quellordner, weil
+> sein Bericht jetzt ins Leere zeigt, der Zielordner, weil seiner die neue Quelle
+> noch nicht kennt.
+
+## 8. Den Bericht nachziehen — dafür gibt es schon eine Mechanik
+
+Die Sorge „muss ich daran denken, den Bericht zu aktualisieren?" löst sich fast
+von selbst: Das Verweis-Audit (doppelte Buchhaltung) fängt alle drei Fälle, und
+alle drei sind bereits auf **Cowork** geroutet, Zyklus-Schritt 3:
+
+| Was passiert ist | Befund | wo er auftaucht |
+|---|---|---|
+| Artefakt neu erzeugt / Datei umbenannt | `bericht_veraltet` (warning) | im Ordner selbst — Bericht älter als jüngste Änderung |
+| Datei ist weggezogen | `verweis_tot` (error) | im **Quell**ordner — der Bericht verlinkt ins Leere |
+| Datei ist zugezogen | `bericht_unvollstaendig` (info) | im **Ziel**ordner — erschlossene Quelle unerwähnt |
+
+**Es braucht also keine neue Regel für den Bericht** — nur den Teilbaum-Scan nach
+der Korrektur (§7.2). Danach steht der Bericht-Nachzug als ganz gewöhnlicher
+Cowork-Befund in der Liste und wird im selben Lauf mit abgearbeitet. Genau dafür
+ist die Zyklus-Reihenfolge gebaut: Korrektur ist Schritt 1–2, Bericht ist
+Schritt 3.
+
+Ein Punkt bleibt, den der Skill benennen muss: `bericht_veraltet` ist `warning`
+und `bericht_unvollstaendig` sogar `info` — beide sperren die Abnahme nicht. Nach
+einer Korrektur-Runde sollten sie trotzdem abgearbeitet werden, sonst erzählt der
+Bericht weiter die alte, falsche Geschichte. Das ist der Satz, der in den Skill
+gehört, nicht eine neue Severity.
+
+## 9. Wellen-Schnitt
 
 | Welle | Inhalt | Aufwand |
 |---|---|---|
-| **K1** | Feld + Schreibweg: `korrektur_auftrag` in `TWIN_CURATION_FIELDS`, `buildCurationPatches`, Kurations-Route, Unit-Tests | klein |
-| **K2** | Werkbank: Diktierknopf + Anzeige des Auftrags, Zustand „repariert — bitte ansehen" | klein |
-| **K3** | Befund: Gap-Typ `korrektur_offen` (Registry, Regel, Auftragsvorlage, Zähler) | mittel |
-| **K4** | Brücke: `korrekturen_lesen`, `korrektur_melden`, `korrekturhinweis` an den beiden Erschließungs-Werkzeugen | mittel |
-| **K5** | Skill `archiv-aufraeumen`: `korrekturen_lesen` als erster Schritt jedes Laufs; Tabelle um `korrektur_offen` ergänzen | klein |
+| **K1** | Feld + Schreibweg: `korrektur` am Twin-Dokument, flacher Frontmatter-Spiegel, Kurations-Route um `korrigiere: { auftrag }` erweitert, Unit-Tests | klein |
+| **K2** | Werkbank: Diktierknopf „Korrektur diktieren" (vorhandene `DictationTextarea`), Anzeige des Auftrags, Zustand „repariert — bitte ansehen" | klein |
+| **K3** | Befund `korrektur_offen` (Registry `actor: 'cowork'`, Regel, Auftragsvorlage, Zähler) | mittel |
+| **K4** | Brücke: `korrekturen_lesen` (beide Verdichtungsgrade), `korrektur_melden` | mittel |
+| **K5** | Skill `archiv-aufraeumen`: Schritt 0, Korrektur-Runde, Ordnergrenzen-Regel, Bericht-Nachzug-Satz | klein |
 
-K1+K2 allein ergeben schon Nutzen (Kontext wird festgehalten, Cowork kann ihn per
-`datei_lesen` finden). Erst K3+K4 machen den Kreis zu.
+K1+K2 tragen schon allein: Der Kontext ist festgehalten und über `datei_lesen`
+auffindbar. K4+K5 machen ihn ohne Suchen auffindbar — das ist der Sprung von
+„geht" zu „trägt im Alltag".
 
-## 7. Offene Entscheidungen
+## 10. Offene Entscheidungen
 
-1. **Getrennte Felder oder ein Feld?** Vorschlag: getrennt — `flagged_note` bleibt
-   die kurze Diagnose, `korrektur_auftrag` ist die lange Anweisung. Die
-   Alternative (ein Feld, Limit hoch) spart eine Zeile Contract, verliert aber
-   die Unterscheidung, an der das Routing hängt.
-2. **Auch das Original-Audio als Beleg ablegen?** Der Diktat-Hook liefert den Blob
-   (`onAudioBlob`). Man könnte ihn in den `_`-Ordner legen. Vorschlag: **nein,
-   vorerst nicht** — der transkribierte Text ist das, womit gearbeitet wird; das
-   Audio wäre ein Artefakt ohne Twin und ohne Contract.
+1. **Auftrag am Artefakt oder an der Familie?** Heute hängt `flagged_note` am
+   einzelnen Artefakt (Transkript ODER Zusammenfassung). Der Korrekturauftrag
+   meint fast immer die *Datei*, nicht ein Artefakt. Vorschlag: an der **Familie**
+   (Top-Level am Twin-Dokument, siehe §6.1) — der Frontmatter-Spiegel geht ins
+   führende Artefakt.
+2. **Das Original-Diktat als Audiodatei ablegen?** Vorschlag: nein — wäre ein
+   Artefakt ohne Twin und ohne Contract. Der transkribierte Text ist das
+   Arbeitsmaterial.
 3. **Darf Cowork nach der Reparatur verifizieren?** Nein. Contract §3.2 verbietet
-   Selbst-Verifikation, ADR 0006 macht die Abnahme zur menschlichen
-   Selbstauskunft. `korrektur_erledigt_at` ist bewusst kein Häkchen.
-4. **`customHint` auf `korrektur_hinweis` umbenennen (L7)?** Sauberer, aber es
-   berührt bestehende Artefakte und drei Pipeline-Pfade. Vorschlag: eigene, kleine
-   Welle nach K4, mit Lesen beider Schreibweisen.
+   Selbst-Verifikation. `korrektur_erledigt_at` ist bewusst kein Häkchen.
+4. **`customHint` auf `korrektur_hinweis` umbenennen?** Nach §5 besser NICHT — die
+   Namensähnlichkeit würde die beiden Ebenen wieder verwischen. Wenn umbenennen,
+   dann in Richtung `transformations_hinweis`, eigene kleine Welle nach K4.
