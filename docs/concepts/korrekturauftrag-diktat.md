@@ -188,6 +188,35 @@ Verifizieren („entweder soll noch etwas geschehen oder es ist geprüft") und
 Stellen zugleich mit Zurücknehmen. Erlaubt und sinnvoll ist dagegen Markieren
 plus Korrigieren: „stimmt nicht" UND „so soll es werden".
 
+### 6.3 Wie der Auftrag sichtbar wird — gebaut (K3)
+
+Der Auftrag wird ein Befund wie jeder andere: `korrektur_offen`, `severity:
+error`, **`actor: 'cowork'`** — genau der Unterschied, an dem der Logikfehler
+hing (§2a). `twin_flagged` bleibt beim Menschen, weil dort kein ausführbarer
+Auftrag danebensteht.
+
+**Zyklus-Schritt 1, nicht 2** (Korrektur gegenüber dem ersten Entwurf): Ein
+Auftrag löst fast immer Umbenennen oder Verschieben aus, und die gehören laut
+Konventionen VOR die Erschließung. In der Zyklus-Leiste steht er damit ganz
+vorne — da, wo er zuerst abgearbeitet werden soll.
+
+Wo er auftaucht:
+
+| Ort | Was man sieht |
+|---|---|
+| Baum | ✎ in Blau am Artefakt und am Ordner (`✎ 3` statt der Quellenzahl) |
+| Widerstandsliste | eigener Abschnitt „Von dir beauftragt — wartet auf Cowork", anklickbar |
+| Zyklus-Leiste | Schritt 1, aus den *effektiven* Familien — ein eben diktierter Auftrag zählt sofort, ohne Scan |
+| Sprung | „nächster Widerstand" springt zu Markierungen UND Aufträgen |
+| Abnahme | gesperrt, solange offen (`actor: 'cowork'` zählt in `zaehleWiderstaende` mit) |
+| `abdeckung_lesen` | Cowork-Befund, Auftragstext im `detail`; die Kompaktsicht führt ihn auch je Familie |
+| Skill | eigene Zeile in der Befund-Tabelle von `archiv-aufraeumen` |
+
+Der Befund erlischt, sobald ein Agent `korrektur_erledigt_at` setzt (K4) — oder
+Peter verifiziert (§6.2). Eine Markierung schlägt den Auftrag in der
+Baum-Kennung (der benannte Fehler ist die strengere Aussage); in der
+Widerstandsliste erscheinen beide, denn beides gilt.
+
 ## 7. Reichweite: Übersicht ODER Ordner — dasselbe Werkzeug
 
 Das ist die Frage, an der sich entscheidet, ob das Ding im Alltag trägt: Peter
@@ -283,7 +312,7 @@ gehört, nicht eine neue Severity.
 |---|---|---|
 | **K1** ✅ | Feld + Schreibweg: vier Kurations-Felder, `korrigiere` / `nimmKorrekturZurueck` an der Kurations-Route, Auflösung beim Verifizieren, Unit-Tests | erledigt |
 | **K2** ✅ | Werkbank: Knopf „Korrektur diktieren" (Standard-`DictationTextarea`), Anzeige des offenen Auftrags mit Urheber/Zeit, Zurücknehmen; überlebt den Reload ohne Scan | erledigt |
-| **K3** | Befund `korrektur_offen` (Registry `actor: 'cowork'`, Regel, Auftragsvorlage, Zähler) | mittel |
+| **K3** ✅ | Befund `korrektur_offen` (`actor: 'cowork'`, Schritt 1), Regel `checkKorrekturOffen`, Auftragsvorlage, Baum-Marker, Zähler, Sprung, Widerstandsliste, Skill-Zeile | erledigt |
 | **K4** | Brücke: `korrekturen_lesen` (beide Verdichtungsgrade), `korrektur_melden` | mittel |
 | **K5** | Skill `archiv-aufraeumen`: Schritt 0, Korrektur-Runde, Ordnergrenzen-Regel, Bericht-Nachzug-Satz | klein |
 
@@ -293,10 +322,12 @@ einen Reload ohne Scan, weil der Nachladeweg `agent-view/kuration` dieselbe
 Familien-Sicht nutzt und die Felder mitträgt. K4+K5 machen ihn ohne Suchen
 auffindbar — das ist der Sprung von „geht" zu „trägt im Alltag".
 
-**Was mit K1+K2 noch NICHT geht:** Der Auftrag ist am Artefakt sichtbar, aber
-weder in der Vorhaben-Liste noch im Baum noch in der Widerstandsliste — dort
-zählt nur, was ein Befund ist, und den gibt es erst mit K3. Bis dahin sieht man
-einen offenen Auftrag nur, wenn man das Artefakt aufschlägt.
+**Was nach K3 noch fehlt:** Cowork findet den Befund nur über einen Scan — und
+ein Scan über 7337 Dateien ist teuer. `korrekturen_lesen` (K4) holt die Aufträge
+direkt aus MongoDB, library-weit verdichtet zum Entscheiden und pro Ordner im
+Volltext zum Arbeiten (§7). Ebenso fehlt `korrektur_melden`: Bis dahin kann
+Cowork keinen Vollzug melden, `korrektur_erledigt_at` bleibt leer, und der
+Befund erlischt erst, wenn Peter verifiziert.
 
 ## 10. Offene Entscheidungen
 

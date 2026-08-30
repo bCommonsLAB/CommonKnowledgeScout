@@ -96,6 +96,9 @@ export function compactFamily(family: TwinFamilySummary) {
           twinStatus: family.leading.twinStatus,
           verification: family.leading.verification,
           verifiedBy: family.leading.verifiedBy,
+          /** K3: offener Korrekturauftrag Peters; null = keiner (oder Scan vor K3). */
+          korrekturAuftrag: family.leading.korrekturAuftrag ?? null,
+          korrekturAt: family.leading.korrekturAt ?? null,
         }
       : null,
   }

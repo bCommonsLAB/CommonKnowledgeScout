@@ -49,6 +49,7 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
   const zustand = artefakt == null ? null : artefaktZustand(artefakt)
   const geprueft = zustand === 'geprueft'
   const markiert = zustand === 'markiert'
+  const beauftragt = zustand === 'auftrag'
   const archivHref = `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(familie.folderId)}`
 
   const verifizierenTitle =
@@ -62,7 +63,9 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
             ? `Bereits geprueft von ${artefakt.verifiedBy ?? '—'}.`
             : markiert
               ? 'Verifizieren loest die Fehler-Markierung auf — erst reparieren (lassen), dann bestaetigen.'
-              : 'Freiwillig: bestaetigt, dass du diesen Teil wirklich angesehen hast (verified_by + verified_at).'
+              : beauftragt
+                ? 'Verifizieren loest auch den Korrekturauftrag auf — nur, wenn er erledigt oder hinfaellig ist.'
+                : 'Freiwillig: bestaetigt, dass du diesen Teil wirklich angesehen hast (verified_by + verified_at).'
 
   const verifiziere = async () => {
     if (art === null || artefakt == null) return
@@ -110,16 +113,18 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
             <KopfChip ton="stand">{artefakt === undefined ? 'Stand unbekannt' : 'kein Artefakt'}</KopfChip>
           ) : (
             <KopfChip
-              ton={markiert ? 'blockiert' : geprueft ? 'ok' : 'open'}
+              ton={markiert || beauftragt ? 'blockiert' : geprueft ? 'ok' : 'open'}
               title={
                 markiert
                   ? `Als fehlerhaft markiert: ${artefakt.flaggedNote ?? '(ohne Notiz)'}`
-                  : geprueft
-                    ? `verified_by: ${artefakt.verifiedBy ?? '—'}`
-                    : `Von der Maschine erzeugt (${artefakt.generatedBy ?? '—'}), von niemandem beanstandet — Vertrauensstufe: ${verificationLabel(artefakt.verification)}`
+                  : beauftragt
+                    ? `Korrekturauftrag offen: ${artefakt.korrekturAuftrag ?? ''}`
+                    : geprueft
+                      ? `verified_by: ${artefakt.verifiedBy ?? '—'}`
+                      : `Von der Maschine erzeugt (${artefakt.generatedBy ?? '—'}), von niemandem beanstandet — Vertrauensstufe: ${verificationLabel(artefakt.verification)}`
               }
             >
-              {markiert ? 'stimmt nicht' : geprueft ? 'geprueft' : 'angenommen'}
+              {markiert ? 'stimmt nicht' : beauftragt ? 'Auftrag offen' : geprueft ? 'geprueft' : 'angenommen'}
             </KopfChip>
           )}
           <span className="ml-auto flex items-center gap-1.5">

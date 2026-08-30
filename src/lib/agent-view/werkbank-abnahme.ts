@@ -6,8 +6,8 @@
  * nichts massenhaft zu bestaetigen; genau ihre Existenz war das Symptom der
  * Zustimmungspflicht. Geblieben sind das Einspielen eines frisch kurierten
  * Artefakts in seine Familie und der Sprung — der zielt jetzt auf den
- * naechsten WIDERSTAND (Fehler-Markierung), nicht auf das naechste
- * Unbestaetigte.
+ * naechsten WIDERSTAND (Fehler-Markierung oder offener Korrekturauftrag),
+ * nicht auf das naechste Unbestaetigte.
  *
  * Reine Funktionen, kein I/O.
  *
@@ -15,7 +15,19 @@
  */
 
 import type { LeadingArtifactSummary, TwinFamilySummary } from './types'
-import { familienPruefstand } from './werkbank-baum'
+import { familienPruefstand, type FamilienPruefstand } from './werkbank-baum'
+
+/**
+ * Was ein Sprungziel ausmacht (ADR 0006 + K3): ein benannter Fehler ODER ein
+ * offener Korrekturauftrag. Beides ist Widerstand — der eine wartet auf
+ * Peters Entscheidung, der andere auf Coworks Arbeit, aber beim Durchgehen
+ * will er beide sehen.
+ */
+const WIDERSTAENDE: readonly FamilienPruefstand[] = ['markiert', 'auftrag']
+
+function istWiderstand(familie: TwinFamilySummary): boolean {
+  return WIDERSTAENDE.includes(familienPruefstand(familie))
+}
 
 export type PruefbareArt = 'transkript' | 'zusammenfassung'
 
@@ -31,7 +43,7 @@ export function patchFamilie(
 /**
  * Naechster WIDERSTAND nach `abSourceId` (ADR 0006) — vorwaerts in
  * Listen-Reihenfolge, am Ende von vorn; die Ausgangsfamilie zaehlt nicht.
- * null = kein markierter Fehler mehr im Teilbaum.
+ * null = kein Widerstand mehr im Teilbaum (weder Markierung noch Auftrag).
  */
 export function naechsterWiderstand(
   familien: readonly TwinFamilySummary[],
@@ -42,16 +54,16 @@ export function naechsterWiderstand(
   for (let schritt = 1; schritt <= anzahl; schritt += 1) {
     const familie = familien[(start + schritt + anzahl) % anzahl]
     if (familie === undefined || familie.sourceId === abSourceId) continue
-    if (familienPruefstand(familie) === 'markiert') return familie
+    if (istWiderstand(familie)) return familie
   }
   return null
 }
 
 /** Ergebnis des Sprungs nach einer Kurations-Aktion (ADR 0006). */
 export interface SprungErgebnis {
-  /** Naechster Widerstand; null = kein markierter Fehler mehr. */
+  /** Naechster Widerstand; null = weder Markierung noch offener Auftrag mehr. */
   naechste: TwinFamilySummary | null
-  /** Der DIREKTE Ordner der Familie traegt keine Markierung mehr. */
+  /** Der DIREKTE Ordner der Familie traegt keinen Widerstand mehr. */
   ordnerFertig: boolean
   /** Das Ziel liegt in einem anderen Ordner. */
   ordnerGewechselt: boolean
@@ -78,12 +90,12 @@ export function sprungNachVerifikation(
   const naechste = naechsterWiderstand(liste, gepatcht.sourceId)
   const ordnerFertig = liste
     .filter((familie) => familie.folderId === gepatcht.folderId)
-    .every((familie) => familienPruefstand(familie) !== 'markiert')
+    .every((familie) => !istWiderstand(familie))
   return {
     naechste,
     ordnerFertig,
     ordnerGewechselt: naechste !== null && naechste.folderId !== gepatcht.folderId,
-    vorhabenFertig: naechste === null && familienPruefstand(gepatcht) !== 'markiert',
+    vorhabenFertig: naechste === null && !istWiderstand(gepatcht),
   }
 }
 
