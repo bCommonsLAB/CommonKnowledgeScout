@@ -17,6 +17,7 @@ import {
 import { FileText, ExternalLink } from 'lucide-react'
 import { ViewTypeBadge } from '@/components/library/view-type-badge'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useGalleryViewer } from '@/contexts/gallery-viewer-context'
 import { useTranslation } from '@ks/i18n/react'
 import {
   getSourceTypeLabel,
@@ -46,7 +47,8 @@ interface ReferenceListProps {
 export function ReferenceList({ references, libraryId, queryId, onDocumentClick, variant = 'full' }: ReferenceListProps) {
   const { t } = useTranslation()
   const activeLibraryId = useActiveLibraryId()
-  const sessionHeaders = useSessionHeaders()
+  const { isSignedIn: viewerIsSignedIn } = useGalleryViewer()
+  const sessionHeaders = useSessionHeaders(viewerIsSignedIn)
   const [sources, setSources] = useState<QuerySource[]>([])
   const [isLoadingSources, setIsLoadingSources] = useState(false)
 

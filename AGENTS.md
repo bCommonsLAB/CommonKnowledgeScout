@@ -75,6 +75,20 @@ Sessions nicht doppelt bauen:
   ist nicht die Groesse, sondern `src/utils/document-navigation.ts`: die Datei
   kennt zwei fest verdrahtete Routen-Formen und faellt sonst auf
   `/library/gallery` zurueck.
+- **Umzugs-Messung** (2026-08-30):
+  [`02-audit-umzug.md`](docs/refactor/modularisierung/02-audit-umzug.md) — die
+  Grundlage fuer den eigentlichen Umzug nach `@ks/module-explorer`.
+  Der Umfang laut Landkarte §5 sind **189 Dateien / 34.760 Zeilen**.
+  **Befund, der den Zuschnitt aendert: `src/lib/chat` gehoert nicht hinein.**
+  32 Dateien, 9.939 Zeilen Server-Stack (DB, Ingestion, Repositories, Jobs);
+  15 seiner 23 Aussen-Gruppen braucht nur dieser Ordner, 52 Dateien ausserhalb
+  haengen daran, und die Chat-UI zieht 28 ihrer 30 Importe aus einer einzigen
+  Vokabeldatei (`lib/chat/constants`, 816 Zeilen, bereits
+  abhaengigkeitsfrei, 51 Konsumenten). **Die Landkarten-Zeile §5 ist insoweit
+  zu korrigieren.** Ohne `lib/chat`: 157 Dateien / 24.821 Zeilen.
+  Die fuenf UI-Bereiche haengen nur ueber **14 Kreuzverweise** zusammen (mit
+  Zyklen Galerie ↔ Chat-UI und Galerie ↔ Website) — erst die zu Slots machen,
+  dann Bereich fuer Bereich umziehen. Reihenfolge und Beweis-Ziele im Audit.
 - **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
   bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
   Docker-Build nicht — gruene PR-Checks sind kein Beleg.

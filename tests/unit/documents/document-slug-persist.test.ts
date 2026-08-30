@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
+import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist'
 
 describe('buildDocumentSlugFallback', () => {
   it('erzeugt stabilen Slug aus Artefaktnamen', () => {

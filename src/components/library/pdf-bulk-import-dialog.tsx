@@ -31,7 +31,7 @@ import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 import { getMediaKind, isPipelineSupported } from '@/lib/media-types';
 // Shadow-Twin-Ordner erkennen (Prefix '_' oder '.'), damit sie beim Scan übersprungen werden
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
-import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
+import { shouldFilterShadowTwinFolders } from '@ks/util';
 import { matchesGlobFileName } from '@/lib/strings/glob-file-name';
 
 // Rückwärtskompatible Props-Benennung (Dialog unterstützt jetzt alle Medientypen)

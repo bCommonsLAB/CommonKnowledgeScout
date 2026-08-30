@@ -36,7 +36,7 @@ import { useChatScroll } from './hooks/use-chat-scroll'
 import { getInitialTargetLanguage, getInitialCharacter, getInitialAccessPerspective, getInitialSocialContext, getInitialGenderInclusive, getInitialLlmModel } from './utils/chat-storage'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useAnonymousPreferences } from '@/hooks/use-anonymous-preferences'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import { useChatHistory } from './hooks/use-chat-history'
 import { useChatStream } from './hooks/use-chat-stream'
 import { useChatTOC } from './hooks/use-chat-toc'
@@ -128,7 +128,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const { save: saveAnonymousPreferences } = useAnonymousPreferences()
   
   // Session Headers
-  const sessionHeaders = useSessionHeaders()
+  const sessionHeaders = useClerkSessionHeaders()
   
   // Handler für Config-Popover: Speichere Werte beim Schließen
   function handleConfigPopoverChange(open: boolean) {

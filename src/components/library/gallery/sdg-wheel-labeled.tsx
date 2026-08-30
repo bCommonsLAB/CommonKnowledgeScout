@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { SDG_LIST, type SdgValue } from "@/lib/documents/sdg-meta";
+import { SDG_LIST, type SdgValue } from "@ks/util";
 import { SdgWheel, spokeAngleDeg, polarToCartesian } from "./sdg-wheel";
 import { SdgIcon } from "./sdg-icon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'

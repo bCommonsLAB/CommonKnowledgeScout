@@ -8,8 +8,7 @@
  * loggt unbekannte Typen explizit (no-silent-fallbacks.mdc).
  */
 
-import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
-import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
+import { DETAIL_VIEW_TYPES, type DetailViewType } from '@ks/contracts'
 
 /**
  * Liste aller gueltigen DetailViewTypes (Plan-Welle 3-III).
@@ -19,7 +18,7 @@ import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
  * zentralen Registry — hier stand frueher eine eigene Kopie der Liste
  * (Galerie-Audit, Befund 3c).
  */
-export const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [...DETAIL_VIEW_TYPES]
+export const VALID_DETAIL_VIEW_TYPES: DetailViewType[] = [...DETAIL_VIEW_TYPES]
 
 /**
  * Pure-Helper fuer detailViewType-Validierung.
@@ -30,10 +29,10 @@ export const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [...DETA
  * KEIN silent fallback fuer ungueltige Werte — der Default ist
  * dokumentiert, der Aufrufer kennt das Verhalten.
  */
-export function resolveInitialDetailViewType(value: unknown): TemplatePreviewDetailViewType {
+export function resolveInitialDetailViewType(value: unknown): DetailViewType {
   if (typeof value !== 'string') return 'book'
-  if (VALID_DETAIL_VIEW_TYPES.includes(value as TemplatePreviewDetailViewType)) {
-    return value as TemplatePreviewDetailViewType
+  if (VALID_DETAIL_VIEW_TYPES.includes(value as DetailViewType)) {
+    return value as DetailViewType
   }
   return 'book'
 }
@@ -90,11 +89,11 @@ export function pickFacetsForTableColumns(
  */
 export function resolveDetailViewTypeForDoc(
   perDocViewType: unknown,
-  libraryFallback: TemplatePreviewDetailViewType,
-): TemplatePreviewDetailViewType {
+  libraryFallback: DetailViewType,
+): DetailViewType {
   if (typeof perDocViewType === 'string' && perDocViewType.length > 0) {
-    if (VALID_DETAIL_VIEW_TYPES.includes(perDocViewType as TemplatePreviewDetailViewType)) {
-      return perDocViewType as TemplatePreviewDetailViewType
+    if (VALID_DETAIL_VIEW_TYPES.includes(perDocViewType as DetailViewType)) {
+      return perDocViewType as DetailViewType
     }
     console.warn(
       `[detailViewType] Unbekannter detailViewType "${perDocViewType}" am Dokument — Fallback auf Library-Default "${libraryFallback}". Template/Registry pruefen.`,

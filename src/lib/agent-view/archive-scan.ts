@@ -18,7 +18,7 @@
 
 import { collectTwinFolder, readDoc, toFileEntry } from './archive-scan-readers'
 import { compileExcludeGlobs, isExcludedPath } from '@/lib/shadow-twin/sync-engine/scan-exclude'
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { isShadowTwinFolderName } from '@ks/util'
 import type { StorageItem } from '@/lib/storage/types'
 import { readBearbeitungsstand } from './bearbeitungsstand'
 import type { ArchiveFolderNode, ArchiveScanResult } from './archive-types'

@@ -58,7 +58,7 @@ import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom, shadowTwinImportActivityAtom } from "@/atoms/shadow-twin-atom";
 import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
-import { shouldFilterShadowTwinFolders } from "@/lib/storage/shadow-twin-folder-name";
+import { shouldFilterShadowTwinFolders } from "@ks/util";
 import { isImageMediaFromName } from "@/lib/media-types";
 import { CompositeMultiCreateDialog, deriveCompositeMultiDefaultFilename } from "./composite-multi-create-dialog";
 import { FolderSyncDialog } from "./folder-sync-dialog";

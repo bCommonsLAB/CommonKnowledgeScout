@@ -22,7 +22,7 @@
 import type { Library } from '@/types/library'
 import type { StorageProvider } from '@/lib/storage/types'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { isShadowTwinFolderName } from '@ks/util'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { updateShadowTwinSourceLocation } from '@/lib/repositories/shadow-twin-location'
 import { selectSiblingArtifactFiles } from '@/lib/shadow-twin/shadow-twin-migration-writer'

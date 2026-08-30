@@ -16,7 +16,7 @@ import { TOC_QUESTION, characterArrayToString, accessPerspectiveArrayToString } 
 import { compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
 import { parseSSELines } from '@/utils/sse'
 import { formatChatError } from '@/utils/error-format'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import type { UseChatStreamParams, UseChatStreamResult } from './types'
 
 /**
@@ -50,7 +50,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
 
   const [isSending, setIsSending] = useState(false)
   const [processingSteps, setProcessingSteps] = useState<ChatProcessingStep[]>([])
-  const sessionHeaders = useSessionHeaders()
+  const sessionHeaders = useClerkSessionHeaders()
 
   const sendQuestion = useCallback(
     async (

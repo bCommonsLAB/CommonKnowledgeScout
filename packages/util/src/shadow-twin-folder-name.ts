@@ -1,0 +1,81 @@
+/**
+ * Shadow-Twin-Ordnernamen — reine String-Logik (ohne Node `path`), damit Client und Server identisch bleiben.
+ */
+
+const SHADOW_TWIN_FOLDER_PREFIX = '_'
+
+/**
+ * Twin-Ordner tragen ausschliesslich den Praefix `_`.
+ *
+ * Der frueher zusaetzlich tolerierte Legacy-Praefix `.` ist entfallen:
+ * Bestaende werden mit `scripts/normalize-shadow-twin-folders.ts` einmalig
+ * umbenannt. WICHTIG: Eine Library, die noch `.`-Ordner enthaelt, muss vorher
+ * normalisiert werden — sonst wird ihr Twin-Ordner nicht mehr gefunden und ein
+ * zweiter mit `_` angelegt.
+ */
+export function isShadowTwinFolderName(name: string): boolean {
+  return name.startsWith(SHADOW_TWIN_FOLDER_PREFIX)
+}
+
+/**
+ * Ordnersegment `_Quelldatei.pdf` aus dem ursprünglichen Dateinamen (wie bisher in shadow-twin.ts).
+ */
+export function generateShadowTwinFolderName(originalName: string, maxLength: number = 255): string {
+  const cleanName = originalName.trim().replace(/^\/+|\/+$/g, '')
+  const folderName = `${SHADOW_TWIN_FOLDER_PREFIX}${cleanName}`
+
+  if (folderName.length <= maxLength) {
+    return folderName
+  }
+
+  const lastDot = cleanName.lastIndexOf('.')
+  const extension = lastDot > 0 ? cleanName.slice(lastDot) : ''
+  const baseName = lastDot > 0 ? cleanName.slice(0, lastDot) : cleanName
+
+  const reservedLength = 2 + extension.length
+  const availableLength = maxLength - reservedLength
+
+  if (availableLength <= 0) {
+    return `${SHADOW_TWIN_FOLDER_PREFIX}${extension}`
+  }
+
+  const truncatedBase = baseName.length > availableLength
+    ? baseName.slice(0, availableLength)
+    : baseName
+
+  return `${SHADOW_TWIN_FOLDER_PREFIX}${truncatedBase}${extension}`
+}
+
+/**
+ * Relativer Medien-Verweis für Frontmatter: `_Quelle.pdf/img-0.jpeg`
+ * (Twin-Ordner / Fragment-Dateiname, eindeutig bei mehreren PDFs).
+ */
+export function buildTwinRelativeMediaRef(sourceFileName: string, fragmentFileName: string): string {
+  const folder = generateShadowTwinFolderName(sourceFileName)
+  const leaf = fragmentFileName.trim().replace(/^\/+|\/+$/g, '')
+  return `${folder}/${leaf}`
+}
+
+/**
+ * Bestimmt, ob Shadow-Twin-Ordner (mit `_` / `.` Prefix) in der UI gefiltert werden sollen.
+ * Nur wenn Shadow-Twins tatsächlich im Filesystem gespeichert werden, macht das Filtern Sinn.
+ * Ohne Filesystem-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
+ */
+export function shouldFilterShadowTwinFolders(shadowTwinConfig?: {
+  persistToFilesystem?: boolean;
+}): boolean {
+  // Gleiches Defaulting wie getShadowTwinConfig: Backup-Spiegel ist an,
+  // bis er explizit abgeschaltet wird.
+  return shadowTwinConfig?.persistToFilesystem ?? true
+}
+
+export function parseTwinRelativeImageRef(ref: string): { twinFolderName: string; imageFileName: string } | null {
+  const normalized = ref.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  if (!normalized || normalized.includes('..')) return null
+  const slash = normalized.indexOf('/')
+  if (slash < 0) return null
+  const twinFolderName = normalized.slice(0, slash)
+  const imageFileName = normalized.slice(slash + 1).replace(/^\/+/, '')
+  if (!imageFileName || !isShadowTwinFolderName(twinFolderName)) return null
+  return { twinFolderName, imageFileName }
+}

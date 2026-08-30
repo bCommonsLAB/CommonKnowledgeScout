@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { computeSynergyAdjustedSum } from '@/lib/graph/synergy-sum'
+import { computeSynergyAdjustedSum } from '@/lib/gallery/synergy-sum'
 
 describe('computeSynergyAdjustedSum', () => {
   it('zaehlt zwei identische Massnahmen (s=1, alpha=1) ~einmal', () => {

@@ -11,10 +11,9 @@
  */
 
 import { useState } from 'react'
-import { useSetAtom } from 'jotai'
 import { Button, Badge, toast } from '@ks/ui'
 import { RefreshCw, AlertTriangle } from 'lucide-react'
-import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { useTranslation } from '@ks/i18n/react'
 
 interface DocGraphRelationsBarProps {
@@ -28,7 +27,7 @@ interface DocGraphRelationsBarProps {
 
 export function DocGraphRelationsBar({ libraryId, canManage, stale, computedAt }: DocGraphRelationsBarProps) {
   const { t } = useTranslation()
-  const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
+  const { jobGestartet } = useGalleryHost()
   const [busy, setBusy] = useState(false)
 
   const recompute = async () => {
@@ -43,7 +42,7 @@ export function DocGraphRelationsBar({ libraryId, canManage, stale, computedAt }
       const data = await res.json().catch(() => null)
       if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : res.statusText)
       toast({ title: t('gallery.graph.relationsRecomputeQueued') })
-      setJobPanelOpen(true)
+      jobGestartet()
     } catch (e) {
       toast({
         title: t('gallery.graph.relationsRecomputeError'),

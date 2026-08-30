@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import type { DocReference, QuerySource } from '@ks/contracts'
+import type { DocReference, QuerySource, DetailViewType } from '@ks/contracts'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -10,7 +10,6 @@ import { Tabs, TabsContent, toast, Button, ScrollArea } from '@ks/ui'
 import { FilterContextBar } from '@/components/library/filter-context-bar'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
-import { CaptureContentButton } from '@/components/submissions/capture-content-button'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ViewTypeLeadFilter } from '@/components/library/gallery/view-type-lead-filter'
 import { ItemsView } from '@/components/library/gallery/items-view'
@@ -18,7 +17,7 @@ import { GroupedItemsView } from '@/components/library/gallery/grouped-items-vie
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
-import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { useDebouncedValue } from '@/hooks/gallery/use-debounced-value'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
 import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
@@ -32,10 +31,9 @@ import { getSummableFields } from '@/lib/detail-view-types/registry'
 import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
-import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useOwnFavoriteIds, useUserStates } from '@/hooks/gallery/use-user-states'
@@ -69,6 +67,15 @@ export interface GalleryRootProps {
    * in der oeffentlichen Slug-Ansicht kein Galerie-Inhalt.
    */
   hideWebsiteDocs?: boolean
+  /**
+   * Bedienelemente des Gastgebers im Kopf der Galerie — heute der
+   * Erfassungs-Knopf der Voll-App. Als Slot statt als Import, weil Erfassung
+   * ein anderes Modul ist (Galerie-Audit, Gruppe B).
+   *
+   * Bekommt die aufgeloeste `libraryId`, weil sie erst hier feststeht: Sie
+   * kann aus `libraryIdProp` ODER aus dem Auswahl-Atom kommen.
+   */
+  kopfAktionen?: (libraryId: string) => React.ReactNode
 }
 
 const LazyChatPanel = dynamic(
@@ -93,6 +100,7 @@ export function GalleryRoot({
   showSiteTab = false,
   defaultToSite = false,
   hideWebsiteDocs = false,
+  kopfAktionen,
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useActiveLibraryId()
@@ -121,7 +129,11 @@ export function GalleryRoot({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const sessionHeaders = useSessionHeaders()
+  // Der Betrachter kommt hereingereicht, nicht aus Clerk. `selfEmail`/`selfName`
+  // braucht die Galerie, um sich in einer Voter-Liste selbst wiederzuerkennen;
+  // `isSignedIn` speist die Session-Header fuer anonyme Aufrufe.
+  const { isSignedIn: viewerIsSignedIn, email: selfEmail, displayName: selfName } = useGalleryViewer()
+  const sessionHeaders = useSessionHeaders(viewerIsSignedIn)
   const [sources, setSources] = React.useState<QuerySource[]>([])
   
   // Nur den Character-Atomwert lesen (leichtgewichtig).
@@ -314,11 +326,6 @@ export function GalleryRoot({
   // Eigene Favoriten-IDs nur laden, wenn der "Nur Favoriten"-Filter
   // aktiv ist - Fallback bis `isFavorite` auf allen Karten verfuegbar ist.
   const { favoriteIds } = useOwnFavoriteIds(libraryId, { enabled: onlyFavoritesActive })
-  // Eigene Kennung fuer optimistische Stern-/Kommentar-Anzeigen: Die Galerie
-  // muss sich in einer Voter-Liste selbst wiedererkennen. Kommt aus dem
-  // hereingereichten Betrachter, nicht aus Clerk — sonst haengt die Galerie an
-  // einem Auth-Anbieter und ist nicht einbettbar.
-  const { email: selfEmail, displayName: selfName } = useGalleryViewer()
   const { setState: setUserStarState } = useUserStates(libraryId, [])
 
   // Gemeinsames Praedikat fuer die clientseitigen Engagement-Filter:
@@ -454,7 +461,7 @@ export function GalleryRoot({
   // (config.chat.gallery.graph). Gilt fuer ALLE Nutzer der Library -> nur Owner.
   // chat wird serverseitig flach gemergt -> die VOLLSTAENDIGE gallery senden,
   // damit detailViewType/facets nicht verloren gehen.
-  const handleSaveGraphDefault = React.useCallback(async (nextGraph: import('@/types/library').GalleryGraphConfig) => {
+  const handleSaveGraphDefault = React.useCallback(async (nextGraph: import('@ks/contracts').GalleryGraphConfig) => {
     if (!libraryId || !activeLibrary || !isOwner) return
     const existingGallery = (activeLibrary.config?.chat?.gallery ?? {}) as Record<string, unknown>
     const galleryPayload = { ...existingGallery, graph: nextGraph }
@@ -652,14 +659,14 @@ export function GalleryRoot({
   // Bestimme viewType für DetailOverlay:
   // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
   // - Fallback: Library-Config
-  const detailViewTypeForDoc = useMemo<TemplatePreviewDetailViewType>(() => {
+  const detailViewTypeForDoc = useMemo<DetailViewType>(() => {
     // Library-Fallback bestimmen (zentral via util)
     const activeLibraryForFallback = libraries.find(lib => lib.id === libraryId)
     const libraryConfig = activeLibraryForFallback?.config?.chat
-    const libraryFallback = getDetailViewType({}, libraryConfig) as TemplatePreviewDetailViewType
+    const libraryFallback = getDetailViewType({}, libraryConfig) as DetailViewType
 
     // Wenn kein Dokument ausgewaehlt: nimm den (gerade aktiven) detailViewType der Galerie
-    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType
+    if (!selectedDoc) return detailViewType as DetailViewType
 
     // Helper kuemmert sich um Validierung + 'book'-Fallback (kein silent fallback)
     return resolveDetailViewTypeForDoc(selectedDoc.detailViewType, libraryFallback)
@@ -699,7 +706,7 @@ export function GalleryRoot({
       setReferencesSheetData(null)
     }
     // Nutze zentrale Utility-Funktion für URL-basierte Navigation
-    openDocumentBySlug(slug, libraryId || '', router, pathname, searchParams)
+    openDocumentBySlug(slug, router, pathname, searchParams)
   }
   
   const handleCloseDocument = () => {
@@ -1092,7 +1099,7 @@ export function GalleryRoot({
             cardDensity={cardDensity}
             onCardDensityChange={handleCardDensityChange}
             showGraph={graphEnabled}
-            actions={<CaptureContentButton libraryId={libraryId} />}
+            actions={kopfAktionen?.(libraryId)}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>

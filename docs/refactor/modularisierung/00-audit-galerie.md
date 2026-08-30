@@ -590,3 +590,322 @@ nicht an, ausser der Gastgeber bittet darum. Dann waere die Loesung nicht
 „Protokoll injizieren", sondern: Das Modul fuehrt seinen Zustand selbst, und
 die Voll-App klinkt sich optional in die URL ein. Das ist eine Entscheidung,
 die der Owner treffen sollte, bevor jemand baut.
+
+## Nachtrag (2026-08-29): der lange Schwanz, abgearbeitet und sortiert
+
+Vor dem Paketumzug muss die Galerie aufhoeren, an der App zu ziehen. Gemessen
+waren es **30 Importgruppen**; nach dieser Welle sind es **20**, und die
+verbleibenden sind sortiert.
+
+### Erledigt
+
+| Was | Wohin | Umfang |
+|---|---|---|
+| `cn` | `@ks/util` | 10 Importe |
+| `FavoriteVoter`, `GalleryGraphConfig`, `DetailViewType`, `DETAIL_VIEW_TYPES`, `isValidDetailViewType` | `@ks/contracts` | 15 Dateien |
+| `formatUpsertedAt`, `tryDecodeRelativePathFromFileId` | `@ks/util` (`git mv` + Weiterleitung) | 5 Importe |
+| Kommentar-Typen (6 Interfaces) | `@ks/contracts` (`git mv` + Weiterleitung) | 2 Importe |
+
+**Der groesste Teil war kein Umzug, sondern ein Zeigefehler**: Diese Dinge
+lagen laengst im Vertrag oder in `@ks/util`; die Galerie holte sie ueber
+App-Weiterleitungen. Das faellt bei einer Paketgrenze sofort auf die Fuesse,
+weil ein Paket `@/*` nicht aufloesen kann.
+
+### Was bleibt — mit Entscheidung
+
+**A. Zieht mit dem Modul um (keine Arbeit, das IST der Umzug)** — 19 Importe:
+`utils/document-slug`, `atoms/gallery-filters`, `atoms/chat-references-atom`,
+`atoms/gallery-data`, `utils/document-navigation`.
+
+**B. Muss injiziert werden — echtes App-Wissen** — 6 Importe:
+
+| Posten | Warum | Muster |
+|---|---|---|
+| `atoms/job-monitor-panel-open-atom` (4) | Job-Monitor ist Werkbank, nicht Galerie | wie Betrachter/Adressierung |
+| `components/submissions/capture-content-button` (1) | Erfassung ist ein anderes Modul | Slot |
+| `atoms/story-context-atom` (1) | Story-Zustand; gehoert zum selben Modul, aber quer | mitziehen oder Slot |
+
+**C. Braucht je ein Urteil** — 12 Importe:
+
+| Posten | Vorschlag |
+|---|---|
+| `lib/templates` (3) | `TemplatePreviewDetailViewType` ist schon ein Alias auf `DetailViewType` → Import direkt aus `@ks/contracts`; `getDetailViewType` rechnet → bleibt App oder zieht mit |
+| `lib/detail-view-types` (3) | `getSummableFields`, `getPresentDetailViewTypes` rechnen ueber die Registry → bleiben App-seitig, Galerie bekommt das Ergebnis hereingereicht |
+| `hooks/use-session-headers` (2) | siehe unten — braucht nur `isSignedIn` |
+| `types/item` (1) | `Item` ist das Mongo-Modell → `@ks/contracts`, wie `DocCardMeta` |
+| `types/source-user-state` (1) | Rest-Typen → `@ks/contracts` |
+| `lib/{storage,mappers,i18n,graph,documents}` (5) | je eine Funktion; pruefen, ob sie mitzieht oder in `@ks/util`/`@ks/contracts` gehoert |
+| `hooks/use-scroll-visibility`, `use-debounced-value` (2) | generische React-Hooks; `@ks/util` scheidet aus (React-frei), also `@ks/ui` oder mitziehen |
+
+### Ein Befund, der eine frueher Aussage einschraenkt
+
+Der Nachtrag zur Welle „Galerie-Betrachter" sagt, die Galerie kenne keinen
+Auth-Anbieter mehr. **Das galt nur eine Ebene tief.** `use-session-headers`
+ruft intern `useUser()` von Clerk, und die Galerie nutzt den Hook an zwei
+Stellen.
+
+`galerie-schnitt.test.ts` prueft das jetzt eine Ebene weiter: Ziehen die
+App-Module, die die Galerie importiert, ihrerseits einen Anmeldedienst? Der
+bekannte Umweg steht als **begruendete Ausnahme** darin, nicht stillschweigend.
+Dass der Test greift, ist nachgewiesen — ohne die Ausnahme wird er rot.
+
+**Warum nicht gleich behoben**: Der Hook braucht von Clerk nur `isSignedIn` —
+genau das, was der Betrachter traegt. Von fuenf weiteren Aufrufern hat aber nur
+einer den Wert zur Hand; der Umbau haette vier Chat-Dateien und einen App-Hook
+mitgezogen. Eigene kleine Welle, keine Nebenwirkung dieser hier.
+
+## Nachtrag (2026-08-30): Gruppe C, erste Haelfte
+
+Von **20 Importgruppen auf 17**. Entschieden wurde nach drei Fragen: Wie viele
+Zeilen? Welche Importe (also: rein oder nicht)? Wie viele Nutzer ausserhalb der
+Galerie?
+
+| Posten | Zeilen | Importe | Nutzer ausserhalb | Entscheidung |
+|---|---:|---|---:|---|
+| `shadow-twin-folder-name` | 81 | **keine** | 12 | → `@ks/util` |
+| `synergy-sum` | 121 | **keine** | **0** | → `src/lib/gallery/` (zieht mit) |
+| `use-debounced-value` | 25 | nur React | **0** | → `src/hooks/gallery/` (zieht mit) |
+| `TemplatePreviewDetailViewType` | — | — | — | war laengst ein Alias auf `DetailViewType` → direkt aus `@ks/contracts` |
+
+Die dritte Spalte war der Entscheider. **Null Importe und null Fremdnutzer**
+heisst: zieht mit dem Modul, keine Diskussion. **Null Importe und zwoelf
+Fremdnutzer** heisst: gehoert allen, also in den Werkzeugkasten.
+
+### Was noch offen ist — 17 Gruppen
+
+**Zieht mit (19 Importe)**: `utils/document-slug`, `atoms/gallery-filters`,
+`atoms/chat-references-atom`, `atoms/gallery-data`, `utils/document-navigation`.
+
+**Muss injiziert werden (6)**: `atoms/job-monitor-panel-open-atom` (4),
+`components/submissions` (1), `atoms/story-context-atom` (1).
+
+**Braucht je ein Urteil (12)**:
+
+| Posten | Befund | Schwierigkeit |
+|---|---|---|
+| `lib/detail-view-types` (3) | `getSummableFields`, `getPresentDetailViewTypes` rechnen ueber die Registry; die Registry-DATEN sind rein (Audit-Befund 3b), der Rest nicht | mittel — Registry-Daten koennten in den Vertrag |
+| `types/item` (1) | **444 Nutzer** im Repo | eigene Welle, kein Schwanz-Posten |
+| `lib/i18n/get-localized` (1) | 259 Z., haengt an `@ks/i18n` und `@/types/doc-meta`, 8 Fremdnutzer | mittel |
+| `lib/templates/detail-view-type-utils` (1) | 41 Z., drei Importe, 7 Fremdnutzer | bleibt App |
+| `lib/mappers/doc-meta-mappers` (1) | 689 Z., Detailansichten-Mapper | zieht mit dem Modul |
+| `lib/documents/sdg-meta` (1) | rein, aber **Fachlogik** — `@ks/util` verbietet die ausdruecklich, `@ks/contracts` rechnet nicht | **Luecke in der Paketstruktur** |
+| `hooks/use-session-headers` (2) | seit der Entkopplung Clerk-frei | zieht mit; die App nimmt dann `useClerkSessionHeaders` aus dem Paket |
+| `hooks/use-scroll-visibility` (1) | 62 Z., React, 3 Fremdnutzer | → `@ks/ui` |
+| `types/source-user-state` (1) | Rest-Typen | → `@ks/contracts` |
+
+### Ein Befund, der ueber den Schwanz hinausgeht
+
+`sdg-meta` passt in kein vorhandenes Paket: Es ist rein und wird von beiden
+Seiten gebraucht, ist aber **Fachlogik** — und `@ks/util` schliesst Fachlogik
+ausdruecklich aus, waehrend `@ks/contracts` beschreibt statt zu rechnen.
+
+Dasselbe wird fuer `synergy-sum` gelten, sobald es jemand ausserhalb der
+Galerie braucht. Es fehlt ein Ort fuer **geteilte Dokument-Fachlogik ohne
+UI** — heute behilft sich das Repo mit `src/lib/documents/`, was aus einem
+Paket nicht erreichbar ist. Das ist keine Schwanz-Frage mehr, sondern eine
+Zuschnitt-Frage fuer den Umzug.
+
+## Nachtrag (2026-08-30): Gruppe B — die Galerie oeffnet keine fremden Bedienflaechen mehr
+
+Von **17 Importgruppen auf 15**. Gruppe B war mit sechs Importen angesetzt;
+einer davon war falsch einsortiert.
+
+| Posten | Befund | Loesung |
+|---|---|---|
+| `jobMonitorPanelOpenAtom` (4) | Alle vier schreiben nur (`useSetAtom`) — die Galerie klappt nach einem angestossenen Job die **Werkbank**-Anzeige auf | Gastgeber-Vertrag: `jobGestartet()` |
+| `components/submissions/capture-content-button` (1) | Erfassung ist ein anderes Modul | Slot `kopfAktionen` |
+| `atoms/story-context-atom` (1) | **Falsch einsortiert.** Nutzer sind Chat, Galerie und ein Story-Hook — alle im selben Modul | zieht mit, keine Injektion |
+
+### Der Gastgeber-Vertrag
+
+Dritte Bruecke nach Betrachter (wer schaut zu) und Adressierung (wie wird
+adressiert). Dieselbe Form: Die Galerie sagt WAS, der Gastgeber entscheidet WIE.
+
+```ts
+interface GalleryHost {
+  jobGestartet(): void   // ohne Rueckgabewert — die Galerie darf nicht
+}                        // davon abhaengen, dass jemand reagiert
+```
+
+`STILLER_GASTGEBER` ist der Embed-Fall: Eine fremde Seite hat keinen
+Job-Monitor. Bewusst ein benanntes Objekt und kein Default im Kontext — wer
+nichts anzeigen will, sagt das, statt es zu vergessen.
+
+### Der Slot
+
+`kopfAktionen?: (libraryId: string) => ReactNode` — als Render-Funktion, weil
+die `libraryId` erst in `GalleryRoot` feststeht: Sie kann aus der Prop ODER aus
+dem Auswahl-Atom kommen.
+
+### Was die Pruefung gezeigt hat
+
+- **Live belegt**: Der Erfassungs-Knopf rendert als echter `<button>` mit
+  aufgeloester `libraryId` — der Slot traegt.
+- **Nicht live belegt**: Die vier Job-Melder sind besitzer-only und rendern in
+  einer abgemeldeten Sitzung nicht; der Hook wird also nie ausgefuehrt. Ein
+  Owner-Durchgang haette einen echten Neuberechnungs-Job gegen die
+  Produktivdatenbank gestartet. Stattdessen deckt
+  `tests/unit/contexts/gallery-host-context.test.tsx` den Vertrag ab: wirft
+  ohne Anbieter, reicht durch, und der stille Gastgeber tut nichts.
+- **`pnpm lint` hat vier verwaiste `useSetAtom`-Importe gefunden, `tsc` nicht.**
+  Unbenutzte Importe sind keine Typfehler — dafuer gibt es beide Tore.
+
+## Nachtrag (2026-08-30): die Luecke war keine — SDG ist generisch
+
+Der vorige Nachtrag nannte `sdg-meta` eine **Luecke in der Paketstruktur**: rein
+und geteilt, aber Fachlogik — also weder `@ks/util` (verbietet Fachlogik) noch
+`@ks/contracts` (beschreibt, rechnet nicht).
+
+**Owner-Klarstellung (2026-08-30): SDG ist generisch.** Damit loest sich die
+Luecke auf, und die Regel in `@ks/util` war nur zu grob formuliert.
+
+Die Grenze laeuft nicht zwischen „Daten" und „Fachlogik", sondern zwischen
+**oeffentlichem Standard** und **Kundenwissen**:
+
+| Datei | Inhalt | Wohin |
+|---|---|---|
+| `sdg-meta` | die 17 UN-Nachhaltigkeitsziele, Auslesehilfen auf `Record<string, unknown>` | `@ks/util` — so wenig Fachlogik wie eine Liste von Laendercodes |
+| `stakeholder-meta` | enthaelt `LANDESVERWALTUNG` — die Suedtiroler Landesverwaltung | bleibt: das ist ein Kunde, kein Standard |
+
+Die Regel im Kopf von `packages/util/src/index.ts` ist entsprechend
+praezisiert, mit genau diesem Beispielpaar als Grenzmarkierung — damit die
+naechste Person nicht dieselbe Frage neu stellt.
+
+`synergy-sum` bleibt davon unberuehrt: Es ist KnowledgeScout-eigene Bewertung,
+kein Standard, und hat null Nutzer ausserhalb der Galerie — es zieht mit.
+
+**Stand: 14 Importgruppen.** `lib/documents` ist aus dem Galerie-Kegel raus.
+
+### Nebenbefund, unabhaengig von der Modularisierung
+
+Es gibt `document-slug.ts` **zweimal**, mit verschiedenen Zwecken und
+verschiedenen Slug-Regeln:
+
+- `src/lib/documents/document-slug.ts` (22 Z., 5 Nutzer) — beim Persistieren
+- `src/utils/document-slug.ts` (62 Z., 12 Nutzer) — beim Navigieren
+
+Beide leiten fuer Dokumente ohne persistierten `meta.slug` einen Slug aus
+demselben Dateinamen ab, aber mit unterschiedlichen Regeln
+(Extension-Behandlung, Laengenbegrenzung, Ziffern-Praefix). Weichen sie ab,
+findet `docMatchesNavigationSlug` das Dokument nicht — ein geteilter Link zeigt
+ins Leere. Vorbestehend (die zweite Datei stammt aus Commit b0d99469) und als
+eigene Aufgabe notiert.
+
+## Nachtrag (2026-08-30): Gruppe C, Rest — 12 Gruppen
+
+Von **14 auf 12**. Zwei Posten nach derselben Regel einsortiert wie zuvor:
+
+| Posten | Befund | Wohin |
+|---|---|---|
+| `types/source-user-state` | API-Antwortformen (Sterne, „nicht wichtig"), 5 Nutzer | → `@ks/contracts`, wie die Kommentar-Typen |
+| `use-scroll-visibility` | 62 Z., nur React, generisches Scroll-Verhalten, 3 Fremdnutzer | → `@ks/ui`, wo `use-toast` schon liegt |
+
+**Eine Falle dabei**: Nach dem Verschieben zeigte die Galerie weiterhin auf die
+Weiterleitungen an den alten Orten — der Zaehler blieb stehen. Erst das
+Umbiegen der zwei Importe brachte die Gruppen wirklich weg. Weiterleitungen
+halten die App am Laufen, aber sie loesen die Kopplung nicht; das muss man
+getrennt pruefen.
+
+### Was bleibt — 12 Gruppen, davon 8 ohne Arbeit
+
+**Zieht mit dem Modul (19 Importe, keine Arbeit)**: `utils/document-slug` (8),
+`atoms/gallery-filters` (5), `atoms/chat-references-atom` (4),
+`utils/document-navigation` (1), `atoms/gallery-data` (1),
+`atoms/story-context-atom` (1), `lib/mappers/doc-meta-mappers` (1),
+`hooks/use-session-headers` (2, seit der Entkopplung Clerk-frei).
+
+**Braucht noch ein Urteil (6 Importe)**:
+
+| Posten | Warum offen |
+|---|---|
+| `lib/detail-view-types` (3) | `getSummableFields` braucht `VIEW_TYPE_REGISTRY` — 681 Zeilen mit i18n-Schluesseln, geteilt mit Einstellungen, Vorlagen und Chat. Das ist eine eigene Entscheidung, kein Schwanz-Posten |
+| `types/item` (1) | **444 Nutzer** im Repo — eigene Welle |
+| `lib/i18n/get-localized` (1) | 259 Z., haengt an `@ks/i18n` und `@/types/doc-meta`, 8 Fremdnutzer |
+| `lib/templates/detail-view-type-utils` (1) | 41 Z., drei Importe, 7 Fremdnutzer — bleibt App |
+
+### Geprueft und bewusst nicht geaendert
+
+`view-type-display.ts` haelt `VIEW_TYPE_LABELS` (deutsche Endnutzer-Namen:
+„Buch", „Klimamassnahme"). Der Vorlagen-Editor hat daneben eine eigene Tabelle
+mit technischen Namen („Book", „ClimateAction") — angelegt in der
+Eine-Quelle-Welle, um die dort vorher fest verdrahteten Beschriftungen
+unveraendert zu lassen.
+
+Das sieht nach Duplikat aus, ist aber **zwei Zielgruppen**: Endnutzer sehen
+Deutsch, wer Vorlagen bearbeitet sieht den technischen Wert neben dem
+`detailViewType`. Beide sind `Record<DetailViewType, string>` und erzwingen
+weiterhin eine Entscheidung bei einem neuen Typ. Bleibt so.
+
+---
+
+## Nachtrag (2026-08-29): zwei Dateien `document-slug.ts` — zusammengefuehrt
+
+**Vorbestehender Befund, unabhaengig von der Modularisierung.** Aufgefallen im
+langen Schwanz; die Navigationsdatei stammt aus einem eigenen Strang
+(`b0d99469`, „Teams video relay").
+
+### Was tatsaechlich auseinanderlief
+
+Die *Slugifizierung* lief **nicht** auseinander: seit Welle Galerie-Vertrag
+(`5357774`) ruft die Navigationsseite `buildDocumentSlugFallback` auf. Gemessen
+wurde trotzdem eine Abweichung — sie sass woanders, naemlich in der
+**Kandidaten-Reihenfolge**:
+
+| Seite | Reihenfolge | dazu |
+|---|---|---|
+| Persist (`ingestion-service`) | `fileName → source_file → title` | — |
+| Persist (`phase-template`) | Artefaktname → Quellname → `title` | — |
+| Navigation (vorher) | `title → shortTitle → fileName` | Kuerzung 80, Suffix aus `fileId` |
+
+Also **umgekehrte** Prioritaet. Von zehn realistischen Dateinamen wichen fuenf
+schon in der **Basis** ab, nicht bloss um den Suffix:
+
+| Fall | persist (`meta.slug`) | navigation (`?doc=`) | Basis gleich |
+|---|---|---|---|
+| Umlaute (`… von Südtirol.de.md`) | `faunistik-der-gallwespen-von-su-dtirol-de` | `faunistik-der-gallwespen-von-su-dtirol-…` | **nein** |
+| mehrere Punkte (`…_de.off-….de.md`) | `sammel-transkript-2026-…-de-de` | dito + Suffix | ja |
+| Sprachsuffix (`aktionsbericht.de.md`) | `aktionsbericht-de` | `aktionsbericht-…` | **nein** |
+| fuehrende Ziffer (`2025-jahresbericht.md`) | `doc-2025-jahresbericht` | dito + Suffix | ja |
+| Titel ≠ Dateiname (`IMG_20240517_121314.jpg`) | `img-20240517-121314` | `wasserkraftwerk-mu-hlbach-…` | **nein** |
+| sehr langer Name (118 Zeichen) | ungekuerzt | bei 80 gekuerzt | **nein** |
+| `shortTitle` gesetzt | `langer-dateiname-2026` | `kurzfassung-…` | **nein** |
+
+Der Schaden entsteht nicht beim Erzeugen, sondern beim **Nachschreiben**: ein
+Dokument ohne `meta.slug` wird geteilt (`?doc=<basis>-<suffix>`), ein spaeterer
+Ingest schreibt `meta.slug` nach — und `docMatchesNavigationSlug` verglich
+danach **nur noch** gegen den persistierten Slug. Der bereits geteilte Link
+zeigte ins Leere.
+
+### Entscheidung: die Persist-Regel gewinnt
+
+Sie schreibt dauerhafte Daten (MongoDB `item.meta.slug`, Frontmatter,
+Ziel-Dateiname bei der Publikation); die Navigationsseite rechnet fluechtig.
+Eine dritte Variante wurde **nicht** eingefuehrt — die Navigation wurde
+zurueckgefuehrt:
+
+1. **Kandidaten-Reihenfolge angeglichen** auf `fileName → title → shortTitle`.
+   Beide Seiten sehen denselben `fileName` (`mapItemToDocCardMeta` reicht
+   `item.fileName` durch), also ergibt dasselbe Dokument dieselbe Basis.
+2. **Kuerzung und Suffix bleiben** — sie gelten nur fuer URLs, sind jetzt aber
+   als solche benannt (`NAVIGATION_SLUG_MAX_LEN`) statt als nackte `80`.
+3. **`slugifyForDocumentUrl` entfernt** — null Aufrufer, ein dritter Einstieg,
+   der nur zum Auseinanderdriften eingeladen haette.
+4. **`docMatchesNavigationSlug` matcht drei Formen**: persistierter Slug,
+   heutiger synthetischer, alter titelzuerst-synthetischer. Das ist kein
+   stiller Fallback, sondern der Punkt der Uebung — sonst haette die
+   Vereinheitlichung selbst eine neue Klasse toter Links erzeugt.
+
+### Namensgleichheit aufgeloest
+
+| vorher | nachher |
+|---|---|
+| `src/lib/documents/document-slug.ts` | `src/lib/documents/document-slug-persist.ts` |
+| `src/utils/document-slug.ts` | `src/utils/document-slug-navigation.ts` |
+
+Per `git mv`, `git log --follow` bleibt also intakt. Beide Dateien tragen
+jetzt einen `@fileoverview`, der auf die jeweils andere zeigt und sagt, welche
+Regel massgeblich ist.
+
+Netz: `tests/unit/utils/document-slug-navigation.test.ts` (10 Faelle, darunter
+der geteilte Link vor dem Nachschreiben und die alte Slug-Form) und
+`tests/unit/documents/document-slug-persist.test.ts`.

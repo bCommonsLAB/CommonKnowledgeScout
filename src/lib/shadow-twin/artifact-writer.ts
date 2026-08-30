@@ -18,7 +18,7 @@ import type { StorageItem } from '@/lib/storage/types';
 import type { ArtifactKey } from './artifact-types';
 import { buildArtifactName } from './artifact-naming';
 import { findShadowTwinFolder, generateShadowTwinFolderName } from '@/lib/storage/shadow-twin';
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name';
+import { isShadowTwinFolderName } from '@ks/util';
 import { FileLogger } from '@/lib/debug/logger';
 import { logArtifactWrite } from './artifact-logger';
 

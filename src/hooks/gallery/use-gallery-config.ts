@@ -6,7 +6,7 @@ import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@ks/i18n/react'
 // Alle unterstuetzten DetailViewTypes kommen aus der zentralen Registry —
 // hier stand frueher eine eigene Kopie der Liste (Galerie-Audit, Befund 3c).
-import type { DetailViewType } from '@/lib/detail-view-types/registry'
+import type { DetailViewType } from '@ks/contracts'
 
 /**
  * Hook für Gallery-Konfiguration.

@@ -19,7 +19,7 @@
 import type { StorageItem } from '@/lib/storage/types';
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose';
 import { buildPublishFrontmatter } from '@/lib/submissions/publish-frontmatter';
-import { buildDocumentSlugFallback } from '@/lib/documents/document-slug';
+import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist';
 import type { WizardSubmission } from '@/types/wizard-submission';
 import { copyOriginalsToTarget, promoteTranscriptOnly } from '@/lib/submissions/promotion-transcript';
 import type {

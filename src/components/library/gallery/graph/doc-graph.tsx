@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import type { GalleryGraphConfig } from '@/types/library'
+import type { GalleryGraphConfig } from '@ks/contracts'
 import { useTranslation } from '@ks/i18n/react'
 import { useSharedMetaEdges } from '@/hooks/gallery/use-shared-meta-edges'
 import { useSimilarityEdges } from '@/hooks/gallery/use-similarity-edges'

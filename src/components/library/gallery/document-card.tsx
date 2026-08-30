@@ -20,9 +20,8 @@
  */
 
 import React from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { openDocumentBySlug } from '@/utils/document-navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { DivaTextureCard } from './document-card/diva-texture-card'
 import { ClimateActionCard } from './document-card/climate-action-card'
@@ -52,14 +51,12 @@ export function DocumentCard({
   onToggleFavorite,
   onClassificationChanged,
 }: DocumentCardProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
 
+  const { openDocument } = useGalleryNavigation()
   const handleClick = () => {
     const slug = getEffectiveDocumentNavigationSlug(doc)
     if (slug && libraryId) {
-      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
+      openDocument(slug)
     } else if (onClick) {
       onClick(doc)
     } else {

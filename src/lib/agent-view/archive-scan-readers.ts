@@ -9,7 +9,7 @@
  */
 
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
-import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { generateShadowTwinFolderName } from '@ks/util'
 import type { StorageItem } from '@/lib/storage/types'
 import type { ArchiveScanProvider } from './archive-scan'
 import type { ArchiveDocEntry, ArchiveFileEntry, ArchiveFolderNode, ArchiveTwinFolderEntry } from './archive-types'

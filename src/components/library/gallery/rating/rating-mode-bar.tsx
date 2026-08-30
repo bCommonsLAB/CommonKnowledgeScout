@@ -3,7 +3,7 @@
 import { ClipboardCheck, Star, EyeOff } from 'lucide-react'
 import { Button, Switch } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 
 export interface RatingModeBarProps {
   /** Bewertungsmodus an/aus. */

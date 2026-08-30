@@ -4,8 +4,8 @@ import React from 'react'
 import { Pencil, Trash2, History, X, Check } from 'lucide-react'
 import { Button, Textarea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { cn } from '@/lib/utils'
-import type { SourceComment } from '@/types/source-comment'
+import { cn } from '@ks/util'
+import type { SourceComment } from '@ks/contracts'
 
 export interface SourceCommentItemProps {
   comment: SourceComment

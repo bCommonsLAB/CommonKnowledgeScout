@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
 import {
   Button,
   DropdownMenu,
@@ -13,6 +12,7 @@ import { Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 
 export interface DocumentShareButtonProps {
   /** Das Dokument, das geteilt werden soll */
@@ -36,26 +36,17 @@ export function DocumentShareButton({
   title,
 }: DocumentShareButtonProps) {
   const { t } = useTranslation()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { documentShareUrl } = useGalleryNavigation()
   const [copied, setCopied] = React.useState(false)
 
-  // Erstelle die Dokument-URL
+  // Die teilbare Adresse baut, wer die Galerie montiert. Frueher stand hier
+  // `window.location.origin` — im Embed waere das die Adresse der FREMDEN
+  // Seite, der geteilte Link zeigte also ins Leere (Galerie-Audit,
+  // Neubewertung der Adressierung).
   const getDocumentUrl = React.useCallback(() => {
-    if (typeof window === 'undefined') return ''
-    
-    const baseUrl = window.location.origin
-    const currentPath = pathname || ''
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    
-    // Stelle sicher, dass doc-Parameter vorhanden ist (inkl. synthetischer Slug ohne meta.slug)
     const navSlug = getEffectiveDocumentNavigationSlug(doc)
-    if (navSlug) {
-      params.set('doc', navSlug)
-    }
-    
-    return `${baseUrl}${currentPath}?${params.toString()}`
-  }, [pathname, searchParams, doc])
+    return documentShareUrl(navSlug ?? '')
+  }, [documentShareUrl, doc])
 
   // Erstelle den Share-Text
   const getShareText = React.useCallback(() => {

@@ -6,8 +6,7 @@ import { useAtom, useSetAtom } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { openDocumentBySlug } from '@/utils/document-navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import type { DocReference } from '@ks/contracts'
 
@@ -19,9 +18,7 @@ export function useGalleryEvents(
 ) {
   const [, setFilters] = useAtom(galleryFiltersAtom)
   const setChatReferences = useSetAtom(chatReferencesAtom)
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { openDocument } = useGalleryNavigation()
   
   // Ref, um zu verhindern, dass derselbe Event mehrfach verarbeitet wird
   const processingEventRef = React.useRef<string | null>(null)
@@ -48,7 +45,7 @@ export function useGalleryEvents(
       if (doc) {
         const slug = getEffectiveDocumentNavigationSlug(doc)
         if (slug) {
-          openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
+          openDocument(slug)
         } else {
         onOpenDocument(doc)
         }
@@ -78,7 +75,7 @@ export function useGalleryEvents(
             })
             const slugAfter = getEffectiveDocumentNavigationSlug(docAfterLoad)
             if (slugAfter) {
-              openDocumentBySlug(slugAfter, libraryId, router, pathname, searchParams)
+              openDocument(slugAfter)
             } else {
             onOpenDocument(docAfterLoad)
             }
@@ -96,7 +93,7 @@ export function useGalleryEvents(
       window.removeEventListener('open-document-detail', handleOpenDocument)
       processingEventRef.current = null
     }
-  }, [docs, libraryId, setFilters, onOpenDocument, router, pathname, searchParams])
+  }, [docs, libraryId, setFilters, onOpenDocument, openDocument])
 
   useEffect(() => {
     const handleShowLegend = (event: Event) => {

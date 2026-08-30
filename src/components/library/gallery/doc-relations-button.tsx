@@ -17,11 +17,11 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useSetAtom, useAtomValue } from 'jotai'
+import { useAtomValue } from 'jotai'
 import { Waypoints } from 'lucide-react'
 import { Button, useToast } from '@ks/ui'
-import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
@@ -35,7 +35,7 @@ export interface DocRelationsButtonProps {
 export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
+  const { jobGestartet } = useGalleryHost()
   // Aktive Galerie-Filter mitgeben: stellt sicher, dass die Maßnahme im (ggf.
   // großen) Katalog gefunden wird (gefilterte Teilmenge statt CATALOG_LIMIT-Cap).
   const filters = useAtomValue(galleryFiltersAtom)
@@ -66,7 +66,7 @@ export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsBu
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
       toast({ title: t('gallery.graph.relationsRecomputeQueued') })
-      setJobPanelOpen(true)
+      jobGestartet()
       onChanged?.()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'

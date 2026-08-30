@@ -16,11 +16,11 @@
  */
 
 import React, { useState } from 'react'
-import { useSetAtom, useAtomValue } from 'jotai'
+import { useAtomValue } from 'jotai'
 import { Waypoints } from 'lucide-react'
 import { Button, useToast } from '@ks/ui'
-import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { useTranslation } from '@ks/i18n/react'
 
 export interface RecomputeAllRelationsButtonProps {
@@ -38,7 +38,7 @@ export interface RecomputeAllRelationsButtonProps {
 export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: RecomputeAllRelationsButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
+  const { jobGestartet } = useGalleryHost()
   // Aktive Galerie-Filter mitgeben: ist ein Filter aktiv, wird nur diese
   // Teilmenge berechnet; sonst der ganze Bestand (in Batches).
   const filters = useAtomValue(galleryFiltersAtom)
@@ -67,7 +67,7 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
             ? `${data.sources ?? ''} Maßnahmen in ${data.batches} Batches gestartet.`
             : undefined,
       })
-      setJobPanelOpen(true)
+      jobGestartet()
       onChanged?.()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'

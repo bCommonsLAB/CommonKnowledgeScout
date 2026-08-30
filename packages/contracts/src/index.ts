@@ -55,6 +55,23 @@ export type { DocReference, QuerySource } from './doc-reference'
 export type { GalleryFilters } from './gallery-filters'
 
 export type {
+  SourceUserStateValue,
+  SourceUserState,
+  OwnUserStatesResponse,
+  SetUserStateInput,
+  SetUserStateResponse,
+} from './source-user-state'
+
+export type {
+  SourceComment,
+  SourceCommentRevision,
+  SourceCommentCreateInput,
+  SourceCommentUpdateInput,
+  SourceCommentThreadResponse,
+  SourceCommentCountsResponse,
+} from './source-comment'
+
+export type {
   SiteModule,
   SitePrimaryLibrary,
   SitePrimaryLibraryBySlug,
