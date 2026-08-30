@@ -140,24 +140,53 @@ Auftragstext wird NICHT roh in den Prompt gereicht. Er kann Sätze enthalten
 `twin_flagged` und ADR 0006 bleiben unangetastet: `twin_status` bleibt `flagged`,
 die Abnahme bleibt Peters Klick.
 
-### 6.1 Wo der Auftrag liegt
+### 6.1 Wo der Auftrag liegt — gebaut (K1)
 
-Zwei Orte, wie bei jedem Twin-Feld — MongoDB ist Wahrheit, das Dateisystem
-Spiegel (Twin-Contract §4):
+Vier flache Felder im Frontmatter des Artefakts, aufgenommen in
+`TWIN_CURATION_FIELDS`. Geschrieben ausschließlich über die bestehende
+Kurations-Route — also mit Spiegel-Drift-Guard und Feld-Patch; MongoDB ist
+Wahrheit, der `_`-Ordner Spiegel (Twin-Contract §4). Exakt derselbe Weg wie
+`flagged_*`, kein zweites Regelwerk:
 
-- **MongoDB, Top-Level am Twin-Dokument:** `korrektur: { auftrag, gestelltVon,
-  gestelltAt, pfadBeiAuftrag, erledigtAt }`. Verschachtelt ist hier erlaubt und
-  richtig (AGENTS.md: „Verschachtelte Datenmodelle entstehen erst downstream").
-  Top-Level, damit die Übersicht (§7) es ohne Scan und ohne Wildcard-Index findet.
-- **Frontmatter des Artefakts, flach gespiegelt:** `korrektur_auftrag`,
-  `korrektur_gestellt_at`, `korrektur_erledigt_at` — snake_case, einzeilig, damit
-  es in Obsidian sichtbar ist und einen Export überlebt.
+```yaml
+korrektur_auftrag: "Das Audio entstand am Rand des Workshops in Bozen, gesprochen hat Maria S. über das Genossenschaftsmodell — nicht über Commoning allgemein. Gehört unter 26.02, nicht unter 25.11."
+korrektur_von: human:peter.aichner@crystal-design.com   # Server stempelt
+korrektur_at: 2026-08-30T09:12:00.000Z                  # Server stempelt
+korrektur_erledigt_at: 2026-08-30T11:40:00.000Z         # Cowork meldet (K4)
+```
 
-`pfadBeiAuftrag` ist ein **Schnappschuss**, kein Wahrheitswert: Die Datei zieht ja
-gerade deshalb um. Wahrheit bleibt die `sourceId`; der Pfad dient nur der
-Gruppierung in der Übersicht und wird als „Stand bei Auftragserteilung"
-ausgewiesen. (Nötig, weil `ShadowTwinDocument` nur `parentId` kennt, keinen Pfad —
-sonst kostete jede Übersicht so viele Storage-Auflösungen wie es Treffer gibt.)
+Der Text wird auf eine Zeile normalisiert (Absätze werden zu Leerzeichen) und
+auf 2000 Zeichen begrenzt — deutlich mehr als die 280 der Notiz, weil hier
+erzählt wird, aber begrenzt, weil der Wert einzeilig ins Frontmatter geht.
+
+**Noch offen (K4):** ein aus dem Frontmatter abgeleitetes `korrektur`-Objekt als
+Top-Level-Feld am Twin-Dokument, samt `pfadBeiAuftrag`, damit die Übersicht (§7)
+suchen kann, ohne über `artifacts.transformation.<template>.<lang>` zu wildcarden.
+**Bewusst nicht in K1 gebaut** — ein Feld, das noch niemand liest, ist Vorrat; es
+entsteht mit dem Werkzeug, das es braucht, und wird per Backfill nachgezogen.
+`pfadBeiAuftrag` wird dabei ein **Schnappschuss**, kein Wahrheitswert: Die Datei
+zieht ja gerade deshalb um. Wahrheit bleibt die `sourceId`. (Nötig, weil
+`ShadowTwinDocument` nur `parentId` kennt, keinen Pfad — sonst kostete jede
+Übersicht so viele Storage-Auflösungen wie es Treffer gibt.)
+
+### 6.2 Wie der Auftrag wieder verschwindet — gebaut (K1)
+
+Drei Wege, alle ausdrücklich — keiner still:
+
+| Weg | Was passiert |
+|---|---|
+| Peter **verifiziert** | Er hat hingesehen und bestätigt; der Auftrag ist erledigt oder hinfällig. Die vier Felder fallen weg — dieselbe Logik, mit der Verifizieren schon die Fehler-Markierung auflöst. Sonst hielte ein alter Auftrag die Werkbank dauerhaft rot. |
+| Peter **nimmt zurück** | Für ein Fehl-Diktat. Ohne diesen Weg wäre eine verhörte Aufnahme eine Sackgasse — genau der Befund, der schon einmal zur Widerstandsliste geführt hat. |
+| Peter **fasst neu** | Der neue Auftrag ersetzt den alten, ein früheres `korrektur_erledigt_at` fällt weg — sonst sähe der neue Auftrag von Anfang an erledigt aus. |
+
+Was NICHT passiert: Eine Re-Transformation räumt nichts weg. Sie schreibt Body
+und Template-Felder neu, die Kurations-Felder bleiben (Contract §4.4) — der
+Auftrag gilt weiter, bis ein Mensch oder `korrektur_melden` (K4) ihn löst.
+
+Abgelehnte Kombinationen (400 statt stiller Teilerfolg): Korrigieren zugleich mit
+Verifizieren („entweder soll noch etwas geschehen oder es ist geprüft") und
+Stellen zugleich mit Zurücknehmen. Erlaubt und sinnvoll ist dagegen Markieren
+plus Korrigieren: „stimmt nicht" UND „so soll es werden".
 
 ## 7. Reichweite: Übersicht ODER Ordner — dasselbe Werkzeug
 
@@ -252,23 +281,30 @@ gehört, nicht eine neue Severity.
 
 | Welle | Inhalt | Aufwand |
 |---|---|---|
-| **K1** | Feld + Schreibweg: `korrektur` am Twin-Dokument, flacher Frontmatter-Spiegel, Kurations-Route um `korrigiere: { auftrag }` erweitert, Unit-Tests | klein |
-| **K2** | Werkbank: Diktierknopf „Korrektur diktieren" (vorhandene `DictationTextarea`), Anzeige des Auftrags, Zustand „repariert — bitte ansehen" | klein |
+| **K1** ✅ | Feld + Schreibweg: vier Kurations-Felder, `korrigiere` / `nimmKorrekturZurueck` an der Kurations-Route, Auflösung beim Verifizieren, Unit-Tests | erledigt |
+| **K2** ✅ | Werkbank: Knopf „Korrektur diktieren" (Standard-`DictationTextarea`), Anzeige des offenen Auftrags mit Urheber/Zeit, Zurücknehmen; überlebt den Reload ohne Scan | erledigt |
 | **K3** | Befund `korrektur_offen` (Registry `actor: 'cowork'`, Regel, Auftragsvorlage, Zähler) | mittel |
 | **K4** | Brücke: `korrekturen_lesen` (beide Verdichtungsgrade), `korrektur_melden` | mittel |
 | **K5** | Skill `archiv-aufraeumen`: Schritt 0, Korrektur-Runde, Ordnergrenzen-Regel, Bericht-Nachzug-Satz | klein |
 
-K1+K2 tragen schon allein: Der Kontext ist festgehalten und über `datei_lesen`
-auffindbar. K4+K5 machen ihn ohne Suchen auffindbar — das ist der Sprung von
-„geht" zu „trägt im Alltag".
+K1+K2 sind gebaut und tragen schon allein: Der Kontext ist festgehalten, im
+Frontmatter des Twins sichtbar und über `datei_lesen` auffindbar; er überlebt
+einen Reload ohne Scan, weil der Nachladeweg `agent-view/kuration` dieselbe
+Familien-Sicht nutzt und die Felder mitträgt. K4+K5 machen ihn ohne Suchen
+auffindbar — das ist der Sprung von „geht" zu „trägt im Alltag".
+
+**Was mit K1+K2 noch NICHT geht:** Der Auftrag ist am Artefakt sichtbar, aber
+weder in der Vorhaben-Liste noch im Baum noch in der Widerstandsliste — dort
+zählt nur, was ein Befund ist, und den gibt es erst mit K3. Bis dahin sieht man
+einen offenen Auftrag nur, wenn man das Artefakt aufschlägt.
 
 ## 10. Offene Entscheidungen
 
-1. **Auftrag am Artefakt oder an der Familie?** Heute hängt `flagged_note` am
-   einzelnen Artefakt (Transkript ODER Zusammenfassung). Der Korrekturauftrag
-   meint fast immer die *Datei*, nicht ein Artefakt. Vorschlag: an der **Familie**
-   (Top-Level am Twin-Dokument, siehe §6.1) — der Frontmatter-Spiegel geht ins
-   führende Artefakt.
+1. **Auftrag am Artefakt oder an der Familie?** In K1 hängt er wie `flagged_note`
+   am einzelnen Artefakt — derselbe Weg, dieselben Schutzstufen, kein zweites
+   Regelwerk. Fachlich meint er aber fast immer die *Datei*. Bis K4 ist das
+   folgenlos (`korrekturen_lesen` aggregiert ohnehin über die Familie); die
+   Entscheidung fällt dort, wo das Top-Level-Feld entsteht.
 2. **Das Original-Diktat als Audiodatei ablegen?** Vorschlag: nein — wäre ein
    Artefakt ohne Twin und ohne Contract. Der transkribierte Text ist das
    Arbeitsmaterial.

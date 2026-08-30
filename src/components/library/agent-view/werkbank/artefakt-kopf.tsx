@@ -4,8 +4,8 @@
  * @fileoverview Abnahme-Kopf des Artefakts (Welle A4, Mockup Zustand B).
  *
  * @description
- * Zeile 1 traegt Titel · Zustands-Chip · „stimmt nicht" · „Verifizieren" ·
- * Menue `⋯`; Zeile 2 den Breadcrumb. Beide Aktionen betreffen das Artefakt
+ * Zeile 1 traegt Titel · Zustands-Chip · „stimmt nicht" · „Korrektur
+ * diktieren" · „Verifizieren" · Menue `⋯`; Zeile 2 den Breadcrumb. Beide Aktionen betreffen das Artefakt
  * des AKTIVEN Tabs (Transkript ODER Zusammenfassung); auf dem Original-Tab
  * sind sie benannt gesperrt — das Original ist die Referenz.
  *
@@ -28,6 +28,7 @@ import type { PruefbareArt } from '@/lib/agent-view/werkbank-abnahme'
 import { TWIN_STATUS_VALUES } from '@/lib/shadow-twin/twin-core-fields'
 import { AbnahmeKopfRahmen, KopfBreadcrumb, KopfChip, KopfMenue } from './abnahme-kopf'
 import { MarkierHinweis, MarkierKnopf } from './artefakt-markieren'
+import { KorrekturHinweis, KorrekturKnopf } from './artefakt-korrektur'
 import type { ArtefaktTab } from './werkbank-artefakt-dokument'
 
 export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
@@ -75,6 +76,18 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
     if (frisch !== null) onKuriert(art, frisch)
   }
 
+  const korrigiere = async (auftrag: string) => {
+    if (art === null || artefakt == null) return
+    const frisch = await kuration.korrigiere(familie, artefakt, auftrag)
+    if (frisch !== null) onKuriert(art, frisch)
+  }
+
+  const nimmKorrekturZurueck = async () => {
+    if (art === null || artefakt == null) return
+    const frisch = await kuration.nimmKorrekturZurueck(familie, artefakt)
+    if (frisch !== null) onKuriert(art, frisch)
+  }
+
   const copySourceId = async () => {
     try {
       await navigator.clipboard.writeText(familie.sourceId)
@@ -112,6 +125,9 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
           <span className="ml-auto flex items-center gap-1.5">
             {!markiert && art !== null && (
               <MarkierKnopf artefakt={artefakt} pending={pending} onMarkiere={markiere} />
+            )}
+            {art !== null && (
+              <KorrekturKnopf artefakt={artefakt} pending={pending} onKorrigiere={korrigiere} />
             )}
             <span title={verifizierenTitle} className="inline-flex">
               <Button size="sm" className="h-7" disabled={artefakt == null || geprueft || pending} onClick={() => void verifiziere()}>
@@ -162,6 +178,13 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
       kinder={
         <>
           {markiert && artefakt != null && <MarkierHinweis artefakt={artefakt} />}
+          {artefakt != null && (
+            <KorrekturHinweis
+              artefakt={artefakt}
+              pending={pending}
+              onZuruecknehmen={nimmKorrekturZurueck}
+            />
+          )}
           {fehler && (
             <p className="rounded-md bg-red-600/10 px-2 py-1.5 text-sm text-red-700 dark:text-red-400" role="alert">
               {fehler}

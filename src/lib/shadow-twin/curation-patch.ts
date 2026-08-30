@@ -37,6 +37,7 @@ import {
   hasMirrorDrift,
   type CurationArtifactRef,
   type FehlerMarkierung,
+  type KorrekturAuftrag,
 } from './curation-plan'
 import { getShadowTwinConfig } from './shadow-twin-config'
 import { ShadowTwinService } from './store/shadow-twin-service'
@@ -60,6 +61,10 @@ export interface CurationPatchArgs {
   verify: boolean
   /** Markier-Aktion (ADR 0006): `twin_status: flagged` + Urheber/Zeit/Notiz. */
   markiere?: FehlerMarkierung | null
+  /** Korrekturauftrag an den Agenten (K1): Auftragstext + Urheber/Zeit. */
+  korrigiere?: KorrekturAuftrag | null
+  /** Korrekturauftrag zuruecknehmen (K1) — Fehl-Diktat wieder loswerden. */
+  nimmKorrekturZurueck?: boolean
   /** Verifikation zuruecknehmen (Uebergangs-Skript, ADR 0006). */
   entferneVerifikation?: boolean
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
@@ -79,6 +84,12 @@ export interface CurationPatchResult {
     flaggedBy: string | null
     flaggedAt: string | null
     flaggedNote: string | null
+    /** Korrekturauftrag nach dem Patch (K1); null = keiner offen. */
+    korrekturAuftrag: string | null
+    korrekturVon: string | null
+    korrekturAt: string | null
+    /** Von einem Agenten gemeldete Erledigung (K4); null = noch offen. */
+    korrekturErledigtAt: string | null
     /** Temporale Regel §3.2: `verified_at >= generated_at`. */
     verificationValid: boolean
   }
@@ -170,8 +181,11 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
     set: args.set,
     verify: args.verify,
     markiere: args.markiere,
+    korrigiere: args.korrigiere,
+    nimmKorrekturZurueck: args.nimmKorrekturZurueck,
     entferneVerifikation: args.entferneVerifikation,
     aktuellerTwinStatus: meta['twin_status'],
+    aktuellerKorrekturAuftrag: meta['korrektur_auftrag'],
     userEmail,
     generatedBy: meta['generated_by'],
     now: now(),
@@ -220,6 +234,10 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
       flaggedBy: stringOrNull(patchedMeta['flagged_by']),
       flaggedAt: stringOrNull(patchedMeta['flagged_at']),
       flaggedNote: stringOrNull(patchedMeta['flagged_note']),
+      korrekturAuftrag: stringOrNull(patchedMeta['korrektur_auftrag']),
+      korrekturVon: stringOrNull(patchedMeta['korrektur_von']),
+      korrekturAt: stringOrNull(patchedMeta['korrektur_at']),
+      korrekturErledigtAt: stringOrNull(patchedMeta['korrektur_erledigt_at']),
       verificationValid:
         stringOrNull(patchedMeta['verified_by']) !== null &&
         isVerificationValid({

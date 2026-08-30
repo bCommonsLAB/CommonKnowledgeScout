@@ -36,6 +36,14 @@ export const TWIN_CURATION_FIELDS = [
   'flagged_by',
   'flagged_at',
   'flagged_note',
+  // Korrekturauftrag (K1): Arbeitsauftrag des Menschen AN DEN AGENTEN — was
+  // mit der Datei zu geschehen hat (Ort, Name, Einordnung), nicht was das LLM
+  // in einer Transformation anders machen soll. Das ist `customHint` und bleibt
+  // strikt getrennt (docs/concepts/korrekturauftrag-diktat.md §5).
+  'korrektur_auftrag',
+  'korrektur_von',
+  'korrektur_at',
+  'korrektur_erledigt_at',
 ] as const
 
 export type TwinCurationField = (typeof TWIN_CURATION_FIELDS)[number]
