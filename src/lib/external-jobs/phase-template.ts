@@ -36,7 +36,7 @@ import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
 import { computeRatingRaw } from '@/lib/documents/rating'
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
-import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
+import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist'
 
 // Helper extractFixedFieldsFromTemplate wurde in eigene Datei
 // phase-template/extract-meta.ts ausgelagert (Modul-Split, Plan-Schritt 4

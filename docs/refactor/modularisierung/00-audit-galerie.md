@@ -835,3 +835,77 @@ Das sieht nach Duplikat aus, ist aber **zwei Zielgruppen**: Endnutzer sehen
 Deutsch, wer Vorlagen bearbeitet sieht den technischen Wert neben dem
 `detailViewType`. Beide sind `Record<DetailViewType, string>` und erzwingen
 weiterhin eine Entscheidung bei einem neuen Typ. Bleibt so.
+
+---
+
+## Nachtrag (2026-08-29): zwei Dateien `document-slug.ts` — zusammengefuehrt
+
+**Vorbestehender Befund, unabhaengig von der Modularisierung.** Aufgefallen im
+langen Schwanz; die Navigationsdatei stammt aus einem eigenen Strang
+(`b0d99469`, „Teams video relay").
+
+### Was tatsaechlich auseinanderlief
+
+Die *Slugifizierung* lief **nicht** auseinander: seit Welle Galerie-Vertrag
+(`5357774`) ruft die Navigationsseite `buildDocumentSlugFallback` auf. Gemessen
+wurde trotzdem eine Abweichung — sie sass woanders, naemlich in der
+**Kandidaten-Reihenfolge**:
+
+| Seite | Reihenfolge | dazu |
+|---|---|---|
+| Persist (`ingestion-service`) | `fileName → source_file → title` | — |
+| Persist (`phase-template`) | Artefaktname → Quellname → `title` | — |
+| Navigation (vorher) | `title → shortTitle → fileName` | Kuerzung 80, Suffix aus `fileId` |
+
+Also **umgekehrte** Prioritaet. Von zehn realistischen Dateinamen wichen fuenf
+schon in der **Basis** ab, nicht bloss um den Suffix:
+
+| Fall | persist (`meta.slug`) | navigation (`?doc=`) | Basis gleich |
+|---|---|---|---|
+| Umlaute (`… von Südtirol.de.md`) | `faunistik-der-gallwespen-von-su-dtirol-de` | `faunistik-der-gallwespen-von-su-dtirol-…` | **nein** |
+| mehrere Punkte (`…_de.off-….de.md`) | `sammel-transkript-2026-…-de-de` | dito + Suffix | ja |
+| Sprachsuffix (`aktionsbericht.de.md`) | `aktionsbericht-de` | `aktionsbericht-…` | **nein** |
+| fuehrende Ziffer (`2025-jahresbericht.md`) | `doc-2025-jahresbericht` | dito + Suffix | ja |
+| Titel ≠ Dateiname (`IMG_20240517_121314.jpg`) | `img-20240517-121314` | `wasserkraftwerk-mu-hlbach-…` | **nein** |
+| sehr langer Name (118 Zeichen) | ungekuerzt | bei 80 gekuerzt | **nein** |
+| `shortTitle` gesetzt | `langer-dateiname-2026` | `kurzfassung-…` | **nein** |
+
+Der Schaden entsteht nicht beim Erzeugen, sondern beim **Nachschreiben**: ein
+Dokument ohne `meta.slug` wird geteilt (`?doc=<basis>-<suffix>`), ein spaeterer
+Ingest schreibt `meta.slug` nach — und `docMatchesNavigationSlug` verglich
+danach **nur noch** gegen den persistierten Slug. Der bereits geteilte Link
+zeigte ins Leere.
+
+### Entscheidung: die Persist-Regel gewinnt
+
+Sie schreibt dauerhafte Daten (MongoDB `item.meta.slug`, Frontmatter,
+Ziel-Dateiname bei der Publikation); die Navigationsseite rechnet fluechtig.
+Eine dritte Variante wurde **nicht** eingefuehrt — die Navigation wurde
+zurueckgefuehrt:
+
+1. **Kandidaten-Reihenfolge angeglichen** auf `fileName → title → shortTitle`.
+   Beide Seiten sehen denselben `fileName` (`mapItemToDocCardMeta` reicht
+   `item.fileName` durch), also ergibt dasselbe Dokument dieselbe Basis.
+2. **Kuerzung und Suffix bleiben** — sie gelten nur fuer URLs, sind jetzt aber
+   als solche benannt (`NAVIGATION_SLUG_MAX_LEN`) statt als nackte `80`.
+3. **`slugifyForDocumentUrl` entfernt** — null Aufrufer, ein dritter Einstieg,
+   der nur zum Auseinanderdriften eingeladen haette.
+4. **`docMatchesNavigationSlug` matcht drei Formen**: persistierter Slug,
+   heutiger synthetischer, alter titelzuerst-synthetischer. Das ist kein
+   stiller Fallback, sondern der Punkt der Uebung — sonst haette die
+   Vereinheitlichung selbst eine neue Klasse toter Links erzeugt.
+
+### Namensgleichheit aufgeloest
+
+| vorher | nachher |
+|---|---|
+| `src/lib/documents/document-slug.ts` | `src/lib/documents/document-slug-persist.ts` |
+| `src/utils/document-slug.ts` | `src/utils/document-slug-navigation.ts` |
+
+Per `git mv`, `git log --follow` bleibt also intakt. Beide Dateien tragen
+jetzt einen `@fileoverview`, der auf die jeweils andere zeigt und sagt, welche
+Regel massgeblich ist.
+
+Netz: `tests/unit/utils/document-slug-navigation.test.ts` (10 Faelle, darunter
+der geteilte Link vor dem Nachschreiben und die alte Slug-Form) und
+`tests/unit/documents/document-slug-persist.test.ts`.
