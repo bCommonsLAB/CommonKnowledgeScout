@@ -36,6 +36,7 @@ import {
 import { registerErschliessenTools } from './tools-erschliessen'
 import { registerJobTools } from './tools-jobs'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
+import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
 import { registerSichtenTools } from './tools-sichten'
 import { registerAenderungenTools } from './tools-aenderungen'
@@ -55,6 +56,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerVorlagenTool(server)
   registerJobTools(server)
   registerJobAufraeumenTool(server)
+  registerJobAbbrechenTool(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
