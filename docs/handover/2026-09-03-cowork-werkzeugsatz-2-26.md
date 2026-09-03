@@ -8,9 +8,10 @@ Cowork-Skills.
 Toolliste ist gecacht), dann `bruecke_info` — es muss **2.26.0** mit **38
 Werkzeugen** melden. Sagt es weniger, greift keiner der Punkte unten.
 
-Zur Zählung: Die Wunschliste 3 lief über 2.19.0–2.25.0 und brachte fünf neue
-Werkzeuge (`job_abbrechen`, `datei_binaer_lesen`, `datei_binaer_anlegen` sowie
-die erweiterten `datei_patchen`/`ordner_listen`). **2.26.0 ist der
+Zur Zählung: Die Wunschliste 3 lief über 2.18.0–2.25.0. Sie brachte **drei
+neue Werkzeuge** (`job_abbrechen`, `datei_binaer_lesen`,
+`datei_binaer_anlegen`) — der Rest sind erweiterte Werkzeuge, vor allem
+`datei_patchen` und `ordner_listen`. **2.26.0 ist der
 Zusammenlauf mit der Korrekturauftrag-Welle**, die parallel zwei weitere
 Werkzeuge mitbringt (`korrekturen_lesen`, `korrektur_melden`) — die stehen
 nicht hier, sondern in
