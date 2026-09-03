@@ -61,6 +61,7 @@ export type CoverageGapType =
   | 'verweis_tot'
   | 'verweis_veraltet'
   | 'bericht_unvollstaendig'
+  | 'quelle_verschwunden'
   // — Budget + Betrieb —
   | 'teilbaum_ungesichtet'
   | 'scan_error'
