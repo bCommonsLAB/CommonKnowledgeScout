@@ -17,6 +17,12 @@ Anforderungsquelle bleibt
 [`mcp-storage-anforderungen.md`](mcp-storage-anforderungen.md) (27.08.),
 Umsetzungsplan `docs/plans/mcp-storage-abstraktion_4b7e1c93.plan.md`.
 
+**Nachtrag 03.09.2026:** Zwei weitere Cowork-Sitzungen (Fortschreiben eines
+Berichts über drei Wochen; ~250 Erschließungs-Jobs) haben sechzehn Punkte
+ergeben — sie stehen, gegen den Code geprüft, in
+[`mcp-wunschliste-3.md`](mcp-wunschliste-3.md). Deren §8 löst die Reihenfolge
+in §5 dieser Datei für alles ab, was die Brücke betrifft.
+
 ---
 
 ## 1. Kurzfassung
