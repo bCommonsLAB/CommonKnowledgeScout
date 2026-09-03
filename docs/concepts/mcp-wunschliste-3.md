@@ -199,6 +199,14 @@ dieser Liste, bei dem heute *falscher Inhalt* im Archiv steht, der von
 richtigem nicht zu unterscheiden ist. Die Vorprüfung ist deshalb nicht nur
 eine Ersparnis, sondern der Riegel davor.
 
+> **Nachgesehen (03.09.):** `ffmpeg` und `ffprobe` kommen in diesem
+> Repository nicht vor — die Extraktion macht der **Secretary Service**. Die
+> Vorprüfung selbst ist dort zu bauen, nicht hier. Was hier ging und gebaut
+> ist: `job_status` deutet den Fehlschlag jetzt (`fehlerDeutung`), sagt, dass
+> ein zweiter Versuch dieselbe Wand trifft, und warnt vor einem bereits
+> vorhandenen Transkript dieser Quelle. Das macht sieben rätselhafte
+> Fehlschläge zu einem verstandenen — den Riegel ersetzt es nicht.
+
 **W12 — `quelle_verschwunden`.** 15 Fälle: MongoDB kennt Quelle und
 Transkript, der Storage sagt „Datei nicht gefunden". Der Sync findet sie
 nicht (sie sind nicht im Storage), der Scan meldet sie als behebbar — die

@@ -18,6 +18,7 @@ import { fehlerDetailsAusTrace } from './job-fehler-details'
 import { zaehleKuerzlichGescheitert } from './job-liste-ehrlich'
 import { beschreibeSchritte, uebersprungenHinweis } from './job-schritte'
 import { holePoolSicht } from './job-pool-sicht'
+import { deuteFehler } from './fehler-deutung'
 
 /**
  * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
@@ -33,7 +34,15 @@ function fehlerBlock(job: unknown): Record<string, unknown> {
         'entweder ein alter Job ohne Trace oder der Fehlschlag lag ausserhalb der Schritte.',
     }
   }
-  return { fehlerDetails: details }
+  // Welle W11: Die Rohmeldung benennt den Fehlschlag, die Deutung zieht die
+  // Konsequenz. Sieben Bildschirmaufnahmen ohne Tonspur wurden immer wieder
+  // neu gestartet, weil niemand aus der Meldung las, dass ein zweiter
+  // Versuch dieselbe Wand trifft.
+  const deutung = deuteFehler([
+    ...details.map((detail) => detail.meldung),
+    ...details.map((detail) => detail.antwortAuszug),
+  ])
+  return { fehlerDetails: details, ...(deutung ? { fehlerDeutung: deutung } : {}) }
 }
 
 /** Registriert job_status + job_liste (siehe Datei-Kommentar). */
@@ -47,7 +56,9 @@ export function registerJobTools(server: McpServer): void {
         'queued/running/completed/failed plus letzte Meldung. Bei einem GESCHEITERTEN Job ' +
         'kommen die Fehlerdetails aus dem Job-Trace automatisch mit (fehlerDetails): welcher ' +
         'Schritt, welcher Code, die eigentliche Meldung des Dienstes, HTTP-Status und ein ' +
-        'Auszug der Antwort. UEBERSPRUNGENE Schritte sind je Schritt markiert (uebersprungen/' +
+        'Auszug der Antwort. Erkennt die Bruecke eine bekannte Lage, kommt `fehlerDeutung` mit ' +
+        '(Klartext + Empfehlung + ob ein zweiter Versuch ueberhaupt Sinn hat) — etwa eine Quelle ' +
+        'ohne Tonspur, bei der jeder Neustart dieselbe Wand trifft. UEBERSPRUNGENE Schritte sind je Schritt markiert (uebersprungen/' +
         'grund); hat ein completed-Job ALLE Schritte uebersprungen, sagt ein Hinweis explizit, ' +
         'dass NICHTS geschrieben wurde. Damit ist ein Fehlschlag OHNE Blick in die Datenbank ' +
         'zu analysieren. Liest nur.',
