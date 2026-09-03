@@ -337,3 +337,38 @@ describe('buildCurationPatches — Verifizieren loest den Korrekturauftrag auf (
     expect('korrektur_auftrag' in patches).toBe(false)
   })
 })
+
+describe('buildCurationPatches — Vollzug melden (K4, korrektur_melden)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('setzt nur korrektur_erledigt_at — der Auftrag bleibt als Beleg stehen', () => {
+    const patches = buildCurationPatches({
+      ...basis,
+      meldeKorrekturErledigt: true,
+      aktuellerKorrekturAuftrag: 'Gehoert unter 26.02',
+    })
+    expect(patches).toEqual({ korrektur_erledigt_at: NOW })
+  })
+
+  it('lehnt die Meldung ohne offenen Auftrag ab — kein stiller Erfolg ins Leere', () => {
+    expect(() =>
+      buildCurationPatches({ ...basis, meldeKorrekturErledigt: true, aktuellerKorrekturAuftrag: null }),
+    ).toThrow(CurationValidationError)
+    expect(() =>
+      buildCurationPatches({ ...basis, meldeKorrekturErledigt: true, aktuellerKorrekturAuftrag: '  ' }),
+    ).toThrow(CurationValidationError)
+  })
+
+  it('laesst sich nicht mit Stellen, Zuruecknehmen oder Verifizieren verbinden', () => {
+    const offen = { aktuellerKorrekturAuftrag: 'Gehoert unter 26.02' }
+    expect(() =>
+      buildCurationPatches({ ...basis, ...offen, meldeKorrekturErledigt: true, korrigiere: { auftrag: 'x' } }),
+    ).toThrow(CurationValidationError)
+    expect(() =>
+      buildCurationPatches({ ...basis, ...offen, meldeKorrekturErledigt: true, nimmKorrekturZurueck: true }),
+    ).toThrow(CurationValidationError)
+    expect(() =>
+      buildCurationPatches({ ...basis, ...offen, meldeKorrekturErledigt: true, verify: true }),
+    ).toThrow(CurationValidationError)
+  })
+})

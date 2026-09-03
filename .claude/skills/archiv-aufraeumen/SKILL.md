@@ -52,6 +52,12 @@ Datei-Bridge, sonst greifen die Schutzstufen nicht. Die Datei-Bridge
 (`device_*`) ist zum **Lesen und Gegenprüfen** da — und zum Schreiben von
 Berichten und Notizen, die keine KnowledgeScout-Quellen sind.
 
+**1a-ii. Der Rückkanal von Peter läuft über `korrekturen_lesen`.** Was er an
+einzelnen Dateien korrigiert haben will, diktiert er in der Werkbank; es landet
+im Frontmatter des Twins und ist über dieses Werkzeug abrufbar — ohne Scan.
+Siehe Schritt 0 des Ablaufs. Das ist der einzige Weg, auf dem er dir direkt
+etwas aufträgt.
+
 **1b. Jede schreibende Aktion braucht eine `begruendung`.** Pflichtfeld ab
 Werkzeugsatz 2.6.0 — ein Satz, WARUM die Aktion nötig ist („Transkript nach
 Hörfehler-Korrektur neu transformiert"). KnowledgeScout schreibt sie in sein
@@ -276,6 +282,52 @@ Die Form (Frontmatter-Feld für die Projekt-URL, Aufbau des Berichts) steht in
 `Konventionen.md` — hier steht nur, WOHIN etwas gehört.
 
 ## Der Ablauf
+
+### 0 — Peters Korrekturaufträge holen (VOR allem anderen)
+
+```
+korrekturen_lesen(libraryId, ordner: "<folderId des Vorhabens>")
+```
+
+Peter geht die Werkbank am Smartphone durch und **diktiert**, was mit einzelnen
+Dateien geschehen soll — Kontext, den eine isolierte Audiodatei nicht hergibt
+(„gesprochen hat Maria S., gehört unter 26.02"). Diese Aufträge sind
+**deine** Arbeit, nicht seine.
+
+**Warum ganz vorne:** Ein Auftrag löst fast immer Umbenennen oder Verschieben
+aus, und laut `Konventionen.md` gehören alle Umbenennungen **vor** die
+Erschließung. Wer die Aufträge erst nach Schritt 2 liest, arbeitet zweimal.
+
+Der Aufruf **braucht keinen Scan** — die Aufträge stehen im Frontmatter der
+Twins, also in MongoDB. Mit `ordner` bekommst du ausschließlich die Aufträge
+dieses Teilbaums; du fängst dir nichts aus anderen Vorhaben ein.
+
+**Abarbeiten:** erst einordnen/umbenennen (`familie_umziehen`), dann bei Bedarf
+neu erschließen. **Den Korrekturhinweis für die Transformation formulierst du
+selbst** aus dem Auftrag — der Auftragstext gehört *nicht* roh in einen Prompt,
+er enthält Sätze über Ort und Namen, die dort nur schaden. Danach je Auftrag
+`korrektur_melden`.
+
+**Zog eine Familie über eine Vorhabensgrenze**, gehören anschließend **beide**
+Ordner in den `abdeckung_scannen`-Aufruf: der Quellordner, weil sein Bericht
+jetzt ins Leere zeigt (`verweis_tot`), und der Zielordner, weil seiner die neue
+Quelle noch nicht kennt (`bericht_unvollstaendig`). Der Bericht-Nachzug braucht
+also keine eigene Regel — er fällt in Schritt 3 als gewöhnlicher Cowork-Befund
+an. Nach einer Korrektur-Runde diese Befunde **abarbeiten, nicht liegenlassen**:
+`bericht_veraltet` ist nur `warning` und `bericht_unvollstaendig` sogar `info`,
+sie sperren also nichts — der Bericht erzählt sonst weiter die alte, falsche
+Geschichte.
+
+**Der Auftrag verschwindet nicht durch deine Arbeit.** `korrektur_melden` setzt
+`korrektur_erledigt_at`; der Auftragstext bleibt als Beleg stehen, und Peter
+sieht in der Werkbank „repariert, bitte ansehen". Aufgelöst wird die Sache erst
+durch sein Verifizieren — die Abnahme bleibt menschlich (ADR 0006).
+
+**Die Korrektur-Runde** ist der andere Einstieg: Hat Peter gestern Abend zwanzig
+Sachen diktiert, ruf `korrekturen_lesen(libraryId)` **ohne** `ordner` auf. Das
+liefert je Ordner eine Zeile (Anzahl, ältester Auftrag, Auszug) — verdichtet,
+damit du entscheiden kannst, wo du anfängst, ohne in jedes Verzeichnis zu
+schauen. Dann Ordner für Ordner nach dem Ablauf oben.
 
 ### 1 — Lage feststellen
 

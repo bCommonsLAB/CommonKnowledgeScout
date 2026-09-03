@@ -65,6 +65,8 @@ export interface CurationPatchArgs {
   korrigiere?: KorrekturAuftrag | null
   /** Korrekturauftrag zuruecknehmen (K1) — Fehl-Diktat wieder loswerden. */
   nimmKorrekturZurueck?: boolean
+  /** Vollzug melden (K4): `korrektur_erledigt_at`; der Auftrag bleibt als Beleg. */
+  meldeKorrekturErledigt?: boolean
   /** Verifikation zuruecknehmen (Uebergangs-Skript, ADR 0006). */
   entferneVerifikation?: boolean
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
@@ -183,6 +185,7 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
     markiere: args.markiere,
     korrigiere: args.korrigiere,
     nimmKorrekturZurueck: args.nimmKorrekturZurueck,
+    meldeKorrekturErledigt: args.meldeKorrekturErledigt,
     entferneVerifikation: args.entferneVerifikation,
     aktuellerTwinStatus: meta['twin_status'],
     aktuellerKorrekturAuftrag: meta['korrektur_auftrag'],

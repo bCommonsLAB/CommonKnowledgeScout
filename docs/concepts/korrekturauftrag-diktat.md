@@ -159,15 +159,20 @@ Der Text wird auf eine Zeile normalisiert (Absätze werden zu Leerzeichen) und
 auf 2000 Zeichen begrenzt — deutlich mehr als die 280 der Notiz, weil hier
 erzählt wird, aber begrenzt, weil der Wert einzeilig ins Frontmatter geht.
 
-**Noch offen (K4):** ein aus dem Frontmatter abgeleitetes `korrektur`-Objekt als
-Top-Level-Feld am Twin-Dokument, samt `pfadBeiAuftrag`, damit die Übersicht (§7)
-suchen kann, ohne über `artifacts.transformation.<template>.<lang>` zu wildcarden.
-**Bewusst nicht in K1 gebaut** — ein Feld, das noch niemand liest, ist Vorrat; es
-entsteht mit dem Werkzeug, das es braucht, und wird per Backfill nachgezogen.
-`pfadBeiAuftrag` wird dabei ein **Schnappschuss**, kein Wahrheitswert: Die Datei
-zieht ja gerade deshalb um. Wahrheit bleibt die `sourceId`. (Nötig, weil
-`ShadowTwinDocument` nur `parentId` kennt, keinen Pfad — sonst kostete jede
-Übersicht so viele Storage-Auflösungen wie es Treffer gibt.)
+**Das geplante Top-Level-Index-Feld wurde in K4 verworfen** — und das ist die
+wichtigere Entscheidung: Ein gespiegeltes `korrektur`-Objekt am Twin-Dokument
+wäre schneller abfragbar, aber es wäre eine **zweite Wahrheit**. Korrigiert
+jemand das Frontmatter in Obsidian von Hand und importiert, sähe die Werkbank
+(die den Befund aus dem Frontmatter baut) etwas anderes als die Brücke (die den
+Index läse). Genau das heißt in diesem Projekt Drift, und das Projekt hat dafür
+eine Regel: geteilte Prädikate, eine Quelle. `korrekturen_lesen` liest deshalb
+dasselbe Frontmatter wie `checkKorrekturOffen`.
+
+Die Kosten trägt eine Mongo-Aggregation, die **kein Markdown** lädt: Sie
+projiziert nur Frontmatter und legt die dynamischen Template-/Sprach-Keys per
+`$objectToArray` flach. Der `pfadBeiAuftrag` entfällt damit ebenfalls — der
+Ordnerpfad wird zur Lesezeit aufgelöst, und zwar nur für die **Treffer** (ein
+Listing je Ordner, typisch eine Handvoll), nie für die ganze Library.
 
 ### 6.2 Wie der Auftrag wieder verschwindet — gebaut (K1)
 
@@ -313,8 +318,8 @@ gehört, nicht eine neue Severity.
 | **K1** ✅ | Feld + Schreibweg: vier Kurations-Felder, `korrigiere` / `nimmKorrekturZurueck` an der Kurations-Route, Auflösung beim Verifizieren, Unit-Tests | erledigt |
 | **K2** ✅ | Werkbank: Knopf „Korrektur diktieren" (Standard-`DictationTextarea`), Anzeige des offenen Auftrags mit Urheber/Zeit, Zurücknehmen; überlebt den Reload ohne Scan | erledigt |
 | **K3** ✅ | Befund `korrektur_offen` (`actor: 'cowork'`, Schritt 1), Regel `checkKorrekturOffen`, Auftragsvorlage, Baum-Marker, Zähler, Sprung, Widerstandsliste, Skill-Zeile | erledigt |
-| **K4** | Brücke: `korrekturen_lesen` (beide Verdichtungsgrade), `korrektur_melden` | mittel |
-| **K5** | Skill `archiv-aufraeumen`: Schritt 0, Korrektur-Runde, Ordnergrenzen-Regel, Bericht-Nachzug-Satz | klein |
+| **K4** ✅ | Brücke: `korrekturen_lesen` (beide Verdichtungsgrade), `korrektur_melden`, Mongo-Aggregation ohne Markdown, Werkzeugsatz 2.18.0 | erledigt |
+| **K5** ✅ | Skill `archiv-aufraeumen`: Schritt 0, Korrektur-Runde, Ordnergrenzen-Regel, Bericht-Nachzug-Satz | erledigt |
 
 K1+K2 sind gebaut und tragen schon allein: Der Kontext ist festgehalten, im
 Frontmatter des Twins sichtbar und über `datei_lesen` auffindbar; er überlebt
@@ -322,20 +327,22 @@ einen Reload ohne Scan, weil der Nachladeweg `agent-view/kuration` dieselbe
 Familien-Sicht nutzt und die Felder mitträgt. K4+K5 machen ihn ohne Suchen
 auffindbar — das ist der Sprung von „geht" zu „trägt im Alltag".
 
-**Was nach K3 noch fehlt:** Cowork findet den Befund nur über einen Scan — und
-ein Scan über 7337 Dateien ist teuer. `korrekturen_lesen` (K4) holt die Aufträge
-direkt aus MongoDB, library-weit verdichtet zum Entscheiden und pro Ordner im
-Volltext zum Arbeiten (§7). Ebenso fehlt `korrektur_melden`: Bis dahin kann
-Cowork keinen Vollzug melden, `korrektur_erledigt_at` bleibt leer, und der
-Befund erlischt erst, wenn Peter verifiziert.
+**Der Kreis ist mit K4+K5 geschlossen:** Peter diktiert in der Werkbank, Cowork
+holt die Aufträge mit `korrekturen_lesen` ab — ohne Scan, weil sie in MongoDB
+stehen —, arbeitet sie ab und meldet mit `korrektur_melden` Vollzug. In der
+Werkbank steht dann „repariert, bitte ansehen"; aufgelöst wird die Sache durch
+Peters Verifizieren. Der `archiv-aufraeumen`-Skill macht `korrekturen_lesen`
+zum Schritt 0 jedes Ordner-Laufs und beschreibt die Korrektur-Runde als zweiten
+Einstieg.
 
 ## 10. Offene Entscheidungen
 
-1. **Auftrag am Artefakt oder an der Familie?** In K1 hängt er wie `flagged_note`
-   am einzelnen Artefakt — derselbe Weg, dieselben Schutzstufen, kein zweites
-   Regelwerk. Fachlich meint er aber fast immer die *Datei*. Bis K4 ist das
-   folgenlos (`korrekturen_lesen` aggregiert ohnehin über die Familie); die
-   Entscheidung fällt dort, wo das Top-Level-Feld entsteht.
+1. ~~**Auftrag am Artefakt oder an der Familie?**~~ **Entschieden (K4): am
+   Artefakt.** Er hängt wie `flagged_note` am einzelnen Artefakt — derselbe Weg,
+   dieselben Schutzstufen, kein zweites Regelwerk. `korrekturen_lesen` liefert
+   die Artefakt-Referenz (`kind`/`templateName`/`targetLanguage`) gleich mit, und
+   `korrektur_melden` verlangt sie: So kann ein Agent den Auftrag am Transkript
+   getrennt vom Auftrag an der Zusammenfassung abarbeiten und melden.
 2. **Das Original-Diktat als Audiodatei ablegen?** Vorschlag: nein — wäre ein
    Artefakt ohne Twin und ohne Contract. Der transkribierte Text ist das
    Arbeitsmaterial.

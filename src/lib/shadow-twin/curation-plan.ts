@@ -111,6 +111,14 @@ export interface BuildCurationPatchesArgs {
    * Weg, es wieder loszuwerden.
    */
   nimmKorrekturZurueck?: boolean
+  /**
+   * Vollzug melden (K4, `korrektur_melden` an der Bruecke): setzt
+   * `korrektur_erledigt_at`. Der Auftrag BLEIBT stehen — er ist der Beleg,
+   * wonach Peter urteilt. Erst sein Verifizieren raeumt beides weg (§6.2).
+   * WER gemeldet hat, steht im Aktions-Protokoll der Bruecke, nicht in einem
+   * fuenften Frontmatter-Feld.
+   */
+  meldeKorrekturErledigt?: boolean
   /** `twin_status` des Zielartefakts VOR dem Patch (fuer das Aufloesen). */
   aktuellerTwinStatus?: unknown
   /** `korrektur_auftrag` des Zielartefakts VOR dem Patch (fuer das Aufloesen). */
@@ -225,6 +233,23 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
     )
   }
 
+  if (args.meldeKorrekturErledigt === true) {
+    if (args.korrigiere != null || args.nimmKorrekturZurueck === true || args.verify) {
+      throw new CurationValidationError(
+        'Vollzug melden laesst sich nicht mit Stellen, Zuruecknehmen oder Verifizieren verbinden',
+      )
+    }
+    // Kein stiller Erfolg auf einem Artefakt ohne Auftrag: Wer Vollzug meldet,
+    // muss auch beauftragt worden sein — sonst ist die Referenz falsch.
+    if (typeof args.aktuellerKorrekturAuftrag !== 'string' || args.aktuellerKorrekturAuftrag.trim() === '') {
+      throw new CurationValidationError(
+        'Kein offener Korrekturauftrag an diesem Artefakt — Vollzug waere eine Meldung ins Leere. ' +
+          'Artefakt-Referenz pruefen (korrekturen_lesen nennt kind/templateName/targetLanguage).',
+      )
+    }
+    patches.korrektur_erledigt_at = args.now
+  }
+
   if (args.entferneVerifikation === true) {
     if (args.verify || args.markiere != null || args.korrigiere != null) {
       throw new CurationValidationError(
@@ -294,7 +319,7 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
   if (Object.keys(patches).length === 0) {
     throw new CurationValidationError(
       'Leerer Kurations-Patch: weder twin_status noch verify, markiere, korrigiere, ' +
-        'nimmKorrekturZurueck oder entferneVerifikation angegeben',
+        'nimmKorrekturZurueck, meldeKorrekturErledigt oder entferneVerifikation angegeben',
     )
   }
   return patches
