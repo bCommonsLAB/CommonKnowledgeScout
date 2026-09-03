@@ -45,6 +45,7 @@ import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist
 // bestehende Imports inkl. Char-Tests in tests/unit/external-jobs/
 // unveraendert weiterlaufen.
 import { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
+import { dateFehlt, datumAusPfad } from './datum-aus-pfad'
 export { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 
 export interface TemplatePhaseArgs {
@@ -1327,6 +1328,33 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   
   let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
+
+  // Welle W10: Faellt `date` aus, steht es fast immer im Ablagepfad
+  // (`2025-07-16 Besprechung mit Jonas`) — gemessen rund 360 von 1.440
+  // Befunden bibliotheksweit. Ein Datum aus dem Ordnernamen ist keine
+  // Erfindung, sondern eine Ableitung MIT BELEG; deshalb wird sie mit
+  // `date_quelle: 'pfad'` ausgewiesen. Ein stillschweigend gefuelltes Feld
+  // waere von einem geprueften nicht zu unterscheiden.
+  if (dateFehlt(mergedMeta.date) && sourceItemId && sourceItemId !== 'unknown') {
+    let pfadFuerDatum: string | null = null
+    try {
+      pfadFuerDatum = await provider.getPathById(sourceItemId)
+    } catch {
+      // Pfad nicht aufloesbar: dann bleibt `date` leer und der Befund
+      // core_fields_missing steht weiter — genau wie bisher.
+    }
+    const gefunden = pfadFuerDatum ? datumAusPfad(pfadFuerDatum) : null
+    if (gefunden) {
+      mergedMeta.date = gefunden.datum
+      mergedMeta.date_quelle = 'pfad'
+      bufferLog(jobId, {
+        phase: 'template_date_aus_pfad',
+        message: `date aus dem Pfad abgeleitet: ${gefunden.datum} (Segment "${gefunden.segment}")`,
+        datum: gefunden.datum,
+        segment: gefunden.segment,
+      })
+    }
+  }
 
   // Cover-Bild aus dem bestehenden Mongo-Dokument in die Frontmatter uebernehmen.
   // existingMeta (Datei-Frontmatter) enthaelt bei KI-generierten Covers oft kein
