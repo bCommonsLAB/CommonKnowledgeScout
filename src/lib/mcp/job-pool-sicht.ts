@@ -35,7 +35,11 @@ export interface PoolSicht extends PoolZahlen {
   freieSlots: number
   stillstandSchwelleMinuten: number
   hinweis: string | null
+  /** W8: Sind alle laufenden Jobs gleichzeitig verstummt? */
+  neustartVerdacht?: NeustartVerdacht
 }
+
+import type { NeustartVerdacht } from './job-neustart-verdacht'
 
 function minuten(ms: number): number {
   return Math.max(1, Math.round(ms / 60_000))
@@ -45,14 +49,25 @@ function minuten(ms: number): number {
  * Baut den `pool`-Block inklusive Klartext-Hinweis. `wartend` ist die Anzahl
  * der eigenen queued-Jobs — nur wer wartet, braucht die Erklaerung, warum.
  */
-export function bauePoolSicht(zahlen: PoolZahlen, wartend: number): PoolSicht {
+export function bauePoolSicht(
+  zahlen: PoolZahlen,
+  wartend: number,
+  neustart?: NeustartVerdacht,
+): PoolSicht {
   const freieSlots = Math.max(0, zahlen.slots - zahlen.laufend)
   const schwelleMin = minuten(zahlen.schwelleMs)
+  const eigener = baueHinweis({ ...zahlen, freieSlots, schwelleMin, wartend })
+  // Der Neustart-Verdacht steht VOR dem Regelhinweis: Er widerspricht ihm.
+  // „nichts zu tun ausser warten" war am 02.09. genau die falsche Auskunft.
+  const hinweis = neustart?.verdacht
+    ? [neustart.hinweis, eigener].filter(Boolean).join(' ')
+    : eigener
   return {
     ...zahlen,
     freieSlots,
     stillstandSchwelleMinuten: schwelleMin,
-    hinweis: baueHinweis({ ...zahlen, freieSlots, schwelleMin, wartend }),
+    hinweis,
+    ...(neustart?.verdacht ? { neustartVerdacht: neustart } : {}),
   }
 }
 
@@ -121,15 +136,18 @@ export async function holePoolSicht(wartend: number): Promise<
   const status = ExternalJobsWorker.getStatus()
   const schwelleMs = ExternalJobsWorker.getReaperMaxAgeMs()
   try {
+    const { pruefeNeustart } = await import('./job-neustart-verdacht')
     const repo = new ExternalJobsRepository()
-    const [laufend, steckengeblieben] = await Promise.all([
+    const [laufend, steckengeblieben, lebenszeichen] = await Promise.all([
       repo.countRunning(),
       repo.countStaleRunning(schwelleMs),
+      repo.runningLebenszeichen(),
     ])
     return {
       pool: bauePoolSicht(
         { slots: status.concurrency, laufend, steckengeblieben, schwelleMs },
         wartend,
+        pruefeNeustart(lebenszeichen, new Date()),
       ),
     }
   } catch (fehler) {

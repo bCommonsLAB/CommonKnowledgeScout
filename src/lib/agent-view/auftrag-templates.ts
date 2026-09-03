@@ -59,6 +59,12 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
   core_fields_missing: (gap, pfad) =>
     `KnowledgeScout: A0-Pflichtfelder von ${pfad} ergaenzen${detail(gap)} — Library-Verifikation (Reparieren) bzw. Re-Transformation.`,
 
+  quelle_verschwunden: (gap, pfad) =>
+    `Mensch: Die Datenbank kennt ${pfad}${detail(gap)}, im Speicher liegt sie nicht mehr. ` +
+    'Kein Job behebt das — entweder die Datei zurueckholen (dann greift der naechste Scan) ' +
+    'oder die Familie mit quelle_verwerfen aufloesen. NICHT erneut erschliessen: Der Job ' +
+    'scheitert am fehlenden Original.',
+
   // — Mensch-Aufgaben —
   twin_flagged: (gap, pfad) =>
     `Peter: Fehler-Markierung an ${pfad} aufloesen${detail(gap)} — reparieren (lassen) und danach verifizieren.`,

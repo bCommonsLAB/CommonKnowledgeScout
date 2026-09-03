@@ -12,38 +12,9 @@ import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider }
 import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
 import { konfliktAntwort } from './konflikt'
-import { type PatchModus, wendePatchAn } from './patch'
+import { wendePatchesAn } from './patch'
+import { MODUS_SCHEMA, aktionZuModus, leseModus } from './patch-schema'
 import { pruefeSchreibschutz } from './schreibschutz'
-
-const MODUS_SCHEMA = z.object({
-  art: z.enum(['ersetze', 'abschnitt_ersetzen', 'frontmatter_setzen']),
-  altText: z.string().optional().describe('art="ersetze": muss GENAU EINMAL in der Datei vorkommen'),
-  neuText: z.string().optional().describe('art="ersetze": was an die Stelle tritt'),
-  ueberschrift: z.string().optional().describe('art="abschnitt_ersetzen": z. B. "## Befunde"'),
-  neuerInhalt: z.string().optional().describe('art="abschnitt_ersetzen": inkl. der Ueberschriftszeile'),
-  felder: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
-    .describe('art="frontmatter_setzen": flache snake_case-Keys, Skalare. Keine Listen/Objekte.'),
-})
-
-/** Uebersetzt die Eingabe in einen {@link PatchModus} — ohne fehlende Felder zu raten. */
-function leseModus(eingabe: z.infer<typeof MODUS_SCHEMA>): PatchModus {
-  if (eingabe.art === 'ersetze') {
-    if (eingabe.altText === undefined || eingabe.neuText === undefined) {
-      throw new Error('art="ersetze" braucht `altText` und `neuText`')
-    }
-    return { art: 'ersetze', altText: eingabe.altText, neuText: eingabe.neuText }
-  }
-  if (eingabe.art === 'abschnitt_ersetzen') {
-    if (!eingabe.ueberschrift || eingabe.neuerInhalt === undefined) {
-      throw new Error('art="abschnitt_ersetzen" braucht `ueberschrift` und `neuerInhalt`')
-    }
-    return { art: 'abschnitt_ersetzen', ueberschrift: eingabe.ueberschrift, neuerInhalt: eingabe.neuerInhalt }
-  }
-  if (!eingabe.felder || Object.keys(eingabe.felder).length === 0) {
-    throw new Error('art="frontmatter_setzen" braucht `felder` mit mindestens einem Eintrag')
-  }
-  return { art: 'frontmatter_setzen', felder: eingabe.felder }
-}
 
 export function registerStoragePatchTool(server: McpServer): void {
   server.registerTool(
@@ -51,25 +22,31 @@ export function registerStoragePatchTool(server: McpServer): void {
     {
       title: 'Teiländerung an einer Textdatei (SCHREIBT)',
       description:
-        'Aendert einen TEIL einer Datei, ohne sie ganz zu uebertragen — dafuer gedacht, wenn sich ' +
-        'eine Zahl oder ein Absatz aendert. Drei Modi: "ersetze" (altText muss GENAU EINMAL ' +
-        'vorkommen, sonst Fehler — die Eindeutigkeit ist der Schutz), "abschnitt_ersetzen" ' +
-        '(Markdown-Abschnitt bis zur naechsten gleichrangigen Ueberschrift, tiefere ' +
-        'Unterueberschriften gehoeren dazu), "frontmatter_setzen" (nur die genannten Felder; Body ' +
-        'und fremde Frontmatter-Zeilen bleiben Byte fuer Byte stehen). `ifVersion` ist Pflicht; ' +
+        'Aendert einen TEIL einer Datei, ohne sie ganz zu uebertragen. Sechs Modi: "ersetze" ' +
+        '(altText muss GENAU EINMAL vorkommen, sonst Fehler — die Eindeutigkeit ist der Schutz), ' +
+        '"abschnitt_ersetzen" (Markdown-Abschnitt bis zur naechsten gleichrangigen Ueberschrift, ' +
+        'tiefere Unterueberschriften gehoeren dazu), "frontmatter_setzen" (nur die genannten ' +
+        'Felder; Body und fremde Frontmatter-Zeilen bleiben Byte fuer Byte stehen), ' +
+        '"abschnitt_einfuegen" (Block vor/nach einem Abschnitt — dafuer NICHT mehr ersetze auf ' +
+        'die Ueberschrift missbrauchen) und "tabelle_zeile_einfuegen" (eine Zeile, ohne die ' +
+        'Tabelle neu zu schreiben). STAPEL: `modi: [...]` wendet mehrere Teilaenderungen in EINEM ' +
+        'Aufruf an — alles oder nichts, jeder Schritt sieht das Ergebnis des vorigen; scheitert ' +
+        'einer, wird NICHTS geschrieben. Entweder `modus` ODER `modi`. `ifVersion` ist Pflicht; ' +
         'bei Konflikt kommt der aktuelle Inhalt mit zurueck. _INDEX.md und "_"-Twin-Ordner sind ' +
         'gesperrt — dafuer die Fachwerkzeuge. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         pfad: ADRESSE_PFAD,
         id: ADRESSE_ID,
-        modus: MODUS_SCHEMA,
+        modus: MODUS_SCHEMA.optional().describe('Eine Teilaenderung. Entweder `modus` oder `modi`.'),
+        modi: z.array(MODUS_SCHEMA).min(1).max(20).optional()
+          .describe('Mehrere Teilaenderungen in Reihenfolge — alles oder nichts.'),
         ifVersion: z.string().min(1).describe('version aus datei_lesen/stat — Pflicht'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, pfad, id, modus, ifVersion, begruendung }) => {
+    async ({ libraryId, pfad, id, modus, modi, ifVersion, begruendung }) => {
       try {
         return await mitProtokoll(
           { werkzeug: 'datei_patchen', libraryId, akteur: mcpUserEmail(), begruendung, pfad },
@@ -78,15 +55,19 @@ export function registerStoragePatchTool(server: McpServer): void {
             await requireLibrary(userEmail, libraryId)
             const provider = await requireProvider(userEmail, libraryId)
 
+            if ((modus && modi) || (!modus && !modi)) {
+              throw new Error('Entweder `modus` (eine Aenderung) ODER `modi` (mehrere) angeben — nicht beides, nicht keines')
+            }
             const adresse = await loeseAdresse({ provider, pfad, id, erwartet: 'file' })
             // Welle ST5: Der Modus entscheidet mit. Am Fliesstext einer
             // _INDEX.md darf gearbeitet werden, an ihrem Feldkern nicht —
-            // sonst steht Ordnerarbeit (Cowork-Befund 28.08.2026).
-            const gelesenerModus = leseModus(modus)
-            pruefeSchreibschutz(
-              adresse.pfad,
-              gelesenerModus.art === 'frontmatter_setzen' ? 'frontmatter' : 'fliesstext',
-            )
+            // sonst steht Ordnerarbeit (Cowork-Befund 28.08.2026). Im Stapel
+            // wird JEDER Schritt geprueft: sonst waere die Sperre dadurch zu
+            // umgehen, dass man sie hinter einen erlaubten Schritt haengt.
+            const geleseneModi = (modi ?? [modus as NonNullable<typeof modus>]).map(leseModus)
+            for (const einzeln of geleseneModi) {
+              pruefeSchreibschutz(adresse.pfad, aktionZuModus(einzeln))
+            }
 
             if (!supportsVersioning(provider)) {
               throw new Error(
@@ -97,7 +78,7 @@ export function registerStoragePatchTool(server: McpServer): void {
 
             const { blob } = await provider.getBinary(adresse.id)
             const vorher = await blob.text()
-            const { inhalt, beschreibung } = wendePatchAn(vorher, gelesenerModus)
+            const { inhalt, beschreibung } = wendePatchesAn(vorher, geleseneModi)
 
             // Ein Patch, der nichts aendert, wird nicht geschrieben: Der
             // Schreibvorgang wuerde die Datei altern lassen (bericht_veraltet)

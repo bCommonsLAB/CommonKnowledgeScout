@@ -30,6 +30,7 @@
 
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { patchStandZeilen } from '@/lib/agent-view/stand-zeilen-patch'
+import { berechneErgaenzung } from './frontmatter-listen'
 
 /** Was `frontmatter_setzen` als Wert annimmt. */
 export type FeldWert = string | number | boolean
@@ -122,4 +123,51 @@ export function setzeFrontmatterFelder(
     }
   }
   return gepatcht
+}
+
+/**
+ * Ergaenzt Listen-Felder (Welle W3) — Dubletten werden erkannt, nicht
+ * angehaengt.
+ *
+ * Geschrieben wird die YAML-Flow-Form (`[a, b]`), weil sie als einzige durch
+ * dieselbe Rueckprobe kommt wie die Skalar-Felder: Der Parser liest sie als
+ * Rohstring zurueck, und geschrieben wie gelesen sind derselbe String.
+ * Begruendung und die verworfene Blockform stehen in `frontmatter-listen.ts`.
+ */
+export function ergaenzeFrontmatterListen(
+  markdown: string,
+  felder: Record<string, readonly string[]>,
+): { inhalt: string; beschreibung: string } {
+  const keys = Object.keys(felder)
+  if (keys.length === 0) throw new Error('Keine Felder angegeben')
+  for (const key of keys) {
+    if (!KEY_MUSTER.test(key)) {
+      throw new Error(
+        `Ungueltiger Frontmatter-Key "${key}": erlaubt sind flache snake_case-Keys ` +
+        '(Kleinbuchstaben, Ziffern, Unterstrich).',
+      )
+    }
+  }
+
+  const { neueWerte, ergaenzt, uebersprungen } = berechneErgaenzung(markdown, felder)
+  const gepatcht = patchStandZeilen(markdown, neueWerte)
+
+  // Dieselbe Rueckprobe wie beim Setzen — die Chirurgie muss sich beweisen.
+  const gelesen = parseFrontmatter(gepatcht).meta
+  for (const [key, wert] of Object.entries(neueWerte)) {
+    if (gelesen[key] !== wert) {
+      throw new Error(
+        `Rueckprobe fehlgeschlagen fuer "${key}": geschrieben ${JSON.stringify(wert)}, ` +
+        `zurueckgelesen ${JSON.stringify(gelesen[key])} — abgebrochen, nichts geschrieben.`,
+      )
+    }
+  }
+
+  const teile = keys.map((key) => {
+    const dazu = ergaenzt[key]
+    const schon = uebersprungen[key]
+    const schonText = schon.length > 0 ? `, ${schon.length} schon vorhanden (${schon.join(', ')})` : ''
+    return `${key}: ${dazu.length} ergaenzt${dazu.length > 0 ? ` (${dazu.join(', ')})` : ''}${schonText}`
+  })
+  return { inhalt: gepatcht, beschreibung: teile.join(' · ') }
 }

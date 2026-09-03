@@ -32,7 +32,7 @@ import { gapsFromFieldVerification } from './field-gaps'
 import { applyGapBudget } from './gap-budget'
 import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
-import { orphanTwinDocuments, orphanTwinFolders } from './inventory-gaps'
+import { orphanTwinDocuments, orphanTwinFolders, quellenVerschwunden } from './inventory-gaps'
 import { filesWithoutExtension, sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
 import { buildTree } from './tree-builder'
@@ -147,11 +147,24 @@ export async function runCoverageScan(
         ]),
     ...families.flatMap((family) => evaluateTwinRules(family, conventions.standardTemplate)),
     ...orphanTwinFolders(folders),
-    // Twin-Dokumente ohne Scan-Fund sind nur beim Library-weiten Scan
-    // aussagekraeftig — im Teilbaum-Scope liegt die Quelle womoeglich
+    // W12: Beweisbar verschwundene Quellen gelten in BEIDEN Scopes — ihr
+    // eigener Elternordner wurde gelesen, die „liegt womoeglich ausserhalb"-
+    // Unschaerfe greift dort nicht.
+    ...quellenVerschwunden({
+      families,
+      scannedFileIds: new Set(fileIndex.keys()),
+      scannedFolderIds: folderIds,
+    }),
+    // Die uebrigen Twin-Dokumente ohne Scan-Fund sind nur beim Library-weiten
+    // Scan aussagekraeftig — im Teilbaum-Scope liegt die Quelle womoeglich
     // ausserhalb (kein Raten, siehe inventory-gaps.ts).
     ...(request.scopeFolderId === null
-      ? orphanTwinDocuments({ families, scannedFileIds: new Set(fileIndex.keys()), rootFolderId: request.rootFolderId })
+      ? orphanTwinDocuments({
+          families,
+          scannedFileIds: new Set(fileIndex.keys()),
+          scannedFolderIds: folderIds,
+          rootFolderId: request.rootFolderId,
+        })
       : []),
     ...folders.flatMap((folder) =>
       evaluateArchiveRules(folder, {

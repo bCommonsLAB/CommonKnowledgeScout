@@ -66,6 +66,9 @@ export function registerUmzugTools(server: McpServer): void {
         `${MAX_UMZUEGE}) zieht mehrere Quellen in DENSELBEN Ziel-Ordner — ein Aufruf statt einem je ` +
         'Datei; Fehler einer Quelle brechen den Stapel nicht ab. Umbenennen bleibt Einzeloperation. ' +
         'NIE Dateien direkt im Dateisystem anfassen — sonst zeigen die Mongo-Dokumente ins Leere. ' +
+        'REIHENFOLGE: erst umbenennen, DANN erschliessen. Wer nach dem Erschliessen umbenennt, ' +
+        'setzt jede betroffene Familie auf twin_stale (gemessen: 23 Familien nach einem Lauf; ' +
+        'derselbe Ordner vorher umbenannt — 28 Umzuege, null twin_stale). ' +
         'SCHREIBT in Storage und MongoDB; nur nach Bestaetigung durch den Menschen ausfuehren.',
       inputSchema: {
         libraryId: LIBRARY_ID,

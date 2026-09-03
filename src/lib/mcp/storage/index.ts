@@ -14,6 +14,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerStorageLeseTools } from './tools-datei'
 import { registerStorageAnlegenTools } from './tools-anlegen'
+import { registerStorageBinaerTools } from './tools-binaer'
 import { registerStorageInfoLoeschenTools } from './tools-info-loeschen'
 import { registerStorageOrdnerTools } from './tools-ordner'
 import { registerStoragePatchTool } from './tools-patch'
@@ -27,6 +28,7 @@ export function registerStorageTools(server: McpServer): void {
   registerStorageSchreibTools(server)
   registerStoragePatchTool(server)
   registerStorageAnlegenTools(server)
+  registerStorageBinaerTools(server)
   registerStorageVerschiebenTool(server)
   registerStorageInfoLoeschenTools(server)
 }

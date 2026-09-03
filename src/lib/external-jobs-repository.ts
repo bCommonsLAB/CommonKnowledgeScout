@@ -631,6 +631,27 @@ export class ExternalJobsRepository {
    * Dient ausschliesslich der Diagnose (Popover): zeigt, wie viele „Zombie“-Slots aktuell die
    * globale Concurrency blockieren. Die eigentliche Bereinigung passiert in `reapStaleRunning`.
    */
+  /**
+   * Letzte Lebenszeichen der laufenden Jobs im Pool (Welle W8).
+   *
+   * Nur die Zeitstempel — daraus erkennt `pruefeNeustart`, ob alle Slots
+   * GLEICHZEITIG verstummt sind (Prozess-Neustart) oder ob sie unabhaengig
+   * voneinander arbeiten. Der Zaehler allein kann das nicht unterscheiden.
+   */
+  async runningLebenszeichen(limit: number = 50): Promise<Date[]> {
+    const col = await this.getCollection();
+    const rows = await col
+      .find(
+        { status: 'running', ...currentWorkerPoolMongoMatch() },
+        { projection: { updatedAt: 1, _id: 0 } }
+      )
+      .limit(limit)
+      .toArray();
+    return rows
+      .map((row) => (row as { updatedAt?: Date }).updatedAt)
+      .filter((datum): datum is Date => datum instanceof Date);
+  }
+
   async countStaleRunning(maxAgeMs: number): Promise<number> {
     if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return 0;
     const col = await this.getCollection();

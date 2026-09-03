@@ -42,6 +42,13 @@ export interface TwinArtifactView {
 export interface TwinFamilyView {
   sourceId: string
   sourceName: string
+  /**
+   * Elternordner laut MongoDB — die AUFGESCHRIEBENE Herkunft, nicht der
+   * Fundort. Genau diese Differenz traegt `quelle_verschwunden` (W12): Wurde
+   * dieser Ordner gescannt und die Datei trotzdem nicht gefunden, ist sie
+   * weg — und nicht bloss ausserhalb des Scopes.
+   */
+  parentId: string
   /** Ordner-Id der Quelle (Aggregation im Baum). */
   folderId: string
   /** Library-relativer Pfad der Quelle ('' wenn der Scan sie nicht fand). */

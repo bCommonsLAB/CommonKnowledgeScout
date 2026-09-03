@@ -76,6 +76,11 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   verweis_tot: { actor: 'cowork', zyklusSchritt: 3, severity: 'error', origin: 'verweis-audit', label: 'Verweis ins Leere' },
   verweis_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'verweis-audit', label: 'Verweis womoeglich ueberholt' },
   bericht_unvollstaendig: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'verweis-audit', label: 'Bericht erwaehnt nicht alles' },
+  // W12: Die Gegenrichtung des Audits — nicht „Dokument zeigt ins Leere",
+  // sondern „Datenbank verspricht eine Quelle, die es nicht gibt". Als
+  // `error` und beim Menschen, weil kein Job das behebt: Entweder die Datei
+  // kommt zurueck, oder die Familie gehoert verworfen.
+  quelle_verschwunden: { actor: 'mensch', zyklusSchritt: 1, severity: 'error', origin: 'verweis-audit', label: 'Quelle nicht mehr im Speicher' },
 
   // — Budget + Betrieb —
   teilbaum_ungesichtet: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'budget', label: 'Ordner noch ungesichtet' },
