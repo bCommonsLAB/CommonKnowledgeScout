@@ -18,11 +18,19 @@
 
 import { findeAbschnitt } from './bereich'
 import { setzeFrontmatterFelder } from './frontmatter-felder'
+import {
+  type AbschnittPosition,
+  type TabellenPosition,
+  fuegeAbschnittEin,
+  fuegeTabellenZeileEin,
+} from './patch-einfuegen'
 
 export type PatchModus =
   | { art: 'ersetze'; altText: string; neuText: string }
   | { art: 'abschnitt_ersetzen'; ueberschrift: string; neuerInhalt: string }
   | { art: 'frontmatter_setzen'; felder: Record<string, unknown> }
+  | { art: 'abschnitt_einfuegen'; ueberschrift: string; position: AbschnittPosition; inhalt: string }
+  | { art: 'tabelle_zeile_einfuegen'; zeile: string; ueberschrift?: string; position: TabellenPosition }
 
 /** Was der Patch tatsaechlich bewirkt hat — fuer die Antwort an den Agenten. */
 export interface PatchErgebnis {
@@ -92,5 +100,46 @@ export function wendePatchAn(text: string, modus: PatchModus): PatchErgebnis {
         beschreibung: `Frontmatter-Felder gesetzt: ${felder.join(', ')} (Body unveraendert)`,
       }
     }
+
+    case 'abschnitt_einfuegen':
+      return fuegeAbschnittEin(text, modus)
+
+    case 'tabelle_zeile_einfuegen':
+      return fuegeTabellenZeileEin(text, modus)
   }
+}
+
+/**
+ * Wendet MEHRERE Teilaenderungen nacheinander an — alles oder nichts (W4).
+ *
+ * Beleg: Ein Bericht braucht heute drei Aufrufe fuer eine logische Aenderung,
+ * ueber zwanzig je Woche. Der Stapel spart aber nicht nur Aufrufe, er ist der
+ * bessere SCHUTZ: Einzeln kann Aenderung 1 sitzen und Aenderung 3 scheitern,
+ * und die Datei steht halb fortgeschrieben da. Hier scheitert entweder alles
+ * oder nichts — geschrieben wird erst der Text nach dem letzten Schritt.
+ *
+ * Jeder Schritt sieht das Ergebnis des vorigen. Das ist Absicht: Ein Patch,
+ * der einen gerade eingefuegten Abschnitt fuellt, muss ihn finden koennen.
+ * Es heisst aber auch, dass die Reihenfolge zaehlt — deshalb nennt der Fehler
+ * die NUMMER des Schritts, sonst waere nicht zu sehen, welcher gemeint ist.
+ */
+export function wendePatchesAn(text: string, modi: readonly PatchModus[]): PatchErgebnis {
+  if (modi.length === 0) throw new Error('`modi` darf nicht leer sein')
+
+  let inhalt = text
+  const beschreibungen: string[] = []
+  for (const [index, modus] of modi.entries()) {
+    try {
+      const ergebnis = wendePatchAn(inhalt, modus)
+      inhalt = ergebnis.inhalt
+      beschreibungen.push(`${index + 1}. ${ergebnis.beschreibung}`)
+    } catch (fehler) {
+      const meldung = fehler instanceof Error ? fehler.message : String(fehler)
+      throw new Error(
+        `Schritt ${index + 1} von ${modi.length} (art="${modus.art}") scheiterte: ${meldung} ` +
+        '— NICHTS geschrieben, auch nicht die vorherigen Schritte.',
+      )
+    }
+  }
+  return { inhalt, beschreibung: beschreibungen.join(' · ') }
 }
