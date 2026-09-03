@@ -22,6 +22,8 @@
 
 import { z } from 'zod'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+import { entscheideErzwingen } from './alt-format-erkennung'
+import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
 import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
@@ -59,10 +61,12 @@ export function registerErschliessenTools(server: McpServer): void {
         template: z.string().min(1).optional().describe('Transformations-Template; weglassen = Standard-Template der Library; "nur_transkript" = bewusst ohne Transformation'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         erzwingen: z.boolean().optional().describe(
-          'true = Extract-Gate uebergehen: transkribiert/extrahiert auch dann, wenn vorhandene ' +
-          'Artefakte den Schritt sonst ueberspringen wuerden. Noetig fuer Familien mit ' +
-          'Transformation OHNE Transkript (Alt-Format-Migration) — ohne erzwingen wird so ein ' +
-          'Job completed, ohne etwas zu schreiben (job_status zeigt die uebersprungenen Schritte).'),
+          'WEGLASSEN ist der Normalfall: Der Server erkennt die Alt-Format-Konstellation ' +
+          '(Transformation OHNE Transkript) selbst und uebergeht das Extract-Gate dann von sich ' +
+          'aus — die Antwort weist das je Quelle als erzwungen="alt_format_erkannt" aus. ' +
+          'true = immer uebergehen, false = nie (auch nicht bei erkanntem Alt-Format). ' +
+          'Hintergrund: Ohne Uebergehen liest das Gate die vorhandene Transformation als Beweis ' +
+          'fuers Transkript, der Job wird completed und schreibt nichts.'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
@@ -86,22 +90,30 @@ export function registerErschliessenTools(server: McpServer): void {
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
               const kind = getFileKind(source.name)
+              // W9: Die Alt-Format-Konstellation ist maschinell eindeutig —
+              // sie hier zu pruefen kostet eine indizierte Abfrage und
+              // erspart dem Agenten eine Entscheidung, die er nur raten kann.
+              const twins = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [source.itemId] })
+              const entscheidung = entscheideErzwingen({
+                angefordert: erzwingen,
+                doc: twins.get(source.itemId) ?? null,
+              })
               if (kind === 'audio' || kind === 'video') {
                 const { jobId } = await enqueueSourceTranscribeJob({
                   libraryId, userEmail, source, mediaType: kind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
-                  erzwingen,
+                  erzwingen: entscheidung.erzwingen,
                 })
-                return jobId
+                return { jobId, erzwungen: entscheidung.grund }
               }
               const documentKind = documentMediaKindFromName(source.name)
               if (documentKind) {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
-                  erzwingen,
+                  erzwingen: entscheidung.erzwingen,
                 })
-                return jobId
+                return { jobId, erzwungen: entscheidung.grund }
               }
               throw new Error(
                 `"${source.name}" ist ${kind} — quelle_erschliessen kann Audio/Video/PDF/DOCX/XLSX/PPTX; ` +
@@ -115,7 +127,10 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate ?? null,
-            erzwungen: erzwingen === true,
+            // Die Sammelangabe sagt nur, was ANGEFORDERT war; was tatsaechlich
+            // galt, steht je Quelle in `jobs[].erzwungen`.
+            erzwingenAngefordert: erzwingen ?? null,
+            erzwungenAutomatisch: batch.zeilen.filter((z) => z.erzwungen === 'alt_format_erkannt').length,
             llmModell: effectiveModell ?? null,
             modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,

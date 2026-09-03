@@ -95,6 +95,12 @@ export interface BatchRow {
   quelle: string
   jobId?: string
   fehler?: string
+  /**
+   * W9: Warum dieser Job das Extract-Gate uebergeht (oder nicht). Steht in
+   * der Antwort, damit eine automatisch erkannte Alt-Format-Familie SICHTBAR
+   * ist — eine stille Korrektur waere derselbe Fehler in gruen.
+   */
+  erzwungen?: string
 }
 
 /**
@@ -106,7 +112,8 @@ export async function runForSources(args: {
   sourceId?: string
   quellPfad?: string
   sourceIds?: string[]
-  start: (source: ResolvedSource) => Promise<string>
+  /** Liefert die jobId — oder sie plus Zusatzangaben fuer die Ergebniszeile. */
+  start: (source: ResolvedSource) => Promise<string | { jobId: string; erzwungen?: string }>
 }): Promise<{ zeilen: BatchRow[]; gestartet: number; gescheitert: number }> {
   const { provider, sourceId, quellPfad, sourceIds, start } = args
   const hasSingle = Boolean(sourceId) || Boolean(quellPfad)
@@ -124,8 +131,9 @@ export async function runForSources(args: {
     try {
       const source = await resolveSourceItem(provider, target.sourceId, target.quellPfad)
       name = source.name
-      const jobId = await start(source)
-      zeilen.push({ quelle: name, jobId })
+      const ergebnis = await start(source)
+      const { jobId, ...rest } = typeof ergebnis === 'string' ? { jobId: ergebnis } : ergebnis
+      zeilen.push({ quelle: name, jobId, ...rest })
     } catch (error) {
       zeilen.push({ quelle: name, fehler: error instanceof Error ? error.message : String(error) })
     }
