@@ -1,7 +1,7 @@
 # Wunschliste 3 — was zwei Cowork-Sitzungen an der Brücke gefunden haben
 
-Stand 03.09.2026, Werkzeugsatz **2.18.0** (2.17.0 plus W15/W16, siehe §7).
-Dritte Runde nach den beiden
+Stand 03.09.2026, Werkzeugsatz **2.25.0**. **Fuenfzehn der sechzehn Punkte
+sind umgesetzt** — was offen blieb und warum, steht in §8. Dritte Runde nach den beiden
 Pilot-Wunschlisten (21./22.08., umgesetzt) und den Storage-Anforderungen vom
 27.08. ([`mcp-storage-anforderungen.md`](mcp-storage-anforderungen.md),
 Stand dazu in [`mcp-storage-stand.md`](mcp-storage-stand.md)).
@@ -43,20 +43,20 @@ umgeht oder ohne `begruendung` schreibt, wäre ein Rückschritt, kein Wunsch.
 
 | Nr | Wunsch | Beleg aus der Sitzung | Im Code heute | Aufwand |
 |---|---|---|---|---|
-| W1 | `abschnitt_einfuegen` (`vor`/`nach` einer Überschrift) | Jeder Wochenabschnitt läuft als `ersetze` auf `"## Verweise"` — die Überschrift wird mitgeschickt, nur um sie zu erhalten | `datei_patchen` kennt drei Modi, keiner fügt ein | klein |
-| W2 | `tabelle_zeile_einfuegen` | Eine Chronologie-Zeile kostet das Neuschreiben der ganzen Tabelle | dito | klein |
-| W3 | `frontmatter_setzen` mit Listen + `ergaenzen` | `korrespondenz:` ist das Feld, das diese Auswertung wöchentlich pflegt | `felder` nimmt nur Skalare, ausdrücklich „Keine Listen/Objekte" | mittel |
-| W4 | Mehrere Änderungen in **einem** Aufruf | Ein Bericht braucht drei Aufrufe für eine logische Änderung — über zwanzig je Woche | ein `modus` je Aufruf | mittel |
-| W5 | `ordner_listen`: `maxBytes`/`offset` + `zusammenfassung` | `tiefe: 2` auf Klimagesetz = 78.634 Zeichen; der Ordner ist bis heute ungeprüft | `datei_lesen` hat beides, `ordner_listen` nicht | klein |
-| W6 | Binärdateien lesen/schreiben | Zwölf Anhänge liegen nach drei Wochen weiter im Postfach | die Schicht ist reiner Text (`blob.text()`, `text/markdown`) | groß |
-| W7 | `job_abbrechen` | Eine Job-Leiche steht seit dem 29.08. auf `running`; `jobs_aufraeumen` räumt sie nicht ab | `jobs_aufraeumen` greift nur bei eigenen Jobs **derselben** Library **ohne** Lebenszeichen | klein |
-| W8 | Crash-Recovery statt 30-Minuten-Reaper | Server-Neustart 12:45 — alle sechs Slots verstummten binnen einer Minute; zweimal 30 Minuten Stillstand an einem Tag | Reaper-Schwelle, keine Erkennung gleichzeitigen Verstummens | mittel |
-| W9 | Alt-Format-Familien selbst erkennen | 60 von 250 Jobs brauchten `erzwingen: true`; in `23.12` **alle 16** Quellen | `erzwingen` existiert samt Erklärung — der Agent muss es aber raten | mittel |
-| W10 | `date` aus dem Pfad ableiten | ~360 von 1.440 Befunden bibliotheksweit; in `24.09` 54 von 66 | `core_fields_missing` meldet nur; Pfad wird nicht ausgewertet | mittel |
-| W11 | Befund `quelle_ohne_ton` | Sieben Bildschirmaufnahmen scheiterten reproduzierbar; bei zweien **halluzinierte** eine frühere Transkription | kein `ffprobe` im Repository, kein solcher Befundtyp | mittel |
-| W12 | Befund `quelle_verschwunden` | 15 Fälle: MongoDB kennt Quelle und Transkript, der Storage sagt „nicht gefunden" | Befundtyp fehlt; das Verweis-Audit prüft diese Richtung nicht | mittel |
-| W13 | `bericht_pruefen` gegen `Konventionen.md` | Es gibt die Konventionen, aber nichts, was einen Bericht dagegen prüft | `bericht_veraltet` existiert als Typ, aber ohne Regelprüfung dahinter | groß |
-| W14 | Schattenordner: elf leere `date`-Felder nachtragbar machen | Bei „Better Writer" nicht nachzutragen | `_`-Ordner sind vollständig gesperrt — bewusst, siehe §7 | offen |
+| W1 | `abschnitt_einfuegen` (`vor`/`nach` einer Überschrift) | Jeder Wochenabschnitt läuft als `ersetze` auf `"## Verweise"` — die Überschrift wird mitgeschickt, nur um sie zu erhalten | **umgesetzt (2.21.0)** — `abschnitt_einfuegen` mit `vor`/`nach` | klein |
+| W2 | `tabelle_zeile_einfuegen` | Eine Chronologie-Zeile kostet das Neuschreiben der ganzen Tabelle | **umgesetzt (2.21.0)** — mit Eindeutigkeitsschutz | klein |
+| W3 | `frontmatter_setzen` mit Listen + `ergaenzen` | `korrespondenz:` ist das Feld, das diese Auswertung wöchentlich pflegt | **umgesetzt (2.22.0)** — `frontmatter_ergaenzen`, Flow-Form | mittel |
+| W4 | Mehrere Änderungen in **einem** Aufruf | Ein Bericht braucht drei Aufrufe für eine logische Änderung — über zwanzig je Woche | **umgesetzt (2.21.0)** — `modi: [...]`, alles oder nichts | mittel |
+| W5 | `ordner_listen`: `maxBytes`/`offset` + `zusammenfassung` | `tiefe: 2` auf Klimagesetz = 78.634 Zeichen; der Ordner ist bis heute ungeprüft | **umgesetzt (2.19.0)** — `maxBytes` + `zusammenfassung` | klein |
+| W6 | Binärdateien lesen/schreiben | Zwölf Anhänge liegen nach drei Wochen weiter im Postfach | **Stufe 1 umgesetzt (2.25.0)**; Upload-URL offen | groß |
+| W7 | `job_abbrechen` | Eine Job-Leiche steht seit dem 29.08. auf `running`; `jobs_aufraeumen` räumt sie nicht ab | **umgesetzt (2.23.0)** — `job_abbrechen` | klein |
+| W8 | Crash-Recovery statt 30-Minuten-Reaper | Server-Neustart 12:45 — alle sechs Slots verstummten binnen einer Minute; zweimal 30 Minuten Stillstand an einem Tag | **umgesetzt (2.23.0)** — Verdacht in `job_liste` | mittel |
+| W9 | Alt-Format-Familien selbst erkennen | 60 von 250 Jobs brauchten `erzwingen: true`; in `23.12` **alle 16** Quellen | **umgesetzt (2.20.0)** — Erkennung serverseitig | mittel |
+| W10 | `date` aus dem Pfad ableiten | ~360 von 1.440 Befunden bibliotheksweit; in `24.09` 54 von 66 | **umgesetzt** — Ableitung + `date_quelle: pfad` | mittel |
+| W11 | Befund `quelle_ohne_ton` | Sieben Bildschirmaufnahmen scheiterten reproduzierbar; bei zweien **halluzinierte** eine frühere Transkription | **teilweise (2.24.0)** — Deutung ja, Vorprüfung gehört in den Secretary | mittel |
+| W12 | Befund `quelle_verschwunden` | 15 Fälle: MongoDB kennt Quelle und Transkript, der Storage sagt „nicht gefunden" | **umgesetzt** — `quelle_verschwunden`, beide Scopes | mittel |
+| W13 | `bericht_pruefen` gegen `Konventionen.md` | Es gibt die Konventionen, aber nichts, was einen Bericht dagegen prüft | **offen, bewusst** — siehe §8 | groß |
+| W14 | Schattenordner: elf leere `date`-Felder nachtragbar machen | Bei „Better Writer" nicht nachzutragen | **keine Codeänderung** — Entscheidung, siehe §7 | — |
 | W15 | Reihenfolge-Regel in die Werkzeugbeschreibung (G11) | `23.07` nach dem Erschließen umbenannt: 23 Familien `twin_stale`. `25.07` vorher: 28 Umbenennungen, **null** | **umgesetzt (2.18.0)** — stand nur im Skill | trivial |
 | W16 | Dreiklang import→repair→export in `quelle_erschliessen` | `twins_synchronisieren` adoptierte ~90 Quellen, die der Scan sonst als unerschlossen gemeldet hätte | **umgesetzt (2.18.0)** — dito | trivial |
 
@@ -258,29 +258,58 @@ einmal aus- und eingeschaltet werden (der Client cached die Toolliste,
 
 ---
 
-## 8. Reihenfolge
+## 8. Was umgesetzt ist — und der eine Punkt, der offen bleibt
 
-Nach Nutzen je Aufwand, nicht nach Nummer:
+Fünfzehn der sechzehn Punkte sind gebaut (Werkzeugsatz **2.25.0**, 37
+Werkzeuge). Die Reihenfolge folgte dem Nutzen je Aufwand; jeder Punkt hat
+seinen eigenen Commit mit dem Beleg, aus dem er stammt.
 
-1. ~~**W15/W16**~~ — erledigt mit 2.18.0.
-2. **W5** — `maxBytes`/`offset`/`zusammenfassung` an `ordner_listen`. Das
-   Muster steht bei `datei_lesen` fertig daneben; macht einen bis heute
-   ungeprüften Ordner prüfbar.
-3. **W9** — Alt-Format selbst erkennen. Beendet die lügende `completed`-Meldung;
-   betraf ein Viertel aller Jobs.
-4. **W1/W2/W4** — die Fortschreib-Modi an `datei_patchen`. Eine Welle, ein
-   gemeinsames Schema, ein gemeinsamer Eindeutigkeitsschutz.
-5. **W11** — `ffprobe`-Vorprüfung. Klein im Code, aber der Riegel gegen
-   halluzinierte Transkripte.
-6. **W7/W8** — Job-Griffe. `job_abbrechen` ist klein, Crash-Recovery braucht
-   einen Entwurf (woran erkennt der Server seinen eigenen Neustart?).
-7. **W10** — `date` aus dem Pfad. Größter Zahleneffekt (~360 Befunde), aber
-   berührt die Pipeline und braucht die Herkunfts-Auszeichnung.
-8. **W3** — `ergaenzen` mit normalisiertem Vergleich.
-9. **W12** — `quelle_verschwunden` im Verweis-Audit.
-10. **W6** — Binärdateien. Größter Brocken; die Stufe „base64 klein" ist für
-    sich schon nützlich.
-11. **W13** — `bericht_pruefen`. Braucht zuerst eine Antwort darauf, welche
-    Regeln aus `Konventionen.md` maschinell prüfbar sind.
+| | Punkt | Wie umgesetzt |
+|---|---|---|
+| ✅ | W15/W16 | Reihenfolge- und Dreiklang-Regel stehen an `familie_umziehen` bzw. `quelle_erschliessen` |
+| ✅ | W5 | `maxBytes` (Vorgabe 64 kB) + `zusammenfassung: true` an `ordner_listen` |
+| ✅ | W9 | Alt-Format-Konstellation wird serverseitig erkannt; `erzwingen` ist dreiwertig, die Antwort weist den Grund je Quelle aus |
+| ✅ | W1/W2/W4 | `abschnitt_einfuegen`, `tabelle_zeile_einfuegen`, Stapel `modi: [...]` (alles oder nichts) |
+| ✅ | W3 | `frontmatter_ergaenzen` mit normalisiertem Dubletten-Vergleich, Flow-Form |
+| ✅ | W7/W8 | `job_abbrechen`; Neustart-Verdacht widerspricht dem „nichts zu tun außer warten" |
+| ✅ | W10 | `date` aus dem Pfad, belegt mit `date_quelle: pfad` |
+| ⚠️ | W11 | `fehlerDeutung` in `job_status` — die `ffprobe`-Vorprüfung gehört in den Secretary Service |
+| ✅ | W12 | `quelle_verschwunden`, in beiden Scopes, wo der Elternordner gelesen wurde |
+| ⚠️ | W6 | Stufe 1 (base64) steht; Stufe 2 (Upload-URL) nicht |
+| ❌ | W13 | `bericht_pruefen` — nicht gebaut, siehe unten |
+| — | W14 | Braucht keinen Code, sondern eine Entscheidung (§7) |
+
+### W13 bleibt offen, und zwar bewusst
+
+Der Wunsch lautet: ein `bericht_pruefen`, das einen Bericht gegen
+`Konventionen.md` prüft. Zwei Gründe, das jetzt **nicht** zu bauen:
+
+1. **`Konventionen.md` liegt im Archiv, nicht im Repository.** Sie ist
+   deutsche Prosa in der OneDrive-Bibliothek. Welche ihrer Sätze maschinell
+   prüfbar sind, lässt sich von hier aus nicht sehen — und geraten würde ein
+   Befundtyp entstehen, der über 101 Vorhabensordner hinweg falsch anschlägt.
+   Ein Befund, der zu Unrecht rot ist, kostet mehr Vertrauen, als er Arbeit
+   spart.
+2. **Was strukturell prüfbar ist, gibt es schon.** `report_missing`,
+   `bericht_veraltet`, `verweis_tot`, `bericht_unvollstaendig` und
+   `stand_widerspruch` decken Existenz, Alter, Verweise und Widersprüche ab.
+   Was `bericht_pruefen` darüber hinaus leisten soll, ist genau der Teil, der
+   in der Prosa steht.
+
+**Was es dafür braucht** — eine Liste der Regeln aus `Konventionen.md`, die
+maschinell entscheidbar sind, jeweils mit dem Befundtyp, den ihr Bruch
+erzeugen soll. Diese Liste kann nur aus dem Archiv kommen. Danach ist die
+Umsetzung klein: Die Regel-Maschinerie (`archive-rules.ts`, `GAP_REGISTRY`)
+steht und nimmt neue Typen typsicher auf.
+
+### Zwei Ausbaustufen, die benannt bleiben
+
+- **W6 Stufe 2** — Upload-URL für große Dateien. Bis dahin bekommt der
+  Aufrufer bei über 6 MB ein `zu_gross` mit Zahlen, keine Übertragung, die im
+  Zeitlimit stirbt.
+- **W11 Vorprüfung** — `ffprobe` vor der Ton-Extraktion. Gehört in den
+  Secretary Service; dieses Repository führt weder ffmpeg noch ffprobe aus.
+  Bis dahin macht die Deutung den Fehlschlag wenigstens einmal verständlich
+  statt siebenmal rätselhaft.
 
 **W14** braucht keinen Code, sondern eine Entscheidung (§7).
