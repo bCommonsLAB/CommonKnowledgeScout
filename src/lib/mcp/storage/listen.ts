@@ -16,6 +16,12 @@
 
 import type { StorageItem } from '@/lib/storage/types'
 import { kindPfad } from './adressierung'
+import {
+  MAX_BYTES_LISTE_VORGABE,
+  type ZusammenfassungZeile,
+  begrenzeSeite,
+  fasseZusammen,
+} from './listen-verdichten'
 
 /** Ein Eintrag, wie ihn `ordner_listen` zurueckgibt. */
 export interface Eintrag {
@@ -71,6 +77,14 @@ export interface ListenErgebnis {
    * als eine, die zu gross ist.
    */
   abgeschnitten?: string
+  /** Gesetzt, wenn das Byte-Budget (`maxBytes`) die Seite gekuerzt hat. */
+  gekuerzt?: string
+  /**
+   * Statt der Namensliste: je direktem Unterordner Anzahl, Groesse und
+   * juengstes Datum. Gesetzt genau dann, wenn `zusammenfassung` angefordert
+   * wurde — dann bleibt `eintraege` leer.
+   */
+  zusammenfassung?: ZusammenfassungZeile[]
 }
 
 /**
@@ -88,6 +102,8 @@ export async function listeOrdner(args: {
   muster?: string
   limit: number
   cursor?: string
+  maxBytes?: number
+  zusammenfassung?: boolean
 }): Promise<ListenErgebnis> {
   const { liste, folderId, ordnerPfad, tiefe, muster, limit } = args
   const regex = muster ? musterAlsRegex(muster) : null
@@ -124,15 +140,33 @@ export async function listeOrdner(args: {
     }
   }
 
+  const rest = { gelisteteOrdner: gelistet, ...(abgeschnitten ? { abgeschnitten } : {}) }
+
+  // Die Verdichtung blaettert NICHT: Sie hat je Unterordner eine Zeile und
+  // ist damit von Natur aus klein. `limit`/`cursor` darauf anzuwenden hiesse,
+  // den Ueberblick zu zerschneiden, den sie herstellen soll.
+  if (args.zusammenfassung) {
+    return {
+      eintraege: [],
+      zusammenfassung: fasseZusammen(alle, ordnerPfad, folderId),
+      weitereVorhanden: false,
+      naechsterCursor: null,
+      ...rest,
+    }
+  }
+
   const start = leseCursor(args.cursor)
-  const seite = alle.slice(start, start + limit)
+  const { seite, gekuerzt } = begrenzeSeite(
+    alle.slice(start, start + limit),
+    args.maxBytes ?? MAX_BYTES_LISTE_VORGABE,
+  )
   const weitere = start + seite.length < alle.length
   return {
     eintraege: seite,
     weitereVorhanden: weitere,
     naechsterCursor: weitere ? String(start + seite.length) : null,
-    gelisteteOrdner: gelistet,
-    ...(abgeschnitten ? { abgeschnitten } : {}),
+    ...rest,
+    ...(gekuerzt ? { gekuerzt } : {}),
   }
 }
 

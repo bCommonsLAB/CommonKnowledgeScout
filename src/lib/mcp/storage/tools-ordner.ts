@@ -10,6 +10,7 @@ import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider }
 import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
 import { MAX_LISTINGS, listeOrdner } from './listen'
+import { MAX_BYTES_LISTE_VORGABE } from './listen-verdichten'
 
 export function registerStorageOrdnerTools(server: McpServer): void {
   server.registerTool(
@@ -21,7 +22,12 @@ export function registerStorageOrdnerTools(server: McpServer): void {
         'sodass KEIN zweiter Aufruf pro Datei noetig ist. Adressierung per `pfad` ODER `id`; die ' +
         'Antwort nennt immer beides. `limit`/`cursor` sind Pflicht-Blaetterung — `weitereVorhanden` ' +
         `sagt, ob noch etwas kommt. Rekursiv nur mit ausdruecklicher \`tiefe\`; ueber ${MAX_LISTINGS} ` +
-        'Ordner-Listings bricht der Aufruf ab und sagt es (Zeitlimit-Schutz). Liest nur.',
+        'Ordner-Listings bricht der Aufruf ab und sagt es (Zeitlimit-Schutz). ' +
+        `\`maxBytes\` (Vorgabe ${MAX_BYTES_LISTE_VORGABE / 1024} kB) begrenzt zusaetzlich die GROESSE ` +
+        'der Antwort — `limit` begrenzt nur ihre Zahl, und bei tiefen Laeufen ist die Groesse die ' +
+        'bindende Grenze; eine Kuerzung steht in `gekuerzt`. `zusammenfassung: true` liefert STATT ' +
+        'der Namensliste je direktem Unterordner nur Anzahl, Gesamtgroesse und juengstes Datum — ' +
+        'die billige Antwort auf „wo liegt ueberhaupt Arbeit?". Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         pfad: ADRESSE_PFAD,
@@ -32,10 +38,14 @@ export function registerStorageOrdnerTools(server: McpServer): void {
           .describe('Glob auf den NAMEN, z. B. "*.md" oder "_*". Filtert die Ausgabe, nicht den Abstieg.'),
         limit: z.number().int().min(1).max(500).describe('Wie viele Eintraege diese Seite hat (Pflicht).'),
         cursor: z.string().optional().describe('naechsterCursor der vorigen Seite, unveraendert.'),
+        maxBytes: z.number().int().min(1024).max(1024 * 1024).optional()
+          .describe(`Groessenbudget der Seite in Bytes (Vorgabe ${MAX_BYTES_LISTE_VORGABE}).`),
+        zusammenfassung: z.boolean().optional()
+          .describe('true = statt der Eintraege je direktem Unterordner eine verdichtete Zeile.'),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, pfad, id, tiefe, muster, limit, cursor }) => {
+    async ({ libraryId, pfad, id, tiefe, muster, limit, cursor, maxBytes, zusammenfassung }) => {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
@@ -54,6 +64,8 @@ export function registerStorageOrdnerTools(server: McpServer): void {
           muster,
           limit,
           cursor,
+          maxBytes,
+          zusammenfassung,
         })
         return jsonResult({ ordner: { pfad: adresse.pfad || '(Wurzel)', id: adresse.id }, ...ergebnis })
       } catch (error) {
