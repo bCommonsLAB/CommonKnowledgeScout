@@ -3,6 +3,9 @@
 Stand 03.09.2026, Werkzeugsatz **2.25.0**. **Fünfzehn der sechzehn Punkte sind
 umgesetzt** — was offen blieb und warum, steht in §8.
 
+Kurzfassung zum Übernehmen in die Cowork-Skills:
+[`2026-09-03-cowork-werkzeugsatz-2-25.md`](../handover/2026-09-03-cowork-werkzeugsatz-2-25.md).
+
 Dritte Runde nach den beiden Pilot-Wunschlisten (21./22.08., umgesetzt) und
 den Storage-Anforderungen vom 27.08. ([`mcp-storage-anforderungen.md`](mcp-storage-anforderungen.md),
 Stand dazu in [`mcp-storage-stand.md`](mcp-storage-stand.md)).
