@@ -105,11 +105,18 @@ export interface ZyklusFortschritt {
  * `markierungen` kommt aus den effektiven Familien (frische Markierungen sind
  * im gespeicherten Report noch nicht enthalten) und wird Schritt 4
  * zugeschlagen, ohne den gleichnamigen Befundtyp doppelt zu zaehlen.
+ * `korrekturen` funktioniert genauso, geht aber auf Schritt 1.
  */
 export function berechneZyklusFortschritt(args: {
   gapsByType: GapCountByType
   bearbeitungsstand: Bearbeitungsstand | null
   markierungen: number
+  /**
+   * Familien mit offenem Korrekturauftrag (K3), aus den effektiven Familien —
+   * wie `markierungen`, damit ein frisch diktierter Auftrag sofort in der
+   * Leiste steht und nicht erst nach dem naechsten Scan.
+   */
+  korrekturen: number
 }): ZyklusFortschritt {
   const proSchritt: Record<ZyklusSchritt, number> = { 1: 0, 2: 0, 3: 0, 4: 0 }
 
@@ -121,6 +128,9 @@ export function berechneZyklusFortschritt(args: {
     // `twin_flagged` kommt ueber `markierungen` herein (frischer Stand),
     // damit dieselbe Markierung nicht zweimal zaehlt.
     if (typ === 'twin_flagged') continue
+    // Dasselbe fuer `korrektur_offen` (K3): ein eben diktierter Auftrag steht
+    // noch in keinem Report — er kommt ueber `korrekturen` herein.
+    if (typ === 'korrektur_offen') continue
     // Alt-Bestand zaehlt nicht mit: Ohne diese Zeile blaeht er Schritt 4 auf
     // (im Pruefarchiv 28 Phantom-Punkte) und die Leiste behauptet Arbeit,
     // die niemand mehr tun soll.
@@ -128,6 +138,9 @@ export function berechneZyklusFortschritt(args: {
     proSchritt[definition.zyklusSchritt] += anzahl ?? 0
   }
   proSchritt[4] += args.markierungen
+  // Schritt 1: Ein Auftrag loest fast immer Umbenennen/Verschieben aus, und
+  // das gehoert laut Konventionen vor die Erschliessung (Registry-Eintrag).
+  proSchritt[1] += args.korrekturen
 
   const erledigtBis = args.bearbeitungsstand === null ? 0 : STAND_ERLEDIGT_BIS[args.bearbeitungsstand]
   const dran = ZYKLUS_SCHRITTE.find((schritt) => proSchritt[schritt] > 0) ?? null

@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest'
 import { berechneZyklusFortschritt, schrittVon } from '@/lib/agent-view/zyklus-fortschritt'
 
-const OHNE_MARKIERUNG = { markierungen: 0 }
+const OHNE_WIDERSTAND = { markierungen: 0, korrekturen: 0 }
 
 describe('berechneZyklusFortschritt', () => {
   it('ordnet Befunde ihrem Schritt zu und nennt den ersten offenen als „dran"', () => {
@@ -18,7 +18,7 @@ describe('berechneZyklusFortschritt', () => {
       // report_missing = Schritt 3 (Cowork), verweis_tot = Schritt 3
       gapsByType: { report_missing: 1, verweis_tot: 2 },
       bearbeitungsstand: 'strukturiert',
-      ...OHNE_MARKIERUNG,
+      ...OHNE_WIDERSTAND,
     })
     expect(fortschritt.dran).toBe(3)
     expect(fortschritt.offenGesamt).toBe(3)
@@ -30,7 +30,7 @@ describe('berechneZyklusFortschritt', () => {
     const fortschritt = berechneZyklusFortschritt({
       gapsByType: { source_without_twin: 1, report_missing: 5 },
       bearbeitungsstand: 'berichtet',
-      ...OHNE_MARKIERUNG,
+      ...OHNE_WIDERSTAND,
     })
     expect(fortschritt.dran).toBe(1)
   })
@@ -39,7 +39,7 @@ describe('berechneZyklusFortschritt', () => {
     const fortschritt = berechneZyklusFortschritt({
       gapsByType: {},
       bearbeitungsstand: 'berichtet',
-      ...OHNE_MARKIERUNG,
+      ...OHNE_WIDERSTAND,
     })
     expect(fortschritt.dran).toBeNull()
     expect(fortschritt.offenGesamt).toBe(0)
@@ -50,6 +50,7 @@ describe('berechneZyklusFortschritt', () => {
       gapsByType: {},
       bearbeitungsstand: 'berichtet',
       markierungen: 2,
+      korrekturen: 0,
     })
     expect(fortschritt.dran).toBe(4)
     expect(fortschritt.schritte.find((s) => s.schritt === 4)?.offen).toBe(2)
@@ -60,6 +61,7 @@ describe('berechneZyklusFortschritt', () => {
       gapsByType: { twin_flagged: 2 },
       bearbeitungsstand: 'berichtet',
       markierungen: 2,
+      korrekturen: 0,
     })
     expect(fortschritt.schritte.find((s) => s.schritt === 4)?.offen).toBe(2)
   })
@@ -71,7 +73,7 @@ describe('berechneZyklusFortschritt', () => {
     const fortschritt = berechneZyklusFortschritt({
       gapsByType: { twin_unverified: 28, stand_widerspruch: 1 },
       bearbeitungsstand: 'berichtet',
-      ...OHNE_MARKIERUNG,
+      ...OHNE_WIDERSTAND,
     })
     expect(fortschritt.schritte.find((s) => s.schritt === 4)?.offen).toBe(1)
     expect(fortschritt.offenGesamt).toBe(1)
@@ -83,7 +85,7 @@ describe('berechneZyklusFortschritt', () => {
     const fortschritt = berechneZyklusFortschritt({
       gapsByType: { source_without_twin: 3 },
       bearbeitungsstand: 'berichtet',
-      ...OHNE_MARKIERUNG,
+      ...OHNE_WIDERSTAND,
     })
     expect(fortschritt.schritte.find((s) => s.schritt === 1)).toMatchObject({
       offen: 3,
@@ -96,7 +98,7 @@ describe('berechneZyklusFortschritt', () => {
     const fortschritt = berechneZyklusFortschritt({
       gapsByType: {},
       bearbeitungsstand: null,
-      ...OHNE_MARKIERUNG,
+      ...OHNE_WIDERSTAND,
     })
     expect(fortschritt.schritte.every((s) => !s.behauptetErledigt)).toBe(true)
   })
@@ -115,7 +117,7 @@ describe('berechneZyklusFortschritt', () => {
       berechneZyklusFortschritt({
         gapsByType: { zukunftstyp: 1 } as never,
         bearbeitungsstand: null,
-        ...OHNE_MARKIERUNG,
+        ...OHNE_WIDERSTAND,
       }),
     ).toThrow(/Unbekannter Gap-Typ/)
   })

@@ -44,6 +44,8 @@ function fakeKuration(overrides: Partial<UseArtefaktKurationResult> = {}): UseAr
     overrides: new Map(), pendingKey: null, fehler: new Map(),
     verifiziere: vi.fn().mockResolvedValue(null),
     markiere: vi.fn().mockResolvedValue(null),
+    korrigiere: vi.fn().mockResolvedValue(null),
+    nimmKorrekturZurueck: vi.fn().mockResolvedValue(null),
     setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
@@ -156,5 +158,63 @@ describe('ArtefaktKopf (A4)', () => {
       'stable',
     )
     expect(screen.getByRole('button', { name: /sourceId kopieren/ })).toBeTruthy()
+  })
+})
+
+describe('ArtefaktKopf — Korrekturauftrag an den Agenten (K1/K2)', () => {
+  it('bietet „Korrektur diktieren" am pruefbaren Tab an', () => {
+    renderKopf({ tab: 'transkript' })
+    expect(screen.getByRole('button', { name: 'Korrektur diktieren' })).toBeTruthy()
+  })
+
+  it('schickt den Auftragstext ueber den Kurations-Weg', async () => {
+    const korrigiere = vi.fn().mockResolvedValue(artefakt({ korrekturAuftrag: 'Gehoert unter 26.02' }))
+    const f = familie()
+    renderKopf({ f, kuration: fakeKuration({ korrigiere }) })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Korrektur diktieren' }))
+    const feld = screen.getByLabelText('Was soll mit dieser Datei geschehen?')
+    fireEvent.change(feld, { target: { value: 'Gehoert unter 26.02, gesprochen hat Maria S.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Beauftragen' }))
+
+    expect(korrigiere).toHaveBeenCalledWith(
+      f, f.transkript, 'Gehoert unter 26.02, gesprochen hat Maria S.',
+    )
+  })
+
+  it('laesst einen leeren Auftrag nicht abschicken — gesperrt statt still gescheitert', () => {
+    const korrigiere = vi.fn()
+    renderKopf({ kuration: fakeKuration({ korrigiere }) })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Korrektur diktieren' }))
+    const knopf = screen.getByRole('button', { name: 'Beauftragen' }) as HTMLButtonElement
+    expect(knopf.disabled).toBe(true)
+    fireEvent.click(knopf)
+    expect(korrigiere).not.toHaveBeenCalled()
+  })
+
+  it('zeigt einen offenen Auftrag samt Urheber an und laesst ihn zuruecknehmen', () => {
+    const nimmKorrekturZurueck = vi.fn().mockResolvedValue(null)
+    const offen = artefakt({
+      korrekturAuftrag: 'Gehoert unter 26.02',
+      korrekturVon: 'human:peter@example.org',
+      korrekturAt: '2026-08-30T09:12:00.000Z',
+    })
+    renderKopf({
+      f: familie({ transkript: offen }),
+      kuration: fakeKuration({ nimmKorrekturZurueck }),
+    })
+
+    expect(screen.getByText(/Auftrag an Cowork:/)).toBeTruthy()
+    expect(screen.getByText(/Gehoert unter 26.02/)).toBeTruthy()
+    expect(screen.getByText(/human:peter@example.org, 2026-08-30/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zuruecknehmen' }))
+    expect(nimmKorrekturZurueck).toHaveBeenCalled()
+  })
+
+  it('zeigt auf dem Original-Tab keinen Korrektur-Knopf — das Original ist die Referenz', () => {
+    renderKopf({ tab: 'original' })
+    expect(screen.queryByRole('button', { name: 'Korrektur diktieren' })).toBeNull()
   })
 })

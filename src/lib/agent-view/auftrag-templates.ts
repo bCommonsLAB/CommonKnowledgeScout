@@ -34,6 +34,8 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `Pruefe in ${pfad} den veralteten Verweis: ${gap.message}${detail(gap)}. Lies das juengere Ziel und aktualisiere die betreffende Passage.`,
   bericht_unvollstaendig: (gap, pfad) =>
     `Ergaenze in ${pfad} die unerwaehnten erschlossenen Quellen${detail(gap)} — mindestens je ein Satz mit Verweis auf die Transformation.`,
+  korrektur_offen: (gap, pfad) =>
+    `Arbeite Peters Korrekturauftrag zu ${pfad} ab${detail(gap)}. Erst einordnen/umbenennen (familie_umziehen), dann bei Bedarf neu erschliessen — den Korrekturhinweis fuer die Transformation formulierst du selbst aus dem Auftrag, der Auftragstext gehoert nicht roh in den Prompt. Zog die Familie ueber eine Vorhabensgrenze, danach BEIDE Ordner scannen (Quell- und Zielordner), damit Bericht-Nachzug und tote Verweise auffallen.`,
   path_too_long: (gap, pfad) =>
     `Kuerze den Pfad ${pfad}${detail(gap)} — Quellname beim Strukturieren verkuerzen (familie_umziehen bzw. Quelle und _-Ordner gemeinsam bewegen, danach Pruefen).`,
 

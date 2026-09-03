@@ -20,6 +20,10 @@
  * benannte Fehler, der die Abnahme sperrt. Gezaehlt werden Widerstaende,
  * nicht Bestaetigungen.
  *
+ * K3 ergaenzt „auftrag": ein diktierter Korrekturauftrag an Cowork. Er sperrt
+ * ebenso, zeigt aber auf die Maschine statt auf den Menschen — der haeufigste
+ * Fall ist „nicht falsch, aber gehoert woanders hin".
+ *
  * Reine Funktionen, kein I/O.
  *
  * @module agent-view
@@ -37,7 +41,19 @@ export function artefaktMarkiert(artefakt: LeadingArtifactSummary): boolean {
   return artefakt.twinStatus === 'flagged'
 }
 
-export type ArtefaktZustand = 'markiert' | 'geprueft' | 'angenommen'
+/**
+ * Offener Korrekturauftrag am Artefakt (K3): Peter hat diktiert, was zu tun
+ * ist, und kein Agent hat Vollzug gemeldet. Orthogonal zur Markierung —
+ * beides kann zugleich gelten.
+ */
+export function artefaktKorrekturOffen(artefakt: LeadingArtifactSummary): boolean {
+  const auftrag = artefakt.korrekturAuftrag
+  if (auftrag == null || auftrag.trim() === '') return false
+  const erledigt = artefakt.korrekturErledigtAt
+  return erledigt == null || erledigt.trim() === ''
+}
+
+export type ArtefaktZustand = 'markiert' | 'auftrag' | 'geprueft' | 'angenommen'
 
 /**
  * Zustand EINES Artefakts (ADR 0006). Die Markierung schlaegt alles: Wer
@@ -46,10 +62,14 @@ export type ArtefaktZustand = 'markiert' | 'geprueft' | 'angenommen'
  */
 export function artefaktZustand(artefakt: LeadingArtifactSummary): ArtefaktZustand {
   if (artefaktMarkiert(artefakt)) return 'markiert'
+  // K3: Ein offener Auftrag schlaegt den Haken — es steht noch Arbeit an,
+  // auch wenn niemand einen Fehler benannt hat („nicht falsch, aber gehoert
+  // woanders hin" ist der haeufigste Fall).
+  if (artefaktKorrekturOffen(artefakt)) return 'auftrag'
   return artefaktGeprueft(artefakt) ? 'geprueft' : 'angenommen'
 }
 
-export type FamilienPruefstand = 'markiert' | 'geprueft' | 'angenommen' | 'leer' | 'unbekannt'
+export type FamilienPruefstand = 'markiert' | 'auftrag' | 'geprueft' | 'angenommen' | 'leer' | 'unbekannt'
 
 /**
  * Zustand einer Familie (ADR 0006):
@@ -67,6 +87,7 @@ export function familienPruefstand(familie: TwinFamilySummary): FamilienPruefsta
   )
   if (vorhanden.length === 0) return 'leer'
   if (vorhanden.some(artefaktMarkiert)) return 'markiert'
+  if (vorhanden.some(artefaktKorrekturOffen)) return 'auftrag'
   return vorhanden.every(artefaktGeprueft) ? 'geprueft' : 'angenommen'
 }
 
@@ -91,6 +112,8 @@ export function effektiveFamilie(
 export interface PruefZaehler {
   /** Familien mit Fehler-Markierung — DAS ist die Zahl, die zaehlt (ADR 0006). */
   markiert: number
+  /** Familien mit offenem Korrekturauftrag an Cowork (K3). */
+  auftrag: number
   /** Familien, die ein Mensch wirklich angesehen hat (Auskunft, keine Quote). */
   geprueft: number
   gesamt: number
@@ -101,15 +124,17 @@ export interface PruefZaehler {
 /** Zaehler ueber Familien (Vorhaben-, Ordner- und Kopf-Ebene teilen ihn). */
 export function zaehlePruefstand(familien: readonly TwinFamilySummary[]): PruefZaehler {
   let markiert = 0
+  let auftrag = 0
   let geprueft = 0
   let unbekannt = 0
   for (const familie of familien) {
     const stand = familienPruefstand(familie)
     if (stand === 'markiert') markiert += 1
+    else if (stand === 'auftrag') auftrag += 1
     else if (stand === 'geprueft') geprueft += 1
     else if (stand === 'unbekannt') unbekannt += 1
   }
-  return { markiert, geprueft, gesamt: familien.length, unbekannt }
+  return { markiert, auftrag, geprueft, gesamt: familien.length, unbekannt }
 }
 
 export interface BaumOrdnerZeile {

@@ -86,17 +86,19 @@ Anklicken legt den fertigen Auftrag fuer diesen Schritt in die Zwischenablage.`}
   )
 }
 
-export function ZyklusLeiste({ gapsByType, bearbeitungsstand, markierungen, befunde, auftragContext }: {
+export function ZyklusLeiste({ gapsByType, bearbeitungsstand, markierungen, korrekturen, befunde, auftragContext }: {
   gapsByType: GapCountByType
   bearbeitungsstand: Bearbeitungsstand | null
   /** Frische Fehler-Markierungen aus den effektiven Familien. */
   markierungen: number
+  /** Familien mit offenem Korrekturauftrag (K3) — frischer Stand, ohne Scan. */
+  korrekturen: number
   /** Befunde des Teilbaums — Grundlage des Schritt-Auftrags. */
   befunde: readonly CoverageGap[]
   auftragContext: AuftragContext
 }) {
   const { toast } = useToast()
-  const fortschritt = berechneZyklusFortschritt({ gapsByType, bearbeitungsstand, markierungen })
+  const fortschritt = berechneZyklusFortschritt({ gapsByType, bearbeitungsstand, markierungen, korrekturen })
   const dran = fortschritt.schritte.find((lage) => lage.istDran)
 
   const auftragKopieren = async (schritt: ZyklusSchritt) => {

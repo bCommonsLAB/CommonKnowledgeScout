@@ -138,3 +138,43 @@ describe('baueNachladeOverrides + mergeOverrides', () => {
     expect([...basis.keys()]).toEqual([artefaktKey('src-1', { kind: 'transcript', templateName: null, targetLanguage: '' })])
   })
 })
+
+describe('Korrekturauftrag ueberlebt den Reload ohne Scan (K1/K2)', () => {
+  it('traegt Auftrag, Urheber und Zeit aus dem Frontmatter in die Overrides', () => {
+    const doc = twinDoc({
+      artifacts: {
+        transcript: {
+          markdown: '# Transkript',
+          frontmatter: {
+            generated_by: 'knowledgescout/whisper',
+            generated_at: GENERIERT,
+            korrektur_auftrag: 'Gehoert unter 26.02, gesprochen hat Maria S.',
+            korrektur_von: 'human:peter@example.org',
+            korrektur_at: VERIFIZIERT,
+          },
+          createdAt: GENERIERT,
+          updatedAt: VERIFIZIERT,
+        },
+      },
+    })
+
+    const eintraege = baueKurationsEintraege([doc], null)
+    const transkript = eintraege[0].transkript
+    expect(transkript?.korrekturAuftrag).toBe('Gehoert unter 26.02, gesprochen hat Maria S.')
+    expect(transkript?.korrekturVon).toBe('human:peter@example.org')
+    expect(transkript?.korrekturAt).toBe(VERIFIZIERT)
+    // Noch nicht erledigt: das meldet erst ein Agent (K4).
+    expect(transkript?.korrekturErledigtAt).toBeNull()
+
+    // Und er kommt als Override an — ohne den teuren Voll-Scan.
+    const overrides = baueNachladeOverrides(eintraege)
+    expect([...overrides.values()][0].korrekturAuftrag).toBe(
+      'Gehoert unter 26.02, gesprochen hat Maria S.',
+    )
+  })
+
+  it('meldet „kein Auftrag" als null, nicht als leeren String', () => {
+    const eintraege = baueKurationsEintraege([twinDoc()], null)
+    expect(eintraege[0].transkript?.korrekturAuftrag).toBeNull()
+  })
+})

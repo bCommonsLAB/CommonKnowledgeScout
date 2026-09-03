@@ -46,6 +46,7 @@ export type CoverageGapType =
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
   | 'twin_flagged'
+  | 'korrektur_offen'
   /** Alt-Bestand: wird seit ADR 0006 nicht mehr erzeugt, steht aber in
    *  gespeicherten Reports, bis der naechste Voll-Scan sie ersetzt. */
   | 'twin_unverified'
@@ -220,6 +221,16 @@ export interface LeadingArtifactSummary {
   flaggedBy: string | null
   flaggedAt: string | null
   flaggedNote: string | null
+  /**
+   * Korrekturauftrag an den Agenten (K1): was mit der Datei geschehen soll.
+   * OPTIONAL, weil Reports aus Scans vor K1 die Felder nicht tragen —
+   * Konsumenten benennen diesen Zustand, statt „kein Auftrag" zu behaupten.
+   */
+  korrekturAuftrag?: string | null
+  korrekturVon?: string | null
+  korrekturAt?: string | null
+  /** Von einem Agenten gemeldete Erledigung (K4); null = noch offen. */
+  korrekturErledigtAt?: string | null
   verification: VerificationState
 }
 

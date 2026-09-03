@@ -34,6 +34,9 @@ describe('Twin-Kern — Feldlisten (Contract §3)', () => {
   it('Kurations-Felder und twin_status-Werte sind exakt definiert', () => {
     // ADR 0006: `flagged` + die Herkunft der Fehler-Markierung kommen dazu —
     // Muster wie verified_by/verified_at, flach im Frontmatter.
+    // K1: der Korrekturauftrag an den Agenten folgt demselben Muster (was mit
+    // der DATEI geschehen soll — nicht zu verwechseln mit `customHint`, der
+    // den Inhalt einer Transformation steuert).
     expect([...TWIN_CURATION_FIELDS]).toEqual([
       'twin_status',
       'verified_by',
@@ -41,6 +44,10 @@ describe('Twin-Kern — Feldlisten (Contract §3)', () => {
       'flagged_by',
       'flagged_at',
       'flagged_note',
+      'korrektur_auftrag',
+      'korrektur_von',
+      'korrektur_at',
+      'korrektur_erledigt_at',
     ])
     expect([...TWIN_STATUS_VALUES]).toEqual(['draft', 'stable', 'deprecated', 'flagged'])
   })
