@@ -107,3 +107,41 @@ describe('sprungNachVerifikation + sprungHinweis', () => {
     expect(sprungHinweis(ergebnis, gepatcht)).toBeNull()
   })
 })
+
+describe('naechsterWiderstand — Korrekturauftraege zaehlen mit (K3)', () => {
+  function beauftragt(sourceId: string): TwinFamilySummary {
+    return familie(sourceId, {
+      transkript: artefakt({ korrekturAuftrag: 'Gehoert unter 26.02' }),
+      zusammenfassung: null,
+    })
+  }
+
+  it('springt auch zu einer Familie mit offenem Auftrag — beim Durchgehen zaehlt beides', () => {
+    const liste = [familie('a'), beauftragt('b'), familie('c')]
+    expect(naechsterWiderstand(liste, 'a')?.sourceId).toBe('b')
+  })
+
+  it('mischt Markierungen und Auftraege in einer Reihenfolge', () => {
+    const liste = [markiert('a'), familie('b'), beauftragt('c')]
+    expect(naechsterWiderstand(liste, 'a')?.sourceId).toBe('c')
+    expect(naechsterWiderstand(liste, 'c')?.sourceId).toBe('a')
+  })
+
+  it('meldet das Vorhaben NICHT fertig, solange ein Auftrag offen ist', () => {
+    const liste = [beauftragt('a')]
+    const ergebnis = sprungNachVerifikation(liste, beauftragt('a'))
+    expect(ergebnis.vorhabenFertig).toBe(false)
+    expect(ergebnis.ordnerFertig).toBe(false)
+  })
+
+  it('ein gemeldeter Auftrag (K4) haelt nichts mehr auf', () => {
+    const erledigt = familie('a', {
+      transkript: artefakt({
+        korrekturAuftrag: 'Gehoert unter 26.02',
+        korrekturErledigtAt: '2026-08-30T11:40:00.000Z',
+      }),
+      zusammenfassung: null,
+    })
+    expect(naechsterWiderstand([erledigt, familie('b')], 'b')).toBeNull()
+  })
+})

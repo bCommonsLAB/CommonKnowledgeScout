@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   checkFlagged,
+  checkKorrekturOffen,
   checkLeadingVerification,
   checkTransformationState,
   checkTwinCoreMissing,
@@ -151,5 +152,65 @@ describe('twin-rules — transformation_missing / transformation_stale', () => {
     )
     expect(gaps.map((g) => g.type)).toEqual(['transformation_stale'])
     expect(gaps[0].severity).toBe('info')
+  })
+})
+
+describe('checkKorrekturOffen (K3) — der Widerstand, der auf Cowork zeigt', () => {
+  const beauftragt = {
+    korrektur_auftrag: 'Gehoert unter 26.02, gesprochen hat Maria S.',
+    korrektur_von: 'human:peter@example.org',
+    korrektur_at: '2026-08-30T09:12:00.000Z',
+  }
+
+  it('meldet den Auftrag als COWORK-Befund mit Schritt 1 und Severity error', () => {
+    const gap = checkKorrekturOffen(family([transcript(beauftragt)]))
+    expect(gap?.type).toBe('korrektur_offen')
+    // Genau das ist der Unterschied zu twin_flagged: der Befund zeigt auf die
+    // Maschine, nicht auf den Menschen zurueck.
+    expect(gap?.actor).toBe('cowork')
+    expect(gap?.zyklusSchritt).toBe(1)
+    expect(gap?.severity).toBe('error')
+  })
+
+  it('nennt Auftragstext und Urheber im Beleg — Cowork muss ihn lesen koennen', () => {
+    const gap = checkKorrekturOffen(family([transcript(beauftragt)]))
+    expect(gap?.detail).toContain('Gehoert unter 26.02')
+    expect(gap?.detail).toContain('human:peter@example.org')
+  })
+
+  it('schweigt ohne Auftrag', () => {
+    expect(checkKorrekturOffen(family([transcript()]))).toBeNull()
+  })
+
+  it('schweigt, sobald ein Agent Vollzug gemeldet hat (K4)', () => {
+    const gap = checkKorrekturOffen(
+      family([transcript({ ...beauftragt, korrektur_erledigt_at: '2026-08-30T11:40:00.000Z' })]),
+    )
+    expect(gap).toBeNull()
+  })
+
+  it('zaehlt jedes Artefakt der Familie, nicht nur das fuehrende', () => {
+    const gap = checkKorrekturOffen(
+      family([transcript(beauftragt), transformation(beauftragt)]),
+    )
+    expect(gap?.message).toContain('2 Korrekturauftraege')
+  })
+
+  it('steht neben der Markierung, nicht statt ihr — beides kann gelten', () => {
+    const gaps = evaluateTwinRules(
+      family([
+        transcript({
+          ...beauftragt,
+          twin_status: 'flagged',
+          flagged_by: 'human:peter@example.org',
+          flagged_at: '2026-08-30T09:00:00.000Z',
+          flagged_note: 'Ort ist falsch',
+        }),
+      ]),
+      STANDARD,
+    )
+    const typen = gaps.map((gap) => gap.type)
+    expect(typen).toContain('twin_flagged')
+    expect(typen).toContain('korrektur_offen')
   })
 })

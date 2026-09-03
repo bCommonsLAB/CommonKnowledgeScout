@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   CurationValidationError,
+  MAX_AUFTRAG_LAENGE,
   MAX_NOTIZ_LAENGE,
   MirrorDriftError,
   SelfVerificationError,
@@ -232,5 +233,142 @@ describe('parseCurationArtifactRef — exakte Adressierung (ArtifactKey-Contract
       CurationValidationError,
     )
     expect(() => parseCurationArtifactRef(null)).toThrow(CurationValidationError)
+  })
+})
+
+describe('buildCurationPatches — Korrekturauftrag an den Agenten (K1)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('stempelt Urheber und Zeit selbst; der Auftragstext kommt vom Aufrufer', () => {
+    const patches = buildCurationPatches({
+      ...basis,
+      korrigiere: { auftrag: 'Gehoert unter 26.02, gesprochen hat Maria S.' },
+    })
+    expect(patches).toEqual({
+      korrektur_auftrag: 'Gehoert unter 26.02, gesprochen hat Maria S.',
+      korrektur_von: `human:${USER}`,
+      korrektur_at: NOW,
+      korrektur_erledigt_at: null,
+    })
+  })
+
+  it('raeumt ein frueheres „erledigt" weg — der neue Auftrag ist offen', () => {
+    const patches = buildCurationPatches({ ...basis, korrigiere: { auftrag: 'Neuer Auftrag' } })
+    expect(patches.korrektur_erledigt_at).toBeNull()
+  })
+
+  it('verlangt einen Text — leer oder nur Leerzeichen wird abgelehnt', () => {
+    expect(() => buildCurationPatches({ ...basis, korrigiere: { auftrag: '' } })).toThrow(CurationValidationError)
+    expect(() => buildCurationPatches({ ...basis, korrigiere: { auftrag: '   ' } })).toThrow(
+      CurationValidationError,
+    )
+  })
+
+  it('haelt den Auftrag einzeilig — Absaetze werden zu Leerzeichen (flaches Frontmatter)', () => {
+    const patches = buildCurationPatches({
+      ...basis,
+      korrigiere: { auftrag: 'Erste Zeile.\n\nZweite Zeile.' },
+    })
+    expect(patches.korrektur_auftrag).toBe('Erste Zeile. Zweite Zeile.')
+  })
+
+  it('begrenzt die Laenge — anders als die Notiz darf er aber erzaehlen', () => {
+    const langGenug = 'x'.repeat(MAX_AUFTRAG_LAENGE)
+    expect(buildCurationPatches({ ...basis, korrigiere: { auftrag: langGenug } }).korrektur_auftrag).toBe(
+      langGenug,
+    )
+    expect(MAX_AUFTRAG_LAENGE).toBeGreaterThan(MAX_NOTIZ_LAENGE)
+    expect(() =>
+      buildCurationPatches({ ...basis, korrigiere: { auftrag: 'x'.repeat(MAX_AUFTRAG_LAENGE + 1) } }),
+    ).toThrow(CurationValidationError)
+  })
+
+  it('laesst sich nicht mit Verifizieren verbinden', () => {
+    expect(() =>
+      buildCurationPatches({ ...basis, verify: true, korrigiere: { auftrag: 'Bitte umbenennen' } }),
+    ).toThrow(CurationValidationError)
+  })
+
+  it('laesst sich mit dem Markieren verbinden — „stimmt nicht" UND „so soll es werden"', () => {
+    const patches = buildCurationPatches({
+      ...basis,
+      markiere: { notiz: 'Ort ist falsch' },
+      korrigiere: { auftrag: 'Gehoert unter 26.02' },
+    })
+    expect(patches.twin_status).toBe('flagged')
+    expect(patches.korrektur_auftrag).toBe('Gehoert unter 26.02')
+  })
+})
+
+describe('buildCurationPatches — Korrekturauftrag zuruecknehmen (K1)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('entfernt alle vier Felder (null laesst sie weg)', () => {
+    const patches = buildCurationPatches({ ...basis, nimmKorrekturZurueck: true })
+    expect(patches).toEqual({
+      korrektur_auftrag: null,
+      korrektur_von: null,
+      korrektur_at: null,
+      korrektur_erledigt_at: null,
+    })
+  })
+
+  it('laesst sich nicht mit dem Stellen eines Auftrags verbinden', () => {
+    expect(() =>
+      buildCurationPatches({ ...basis, nimmKorrekturZurueck: true, korrigiere: { auftrag: 'x' } }),
+    ).toThrow(CurationValidationError)
+  })
+})
+
+describe('buildCurationPatches — Verifizieren loest den Korrekturauftrag auf (K1)', () => {
+  const basis = { verify: true, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('raeumt einen offenen Auftrag weg — sonst bliebe die Werkbank rot', () => {
+    const patches = buildCurationPatches({ ...basis, aktuellerKorrekturAuftrag: 'Gehoert unter 26.02' })
+    expect(patches.verified_by).toBe(`human:${USER}`)
+    expect(patches.korrektur_auftrag).toBeNull()
+    expect(patches.korrektur_von).toBeNull()
+    expect(patches.korrektur_at).toBeNull()
+    expect(patches.korrektur_erledigt_at).toBeNull()
+  })
+
+  it('fasst die Korrektur-Felder nicht an, wenn gar kein Auftrag offen war', () => {
+    const patches = buildCurationPatches({ ...basis, aktuellerKorrekturAuftrag: null })
+    expect('korrektur_auftrag' in patches).toBe(false)
+  })
+})
+
+describe('buildCurationPatches — Vollzug melden (K4, korrektur_melden)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('setzt nur korrektur_erledigt_at — der Auftrag bleibt als Beleg stehen', () => {
+    const patches = buildCurationPatches({
+      ...basis,
+      meldeKorrekturErledigt: true,
+      aktuellerKorrekturAuftrag: 'Gehoert unter 26.02',
+    })
+    expect(patches).toEqual({ korrektur_erledigt_at: NOW })
+  })
+
+  it('lehnt die Meldung ohne offenen Auftrag ab — kein stiller Erfolg ins Leere', () => {
+    expect(() =>
+      buildCurationPatches({ ...basis, meldeKorrekturErledigt: true, aktuellerKorrekturAuftrag: null }),
+    ).toThrow(CurationValidationError)
+    expect(() =>
+      buildCurationPatches({ ...basis, meldeKorrekturErledigt: true, aktuellerKorrekturAuftrag: '  ' }),
+    ).toThrow(CurationValidationError)
+  })
+
+  it('laesst sich nicht mit Stellen, Zuruecknehmen oder Verifizieren verbinden', () => {
+    const offen = { aktuellerKorrekturAuftrag: 'Gehoert unter 26.02' }
+    expect(() =>
+      buildCurationPatches({ ...basis, ...offen, meldeKorrekturErledigt: true, korrigiere: { auftrag: 'x' } }),
+    ).toThrow(CurationValidationError)
+    expect(() =>
+      buildCurationPatches({ ...basis, ...offen, meldeKorrekturErledigt: true, nimmKorrekturZurueck: true }),
+    ).toThrow(CurationValidationError)
+    expect(() =>
+      buildCurationPatches({ ...basis, ...offen, meldeKorrekturErledigt: true, verify: true }),
+    ).toThrow(CurationValidationError)
   })
 })

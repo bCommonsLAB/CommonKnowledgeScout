@@ -1,12 +1,21 @@
-# Für Cowork: was sich mit Werkzeugsatz 2.25.0 ändert
+# Für Cowork: was sich mit Werkzeugsatz 2.26.0 ändert
 
 Kurzfassung der umgesetzten [Wunschliste 3](../concepts/mcp-wunschliste-3.md)
 — gedacht zum Übernehmen in `archiv-aufraeumen/SKILL.md` und die
 Cowork-Skills.
 
 **Zuerst:** Erweiterung in den Einstellungen aus- und wieder einschalten (die
-Toolliste ist gecacht), dann `bruecke_info` — es muss **2.25.0** mit **36
+Toolliste ist gecacht), dann `bruecke_info` — es muss **2.26.0** mit **38
 Werkzeugen** melden. Sagt es weniger, greift keiner der Punkte unten.
+
+Zur Zählung: Die Wunschliste 3 lief über 2.19.0–2.25.0 und brachte fünf neue
+Werkzeuge (`job_abbrechen`, `datei_binaer_lesen`, `datei_binaer_anlegen` sowie
+die erweiterten `datei_patchen`/`ordner_listen`). **2.26.0 ist der
+Zusammenlauf mit der Korrekturauftrag-Welle**, die parallel zwei weitere
+Werkzeuge mitbringt (`korrekturen_lesen`, `korrektur_melden`) — die stehen
+nicht hier, sondern in
+[`korrekturauftrag-diktat.md`](../concepts/korrekturauftrag-diktat.md) und im
+Skill selbst.
 
 ---
 
@@ -163,6 +172,7 @@ trotzdem bleiben:
 
 Ergänzend zum Abschnitt „Toolliste veraltet" im Skill:
 
+- Fehlen `korrekturen_lesen`/`korrektur_melden` → älter als **2.26.0** (andere Welle)
 - Fehlen `datei_binaer_lesen`/`datei_binaer_anlegen` → älter als **2.25.0**
 - Liefert `job_status` bei einem Fehlschlag keine `fehlerDeutung` → älter als **2.24.0**
 - Fehlt `job_abbrechen` oder trägt `job_liste` keinen `neustartVerdacht` → älter als **2.23.0**

@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * @fileoverview Kuration je Artefakt (Welle A4) — Verifizieren + twin_status.
+ * @fileoverview Kuration je Artefakt (Welle A4) — Verifizieren, Markieren,
+ * Korrekturauftrag, twin_status.
  *
  * @description
  * Kuration je Artefakt fuer die Werkbank: Der Kopf verifiziert oder markiert
@@ -36,6 +37,10 @@ interface CurationRouteResponse {
     flaggedBy: string | null
     flaggedAt: string | null
     flaggedNote: string | null
+    korrekturAuftrag: string | null
+    korrekturVon: string | null
+    korrekturAt: string | null
+    korrekturErledigtAt: string | null
     verificationValid: boolean
   }
 }
@@ -45,6 +50,8 @@ type KurationsAktion =
   | { set: { twin_status: string } }
   | { verify: true }
   | { markiere: { notiz: string } }
+  | { korrigiere: { auftrag: string } }
+  | { nimmKorrekturZurueck: true }
 
 export interface UseArtefaktKurationResult {
   overrides: ReadonlyMap<string, LeadingArtifactSummary>
@@ -62,6 +69,20 @@ export interface UseArtefaktKurationResult {
     familie: TwinFamilySummary,
     artefakt: LeadingArtifactSummary,
     notiz: string,
+  ) => Promise<LeadingArtifactSummary | null>
+  /**
+   * Stellt EINEN Korrekturauftrag an den Agenten (K1) — was mit der Datei
+   * geschehen soll. Der Text ist Pflicht; ein leerer wird abgelehnt.
+   */
+  korrigiere: (
+    familie: TwinFamilySummary,
+    artefakt: LeadingArtifactSummary,
+    auftrag: string,
+  ) => Promise<LeadingArtifactSummary | null>
+  /** Nimmt den Korrekturauftrag zurueck (Fehl-Diktat). */
+  nimmKorrekturZurueck: (
+    familie: TwinFamilySummary,
+    artefakt: LeadingArtifactSummary,
   ) => Promise<LeadingArtifactSummary | null>
   setzeTwinStatus: (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, twinStatus: string) => Promise<void>
 }
@@ -90,6 +111,10 @@ function mergeArtefakt(
     flaggedBy: curation.flaggedBy,
     flaggedAt: curation.flaggedAt,
     flaggedNote: curation.flaggedNote,
+    korrekturAuftrag: curation.korrekturAuftrag,
+    korrekturVon: curation.korrekturVon,
+    korrekturAt: curation.korrekturAt,
+    korrekturErledigtAt: curation.korrekturErledigtAt,
     verification: verificationStateOf({
       generated_at: curation.generatedAt ?? undefined,
       verified_by: curation.verifiedBy ?? undefined,
@@ -168,6 +193,16 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
       einzel(familie, artefakt, { markiere: { notiz } }),
     [einzel],
   )
+  const korrigiere = useCallback(
+    (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, auftrag: string) =>
+      einzel(familie, artefakt, { korrigiere: { auftrag } }),
+    [einzel],
+  )
+  const nimmKorrekturZurueck = useCallback(
+    (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary) =>
+      einzel(familie, artefakt, { nimmKorrekturZurueck: true }),
+    [einzel],
+  )
   const setzeTwinStatus = useCallback(
     async (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, twinStatus: string) => {
       await einzel(familie, artefakt, { set: { twin_status: twinStatus } })
@@ -175,5 +210,8 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     [einzel],
   )
 
-  return { overrides, pendingKey, fehler, verifiziere, markiere, setzeTwinStatus }
+  return {
+    overrides, pendingKey, fehler,
+    verifiziere, markiere, korrigiere, nimmKorrekturZurueck, setzeTwinStatus,
+  }
 }

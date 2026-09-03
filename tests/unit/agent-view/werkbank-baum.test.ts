@@ -10,7 +10,8 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  artefaktGeprueft, artefaktKey, baueTeilbaumZeilen, effektiveFamilie,
+  artefaktGeprueft, artefaktKey, artefaktKorrekturOffen, artefaktZustand,
+  baueTeilbaumZeilen, effektiveFamilie,
   familienPruefstand, neuesteZuerst, zaehlePruefstand,
 } from '@/lib/agent-view/werkbank-baum'
 import type { CoverageTreeNode, LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
@@ -93,8 +94,50 @@ describe('zaehlePruefstand', () => {
       familie('b', 'f1'),
       familie('c', 'f1', { transkript: undefined, zusammenfassung: undefined }),
       familie('d', 'f1', { transkript: artefakt({ twinStatus: 'flagged' }), zusammenfassung: null }),
+      familie('e', 'f1', {
+        transkript: artefakt({ korrekturAuftrag: 'Gehoert unter 26.02' }),
+        zusammenfassung: null,
+      }),
     ])
-    expect(zaehler).toEqual({ markiert: 1, geprueft: 1, gesamt: 4, unbekannt: 1 })
+    expect(zaehler).toEqual({ markiert: 1, auftrag: 1, geprueft: 1, gesamt: 5, unbekannt: 1 })
+  })
+})
+
+describe('Korrekturauftrag im Baum (K3)', () => {
+  it('faerbt ein Artefakt mit offenem Auftrag als „auftrag" — auch ohne Markierung', () => {
+    expect(artefaktZustand(artefakt({ korrekturAuftrag: 'Gehoert unter 26.02' }))).toBe('auftrag')
+  })
+
+  it('zaehlt einen gemeldeten Auftrag NICHT mehr als offen (K4 meldet Vollzug)', () => {
+    const erledigt = artefakt({
+      korrekturAuftrag: 'Gehoert unter 26.02',
+      korrekturErledigtAt: '2026-08-30T11:40:00.000Z',
+    })
+    expect(artefaktKorrekturOffen(erledigt)).toBe(false)
+    expect(artefaktZustand(erledigt)).toBe('angenommen')
+  })
+
+  it('die Markierung schlaegt den Auftrag — der benannte Fehler ist die strengere Aussage', () => {
+    const beides = artefakt({ twinStatus: 'flagged', korrekturAuftrag: 'Gehoert unter 26.02' })
+    expect(artefaktZustand(beides)).toBe('markiert')
+    // Das Praedikat bleibt trotzdem wahr: die Widerstandsliste zeigt beides.
+    expect(artefaktKorrekturOffen(beides)).toBe(true)
+  })
+
+  it('ein offener Auftrag schlaegt den Haken — es steht noch Arbeit an', () => {
+    const geprueftMitAuftrag = artefakt({
+      verification: 'mensch',
+      korrekturAuftrag: 'Doch noch umbenennen',
+    })
+    expect(artefaktZustand(geprueftMitAuftrag)).toBe('auftrag')
+  })
+
+  it('die Familie erbt den Auftrag eines einzelnen Artefakts', () => {
+    const f = familie('x', 'f1', {
+      transkript: artefakt({ verification: 'mensch' }),
+      zusammenfassung: artefakt({ korrekturAuftrag: 'Titel ist falsch' }),
+    })
+    expect(familienPruefstand(f)).toBe('auftrag')
   })
 })
 

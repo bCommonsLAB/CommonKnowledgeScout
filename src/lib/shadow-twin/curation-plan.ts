@@ -7,7 +7,8 @@
  *
  * - Nur Kurations-Felder sind patchbar; `verified_by`/`verified_at` stempelt
  *   ausschliesslich der Server ueber die Verify-Aktion („Kern setzt der
- *   Writer, nicht das LLM" — §4.1). Unbekannte Frontmatter-Felder und der
+ *   Writer, nicht das LLM" — §4.1). Dasselbe gilt fuer `korrektur_von`/`_at`
+ *   des Korrekturauftrags (K1). Unbekannte Frontmatter-Felder und der
  *   Body bleiben erhalten, weil der eigentliche Schreibvorgang ueber
  *   `patchFrontmatter` laeuft (§4.2).
  * - Invariante §3.2: niemand verifiziert die eigene Generierung
@@ -54,6 +55,13 @@ export class CurationArtifactNotFoundError extends Error {
 /** Obergrenze der Markierungs-Notiz — eine Zeile, kein Aufsatz. */
 export const MAX_NOTIZ_LAENGE = 280
 
+/**
+ * Obergrenze des Korrekturauftrags. Deutlich groesser als die Notiz, weil hier
+ * ERZAEHLT wird (diktierter Kontext: wer sprach, worum ging es, wohin gehoert
+ * es) — aber begrenzt, weil der Wert einzeilig ins Frontmatter geht.
+ */
+export const MAX_AUFTRAG_LAENGE = 2000
+
 /** Actor-Schreibweise fuer eine Hand-Kuration (OKF: `human:<id>`, Contract §3.1). */
 export function humanActor(userEmail: string): string {
   const trimmed = userEmail.trim()
@@ -66,6 +74,21 @@ export interface FehlerMarkierung {
   notiz: string
 }
 
+/**
+ * Korrekturauftrag des Menschen AN DEN AGENTEN (K1).
+ *
+ * Abgrenzung, die nicht verwischen darf: Der Auftrag sagt, was mit der DATEI
+ * geschehen soll (einordnen, umbenennen, Bericht nachziehen) — er ist KEIN
+ * Prompt-Zusatz fuer eine Transformation. Dafuer gibt es `customHint`
+ * (`src/lib/external-jobs/append-custom-hint.ts`), der den INHALT eines
+ * Artefakts steuert. Schliesst der Agent aus einem Auftrag, dass eine
+ * Transformation neu laufen muss, formuliert er den `customHint` SELBST — der
+ * Auftragstext geht nie roh in einen Prompt.
+ */
+export interface KorrekturAuftrag {
+  auftrag: string
+}
+
 export interface BuildCurationPatchesArgs {
   /** Feld-Patch aus dem Request — erlaubt ist NUR `twin_status`. */
   set?: Record<string, unknown> | null
@@ -76,8 +99,30 @@ export interface BuildCurationPatchesArgs {
    * `flagged_by`/`flagged_at`, die Notiz kommt vom Aufrufer.
    */
   markiere?: FehlerMarkierung | null
+  /**
+   * Korrekturauftrag stellen (K1): Server stempelt `korrektur_von`/`_at`, der
+   * Auftragstext kommt vom Aufrufer. Ein zuvor gemeldetes `korrektur_erledigt_at`
+   * faellt dabei weg — der neue Auftrag ist offen, nicht erledigt.
+   */
+  korrigiere?: KorrekturAuftrag | null
+  /**
+   * Korrekturauftrag zuruecknehmen (K1): alle vier Korrektur-Felder fallen weg.
+   * Noetig, weil ein Fehl-Diktat sonst eine Sackgasse waere — es gaebe keinen
+   * Weg, es wieder loszuwerden.
+   */
+  nimmKorrekturZurueck?: boolean
+  /**
+   * Vollzug melden (K4, `korrektur_melden` an der Bruecke): setzt
+   * `korrektur_erledigt_at`. Der Auftrag BLEIBT stehen — er ist der Beleg,
+   * wonach Peter urteilt. Erst sein Verifizieren raeumt beides weg (§6.2).
+   * WER gemeldet hat, steht im Aktions-Protokoll der Bruecke, nicht in einem
+   * fuenften Frontmatter-Feld.
+   */
+  meldeKorrekturErledigt?: boolean
   /** `twin_status` des Zielartefakts VOR dem Patch (fuer das Aufloesen). */
   aktuellerTwinStatus?: unknown
+  /** `korrektur_auftrag` des Zielartefakts VOR dem Patch (fuer das Aufloesen). */
+  aktuellerKorrekturAuftrag?: unknown
   /**
    * Verifikation zuruecknehmen (ADR 0006, Uebergang): `verified_by` und
    * `verified_at` fallen weg. Gedacht fuer Stempel aus Sammelaktionen, die
@@ -109,6 +154,28 @@ function parseNotiz(value: unknown): string {
   }
   // Frontmatter bleibt flach und einzeilig (AGENTS.md): Umbrueche zu Leerzeichen.
   return notiz.replace(/\s+/g, ' ')
+}
+
+/**
+ * Auftragstext: nicht leer, begrenzt, einzeilig. Anders als die Notiz darf er
+ * erzaehlen — die Normalisierung macht aus Absaetzen Leerzeichen, damit das
+ * Frontmatter flach und Obsidian-freundlich bleibt (AGENTS.md).
+ */
+function parseAuftrag(value: unknown): string {
+  const auftrag = typeof value === 'string' ? value.trim() : ''
+  if (auftrag === '') {
+    throw new CurationValidationError(
+      'Korrekturauftrag ohne Text: bitte sagen, was mit der Datei geschehen soll — ' +
+        'ein leerer Auftrag waere fuer den Agenten nicht ausfuehrbar',
+    )
+  }
+  if (auftrag.length > MAX_AUFTRAG_LAENGE) {
+    throw new CurationValidationError(
+      `Korrekturauftrag zu lang (${auftrag.length} Zeichen, erlaubt ${MAX_AUFTRAG_LAENGE}) — ` +
+        'was nicht in einen Absatz passt, gehoert in den Bericht',
+    )
+  }
+  return auftrag.replace(/\s+/g, ' ')
 }
 
 function parseTwinStatus(value: unknown): TwinStatus {
@@ -153,10 +220,41 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
     )
   }
 
-  if (args.entferneVerifikation === true) {
-    if (args.verify || args.markiere != null) {
+  if (args.korrigiere != null && args.verify) {
+    throw new CurationValidationError(
+      'Korrekturauftrag stellen und Verifizieren zugleich ergibt keinen Sinn — ' +
+        'entweder soll noch etwas geschehen oder es ist geprueft',
+    )
+  }
+
+  if (args.nimmKorrekturZurueck === true && args.korrigiere != null) {
+    throw new CurationValidationError(
+      'Korrekturauftrag stellen und zuruecknehmen zugleich — bitte nur eines von beiden',
+    )
+  }
+
+  if (args.meldeKorrekturErledigt === true) {
+    if (args.korrigiere != null || args.nimmKorrekturZurueck === true || args.verify) {
       throw new CurationValidationError(
-        'Verifikation zuruecknehmen laesst sich nicht mit Verifizieren oder Markieren verbinden',
+        'Vollzug melden laesst sich nicht mit Stellen, Zuruecknehmen oder Verifizieren verbinden',
+      )
+    }
+    // Kein stiller Erfolg auf einem Artefakt ohne Auftrag: Wer Vollzug meldet,
+    // muss auch beauftragt worden sein — sonst ist die Referenz falsch.
+    if (typeof args.aktuellerKorrekturAuftrag !== 'string' || args.aktuellerKorrekturAuftrag.trim() === '') {
+      throw new CurationValidationError(
+        'Kein offener Korrekturauftrag an diesem Artefakt — Vollzug waere eine Meldung ins Leere. ' +
+          'Artefakt-Referenz pruefen (korrekturen_lesen nennt kind/templateName/targetLanguage).',
+      )
+    }
+    patches.korrektur_erledigt_at = args.now
+  }
+
+  if (args.entferneVerifikation === true) {
+    if (args.verify || args.markiere != null || args.korrigiere != null) {
+      throw new CurationValidationError(
+        'Verifikation zuruecknehmen laesst sich nicht mit Verifizieren, Markieren oder ' +
+          'einem Korrekturauftrag verbinden',
       )
     }
     patches.verified_by = null
@@ -168,6 +266,22 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
     patches.flagged_by = humanActor(args.userEmail)
     patches.flagged_at = args.now
     patches.flagged_note = parseNotiz(args.markiere.notiz)
+  }
+
+  if (args.korrigiere != null) {
+    patches.korrektur_auftrag = parseAuftrag(args.korrigiere.auftrag)
+    patches.korrektur_von = humanActor(args.userEmail)
+    patches.korrektur_at = args.now
+    // Ein frueher gemeldetes „erledigt" gilt fuer den ALTEN Auftrag. Bliebe es
+    // stehen, saehe der neue Auftrag von Anfang an erledigt aus.
+    patches.korrektur_erledigt_at = null
+  }
+
+  if (args.nimmKorrekturZurueck === true) {
+    patches.korrektur_auftrag = null
+    patches.korrektur_von = null
+    patches.korrektur_at = null
+    patches.korrektur_erledigt_at = null
   }
 
   if (args.verify) {
@@ -190,11 +304,22 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
       patches.flagged_at = null
       patches.flagged_note = null
     }
+    // Dieselbe Logik fuer den Korrekturauftrag (K1): Wer verifiziert, hat
+    // hingesehen und bestaetigt — was er vorher wollte, ist damit erledigt
+    // oder hinfaellig. Bliebe der Auftrag stehen, hielte er die Werkbank
+    // dauerhaft rot, ohne dass es noch etwas zu tun gaebe.
+    if (typeof args.aktuellerKorrekturAuftrag === 'string' && args.aktuellerKorrekturAuftrag.trim() !== '') {
+      patches.korrektur_auftrag = null
+      patches.korrektur_von = null
+      patches.korrektur_at = null
+      patches.korrektur_erledigt_at = null
+    }
   }
 
   if (Object.keys(patches).length === 0) {
     throw new CurationValidationError(
-      'Leerer Kurations-Patch: weder twin_status noch verify, markiere oder entferneVerifikation angegeben',
+      'Leerer Kurations-Patch: weder twin_status noch verify, markiere, korrigiere, ' +
+        'nimmKorrekturZurueck, meldeKorrekturErledigt oder entferneVerifikation angegeben',
     )
   }
   return patches

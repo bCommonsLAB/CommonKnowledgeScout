@@ -9,7 +9,8 @@
  *
  * ADR 0006 (Modell B): Fehlende menschliche Pruefung ist KEIN Befund mehr —
  * Maschinenarbeit gilt als angenommen. Befund ist nur, was jemand als falsch
- * benennt: die Fehler-Markierung eines Menschen (`twin_flagged`) und die
+ * benennt: die Fehler-Markierung eines Menschen (`twin_flagged`), seinen
+ * Korrekturauftrag an den Agenten (`korrektur_offen`) und die
  * Selbst-Verifikation der Maschine (`self_verified`).
  *
  * Reine Funktionen, kein I/O.
@@ -203,6 +204,48 @@ export function checkFlagged(family: TwinFamilyView): CoverageGap | null {
   })
 }
 
+/** Beschreibt EINEN offenen Korrekturauftrag fuer den Beleg des Befunds. */
+function beschreibeAuftrag(artifact: TwinArtifactView): string {
+  const fm = artifact.frontmatter
+  const auftrag = typeof fm['korrektur_auftrag'] === 'string' ? fm['korrektur_auftrag'].trim() : ''
+  const wer = typeof fm['korrektur_von'] === 'string' ? fm['korrektur_von'] : '—'
+  const wann = typeof fm['korrektur_at'] === 'string' ? fm['korrektur_at'].slice(0, 10) : '—'
+  return `${describeArtifact(artifact)}: ${auftrag} — ${wer}, ${wann}`
+}
+
+/** Traegt das Artefakt einen offenen (noch nicht gemeldeten) Auftrag? */
+function hatOffenenAuftrag(artifact: TwinArtifactView): boolean {
+  const fm = artifact.frontmatter
+  const auftrag = typeof fm['korrektur_auftrag'] === 'string' ? fm['korrektur_auftrag'].trim() : ''
+  if (auftrag === '') return false
+  // Gemeldete Erledigung schliesst den Befund (K4). Ohne diese Bedingung
+  // bliebe er nach der Reparatur ewig stehen.
+  const erledigt = typeof fm['korrektur_erledigt_at'] === 'string' ? fm['korrektur_erledigt_at'].trim() : ''
+  return erledigt === ''
+}
+
+/**
+ * `korrektur_offen` (K3): Peter hat diktiert, was mit dieser Datei geschehen
+ * soll — und anders als bei `twin_flagged` haengt ein ausfuehrbarer Auftrag
+ * daran. Deshalb zeigt der Befund auf COWORK, nicht auf ihn zurueck.
+ *
+ * Wie bei der Markierung zaehlt JEDES Artefakt der Familie, nicht nur das
+ * fuehrende: Wer am Transkript beauftragt, meint das Transkript.
+ */
+export function checkKorrekturOffen(family: TwinFamilyView): CoverageGap | null {
+  const beauftragt = family.artifacts.filter(hatOffenenAuftrag)
+  if (beauftragt.length === 0) return null
+  return createGap({
+    ...familyGapBase(family),
+    type: 'korrektur_offen',
+    message:
+      beauftragt.length === 1
+        ? 'Korrekturauftrag von Peter — was zu tun ist, steht im Auftragstext'
+        : `${beauftragt.length} Korrekturauftraege von Peter an dieser Quelle`,
+    detail: beauftragt.map(beschreibeAuftrag).sort((a, b) => a.localeCompare(b)).join(' | '),
+  })
+}
+
 /** `transformation_missing`/`transformation_stale` (Contract §2b). */
 export function checkTransformationState(
   family: TwinFamilyView,
@@ -248,9 +291,11 @@ export function checkTransformationState(
 export function evaluateTwinRules(family: TwinFamilyView, standardTemplate: string | null): CoverageGap[] {
   const core = checkTwinCoreMissing(family)
   const markiert = checkFlagged(family)
+  const beauftragt = checkKorrekturOffen(family)
   return [
     ...(core ? [core] : []),
     ...(markiert ? [markiert] : []),
+    ...(beauftragt ? [beauftragt] : []),
     ...checkLeadingVerification(family, standardTemplate),
     ...checkTransformationState(family, standardTemplate),
   ]

@@ -4,8 +4,8 @@
  * @fileoverview Abnahme-Kopf des Artefakts (Welle A4, Mockup Zustand B).
  *
  * @description
- * Zeile 1 traegt Titel · Zustands-Chip · „stimmt nicht" · „Verifizieren" ·
- * Menue `⋯`; Zeile 2 den Breadcrumb. Beide Aktionen betreffen das Artefakt
+ * Zeile 1 traegt Titel · Zustands-Chip · „stimmt nicht" · „Korrektur
+ * diktieren" · „Verifizieren" · Menue `⋯`; Zeile 2 den Breadcrumb. Beide Aktionen betreffen das Artefakt
  * des AKTIVEN Tabs (Transkript ODER Zusammenfassung); auf dem Original-Tab
  * sind sie benannt gesperrt — das Original ist die Referenz.
  *
@@ -28,6 +28,7 @@ import type { PruefbareArt } from '@/lib/agent-view/werkbank-abnahme'
 import { TWIN_STATUS_VALUES } from '@/lib/shadow-twin/twin-core-fields'
 import { AbnahmeKopfRahmen, KopfBreadcrumb, KopfChip, KopfMenue } from './abnahme-kopf'
 import { MarkierHinweis, MarkierKnopf } from './artefakt-markieren'
+import { KorrekturHinweis, KorrekturKnopf } from './artefakt-korrektur'
 import type { ArtefaktTab } from './werkbank-artefakt-dokument'
 
 export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
@@ -48,6 +49,7 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
   const zustand = artefakt == null ? null : artefaktZustand(artefakt)
   const geprueft = zustand === 'geprueft'
   const markiert = zustand === 'markiert'
+  const beauftragt = zustand === 'auftrag'
   const archivHref = `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(familie.folderId)}`
 
   const verifizierenTitle =
@@ -61,7 +63,9 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
             ? `Bereits geprueft von ${artefakt.verifiedBy ?? '—'}.`
             : markiert
               ? 'Verifizieren loest die Fehler-Markierung auf — erst reparieren (lassen), dann bestaetigen.'
-              : 'Freiwillig: bestaetigt, dass du diesen Teil wirklich angesehen hast (verified_by + verified_at).'
+              : beauftragt
+                ? 'Verifizieren loest auch den Korrekturauftrag auf — nur, wenn er erledigt oder hinfaellig ist.'
+                : 'Freiwillig: bestaetigt, dass du diesen Teil wirklich angesehen hast (verified_by + verified_at).'
 
   const verifiziere = async () => {
     if (art === null || artefakt == null) return
@@ -72,6 +76,18 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
   const markiere = async (notiz: string) => {
     if (art === null || artefakt == null) return
     const frisch = await kuration.markiere(familie, artefakt, notiz)
+    if (frisch !== null) onKuriert(art, frisch)
+  }
+
+  const korrigiere = async (auftrag: string) => {
+    if (art === null || artefakt == null) return
+    const frisch = await kuration.korrigiere(familie, artefakt, auftrag)
+    if (frisch !== null) onKuriert(art, frisch)
+  }
+
+  const nimmKorrekturZurueck = async () => {
+    if (art === null || artefakt == null) return
+    const frisch = await kuration.nimmKorrekturZurueck(familie, artefakt)
     if (frisch !== null) onKuriert(art, frisch)
   }
 
@@ -97,21 +113,26 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
             <KopfChip ton="stand">{artefakt === undefined ? 'Stand unbekannt' : 'kein Artefakt'}</KopfChip>
           ) : (
             <KopfChip
-              ton={markiert ? 'blockiert' : geprueft ? 'ok' : 'open'}
+              ton={markiert || beauftragt ? 'blockiert' : geprueft ? 'ok' : 'open'}
               title={
                 markiert
                   ? `Als fehlerhaft markiert: ${artefakt.flaggedNote ?? '(ohne Notiz)'}`
-                  : geprueft
-                    ? `verified_by: ${artefakt.verifiedBy ?? '—'}`
-                    : `Von der Maschine erzeugt (${artefakt.generatedBy ?? '—'}), von niemandem beanstandet — Vertrauensstufe: ${verificationLabel(artefakt.verification)}`
+                  : beauftragt
+                    ? `Korrekturauftrag offen: ${artefakt.korrekturAuftrag ?? ''}`
+                    : geprueft
+                      ? `verified_by: ${artefakt.verifiedBy ?? '—'}`
+                      : `Von der Maschine erzeugt (${artefakt.generatedBy ?? '—'}), von niemandem beanstandet — Vertrauensstufe: ${verificationLabel(artefakt.verification)}`
               }
             >
-              {markiert ? 'stimmt nicht' : geprueft ? 'geprueft' : 'angenommen'}
+              {markiert ? 'stimmt nicht' : beauftragt ? 'Auftrag offen' : geprueft ? 'geprueft' : 'angenommen'}
             </KopfChip>
           )}
           <span className="ml-auto flex items-center gap-1.5">
             {!markiert && art !== null && (
               <MarkierKnopf artefakt={artefakt} pending={pending} onMarkiere={markiere} />
+            )}
+            {art !== null && (
+              <KorrekturKnopf artefakt={artefakt} pending={pending} onKorrigiere={korrigiere} />
             )}
             <span title={verifizierenTitle} className="inline-flex">
               <Button size="sm" className="h-7" disabled={artefakt == null || geprueft || pending} onClick={() => void verifiziere()}>
@@ -162,6 +183,13 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
       kinder={
         <>
           {markiert && artefakt != null && <MarkierHinweis artefakt={artefakt} />}
+          {artefakt != null && (
+            <KorrekturHinweis
+              artefakt={artefakt}
+              pending={pending}
+              onZuruecknehmen={nimmKorrekturZurueck}
+            />
+          )}
           {fehler && (
             <p className="rounded-md bg-red-600/10 px-2 py-1.5 text-sm text-red-700 dark:text-red-400" role="alert">
               {fehler}

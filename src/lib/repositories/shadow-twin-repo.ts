@@ -204,6 +204,81 @@ export async function getShadowTwinsBySourceIds(args: {
   return new Map(docs.map((doc) => [doc.sourceId, doc]))
 }
 
+/** Eine Zeile der Korrektur-Abfrage: nur Frontmatter, KEIN Markdown. */
+export interface KorrekturRohZeile {
+  sourceId: string
+  sourceName: string
+  parentId: string
+  /** Frontmatter des Transkripts; fehlt, wenn die Quelle keins hat. */
+  transkript?: Record<string, unknown> | null
+  transformationen?: Array<{
+    template: string
+    sprachen: Array<{ sprache: string; frontmatter?: Record<string, unknown> | null }>
+  }>
+}
+
+/**
+ * Quellen mit einem Korrekturauftrag im Frontmatter (K4) — DIE Abfrage hinter
+ * `korrekturen_lesen`.
+ *
+ * Zwei Eigenschaften, auf die es ankommt:
+ * - **Keine zweite Wahrheit.** Gelesen wird dasselbe Frontmatter, aus dem auch
+ *   der Befund `korrektur_offen` entsteht (`checkKorrekturOffen`). Ein
+ *   gespiegeltes Index-Feld waere schneller, koennte aber von einer
+ *   Obsidian-Handkorrektur abweichen — dann saehen Werkbank und Bruecke
+ *   Verschiedenes, und genau das heisst in diesem Projekt Drift.
+ * - **Kein Markdown.** Die Projektion holt ausschliesslich Frontmatter; die
+ *   Transformationen (dynamische Template-/Sprach-Keys) werden per
+ *   `$objectToArray` flachgelegt. Deshalb bleibt die Antwort auch bei
+ *   Tausenden Quellen klein, und die Uebersicht braucht keinen Scan.
+ *
+ * Legacy-Transkripte (sprach-gekeyte Map) sind hier bewusst nicht abgedeckt:
+ * Ein Auftrag entsteht nur ueber den Kurations-Schreibweg, und der ersetzt die
+ * Legacy-Form beim Schreiben durch den Einzel-Record (Forward-Migration on Write).
+ */
+export async function findKorrekturKandidaten(libraryId: string): Promise<KorrekturRohZeile[]> {
+  const col = await getShadowTwinCollection(libraryId)
+  return col
+    .aggregate<KorrekturRohZeile>([
+      { $match: { libraryId } },
+      {
+        $project: {
+          _id: 0,
+          sourceId: 1,
+          sourceName: 1,
+          parentId: 1,
+          transkript: '$artifacts.transcript.frontmatter',
+          transformationen: {
+            $map: {
+              input: { $objectToArray: { $ifNull: ['$artifacts.transformation', {}] } },
+              as: 'tpl',
+              in: {
+                template: '$$tpl.k',
+                sprachen: {
+                  $map: {
+                    input: { $objectToArray: '$$tpl.v' },
+                    as: 'lang',
+                    in: { sprache: '$$lang.k', frontmatter: '$$lang.v.frontmatter' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        // Nach der Projektion greift der Array-Match auf beide Ebenen.
+        $match: {
+          $or: [
+            { 'transkript.korrektur_auftrag': { $type: 'string' } },
+            { 'transformationen.sprachen.frontmatter.korrektur_auftrag': { $type: 'string' } },
+          ],
+        },
+      },
+    ])
+    .toArray()
+}
+
 /**
  * Liest ALLE Shadow-Twin-Dokumente einer Library (fuer Reconcile/Wartung).
  * Achtung: kann gross sein — nur fuer explizite Wartungs-Operationen nutzen.

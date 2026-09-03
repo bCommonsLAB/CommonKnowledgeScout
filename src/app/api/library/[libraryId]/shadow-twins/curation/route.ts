@@ -5,7 +5,8 @@
  * POST /api/library/[libraryId]/shadow-twins/curation
  * Body: `{ sourceId, artifact: { kind, targetLanguage, templateName? },
  *          set?: { twin_status }, verify?: boolean,
- *          markiere?: { notiz: string } }`
+ *          markiere?: { notiz: string }, korrigiere?: { auftrag: string },
+ *          nimmKorrekturZurueck?: boolean }`
  * → `{ artifact, curation, mirror }`
  *
  * DIE Schreiboperation der Kuration (Agentensicht F4 ruft NUR diese Route):
@@ -16,6 +17,11 @@
  * - Markieren (ADR 0006) stempelt der SERVER ebenso: `twin_status: flagged` +
  *   `flagged_by`/`flagged_at`; die Notiz ist Pflicht (400 ohne sie). Ein
  *   spaeteres Verifizieren loest die Markierung wieder auf.
+ * - Korrigieren (K1) stellt einen Arbeitsauftrag AN DEN AGENTEN: `korrektur_auftrag`
+ *   + `korrektur_von`/`korrektur_at`, Auftragstext ist Pflicht. Nicht zu
+ *   verwechseln mit `customHint`, der den INHALT einer Transformation steuert
+ *   (docs/concepts/korrekturauftrag-diktat.md §5). Verifizieren loest auch ihn auf;
+ *   `nimmKorrekturZurueck` raeumt ein Fehl-Diktat weg.
  * - Spiegel-Drift-Guard: weicht der Filesystem-Spiegel von MongoDB ab,
  *   antwortet die Route 409 `mirror_drift` („erst importieren") und
  *   ueberschreibt NICHTS (§4.3).
@@ -44,6 +50,8 @@ interface CurationBody {
   set?: unknown
   verify?: unknown
   markiere?: unknown
+  korrigiere?: unknown
+  nimmKorrekturZurueck?: unknown
 }
 
 /** `markiere` aus dem Body — Form hier, Inhalt in `buildCurationPatches`. */
@@ -57,6 +65,19 @@ function parseMarkiere(value: unknown): { notiz: string } | null {
     throw new CurationValidationError('markiere.notiz muss ein String sein')
   }
   return { notiz }
+}
+
+/** `korrigiere` aus dem Body — Form hier, Inhalt in `buildCurationPatches`. */
+function parseKorrigiere(value: unknown): { auftrag: string } | null {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new CurationValidationError('korrigiere muss ein Objekt { auftrag } sein')
+  }
+  const auftrag = (value as { auftrag?: unknown }).auftrag
+  if (typeof auftrag !== 'string') {
+    throw new CurationValidationError('korrigiere.auftrag muss ein String sein')
+  }
+  return { auftrag }
 }
 
 export async function POST(
@@ -98,6 +119,8 @@ export async function POST(
       set: body.set as Record<string, unknown> | undefined,
       verify: body.verify === true,
       markiere: parseMarkiere(body.markiere),
+      korrigiere: parseKorrigiere(body.korrigiere),
+      nimmKorrekturZurueck: body.nimmKorrekturZurueck === true,
     })
 
     return NextResponse.json(result)

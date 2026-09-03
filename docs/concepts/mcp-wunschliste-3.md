@@ -1,10 +1,12 @@
 # Wunschliste 3 — was zwei Cowork-Sitzungen an der Brücke gefunden haben
 
-Stand 03.09.2026, Werkzeugsatz **2.25.0**. **Fünfzehn der sechzehn Punkte sind
-umgesetzt** — was offen blieb und warum, steht in §8.
+Stand 03.09.2026. **Fünfzehn der sechzehn Punkte sind umgesetzt** — was offen
+blieb und warum, steht in §8. Die Welle lief über die Werkzeugsatz-Versionen
+**2.18.0–2.25.0**; nach dem Zusammenlauf mit der Korrekturauftrag-Welle steht
+die Brücke bei **2.26.0** (38 Werkzeuge).
 
 Kurzfassung zum Übernehmen in die Cowork-Skills:
-[`2026-09-03-cowork-werkzeugsatz-2-25.md`](../handover/2026-09-03-cowork-werkzeugsatz-2-25.md).
+[`2026-09-03-cowork-werkzeugsatz-2-26.md`](../handover/2026-09-03-cowork-werkzeugsatz-2-26.md).
 
 Dritte Runde nach den beiden Pilot-Wunschlisten (21./22.08., umgesetzt) und
 den Storage-Anforderungen vom 27.08. ([`mcp-storage-anforderungen.md`](mcp-storage-anforderungen.md),
@@ -264,8 +266,8 @@ einmal aus- und eingeschaltet werden (der Client cached die Toolliste,
 
 ## 8. Was umgesetzt ist — und der eine Punkt, der offen bleibt
 
-Fünfzehn der sechzehn Punkte sind gebaut (Werkzeugsatz **2.25.0**, 36
-Werkzeuge). Die Reihenfolge folgte dem Nutzen je Aufwand; jeder Punkt hat
+Fünfzehn der sechzehn Punkte sind gebaut (Werkzeugsatz **2.25.0**; mit der
+parallelen Korrekturauftrag-Welle steht die Brücke bei 2.26.0). Die Reihenfolge folgte dem Nutzen je Aufwand; jeder Punkt hat
 seinen eigenen Commit mit dem Beleg, aus dem er stammt.
 
 | | Punkt | Wie umgesetzt |

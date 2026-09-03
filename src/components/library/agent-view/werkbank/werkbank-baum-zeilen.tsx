@@ -35,20 +35,28 @@ export function baumEinrueckung(tiefe: number): { paddingLeft: string } {
 export function ZaehlerText({ zaehler }: { zaehler: PruefZaehler }) {
   const teile = [`${zaehler.gesamt} Quelle${zaehler.gesamt === 1 ? '' : 'n'}`]
   if (zaehler.markiert > 0) teile.push(`${zaehler.markiert} als fehlerhaft markiert`)
+  if (zaehler.auftrag > 0) teile.push(`${zaehler.auftrag} mit offenem Korrekturauftrag`)
   if (zaehler.geprueft > 0) teile.push(`${zaehler.geprueft} von dir geprueft`)
   if (zaehler.unbekannt > 0) teile.push(`${zaehler.unbekannt} mit unbekanntem Stand (Scan vor A2)`)
   return (
     <span
-      className={`ml-auto pl-2 text-[11px] tabular-nums ${zaehler.markiert > 0 ? 'font-medium text-red-600' : 'text-muted-foreground'}`}
+      className={`ml-auto pl-2 text-[11px] tabular-nums ${
+        zaehler.markiert > 0 ? 'font-medium text-red-600' : zaehler.auftrag > 0 ? 'font-medium text-sky-600' : 'text-muted-foreground'
+      }`}
       title={teile.join(' · ')}
     >
-      {zaehler.markiert > 0 ? `⊘ ${zaehler.markiert}` : zaehler.gesamt}
+      {zaehler.markiert > 0
+        ? `⊘ ${zaehler.markiert}`
+        : zaehler.auftrag > 0
+          ? `✎ ${zaehler.auftrag}`
+          : zaehler.gesamt}
     </span>
   )
 }
 
 const MARK: Record<FamilienPruefstand, { zeichen: string; className: string; titel: string }> = {
   markiert: { zeichen: '⊘', className: 'text-red-600', titel: 'Als fehlerhaft markiert — sperrt die Abnahme, bis das geklaert ist' },
+  auftrag: { zeichen: '✎', className: 'text-sky-600', titel: 'Korrekturauftrag offen — Cowork holt ihn beim naechsten Aufraeumlauf ab' },
   geprueft: { zeichen: '✓', className: 'text-emerald-600', titel: 'Geprueft — ein Mensch hat alle vorhandenen Artefakte angesehen' },
   angenommen: { zeichen: '✓', className: 'text-amber-500', titel: 'Hoechstwahrscheinlich OK — von der Maschine erzeugt, niemand hat widersprochen' },
   leer: { zeichen: '—', className: 'text-muted-foreground', titel: 'Kein pruefbares Artefakt — hier fehlt die Auswertung (Sache der Maschine)' },

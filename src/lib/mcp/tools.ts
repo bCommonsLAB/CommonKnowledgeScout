@@ -34,6 +34,7 @@ import {
   resolveScope,
 } from './tool-shared'
 import { registerErschliessenTools } from './tools-erschliessen'
+import { registerKorrekturTools } from './tools-korrekturen'
 import { registerJobTools } from './tools-jobs'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
@@ -53,6 +54,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerOrdnerTools(server)
   registerStorageTools(server)
   registerErschliessenTools(server)
+  registerKorrekturTools(server)
   registerVorlagenTool(server)
   registerJobTools(server)
   registerJobAufraeumenTool(server)

@@ -52,6 +52,13 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // — Twin-Kern / Verifikation (Contract §3) —
   twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Angaben in der Auswertung fehlen' },
   twin_flagged: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'twin-contract', label: 'Von dir als fehlerhaft markiert' },
+  // K3: Peter hat diktiert, was mit der Datei geschehen soll — anders als
+  // `twin_flagged` zeigt dieser Widerstand auf COWORK, nicht auf ihn zurueck.
+  // Genau das war der Logikfehler: eine Markierung ohne ausfuehrbaren Auftrag
+  // musste beim Menschen bleiben. Schritt 1, weil ein Auftrag fast immer
+  // Umbenennen oder Verschieben ausloest — und die gehoeren laut Konventionen
+  // VOR die Erschliessung.
+  korrektur_offen: { actor: 'cowork', zyklusSchritt: 1, severity: 'error', origin: 'twin-contract', label: 'Korrekturauftrag offen' },
   // Alt-Bestand (ADR 0006): nicht mehr erzeugt, aber in gespeicherten
   // Reports vorhanden — ohne Eintrag wuerde der Chip-Filter darauf werfen.
   twin_unverified: { actor: 'mensch', zyklusSchritt: 4, severity: 'info', origin: 'twin-contract', label: 'Von dir noch nicht geprueft (alter Scan)' },

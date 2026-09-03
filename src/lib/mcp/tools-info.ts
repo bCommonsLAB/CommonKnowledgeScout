@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.25.0'
+export const TOOLSET_VERSION = '2.26.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -48,6 +48,9 @@ export const TOOL_NAMES = [
   'loeschen',
   'speicher_info',
   'quelle_erschliessen',
+  // K4 — Peters Korrekturauftraege (Rueckkanal Mensch → Agent).
+  'korrekturen_lesen',
+  'korrektur_melden',
   'vorlagen_auflisten',
   'transformation_starten',
   'job_status',

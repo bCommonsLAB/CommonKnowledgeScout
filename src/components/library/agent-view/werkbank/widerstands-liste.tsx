@@ -9,10 +9,10 @@
  * VORHABEN, nicht an einem Artefakt, und waren nur ueber das Menue `⋯`
  * erreichbar. Eine Zahl, die man nicht aufloesen kann, ist eine Sackgasse.
  *
- * Diese Liste nennt beide Arten von Widerstand an EINER Stelle:
- * maschinelle Befunde des Teilbaums (Cowork/KnowledgeScout) und die vom
- * Menschen gesetzten Fehler-Markierungen. Markierungen sind anklickbar —
- * sie fuehren zum Artefakt.
+ * Diese Liste nennt alle Arten von Widerstand an EINER Stelle: maschinelle
+ * Befunde des Teilbaums (Cowork/KnowledgeScout), die vom Menschen gesetzten
+ * Fehler-Markierungen und seine offenen Korrekturauftraege (K3). Alles, was
+ * an einem Artefakt haengt, ist anklickbar — es fuehrt dorthin.
  *
  * Und sie sagt, WAS ZU TUN ist (Rueckfrage 27.08.2026: „muss ich neu scannen
  * oder in Cowork arbeiten?"). Der Handlungssatz kommt aus den bestehenden
@@ -24,8 +24,8 @@
 
 import { renderAuftragZeile } from '@/lib/agent-view/auftrag-templates'
 import { actorLabel, gapLabel } from '@/lib/agent-view/labels'
-import type { CoverageGap, TwinFamilySummary } from '@/lib/agent-view/types'
-import { artefaktMarkiert, familienPruefstand } from '@/lib/agent-view/werkbank-baum'
+import type { CoverageGap, LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
+import { artefaktKorrekturOffen, artefaktMarkiert, familienPruefstand } from '@/lib/agent-view/werkbank-baum'
 
 /** Kurzer Ort fuer den Handlungssatz — der volle Pfad steht schon daneben. */
 function kurzerOrt(gap: CoverageGap): string {
@@ -33,16 +33,18 @@ function kurzerOrt(gap: CoverageGap): string {
   return teile[teile.length - 1] || gap.path
 }
 
-/** Markierte Artefakte einer Familie mit ihrer Notiz — fuer die Zeile. */
-function markierungenVon(familie: TwinFamilySummary): { teil: string; notiz: string }[] {
-  const teile: { teil: string; notiz: string }[] = []
+/** Artefakte einer Familie, die ein Praedikat erfuellen — mit ihrem Text. */
+function teileVon(
+  familie: TwinFamilySummary,
+  trifft: (artefakt: LeadingArtifactSummary) => boolean,
+  textVon: (artefakt: LeadingArtifactSummary) => string,
+): { teil: string; text: string }[] {
+  const teile: { teil: string; text: string }[] = []
   for (const [teil, artefakt] of [
     ['Transkript', familie.transkript],
     ['Zusammenfassung', familie.zusammenfassung],
   ] as const) {
-    if (artefakt != null && artefaktMarkiert(artefakt)) {
-      teile.push({ teil, notiz: artefakt.flaggedNote ?? '(ohne Notiz)' })
-    }
+    if (artefakt != null && trifft(artefakt)) teile.push({ teil, text: textVon(artefakt) })
   }
   return teile
 }
@@ -59,8 +61,16 @@ export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehle
   const maschinell = befunde.filter((gap) => gap.actor !== 'mensch')
   const fehlend = Math.max(0, maschinellGesamt - maschinell.length)
   const markierte = (familien ?? []).filter((familie) => familienPruefstand(familie) === 'markiert')
+  // K3: Auftraege haengen auch an Familien, die zugleich markiert sind — hier
+  // wird nach dem Praedikat gefiltert, nicht nach dem Pruefstand (der zeigt
+  // nur den strengeren der beiden).
+  const beauftragte = (familien ?? []).filter((familie) =>
+    [familie.transkript, familie.zusammenfassung].some(
+      (artefakt) => artefakt != null && artefaktKorrekturOffen(artefakt),
+    ),
+  )
 
-  if (maschinell.length === 0 && markierte.length === 0 && fehlend === 0) {
+  if (maschinell.length === 0 && markierte.length === 0 && beauftragte.length === 0 && fehlend === 0) {
     return (
       <p className="text-xs text-muted-foreground">
         Nichts sperrt die Abnahme — weder ein maschineller Befund noch eine Fehler-Markierung.
@@ -79,18 +89,48 @@ export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehle
           </p>
           <ul className="mt-1 space-y-1">
             {markierte.map((familie) =>
-              markierungenVon(familie).map(({ teil, notiz }) => (
-                <li key={`${familie.sourceId}-${teil}`}>
-                  <button
-                    type="button"
-                    className="text-left underline-offset-2 hover:underline"
-                    onClick={() => onWaehleArtefakt(familie.sourceId)}
-                  >
-                    <span aria-hidden>⊘ </span>
-                    {familie.sourceName} · {teil}: {notiz}
-                  </button>
-                </li>
-              )),
+              teileVon(familie, artefaktMarkiert, (a) => a.flaggedNote ?? '(ohne Notiz)').map(
+                ({ teil, text }) => (
+                  <li key={`${familie.sourceId}-${teil}`}>
+                    <button
+                      type="button"
+                      className="text-left underline-offset-2 hover:underline"
+                      onClick={() => onWaehleArtefakt(familie.sourceId)}
+                    >
+                      <span aria-hidden>⊘ </span>
+                      {familie.sourceName} · {teil}: {text}
+                    </button>
+                  </li>
+                ),
+              ),
+            )}
+          </ul>
+        </div>
+      )}
+
+      {beauftragte.length > 0 && (
+        <div>
+          <p className="font-medium">Von dir beauftragt — wartet auf Cowork</p>
+          <p className="text-muted-foreground">
+            Was tun: Der Auftrag steht im naechsten Aufraeumlauf als Cowork-Befund. Selbst
+            erledigt oder hinfaellig? Verifizieren loest ihn auf.
+          </p>
+          <ul className="mt-1 space-y-1">
+            {beauftragte.map((familie) =>
+              teileVon(familie, artefaktKorrekturOffen, (a) => a.korrekturAuftrag ?? '').map(
+                ({ teil, text }) => (
+                  <li key={`${familie.sourceId}-${teil}-auftrag`}>
+                    <button
+                      type="button"
+                      className="text-left underline-offset-2 hover:underline"
+                      onClick={() => onWaehleArtefakt(familie.sourceId)}
+                    >
+                      <span aria-hidden>✎ </span>
+                      {familie.sourceName} · {teil}: {text}
+                    </button>
+                  </li>
+                ),
+              ),
             )}
           </ul>
         </div>

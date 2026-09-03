@@ -56,6 +56,10 @@ function toLeadingSummary(artifact: TwinArtifactView): LeadingArtifactSummary {
     flaggedBy: stringOrNull(fm['flagged_by']),
     flaggedAt: stringOrNull(fm['flagged_at']),
     flaggedNote: stringOrNull(fm['flagged_note']),
+    korrekturAuftrag: stringOrNull(fm['korrektur_auftrag']),
+    korrekturVon: stringOrNull(fm['korrektur_von']),
+    korrekturAt: stringOrNull(fm['korrektur_at']),
+    korrekturErledigtAt: stringOrNull(fm['korrektur_erledigt_at']),
     verification: verificationStateOf(fm),
   }
 }
