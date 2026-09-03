@@ -260,7 +260,7 @@ einmal aus- und eingeschaltet werden (der Client cached die Toolliste,
 
 ## 8. Was umgesetzt ist — und der eine Punkt, der offen bleibt
 
-Fünfzehn der sechzehn Punkte sind gebaut (Werkzeugsatz **2.25.0**, 37
+Fünfzehn der sechzehn Punkte sind gebaut (Werkzeugsatz **2.25.0**, 36
 Werkzeuge). Die Reihenfolge folgte dem Nutzen je Aufwand; jeder Punkt hat
 seinen eigenen Commit mit dem Beleg, aus dem er stammt.
 
