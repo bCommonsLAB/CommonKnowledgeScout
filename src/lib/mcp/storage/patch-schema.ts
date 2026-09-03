@@ -24,6 +24,7 @@ export const MODUS_SCHEMA = z.object({
     'frontmatter_setzen',
     'abschnitt_einfuegen',
     'tabelle_zeile_einfuegen',
+    'frontmatter_ergaenzen',
   ]),
   altText: z.string().optional().describe('art="ersetze": muss GENAU EINMAL in der Datei vorkommen'),
   neuText: z.string().optional().describe('art="ersetze": was an die Stelle tritt'),
@@ -36,6 +37,8 @@ export const MODUS_SCHEMA = z.object({
   position: z.enum(['vor', 'nach', 'anfang', 'ende']).optional()
     .describe('art="abschnitt_einfuegen": vor|nach (nach = hinter dem GANZEN Abschnitt). art="tabelle_zeile_einfuegen": anfang|ende (Vorgabe ende).'),
   zeile: z.string().optional().describe('art="tabelle_zeile_einfuegen": vollstaendige Markdown-Zeile, beginnt mit "|"'),
+  listen: z.record(z.array(z.string().min(1)).min(1)).optional()
+    .describe('art="frontmatter_ergaenzen": je Feld die zu ergaenzenden Eintraege. Dubletten werden normalisiert erkannt und uebersprungen.'),
 })
 
 export type ModusEingabe = z.infer<typeof MODUS_SCHEMA>
@@ -84,6 +87,13 @@ export function leseModus(eingabe: ModusEingabe): PatchModus {
     }
   }
 
+  if (eingabe.art === 'frontmatter_ergaenzen') {
+    if (!eingabe.listen || Object.keys(eingabe.listen).length === 0) {
+      throw new Error('art="frontmatter_ergaenzen" braucht `listen` mit mindestens einem Feld')
+    }
+    return { art: 'frontmatter_ergaenzen', felder: eingabe.listen }
+  }
+
   if (!eingabe.felder || Object.keys(eingabe.felder).length === 0) {
     throw new Error('art="frontmatter_setzen" braucht `felder` mit mindestens einem Eintrag')
   }
@@ -101,6 +111,7 @@ export function leseModus(eingabe: ModusEingabe): PatchModus {
 export function aktionZuModus(modus: PatchModus): Aktion {
   switch (modus.art) {
     case 'frontmatter_setzen':
+    case 'frontmatter_ergaenzen':
       return 'frontmatter'
     case 'ersetze':
     case 'abschnitt_ersetzen':

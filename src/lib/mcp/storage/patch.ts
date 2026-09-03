@@ -17,7 +17,7 @@
  */
 
 import { findeAbschnitt } from './bereich'
-import { setzeFrontmatterFelder } from './frontmatter-felder'
+import { ergaenzeFrontmatterListen, setzeFrontmatterFelder } from './frontmatter-felder'
 import {
   type AbschnittPosition,
   type TabellenPosition,
@@ -31,6 +31,7 @@ export type PatchModus =
   | { art: 'frontmatter_setzen'; felder: Record<string, unknown> }
   | { art: 'abschnitt_einfuegen'; ueberschrift: string; position: AbschnittPosition; inhalt: string }
   | { art: 'tabelle_zeile_einfuegen'; zeile: string; ueberschrift?: string; position: TabellenPosition }
+  | { art: 'frontmatter_ergaenzen'; felder: Record<string, string[]> }
 
 /** Was der Patch tatsaechlich bewirkt hat — fuer die Antwort an den Agenten. */
 export interface PatchErgebnis {
@@ -106,6 +107,9 @@ export function wendePatchAn(text: string, modus: PatchModus): PatchErgebnis {
 
     case 'tabelle_zeile_einfuegen':
       return fuegeTabellenZeileEin(text, modus)
+
+    case 'frontmatter_ergaenzen':
+      return ergaenzeFrontmatterListen(text, modus.felder)
   }
 }
 

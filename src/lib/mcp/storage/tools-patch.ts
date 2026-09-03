@@ -22,7 +22,7 @@ export function registerStoragePatchTool(server: McpServer): void {
     {
       title: 'Teiländerung an einer Textdatei (SCHREIBT)',
       description:
-        'Aendert einen TEIL einer Datei, ohne sie ganz zu uebertragen. Fuenf Modi: "ersetze" ' +
+        'Aendert einen TEIL einer Datei, ohne sie ganz zu uebertragen. Sechs Modi: "ersetze" ' +
         '(altText muss GENAU EINMAL vorkommen, sonst Fehler — die Eindeutigkeit ist der Schutz), ' +
         '"abschnitt_ersetzen" (Markdown-Abschnitt bis zur naechsten gleichrangigen Ueberschrift, ' +
         'tiefere Unterueberschriften gehoeren dazu), "frontmatter_setzen" (nur die genannten ' +

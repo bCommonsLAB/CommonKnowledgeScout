@@ -90,6 +90,16 @@ Gewünscht ist weniger als volle Listen-Unterstützung: ein `ergaenzen` mit
 normalisiertem Vergleich, das einen vorhandenen Eintrag erkennt und dann
 nichts tut.
 
+> **Nachgemessen (03.09.), und es ändert den Zuschnitt:** Der Parser dieses
+> Repositories kennt gar keine YAML-Listen. Die Blockform (`feld:` plus
+> `  - a`) liest er als **leeren String** zurück — die Einträge wären für
+> KnowledgeScout schlicht weg. Die Flow-Form (`feld: [a, b]`) liest er als
+> Rohstring. Nur die Flow-Form kommt durch dieselbe Rückprobe wie die
+> Skalar-Felder, deshalb schreibt `frontmatter_ergaenzen` ausschließlich sie.
+> Ein Feld, das heute in Blockform dasteht, wird nicht angefasst, sondern
+> gemeldet: es stillschweigend umzuschreiben wäre genau die Änderung an
+> fremden Zeilen, gegen die es diese Chirurgie gibt.
+
 **W4 — Stapel.** Drei Aufrufe für eine logische Änderung, über zwanzig je
 Woche. Ein `modi: [...]`, das alle Teiländerungen einer Datei gemeinsam
 anwendet und **gemeinsam** verwirft, wenn eine davon nicht eindeutig trifft —
