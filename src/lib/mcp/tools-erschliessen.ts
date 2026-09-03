@@ -48,6 +48,10 @@ export function registerErschliessenTools(server: McpServer): void {
         'wird transkribiert, PDF/DOCX/XLSX/PPTX extrahiert (A1); mit template (Default: ' +
         'Standard-Template der Library) entstehen auch Transformation + Galerie-Eintrag. ' +
         'Antwortet SOFORT mit jobId(s) — Status mit job_status/job_liste. Stapel via sourceIds. ' +
+        'VORHER twins_synchronisieren (import→repair→export) laufen lassen: Es adoptiert Quellen, ' +
+        'deren Auswertung schon existiert, aber noch nicht verbucht ist — in einem gemessenen Lauf ' +
+        'rund 90 Stueck, die der Scan sonst als unerschlossen meldet und die hier ein zweites Mal ' +
+        'transkribiert wuerden. Ebenso VORHER umbenennen (familie_umziehen), nicht nachher. ' +
         'SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
