@@ -23,7 +23,7 @@ function report(gaps: CoverageGap[], folderId: string | null = 'scope-1'): Cover
     scope: { folderId },
     conventions: {
       standardTemplate: null, vorhabenFolderPattern: null, indexRequiredMaxDepth: null,
-      berichtFreshness: true, scanExcludeGlobs: [],
+      berichtFreshness: true, postfachMaxRueckstandWochen: null, scanExcludeGlobs: [],
     },
     totals: {
       folders: 1, files: 1, sources: 1, twins: 0, gaps: gaps.length, gapsByType: {},

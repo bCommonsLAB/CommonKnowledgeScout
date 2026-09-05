@@ -14,7 +14,7 @@
 
 import type { ArchiveFolderNode } from './archive-types'
 import { isVorhaben } from './archive-rules'
-import { asList, asString, titelLesen } from './sichten/bericht-lesen'
+import { asList, asString, projektAusBericht, titelLesen } from './sichten/bericht-lesen'
 import type { CoverageGap, CoverageTreeNode, VorhabenCard } from './types'
 
 function flatten(nodes: readonly CoverageTreeNode[], into: Map<string, CoverageTreeNode>): void {
@@ -30,10 +30,37 @@ function flatten(nodes: readonly CoverageTreeNode[], into: Map<string, CoverageT
  * (kein zweiter Parser). `themen` folgt F12: `BERICHT.md` ist fuehrend; das
  * `_INDEX.md` zaehlt nur fuer Vorhaben OHNE Bericht.
  */
-function berichtFelder(folder: ArchiveFolderNode): Pick<
+type BerichtFelder = Pick<
   VorhabenCard,
-  'berichtTitel' | 'berichtFileId' | 'berichtModifiedAt' | 'berichtStatus' | 'themen'
+  | 'berichtTitel' | 'berichtFileId' | 'berichtModifiedAt' | 'berichtStatus' | 'themen'
+  | 'berichtRolle' | 'berichtLetzteAktivitaet' | 'berichtNaechsterTermin'
+  | 'berichtTerminFixiert' | 'berichtOffenePunkte' | 'berichtOffeneAnzahl'
+  | 'postfachAb' | 'postfachBis'
+>
+
+/** Wie viele offene Punkte die Karte traegt — `AKTUELL.md` zeigt dieselben zwei. */
+export const AKTUELL_PUNKTE_AUF_KARTE = 2
+
+/** Leerwerte der A7-Felder: gesetzt, aber leer — nicht „fehlt" (alter Report). */
+function ohneAktuellFelder(): Pick<
+  VorhabenCard,
+  'berichtRolle' | 'berichtLetzteAktivitaet' | 'berichtNaechsterTermin'
+  | 'berichtTerminFixiert' | 'berichtOffenePunkte' | 'berichtOffeneAnzahl'
+  | 'postfachAb' | 'postfachBis'
 > {
+  return {
+    berichtRolle: null,
+    berichtLetzteAktivitaet: null,
+    berichtNaechsterTermin: null,
+    berichtTerminFixiert: true,
+    berichtOffenePunkte: [],
+    berichtOffeneAnzahl: 0,
+    postfachAb: null,
+    postfachBis: null,
+  }
+}
+
+function berichtFelder(folder: ArchiveFolderNode): BerichtFelder {
   const bericht = folder.bericht
   if (bericht === null) {
     return {
@@ -42,20 +69,42 @@ function berichtFelder(folder: ArchiveFolderNode): Pick<
       berichtModifiedAt: null,
       berichtStatus: null,
       themen: asList(folder.index?.meta.themen),
+      ...ohneAktuellFelder(),
     }
   }
+  // A7: dieselben Leser wie der Sichten-Export (`projektAusBericht`) — kein
+  // zweiter Parser fuer dieselben Felder. null = Bericht OHNE Frontmatter;
+  // dann bleiben die Termin-/Rollen-Felder leer, der Titel kommt trotzdem.
+  const projekt = projektAusBericht(folder)
+  const schritte = projekt?.schritte ?? []
   return {
     berichtTitel: titelLesen(bericht.body),
     berichtFileId: bericht.fileId,
     berichtModifiedAt: bericht.modifiedAt,
     berichtStatus: asString(bericht.meta.status),
     themen: asList(bericht.meta.themen),
+    berichtRolle: projekt?.rolle ?? null,
+    berichtLetzteAktivitaet: projekt?.letzteAktivitaet ?? null,
+    berichtNaechsterTermin: projekt?.naechsterTermin ?? null,
+    berichtTerminFixiert: projekt?.terminFixiert ?? true,
+    berichtOffenePunkte: schritte.slice(0, AKTUELL_PUNKTE_AUF_KARTE),
+    berichtOffeneAnzahl: schritte.length,
+    // A7b: ROH uebernommen — ob der Wert lesbar ist und wie weit er
+    // zurueckliegt, entscheidet `lesePostfachStand` gegen die Gegenwart
+    // des Betrachters, nicht der Scan.
+    postfachAb: asString(bericht.meta.postfach_ab),
+    postfachBis: asString(bericht.meta.postfach_bis),
   }
 }
 
 /** true, wenn die Karte aus einem gespeicherten Report vor Werkbank-W1 stammt (Felder fehlen). */
 export function karteOhneWerkbankFelder(card: VorhabenCard): boolean {
   return card.ampel === undefined || card.themen === undefined
+}
+
+/** true, wenn die Karte aus einem Report vor Welle A7 stammt (Aktuell-Felder fehlen). */
+export function karteOhneAktuellFelder(card: VorhabenCard): boolean {
+  return card.berichtOffenePunkte === undefined || card.berichtTerminFixiert === undefined
 }
 
 /** Baut die Karten des Zyklus-Boards aus Baum + Ordnerliste. */

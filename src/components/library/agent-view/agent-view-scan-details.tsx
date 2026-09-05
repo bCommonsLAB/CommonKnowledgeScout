@@ -89,6 +89,15 @@ export function AgentViewScanDetails({ report }: { report: CoverageReport }) {
             wert={conventions.indexRequiredMaxDepth === null ? 'inaktiv' : `bis Tiefe ${conventions.indexRequiredMaxDepth}`}
           />
           <Zeile label="Bericht-Frische" wert={conventions.berichtFreshness ? 'aktiv' : 'aus'} />
+          <Zeile
+            label="Postfach-Rueckstand"
+            wert={
+              typeof conventions.postfachMaxRueckstandWochen === 'number'
+                ? `ab ${String(conventions.postfachMaxRueckstandWochen)} Wochen`
+                : 'aus'
+            }
+            title="Ab wann postfach_bis im BERICHT.md als veraltet gilt (A7b) — aus = die Library fuehrt keine Postfach-Auswertung."
+          />
         </section>
       </PopoverContent>
     </Popover>

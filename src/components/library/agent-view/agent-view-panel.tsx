@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * @fileoverview Agentensicht: Werkbank + Baum + Zyklus-Board, read-only.
+ * @fileoverview Agentensicht: Aktuell + Werkbank + Baum + Zyklus-Board, read-only.
  *
  * @description
  * Konsumiert AUSSCHLIESSLICH die Coverage-API — kein Provider, kein
@@ -10,6 +10,10 @@
  * Werkbank (F6) der Default-Tab; der Tab-Zustand wohnt in der URL (`?tab=`,
  * nuqs) statt in einem unkontrollierten `defaultValue` — Deep-Links wie
  * `?tab=werkbank&vorhaben=…` ueberstehen Reload (v2-Akzeptanzkriterium 5).
+ * Welle A7 stellt „Aktuell" davor und macht sie zum Default: Der Einstieg
+ * beantwortet erst „woran arbeite ich gerade?", bevor er „was ist zu tun?"
+ * zeigt. Die Werkbank bleibt einen Klick entfernt, `?tab=werkbank` unveraendert
+ * gueltig.
  *
  * Seit Welle A1 traegt der Bildschirm ueber der Arbeitsflaeche hoechstens
  * zwei Zeilen: den einzeiligen {@link AgentViewKopf} und die Tab-Leiste. Die
@@ -32,12 +36,13 @@ import {
 } from '@ks/ui'
 import { useCoverageReport } from '@/hooks/agent-view/use-coverage-report'
 import { AgentViewKopf } from './agent-view-kopf'
+import { AktuellPanel } from './aktuell/aktuell-panel'
 import { CoverageTree } from './coverage-tree'
 import { TodoListsPanel } from './todo-lists-panel'
 import { WerkbankPanel } from './werkbank/werkbank-panel'
 import { ZyklusBoard } from './zyklus-board'
 
-const TAB_WERTE = ['werkbank', 'baum', 'board', 'todos'] as const
+const TAB_WERTE = ['aktuell', 'werkbank', 'baum', 'board', 'todos'] as const
 type AgentViewTab = (typeof TAB_WERTE)[number]
 
 export interface AgentViewPanelProps {
@@ -52,7 +57,7 @@ export interface AgentViewPanelProps {
 
 export function AgentViewPanel({ libraryId, libraryLabel, localRootPath, konfigurierteThemen }: AgentViewPanelProps) {
   const { data, isLoading, isScanning, neverScanned, error, scanHinweis, scan } = useCoverageReport(libraryId)
-  const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TAB_WERTE).withDefault('werkbank'))
+  const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TAB_WERTE).withDefault('aktuell'))
 
   if (!libraryId) {
     return <p className="p-6 text-sm text-muted-foreground">Bitte zuerst eine Library auswaehlen.</p>
@@ -94,11 +99,15 @@ export function AgentViewPanel({ libraryId, libraryLabel, localRootPath, konfigu
       {data && (
         <Tabs value={tab} onValueChange={(wert) => void setTab(wert as AgentViewTab)} className="flex-1">
           <TabsList>
+            <TabsTrigger value="aktuell">Aktuell</TabsTrigger>
             <TabsTrigger value="werkbank">Werkbank</TabsTrigger>
             <TabsTrigger value="baum">Baum</TabsTrigger>
             <TabsTrigger value="board">Zyklus-Board</TabsTrigger>
             <TabsTrigger value="todos">Todos &amp; Auftrag</TabsTrigger>
           </TabsList>
+          <TabsContent value="aktuell" className="mt-3">
+            <AktuellPanel report={data.report} generatedAt={data.generatedAt} />
+          </TabsContent>
           <TabsContent value="werkbank" className="mt-3">
             <WerkbankPanel
               report={data.report}

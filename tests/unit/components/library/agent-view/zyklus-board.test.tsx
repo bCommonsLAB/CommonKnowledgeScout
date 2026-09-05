@@ -63,7 +63,7 @@ function report(vorhaben: VorhabenCard[]): CoverageReport {
       standardTemplate: 'standard-konzept',
       vorhabenFolderPattern: null,
       indexRequiredMaxDepth: null,
-      berichtFreshness: true,
+      berichtFreshness: true, postfachMaxRueckstandWochen: null,
       scanExcludeGlobs: [],
     },
     totals: {

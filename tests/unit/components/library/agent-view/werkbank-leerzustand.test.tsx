@@ -32,7 +32,7 @@ function report(vorhaben: VorhabenCard[]): CoverageReport {
     scope: { folderId: null },
     conventions: {
       standardTemplate: null, vorhabenFolderPattern: null,
-      indexRequiredMaxDepth: null, berichtFreshness: true, scanExcludeGlobs: [],
+      indexRequiredMaxDepth: null, berichtFreshness: true, postfachMaxRueckstandWochen: null, scanExcludeGlobs: [],
     },
     totals: {
       folders: 1100, files: 7263, sources: 98, twins: 135, gaps: 1694,

@@ -193,6 +193,14 @@ export interface StorageConfig {
     /** `bericht_veraltet` pruefen (Default: true). */
     berichtFreshness?: boolean;
     /**
+     * A7b: Ab wie vielen vollen Wochen Rueckstand meldet der Scan
+     * `postfach_veraltet`? Grundlage ist `postfach_bis` im `BERICHT.md`
+     * (Korrespondenz-Methode, Format `JJJJ-KWnn`). Fehlt das Feld, ist die
+     * Regel INAKTIV — Libraries ohne Postfach-Auswertung sollen davon nichts
+     * merken. Kein Secret.
+     */
+    postfachMaxRueckstandWochen?: number;
+    /**
      * Lokaler Wurzelpfad des Archivs (F3): rendert im Auftrags-Generator
      * absolute Pfade fuer die Cowork-Session. Leer = archiv-relative Pfade.
      * KS kennt nur Provider-Pfade — dieser Wert ist reine Anzeige-Hilfe.

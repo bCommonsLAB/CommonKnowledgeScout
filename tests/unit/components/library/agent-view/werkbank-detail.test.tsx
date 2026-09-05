@@ -110,7 +110,7 @@ function report(overrides: Partial<CoverageReport> = {}): CoverageReport {
     scope: { folderId: null },
     conventions: {
       standardTemplate: null, vorhabenFolderPattern: null,
-      indexRequiredMaxDepth: null, berichtFreshness: true, scanExcludeGlobs: [],
+      indexRequiredMaxDepth: null, berichtFreshness: true, postfachMaxRueckstandWochen: null, scanExcludeGlobs: [],
     },
     totals: {
       folders: 1, files: 3, sources: 2, twins: 1, gaps: 1,
