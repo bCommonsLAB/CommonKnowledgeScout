@@ -1065,6 +1065,10 @@ export function CollectSourceStep({
         {(source.type === "spoken" || source.type === "text") && (
           <div className="space-y-6">
             <DictationTextarea
+              // Live-Diktat: der Text erscheint waehrend des Sprechens. Bei Stoerungen
+              // laeuft die Aufnahme weiter und fehlende Abschnitte werden nachgearbeitet,
+              // siehe docs/architecture/live-transkription.md.
+              mode="live"
               label={templateId === 'audio-transcript-de' ? "Erzähl mir was" : "Erzähl mir von der Veranstaltung"}
               value={input}
               onChange={setInput}
