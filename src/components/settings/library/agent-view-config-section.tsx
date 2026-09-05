@@ -138,6 +138,27 @@ export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFo
 
         <FormField
           control={form.control}
+          name="agentViewPostfachMaxWochen"
+          render={({ field }) => (
+            <FormItem className="rounded-lg border p-4">
+              <FormLabel className="text-base">Postfach-Rueckstand (Wochen)</FormLabel>
+              <FormDescription>
+                Ab wie vielen vollen Wochen Rueckstand meldet der Scan
+                &bdquo;Postfach nicht ausgewertet&ldquo;? Grundlage ist{" "}
+                <code>postfach_bis</code> im <code>BERICHT.md</code> (Format{" "}
+                <code>JJJJ-KWnn</code>, z.&nbsp;B. <code>2026-KW35</code>). Leer =
+                Regel aus &mdash; fuer Bibliotheken ohne E-Mail-Auswertung.
+              </FormDescription>
+              <FormControl>
+                <Input inputMode="numeric" placeholder="z. B. 2" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="agentViewLocalRootPath"
           render={({ field }) => (
             <FormItem className="rounded-lg border p-4">

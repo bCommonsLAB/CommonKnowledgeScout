@@ -102,6 +102,12 @@ Sessions nicht doppelt bauen:
   Tages-Uebersicht („woran arbeite ich gerade?") wird aus den Bericht-Feldern
   der `VorhabenCard`s gerechnet — dieselbe Quelle wie der Sichten-Export
   `Organisation/AKTUELL.md`, kein zweiter Scan und kein zweiter Parser.
+  **A7b** schaltet die Postfach-Frische scharf: `postfach_ab`/`postfach_bis`
+  (Korrespondenz-Methode des Archivs, Format `JJJJ-KWnn`) reisen auf der Karte
+  mit, die Aktuell-Sicht zeigt den Rueckstand, und oberhalb der pro Library
+  konfigurierten Schwelle (`agentView.postfachMaxRueckstandWochen`, fehlt =
+  Regel aus) meldet der Scan den Cowork-Befund `postfach_veraltet`. Damit sagt
+  die Liste selbst, wann sie nicht mehr aktuell ist.
 
 **Ruhender Strang**: Die Juni-Roadmap
 [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md)

@@ -81,6 +81,15 @@ export const libraryFormSchema = z.object({
     .refine((value) => value.trim() === "" || /^\d+$/.test(value.trim()), "Ganze Zahl (0, 1, 2, ...) oder leer."),
   agentViewEnabled: z.boolean().default(false),
   agentViewBerichtFreshness: z.boolean().default(true),
+  // A7b: leer = Regel aus. Als String im Formular (wie agentViewIndexDepth),
+  // damit „leer" und „0" unterscheidbar bleiben.
+  agentViewPostfachMaxWochen: z
+    .string()
+    .refine(
+      (wert) => wert.trim() === "" || (/^\d{1,2}$/.test(wert.trim()) && Number(wert.trim()) <= 52),
+      { message: "Ganze Zahl 0–52 oder leer (Regel aus)" },
+    )
+    .default(""),
   agentViewLocalRootPath: z.string().default(""),
   // A6: Themen-Vokabular — eine Zeile pro Thema (Persistenz als Array,
   // Muster scanExcludeGlobs). Kommas/Klammern trennen die _INDEX-Liste.
@@ -133,19 +142,23 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
   agentViewVorhabenPattern: string;
   agentViewIndexDepth: string;
   agentViewBerichtFreshness: boolean;
+  agentViewPostfachMaxWochen: string;
   agentViewLocalRootPath: string;
   agentViewThemen: string;
 } {
   const agentView = (config?.agentView ?? null) as
-    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; localRootPath?: unknown; themen?: unknown }
+    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; postfachMaxRueckstandWochen?: unknown; localRootPath?: unknown; themen?: unknown }
     | null;
   const depth = agentView?.indexRequiredMaxDepth;
+  const postfachWochen = agentView?.postfachMaxRueckstandWochen;
   return {
     // Default AUS: Agentensicht ist ein Opt-in pro Library (Pilot-Entscheid 2026-08-21).
     agentViewEnabled: agentView?.enabled === true,
     agentViewVorhabenPattern: typeof agentView?.vorhabenFolderPattern === "string" ? agentView.vorhabenFolderPattern : "",
     agentViewIndexDepth: typeof depth === "number" && Number.isFinite(depth) ? String(depth) : "",
     agentViewBerichtFreshness: agentView?.berichtFreshness !== false,
+    agentViewPostfachMaxWochen:
+      typeof postfachWochen === "number" && Number.isFinite(postfachWochen) ? String(postfachWochen) : "",
     agentViewLocalRootPath: typeof agentView?.localRootPath === "string" ? agentView.localRootPath : "",
     agentViewThemen: Array.isArray(agentView?.themen)
       ? agentView.themen.filter((thema): thema is string => typeof thema === "string").join("\n")
@@ -255,6 +268,7 @@ export function useLibraryForm(createNew: boolean) {
       agentViewVorhabenPattern: "",
       agentViewIndexDepth: "",
       agentViewBerichtFreshness: true,
+      agentViewPostfachMaxWochen: "",
       agentViewLocalRootPath: "",
       agentViewThemen: "",
       captureWizards: undefined,
@@ -493,6 +507,9 @@ export function useLibraryForm(createNew: boolean) {
                 ? { indexRequiredMaxDepth: Number(data.agentViewIndexDepth.trim()) }
                 : {}),
               berichtFreshness: data.agentViewBerichtFreshness,
+              ...(data.agentViewPostfachMaxWochen.trim() !== ""
+                ? { postfachMaxRueckstandWochen: Number(data.agentViewPostfachMaxWochen.trim()) }
+                : {}),
               ...(data.agentViewLocalRootPath.trim() !== ""
                 ? { localRootPath: data.agentViewLocalRootPath.trim() }
                 : {}),

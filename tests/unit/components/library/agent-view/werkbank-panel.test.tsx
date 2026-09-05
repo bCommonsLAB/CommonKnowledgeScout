@@ -65,7 +65,7 @@ function report(vorhaben: VorhabenCard[], overrides: Partial<CoverageReport> = {
     scope: { folderId: null },
     conventions: {
       standardTemplate: null, vorhabenFolderPattern: null,
-      indexRequiredMaxDepth: null, berichtFreshness: true, scanExcludeGlobs: [],
+      indexRequiredMaxDepth: null, berichtFreshness: true, postfachMaxRueckstandWochen: null, scanExcludeGlobs: [],
     },
     totals: {
       folders: 12, files: 34, sources: 5, twins: 4, gaps: 0,

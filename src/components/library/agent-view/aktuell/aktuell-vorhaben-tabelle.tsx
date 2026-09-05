@@ -13,15 +13,34 @@
  * @module components/library/agent-view
  */
 
-import { FileText } from 'lucide-react'
+import { FileText, Mail } from 'lucide-react'
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ks/ui'
 import type { AktuellVorhaben } from '@/lib/agent-view/aktuell-sicht'
+import { postfachStandLabel } from '@/lib/agent-view/postfach-frische'
 import { datumLesbar } from '@/lib/agent-view/sichten/types'
 
 export interface AktuellVorhabenTabelleProps {
   aktiv: readonly AktuellVorhaben[]
   libraryId: string
+  /** A7b: Vorhaben, deren Postfach-Auswertung mahnt (geteiltes Praedikat). */
+  rueckstaendig: ReadonlySet<string>
   onOeffnen: (folderId: string) => void
+}
+
+/**
+ * A7b: Stand der E-Mail-Auswertung. Ohne Angabe im Bericht bleibt die Zeile
+ * weg — nur wer das Feld fuehrt, wird daran gemessen.
+ */
+function PostfachZeile({ vorhaben, mahnt }: { vorhaben: AktuellVorhaben; mahnt: boolean }) {
+  if (vorhaben.postfach.art === 'ohne_angabe') return null
+  return (
+    <span
+      className={`mt-0.5 flex items-center gap-1 text-xs ${mahnt ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'}`}
+    >
+      <Mail className="h-3 w-3 shrink-0" aria-hidden />
+      {postfachStandLabel(vorhaben.postfach)}
+    </span>
+  )
 }
 
 /** Deep-Link ins Archiv auf den Bericht (dasselbe Muster wie `WerkbankBericht`). */
@@ -48,7 +67,7 @@ function TerminZelle({ vorhaben }: { vorhaben: AktuellVorhaben }) {
   )
 }
 
-export function AktuellVorhabenTabelle({ aktiv, libraryId, onOeffnen }: AktuellVorhabenTabelleProps) {
+export function AktuellVorhabenTabelle({ aktiv, libraryId, rueckstaendig, onOeffnen }: AktuellVorhabenTabelleProps) {
   if (aktiv.length === 0) {
     return (
       <section className="space-y-1">
@@ -95,6 +114,7 @@ export function AktuellVorhabenTabelle({ aktiv, libraryId, onOeffnen }: AktuellV
                       <FileText className="h-3 w-3" aria-hidden /> BERICHT.md
                     </a>
                   )}
+                  <PostfachZeile vorhaben={vorhaben} mahnt={rueckstaendig.has(vorhaben.folderId)} />
                 </TableCell>
                 <TableCell className="align-top text-muted-foreground">{vorhaben.rolle ?? '—'}</TableCell>
                 <TableCell className="align-top tabular-nums text-muted-foreground">

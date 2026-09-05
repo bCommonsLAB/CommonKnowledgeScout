@@ -20,6 +20,7 @@
  * @module agent-view
  */
 
+import { istPostfachImRueckstand, lesePostfachStand, type PostfachStand } from './postfach-frische'
 import { istUeberfaellig } from './sichten/types'
 import type { VorhabenCard } from './types'
 import { karteOhneAktuellFelder } from './vorhaben-board'
@@ -46,6 +47,12 @@ export interface AktuellVorhaben {
   weiterePunkte: number
   /** Offene Befunde, die auf den Menschen warten (Bruecke zur Werkbank). */
   wartetAufDich: number
+  /**
+   * A7b: Stand der E-Mail-Auswertung (`postfach_bis`), gemessen gegen HEUTE.
+   * Der Rueckstand waechst ohne jede Aenderung im Archiv — deshalb rechnet
+   * ihn die Sicht selbst und wartet nicht auf den naechsten Scan.
+   */
+  postfach: PostfachStand
 }
 
 /** Ein ruhendes oder abgeschlossenes Vorhaben — eine Zeile, kein Detail. */
@@ -73,6 +80,24 @@ export interface AktuellSicht {
   mitBericht: number
   /** Karten aus einem Scan vor A7 — die Felder fehlen, das wird gesagt. */
   altKarten: number
+  /**
+   * A7b: Aktive Vorhaben, deren E-Mail-Auswertung ueber der konfigurierten
+   * Schwelle liegt ODER deren `postfach_bis` unlesbar ist. Leer, wenn die
+   * Library keine Postfach-Auswertung fuehrt (Schwelle null). Dasselbe
+   * Praedikat wie der Befund `postfach_veraltet` — kein zweites Urteil.
+   */
+  postfachRueckstaendig: AktuellVorhaben[]
+}
+
+/** Zusatzangaben, ohne die die Sicht arbeitsfaehig bleibt. */
+export interface AktuellSichtOptionen {
+  /** Gegenwart als `Date` (Kalenderwoche). Vorgabe: Tagesbeginn von `heute`. */
+  jetzt?: Date
+  /**
+   * Schwelle aus `report.conventions` — null/fehlt heisst: Die Library
+   * fuehrt keine Postfach-Auswertung, es gibt nichts zu mahnen.
+   */
+  postfachMaxRueckstandWochen?: number | null
 }
 
 /** Anzeigename: Bericht-H1, sonst Ordnername. */
@@ -81,7 +106,7 @@ function titelVon(card: VorhabenCard): string {
   return h1 === '' ? card.name : h1
 }
 
-function zuVorhaben(card: VorhabenCard, heute: string): AktuellVorhaben {
+function zuVorhaben(card: VorhabenCard, heute: string, jetzt: Date): AktuellVorhaben {
   const punkte = card.berichtOffenePunkte ?? []
   const gesamt = card.berichtOffeneAnzahl ?? punkte.length
   const termin = card.berichtNaechsterTermin ?? null
@@ -99,6 +124,7 @@ function zuVorhaben(card: VorhabenCard, heute: string): AktuellVorhaben {
     offenePunkte: punkte,
     weiterePunkte: Math.max(0, gesamt - punkte.length),
     wartetAufDich: card.gapsByActor.mensch,
+    postfach: lesePostfachStand(card.postfachBis, jetzt),
   }
 }
 
@@ -117,18 +143,23 @@ function aktivSchluessel(v: AktuellVorhaben): string {
  * @param vorhaben Karten des gespeicherten Reports (`report.vorhaben`).
  * @param heute Tagesdatum `JJJJ-MM-TT` — der Aufrufer reicht es herein,
  *              damit die Funktion rein bleibt (`isoHeute(new Date())`).
+ * @param optionen Gegenwart und Postfach-Schwelle (siehe
+ *                 {@link AktuellSichtOptionen}).
  */
 export function baueAktuellSicht(
   vorhaben: readonly VorhabenCard[],
   heute: string,
+  optionen: AktuellSichtOptionen = {},
 ): AktuellSicht {
+  const jetzt = optionen.jetzt ?? new Date(heute)
+  const schwelle = optionen.postfachMaxRueckstandWochen ?? null
   const mitBericht = vorhaben.filter((card) => card.hasBericht)
   // Der erklaerte Status ist das Sortierkriterium — `AKTUELL.md` teilt genauso
   // ein: `aktiv` / ein anderer Wert / gar kein Wert. Kein `default`-Zweig, in
   // dem ein neuer Status still verschwaende (`no-silent-fallbacks`).
   const aktiv = mitBericht
     .filter((card) => card.berichtStatus === 'aktiv')
-    .map((card) => zuVorhaben(card, heute))
+    .map((card) => zuVorhaben(card, heute, jetzt))
     .sort((a, b) => aktivSchluessel(a).localeCompare(aktivSchluessel(b)))
 
   return {
@@ -146,6 +177,14 @@ export function baueAktuellSicht(
     ohneStatus: mitBericht
       .filter((card) => card.berichtStatus === null || card.berichtStatus === undefined)
       .map((card) => ({ folderId: card.folderId, titel: titelVon(card), path: card.path })),
+    // Unlesbar zaehlt mit: „Feld da, aber unbrauchbar" ist ein Zustand, den
+    // jemand beheben muss — er darf nicht zwischen den Faellen verschwinden.
+    postfachRueckstaendig:
+      schwelle === null
+        ? []
+        : aktiv.filter(
+            (v) => v.postfach.art === 'unlesbar' || istPostfachImRueckstand(v.postfach, schwelle),
+          ),
     ohneBericht: vorhaben.length - mitBericht.length,
     mitBericht: mitBericht.length,
     altKarten: vorhaben.filter(karteOhneAktuellFelder).length,

@@ -41,6 +41,8 @@ function karte(name: string, overrides: Partial<VorhabenCard> = {}): VorhabenCar
     berichtTerminFixiert: true,
     berichtOffenePunkte: [],
     berichtOffeneAnzahl: 0,
+    postfachAb: null,
+    postfachBis: null,
     ...overrides,
   }
 }
@@ -147,5 +149,49 @@ describe('baueAktuellSicht — alte Reports und Leerzustand', () => {
     const leer = baueAktuellSicht([karte('A', { hasBericht: false })], HEUTE)
     expect(sichtIstLeer(leer)).toBe(true)
     expect(sichtIstLeer(baueAktuellSicht([karte('A')], HEUTE))).toBe(false)
+  })
+})
+
+describe('baueAktuellSicht — Postfach-Rueckstand (A7b)', () => {
+  // 2026-09-05 ist KW 36/2026.
+  const JETZT = new Date(2026, 8, 5, 12, 0, 0)
+
+  it('ohne Schwelle mahnt die Sicht nicht — wie die Regel selbst', () => {
+    const sicht = baueAktuellSicht([karte('A', { postfachBis: '2020-KW01' })], HEUTE, { jetzt: JETZT })
+    expect(sicht.postfachRueckstaendig).toEqual([])
+    // Der Stand steht trotzdem auf dem Vorhaben — nur gemahnt wird nicht.
+    expect(sicht.aktiv[0].postfach).toMatchObject({ art: 'gelesen', jahr: 2020, woche: 1 })
+  })
+
+  it('mit Schwelle: nur die Vorhaben oberhalb der Schwelle', () => {
+    const sicht = baueAktuellSicht(
+      [
+        karte('Frisch', { postfachBis: '2026-KW35' }), // Rueckstand 1
+        karte('Alt', { postfachBis: '2026-KW29' }), // Rueckstand 7
+        karte('Ohne'), // kein Feld
+      ],
+      HEUTE,
+      { jetzt: JETZT, postfachMaxRueckstandWochen: 2 },
+    )
+    expect(sicht.postfachRueckstaendig.map((v) => v.name)).toEqual(['Alt'])
+  })
+
+  it('zaehlt unlesbare Angaben mit — „Feld da, aber unbrauchbar" ist ein Zustand', () => {
+    const sicht = baueAktuellSicht(
+      [karte('Kaputt', { postfachBis: 'letzte Woche' })],
+      HEUTE,
+      { jetzt: JETZT, postfachMaxRueckstandWochen: 52 },
+    )
+    expect(sicht.postfachRueckstaendig.map((v) => v.name)).toEqual(['Kaputt'])
+    expect(sicht.aktiv[0].postfach).toEqual({ art: 'unlesbar', roh: 'letzte Woche' })
+  })
+
+  it('ruhende Vorhaben werden nicht gemahnt — nur was laeuft', () => {
+    const sicht = baueAktuellSicht(
+      [karte('Ruht', { berichtStatus: 'ruhend', postfachBis: '2020-KW01' })],
+      HEUTE,
+      { jetzt: JETZT, postfachMaxRueckstandWochen: 1 },
+    )
+    expect(sicht.postfachRueckstaendig).toEqual([])
   })
 })

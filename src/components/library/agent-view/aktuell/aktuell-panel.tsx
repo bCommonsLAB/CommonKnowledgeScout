@@ -18,6 +18,7 @@
  */
 
 import { useMemo } from 'react'
+import { Mail } from 'lucide-react'
 import { parseAsString, useQueryState } from 'nuqs'
 import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { baueAktuellSicht, sichtIstLeer } from '@/lib/agent-view/aktuell-sicht'
@@ -43,7 +44,15 @@ export function AktuellPanel({ report, generatedAt }: AktuellPanelProps) {
   // verstreicht auch ohne Scan. Einmal beim Aufbau bestimmt, damit die
   // Sicht während einer Sitzung nicht unter der Hand springt.
   const heute = useMemo(() => isoHeute(new Date()), [])
-  const sicht = useMemo(() => baueAktuellSicht(report.vorhaben, heute), [report.vorhaben, heute])
+  const schwelle = report.conventions.postfachMaxRueckstandWochen ?? null
+  const sicht = useMemo(
+    () => baueAktuellSicht(report.vorhaben, heute, { postfachMaxRueckstandWochen: schwelle }),
+    [report.vorhaben, heute, schwelle],
+  )
+  const rueckstaendig = useMemo(
+    () => new Set(sicht.postfachRueckstaendig.map((v) => v.folderId)),
+    [sicht.postfachRueckstaendig],
+  )
 
   const oeffneVorhaben = (folderId: string) => {
     // `filter=alle`: das angeklickte Vorhaben muss in der Werkbank-Liste auch
@@ -85,10 +94,31 @@ export function AktuellPanel({ report, generatedAt }: AktuellPanelProps) {
         </p>
       )}
 
+      {/* A7b: Die Antwort auf „ist diese Liste noch aktuell?" — die Sicht sagt
+          selbst, wo E-Mails auf Auswertung warten. Ohne konfigurierte Schwelle
+          ist die Liste leer und der Hinweis bleibt weg. */}
+      {sicht.postfachRueckstaendig.length > 0 && (
+        <Alert>
+          <AlertTitle className="flex items-center gap-2">
+            <Mail className="h-4 w-4" aria-hidden />
+            {sicht.postfachRueckstaendig.length === 1
+              ? 'Ein Vorhaben wartet auf seine E-Mail-Auswertung'
+              : `${String(sicht.postfachRueckstaendig.length)} Vorhaben warten auf ihre E-Mail-Auswertung`}
+          </AlertTitle>
+          <AlertDescription>
+            {sicht.postfachRueckstaendig.map((v) => v.titel).join(' · ')}
+            {' — '}der Scan führt sie als Cowork-Befund{' '}
+            <code>postfach_veraltet</code>; der Auftragstext dazu steht unter
+            &bdquo;Todos &amp; Auftrag&ldquo;.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <AktuellTermine termine={sicht.termine} onOeffnen={oeffneVorhaben} />
       <AktuellVorhabenTabelle
         aktiv={sicht.aktiv}
         libraryId={report.libraryId}
+        rueckstaendig={rueckstaendig}
         onOeffnen={oeffneVorhaben}
       />
       <AktuellSchritte

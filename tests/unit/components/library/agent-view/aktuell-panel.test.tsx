@@ -48,11 +48,13 @@ function karte(name: string, overrides: Partial<VorhabenCard> = {}): VorhabenCar
     berichtTerminFixiert: true,
     berichtOffenePunkte: [],
     berichtOffeneAnzahl: 0,
+    postfachAb: null,
+    postfachBis: null,
     ...overrides,
   }
 }
 
-function report(vorhaben: VorhabenCard[]): CoverageReport {
+function report(vorhaben: VorhabenCard[], postfachMaxRueckstandWochen: number | null = null): CoverageReport {
   return {
     libraryId: 'lib-1',
     generatedAt: '2026-09-04T18:00:00.000Z',
@@ -60,7 +62,7 @@ function report(vorhaben: VorhabenCard[]): CoverageReport {
     scope: { folderId: null },
     conventions: {
       standardTemplate: null, vorhabenFolderPattern: null, indexRequiredMaxDepth: null,
-      berichtFreshness: true, scanExcludeGlobs: [],
+      berichtFreshness: true, postfachMaxRueckstandWochen, scanExcludeGlobs: [],
     },
     totals: {
       folders: 1, files: 0, sources: 0, twins: 0, gaps: 0,
@@ -138,5 +140,35 @@ describe('AktuellPanel', () => {
       // (Default-Filter „bereit").
       expect(letzter?.searchParams.get('filter')).toBe('alle')
     })
+  })
+
+  it('A7b: mahnt sichtbar, wenn ein Postfach ueber der Schwelle liegt', () => {
+    // Die Sicht misst gegen den echten heutigen Tag — ein Rueckstand aus 2020
+    // liegt unter jeder Schwelle sicher darueber.
+    renderPanel(
+      <AktuellPanel
+        report={report([karte('26.07 Naturmuseum', { postfachBis: '2020-KW01' })], 2)}
+        generatedAt={GENERATED_AT}
+      />,
+    )
+    expect(screen.getByText(/wartet auf seine E-Mail-Auswertung/)).toBeTruthy()
+    expect(screen.getAllByText(/Postfach bis KW 1\/2020/).length).toBeGreaterThan(0)
+  })
+
+  it('A7b: ohne konfigurierte Schwelle mahnt die Sicht nicht', () => {
+    renderPanel(
+      <AktuellPanel
+        report={report([karte('26.07 Naturmuseum', { postfachBis: '2020-KW01' })], null)}
+        generatedAt={GENERATED_AT}
+      />,
+    )
+    expect(screen.queryByText(/E-Mail-Auswertung/)).toBeNull()
+    // Der Stand steht trotzdem an der Zeile — nur gemahnt wird nicht.
+    expect(screen.getAllByText(/Postfach bis KW 1\/2020/).length).toBeGreaterThan(0)
+  })
+
+  it('A7b: ohne postfach_bis bleibt die Zeile ganz weg', () => {
+    renderPanel(<AktuellPanel report={report([karte('Ohne Feld')], 2)} generatedAt={GENERATED_AT} />)
+    expect(screen.queryByText(/Postfach/)).toBeNull()
   })
 })
