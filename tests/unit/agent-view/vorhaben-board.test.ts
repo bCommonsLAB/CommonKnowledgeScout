@@ -13,7 +13,7 @@ import type { ArchiveDocEntry, ArchiveFolderNode } from '@/lib/agent-view/archiv
 import { createGap } from '@/lib/agent-view/gap-registry'
 import { buildTree } from '@/lib/agent-view/tree-builder'
 import type { CoverageGap, VorhabenCard } from '@/lib/agent-view/types'
-import { buildVorhabenCards, karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
+import { buildVorhabenCards, karteOhneAktuellFelder, karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 
 function doc(name: string, path: string, overrides: Partial<ArchiveDocEntry> = {}): ArchiveDocEntry {
   return {
@@ -176,5 +176,91 @@ describe('buildVorhabenCards — gepflegte Themen (A6)', () => {
     const cards = cardsFor([root, einzel, ohne])
     expect(cards.find((c) => c.name === 'Einzel')?.gepflegteThemen).toEqual(['Commoning'])
     expect(cards.find((c) => c.name === 'Ohne')?.gepflegteThemen).toEqual([])
+  })
+})
+
+describe('buildVorhabenCards — Aktuell-Felder (A7)', () => {
+  const root = folder('')
+
+  it('liest Termin, Rolle und letzte Aktivitaet aus dem Bericht-Frontmatter', () => {
+    const aktiv = folder('AECED', {
+      bericht: doc('BERICHT.md', 'AECED/BERICHT.md', {
+        meta: {
+          status: 'aktiv',
+          rolle: 'anwendung',
+          letzte_aktivitaet: '2026-07-29',
+          naechster_termin: '2026-08-31',
+        },
+        body: '# AECED Webseite',
+      }),
+    })
+    const [card] = cardsFor([root, aktiv])
+    expect(card.berichtRolle).toBe('anwendung')
+    expect(card.berichtLetzteAktivitaet).toBe('2026-07-29')
+    expect(card.berichtNaechsterTermin).toBe('2026-08-31')
+    // Fehlt `termin_fixiert`, gilt der Termin als vereinbart (wie AKTUELL.md).
+    expect(card.berichtTerminFixiert).toBe(true)
+  })
+
+  it('`termin_fixiert: nein` macht den Termin zum unfixierten', () => {
+    const offen = folder('Klimagesetz', {
+      bericht: doc('BERICHT.md', 'Klimagesetz/BERICHT.md', {
+        meta: { naechster_termin: '2026-09-22', termin_fixiert: 'nein' },
+      }),
+    })
+    const [card] = cardsFor([root, offen])
+    expect(card.berichtTerminFixiert).toBe(false)
+  })
+
+  it('kappt die offenen Punkte auf zwei und nennt die Gesamtzahl', () => {
+    const viele = folder('Viel', {
+      bericht: doc('BERICHT.md', 'Viel/BERICHT.md', {
+        meta: { status: 'aktiv' },
+        body: [
+          '# Viel zu tun',
+          '',
+          '## Nächste Schritte',
+          '- [ ] erstens',
+          '- [ ] zweitens',
+          '- [ ] drittens',
+          '- [x] erledigt — zaehlt nicht',
+        ].join('\n'),
+      }),
+    })
+    const [card] = cardsFor([root, viele])
+    expect(card.berichtOffenePunkte).toEqual(['erstens', 'zweitens'])
+    expect(card.berichtOffeneAnzahl).toBe(3)
+  })
+
+  it('Bericht ohne Frontmatter: Titel ja, Termin-Felder leer — kein Raten', () => {
+    const kahl = folder('Kahl', {
+      bericht: doc('BERICHT.md', 'Kahl/BERICHT.md', { meta: {}, body: '# Kahler Bericht' }),
+    })
+    const [card] = cardsFor([root, kahl])
+    expect(card.berichtTitel).toBe('Kahler Bericht')
+    expect(card.berichtNaechsterTermin).toBeNull()
+    expect(card.berichtOffenePunkte).toEqual([])
+    expect(card.berichtOffeneAnzahl).toBe(0)
+  })
+
+  it('ohne BERICHT.md tragen die Aktuell-Felder ihren Leerwert (gesetzt, nicht fehlend)', () => {
+    const [card] = cardsFor([root, folder('Leer')])
+    expect(card.berichtNaechsterTermin).toBeNull()
+    expect(card.berichtOffenePunkte).toEqual([])
+    expect(karteOhneAktuellFelder(card)).toBe(false)
+  })
+})
+
+describe('karteOhneAktuellFelder', () => {
+  it('erkennt Karten aus gespeicherten Reports vor A7', () => {
+    const alt: VorhabenCard = {
+      folderId: 'f-alt', name: 'Alt', path: 'Alt',
+      bearbeitungsstand: 'erschlossen', bearbeitungsstandSeit: null, hasBericht: true,
+      totalGaps: 0, gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+      widerspruch: false, ampel: 'gruen', themen: [],
+    }
+    expect(karteOhneAktuellFelder(alt)).toBe(true)
+    // Die W1-Felder allein reichen nicht — A7 hat eigene.
+    expect(karteOhneWerkbankFelder(alt)).toBe(false)
   })
 })

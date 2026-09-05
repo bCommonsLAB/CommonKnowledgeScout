@@ -199,6 +199,32 @@ export interface VorhabenCard {
    * [] = kein Thema vergeben („Ohne Thema"); fehlt in Reports vor A6.
    */
   gepflegteThemen?: string[]
+  /*
+   * Aktuell-Sicht (Welle A7) — die Felder, die `AKTUELL.md` aus dem
+   * `BERICHT.md`-Frontmatter zieht. Sie reisen auf der Karte mit, weil der
+   * Coverage-Scan den Bericht OHNEHIN vollstaendig liest: die Tages-Uebersicht
+   * braucht damit weder einen zweiten Scan noch einen zweiten Parser
+   * (gelesen wird mit `projektAusBericht`, wie der Sichten-Export).
+   * OPTIONAL, weil Reports aus Scans vor A7 sie nicht tragen — Konsumenten
+   * benennen diesen Zustand (`karteOhneAktuellFelder`), statt zu raten.
+   */
+  /** `rolle` aus dem Bericht-Frontmatter; null = kein Bericht/kein Feld. */
+  berichtRolle?: string | null
+  /** `letzte_aktivitaet` (`JJJJ-MM-TT` oder `JJJJ-MM`); null = kein Feld. */
+  berichtLetzteAktivitaet?: string | null
+  /** `naechster_termin`; null = kein Termin gesetzt. */
+  berichtNaechsterTermin?: string | null
+  /** `termin_fixiert: nein` → false; fehlt = true (wie `AKTUELL.md`). */
+  berichtTerminFixiert?: boolean
+  /**
+   * Die ERSTEN ZWEI offenen Punkte aus „## Nächste Schritte" — genau die,
+   * die auch `AKTUELL.md` zeigt. Absichtlich gekappt (Report-Groesse); wie
+   * viele es insgesamt sind, sagt {@link VorhabenCard.berichtOffeneAnzahl},
+   * damit die Kappung sichtbar ist statt still.
+   */
+  berichtOffenePunkte?: string[]
+  /** Gesamtzahl der offenen Punkte im Bericht (>= `berichtOffenePunkte.length`). */
+  berichtOffeneAnzahl?: number
 }
 
 /**
