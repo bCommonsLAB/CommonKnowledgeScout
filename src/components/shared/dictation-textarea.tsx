@@ -35,6 +35,7 @@ export function DictationTextarea(props: DictationTextareaProps) {
         sourceLanguage={props.sourceLanguage}
         targetLanguage={props.targetLanguage}
         keywords={props.keywords}
+        prompt={props.prompt}
         className={props.className}
       />
     )
@@ -113,6 +114,11 @@ interface DictationTextareaProps {
    * Optional (nur für 'live'): Begriffe, die häufig vorkommen (Namen, Fachwörter).
    */
   keywords?: string[]
+  /**
+   * Optional (nur für 'live'): Freitext-Kontext zur Aufnahme — Thema, Anlass, Ort.
+   * Keine Anweisung an das Modell, sondern Kontext über das Gesprochene.
+   */
+  prompt?: string
 }
 
 /** Bewährter Weg: aufnehmen, dann am Stück transkribieren. */

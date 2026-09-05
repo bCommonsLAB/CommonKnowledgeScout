@@ -219,3 +219,30 @@ Results are cached based on:
 
 Use `useCache=false` to bypass cache and force reprocessing.
 
+## Kontext zur Aufnahme (optional)
+
+Transkription scheitert typischerweise an Eigennamen, Orten und Fachbegriffen. Genau
+dagegen nehmen `POST /api/audio/process` und der Job-Weg drei zusätzliche Felder:
+
+| Feld | Inhalt | Beispiel |
+|---|---|---|
+| `prompt` | Freitext über Thema, Anlass, Ort | `Interview auf einem Permakultur-Hof im Vinschgau` |
+| `keywords` | Begriffe, die vorkommen können — kommagetrennt oder JSON-Liste | `Vinschgau, Permakultur, Terra Preta` |
+| `languages` | Mögliche Sprachen bei mehrsprachigem Material (ISO 639-1) | `de, it` |
+
+**Der `prompt` ist keine Anweisung an das Modell.** Nicht „transkribiere sorgfältig",
+sondern Kontext über das Gesprochene. Keywords sind Hinweise, keine Pflichtausgabe: Ein
+Begriff landet nur im Text, wenn er auch gesprochen wurde.
+
+Welche Felder tatsächlich beim Anbieter ankommen, entscheidet das konfigurierte Modell:
+
+| Modell | `prompt` | `keywords` | Sprache |
+|---|---|---|---|
+| `gpt-transcribe` | ja | ja | `languages` (Liste) |
+| `whisper-1`, `gpt-4o-transcribe` | ja | nein | `language` (einzeln) |
+| `gpt-4o-transcribe-diarize` | nein | nein | `language` (einzeln) |
+
+Verworfene Felder werden im Dienst als Warnung protokolliert, nicht stillschweigend
+geschluckt. Der Kontext geht in den Cache-Schlüssel ein — anderer Kontext heißt also
+neue Transkription, nicht das alte Ergebnis.
+

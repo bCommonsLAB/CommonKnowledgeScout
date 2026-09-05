@@ -55,6 +55,12 @@ export interface UseLiveTranscriptionOptions {
   targetLanguage?: string
   /** Begriffe, die haeufig vorkommen (Namen, Fachwoerter). */
   keywords?: string[]
+  /**
+   * Freitext-Kontext zur Aufnahme: Thema, Anlass, Ort. Fuehrt die Erkennung, ist aber
+   * KEINE Anweisung an das Modell — also "Interview auf einem Hof in Suedtirol ueber
+   * Bodenaufbau", nicht "transkribiere sorgfaeltig".
+   */
+  prompt?: string
   /** Wird bei jeder Textaenderung gerufen (fertiger Text ohne vorlaeufigen Teil). */
   onTextChange?: (text: string) => void
   /** Wird nach dem Beenden mit dem endgueltigen Text gerufen. */
@@ -81,6 +87,7 @@ export function useLiveTranscription(
     sourceLanguage = "de",
     targetLanguage = "de",
     keywords,
+    prompt,
     onTextChange,
     onFinished,
   } = options
@@ -184,6 +191,7 @@ export function useLiveTranscription(
           endpoint: ticketEndpoint,
           language: sourceLanguage,
           keywords,
+          prompt,
           extraFields,
         }),
       recoverGap: (blob) =>
@@ -225,6 +233,7 @@ export function useLiveTranscription(
     recoveryEndpoint,
     extraFields,
     keywords,
+    prompt,
     sourceLanguage,
     targetLanguage,
   ])
