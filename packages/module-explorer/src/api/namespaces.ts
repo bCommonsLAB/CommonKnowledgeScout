@@ -54,6 +54,7 @@ export const EXPLORER_API_EXCLUSIONS: readonly ExplorerApiExclusion[] = [
 
   // Geteilter Dienst — Landkarte §3, vierte Unschaerfe.
   { route: 'public/secretary/process-audio', reason: 'secretary/* wird von Erfassung UND Archiv genutzt — Zuordnung offen' },
+  { route: 'public/secretary/realtime-session', reason: 'secretary/* wird von Erfassung UND Archiv genutzt — Zuordnung offen' },
 
   // Zwischenspeicherung: Diese Routen werden heute statisch bzw. per ISR
   // ausgeliefert (`revalidate = 60` bzw. GET ohne Zugriff auf das
