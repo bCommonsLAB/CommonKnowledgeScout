@@ -5,6 +5,7 @@ import { Loader2, Mic } from "lucide-react"
 import { Textarea } from '@ks/ui'
 import { useDictationTranscription, mergeDictationText, type UseDictationTranscriptionOptions } from "./use-dictation-transcription"
 import { AudioOscilloscope } from "./audio-oscilloscope"
+import { LiveDictationTextarea } from "./live-dictation-textarea"
 
 /**
  * Einheitliche, wiederverwendbare Textarea mit "Diktieren"-Button und optionalem Oszilloskop.
@@ -15,7 +16,33 @@ import { AudioOscilloscope } from "./audio-oscilloscope"
  * - Der Nutzer kann den transkribierten Text vor dem finalen Speichern korrigieren.
  * - Standardmäßig wird neuer Text angehängt (mit Leerzeile).
  */
-export function DictationTextarea(props: {
+export function DictationTextarea(props: DictationTextareaProps) {
+  // Weiche vor den Hooks: die beiden Betriebsarten sind eigene Komponenten, damit
+  // keine Hook-Reihenfolge von einem Prop abhängt.
+  if (props.mode === "live") {
+    return (
+      <LiveDictationTextarea
+        label={props.label}
+        value={props.value}
+        onChange={props.onChange}
+        placeholder={props.placeholder}
+        disabled={props.disabled}
+        rows={props.rows}
+        showOscilloscope={props.showOscilloscope}
+        ticketEndpoint={props.ticketEndpoint}
+        recoveryEndpoint={props.transcribeEndpoint}
+        extraFields={props.extraFormFields}
+        sourceLanguage={props.sourceLanguage}
+        targetLanguage={props.targetLanguage}
+        keywords={props.keywords}
+        className={props.className}
+      />
+    )
+  }
+  return <BatchDictationTextarea {...props} />
+}
+
+interface DictationTextareaProps {
   /** Label (Frage) direkt am Feld, wie gewünscht */
   label: string
   value: string
@@ -68,7 +95,28 @@ export function DictationTextarea(props: {
    * Optional: Maximale Zeilen für Auto-Resize (default: 5).
    */
   maxAutoRows?: number
-}) {
+  /**
+   * Optional: Betriebsart des Diktats (default: 'batch').
+   * - 'batch': aufnehmen, dann am Stück transkribieren (bewährter Weg)
+   * - 'live': Text erscheint während des Sprechens (OpenAI Realtime)
+   *
+   * 'live' delegiert an `LiveDictationTextarea`; der Batch-Pfad bleibt unverändert
+   * und dient weiterhin als Rückfallebene.
+   */
+  mode?: "batch" | "live"
+  /**
+   * Optional (nur für 'live'): Endpunkt für das Ticket. Public-Flow braucht
+   * `/api/public/secretary/realtime-session`.
+   */
+  ticketEndpoint?: string
+  /**
+   * Optional (nur für 'live'): Begriffe, die häufig vorkommen (Namen, Fachwörter).
+   */
+  keywords?: string[]
+}
+
+/** Bewährter Weg: aufnehmen, dann am Stück transkribieren. */
+function BatchDictationTextarea(props: DictationTextareaProps) {
   const {
     label,
     value,
