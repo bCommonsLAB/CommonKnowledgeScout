@@ -4,9 +4,10 @@
  * @fileoverview Smoke-Test: Tab-Zustand der Agentensicht in der URL (W3).
  *
  * Der Tab kommt seit W3 aus `?tab=` (nuqs) statt aus einem unkontrollierten
- * `defaultValue`: ohne Parameter oeffnet die Werkbank (F6 ersetzt den Baum
- * als Default), `?tab=board` rendert das Zyklus-Board — Deep-Links
- * ueberstehen damit Reload (v2-Akzeptanzkriterium 5).
+ * `defaultValue`. Seit A7 oeffnet ohne Parameter die Tages-Uebersicht
+ * „Aktuell" (die Werkbank bleibt ein Klick entfernt); `?tab=werkbank` und
+ * `?tab=board` steuern weiterhin gezielt an — Deep-Links ueberstehen damit
+ * Reload (v2-Akzeptanzkriterium 5).
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
@@ -71,11 +72,18 @@ function renderPanel(searchParams = '') {
 }
 
 describe('AgentViewPanel — Tabs aus der URL', () => {
-  it('ohne ?tab= oeffnet die Werkbank (neuer Default) mit allen vier Triggern', () => {
+  it('ohne ?tab= oeffnet „Aktuell" (Default seit A7) mit allen fuenf Triggern', () => {
     renderPanel()
-    for (const label of ['Werkbank', 'Baum', 'Zyklus-Board', 'Todos & Auftrag']) {
+    for (const label of ['Aktuell', 'Werkbank', 'Baum', 'Zyklus-Board', 'Todos & Auftrag']) {
       expect(screen.getByRole('tab', { name: label })).toBeTruthy()
     }
+    expect(screen.getByRole('tab', { name: 'Aktuell' }).getAttribute('data-state')).toBe('active')
+    // Leerer Report → benannter Leerzustand der Sicht, kein stummer Bildschirm.
+    expect(screen.getByText(/Noch keine Vorhaben mit Bericht/)).toBeTruthy()
+  })
+
+  it('?tab=werkbank oeffnet die Werkbank — der bestehende Deep-Link bleibt gueltig', () => {
+    renderPanel('?tab=werkbank')
     expect(screen.getByRole('tab', { name: 'Werkbank' }).getAttribute('data-state')).toBe('active')
     // Werkbank-Inhalt (leerer Report → benannte Begruendung, kein stummer Zustand).
     expect(screen.getAllByText(/Kein Vorhaben im Report/).length).toBeGreaterThan(0)

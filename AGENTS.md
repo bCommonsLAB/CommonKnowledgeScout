@@ -95,9 +95,13 @@ Sessions nicht doppelt bauen:
 
 **Abgeschlossene Straenge** (nicht neu aufgreifen):
 
-- **Werkbank/Agentensicht**: Wellen W1–W8 und A1–A6 sind umgesetzt
+- **Werkbank/Agentensicht**: Wellen W1–W8 und A1–A7 sind umgesetzt
   ([`docs/concepts/projektauftrag-werkbank-abnahme.md`](docs/concepts/projektauftrag-werkbank-abnahme.md),
   Testsession dokumentiert). Kuration laeuft nach ADR 0006 (Modell B).
+  **A7 (05.09.2026)** ergaenzt den Tab „Aktuell" als Default-Einstieg: die
+  Tages-Uebersicht („woran arbeite ich gerade?") wird aus den Bericht-Feldern
+  der `VorhabenCard`s gerechnet — dieselbe Quelle wie der Sichten-Export
+  `Organisation/AKTUELL.md`, kein zweiter Scan und kein zweiter Parser.
 
 **Ruhender Strang**: Die Juni-Roadmap
 [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md)
