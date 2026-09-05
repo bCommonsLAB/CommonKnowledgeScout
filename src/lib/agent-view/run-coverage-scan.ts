@@ -48,6 +48,13 @@ export function readConventions(library: Library): CoverageConventions {
     vorhabenFolderPattern: pattern ? pattern : null,
     indexRequiredMaxDepth: typeof depth === 'number' && Number.isFinite(depth) ? depth : null,
     berichtFreshness: agentView?.berichtFreshness !== false,
+    // A7b: fehlt/ungueltig ⇒ null ⇒ Regel inaktiv. Kein geratener Default:
+    // ohne gepflegtes `postfach_bis` waere jeder Schwellwert Rauschen.
+    postfachMaxRueckstandWochen:
+      typeof agentView?.postfachMaxRueckstandWochen === 'number'
+      && Number.isFinite(agentView.postfachMaxRueckstandWochen)
+        ? agentView.postfachMaxRueckstandWochen
+        : null,
     // D3: leer konfiguriert -> dokumentierter Plattform-Default; der Report zeigt die wirksame Liste.
     scanExcludeGlobs: [...effectiveScanExcludeGlobs(library.config?.scanExcludeGlobs)],
   }

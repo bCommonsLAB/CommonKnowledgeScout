@@ -73,6 +73,10 @@ export async function runCoverageScan(
   ports: CoverageScanPorts,
 ): Promise<CoverageReport> {
   const { conventions } = request
+  // EINE Gegenwart fuer den ganzen Lauf: `postfach_veraltet` misst gegen den
+  // Kalender, und der Befund darf nicht aus einer anderen Sekunde stammen als
+  // der `generatedAt` des Reports, der ihn traegt.
+  const generatedAt = ports.now()
   const vorhabenPattern = compileVorhabenPattern(conventions.vorhabenFolderPattern)
 
   // A1 separat isolieren: Ein Feld-Pruefungs-Fehler bricht den Scan nicht ab,
@@ -172,6 +176,9 @@ export async function runCoverageScan(
         vorhabenPattern,
         newestChangeInSubtree: newestChange.get(folder.folderId) ?? null,
         isLibraryRoot: folder.folderId === libraryRootFolderId,
+        // A7b: `postfach_veraltet` misst gegen den Kalender — dieselbe
+        // Gegenwart wie `generatedAt`, damit Report und Befund zusammenpassen.
+        now: generatedAt,
       }),
     ),
     ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern }),
@@ -205,7 +212,7 @@ export async function runCoverageScan(
 
   return {
     libraryId: request.libraryId,
-    generatedAt: ports.now(),
+    generatedAt,
     derived: true,
     scope: { folderId: request.scopeFolderId, path: request.scopePath ?? null },
     conventions,

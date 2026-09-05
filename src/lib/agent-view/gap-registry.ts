@@ -70,6 +70,10 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   report_missing: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Kein Bericht' },
   index_missing: { actor: 'cowork', zyklusSchritt: 2, severity: 'warning', origin: 'archiv-konvention', label: 'Keine Ordner-Beschreibung' },
   bericht_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Bericht ueberholt' },
+  // A7b: Der Rueckstand der E-Mail-Auswertung (`postfach_bis`). Bei Cowork,
+  // weil Cowork die Korrespondenz-Methode ausfuehrt; Schritt 3, weil der
+  // Ertrag in den Bericht wandert (Chronologie-Zeilen, Randbedingungen).
+  postfach_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Postfach nicht ausgewertet' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

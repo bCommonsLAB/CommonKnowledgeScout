@@ -57,6 +57,7 @@ export type CoverageGapType =
   | 'report_missing'
   | 'index_missing'
   | 'bericht_veraltet'
+  | 'postfach_veraltet'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'
@@ -225,6 +226,15 @@ export interface VorhabenCard {
   berichtOffenePunkte?: string[]
   /** Gesamtzahl der offenen Punkte im Bericht (>= `berichtOffenePunkte.length`). */
   berichtOffeneAnzahl?: number
+  /*
+   * A7b — Postfach-Fenster der Korrespondenz-Methode (`postfach_ab`/
+   * `postfach_bis`, Format `JJJJ-KWnn`). ROH uebernommen: ob ein Wert
+   * lesbar ist und wie weit er zurueckliegt, entscheidet
+   * `lesePostfachStand` gegen die Gegenwart des Betrachters — nicht der
+   * Scan-Tag, denn der Rueckstand waechst auch ohne Scan.
+   */
+  postfachAb?: string | null
+  postfachBis?: string | null
 }
 
 /**
@@ -294,6 +304,12 @@ export interface CoverageConventions {
   indexRequiredMaxDepth: number | null
   /** `bericht_veraltet` aktiv? */
   berichtFreshness: boolean
+  /**
+   * A7b: Ab wie vielen vollen Wochen Rueckstand gilt `postfach_bis` als
+   * veraltet? null = die Library fuehrt keine Postfach-Auswertung, Regel
+   * inaktiv (dieselbe Form wie {@link CoverageConventions.indexRequiredMaxDepth}).
+   */
+  postfachMaxRueckstandWochen: number | null
   /** Wirksame Ausschluss-Muster des Scans (Welle 0b). */
   scanExcludeGlobs: string[]
 }

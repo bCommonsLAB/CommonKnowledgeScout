@@ -21,6 +21,7 @@
 import type { ArchiveFolderNode } from './archive-types'
 import { BERICHT_FILE_NAME, INDEX_FILE_NAME } from './archive-scan'
 import { createGap } from './gap-registry'
+import { checkPostfachVeraltet } from './postfach-regel'
 import type { CoverageGap } from './types'
 
 export interface ArchiveRuleConventions {
@@ -30,6 +31,11 @@ export interface ArchiveRuleConventions {
   indexRequiredMaxDepth: number | null
   /** `bericht_veraltet` pruefen? */
   berichtFreshness: boolean
+  /**
+   * A7b: Ab wie vielen vollen Wochen Rueckstand ist `postfach_bis` veraltet?
+   * null = die Library fuehrt keine Postfach-Auswertung, Regel inaktiv.
+   */
+  postfachMaxRueckstandWochen: number | null
 }
 
 export interface ArchiveRuleContext {
@@ -45,6 +51,12 @@ export interface ArchiveRuleContext {
    * Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Ordner (false).
    */
   isLibraryRoot: boolean
+  /**
+   * Gegenwart des Scans (`ports.now()`), ISO. Nur `postfach_veraltet` braucht
+   * sie — die Regel misst gegen den Kalender, nicht gegen eine zweite Datei.
+   * Hereingereicht, damit der Report bei fixem `now` reproduzierbar bleibt.
+   */
+  now: string
 }
 
 /** Kompiliert das Vorhaben-Muster einmal; ungueltige Regex wirft laut. */
@@ -179,6 +191,7 @@ export function evaluateArchiveRules(folder: ArchiveFolderNode, ctx: ArchiveRule
     checkIndexMissing(folder, pattern, ctx.conventions.indexRequiredMaxDepth),
     checkReportMissing(folder, pattern, ctx.isLibraryRoot),
     checkBerichtVeraltet(folder, ctx),
+    checkPostfachVeraltet(folder, ctx),
   ]
   return gaps.filter((gap): gap is CoverageGap => gap !== null)
 }

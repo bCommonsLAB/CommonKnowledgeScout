@@ -264,3 +264,34 @@ describe('karteOhneAktuellFelder', () => {
     expect(karteOhneWerkbankFelder(alt)).toBe(false)
   })
 })
+
+describe('buildVorhabenCards — Postfach-Fenster (A7b)', () => {
+  const root = folder('')
+
+  it('uebernimmt postfach_ab/postfach_bis ROH — die Bewertung macht die Sicht', () => {
+    const mit = folder('Naturmuseum', {
+      bericht: doc('BERICHT.md', 'Naturmuseum/BERICHT.md', {
+        meta: { postfach_ab: '2026-KW29', postfach_bis: '2026-KW35' },
+      }),
+    })
+    const [card] = cardsFor([root, mit])
+    expect(card.postfachAb).toBe('2026-KW29')
+    expect(card.postfachBis).toBe('2026-KW35')
+  })
+
+  it('reicht auch einen unlesbaren Wert unveraendert durch (kein stilles null)', () => {
+    const kaputt = folder('Kaputt', {
+      bericht: doc('BERICHT.md', 'Kaputt/BERICHT.md', { meta: { postfach_bis: 'letzte Woche' } }),
+    })
+    expect(cardsFor([root, kaputt])[0].postfachBis).toBe('letzte Woche')
+  })
+
+  it('ohne Feld und ohne Bericht bleibt es null', () => {
+    const ohneFeld = folder('OhneFeld', {
+      bericht: doc('BERICHT.md', 'OhneFeld/BERICHT.md', { meta: { status: 'aktiv' } }),
+    })
+    const cards = cardsFor([root, ohneFeld, folder('OhneBericht')])
+    expect(cards.find((c) => c.name === 'OhneFeld')?.postfachBis).toBeNull()
+    expect(cards.find((c) => c.name === 'OhneBericht')?.postfachBis).toBeNull()
+  })
+})

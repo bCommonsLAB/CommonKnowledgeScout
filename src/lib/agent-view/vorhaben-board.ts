@@ -35,6 +35,7 @@ type BerichtFelder = Pick<
   | 'berichtTitel' | 'berichtFileId' | 'berichtModifiedAt' | 'berichtStatus' | 'themen'
   | 'berichtRolle' | 'berichtLetzteAktivitaet' | 'berichtNaechsterTermin'
   | 'berichtTerminFixiert' | 'berichtOffenePunkte' | 'berichtOffeneAnzahl'
+  | 'postfachAb' | 'postfachBis'
 >
 
 /** Wie viele offene Punkte die Karte traegt — `AKTUELL.md` zeigt dieselben zwei. */
@@ -45,6 +46,7 @@ function ohneAktuellFelder(): Pick<
   VorhabenCard,
   'berichtRolle' | 'berichtLetzteAktivitaet' | 'berichtNaechsterTermin'
   | 'berichtTerminFixiert' | 'berichtOffenePunkte' | 'berichtOffeneAnzahl'
+  | 'postfachAb' | 'postfachBis'
 > {
   return {
     berichtRolle: null,
@@ -53,6 +55,8 @@ function ohneAktuellFelder(): Pick<
     berichtTerminFixiert: true,
     berichtOffenePunkte: [],
     berichtOffeneAnzahl: 0,
+    postfachAb: null,
+    postfachBis: null,
   }
 }
 
@@ -85,6 +89,11 @@ function berichtFelder(folder: ArchiveFolderNode): BerichtFelder {
     berichtTerminFixiert: projekt?.terminFixiert ?? true,
     berichtOffenePunkte: schritte.slice(0, AKTUELL_PUNKTE_AUF_KARTE),
     berichtOffeneAnzahl: schritte.length,
+    // A7b: ROH uebernommen — ob der Wert lesbar ist und wie weit er
+    // zurueckliegt, entscheidet `lesePostfachStand` gegen die Gegenwart
+    // des Betrachters, nicht der Scan.
+    postfachAb: asString(bericht.meta.postfach_ab),
+    postfachBis: asString(bericht.meta.postfach_bis),
   }
 }
 
