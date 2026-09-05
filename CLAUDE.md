@@ -60,6 +60,7 @@ Wiederkehrende Muster — lesen, statt Referenz-Code komplett zu reverse-enginee
 - [mongodb-repository-pattern.md](docs/architecture/mongodb-repository-pattern.md) – Repos unter `src/lib/repositories/`
 - [api-route-conventions.md](docs/architecture/api-route-conventions.md) – Handler unter `src/app/api/**`
 - [file-preview-tab-architecture.md](docs/architecture/file-preview-tab-architecture.md) – Tabs der Datei-Vorschau
+- [live-transkription.md](docs/architecture/live-transkription.md) – Diktat live (`src/lib/live-transcription/**`)
 
 ## Skills
 

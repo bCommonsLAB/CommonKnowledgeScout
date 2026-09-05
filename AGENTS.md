@@ -144,6 +144,7 @@ erledigt. Erst wieder aufgreifen, wenn der Owner es sagt.
 - MongoDB-Repos: [`mongodb-repository-pattern.md`](docs/architecture/mongodb-repository-pattern.md)
 - API-Routes: [`api-route-conventions.md`](docs/architecture/api-route-conventions.md)
 - File-Preview-Tabs: [`file-preview-tab-architecture.md`](docs/architecture/file-preview-tab-architecture.md)
+- Live-Diktat: [`live-transkription.md`](docs/architecture/live-transkription.md)
 - Neues Per-Library-Config-Feld: [`library-config-field.md`](docs/contracts/library-config-field.md)
 - Lokale Live-Verifikation (ohne Zeit zu verlieren): [`verification-playbook.md`](docs/guides/verification-playbook.md)
 

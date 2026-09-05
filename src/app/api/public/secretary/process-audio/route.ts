@@ -28,21 +28,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerProvider } from '@/lib/storage/server-provider'
-import { resolveOwnerForTestimonials } from '@/lib/public/public-library-owner'
-import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import {
+  TestimonialAccessError,
+  assertTestimonialWriteAccess,
+} from '@/lib/public/testimonial-write-access'
 import { getSecretaryConfig } from '@/lib/env'
-
-async function readEventWriteKeyIfAny(args: {
-  provider: Awaited<ReturnType<typeof getServerProvider>>
-  eventFileId: string
-}): Promise<string | null> {
-  const { blob } = await args.provider.getBinary(args.eventFileId)
-  const markdown = await blob.text()
-  const { meta } = parseFrontmatter(markdown)
-  const key = typeof meta.testimonialWriteKey === 'string' ? meta.testimonialWriteKey.trim() : ''
-  return key || null
-}
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -94,34 +84,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Audio-Datei zu groß (max 25MB)' }, { status: 413 })
     }
 
-    // Owner auflösen (public library ODER private mit writeKey)
-    const { ownerEmail, isPublicLibrary } = await resolveOwnerForTestimonials({ libraryId, writeKey })
-    const provider = await getServerProvider(ownerEmail, libraryId)
-
-    // Event-Datei laden und writeKey validieren
-    const eventItem = await provider.getItemById(eventFileId)
-    if (!eventItem || eventItem.type !== 'file') {
-      return NextResponse.json({ error: 'Event-Datei nicht gefunden' }, { status: 404 })
-    }
-
-    const requiredKey = await readEventWriteKeyIfAny({ provider, eventFileId })
-
-    // Private libraries: writeKey muss vorhanden sein UND matcht Event-Frontmatter.
-    if (!isPublicLibrary) {
-      if (!requiredKey) {
-        return NextResponse.json(
-          { error: 'Event ist nicht für anonyme Testimonials freigegeben (testimonialWriteKey fehlt)' },
-          { status: 403 }
-        )
+    // Zugriffspruefung (public library ODER private mit writeKey) — dieselbe Kette wie
+    // beim Live-Ticket, siehe lib/public/testimonial-write-access.
+    try {
+      await assertTestimonialWriteAccess({ libraryId, eventFileId, writeKey })
+    } catch (error) {
+      if (error instanceof TestimonialAccessError) {
+        return NextResponse.json({ error: error.message }, { status: error.status })
       }
-      if (requiredKey !== writeKey) {
-        return NextResponse.json({ error: 'Ungültiger writeKey' }, { status: 403 })
-      }
-    }
-
-    // Public libraries: writeKey ist optional, aber wenn Event einen hat, muss er matcht.
-    if (isPublicLibrary && requiredKey && requiredKey !== writeKey) {
-      return NextResponse.json({ error: 'Ungültiger writeKey' }, { status: 403 })
+      throw error
     }
 
     // Secretary Service Config
