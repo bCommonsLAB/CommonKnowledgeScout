@@ -124,3 +124,37 @@ export function istPostfachImRueckstand(
   if (stand.art !== 'gelesen') return false
   return stand.rueckstandWochen > maxRueckstandWochen
 }
+
+/** „16× KW 35/2026, 1× KW 36/2026 · 6 ohne Angabe" — in Zahlen. */
+export interface PostfachUebersicht {
+  /** Je gemeldeter Woche die Zahl der Vorhaben, juengste Woche zuerst. */
+  staende: Array<{ label: string; anzahl: number }>
+  /** Aktive Vorhaben ohne `postfach_bis` — die Luecke der Auswertung. */
+  ohneAngabe: number
+  /** Aktive Vorhaben mit unlesbarem Wert. */
+  unlesbar: number
+}
+
+/** Zaehlt die Postfach-Staende der aktiven Vorhaben zusammen. */
+export function verdichtePostfach(staendeRoh: readonly PostfachStand[]): PostfachUebersicht {
+  const nachWoche = new Map<string, { label: string; anzahl: number; schluessel: string }>()
+  let ohneAngabe = 0
+  let unlesbar = 0
+  for (const stand of staendeRoh) {
+    if (stand.art === 'ohne_angabe') { ohneAngabe += 1; continue }
+    if (stand.art === 'unlesbar') { unlesbar += 1; continue }
+    // Sortierschluessel getrennt vom Label: `KW 5/2026` soll hinter
+    // `KW 35/2025` einsortieren, nicht alphabetisch davor.
+    const schluessel = `${String(stand.jahr)}-${String(stand.woche).padStart(2, '0')}`
+    const vorhanden = nachWoche.get(schluessel)
+    if (vorhanden) vorhanden.anzahl += 1
+    else nachWoche.set(schluessel, { label: kalenderwocheLabel(stand.jahr, stand.woche), anzahl: 1, schluessel })
+  }
+  return {
+    staende: [...nachWoche.values()]
+      .sort((a, b) => b.schluessel.localeCompare(a.schluessel))
+      .map(({ label, anzahl }) => ({ label, anzahl })),
+    ohneAngabe,
+    unlesbar,
+  }
+}

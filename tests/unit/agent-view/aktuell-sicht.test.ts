@@ -114,18 +114,68 @@ describe('baueAktuellSicht — Reihenfolge und Termine', () => {
 describe('baueAktuellSicht — offene Punkte', () => {
   it('macht die Kappung sichtbar statt still abzuschneiden', () => {
     const sicht = baueAktuellSicht(
-      [karte('A', { berichtOffenePunkte: ['erstens', 'zweitens'], berichtOffeneAnzahl: 5 })],
+      [karte('A', {
+        berichtNaechsterTermin: '2026-09-20',
+        berichtOffenePunkte: ['erstens', 'zweitens'],
+        berichtOffeneAnzahl: 5,
+      })],
       HEUTE,
     )
-    expect(sicht.mitSchritten).toHaveLength(1)
-    expect(sicht.mitSchritten[0].offenePunkte).toEqual(['erstens', 'zweitens'])
-    expect(sicht.mitSchritten[0].weiterePunkte).toBe(3)
+    expect(sicht.schritteMitTermin).toHaveLength(1)
+    expect(sicht.schritteMitTermin[0].offenePunkte).toEqual(['erstens', 'zweitens'])
+    expect(sicht.schritteMitTermin[0].weiterePunkte).toBe(3)
   })
 
   it('fuehrt Vorhaben ohne offenen Punkt nicht unter „was als Naechstes ansteht"', () => {
     const sicht = baueAktuellSicht([karte('A'), karte('B', { berichtOffenePunkte: ['x'], berichtOffeneAnzahl: 1 })], HEUTE)
-    expect(sicht.mitSchritten.map((v) => v.name)).toEqual(['B'])
+    expect(sicht.schritteOhneTermin.map((v) => v.name)).toEqual(['B'])
     expect(sicht.aktiv).toHaveLength(2)
+  })
+
+  it('trennt Vorhaben MIT Termin von denen ohne — der Vordergrund ist der Kalender', () => {
+    const sicht = baueAktuellSicht(
+      [
+        karte('Termin', { berichtNaechsterTermin: '2026-09-20', berichtOffenePunkte: ['a'], berichtOffeneAnzahl: 1 }),
+        karte('Vorrat', { berichtOffenePunkte: ['b'], berichtOffeneAnzahl: 1 }),
+        karte('Stumm', { berichtNaechsterTermin: '2026-09-21' }),
+      ],
+      HEUTE,
+    )
+    expect(sicht.schritteMitTermin.map((v) => v.name)).toEqual(['Termin'])
+    expect(sicht.schritteOhneTermin.map((v) => v.name)).toEqual(['Vorrat'])
+  })
+})
+
+describe('baueAktuellSicht — Postfach-Uebersicht (A7b)', () => {
+  const JETZT = new Date(2026, 8, 5, 12, 0, 0) // KW 36/2026
+
+  it('zaehlt gleiche Staende zusammen, juengste Woche zuerst', () => {
+    const sicht = baueAktuellSicht(
+      [
+        karte('A', { postfachBis: '2026-KW35' }),
+        karte('B', { postfachBis: '2026-KW35' }),
+        karte('C', { postfachBis: '2026-KW36' }),
+        karte('D'),
+        karte('E', { postfachBis: 'letzte Woche' }),
+      ],
+      HEUTE,
+      { jetzt: JETZT },
+    )
+    expect(sicht.postfachUebersicht.staende).toEqual([
+      { label: 'KW 36/2026', anzahl: 1 },
+      { label: 'KW 35/2026', anzahl: 2 },
+    ])
+    expect(sicht.postfachUebersicht.ohneAngabe).toBe(1)
+    expect(sicht.postfachUebersicht.unlesbar).toBe(1)
+  })
+
+  it('sortiert ueber den Jahreswechsel nach Datum, nicht alphabetisch', () => {
+    const sicht = baueAktuellSicht(
+      [karte('A', { postfachBis: '2025-KW52' }), karte('B', { postfachBis: '2026-KW05' })],
+      HEUTE,
+      { jetzt: JETZT },
+    )
+    expect(sicht.postfachUebersicht.staende.map((s) => s.label)).toEqual(['KW 5/2026', 'KW 52/2025'])
   })
 })
 

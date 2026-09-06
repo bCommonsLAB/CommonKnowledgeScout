@@ -76,8 +76,6 @@ function report(vorhaben: VorhabenCard[], postfachMaxRueckstandWochen: number | 
   }
 }
 
-const GENERATED_AT = '2026-09-04T18:00:00.000Z'
-
 describe('AktuellPanel', () => {
   it('zeigt Termine, aktive Vorhaben und offene Punkte aus dem Report', () => {
     renderPanel(
@@ -89,7 +87,6 @@ describe('AktuellPanel', () => {
             berichtOffeneAnzahl: 3,
           }),
         ])}
-        generatedAt={GENERATED_AT}
       />,
     )
     expect(screen.getAllByText('24. September 2026').length).toBeGreaterThan(0)
@@ -103,7 +100,6 @@ describe('AktuellPanel', () => {
     renderPanel(
       <AktuellPanel
         report={report([karte('26.02 AECED', { berichtNaechsterTermin: '2020-01-31' })])}
-        generatedAt={GENERATED_AT}
       />,
     )
     expect(screen.getAllByText('überfällig').length).toBeGreaterThan(0)
@@ -117,7 +113,6 @@ describe('AktuellPanel', () => {
           karte('Ruhend', { berichtStatus: 'ruhend' }),
           karte('Ohne', { hasBericht: false, berichtStatus: null, berichtFileId: null }),
         ])}
-        generatedAt={GENERATED_AT}
       />,
     )
     expect(screen.getByText(/Ruhend und abgeschlossen/)).toBeTruthy()
@@ -128,7 +123,7 @@ describe('AktuellPanel', () => {
   it('Klick auf ein Vorhaben oeffnet das Werkbank-Detail mit Filter „alle"', async () => {
     const onUrlUpdate = vi.fn()
     renderPanel(
-      <AktuellPanel report={report([karte('26.05 SHF')])} generatedAt={GENERATED_AT} />,
+      <AktuellPanel report={report([karte('26.05 SHF')])} />,
       onUrlUpdate,
     )
     fireEvent.click(screen.getAllByRole('button', { name: '26.05 SHF' })[0])
@@ -148,7 +143,6 @@ describe('AktuellPanel', () => {
     renderPanel(
       <AktuellPanel
         report={report([karte('26.07 Naturmuseum', { postfachBis: '2020-KW01' })], 2)}
-        generatedAt={GENERATED_AT}
       />,
     )
     expect(screen.getByText(/wartet auf seine E-Mail-Auswertung/)).toBeTruthy()
@@ -159,16 +153,44 @@ describe('AktuellPanel', () => {
     renderPanel(
       <AktuellPanel
         report={report([karte('26.07 Naturmuseum', { postfachBis: '2020-KW01' })], null)}
-        generatedAt={GENERATED_AT}
       />,
     )
     expect(screen.queryByText(/E-Mail-Auswertung/)).toBeNull()
-    // Der Stand steht trotzdem an der Zeile — nur gemahnt wird nicht.
-    expect(screen.getAllByText(/Postfach bis KW 1\/2020/).length).toBeGreaterThan(0)
+    // Der Stand steht trotzdem da — aber verdichtet ueber der Tabelle, nicht
+    // als Wiederholung an jeder Zeile (Live-Befund 06.09.2026).
+    expect(screen.getByText(/Postfach ausgewertet bis:/)).toBeTruthy()
+    expect(screen.getByText('KW 1/2020')).toBeTruthy()
   })
 
-  it('A7b: ohne postfach_bis bleibt die Zeile ganz weg', () => {
-    renderPanel(<AktuellPanel report={report([karte('Ohne Feld')], 2)} generatedAt={GENERATED_AT} />)
+  it('A7b: der Normalfall steht EINMAL oben, nicht an jeder Zeile', () => {
+    renderPanel(
+      <AktuellPanel
+        report={report(
+          [
+            karte('Eins', { postfachBis: '2026-KW35' }),
+            karte('Zwei', { postfachBis: '2026-KW35' }),
+            karte('Drei', { postfachBis: '2026-KW35' }),
+          ],
+          null,
+        )}
+      />,
+    )
+    // Eine Zusammenfassung mit Zaehler — keine drei gleichlautenden Zeilen.
+    expect(screen.getByText('KW 35/2026 (3×)')).toBeTruthy()
+    expect(screen.queryAllByText(/Postfach bis KW 35\/2026/)).toHaveLength(0)
+  })
+
+  it('A7b: zaehlt Vorhaben ohne postfach_bis als Luecke — Fehlen ist sonst unsichtbar', () => {
+    renderPanel(
+      <AktuellPanel
+        report={report([karte('Mit', { postfachBis: '2026-KW35' }), karte('Ohne Feld')], null)}
+      />,
+    )
+    expect(screen.getByText(/1 von 2 ohne Angabe/)).toBeTruthy()
+  })
+
+  it('A7b: fuehrt keine Karte das Feld, bleibt der Hinweis ganz weg', () => {
+    renderPanel(<AktuellPanel report={report([karte('Ohne Feld')], 2)} />)
     expect(screen.queryByText(/Postfach/)).toBeNull()
   })
 })

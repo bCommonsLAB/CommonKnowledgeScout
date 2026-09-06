@@ -106,7 +106,7 @@ export function AgentViewPanel({ libraryId, libraryLabel, localRootPath, konfigu
             <TabsTrigger value="todos">Todos &amp; Auftrag</TabsTrigger>
           </TabsList>
           <TabsContent value="aktuell" className="mt-3">
-            <AktuellPanel report={data.report} generatedAt={data.generatedAt} />
+            <AktuellPanel report={data.report} />
           </TabsContent>
           <TabsContent value="werkbank" className="mt-3">
             <WerkbankPanel

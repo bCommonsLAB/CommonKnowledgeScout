@@ -6,18 +6,17 @@
  * @description
  * Der oberste Block des Einstiegs: was als Naechstes im Kalender steht, mit
  * dem ersten offenen Punkt des Vorhabens daneben. Beide Marken der
- * exportierten `AKTUELL.md` bleiben erhalten und werden erklaert statt
- * abgekuerzt: „noch nicht fixiert" (`termin_fixiert: nein`) und
- * „ueberfaellig" (Termin vor heute — der Bericht ist nachzuziehen, nicht die
- * Sicht).
+ * exportierten `AKTUELL.md` bleiben erhalten — den Wortlaut haelt
+ * {@link AktuellTerminMarken}, damit Leiste und Tabelle nicht verschieden
+ * reden.
  *
  * @module components/library/agent-view
  */
 
 import { AlertTriangle, CalendarClock } from 'lucide-react'
-import { Badge } from '@ks/ui'
 import type { AktuellVorhaben } from '@/lib/agent-view/aktuell-sicht'
 import { datumLesbar } from '@/lib/agent-view/sichten/types'
+import { AktuellTerminMarken } from './aktuell-termin-marken'
 
 export interface AktuellTermineProps {
   termine: readonly AktuellVorhaben[]
@@ -37,20 +36,7 @@ function TerminZeile({ vorhaben, onOeffnen }: { vorhaben: AktuellVorhaben; onOef
       >
         {vorhaben.titel}
       </button>
-      {!vorhaben.terminFixiert && (
-        <Badge variant="outline" className="h-4 px-1.5 text-[10px]" title="termin_fixiert: nein im BERICHT.md">
-          noch nicht fixiert
-        </Badge>
-      )}
-      {vorhaben.ueberfaellig && (
-        <Badge
-          variant="destructive"
-          className="h-4 px-1.5 text-[10px]"
-          title="Der Termin liegt vor heute — naechster_termin im BERICHT.md nachziehen."
-        >
-          überfällig
-        </Badge>
-      )}
+      <AktuellTerminMarken vorhaben={vorhaben} />
       {vorhaben.offenePunkte.length > 0 && (
         <span className="w-full text-xs text-muted-foreground sm:w-auto sm:flex-1">
           {vorhaben.offenePunkte[0]}
