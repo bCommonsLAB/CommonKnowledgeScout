@@ -1347,10 +1347,16 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     if (gefunden) {
       mergedMeta.date = gefunden.datum
       mergedMeta.date_quelle = 'pfad'
+      // W1b: Steht im Pfad nur `JJJJ-MM`, ist der TAG nicht bekannt — der Wert
+      // traegt dann den Monatsersten. Die Genauigkeit reist mit, sonst liest
+      // ihn spaeter jeder als taggenau (Wunschliste 4: „ein abgeleitetes
+      // Datum ohne Herkunftsmarke" ist ausdruecklich nicht gewuenscht).
+      mergedMeta.date_genauigkeit = gefunden.genauigkeit
       bufferLog(jobId, {
         phase: 'template_date_aus_pfad',
-        message: `date aus dem Pfad abgeleitet: ${gefunden.datum} (Segment "${gefunden.segment}")`,
+        message: `date aus dem Pfad abgeleitet: ${gefunden.datum} (${gefunden.genauigkeit}genau, Segment "${gefunden.segment}")`,
         datum: gefunden.datum,
+        genauigkeit: gefunden.genauigkeit,
         segment: gefunden.segment,
       })
     }
