@@ -3,13 +3,10 @@ name: audio-namensraum-und-diarisierung
 overview: "Alle Audio-Endpunkte des Secretary unter /audio zusammenführen (realtime/* zieht um), einen eigenen Endpunkt für die Sprecher-Erkennung ergänzen und im KnowledgeScout die Wahl zwischen beiden Wegen samt Auswertung der Sprecher-Segmente einbauen."
 todos:
   - id: a1-namensraum-umzug
-    content: "Secretary: /realtime/transcription-session und /realtime/usage nach /audio/* umziehen, alter Namespace bleibt als befristeter Alias (Swagger als veraltet markiert). Tests auf beide Pfade."
+    content: "Secretary: /realtime/transcription-session und /realtime/usage nach /audio/* umziehen, Namespace 'realtime' ersatzlos entfernen (harter Schnitt, Owner-Entscheidung). Tests auf die neuen Pfade."
     status: pending
   - id: a2-scout-pfad
-    content: "KnowledgeScout: TICKET_PATH in lib/secretary/realtime-ticket.ts auf 'audio/transcription-session' umstellen, Dienst-Doku nachziehen."
-    status: pending
-  - id: a3-alias-entfernen
-    content: "Secretary: Alias-Namespace /realtime entfernen, sobald der KnowledgeScout im Betrieb umgestellt ist."
+    content: "KnowledgeScout: TICKET_PATH in lib/secretary/realtime-ticket.ts auf 'audio/transcription-session' umstellen, Dienst-Doku nachziehen. Zusammen mit A1 ausrollen."
     status: pending
   - id: b1-use-case-diarisiert
     content: "Secretary: Use-Case 'diarized_transcription' im Enum, in der Maske (Label, Default) und in available_models; Seed-Skript ergänzt gpt-4o-transcribe-diarize für diesen Use-Case."
@@ -92,16 +89,24 @@ Ein **dritter Use-Case** `diarized_transcription` statt eines Modellnamens im Co
 Damit bleibt das Muster erhalten: Der Code kennt keine Modellnamen, die Maske
 entscheidet. Das Seed-Skript trägt `gpt-4o-transcribe-diarize` für diesen Use-Case ein.
 
-### Umzug mit befristetem Alias
+### Harter Umzug ohne Alias
 
-Der Ticket-Pfad wird bereits produktiv aufgerufen
-(`lib/secretary/realtime-ticket.ts:50`). Ein harter Umzug bräche die Live-Transkription
-für die Dauer zwischen den beiden Deployments. Deshalb: Der alte Namensraum bleibt
-zunächst als Alias auf denselben Ressourcen, in Swagger als veraltet markiert, und
-verschwindet erst nach dem Umstellen des KnowledgeScout (Welle A3).
+**Owner-Entscheidung:** Der Namensraum `realtime` verschwindet ersatzlos, Clients
+werden nachgezogen. Kein Übergangs-Alias, keine Frist.
 
-Das ist kein stiller Rückfall — beide Pfade sind dokumentiert und der alte hat ein
-Ablaufdatum.
+Das ist hier vertretbar, weil der Bruch klein ist. Betroffen sind zwei Pfade, von denen
+nur einer überhaupt aufgerufen wird:
+
+| Pfad | Aufrufer heute |
+|---|---|
+| `/realtime/transcription-session` | genau eine Stelle: `lib/secretary/realtime-ticket.ts:50` |
+| `/realtime/usage` | **niemand** — der Endpunkt existiert, der Client meldet noch keinen Verbrauch |
+
+Der harte Schnitt kostet also eine geänderte Konstante im KnowledgeScout. Zwischen dem
+Secretary-Deploy und dem Scout-Deploy antwortet der alte Pfad mit 404; in diesem Fenster
+schlägt der Ticket-Bezug fehl und die Live-Transkription meldet das sichtbar (kein
+stiller Rückfall auf den Batch-Weg). Wer das Fenster vermeiden will, rollt beide
+zusammen aus.
 
 ## Antwortformat des neuen Endpunkts
 
@@ -131,8 +136,14 @@ lesbaren Text; die Sprecher-Präfixe brauchen dann Welle C2.
 
 ### 1. Der Umzug ist ein Breaking Change
 
-Reihenfolge zwingend: erst Secretary mit Alias (A1), dann KnowledgeScout (A2), dann
-Alias entfernen (A3). Wer A3 vorzieht, legt die Live-Transkription still.
+Bewusst in Kauf genommen (siehe Entscheidung oben). Praktisch heisst das: A1 und A2
+gehören in dieselbe Auslieferung. Wird nur der Secretary deployt, faellt die
+Live-Transkription aus, bis der Scout nachzieht — sichtbar mit Fehlermeldung, nicht
+still.
+
+Sollte es weitere Aufrufer ausserhalb dieser beiden Repositories geben (eigene
+Skripte, andere Anwendungen), sind sie hier nicht erfasst und muessen mitgezogen
+werden.
 
 ### 2. Sprecher-Kennungen über Segmentgrenzen — der harte Teil
 
@@ -181,16 +192,17 @@ MongoDB.
 ## Reihenfolge
 
 ```
-A1 (Secretary, Umzug + Alias) ─▶ A2 (Scout, Pfad) ─▶ A3 (Secretary, Alias weg)
-                                      │
+A1 (Secretary, Umzug) ═╤═ A2 (Scout, Pfad)        zusammen ausliefern
+                       │
 B1 (Use-Case) ─▶ B2 (Endpunkt) ─▶ B3 (Segmentgrenzen) ─▶ B4 (Doku)
-                                      │
-                                      ▶ C1 (Scout, Auswahl) ─▶ C2 (Scout, Auswertung)
-                                                                      │
-                                                                      ▶ D (Stimmproben)
+                       │
+                       ▶ C1 (Scout, Auswahl) ─▶ C2 (Scout, Auswertung)
+                                                        │
+                                                        ▶ D (Stimmproben)
 ```
 
 A und B sind unabhängig voneinander und können parallel laufen. C setzt B2 voraus.
+A1 und A2 gehören in dieselbe Auslieferung.
 
 ## Nicht in diesem Plan
 
