@@ -189,6 +189,16 @@
  * Wirkt NUR auf Flaechen, die sich mit `data-print-flow` dafuer melden —
  * kein globales `overflow: visible`, das Galerie und Dateiliste
  * durcheinanderbraechte.
+ *
+ * NICHT aufgeklappt gedruckt wird `<details>`. Der erste Versuch wollte das
+ * (`display: revert` auf die Kinder) und konnte es gar nicht: `revert` setzt
+ * auf den Browser-Default zurueck, und der ist bei geschlossenem `<details>`
+ * genau „versteckt" — die Regel stellte wieder her, was sie aufheben sollte.
+ * Sie ist ersatzlos entfallen, denn zugeklappt ist hier richtig: Jedes
+ * `<summary>` der Aktuell-Sicht traegt seinen Zaehler („Ruhend und
+ * abgeschlossen 11", „14 laufende Vorhaben ohne Termin"). Es verschwindet
+ * also nichts unbenannt — der Abzug bleibt bei drei Seiten statt sieben.
+ * Wer den Inhalt auf Papier braucht, klappt vor dem Drucken auf.
  * ------------------------------------------------------------------------ */
 @media print {
   html,
@@ -216,9 +226,6 @@
     page-break-inside: avoid;
   }
 
-  /* Aufgeklappt drucken: was zugeklappt ist, fehlt sonst im Papier-Abzug
-     ohne jeden Hinweis. */
-  [data-print-flow] details > *:not(summary) {
-    display: revert !important;
-  }
+  /* Hier stand die Aufklapp-Regel fuer <details>. Bitte nicht wieder
+     einsetzen — Begruendung im Kopfkommentar. */
 }
