@@ -37,6 +37,11 @@ interface OneDriveFile {
   size: number;
   lastModifiedDateTime: string;
   /**
+   * Erstellungszeitpunkt laut Graph (A1). Fehlt, wenn ein Aufrufpfad ihn
+   * nicht mit `$select` anfordert — dann bleibt `createdAt` undefiniert.
+   */
+  createdDateTime?: string;
+  /**
    * Concurrency-Token von Graph. Aendert sich bei JEDER Aenderung (Inhalt
    * ODER Metadaten) und ist der Wert, den `If-Match` akzeptiert. Der `cTag`
    * traefe die reine Inhaltsaenderung genauer, taugt aber nicht als
@@ -62,6 +67,18 @@ interface TokenResponse {
   refresh_token: string;
   expires_in: number;
   token_type: string;
+}
+
+/**
+ * Ist der Wert ein lesbarer ISO-Zeitstempel? (A1)
+ *
+ * Graph liefert `createdDateTime` nicht auf jedem Aufrufpfad. Ein fehlender
+ * oder unlesbarer Wert bleibt UNDEFINIERT — ein `Invalid Date` waere
+ * schlimmer als gar keine Angabe, weil er sich wie ein Datum anfuehlt.
+ */
+function gueltigesDatum(wert: string | undefined): boolean {
+  if (typeof wert !== 'string' || wert.trim() === '') return false
+  return !Number.isNaN(new Date(wert).getTime())
 }
 
 /**
@@ -1159,6 +1176,10 @@ export class OneDriveProvider implements StorageProvider, StorageVersioning, Sto
       name: file.name,
       size: file.size,
       modifiedAt: new Date(file.lastModifiedDateTime),
+      // A1: Graph fuehrt beide Zeiten. Fehlt `createdDateTime` (Aufrufpfad
+      // ohne $select) oder ist es unlesbar, bleibt `createdAt` undefiniert —
+      // „nicht sicher bekannt" statt eines Ersatzwerts.
+      ...(gueltigesDatum(file.createdDateTime) ? { createdAt: new Date(file.createdDateTime as string) } : {}),
       mimeType: file.file?.mimeType || (file.folder ? 'application/folder' : 'application/octet-stream'),
       // Fehlt nur, wenn ein Aufrufpfad eTag nicht mit $select anfordert;
       // dann ist versioniertes Schreiben fuer dieses Item nicht moeglich
@@ -1274,7 +1295,7 @@ export class OneDriveProvider implements StorageProvider, StorageVersioning, Sto
       
       // URL für den API-Aufruf mit $select für optimierte Payload-Größe
       // Nur benötigte Felder abrufen: id, name, size, lastModifiedDateTime, file, folder, parentReference
-      const selectFields = 'id,name,size,lastModifiedDateTime,eTag,file,folder,parentReference';
+      const selectFields = 'id,name,size,lastModifiedDateTime,createdDateTime,eTag,file,folder,parentReference';
       let url = `https://graph.microsoft.com/v1.0/me/drive/root/children?$select=${selectFields}`;
       if (folderId === 'root' && this.baseFolderId && this.baseFolderId !== 'root') {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}/children?$select=${selectFields}`;
@@ -1354,7 +1375,7 @@ export class OneDriveProvider implements StorageProvider, StorageVersioning, Sto
       const accessToken = await this.ensureAccessToken();
       
       // URL für den API-Aufruf mit $select für optimierte Payload-Größe
-      const selectFields = 'id,name,size,lastModifiedDateTime,eTag,file,folder,parentReference';
+      const selectFields = 'id,name,size,lastModifiedDateTime,createdDateTime,eTag,file,folder,parentReference';
       let url = `https://graph.microsoft.com/v1.0/me/drive/root?$select=${selectFields}`;
       if (itemId && itemId !== 'root') {
         // URL-Encoding für itemId (falls es Sonderzeichen enthält)

@@ -359,7 +359,10 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `orphan_twin` | KS · warning | Twin ohne Quelle — Ursache prüfen, meist `familie_umziehen` oder `repair` |
 | `twin_stale` | KS · warning | Quelle jünger als ihr Twin → `transformation_starten` |
 | `conflict` | KS · error | Spiegel und Datenbank divergieren → `twins_synchronisieren` |
-| `core_fields_missing` | KS · error | Frontmatter der genannten Datei — Ursache prüfen, nicht blind füllen |
+| `core_fields_missing` | KS · error | Frontmatter der genannten Datei — Ursache prüfen, nicht blind füllen. Seit 06.09.2026 nur noch, wenn **mehr als `date`** fehlt |
+| `datum_ableitbar` | KS · **info** | Nur `date` fehlt, aber die Maschine kann es ableiten — das `detail` nennt den Beleg (Pfadsegment oder „Ton/Video: Dateizeitstempel"). **Blockiert die Abnahme nicht.** Kein Einzelauftrag: solche Befunde sammeln und gemeinsam neu transformieren |
+| `datum_fehlt` | KS · warning | Nur `date` fehlt und ist **nicht** ableitbar — weder im Pfad noch aus dem Zeitstempel dieses Typs (bei PDF liegt er im Median 148 Tage daneben). Aus dem Inhalt belegen oder den Ordner datieren, **nicht raten** |
+| `datum_unplausibel` | Cowork · warning | `date` ist gesetzt, aber falsch: in der Zukunft, oder identisch mit `generated_at` **ohne** `date_quelle` — dann steht dort das Verarbeitungs- statt des Inhaltsdatums. Aus dem Inhalt belegen und korrigieren, sonst das Feld leeren. Ein falsches Datum ist schlechter als ein leeres, weil der Report es nicht mehr als Lücke zeigt |
 | `datei_ohne_endung` | Mensch · warning | Inhalt prüfen, dann `familie_umziehen` |
 | `path_too_long` | Cowork · warning | Pfad kürzen (`ordner_umbenennen`) |
 | `index_missing` | Cowork · warning | `_INDEX.md` nach Vorlage anlegen |
@@ -380,6 +383,18 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 Die Schwere zählt: Der Abnahme-Precheck blockiert nur bei `error` und
 `warning`. `info`-Befunde sind Orientierung — sie müssen nicht weg, bevor
 Peter abnehmen kann.
+
+**Woher `date` kommt (Stand 06.09.2026).** Die Pipeline sucht das Feld in
+dieser Reihenfolge: **Inhalt** (Transkript, Dokumenttext) → gilt als Beleg,
+keine Marke. **Pfad** (`2025-07-16 Besprechung`, auch `21.05.2024`,
+`8.10.2024` und monatsscharf `2025-07`) → `date_quelle: pfad`.
+**Dateizeitstempel, nur bei Ton und Video** → `date_quelle: datei`. Sonst
+bleibt das Feld leer. Zusätzlich sagt `date_genauigkeit` (`tag`/`monat`), wie
+genau der Wert ist — ein aus `JJJJ-MM` abgeleitetes Datum trägt den
+Monatsersten und ist **kein** Tagesdatum. Vorhabensnummern (`24.09`) und die
+dreiteilige Form mit zweistelligem Jahr (`25.06.11`) werden **nicht** als
+Datum gelesen: nicht auflösbar, und ein falsches Datum wäre schlechter als
+ein leeres Feld.
 
 ### 3 — Lange Jobs zuerst, dann parallel arbeiten
 

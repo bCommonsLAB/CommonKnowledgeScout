@@ -249,6 +249,11 @@ export class FileSystemProvider implements StorageProvider, StorageVersioning, S
         name: path.basename(absolutePath),
         size: stats.size,
         modifiedAt: stats.mtime,
+        // A1: `birthtime` ist der Erstellungszeitpunkt. Node setzt ihn auf
+        // 1970-01-01, wenn das Dateisystem ihn nicht fuehrt — dieser Fall
+        // bleibt undefiniert („nicht sicher bekannt"), statt als Datum
+        // durchzugehen.
+        ...(stats.birthtimeMs > 0 ? { createdAt: stats.birthtime } : {}),
         mimeType: stats.isFile() ? mime.lookup(absolutePath) || 'application/octet-stream' : 'folder',
         // Kein eTag im Dateisystem — mtime+size ist die beste verfuegbare
         // Aussage darueber, ob sich der Inhalt geaendert hat.

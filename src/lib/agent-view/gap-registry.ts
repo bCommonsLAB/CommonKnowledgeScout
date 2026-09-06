@@ -48,6 +48,22 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
 
   // — Library-Verifikation A1 (vorhanden) —
   core_fields_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'library-verification', label: 'Pflichtangaben fehlen' },
+  // W1 (Wunschliste 4): 487 von 1.005 Befunden waren `core_fields_missing`,
+  // davon betrafen 465 (95,5 %) AUSSCHLIESSLICH `date`. Alle trugen die
+  // Schwere `error` und sperrten damit die Abnahme von zwoelf Vorhaben —
+  // obwohl das Datum in drei von vier Faellen im Ablagepfad steht und ein
+  // Nachlauf es fuellt. Ein fehlendes Feld, das die Maschine selbst ableiten
+  // kann, ist Rueckstand und kein Datenmangel: `info`, und in `abnahme.ts`
+  // ausdruecklich kein Widerstand.
+  datum_ableitbar: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'library-verification', label: 'Datum fehlt, aber ableitbar' },
+  // Kein Datum im Pfad, und der Dateizeitstempel traegt bei diesem Typ keine
+  // Aussage (PDF: Median 148 Tage daneben). Bleibt ein offener Mangel — aber
+  // `warning` statt `error`: Es fehlt EIN Feld, nicht der Kern.
+  datum_fehlt: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'warning', origin: 'library-verification', label: 'Datum fehlt' },
+  // W5: Ein gefuelltes, aber falsches Feld ist schlimmer als ein leeres — der
+  // Report zeigt es nicht mehr als Luecke. Bei Cowork, weil die Korrektur
+  // aus dem Inhalt kommt und kein Job sie rechnet.
+  datum_unplausibel: { actor: 'cowork', zyklusSchritt: 1, severity: 'warning', origin: 'library-verification', label: 'Datum unplausibel' },
 
   // — Twin-Kern / Verifikation (Contract §3) —
   twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Angaben in der Auswertung fehlen' },

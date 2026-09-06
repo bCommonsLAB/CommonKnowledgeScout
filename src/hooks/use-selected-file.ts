@@ -46,7 +46,12 @@ export interface SelectedFileState {
     size: number;
     type: string;
     modified: Date;
-    created: Date;
+    /**
+     * Erstellungszeitpunkt — `null`, wenn das Backend ihn nicht fuehrt (A1).
+     * Stand bis 09/2026 auf `modifiedAt`: Das war ein stiller Ersatz, der ein
+     * Aenderungsdatum als Erstellungsdatum ausgab.
+     */
+    created: Date | null;
     transcriptionEnabled?: boolean;
   } | null;
 }
@@ -75,7 +80,7 @@ export function useSelectedFile(): UseSelectedFileReturn {
     size: selectedItem.metadata.size,
     type: getFileType(selectedItem.metadata.name),
     modified: new Date(selectedItem.metadata.modifiedAt),
-    created: new Date(selectedItem.metadata.modifiedAt),
+    created: selectedItem.metadata.createdAt ? new Date(selectedItem.metadata.createdAt) : null,
     transcriptionEnabled: selectedItem.metadata.transcriptionTwin !== undefined
   } : null;
 

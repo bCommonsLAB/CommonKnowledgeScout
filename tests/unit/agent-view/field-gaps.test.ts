@@ -88,3 +88,115 @@ describe('field-gaps — core_fields_missing', () => {
     expect(scopedBekannt).toHaveLength(1)
   })
 })
+
+/**
+ * W1 (Wunschliste 4) — die Fehlergewichtung.
+ *
+ * 487 von 1.005 Befunden waren `core_fields_missing`, 465 davon (95,5 %)
+ * betrafen NUR `date`. Als `error` sperrten sie die Abnahme von zwoelf
+ * Vorhaben — obwohl drei von vier ableitbar sind. Die Einstufung entsteht
+ * beim SCAN, also stufen sich die Altbefunde um, ohne dass ein Job laeuft.
+ */
+describe('field-gaps — Gewichtung der Datums-Befunde (W1)', () => {
+  function nurDatumFehlt(fileId: string, fileName: string): DocumentVerificationResult {
+    return {
+      fileId,
+      fileName,
+      ok: false,
+      issues: [{ code: 'missing-base-field', severity: 'error', field: 'date', message: 'fehlt', autoFixable: false }],
+    }
+  }
+
+  function gapsFuer(fileName: string, path: string) {
+    return gapsFromFieldVerification({
+      documents: [nurDatumFehlt('x1', fileName)],
+      locations: new Map<string, SourceLocation>([['x1', { folderId: 'o1', path }]]),
+      rootFolderId: 'root',
+    })
+  }
+
+  it('stuft auf info herab, wenn das Datum im Ablagepfad steht', () => {
+    const [gap] = gapsFuer('Notiz.pdf', '4. Aktivismus/2025-07-16 Besprechung/Notiz.pdf')
+    expect(gap.type).toBe('datum_ableitbar')
+    expect(gap.severity).toBe('info')
+    expect(gap.detail).toContain('2025-07-16')
+    expect(gap.detail).toContain('2025-07-16 Besprechung')
+  })
+
+  it('weist die Monatsschaerfe aus, statt sie zu verschweigen', () => {
+    const [gap] = gapsFuer('Notiz.pdf', '9. Wissen/2025-07 Sammlung/Notiz.pdf')
+    expect(gap.type).toBe('datum_ableitbar')
+    expect(gap.detail).toContain('monatsscharf')
+  })
+
+  it('stuft Tonaufnahmen auch ohne Datum im Pfad herab — der Zeitstempel traegt dort', () => {
+    const [gap] = gapsFuer('Aufnahme.m4a', '26.01 Klimamassnahmen/Aufnahme.m4a')
+    expect(gap.type).toBe('datum_ableitbar')
+    expect(gap.severity).toBe('info')
+  })
+
+  it('bleibt bei PDF ohne Pfaddatum ein offener Mangel — aber warning, nicht error', () => {
+    const [gap] = gapsFuer('Vertrag.pdf', '26.01 Klimamassnahmen/Vertrag.pdf')
+    expect(gap.type).toBe('datum_fehlt')
+    expect(gap.severity).toBe('warning')
+  })
+
+  it('bleibt error, sobald ein weiteres Pflichtfeld fehlt — auch mit ableitbarem Datum', () => {
+    const gaps = gapsFromFieldVerification({
+      documents: [
+        {
+          fileId: 'x1',
+          fileName: 'Notiz.pdf',
+          ok: false,
+          issues: [
+            { code: 'missing-base-field', severity: 'error', field: 'date', message: 'fehlt', autoFixable: false },
+            { code: 'missing-base-field', severity: 'error', field: 'authors', message: 'fehlt', autoFixable: false },
+          ],
+        },
+      ],
+      locations: new Map<string, SourceLocation>([['x1', { folderId: 'o1', path: '2025-07-16 Besprechung/Notiz.pdf' }]]),
+      rootFolderId: 'root',
+    })
+    expect(gaps[0].type).toBe('core_fields_missing')
+    expect(gaps[0].severity).toBe('error')
+    expect(gaps[0].detail).toBe('authors, date')
+  })
+})
+
+describe('field-gaps — unplausibles Datum (W5)', () => {
+  it('uebersetzt implausible-date in einen eigenen Befund bei Cowork', () => {
+    const gaps = gapsFromFieldVerification({
+      documents: [
+        doc({
+          ok: false,
+          issues: [
+            { code: 'implausible-date', severity: 'warning', field: 'date', message: 'Inhaltsdatum liegt in der Zukunft: 2026-10-01.', autoFixable: false },
+          ],
+        }),
+      ],
+      locations: LOCATIONS,
+      rootFolderId: 'root',
+    })
+    expect(gaps).toHaveLength(1)
+    expect(gaps[0].type).toBe('datum_unplausibel')
+    expect(gaps[0].actor).toBe('cowork')
+    expect(gaps[0].severity).toBe('warning')
+  })
+
+  it('meldet fehlendes UND falsches Datum getrennt — verschiedene Zustaende, verschiedene Akteure', () => {
+    const gaps = gapsFromFieldVerification({
+      documents: [
+        doc({
+          ok: false,
+          issues: [
+            { code: 'missing-base-field', severity: 'error', field: 'authors', message: 'fehlt', autoFixable: false },
+            { code: 'implausible-date', severity: 'warning', field: 'date', message: 'x', autoFixable: false },
+          ],
+        }),
+      ],
+      locations: LOCATIONS,
+      rootFolderId: 'root',
+    })
+    expect(gaps.map((g) => g.type)).toEqual(['core_fields_missing', 'datum_unplausibel'])
+  })
+})

@@ -86,8 +86,11 @@ der Maschine, die sie liefert. **Umgesetzt in Welle 1** als Registry
 Engine-Namensbefunde (`legacy_twin_name`, `path_too_long`), der Sammel-Gap
 `teilbaum_ungesichtet` und `scan_error` ihre Akteur-/Schritt-Zuordnung.
 `core_fields_missing` (Library-Verifikation A1) ist seit dem Nachzug zur
-Wellen-1/2-PR angeschlossen (`field-gaps.ts`): übersetzt wird ausschließlich
-`missing-base-field`; alle weiteren A1-Codes behalten ihre eigene Route und UI.
+Wellen-1/2-PR angeschlossen (`field-gaps.ts`): übersetzt werden
+`missing-base-field` und (seit W5, 06.09.2026) `implausible-date`; alle
+weiteren A1-Codes behalten ihre eigene Route und UI. `missing-base-field`
+zerfällt dabei in drei Befunde, je nachdem ob **nur** `date` fehlt und ob es
+ableitbar ist — siehe die drei Zeilen unten.
 Die Konventionen (Vorhaben-Muster, `_INDEX.md`-Pflichttiefe, Bericht-Frische,
 lokaler Wurzelpfad) sind in den Library-Einstellungen (Erweitert →
 Agentensicht) pflegbar.
@@ -100,7 +103,10 @@ Agentensicht) pflegbar.
 | `twin_stale` | Quelle jünger als ihr Twin | Freshness-Prüfung (vorhanden) |
 | `transformation_missing` | Quelle mit Transkript, aber ohne Transformation nach dem zum Typ passenden Standard-Template (Typ-Registry, Welle 0f; bis dahin das Einzel-Template) | neu |
 | `transformation_stale` | Transkript jünger als die Transformation (z. B. nach Wortlaut-Korrektur) | neu, informativ |
-| `core_fields_missing` | A0-Pflichtfelder fehlen | Library-Verifikation A1 (vorhanden) |
+| `core_fields_missing` | A0-Pflichtfelder fehlen (mehr als nur `date`) | Library-Verifikation A1 (vorhanden) |
+| `datum_ableitbar` | nur `date` fehlt, ist aber aus Pfad oder Dateizeitstempel ableitbar — Rückstand, kein Mangel; blockiert die Abnahme nicht | W1 (Wunschliste 4), gewichtet in `field-gaps.ts` mit den Pipeline-Regeln `datum-aus-pfad`/`datum-aus-datei` |
+| `datum_fehlt` | nur `date` fehlt und ist nicht ableitbar | W1 (Wunschliste 4) |
+| `datum_unplausibel` | `date` ist gesetzt, liegt aber in der Zukunft oder ist das Verarbeitungsdatum ohne `date_quelle` | W5 (Wunschliste 4), `library-verification/datum-plausibilitaet.ts` |
 | `twin_core_missing` | Twin-Kern (Contract §3.1) fehlt | neu (Regel-Registry) |
 | `twin_unverified` | führendes Artefakt mit `generated_by` ohne gültiges `verified_by` | neu |
 | `self_verified` | `generated_by` == `verified_by` (Actor-Ebene) | neu |

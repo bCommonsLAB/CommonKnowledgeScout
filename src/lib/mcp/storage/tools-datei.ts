@@ -91,7 +91,7 @@ export function registerStorageLeseTools(server: McpServer): void {
     {
       title: 'Nur Metadaten',
       description:
-        'Metadaten einer Datei oder eines Ordners, ohne den Inhalt zu lesen: geaendertAm, ' +
+        'Metadaten einer Datei oder eines Ordners, ohne den Inhalt zu lesen: geaendertAm, erstelltAm, ' +
         'groesse, version, id, pfad, existiert. Fuer Zeitstempel-Vergleiche (bericht_veraltet, ' +
         'verweis_veraltet) gedacht — dafuer Dateien zu lesen ist Verschwendung. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID, pfad: ADRESSE_PFAD, id: ADRESSE_ID },
@@ -126,6 +126,10 @@ export function registerStorageLeseTools(server: McpServer): void {
           typ: item.type === 'folder' ? 'ordner' : 'datei',
           groesse: item.metadata.size,
           geaendertAm: item.metadata.modifiedAt.toISOString(),
+          // A1: null heisst ausdruecklich „nicht sicher bekannt". Bei einer
+          // Sprachaufnahme ist das der Aufnahmezeitpunkt — er ueberlebt
+          // spaetere Bearbeitungen, `geaendertAm` tut das nicht.
+          erstelltAm: item.metadata.createdAt?.toISOString() ?? null,
           version: item.metadata.version ?? null,
         })
       } catch (error) {

@@ -11,7 +11,7 @@
 import type { RequestContext } from '@/types/external-jobs'
 import type { PhasePoliciesOrchestratorSlice } from '@/lib/processing/phase-policy'
 import type { ExternalJob } from '@/types/external-job'
-import type { StorageProvider } from '@/lib/storage/types'
+import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
@@ -46,6 +46,8 @@ import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist
 // unveraendert weiterlaufen.
 import { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 import { dateFehlt, datumAusPfad } from './datum-aus-pfad'
+import { datumAusZeitstempel } from './datum-aus-datei'
+import { getMediaKind } from '@/lib/media-types'
 export { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 
 export interface TemplatePhaseArgs {
@@ -1347,12 +1349,50 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     if (gefunden) {
       mergedMeta.date = gefunden.datum
       mergedMeta.date_quelle = 'pfad'
+      // W1b: Steht im Pfad nur `JJJJ-MM`, ist der TAG nicht bekannt — der Wert
+      // traegt dann den Monatsersten. Die Genauigkeit reist mit, sonst liest
+      // ihn spaeter jeder als taggenau (Wunschliste 4: „ein abgeleitetes
+      // Datum ohne Herkunftsmarke" ist ausdruecklich nicht gewuenscht).
+      mergedMeta.date_genauigkeit = gefunden.genauigkeit
       bufferLog(jobId, {
         phase: 'template_date_aus_pfad',
-        message: `date aus dem Pfad abgeleitet: ${gefunden.datum} (Segment "${gefunden.segment}")`,
+        message: `date aus dem Pfad abgeleitet: ${gefunden.datum} (${gefunden.genauigkeit}genau, Segment "${gefunden.segment}")`,
         datum: gefunden.datum,
+        genauigkeit: gefunden.genauigkeit,
         segment: gefunden.segment,
       })
+    } else {
+      // Stufe 3 (Wunschliste 4, W1): Erst wenn der Pfad nichts hergibt, zaehlt
+      // der Zeitstempel der Quelldatei — und NUR bei Ton und Video. Dort liegt
+      // er im Median null Tage neben dem verifizierten Datum (n=9), bei PDFs
+      // 148 Tage. Das Item wird bewusst erst hier geholt: im Normalfall
+      // (Pfad traegt ein Datum) kostet die Stufe keinen Aufruf.
+      let quellItem: StorageItem | null = null
+      try {
+        quellItem = await provider.getItemById(sourceItemId)
+      } catch {
+        // Item nicht lesbar: dann bleibt `date` leer und der Befund steht
+        // weiter — genau wie bisher. Kein Raten aus dem Dateinamen.
+      }
+      const ausDatei = quellItem
+        ? datumAusZeitstempel({
+            mediaKind: getMediaKind(quellItem),
+            erstelltAm: quellItem.metadata.createdAt,
+            geaendertAm: quellItem.metadata.modifiedAt,
+          })
+        : null
+      if (ausDatei) {
+        mergedMeta.date = ausDatei.datum
+        mergedMeta.date_quelle = 'datei'
+        mergedMeta.date_genauigkeit = 'tag'
+        bufferLog(jobId, {
+          phase: 'template_date_aus_datei',
+          message: `date aus dem Dateizeitstempel abgeleitet: ${ausDatei.datum} (${ausDatei.feld}, ${ausDatei.zeitstempel})`,
+          datum: ausDatei.datum,
+          feld: ausDatei.feld,
+          zeitstempel: ausDatei.zeitstempel,
+        })
+      }
     }
   }
 

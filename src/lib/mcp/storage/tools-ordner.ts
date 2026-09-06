@@ -18,7 +18,8 @@ export function registerStorageOrdnerTools(server: McpServer): void {
     {
       title: 'Ordnerinhalt mit Metadaten',
       description:
-        'Listet einen Ordner — je Eintrag name, pfad, id, typ, groesse, geaendertAm und version, ' +
+        'Listet einen Ordner — je Eintrag name, pfad, id, typ, groesse, geaendertAm, erstelltAm (wenn ' +
+        'das Backend es fuehrt) und version, ' +
         'sodass KEIN zweiter Aufruf pro Datei noetig ist. Adressierung per `pfad` ODER `id`; die ' +
         'Antwort nennt immer beides. `limit`/`cursor` sind Pflicht-Blaetterung — `weitereVorhanden` ' +
         `sagt, ob noch etwas kommt. Rekursiv nur mit ausdruecklicher \`tiefe\`; ueber ${MAX_LISTINGS} ` +

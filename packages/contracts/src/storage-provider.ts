@@ -45,6 +45,24 @@ export interface StorageItemMetadata {
   
   /** Last modification timestamp */
   modifiedAt: Date;
+
+  /**
+   * Erstellungszeitpunkt, sofern das Backend ihn fuehrt (A1, Wunschliste 4).
+   *
+   * Bei einer Sprachaufnahme ist das der AUFNAHMEZEITPUNKT — er ueberlebt
+   * spaetere Bearbeitungen, waehrend {@link modifiedAt} bei jedem Speichern
+   * wandert. Gemessen an 23 vom Menschen verifizierten Familien: bei `.m4a`
+   * liegt der Dateizeitstempel im Median null Tage neben dem belegten Datum,
+   * bei PDFs 148 Tage. Genau deshalb braucht die Datumsherkunft dieses
+   * zweite Zeitfeld — und ohne es waere ein Zeitstempel-Verlust ueber die
+   * Bruecke gar nicht nachweisbar, weil nichts zum Vergleichen da ist.
+   *
+   * `undefined` heisst ausdruecklich NICHT SICHER BEKANNT (das Backend
+   * liefert es nicht oder der Aufrufpfad fordert es nicht an) — darauf nicht
+   * bauen und keinen Ersatz einsetzen. Wer ein Datum ableitet, weist die
+   * Herkunft aus, statt still auf `modifiedAt` auszuweichen.
+   */
+  createdAt?: Date;
   
   /** MIME type (application/folder for folders) */
   mimeType: string;

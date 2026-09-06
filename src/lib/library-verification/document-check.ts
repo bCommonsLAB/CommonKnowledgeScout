@@ -18,6 +18,7 @@ import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { validateMetadataForViewType } from '@/lib/detail-view-types/validation'
 import { isTechnicalField } from '@/lib/detail-view-types/content-fields'
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
+import { pruefeDatumPlausibilitaet } from './datum-plausibilitaet'
 import { coerceToFacetType } from './value-coercion'
 import type {
   DocumentIssue,
@@ -30,6 +31,11 @@ export interface DocumentCheckContext {
   libraryDetailViewType?: string
   /** Konfigurierte Facetten-Definitionen (inkl. erzwungener Basis-Facetten). */
   facetDefs: FacetDef[]
+  /**
+   * Gegenwart des Laufs (W5) — uebergeben statt gelesen, damit „liegt in der
+   * Zukunft" testbar bleibt. Fehlt sie, gilt der Aufrufzeitpunkt.
+   */
+  jetzt?: Date
 }
 
 /** Wert gilt als „vorhanden", wenn nicht leer/null/undefined (wie validation.ts). */
@@ -159,6 +165,10 @@ export function checkDocument(
     ...checkBaseFields(present),
     ...(viewType ? checkRequiredFields(docMetaJson, viewType) : []),
     ...checkFacetConsistency(docMetaJson, ctx.facetDefs),
+    // W5 (Wunschliste 4): faengt genau die Fehler, die ein Rueckfall auf
+    // abgeleitete Datumsquellen erzeugen kann — ein Verarbeitungsdatum, das
+    // als Inhaltsdatum durchgeht, und Daten in der Zukunft.
+    ...pruefeDatumPlausibilitaet(docMetaJson, ctx.jetzt ?? new Date()),
   ]
 
   return {

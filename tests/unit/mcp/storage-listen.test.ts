@@ -6,7 +6,7 @@
  * waere schlimmer als keine — sie saehe aus wie eine vollstaendige Antwort.
  */
 import { describe, expect, it } from 'vitest'
-import { MAX_LISTINGS, listeOrdner, musterAlsRegex } from '@/lib/mcp/storage/listen'
+import { MAX_LISTINGS, listeOrdner, musterAlsRegex, zuEintrag } from '@/lib/mcp/storage/listen'
 import type { StorageItem } from '@/lib/storage/types'
 
 function datei(name: string, id = name): StorageItem {
@@ -92,5 +92,29 @@ describe('listeOrdner', () => {
     })
     expect(r.gelisteteOrdner).toBe(MAX_LISTINGS)
     expect(r.abgeschnitten).toMatch(/Ordner ungelesen/)
+  })
+})
+
+describe('zuEintrag — erstelltAm (A1)', () => {
+  it('reicht das Erstellungsdatum durch, wenn das Backend es fuehrt', () => {
+    const item: StorageItem = {
+      id: 'a1', parentId: 'p', type: 'file',
+      metadata: {
+        name: 'Aufnahme.m4a', size: 42,
+        modifiedAt: new Date('2026-08-29T12:00:00Z'),
+        createdAt: new Date('2025-07-16T08:30:00Z'),
+        mimeType: 'audio/mp4',
+      },
+    }
+    expect(zuEintrag(item, '26.01 Klima')).toMatchObject({
+      geaendertAm: '2026-08-29T12:00:00.000Z',
+      erstelltAm: '2025-07-16T08:30:00.000Z',
+    })
+  })
+
+  it('laesst das Feld WEG, wenn das Backend keines fuehrt — kein Ersatz aus geaendertAm', () => {
+    // Genau der stille Rueckfall, den die Datumsherkunft vermeiden soll:
+    // ein Aenderungsdatum, das sich als Erstellungsdatum ausgibt.
+    expect(zuEintrag(datei('Notiz.md'), '26.01 Klima')).not.toHaveProperty('erstelltAm')
   })
 })
