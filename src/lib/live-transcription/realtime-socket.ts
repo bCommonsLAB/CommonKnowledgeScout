@@ -81,10 +81,12 @@ export function openRealtimeSocket(
   ticket: RealtimeTicket,
   events: RealtimeSocketEvents
 ): RealtimeSocketHandle {
+  // Genau zwei Unterprotokolle. Ein drittes ('openai-beta.realtime-v1') waehlt die
+  // abgeschaltete Beta-Form und laesst die Verbindung mit
+  // 'beta_api_shape_disabled' scheitern.
   const socket = new WebSocket(ticket.websocketUrl, [
     'realtime',
     `openai-insecure-api-key.${ticket.value}`,
-    'openai-beta.realtime-v1',
   ])
 
   socket.addEventListener('open', () => events.onOpen())
