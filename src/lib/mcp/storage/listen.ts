@@ -31,6 +31,11 @@ export interface Eintrag {
   typ: 'datei' | 'ordner'
   groesse: number
   geaendertAm: string
+  /**
+   * Erstellungszeitpunkt (A1). FEHLT, wenn das Backend ihn nicht fuehrt —
+   * „nicht sicher bekannt", kein Ersatz aus `geaendertAm`.
+   */
+  erstelltAm?: string
   /** Fehlt, wenn der Provider fuer dieses Item keine Version liefert. */
   version?: string
 }
@@ -46,6 +51,7 @@ export function zuEintrag(item: StorageItem, elternPfad: string): Eintrag {
     typ: item.type === 'folder' ? 'ordner' : 'datei',
     groesse: item.metadata.size,
     geaendertAm: item.metadata.modifiedAt.toISOString(),
+    ...(item.metadata.createdAt ? { erstelltAm: item.metadata.createdAt.toISOString() } : {}),
     ...(item.metadata.version ? { version: item.metadata.version } : {}),
   }
 }

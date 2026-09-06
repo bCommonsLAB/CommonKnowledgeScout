@@ -124,6 +124,12 @@ function fileStatToStorageItem(stat: FileStat, parentPath: string): StorageItem 
       name,
       size: stat.size || 0,
       modifiedAt: new Date(stat.lastmod),
+      // A1: `createdAt` bleibt hier BEWUSST leer. Nextcloud fuehrt zwar ein
+      // `creationdate`, das PROPFIND dieses Clients fordert es aber nicht an
+      // (`getDirectoryContents`/`stat` ohne `details`). Undefiniert heisst
+      // „nicht sicher bekannt" — `lastmod` als Ersatz einzusetzen waere genau
+      // der stille Rueckfall auf den Aenderungszeitstempel, den die
+      // Datumsherkunft vermeiden soll.
       mimeType: isDir ? 'application/folder' : (stat.mime || guessMimeType(name)),
       // Der eTag ist Nextclouds Aussage ueber den Inhaltsstand und geht als
       // If-Match zurueck. Nicht jeder WebDAV-Server liefert einen; fehlt er,
