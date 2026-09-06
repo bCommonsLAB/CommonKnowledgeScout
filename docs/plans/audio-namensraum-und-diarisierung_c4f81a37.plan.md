@@ -20,11 +20,14 @@ todos:
   - id: b4-doku-endpunkt
     content: "Dienst-Doku aktualisieren: docs/_secretary-service-docu/audio.md (KnowledgeScout) und die Secretary-Doku um den neuen Endpunkt, sein Antwortformat und den Zielkonflikt prompt/Diarisierung."
     status: pending
+  - id: c0-library-voreinstellung
+    content: "KnowledgeScout: Per-Library-Feld 'transkription_mit_sprechern' nach der Checkliste docs/contracts/library-config-field.md (Typen, toClientLibraries, Form-Schema, ALLE form.reset-Stellen, Submit, FormField)."
+    status: pending
   - id: c1-scout-auswahl
-    content: "KnowledgeScout: Beim Transkribieren einer Audiodatei zwischen 'Nur Text' und 'Mit Sprechern' wählen (audio-transform.tsx, creation-wizard, external-jobs/secretary-request.ts)."
+    content: "KnowledgeScout: Übersteuerung pro Datei im Transformations-Dialog (audio-transform.tsx, eingebunden über audio-player.tsx) — Voreinstellung der Library ist vorbelegt. Endpunktwahl bis in external-jobs/secretary-request.ts durchreichen."
     status: pending
   - id: c2-scout-auswertung
-    content: "KnowledgeScout: Sprecher-Segmente auswerten und als Text mit Sprecher-Präfix aufbereiten; extract-audio-text.ts erweitern, Ablage im Markdown klären (Frontmatter bleibt flach)."
+    content: "KnowledgeScout: Sprecher-Segmente zu Absätzen mit Präfix aufbereiten (aufeinanderfolgende Segmente desselben Sprechers zusammenfassen); extract-audio-text.ts erweitern, speakers als flaches Frontmatter-Feld."
     status: pending
   - id: d-stimmproben
     content: "Optional, spätere Welle: known_speaker_names/known_speaker_references, damit statt 'Sprecher A' die echten Namen erscheinen."
@@ -88,6 +91,41 @@ testen als zwei Endpunkte mit je klarem Vertrag.
 Ein **dritter Use-Case** `diarized_transcription` statt eines Modellnamens im Code.
 Damit bleibt das Muster erhalten: Der Code kennt keine Modellnamen, die Maske
 entscheidet. Das Seed-Skript trägt `gpt-4o-transcribe-diarize` für diesen Use-Case ein.
+
+### Darstellung im Markdown: Präfix je Absatz
+
+```markdown
+**Sprecher A:** Guten Morgen, schön dass es geklappt hat.
+
+**Sprecher B:** Danke für die Einladung. Ich wollte ohnehin einmal herkommen.
+```
+
+Ein Präfix je Absatz, Leerzeile zwischen den Wechseln. **Aufeinanderfolgende Segmente
+desselben Sprechers werden zusammengefasst** — sonst stünde das Präfix vor jedem Satz
+und der Text wäre unlesbar. Die Segmentgrenzen des Anbieters folgen Sprechpausen, nicht
+Sprecherwechseln.
+
+Zeitmarken bleiben draußen: Sie machen den Fließtext unruhig und stehen ohnehin in
+`segments` der Antwort, falls sie später gebraucht werden.
+
+Im Frontmatter kommt nur eine flache Liste `speakers: [...]` an — die Segmente selbst
+nicht, das verbietet die Frontmatter-Regel (flach, `snake_case`, keine verschachtelten
+Objekte).
+
+### Wahl: Voreinstellung pro Library, Übersteuerung pro Datei
+
+Zwei Ebenen, wie bei anderen Einstellungen im Archiv:
+
+1. **Per-Library-Voreinstellung** — ein neues Config-Feld. Dafür gibt es die Checkliste
+   [`library-config-field.md`](../contracts/library-config-field.md); besonders Schritt 4
+   (ALLE `form.reset(...)`-Stellen) ist die Stelle, an der solche Felder üblicherweise
+   halb ankommen.
+2. **Übersteuerung pro Datei** im Transformations-Dialog des Archivs
+   (`audio-transform.tsx`, eingebunden über `audio-player.tsx:236`). Die Voreinstellung
+   der Library ist vorbelegt, die Wahl gilt nur für diesen Lauf.
+
+Die Entscheidung wandert von dort bis in `external-jobs/secretary-request.ts` — also
+auch durch den Job-Weg, nicht nur den synchronen.
 
 ### Harter Umzug ohne Alias
 
@@ -183,11 +221,8 @@ MongoDB.
 
 - **Preis** von `gpt-4o-transcribe-diarize` — nicht recherchiert. Vor dem Ausrollen auf
   große Bestände klären.
-- **Darstellung** im Markdown: Präfix je Absatz (`**Sprecher A:** …`) oder eine
-  Tabelle mit Zeitmarken? Betrifft Welle C2 und die bestehenden Transkript-Templates.
-- **Wahl in der Oberfläche**: eine Umschaltung pro Datei, oder eine Voreinstellung pro
-  Library (wie andere Per-Library-Felder)? Letzteres würde dem bestehenden Muster
-  folgen, ersteres ist flexibler.
+- **Bestehende Transkript-Templates**: Ob die Sprecher-Präfixe mit den vorhandenen
+  Vorlagen für Transkripte zusammenpassen, ist noch nicht geprüft. Betrifft Welle C2.
 
 ## Reihenfolge
 
@@ -196,7 +231,7 @@ A1 (Secretary, Umzug) ═╤═ A2 (Scout, Pfad)        zusammen ausliefern
                        │
 B1 (Use-Case) ─▶ B2 (Endpunkt) ─▶ B3 (Segmentgrenzen) ─▶ B4 (Doku)
                        │
-                       ▶ C1 (Scout, Auswahl) ─▶ C2 (Scout, Auswertung)
+                       ▶ C0 (Library-Feld) ─▶ C1 (Dialog) ─▶ C2 (Auswertung)
                                                         │
                                                         ▶ D (Stimmproben)
 ```
