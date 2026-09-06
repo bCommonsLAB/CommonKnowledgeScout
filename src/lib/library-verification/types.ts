@@ -41,6 +41,8 @@ export type VerificationIssueCode =
   | 'invalid-detail-view-type'
   | 'facet-type-mismatch'
   | 'unnormalized-value'
+  /** W5: `date` liegt in der Zukunft oder ist das Verarbeitungsdatum. */
+  | 'implausible-date'
 
 /** Ein einzelner Befund an einem Dokument. */
 export interface DocumentIssue {

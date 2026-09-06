@@ -62,6 +62,8 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `KnowledgeScout: A0-Pflichtfelder von ${pfad} ergaenzen${detail(gap)} — Library-Verifikation (Reparieren) bzw. Re-Transformation.`,
   datum_ableitbar: (gap, pfad) =>
     `KnowledgeScout: ${pfad} neu transformieren, damit das ableitbare Datum ins Feld kommt${detail(gap)}. Kein Einzelfall-Auftrag — solche Befunde sammeln und gemeinsam nachrechnen.`,
+  datum_unplausibel: (gap, pfad) =>
+    `Pruefe das Datum von ${pfad}: ${gap.message}${detail(gap)}. Aus dem Transkript bzw. Dokumenttext belegen und korrigieren — oder, wenn der Inhalt nichts hergibt, das Feld leeren und die Herkunft offenlassen. Ein falsches Datum ist schlechter als ein leeres, weil der Report es nicht mehr als Luecke zeigt.`,
   datum_fehlt: (gap, pfad) =>
     `Datum von ${pfad} klaeren${detail(gap)}: Es steht weder im Pfad, noch traegt der Dateizeitstempel bei diesem Typ eine Aussage. Aus dem Inhalt belegen (dann gilt es als geprueft) oder den Ordner datieren — nicht raten.`,
 

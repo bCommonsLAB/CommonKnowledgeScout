@@ -51,6 +51,8 @@ export type CoverageGapType =
   | 'datum_ableitbar'
   /** Nur `date` fehlt und ist NICHT ableitbar — ein echter, offener Mangel. */
   | 'datum_fehlt'
+  /** `date` ist gesetzt, aber unplausibel (Zukunft / Verarbeitungsdatum). */
+  | 'datum_unplausibel'
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
   | 'twin_flagged'

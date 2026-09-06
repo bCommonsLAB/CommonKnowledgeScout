@@ -162,3 +162,41 @@ describe('field-gaps — Gewichtung der Datums-Befunde (W1)', () => {
     expect(gaps[0].detail).toBe('authors, date')
   })
 })
+
+describe('field-gaps — unplausibles Datum (W5)', () => {
+  it('uebersetzt implausible-date in einen eigenen Befund bei Cowork', () => {
+    const gaps = gapsFromFieldVerification({
+      documents: [
+        doc({
+          ok: false,
+          issues: [
+            { code: 'implausible-date', severity: 'warning', field: 'date', message: 'Inhaltsdatum liegt in der Zukunft: 2026-10-01.', autoFixable: false },
+          ],
+        }),
+      ],
+      locations: LOCATIONS,
+      rootFolderId: 'root',
+    })
+    expect(gaps).toHaveLength(1)
+    expect(gaps[0].type).toBe('datum_unplausibel')
+    expect(gaps[0].actor).toBe('cowork')
+    expect(gaps[0].severity).toBe('warning')
+  })
+
+  it('meldet fehlendes UND falsches Datum getrennt — verschiedene Zustaende, verschiedene Akteure', () => {
+    const gaps = gapsFromFieldVerification({
+      documents: [
+        doc({
+          ok: false,
+          issues: [
+            { code: 'missing-base-field', severity: 'error', field: 'authors', message: 'fehlt', autoFixable: false },
+            { code: 'implausible-date', severity: 'warning', field: 'date', message: 'x', autoFixable: false },
+          ],
+        }),
+      ],
+      locations: LOCATIONS,
+      rootFolderId: 'root',
+    })
+    expect(gaps.map((g) => g.type)).toEqual(['core_fields_missing', 'datum_unplausibel'])
+  })
+})

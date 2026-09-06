@@ -60,6 +60,10 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // Aussage (PDF: Median 148 Tage daneben). Bleibt ein offener Mangel — aber
   // `warning` statt `error`: Es fehlt EIN Feld, nicht der Kern.
   datum_fehlt: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'warning', origin: 'library-verification', label: 'Datum fehlt' },
+  // W5: Ein gefuelltes, aber falsches Feld ist schlimmer als ein leeres — der
+  // Report zeigt es nicht mehr als Luecke. Bei Cowork, weil die Korrektur
+  // aus dem Inhalt kommt und kein Job sie rechnet.
+  datum_unplausibel: { actor: 'cowork', zyklusSchritt: 1, severity: 'warning', origin: 'library-verification', label: 'Datum unplausibel' },
 
   // — Twin-Kern / Verifikation (Contract §3) —
   twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Angaben in der Auswertung fehlen' },

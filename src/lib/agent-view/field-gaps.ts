@@ -4,10 +4,11 @@
  * @description
  * Die Feld-Pruefung selbst bleibt vollstaendig bei A1 (`library-verification/`)
  * — hier wird ihr Ergebnis nur in das Lueckenmodell uebersetzt (Leitprinzip 1,
- * wie `engine-gaps.ts` fuer die Sync-Engine). Uebernommen wird AUSSCHLIESSLICH
- * `missing-base-field` (F2: „A0-Pflichtfelder fehlen"); alle weiteren
- * A1-Befund-Codes (DetailViewType, Facetten, Normalisierung) behalten ihre
- * eigene Route und UI.
+ * wie `engine-gaps.ts` fuer die Sync-Engine). Uebernommen werden ZWEI Codes:
+ * `missing-base-field` (F2: „A0-Pflichtfelder fehlen") und `implausible-date`
+ * (W5: ein gefuelltes, aber falsches Datum). Alle weiteren A1-Befund-Codes
+ * (DetailViewType, Facetten, Normalisierung) behalten ihre eigene Route und
+ * UI.
  *
  * **W1 (Wunschliste 4) — die Fehlergewichtung.** Gemessen am 06.09.2026:
  * 487 von 1.005 Befunden der Library waren `core_fields_missing`, und
@@ -111,7 +112,9 @@ export function gapsFromFieldVerification(args: {
     const missingFields = doc.issues
       .filter((issue) => issue.code === 'missing-base-field')
       .map((issue) => issue.field ?? '(unbenannt)')
-    if (missingFields.length === 0) continue
+    // W5: ein GESETZTES, aber unplausibles Datum — der Gegenfall zur Luecke.
+    const unplausible = doc.issues.filter((issue) => issue.code === 'implausible-date')
+    if (missingFields.length === 0 && unplausible.length === 0) continue
     const located = args.locations.get(doc.fileId)
     // Teilbaum-Scope: Dokumente, deren Datei der Scan nicht fand, liegen in
     // ANDEREN Teilbaeumen — sie gehoeren nicht in diesen Report. Das
@@ -120,20 +123,26 @@ export function gapsFromFieldVerification(args: {
     if (located === undefined && args.scoped === true) continue
     const name = doc.fileName ?? doc.fileId
     const where = located ?? { folderId: args.rootFolderId, path: name }
-    const nurDatum = missingFields.length === 1 && missingFields[0] === DATUMSFELD
-    const einstufung = nurDatum ? stufeDatumEin(where.path, name) : stufePflichtfelderEin(missingFields)
-    gaps.push(
-      createGap({
-        type: einstufung.type,
-        scope: 'source',
-        targetId: doc.fileId,
-        targetName: name,
-        folderId: where.folderId,
-        path: where.path,
-        message: einstufung.message,
-        detail: einstufung.detail,
-      }),
-    )
+    const ort = { scope: 'source' as const, targetId: doc.fileId, targetName: name, folderId: where.folderId, path: where.path }
+
+    if (missingFields.length > 0) {
+      const nurDatum = missingFields.length === 1 && missingFields[0] === DATUMSFELD
+      const einstufung = nurDatum ? stufeDatumEin(where.path, name) : stufePflichtfelderEin(missingFields)
+      gaps.push(createGap({ ...ort, type: einstufung.type, message: einstufung.message, detail: einstufung.detail }))
+    }
+
+    // Getrennter Befund, kein Ersatz: „Feld fehlt" und „Feld ist falsch" sind
+    // verschiedene Zustaende und gehen an verschiedene Akteure.
+    if (unplausible.length > 0) {
+      gaps.push(
+        createGap({
+          ...ort,
+          type: 'datum_unplausibel',
+          message: unplausible[0].message,
+          ...(unplausible.length > 1 ? { detail: `${unplausible.length} Beanstandungen am Feld date` } : {}),
+        }),
+      )
+    }
   }
   return gaps
 }
