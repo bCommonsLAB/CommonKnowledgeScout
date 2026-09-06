@@ -116,3 +116,42 @@ describe('zaehleGapsNachAkteur / zaehleGapsNachTyp', () => {
     expect(istAbnehmbar(zaehleGapsNachAkteur([]), zaehleGapsNachTyp([]))).toBe(true)
   })
 })
+
+/**
+ * W1 (Wunschliste 4) — Rueckstand ist kein Widerstand.
+ *
+ * `datum_ableitbar` heisst: Das Feld ist leer, aber die Maschine kann es aus
+ * dem Pfad oder dem Dateizeitstempel selbst fuellen. Da hat niemand etwas zu
+ * entscheiden, es muss nur gerechnet werden. Gemessen am 06.09.2026 sperrten
+ * genau solche Befunde die Abnahme von zwoelf Vorhaben.
+ */
+describe('zaehleWiderstaende — datum_ableitbar sperrt nicht', () => {
+  it('zaehlt ein ableitbares Datum NICHT als Widerstand', () => {
+    const byActor = zaehleGapsNachAkteur(gaps('knowledgescout'))
+    const byType = zaehleGapsNachTyp(typen('datum_ableitbar'))
+    expect(zaehleWiderstaende(byActor, byType)).toBe(0)
+    expect(istAbnehmbar(byActor, byType)).toBe(true)
+  })
+
+  it('laesst jeden anderen maschinellen Befund weiter sperren', () => {
+    const byActor = zaehleGapsNachAkteur(gaps('knowledgescout', 'knowledgescout'))
+    const byType = zaehleGapsNachTyp(typen('datum_ableitbar', 'datum_fehlt'))
+    // Ein fehlendes, NICHT ableitbares Datum bleibt ein offener Mangel.
+    expect(zaehleWiderstaende(byActor, byType)).toBe(1)
+    expect(istAbnehmbar(byActor, byType)).toBe(false)
+  })
+
+  it('haelt die Fehler-Markierung des Menschen unangetastet', () => {
+    const byActor = zaehleGapsNachAkteur(gaps('knowledgescout', 'mensch'))
+    const byType = zaehleGapsNachTyp(typen('datum_ableitbar', 'twin_flagged'))
+    expect(zaehleWiderstaende(byActor, byType)).toBe(1)
+  })
+
+  it('geht nie unter null, auch wenn die Zaehler auseinanderlaufen', () => {
+    // Gemischte Reports (Teilbaum-Merge) koennen mehr Typ- als Akteur-Zeilen
+    // tragen; ein negativer Widerstand waere eine stille Falschaussage.
+    const byActor = zaehleGapsNachAkteur(gaps())
+    const byType = zaehleGapsNachTyp(typen('datum_ableitbar', 'datum_ableitbar'))
+    expect(zaehleWiderstaende(byActor, byType)).toBe(0)
+  })
+})

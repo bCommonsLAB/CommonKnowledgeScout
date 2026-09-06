@@ -43,6 +43,14 @@ export type CoverageGapType =
   | 'path_too_long'
   // — Library-Verifikation A1 (vorhanden, wird nur uebersetzt) —
   | 'core_fields_missing'
+  /**
+   * Nur `date` fehlt, UND es ist ableitbar (Datum im Pfad, oder Ton/Video
+   * mit Dateizeitstempel). Ein Nachlauf fuellt es — das ist Rueckstand,
+   * kein Datenmangel, und sperrt deshalb keine Abnahme.
+   */
+  | 'datum_ableitbar'
+  /** Nur `date` fehlt und ist NICHT ableitbar — ein echter, offener Mangel. */
+  | 'datum_fehlt'
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
   | 'twin_flagged'

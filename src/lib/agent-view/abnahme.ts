@@ -51,13 +51,32 @@ export function zaehleGapsNachTyp(gaps: readonly Pick<CoverageGap, 'type'>[]): G
 const MENSCHLICHE_WIDERSTAENDE: readonly CoverageGapType[] = ['twin_flagged']
 
 /**
- * Offene Widerstaende: maschinelle Befunde + Fehler-Markierungen.
+ * Maschinelle Befunde, die trotz Akteur `cowork`/`knowledgescout` NICHTS
+ * sperren (W1, Wunschliste 4).
+ *
+ * `datum_ableitbar` heisst: Das Feld ist leer, aber die Maschine kann es aus
+ * dem Pfad oder dem Dateizeitstempel selbst fuellen. Das ist Rueckstand, kein
+ * Widerstand — es hat niemand etwas zu entscheiden, es muss nur gerechnet
+ * werden. Gemessen am 06.09.2026 sperrten genau solche Befunde die Abnahme
+ * von zwoelf Vorhaben, und sie wurden mit jedem Erschliessungslauf mehr.
+ *
+ * Bewusst eine Liste von TYPEN und nicht „alles mit Schwere info": Die
+ * Zaehler auf Karte und Baumknoten fuehren Akteur und Typ, keine Schwere —
+ * eine Schwere-Regel liesse sich hier nur raten. Wer einen weiteren Typ
+ * nicht-sperrend machen will, traegt ihn hier ein und begruendet es.
+ */
+const NICHT_SPERREND: readonly CoverageGapType[] = ['datum_ableitbar']
+
+/**
+ * Offene Widerstaende: maschinelle Befunde + Fehler-Markierungen,
+ * abzueglich der maschinellen Befunde, die nichts sperren.
  * Null Widerstaende = es steht nichts im Weg.
  */
 export function zaehleWiderstaende(byActor: GapCountByActor, byType: GapCountByType): number {
   const maschinell = byActor.cowork + byActor.knowledgescout
+  const rueckstand = NICHT_SPERREND.reduce((summe, typ) => summe + (byType[typ] ?? 0), 0)
   const markiert = MENSCHLICHE_WIDERSTAENDE.reduce((summe, typ) => summe + (byType[typ] ?? 0), 0)
-  return maschinell + markiert
+  return Math.max(0, maschinell - rueckstand) + markiert
 }
 
 /**

@@ -84,23 +84,34 @@ export function getMediaKind(file: StorageItem): MediaKind {
 }
 
 /**
+ * Erkennt den Medientyp nur aus Dateiname und optionalem MIME (ohne
+ * vollstaendiges StorageItem). Fuer Aufrufer, die nur einen Pfad haben —
+ * etwa die Agentensicht, die aus dem Coverage-Report heraus entscheidet, ob
+ * ein fehlendes `date` ueberhaupt ableitbar ist.
+ *
+ * Bewusst DELEGIEREND: Die Erkennungsregeln stehen genau einmal, in
+ * {@link getMediaKind}.
+ */
+export function getMediaKindFromName(fileName: string, mimeType = ''): MediaKind {
+  return getMediaKind({
+    id: '_',
+    parentId: '_',
+    type: 'file',
+    metadata: {
+      name: fileName,
+      size: 0,
+      modifiedAt: new Date(0),
+      mimeType,
+    },
+  })
+}
+
+/**
  * Erkennt Bilder nur aus Dateiname und optionalem MIME (ohne vollständiges StorageItem).
  * Z. B. Composite-API-Body oder Markdown-Zeilen mit reinem Dateinamen.
  */
 export function isImageMediaFromName(fileName: string, mimeType = ''): boolean {
-  return (
-    getMediaKind({
-      id: '_',
-      parentId: '_',
-      type: 'file',
-      metadata: {
-        name: fileName,
-        size: 0,
-        modifiedAt: new Date(0),
-        mimeType,
-      },
-    }) === 'image'
-  )
+  return getMediaKindFromName(fileName, mimeType) === 'image'
 }
 
 // =============================================================================
