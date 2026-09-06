@@ -59,7 +59,12 @@ Provider und Modell kommen aus der **LLM-Konfigurationsmaske** des Secretary
 (Use-Case `live_transcription`, MongoDB; `config.yaml` nur als Rückfall) — nicht aus
 einer Konstante im Code. Damit die Maske Modelle anbietet, müssen sie dort unter
 „Available LLMs" existieren und den Use-Case führen; das Skript
-`python -m src.scripts.seed_realtime_models` legt die realtime-fähigen Modelle an.
+`python scripts/seed_llm_models.py` legt sie an (idempotent, `--dry-run` zeigt vorher,
+was passieren würde).
 
-Realtime-fähige Modelle: `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`,
-`gpt-4o-transcribe-diarize` (mit Sprecher-Labels), `gpt-realtime-whisper`.
+Realtime-fähige Modelle: `gpt-live-transcribe` (empfohlen), `gpt-4o-transcribe`,
+`gpt-4o-mini-transcribe`, `gpt-realtime-whisper`.
+
+**Sprecher-Labels gibt es hier nicht.** `gpt-4o-transcribe-diarize` ist laut Anbieter
+auf die Datei-Transkription beschränkt; für Sprecher-Erkennung muss der Mitschnitt
+nachträglich über `audio/process` laufen.
