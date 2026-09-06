@@ -49,6 +49,11 @@ export interface LiveDictationTextareaProps {
   targetLanguage?: string
   /** Begriffe, die haeufig vorkommen (Namen, Fachwoerter). */
   keywords?: string[]
+  /**
+   * Freitext-Kontext: Thema, Anlass, Ort. Fuehrt die Erkennung bei Eigennamen und
+   * Fachbegriffen — dort scheitert Transkription typischerweise.
+   */
+  prompt?: string
   className?: string
 }
 
@@ -67,6 +72,7 @@ export function LiveDictationTextarea(props: LiveDictationTextareaProps) {
     sourceLanguage,
     targetLanguage,
     keywords,
+    prompt,
     className,
   } = props
 
@@ -88,9 +94,19 @@ export function LiveDictationTextarea(props: LiveDictationTextareaProps) {
       sourceLanguage,
       targetLanguage,
       keywords,
+      prompt,
       onTextChange: handleTextChange,
     }),
-    [ticketEndpoint, recoveryEndpoint, extraFields, sourceLanguage, targetLanguage, keywords, handleTextChange]
+    [
+      ticketEndpoint,
+      recoveryEndpoint,
+      extraFields,
+      sourceLanguage,
+      targetLanguage,
+      keywords,
+      prompt,
+      handleTextChange,
+    ]
   )
 
   const { snapshot, liveStream, isRecording, start, stop, canUseLiveTranscription } =
