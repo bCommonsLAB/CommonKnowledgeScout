@@ -24,6 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { baueAktuellSicht, sichtIstLeer } from '@/lib/agent-view/aktuell-sicht'
 import { isoHeute } from '@/lib/agent-view/sichten/types'
 import type { CoverageReport } from '@/lib/agent-view/types'
+import { AktuellPostfachZeile } from './aktuell-postfach-zeile'
 import { AktuellRandbereiche } from './aktuell-randbereiche'
 import { AktuellSchritte } from './aktuell-schritte'
 import { AktuellTermine } from './aktuell-termine'
@@ -31,11 +32,9 @@ import { AktuellVorhabenTabelle } from './aktuell-vorhaben-tabelle'
 
 export interface AktuellPanelProps {
   report: CoverageReport
-  /** Zeitstempel des gespeicherten Reports — sagt, wie alt dieser Blick ist. */
-  generatedAt: string
 }
 
-export function AktuellPanel({ report, generatedAt }: AktuellPanelProps) {
+export function AktuellPanel({ report }: AktuellPanelProps) {
   const [, setTab] = useQueryState('tab', parseAsString)
   const [, setVorhaben] = useQueryState('vorhaben', parseAsString)
   const [, setFilter] = useQueryState('filter', parseAsString)
@@ -77,14 +76,12 @@ export function AktuellPanel({ report, generatedAt }: AktuellPanelProps) {
 
   return (
     <div className="space-y-5 pb-6">
+      {/* Das Scan-Datum steht schon einzeilig im Seitenkopf — hier stand es
+          ein zweites Mal (Live-Befund 06.09.2026). Bleibt die Herkunft. */}
       <p className="text-xs text-muted-foreground">
-        Aus den Berichten des Reports vom{' '}
-        <span className="font-medium text-foreground">
-          {new Date(generatedAt).toLocaleString('de-DE')}
-        </span>
-        {' — '}gepflegt werden die Berichte, diese Übersicht entsteht daraus. Dieselben Daten schreibt
-        das Brücken-Werkzeug <code>sichten_regenerieren</code> als{' '}
-        <code>Organisation/AKTUELL.md</code> für Obsidian und Cowork.
+        Gepflegt werden die Berichte, diese Übersicht entsteht daraus. Dieselben Daten schreibt das
+        Brücken-Werkzeug <code>sichten_regenerieren</code> als <code>Organisation/AKTUELL.md</code>{' '}
+        für Obsidian und Cowork.
       </p>
 
       {sicht.altKarten > 0 && (
@@ -115,14 +112,18 @@ export function AktuellPanel({ report, generatedAt }: AktuellPanelProps) {
       )}
 
       <AktuellTermine termine={sicht.termine} onOeffnen={oeffneVorhaben} />
-      <AktuellVorhabenTabelle
-        aktiv={sicht.aktiv}
-        libraryId={report.libraryId}
-        rueckstaendig={rueckstaendig}
-        onOeffnen={oeffneVorhaben}
-      />
+      <div className="space-y-1">
+        <AktuellPostfachZeile uebersicht={sicht.postfachUebersicht} aktivGesamt={sicht.aktiv.length} />
+        <AktuellVorhabenTabelle
+          aktiv={sicht.aktiv}
+          libraryId={report.libraryId}
+          rueckstaendig={rueckstaendig}
+          onOeffnen={oeffneVorhaben}
+        />
+      </div>
       <AktuellSchritte
-        vorhaben={sicht.mitSchritten}
+        mitTermin={sicht.schritteMitTermin}
+        ohneTermin={sicht.schritteOhneTermin}
         aktivGesamt={sicht.aktiv.length}
         onOeffnen={oeffneVorhaben}
       />

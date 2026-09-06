@@ -20,85 +20,27 @@
  * @module agent-view
  */
 
-import { istPostfachImRueckstand, lesePostfachStand, type PostfachStand } from './postfach-frische'
+import type {
+  AktuellSicht,
+  AktuellSichtOptionen,
+  AktuellVorhaben,
+} from './aktuell-typen'
+import {
+  istPostfachImRueckstand,
+  lesePostfachStand,
+  verdichtePostfach,
+} from './postfach-frische'
 import { istUeberfaellig } from './sichten/types'
 import type { VorhabenCard } from './types'
 import { karteOhneAktuellFelder } from './vorhaben-board'
 
-/** Ein Vorhaben in der Tages-Uebersicht (Termin-Leiste und Tabelle teilen sich das). */
-export interface AktuellVorhaben {
-  folderId: string
-  /** Bericht-H1, sonst Ordnername — nie leer (der Mensch erkennt das Vorhaben daran). */
-  titel: string
-  name: string
-  path: string
-  rolle: string | null
-  letzteAktivitaet: string | null
-  naechsterTermin: string | null
-  /** `termin_fixiert: nein` — der Termin ist noch nicht vereinbart. */
-  terminFixiert: boolean
-  /** Termin liegt vor heute — der Bericht ist nachzuziehen, nicht die Sicht. */
-  ueberfaellig: boolean
-  /** Storage-Id des `BERICHT.md` (Deep-Link ins Archiv); null = kein Bericht. */
-  berichtFileId: string | null
-  /** Die ersten offenen Punkte (wie `AKTUELL.md`). */
-  offenePunkte: string[]
-  /** Offene Punkte ueber die gezeigten hinaus — die Kappung bleibt sichtbar. */
-  weiterePunkte: number
-  /** Offene Befunde, die auf den Menschen warten (Bruecke zur Werkbank). */
-  wartetAufDich: number
-  /**
-   * A7b: Stand der E-Mail-Auswertung (`postfach_bis`), gemessen gegen HEUTE.
-   * Der Rueckstand waechst ohne jede Aenderung im Archiv — deshalb rechnet
-   * ihn die Sicht selbst und wartet nicht auf den naechsten Scan.
-   */
-  postfach: PostfachStand
-}
-
-/** Ein ruhendes oder abgeschlossenes Vorhaben — eine Zeile, kein Detail. */
-export interface AktuellRuhend {
-  folderId: string
-  titel: string
-  /** Roher `status`-Wert aus dem Bericht (bleibt sichtbar, kein stilles Mapping). */
-  status: string
-  letzteAktivitaet: string | null
-}
-
-export interface AktuellSicht {
-  /** Aktive Vorhaben MIT Termin, nach Termin sortiert. */
-  termine: AktuellVorhaben[]
-  /** Alle aktiven Vorhaben (Termin zuerst, dann letzte Aktivitaet). */
-  aktiv: AktuellVorhaben[]
-  /** Aktive Vorhaben mit mindestens einem offenen Punkt. */
-  mitSchritten: AktuellVorhaben[]
-  ruhend: AktuellRuhend[]
-  /** Vorhaben mit Bericht, aber ohne `status:` — die Sicht kann sie nicht einordnen. */
-  ohneStatus: Array<{ folderId: string; titel: string; path: string }>
-  /** Vorhaben ganz ohne `BERICHT.md` — die Abdeckungsluecke dieser Sicht. */
-  ohneBericht: number
-  /** Vorhaben mit Bericht (der Nenner der Abdeckungszeile). */
-  mitBericht: number
-  /** Karten aus einem Scan vor A7 — die Felder fehlen, das wird gesagt. */
-  altKarten: number
-  /**
-   * A7b: Aktive Vorhaben, deren E-Mail-Auswertung ueber der konfigurierten
-   * Schwelle liegt ODER deren `postfach_bis` unlesbar ist. Leer, wenn die
-   * Library keine Postfach-Auswertung fuehrt (Schwelle null). Dasselbe
-   * Praedikat wie der Befund `postfach_veraltet` — kein zweites Urteil.
-   */
-  postfachRueckstaendig: AktuellVorhaben[]
-}
-
-/** Zusatzangaben, ohne die die Sicht arbeitsfaehig bleibt. */
-export interface AktuellSichtOptionen {
-  /** Gegenwart als `Date` (Kalenderwoche). Vorgabe: Tagesbeginn von `heute`. */
-  jetzt?: Date
-  /**
-   * Schwelle aus `report.conventions` — null/fehlt heisst: Die Library
-   * fuehrt keine Postfach-Auswertung, es gibt nichts zu mahnen.
-   */
-  postfachMaxRueckstandWochen?: number | null
-}
+export type {
+  AktuellRuhend,
+  AktuellSicht,
+  AktuellSichtOptionen,
+  AktuellVorhaben,
+} from './aktuell-typen'
+export type { PostfachUebersicht } from './postfach-frische'
 
 /** Anzeigename: Bericht-H1, sonst Ordnername. */
 function titelVon(card: VorhabenCard): string {
@@ -165,7 +107,9 @@ export function baueAktuellSicht(
   return {
     termine: aktiv.filter((v) => v.naechsterTermin !== null),
     aktiv,
-    mitSchritten: aktiv.filter((v) => v.offenePunkte.length > 0),
+    schritteMitTermin: aktiv.filter((v) => v.offenePunkte.length > 0 && v.naechsterTermin !== null),
+    schritteOhneTermin: aktiv.filter((v) => v.offenePunkte.length > 0 && v.naechsterTermin === null),
+    postfachUebersicht: verdichtePostfach(aktiv.map((v) => v.postfach)),
     ruhend: mitBericht
       .filter((card) => typeof card.berichtStatus === 'string' && card.berichtStatus !== 'aktiv')
       .map((card) => ({

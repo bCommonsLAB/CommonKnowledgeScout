@@ -18,6 +18,7 @@ import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 import type { AktuellVorhaben } from '@/lib/agent-view/aktuell-sicht'
 import { postfachStandLabel } from '@/lib/agent-view/postfach-frische'
 import { datumLesbar } from '@/lib/agent-view/sichten/types'
+import { AktuellTerminMarken } from './aktuell-termin-marken'
 
 export interface AktuellVorhabenTabelleProps {
   aktiv: readonly AktuellVorhaben[]
@@ -28,15 +29,18 @@ export interface AktuellVorhabenTabelleProps {
 }
 
 /**
- * A7b: Stand der E-Mail-Auswertung. Ohne Angabe im Bericht bleibt die Zeile
- * weg — nur wer das Feld fuehrt, wird daran gemessen.
+ * A7b: Stand der E-Mail-Auswertung — NUR wenn er mahnt.
+ *
+ * Zuerst stand die Zeile an jedem Vorhaben, das das Feld fuehrt. Im Betrieb
+ * hiess es dann an 16 von 23 Zeilen wortgleich „Postfach bis KW 35/2026 —
+ * 1 Woche offen" (Live-Befund 06.09.2026): eine Zeile, die ueberall gleich
+ * lautet, traegt keine Information. Der Normalfall steht jetzt EINMAL als
+ * Uebersicht ueber der Tabelle; hier bleibt nur die Ausnahme.
  */
 function PostfachZeile({ vorhaben, mahnt }: { vorhaben: AktuellVorhaben; mahnt: boolean }) {
-  if (vorhaben.postfach.art === 'ohne_angabe') return null
+  if (!mahnt || vorhaben.postfach.art === 'ohne_angabe') return null
   return (
-    <span
-      className={`mt-0.5 flex items-center gap-1 text-xs ${mahnt ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'}`}
-    >
+    <span className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
       <Mail className="h-3 w-3 shrink-0" aria-hidden />
       {postfachStandLabel(vorhaben.postfach)}
     </span>
@@ -53,16 +57,7 @@ function TerminZelle({ vorhaben }: { vorhaben: AktuellVorhaben }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
       <span className="tabular-nums">{datumLesbar(vorhaben.naechsterTermin)}</span>
-      {!vorhaben.terminFixiert && (
-        <Badge variant="outline" className="h-4 px-1 text-[10px]">
-          offen
-        </Badge>
-      )}
-      {vorhaben.ueberfaellig && (
-        <Badge variant="destructive" className="h-4 px-1 text-[10px]">
-          überfällig
-        </Badge>
-      )}
+      <AktuellTerminMarken vorhaben={vorhaben} groesse="klein" />
     </span>
   )
 }

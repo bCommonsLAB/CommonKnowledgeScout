@@ -34,7 +34,12 @@ export default function AgentViewPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden px-6 pb-6 pt-0 lg:px-4">
+    // `data-print-flow`: im Druck rollt diese Flaeche aus, statt am
+    // Container-Rand abzuschneiden (siehe @media print in globals.css).
+    <div
+      data-print-flow
+      className="flex h-full min-h-0 flex-col overflow-hidden px-6 pb-6 pt-0 lg:px-4"
+    >
       <AgentViewPanel
         libraryId={activeLibraryId ?? undefined}
         libraryLabel={activeLibrary?.label}

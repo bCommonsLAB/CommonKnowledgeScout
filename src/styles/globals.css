@@ -176,3 +176,49 @@
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* ---------------------------------------------------------------------------
+ * Druck: Scroll-Flaechen ausrollen statt abschneiden
+ *
+ * Befund 06.09.2026 (Ausdruck der Agentensicht): Die App arbeitet mit
+ * hoehenbegrenzten Containern und `overflow: auto`. Am Bildschirm scrollt
+ * man darin; im Druck schneidet ein solcher Container ab, statt umzubrechen —
+ * die letzten Bloecke („Ruhend und abgeschlossen", die Abdeckungszeile)
+ * fehlten im PDF ganz, und der Text brach mitten im Satz ab.
+ *
+ * Wirkt NUR auf Flaechen, die sich mit `data-print-flow` dafuer melden —
+ * kein globales `overflow: visible`, das Galerie und Dateiliste
+ * durcheinanderbraechte.
+ * ------------------------------------------------------------------------ */
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Die Druckflaeche und alles darueber bis zur Wurzel muessen ausrollen —
+     ein einziger begrenzter Vorfahre kappt sonst wieder. `:has` trifft JEDEN
+     Vorfahren, nicht nur den direkten. */
+  [data-print-flow],
+  [data-print-flow] *,
+  :has([data-print-flow]) {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Zusammengehoerendes nicht ueber die Seitengrenze reissen. */
+  [data-print-flow] tr,
+  [data-print-flow] li,
+  [data-print-flow] details {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Aufgeklappt drucken: was zugeklappt ist, fehlt sonst im Papier-Abzug
+     ohne jeden Hinweis. */
+  [data-print-flow] details > *:not(summary) {
+    display: revert !important;
+  }
+}
