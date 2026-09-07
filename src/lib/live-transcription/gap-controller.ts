@@ -41,6 +41,7 @@ export class GapController {
   private recorder: GapRecordingHandle | null = null
   private currentGapId: string | null = null
   private overflowSeen = false
+  private waitingForNetwork = false
 
   constructor(options: GapControllerOptions) {
     this.options = options
@@ -53,6 +54,26 @@ export class GapController {
   /** Merkt vor, dass Audio verworfen wurde — dann ist der Mitschnitt zustaendig. */
   markOverflow(): void {
     this.overflowSeen = true
+  }
+
+  /** True, solange ein Abschnitt auf Nacharbeit wartet oder gerade laeuft. */
+  get hasUnfinishedWork(): boolean {
+    return this.options.journal.allGaps.some((gap) => gap.state === 'wartet' || gap.state === 'laeuft')
+  }
+
+  /**
+   * Nimmt die Nacharbeit wieder auf, sobald der Browser wieder online ist. Der Horcher
+   * meldet sich selbst ab; mehrfaches Anmelden verhindert `waitingForNetwork`.
+   */
+  private retryWhenOnline(): void {
+    if (this.waitingForNetwork || typeof window === 'undefined') return
+    this.waitingForNetwork = true
+    const wiederAufnehmen = () => {
+      window.removeEventListener('online', wiederAufnehmen)
+      this.waitingForNetwork = false
+      void this.processPending()
+    }
+    window.addEventListener('online', wiederAufnehmen)
   }
 
   /** Beginnt eine Stoerung: Luecke eintragen und Mitschnitt starten. */
@@ -116,6 +137,17 @@ export class GapController {
         this.options.journal.resolveGap(gap.id, text)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Nacharbeit fehlgeschlagen'
+        // Ohne Netz ist das kein Scheitern, sondern ein Aufschub: Der Mitschnitt liegt
+        // vor, nur der Dienst ist unerreichbar. Die Luecke bleibt wartend und wird
+        // erneut angegangen, sobald die Verbindung zurueck ist — sonst waere der
+        // Abschnitt endgueltig verloren, obwohl der Ton noch da ist.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          console.warn(`[live-transcription] Nacharbeit aufgeschoben (kein Netz): ${message}`)
+          this.options.journal.setGapState(gap.id, 'wartet')
+          this.options.onChange()
+          this.retryWhenOnline()
+          return
+        }
         console.warn(`[live-transcription] Luecke nicht nachgearbeitet: ${message}`)
         this.options.journal.setGapState(gap.id, 'gescheitert')
         this.options.onRecoveryError(message)

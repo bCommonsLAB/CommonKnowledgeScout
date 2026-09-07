@@ -97,6 +97,10 @@ export function useLiveTranscription(
   const [isRecording, setIsRecording] = React.useState(false)
 
   const sessionRef = React.useRef<LiveSession | null>(null)
+  /** Beendete Sitzung, die noch einen Abschnitt nacharbeitet (z.B. nach Netzausfall). */
+  const nachlaufRef = React.useRef<LiveSession | null>(null)
+  const nachlaufStoreRef = React.useRef<RecordingStore | null>(null)
+  const nachlaufIdRef = React.useRef<string>("")
   const streamRef = React.useRef<MediaStream | null>(null)
   const storeRef = React.useRef<RecordingStore | null>(null)
   const recordingIdRef = React.useRef<string>("")
@@ -117,9 +121,35 @@ export function useLiveTranscription(
     )
   }, [])
 
-  const publish = React.useCallback(() => {
-    const session = sessionRef.current
-    if (!session) return
+  /**
+   * Meldet den Stand einer Sitzung. Zwei Faelle: die laufende Aufnahme (voller Stand),
+   * oder eine bereits beendete, die noch einen Abschnitt nacharbeitet — dort zaehlt nur
+   * der Augenblick, in dem sie fertig wird, damit der ergaenzte Text ins Feld nachrueckt.
+   */
+  const publishFor = React.useCallback((session: LiveSession) => {
+    if (sessionRef.current !== session) {
+      if (nachlaufRef.current !== session) return
+      if (session.getSnapshot().gaps.length > 0) return
+
+      nachlaufRef.current = null
+      // Beide Wege: Das Feld haengt an `onTextChange` — `onFinished` ist optional und
+      // wird von der Diktat-Komponente gar nicht gesetzt. Nur `onFinished` zu rufen
+      // hiesse, den nachgearbeiteten Text ins Leere zu schreiben.
+      const ergaenzterText = session.getText()
+      textChangeRef.current?.(ergaenzterText)
+      finishedRef.current?.(ergaenzterText)
+      const nachlaufStore = nachlaufStoreRef.current
+      if (nachlaufStore && nachlaufIdRef.current) {
+        void nachlaufStore.deleteRecording(nachlaufIdRef.current).catch((deleteError: unknown) => {
+          console.warn("[live-transcription] Journal nicht aufgeraeumt", deleteError)
+        })
+        if (storeRef.current !== nachlaufStore) nachlaufStore.close()
+      }
+      nachlaufStoreRef.current = null
+      nachlaufIdRef.current = ""
+      return
+    }
+
     const next = session.getSnapshot()
     setSnapshot(next)
     textChangeRef.current?.(session.getText())
@@ -183,9 +213,14 @@ export function useLiveTranscription(
       storeRef.current = null
     }
 
+    // Die Sitzung meldet sich mit sich selbst zurueck: nach dem Beenden laeuft sie
+    // moeglicherweise noch weiter (Nacharbeit), waehrend schon eine neue aufnimmt.
+    const halter: { current: LiveSession | null } = { current: null }
     const session = new LiveSession({
       stream,
-      onChange: publish,
+      onChange: () => {
+        if (halter.current) publishFor(halter.current)
+      },
       fetchTicket: () =>
         fetchRealtimeTicket({
           endpoint: ticketEndpoint,
@@ -211,6 +246,7 @@ export function useLiveTranscription(
       },
     })
 
+    halter.current = session
     sessionRef.current = session
     setIsRecording(true)
 
@@ -228,7 +264,7 @@ export function useLiveTranscription(
     }
   }, [
     canUseLiveTranscription,
-    publish,
+    publishFor,
     ticketEndpoint,
     recoveryEndpoint,
     extraFields,
@@ -253,6 +289,21 @@ export function useLiveTranscription(
     setSnapshot(session.getSnapshot())
     finishedRef.current?.(finalText)
 
+    // Wartet noch ein Abschnitt auf Nacharbeit — etwa weil das Netz beim Beenden weg
+    // war —, dann darf hier nichts weggeraeumt werden: Der Mitschnitt ist die einzige
+    // Quelle fuer den fehlenden Text, und die Sitzung reicht ihn nach, sobald sie kann.
+    const stehtNochAus = session.getSnapshot().gaps.length > 0
+    sessionRef.current = null
+
+    if (stehtNochAus) {
+      console.warn('[live-transcription] Abschnitt noch nicht nachgearbeitet — Mitschnitt bleibt erhalten')
+      nachlaufRef.current = session
+      nachlaufStoreRef.current = storeRef.current
+      nachlaufIdRef.current = recordingIdRef.current
+      storeRef.current = null
+      return
+    }
+
     const store = storeRef.current
     if (store && recordingIdRef.current) {
       // Die Aufnahme ist abgeschlossen und ihr Text uebergeben: der Mitschnitt wird
@@ -263,7 +314,6 @@ export function useLiveTranscription(
       store.close()
     }
     storeRef.current = null
-    sessionRef.current = null
   }, [])
 
   React.useEffect(() => {
