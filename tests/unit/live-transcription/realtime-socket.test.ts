@@ -105,6 +105,30 @@ describe('openRealtimeSocket', () => {
     expect(FakeWebSocket.lastUrl).toBe('wss://api.openai.com/v1/realtime?intent=transcription')
   })
 
+  /**
+   * Beweis-Ziel: Der Abschluss wird angefordert.
+   *
+   * Hintergrund: Das Modell laeuft ohne serverseitige Sprechpausen-Erkennung und sendet
+   * deshalb nur Teilstuecke. Ohne 'input_audio_buffer.commit' kommt nie ein
+   * abschliessendes Transkript — gemessen am 07.09.2026: 17 Teilstuecke, kein Abschluss.
+   */
+  it('fordert mit commitAudio das Schlusstranskript an', () => {
+    const handle = openRealtimeSocket(TICKET, noopEvents())
+
+    handle.commitAudio()
+
+    expect(FakeWebSocket.last?.sent).toContain(JSON.stringify({ type: 'input_audio_buffer.commit' }))
+  })
+
+  it('schickt keinen Abschluss ueber eine geschlossene Verbindung', () => {
+    const handle = openRealtimeSocket(TICKET, noopEvents())
+    FakeWebSocket.last?.close()
+
+    handle.commitAudio()
+
+    expect(FakeWebSocket.last?.sent).toHaveLength(0)
+  })
+
   it('rechnet Sprecher-Abschnitte von Sekunden in Millisekunden um', () => {
     const events = noopEvents()
     openRealtimeSocket(TICKET, events)
