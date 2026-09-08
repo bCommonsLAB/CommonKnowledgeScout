@@ -39,6 +39,22 @@ export function LiveStatusLine(props: { snapshot: LiveTranscriptionSnapshot }) {
     )
   }
 
+  // Der erste Verbindungsaufbau dauert ein paar Sekunden (Ticket + Handschlag). Das ist
+  // keine Stoerung und darf nicht als solche aussehen — sonst liest der Sprechende beim
+  // Start jedes Mal, die Verbindung sei unterbrochen.
+  if (snapshot.connection === "baut-auf") {
+    return (
+      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <span>
+          Verbindung wird aufgebaut — es wird bereits mitgeschnitten
+          {snapshot.bufferedSeconds >= 1 ? ` (${Math.round(snapshot.bufferedSeconds)} s)` : ""}.
+          Sprich ruhig weiter.
+        </span>
+      </div>
+    )
+  }
+
   if (snapshot.connection === "puffert" || snapshot.connection === "verbindet") {
     return (
       <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">

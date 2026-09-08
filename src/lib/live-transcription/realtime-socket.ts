@@ -46,6 +46,12 @@ export interface RealtimeSocketEvents {
 export interface RealtimeSocketHandle {
   /** Schickt einen PCM-Block (Base64) an den Anbieter. */
   sendAudio: (base64: string) => void
+  /**
+   * Schliesst den bisher gesendeten Ton ab. Der Anbieter antwortet daraufhin mit dem
+   * abschliessenden Transkript ('...transcription.completed'); ohne diesen Aufruf
+   * bleibt es bei Teilstuecken. Siehe `commitAudio` in dieser Datei.
+   */
+  commitAudio: () => void
   /** True, solange die Verbindung Daten annimmt. */
   isOpen: () => boolean
   /** Schliesst die Verbindung; danach kommen keine Ereignisse mehr. */
@@ -160,6 +166,14 @@ export function openRealtimeSocket(
     sendAudio: (base64: string) => {
       if (socket.readyState !== WebSocket.OPEN) return
       socket.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64 }))
+    },
+    // Das Transkriptionsmodell laeuft ohne serverseitige Sprechpausen-Erkennung
+    // (turn_detection ist null, sonst lehnt der Anbieter das Ticket ab). Es beendet
+    // deshalb von sich aus keinen Abschnitt und sendet nur Teilstuecke. Erst dieser
+    // Aufruf loest das abschliessende Transkript aus.
+    commitAudio: () => {
+      if (socket.readyState !== WebSocket.OPEN) return
+      socket.send(JSON.stringify({ type: 'input_audio_buffer.commit' }))
     },
     isOpen: () => socket.readyState === WebSocket.OPEN,
     close: () => {

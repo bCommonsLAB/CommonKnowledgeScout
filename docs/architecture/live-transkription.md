@@ -58,6 +58,22 @@ Solange eine Lücke nicht nachgearbeitet ist, steht an ihrer Stelle sichtbar
 die Nacharbeit, bleibt der Mitschnitt erhalten und die Lücke wird als `gescheitert`
 ausgewiesen.
 
+### Der Abschluss beim Beenden
+
+Das Transkriptionsmodell läuft **ohne serverseitige Sprechpausen-Erkennung**: Der
+Secretary setzt `turn_detection: null`, weil der Anbieter das Ticket sonst mit HTTP 400
+ablehnt (`MODELS_WITHOUT_TURN_DETECTION` in `realtime_transcription.py`). Folge: Der
+Dienst beendet von sich aus **nie** einen Abschnitt. Er sendet fortlaufend Teilstücke
+(`…transcription.delta`), aber kein abschließendes Transkript.
+
+Deshalb schickt `session-manager.ts` beim Beenden ein `input_audio_buffer.commit` und
+wartet bis zu drei Sekunden auf das `…transcription.completed`. Gemessen am 07.09.2026
+kam es 0,7 s nach dem Signal. Bleibt es aus, wird der Schwebetext übernommen, statt ihn
+zu verwerfen.
+
+Ohne diesen Schritt bleibt alles Gesprochene im grauen Schwebebereich hängen und ist
+beim Beenden verloren — der Fehler, an dem der erste Live-Test scheiterte.
+
 ## Sprecher-Labels
 
 Liefert das Modell Sprecher-Abschnitte (Server-Ereignis

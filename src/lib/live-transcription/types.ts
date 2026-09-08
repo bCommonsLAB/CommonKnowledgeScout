@@ -58,6 +58,9 @@ export interface LiveGap {
 /** Zustand der Verbindung zum Anbieter. */
 export type LiveConnectionState =
   | 'getrennt'
+  /** Erster Aufbau — noch nie verbunden, also keine Stoerung. */
+  | 'baut-auf'
+  /** Erneuter Aufbau nach einem Abbruch — hier wird gepuffert. */
   | 'verbindet'
   | 'verbunden'
   | 'puffert'

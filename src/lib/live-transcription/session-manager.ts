@@ -37,6 +37,13 @@ import type {
   RealtimeTicket,
 } from './types'
 
+/**
+ * Wartezeit auf das Schlusstranskript nach dem Beenden. Gemessen liefert der Anbieter
+ * es rund 0,7 s nach dem Abschluss-Signal; drei Sekunden lassen Luft, ohne dass der
+ * Sprechende spuerbar wartet. Bleibt es aus, wird der Schwebetext uebernommen.
+ */
+const FINALIZE_TIMEOUT_MS = 3000
+
 /** Bloecke je Nachsende-Runde: 20 Bloecke sind rund zwei Sekunden Audio. */
 const FLUSH_BATCH = 20
 
@@ -76,6 +83,9 @@ export class LiveSession {
   private isSpeaking = false
   private stopped = false
   private rotating = false
+  private hasConnected = false
+  /** Wartet auf das Schlusstranskript, waehrend `finalizeTranscript` laeuft. */
+  private awaitingCompletion: (() => void) | null = null
   private reconnectAttempt = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private flushTimer: ReturnType<typeof setInterval> | null = null
@@ -124,6 +134,7 @@ export class LiveSession {
   async stop(): Promise<void> {
     this.stopped = true
     this.clearTimers()
+    await this.finalizeTranscript()
     this.socket?.close()
     this.socket = null
 
@@ -140,6 +151,56 @@ export class LiveSession {
     await this.gaps.processPending()
     this.status = this.error ? 'fehler' : 'bereit'
     this.emit()
+  }
+
+  /**
+   * Holt den zuletzt gesprochenen Satz herein, bevor die Verbindung faellt.
+   *
+   * Das Transkriptionsmodell laeuft ohne serverseitige Sprechpausen-Erkennung
+   * (`turn_detection: null`, siehe docs/architecture/live-transkription.md). Es beendet
+   * deshalb von sich aus keinen Abschnitt: Es sendet fortlaufend Teilstuecke, aber nie
+   * ein abschliessendes Transkript. Ohne diesen Schritt bliebe alles Gesprochene im
+   * Schwebezustand und waere beim Beenden verloren — genau entgegen der Zusage dieser
+   * Datei. Der Abschluss wird deshalb angefordert und kurz abgewartet.
+   */
+  private async finalizeTranscript(): Promise<void> {
+    if (!this.pendingText) return
+
+    if (!this.socket?.isOpen()) {
+      this.keepPendingText()
+      return
+    }
+
+    this.socket.commitAudio()
+    const kamAn = await new Promise<boolean>((resolve) => {
+      const frist = setTimeout(() => {
+        this.awaitingCompletion = null
+        resolve(false)
+      }, FINALIZE_TIMEOUT_MS)
+      this.awaitingCompletion = () => {
+        clearTimeout(frist)
+        this.awaitingCompletion = null
+        resolve(true)
+      }
+    })
+
+    if (!kamAn) {
+      console.warn('[live-transcription] Kein Schlusstranskript erhalten, Schwebetext wird uebernommen')
+      this.keepPendingText()
+    }
+  }
+
+  /**
+   * Rettet den noch nicht abgeschlossenen Text ins Journal. Nur fuer den Fall, dass der
+   * Anbieter kein Schlusstranskript liefert — dann ist der Schwebetext das Beste, was
+   * vorliegt, und stilles Verwerfen waere der schlechteste Ausgang.
+   */
+  private keepPendingText(): void {
+    const text = this.pendingText.trim()
+    if (!text) return
+    const endMs = this.elapsedMs
+    this.journal.addCompleted(`schwebend-${endMs}`, text, endMs, endMs)
+    this.pendingText = ''
   }
 
   /** Aktueller Stand fuer die Anzeige. */
@@ -191,6 +252,10 @@ export class LiveSession {
       this.socket.sendAudio(pcm16ToBase64(chunk))
     } else {
       this.outbox.push(chunk)
+      // Vor der ersten Verbindung laeuft noch keine Nachsende-Runde, die die Anzeige
+      // auffrischt. Ohne diesen Anstoss steht der Puffer scheinbar bei null, und der
+      // Sprechende glaubt, sein Anfang werde nicht mitgeschnitten.
+      if (this.connection === 'baut-auf') this.emit()
     }
 
     if (
@@ -207,7 +272,13 @@ export class LiveSession {
 
   private async connect(): Promise<void> {
     if (this.stopped) return
-    this.connection = this.rotating ? 'wechselt-session' : 'verbindet'
+    // Der erste Aufbau ist keine Stoerung, auch wenn er ein paar Sekunden dauert.
+    // Erst ein spaeterer Aufbau bedeutet, dass eine bestehende Verbindung weg war.
+    this.connection = this.rotating
+      ? 'wechselt-session'
+      : this.hasConnected
+        ? 'verbindet'
+        : 'baut-auf'
     this.emit()
 
     let ticket: RealtimeTicket
@@ -233,6 +304,8 @@ export class LiveSession {
         },
         clearPending: () => {
           this.pendingText = ''
+          // Das Schlusstranskript ist eingetroffen; ein wartendes `stop()` darf weiter.
+          this.awaitingCompletion?.()
         },
         setSpeaking: (speaking) => {
           this.isSpeaking = speaking
@@ -255,6 +328,7 @@ export class LiveSession {
     this.reconnectAttempt = 0
     this.error = null
     this.rotating = false
+    this.hasConnected = true
     this.sessionStartedAtMs = Date.now()
     this.sessionOffsetMs = this.elapsedMs
     this.connection = this.outbox.isEmpty ? 'verbunden' : 'puffert'
