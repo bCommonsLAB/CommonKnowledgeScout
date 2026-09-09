@@ -33,7 +33,7 @@ import { MediaTab } from './media-tab'
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer'
 // Alert, AlertDescription entfernt (aktuell nicht verwendet)
-import { DocumentCard } from '@/components/library/gallery/document-card'
+import { GalleryTeaserCard } from './file-preview/gallery-teaser-card'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { AlertTriangle, X, Save } from 'lucide-react'
 import { toast } from 'sonner'
@@ -1767,7 +1767,7 @@ export function JobReportTab({
                     <div className="space-y-2">
                       <h4 className="text-sm font-semibold text-muted-foreground">Listung in der Galerieansicht</h4>
                       <div className="max-w-[300px]">
-                        <DocumentCard doc={docCardMeta} />
+                        <GalleryTeaserCard doc={docCardMeta} />
                       </div>
                     </div>
                     
