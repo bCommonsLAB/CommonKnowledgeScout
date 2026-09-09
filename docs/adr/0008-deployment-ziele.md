@@ -1,6 +1,8 @@
 # ADR 0008 — Deployment-Ziele: Eine Instanz, viele Sites; Compilate nur bei anderer Laufzeit
 
-- **Status**: Vorgeschlagen
+- **Status**: Akzeptiert (2026-09-09; inkl. der beiden Owner-Nachträge vom
+  2026-08-29: Embed nur öffentlich, Headless-API mit MCP-Konto-Schlüssel;
+  Status nachgezogen, siehe `docs/STAND.md`)
 - **Datum**: 2026-08-25
 - **Kontext**: Erweitert [ADR 0007](0007-modularisierung-monorepo-schale-module.md).
   Grundlage: [`library-steckbriefe.md`](../architecture/library-steckbriefe.md)

@@ -15,7 +15,7 @@ Grundlage sind zwei Quellen, die sich gegenseitig prüfen:
 
 Anforderungsquelle bleibt
 [`mcp-storage-anforderungen.md`](mcp-storage-anforderungen.md) (27.08.),
-Umsetzungsplan `docs/plans/mcp-storage-abstraktion_4b7e1c93.plan.md`.
+Umsetzungsplan `docs/plans/archiv/mcp-storage-abstraktion_4b7e1c93.plan.md` (archiviert 2026-09-09; Restpunkte in `docs/STAND.md`).
 
 **Nachtrag 03.09.2026:** Zwei weitere Cowork-Sitzungen (Fortschreiben eines
 Berichts über drei Wochen; ~250 Erschließungs-Jobs) haben sechzehn Punkte

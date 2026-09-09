@@ -1,6 +1,8 @@
 # ADR 0004 — Capture-Publish-Entkopplung: Inbox-/Submission-Modell für den Wizard
 
-- **Status**: Vorgeschlagen (Kern-Entscheidungen vom Owner bestätigt 2026-05-31)
+- **Status**: Akzeptiert (2026-09-09; Kern-Entscheidungen vom Owner bestätigt
+  2026-05-31, umgesetzt in `src/lib/submissions/`, `src/components/submissions/`
+  und `api/submissions`; Status nachgezogen, siehe `docs/STAND.md`)
 - **Datum**: 2026-05-31
 - **Kontext**: Neuordnung Creation-Wizard (Welle 3-VI), siehe
   `docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md` und

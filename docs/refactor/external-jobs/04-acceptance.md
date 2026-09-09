@@ -2,7 +2,7 @@
 
 Stand: 2026-04-23. Erstellt von Cloud-Agent (Pilot-Welle, Plan-Schritt 7).
 
-Bezug: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 4.7 ("Abnahme") und Sektion 7 ("Definition of Done").
+Bezug: [docs/plans/archiv/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/archiv/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 4.7 ("Abnahme") und Sektion 7 ("Definition of Done").
 
 ## Zusammenfassung
 

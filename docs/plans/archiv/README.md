@@ -25,6 +25,9 @@ Maßgeblich war deshalb die Code-Evidenz (Stand 2026-08-26):
 | `saveditemid_contract_&_tests` | `savedItemId` in `src/types/external-job.ts` u. a. |
 | `shadowtwin_zentralisierung+ids` | `api/library/[libraryId]/shadow-twin-mode` |
 | `v2-only_shadow-twin_(mit_dry-run)` | Rumpf-Datei (10 Zeilen); v2-Modus ist umgesetzt |
+| `summen-und-synergie-aggregation` (archiviert 2026-09-09) | Stufen 1–3 gebaut: `src/lib/gallery/synergy-sum.ts` (Plan schrieb `lib/graph/`), `table-sums-footer.tsx`, `graph-sums-panel.tsx`, `overlap-report-dialog.tsx`, `external-jobs/overlap-report-*`. **Rest** (Stufe 3d, LLM-bereinigte Summe als dritte Zahl in Fußzeile und Panel) steht im Vorrat von `docs/STAND.md` |
+| `refactor-strategie-drift-eliminieren` (archiviert 2026-09-09) | 13 von 16 im Code: `AGENTS.md`, Playbook, `scripts/module-health.mjs`, Wellen 1–3-IV durch. **Rest**: Backend-Cleanup-Folgewelle (2026-04-28 bewusst übersprungen), Welle 3-VI (reserviert für Vorhaben SHF); beides im Vorrat von `docs/STAND.md` |
+| `mcp-storage-abstraktion` (archiviert 2026-09-09) | ST1–ST4 gebaut: `packages/contracts/src/storage-versioning.ts`, `src/lib/mcp/storage/**` (19 Dateien), Schreibschutz auf `_INDEX.md`/Twin-Ordnern. **Rest**: Coverage-Nachführung nach Ordner-Umzug, Job-Modus für lange Scans (Q7); im Vorrat von `docs/STAND.md` |
 
 ## Ebenfalls hier: vier alte Aufgabenlisten
 
