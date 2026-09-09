@@ -1,0 +1,299 @@
+'use client'
+
+/**
+ * src/components/library/gallery/document-card/diva-texture-card.tsx
+ *
+ * DivaTextureCard fuer detailViewType='divaTexture'.
+ *
+ * Aus document-card.tsx ausgegliedert (Welle 3-III-a, Schritt 1/N).
+ *
+ * Quadratische Kachel mit Hintergrund aus Cover (Textur).
+ * Galerie: coverThumbnailUrl zuerst (256x256 WebP, center-crop) —
+ * sonst zieht die Karte mehrere MB Original-JPEGs pro Eintrag.
+ * Detailansicht kann weiter das volle coverImageUrl nutzen.
+ *
+ * Verhalten 1:1 portiert — keine Logik-Aenderung.
+ */
+
+import React, { useEffect, useState } from 'react'
+import { cn } from '@ks/util'
+import type { DocCardMeta } from '../../lib/types'
+import {
+  coverRefNeedsApiResolution,
+  resolveCoverUrlViaApi,
+} from '../../lib/resolve-cover-url-client'
+import { displayBasenameFromCoverRef } from '../../lib/cover-ref-display-name'
+import { SourceStarsBadge } from '../source-stars-badge'
+import { SourceCommentsBadge } from '../source-comments-badge'
+import { DivaTextureClassificationActions } from './diva-texture-classification-actions'
+
+export interface DivaTextureCardProps {
+  doc: DocCardMeta
+  onClick: () => void
+  libraryId?: string
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /**
+   * Stufe 4: wird nach erfolgreicher Per-Material-Korrektur gefeuert
+   * (locked/rejected/Klasse), damit die Galerie die Snapshot-Aenderung sieht.
+   */
+  onClassificationChanged?: () => void
+}
+
+export function DivaTextureCard({
+  doc,
+  onClick,
+  libraryId,
+  onToggleFavorite,
+  onClassificationChanged,
+}: DivaTextureCardProps) {
+  const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
+  const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
+    rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
+  )
+
+  // Nur-Dateiname / relativer Verweis: ueber API in streaming-url
+  // aufloesen (siehe Media-Lifecycle-Regel).
+  useEffect(() => {
+    const ref = doc.coverThumbnailUrl || doc.coverImageUrl
+    if (!ref) {
+      setDisplayImageUrl(undefined)
+      return
+    }
+    if (!coverRefNeedsApiResolution(ref)) {
+      setDisplayImageUrl(ref)
+      return
+    }
+    // Lokale Kopien: TS narrowed `doc.fileId` nicht in async-Closures
+    // zuverlaessig.
+    const effectiveLibraryId = libraryId
+    const effectiveFileId = doc.fileId
+    if (!effectiveLibraryId || !effectiveFileId) {
+      setDisplayImageUrl(undefined)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const resolved = await resolveCoverUrlViaApi({
+        libraryId: effectiveLibraryId,
+        fileId: effectiveFileId,
+        coverRef: ref,
+        // docMetaJson.sourceFileName: echte Quell-Textur (Shadow-Twin / resolve-binary-url)
+        sourceFileName: doc.sourceFileName?.trim() || doc.fileName,
+      })
+      if (!cancelled) {
+        setDisplayImageUrl(resolved ?? undefined)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [doc.coverImageUrl, doc.coverThumbnailUrl, doc.fileId, doc.fileName, doc.sourceFileName, libraryId])
+
+  // Galerie: Primaerzeile = docMetaJson.sourceFileName (Quell-Textur),
+  // sonst Cover-Basename, nicht zuerst .md-Dateiname.
+  const sourceFile = doc.sourceFileName?.trim()
+  const coverBasename =
+    displayBasenameFromCoverRef(doc.coverImageUrl) ||
+    displayBasenameFromCoverRef(doc.coverThumbnailUrl)
+  const titleOrShort = (doc.title || doc.shortTitle)?.trim()
+  const fileNameMd = doc.fileName?.trim()
+  const primaryLine = sourceFile || coverBasename || titleOrShort || fileNameMd || 'Textur'
+  const secondaryLine = (() => {
+    const tc = doc.textur_code?.trim()
+    if (sourceFile) {
+      return (
+        (titleOrShort && titleOrShort !== primaryLine ? titleOrShort : '') ||
+        (tc && tc !== primaryLine ? tc : '') ||
+        (coverBasename && coverBasename !== primaryLine ? coverBasename : '') ||
+        (fileNameMd && fileNameMd !== primaryLine ? fileNameMd : '')
+      )
+    }
+    if (coverBasename) {
+      return (
+        (titleOrShort && titleOrShort !== primaryLine ? titleOrShort : '') ||
+        (tc && tc !== primaryLine ? tc : '') ||
+        (fileNameMd && fileNameMd !== primaryLine ? fileNameMd : '')
+      )
+    }
+    if (fileNameMd) {
+      return (titleOrShort && titleOrShort !== primaryLine ? titleOrShort : '') || (tc || '')
+    }
+    return tc || ''
+  })()
+  const showSecondary =
+    secondaryLine.length > 0 && secondaryLine !== primaryLine
+
+  return (
+    <article
+      className='group relative flex flex-col aspect-square overflow-hidden rounded-lg border border-border/60 shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
+      onClick={onClick}
+      role='button'
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+    >
+      {displayImageUrl ? (
+        <div
+          className='absolute inset-0 bg-neutral-200 dark:bg-neutral-800'
+          style={{
+            backgroundImage: `url(${displayImageUrl})`,
+            // 1:1 wie geliefert, kein kuenstliches Hoch-/Runterskalieren;
+            // zentriert, Rand abschneiden bei groesseren Maps
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'auto',
+            backgroundPosition: 'center',
+          }}
+        />
+      ) : (
+        <div className='absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900' />
+      )}
+
+      {/* Kein Verlauf ueber die gesamte Kachel — Textur bleibt unverfaelscht sichtbar. */}
+      <div className='relative mt-auto flex flex-col justify-end'>
+        <div
+          className={cn(
+            'px-2.5 py-2 sm:px-3 sm:py-2.5',
+            // Nur unter dem Text: halbtransparente Blende, nicht ueber dem Musterbereich darueber
+            // Sehr leichte Blende; Lesbarkeit primaer ueber Text-drop-shadow
+            'rounded-b-lg bg-black/20 text-white',
+          )}
+        >
+          <p className='text-xs sm:text-sm font-semibold leading-snug truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]' title={primaryLine}>
+            {primaryLine}
+          </p>
+          {showSecondary ? (
+            <p
+              className={cn(
+                'mt-0.5 leading-snug text-white/80 line-clamp-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]',
+                // ~halbe optische Groesse zum Dateinamen (dezenter Untertitel)
+                'text-[10px] sm:text-[11px] font-normal',
+                doc.textur_code && secondaryLine === doc.textur_code.trim() && 'font-mono',
+              )}
+              title={secondaryLine}
+            >
+              {secondaryLine}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className='absolute top-2 left-2 z-10 flex items-center gap-1.5'>
+        <SourceStarsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          isFavorite={doc.isFavorite === true}
+          favoriteCount={doc.favoriteCount}
+          favoriteVoters={doc.favoriteVoters}
+          onToggleFavorite={onToggleFavorite}
+          variant='light'
+        />
+        <SourceCommentsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          commentCount={doc.commentCount}
+          variant='light'
+        />
+      </div>
+
+      <DivaTextureClassificationBadges doc={doc} />
+
+      {libraryId && doc.detailViewType === 'divaTexture' ? (
+        <div className='absolute bottom-12 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100'>
+          <DivaTextureClassificationActions
+            doc={doc}
+            libraryId={libraryId}
+            onChanged={onClassificationChanged}
+          />
+        </div>
+      ) : null}
+
+      <div className='absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
+    </article>
+  )
+}
+
+/**
+ * Pass-1-Klassifikations-Badges (Stufe 4): Material-Klasse + Typ + Konfidenz
+ * sowie Locked-/Rejected-Indikator. Wird in der oberen rechten Ecke gerendert
+ * und bleibt unsichtbar, wenn das Material noch keine Klassifikation hat.
+ */
+function DivaTextureClassificationBadges({ doc }: { doc: DocCardMeta }): React.ReactNode {
+  const materialClass = doc.material_class?.trim() || ''
+  const materialType = doc.material_type?.trim() || ''
+  const confidenceClass = typeof doc.confidence_class === 'number' ? doc.confidence_class : null
+  const locked = doc.classification_locked === true
+  const rejected = doc.classification_rejected === true
+  const needsVisualRefresh = doc.needs_visual_refresh === true
+
+  // Nichts zu zeigen — Karte bleibt unverfaelscht.
+  if (!materialClass && confidenceClass === null && !locked && !rejected && !needsVisualRefresh) {
+    return null
+  }
+
+  const classLabel = materialType
+    ? `${materialClass} / ${materialType}`
+    : materialClass || '—'
+  const confidenceLabel =
+    confidenceClass !== null ? `${Math.round(confidenceClass * 100)}%` : ''
+  const confidenceTone = (() => {
+    if (confidenceClass === null) return 'bg-black/60 text-white/90'
+    if (confidenceClass >= 0.9) return 'bg-emerald-600/85 text-white'
+    if (confidenceClass >= 0.7) return 'bg-amber-500/85 text-white'
+    return 'bg-rose-600/85 text-white'
+  })()
+
+  return (
+    <div className='absolute top-2 right-2 z-10 flex flex-col items-end gap-1'>
+      {materialClass ? (
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-medium leading-none shadow',
+            'bg-black/60 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]',
+          )}
+          title={`Material-Klasse: ${classLabel}`}
+        >
+          {classLabel}
+        </span>
+      ) : null}
+      {confidenceLabel ? (
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none shadow',
+            confidenceTone,
+          )}
+          title={`Konfidenz: ${confidenceLabel}`}
+        >
+          {confidenceLabel}
+        </span>
+      ) : null}
+      {locked ? (
+        <span
+          className='rounded-full bg-slate-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-900 shadow'
+          title='Override gesetzt: Gruppen-Klassifikation ueberschreibt nicht'
+        >
+          locked
+        </span>
+      ) : null}
+      {rejected ? (
+        <span
+          className='rounded-full bg-rose-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-rose-900 shadow'
+          title='Klassifikation verworfen: Material wird nicht gruppenklassifiziert'
+        >
+          verworfen
+        </span>
+      ) : null}
+      {needsVisualRefresh ? (
+        <span
+          className='rounded-full bg-sky-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-sky-900 shadow'
+          title='Klasse wurde nachtraeglich korrigiert — Korrektur-Lauf im Archiv erforderlich'
+        >
+          refresh
+        </span>
+      ) : null}
+    </div>
+  )
+}

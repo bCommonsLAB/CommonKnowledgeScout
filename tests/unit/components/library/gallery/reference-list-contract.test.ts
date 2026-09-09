@@ -19,12 +19,12 @@ import { describe, it, expect } from 'vitest'
 
 describe('ReferenceList Export-Vertrag', () => {
   it('ReferenceList ist eine Funktion (React-Komponente)', async () => {
-    const mod = await import('@/components/library/gallery/reference-list')
+    const mod = await import('@ks/module-explorer/gallery/components/reference-list')
     expect(typeof mod.ReferenceList).toBe('function')
   })
 
   it('ReferenceList ist ein benannter Export', async () => {
-    const mod = await import('@/components/library/gallery/reference-list')
+    const mod = await import('@ks/module-explorer/gallery/components/reference-list')
     expect('ReferenceList' in mod).toBe(true)
   })
 })

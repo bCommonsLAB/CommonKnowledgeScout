@@ -18,3 +18,45 @@ export type {
   ExplorerContext,
   ExplorerAccessStatus,
 } from './types'
+
+// Die Galerie (Welle M4i). Ihre oeffentliche Oberflaeche steht in
+// `../gallery/index.ts`; hier nur durchgereicht, damit es einen Einstieg gibt.
+export {
+  GalleryRoot,
+  DocumentCard,
+  SdgProfile,
+  StakeholderPositions,
+  AiText,
+  OriginalQuote,
+  GalleryViewerProvider,
+  useGalleryViewer,
+  ANONYMOUS_VIEWER,
+  GalleryNavigationProvider,
+  useGalleryNavigation,
+  GalleryHostProvider,
+  useGalleryHost,
+  STILLER_GASTGEBER,
+  SchlichtesBild,
+  galleryFiltersAtom,
+  chatReferencesAtom,
+  useGalleryData,
+  useLibraryRole,
+  readGalleryMode,
+  nextParamsForMode,
+  normalizeGalleryCardDensity,
+  mapItemToDocCardMeta,
+} from '../gallery'
+export type {
+  GalleryRootProps,
+  DetailRenderer,
+  DetailRenderProps,
+  GalleryViewer,
+  GalleryNavigation,
+  GalleryHost,
+  GalleryImageProps,
+  LibraryRoleClient,
+  UseLibraryRoleResult,
+  GalleryMode,
+  GalleryCardDensity,
+  GalleryItem,
+} from '../gallery'

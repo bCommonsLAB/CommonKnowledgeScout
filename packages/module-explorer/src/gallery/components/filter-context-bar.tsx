@@ -1,0 +1,428 @@
+'use client'
+
+import { Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
+import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
+import { useAtomValue } from 'jotai'
+import { galleryFiltersAtom } from '../atoms/gallery-filters'
+import { useTranslation } from '@ks/i18n/react'
+import { ViewModeToggle } from './view-mode-toggle'
+import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
+import type { ViewMode } from './gallery-sticky-header'
+import type { GalleryCardDensity } from '../lib/gallery-card-density'
+import { BulkDeleteButton } from './bulk-delete-button'
+import { BulkPublishButton } from './bulk-publish-button'
+import { RecomputeAllRelationsButton } from './recompute-all-relations-button'
+import type { DocCardMeta } from '../lib/types'
+import { useLibraryRole } from '../hooks/use-library-role'
+import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
+import { cn } from '@ks/util'
+
+interface FilterContextBarProps {
+  docCount: number
+  onOpenFilters: () => void
+  onClear: () => void
+  hideFilterButton?: boolean // Optional: Versteckt den Filter-Button (z.B. wenn Panel permanent sichtbar ist)
+  facetDefs?: Array<{ metaKey: string; label: string }> // Optional: Facetten-Definitionen für Label-Lookup
+  ctaLabel?: string // Optional: Label für CTA-Button
+  onCta?: () => void // Optional: Callback für CTA-Button
+  tooltip?: string // Optional: Tooltip für CTA-Button
+  viewMode?: ViewMode // Optional: View-Mode für Toggle
+  onViewModeChange?: (mode: ViewMode) => void // Optional: Callback für View-Mode-Änderung
+  /** Nur bei Grid: Raster kompakt vs. komfortabel (gleiche Quelle wie GalleryStickyHeader). */
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
+  mode?: 'gallery' | 'story' // Optional: Gallery oder Story-Modus
+  // Bulk-Delete Props
+  filteredDocuments?: Array<{ fileId?: string; id: string }> // Gefilterte Dokumente für Bulk-Delete
+  libraryId?: string // Library-ID für Bulk-Delete
+  onBulkDelete?: () => void // Callback nach Bulk-Delete
+  showBulkDelete?: boolean // Ob Bulk-Delete-Button angezeigt werden soll
+  totalCount?: number // Gesamtanzahl gefilterter Dokumente (für Bulk-Delete)
+  searchQuery?: string // Aktuelle Suchanfrage (für Bulk-Delete API-Aufruf)
+  // Bulk-Publish Props (identischer Owner-Scope wie Bulk-Delete, daher eigene Flag)
+  showBulkPublish?: boolean // Ob Bulk-Publish-Button angezeigt werden soll
+  onBulkPublish?: () => void // Callback nach erfolgreichem Bulk-Publish (Refresh)
+  /** Quelle A aktiv (config.chat.gallery.graph.edgeSources.relations.enabled): zeigt „Beziehungen für alle berechnen" neben Publish. */
+  relationsEnabled?: boolean
+  /** Ob Uebersetzungs-Zielsprachen konfiguriert sind (Kosten-Hinweis im Dialog). */
+  hasTranslationTargets?: boolean
+  /**
+   * Explizite fileId-Liste fuer Bulk-Aktionen (Publish/Delete).
+   *
+   * Wenn gesetzt, ueberschreibt sie den Server-Filter-Roundtrip in den
+   * Bulk-Buttons. Wird verwendet, wenn rein clientseitige Filter (z.B.
+   * "Nur Favoriten") aktiv sind, die der Server nicht kennt.
+   */
+  explicitBulkFileIds?: string[]
+  /**
+   * Prioritaets-Indikator-Sortierung anbieten? Nur sinnvoll, wenn die Docs
+   * einen persistierten `prioritaets_index` tragen (z.B. Klimamassnahmen) —
+   * der Aufrufer (gallery-root) berechnet das aus den geladenen Docs.
+   */
+  showRatingSort?: boolean
+}
+
+/**
+ * Filter-Kontext-Bar: Zeigt aktive Filter und Dokumentenanzahl
+ * Wird oben in Gallery und Story-Modus angezeigt
+ * 
+ * Zeigt Facetten-Filter (Track, Jahr, etc.) und shortTitle-Filter an.
+ */
+export function FilterContextBar({ 
+  docCount, 
+  onOpenFilters, 
+  onClear, 
+  hideFilterButton = false, 
+  facetDefs = [], 
+  ctaLabel, 
+  onCta, 
+  tooltip, 
+  viewMode, 
+  onViewModeChange,
+  cardDensity = 'comfortable',
+  onCardDensityChange,
+  mode,
+  filteredDocuments = [],
+  libraryId,
+  onBulkDelete,
+  showBulkDelete = false,
+  totalCount,
+  searchQuery,
+  showBulkPublish = false,
+  onBulkPublish,
+  hasTranslationTargets = false,
+  explicitBulkFileIds,
+  relationsEnabled = false,
+  showRatingSort = false,
+}: FilterContextBarProps) {
+  // Hole Filter aus Atom (zentrale Verwaltung)
+  const filters = useAtomValue(galleryFiltersAtom)
+  const { t } = useTranslation()
+  // Adresse lesen und mit Verlaufseintrag schreiben — wohin, weiss die App (M4f)
+  const { params: searchParams, pushParams } = useGalleryNavigation()
+  const { isMember } = useLibraryRole(libraryId)
+  const onlyFavoritesActive = searchParams?.get('favorites') === '1'
+  const onlyStarredActive = searchParams?.get('starred') === '1'
+  const onlyCommentedActive = searchParams?.get('commented') === '1'
+  const sortByStarsActive = searchParams?.get('sort') === 'stars'
+  const sortByRatingActive = searchParams?.get('sort') === 'rating'
+
+  const toggleOnlyFavorites = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyFavoritesActive) params.delete('favorites')
+    else params.set('favorites', '1')
+    pushParams(params)
+  }
+
+  const toggleOnlyStarred = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyStarredActive) params.delete('starred')
+    else params.set('starred', '1')
+    pushParams(params)
+  }
+
+  const toggleOnlyCommented = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyCommentedActive) params.delete('commented')
+    else params.set('commented', '1')
+    pushParams(params)
+  }
+
+  const toggleSortByStars = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (sortByStarsActive) params.delete('sort')
+    else params.set('sort', 'stars')
+    pushParams(params)
+  }
+
+  const toggleSortByRating = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (sortByRatingActive) params.delete('sort')
+    else params.set('sort', 'rating')
+    pushParams(params)
+  }
+  
+  // Erstelle eine Map für schnelles Label-Lookup
+  const labelMap = new Map<string, string>()
+  facetDefs.forEach(def => {
+    labelMap.set(def.metaKey, def.label || def.metaKey)
+  })
+  
+  // Extrahiere alle gesetzten Filter-Werte (Facetten-Filter und shortTitle-Filter)
+  const activeFilters: Array<{ key: string; value: string }> = []
+  Object.entries(filters as Record<string, string[] | undefined>).forEach(([key, values]) => {
+    if (Array.isArray(values) && values.length > 0) {
+      // Verwende Label aus facetDefs, falls verfügbar, sonst metaKey
+      // Für shortTitle verwenden wir ein benutzerfreundliches Label
+      const displayKey = key === 'shortTitle' 
+        ? t('gallery.document') 
+        : (labelMap.get(key) || key)
+      values.forEach(value => {
+        activeFilters.push({ key: displayKey, value: String(value) })
+      })
+    }
+  })
+
+  const hasActiveFilters = activeFilters.length > 0
+
+  return (
+    <div className="border-b py-2 lg:py-1 flex flex-col gap-2 lg:gap-1">
+      {/* Filter-Bar mit Icons, Badges und Buttons */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Titel mit Dokumentenanzahl - nur im Story-Modus */}
+        <h2 className="text-lg font-semibold">
+          {mode === 'story' ? t('gallery.tocReferences') + ": " : ''}
+          {docCount} {docCount === 1 ? t('gallery.source') : t('gallery.sources')}
+        </h2>
+        {!hideFilterButton && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onOpenFilters}
+          className="h-7 px-2 lg:px-2 shrink-0"
+        >
+          <Filter className="h-3 w-3 lg:mr-1" />
+          <span className="hidden lg:inline">{t('gallery.filter')}</span>
+        </Button>
+        )}
+        {/* "Nur Favoriten": nur die EIGENEN Sterne. Owner / Co-Creators only. */}
+        {isMember && (
+          <Button
+            variant={onlyFavoritesActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyFavorites}
+            aria-pressed={onlyFavoritesActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyFavoritesActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.favorites.filterOnlyTooltip', {
+              defaultValue: 'Nur meine eigenen Favoriten',
+            })}
+          >
+            <Star
+              className={cn('h-3.5 w-3.5 lg:mr-1', onlyFavoritesActive && 'fill-current')}
+              aria-hidden
+            />
+            <span className="hidden lg:inline">
+              {t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+            </span>
+          </Button>
+        )}
+        {/* "Mit Sternen": Team-Aggregat - alle Quellen mit mind. 1 Stern
+            (irgendein Mitglied). Eigenes Icon (Team) zur Abgrenzung vom
+            persoenlichen Stern. */}
+        {isMember && (
+          <Button
+            variant={onlyStarredActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyStarred}
+            aria-pressed={onlyStarredActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyStarredActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.favorites.starredFilterTooltip', {
+              defaultValue: 'Alle Quellen, die mindestens ein Mitglied favorisiert hat',
+            })}
+          >
+            <Users className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.favorites.starredFilter', { defaultValue: 'Mit Sternen' })}
+            </span>
+          </Button>
+        )}
+        {/* "Mit Kommentaren": alle Quellen mit mind. 1 Kommentar. Member-only. */}
+        {isMember && (
+          <Button
+            variant={onlyCommentedActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyCommented}
+            aria-pressed={onlyCommentedActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyCommentedActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.comments.filterTooltip', {
+              defaultValue: 'Nur Quellen mit Kommentaren',
+            })}
+          >
+            <MessageCircle className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.comments.filter', { defaultValue: 'Mit Kommentaren' })}
+            </span>
+          </Button>
+        )}
+        {/* Sortierung nach Sternen (Grid + Tabelle): Member-only. */}
+        {isMember && (
+          <Button
+            variant={sortByStarsActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleSortByStars}
+            aria-pressed={sortByStarsActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              sortByStarsActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
+          >
+            <ArrowDownWideNarrow className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
+            </span>
+          </Button>
+        )}
+        {/* Sortierung nach Rating (Prioritaets-Score): oeffentlich, aber nur
+            wenn die Library das Feature nutzt (Docs mit prioritaets_index —
+            z.B. Klimamassnahmen). Sonst waere der Toggle wirkungslos. */}
+        {showRatingSort && (
+          <Button
+            variant={sortByRatingActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleSortByRating}
+            aria-pressed={sortByRatingActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              sortByRatingActive && 'text-green-700 dark:text-green-300',
+            )}
+            title={t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
+          >
+            <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
+            </span>
+          </Button>
+        )}
+      {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
+      {hasActiveFilters && (
+        <div className="text-sm text-muted-foreground shrink-0">
+          {t('gallery.filtered')}:
+        </div>
+      )}
+
+      {/* Gesetzte Filter als Badges */}
+      {hasActiveFilters && (
+        <>
+          {activeFilters.map((filter, index) => (
+            <Badge
+              key={`${filter.key}-${filter.value}-${index}`}
+              variant="secondary"
+              className="text-xs shrink-0"
+            >
+              {filter.key}: {filter.value}
+            </Badge>
+          ))}
+        </>
+      )}
+
+      {/* Button zum Zurücksetzen */}
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          className="h-7 px-2 shrink-0"
+        >
+          <X className="h-3 w-3 mr-1" />
+          {t('gallery.reset')}
+        </Button>
+      )}
+
+      {/* Galerie/Tabellen-Umschalter + optional Karten-Dichte (nur Grid) */}
+      {viewMode !== undefined && onViewModeChange && (
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {viewMode === 'grid' && onCardDensityChange && (
+            <GalleryCardDensityToggle
+              cardDensity={cardDensity}
+              onCardDensityChange={onCardDensityChange}
+              compact
+            />
+          )}
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
+        </div>
+      )}
+
+      {/*
+        Bulk-Buttons werden auch sichtbar, wenn `explicitBulkFileIds` einen
+        client-seitigen Scope vorgibt (z.B. "Nur Favoriten") - dann ist die
+        Server-`totalCount` nicht autoritativ.
+      */}
+      {showBulkPublish && libraryId && viewMode === 'table' && (
+        ((explicitBulkFileIds && explicitBulkFileIds.length > 0) ||
+          (totalCount !== undefined && totalCount > 0))
+      ) && (
+        <div className="flex items-center shrink-0">
+          <BulkPublishButton
+            libraryId={libraryId}
+            onPublished={onBulkPublish}
+            totalCount={totalCount}
+            filters={filters as Record<string, string[] | undefined>}
+            searchQuery={searchQuery || ''}
+            hasTranslationTargets={hasTranslationTargets}
+            explicitFileIds={explicitBulkFileIds}
+          />
+        </div>
+      )}
+
+      {/* Quelle A: Beziehungen für ALLE berechnen – neben „publizieren" (gleicher Owner-Scope). */}
+      {relationsEnabled && showBulkPublish && libraryId && viewMode === 'table' && (
+        <div className="flex items-center shrink-0">
+          <RecomputeAllRelationsButton libraryId={libraryId} docCount={totalCount ?? docCount} onChanged={onBulkPublish} />
+        </div>
+      )}
+
+      {showBulkDelete && libraryId && viewMode === 'table' && (
+        ((explicitBulkFileIds && explicitBulkFileIds.length > 0) ||
+          (totalCount !== undefined && totalCount > 0))
+      ) && (
+        <div className="flex items-center shrink-0">
+          <BulkDeleteButton
+            documents={filteredDocuments as DocCardMeta[]}
+            libraryId={libraryId}
+            onDeleted={onBulkDelete}
+            variant="destructive"
+            size="sm"
+            totalCount={totalCount}
+            filters={filters}
+            searchQuery={searchQuery || ''}
+            explicitFileIds={explicitBulkFileIds}
+          />
+        </div>
+      )}
+
+      {/* CTA-Button - immer rechtsbündig */}
+      {ctaLabel && onCta && (
+        <div className="flex items-center shrink-0 ml-auto">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={onCta}
+                  className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 sm:px-4 text-xs sm:text-sm h-7 sm:h-8"
+                >
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span>{ctaLabel}</span>
+                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+              </TooltipTrigger>
+              {tooltip && (
+                <TooltipContent>
+                  <p>{tooltip}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
+      </div>
+    </div>
+  )
+}
+

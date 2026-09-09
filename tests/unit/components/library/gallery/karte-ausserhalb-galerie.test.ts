@@ -7,7 +7,7 @@
  * Montagepunkt (`src/app/library/gallery/client.tsx`). Zwei Stellen ausserhalb
  * hatten keinen und warfen beim Rendern — darunter die oeffentliche
  * Root-Landingpage. Dieser Test zaehlt jede Datei ausserhalb des
- * Galerie-Ordners, die die Karte importiert, und verlangt fuer jede eine
+ * Galerie (seit M4i: im Paket), die die Karte importiert, und verlangt fuer jede eine
  * benannte Begruendung, wo der Anbieter sitzt.
  *
  * Eine neue Aufrufstelle faellt hier rot, bis sie eingetragen ist — mit dem
@@ -55,7 +55,8 @@ function collect(dir: string, acc: string[] = []): string[] {
   return acc
 }
 
-const IMPORTIERT_KARTE = /from ['"]@\/components\/library\/gallery\/document-card['"]/
+// Seit M4i kommt die Karte aus dem Paket: ein Import von `DocumentCard` aus `@ks/module-explorer/react`.
+const IMPORTIERT_KARTE = /import\s*(?:type\s*)?\{[^}]*\bDocumentCard\b[^}]*\}\s*from\s*['"]@ks\/module-explorer\/react['"]/
 
 describe('Galerie-Karte ausserhalb der Galerie', () => {
   const aufrufstellen = collect(join(REPO_ROOT, 'src'))

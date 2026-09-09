@@ -196,28 +196,56 @@ faengt beide Formen.
 Stand des Kegels nach M4h: kein `next/*`, kein fremder Baustein, kein
 App-Helfer. **Er ist umzugsfertig.**
 
-## 6. Hand-off fuer M4i — der Umzug
+## 6. M4i — der Umzug (umgesetzt, 2026-09-09, eine PR)
 
-- **Welle**: M4i. Branch `claude/modularisierung-m4i-<suffix>`. Vermutlich
-  zwei PRs entlang `lib/gallery` + `hooks/gallery` (erst) und
-  `components/library/gallery` (dann), jeweils mit den Kontexten und Atomen.
-- **Ziel**: `git mv` nach `packages/module-explorer/src/gallery/…`;
-  `GalleryRoot` samt `GalleryRootProps`, den drei Kontexten
-  (`GalleryViewer`, `GalleryNavigation`, `GalleryHost`) und
-  `STILLER_GASTGEBER`/`ANONYMOUS_VIEWER` aus `@ks/module-explorer/react`.
-  Die drei App-Bruecken (`ClerkGalleryViewerBridge`, `NextGalleryNavigation`,
-  `AppGalleryHost`) und `GalleryAppProviders` bleiben in der App und
-  importieren die Kontexte aus dem Paket.
-- **Was das Paket dafuer braucht**: `jotai`, `lucide-react`, `react` sind
-  Peers; dazu kommen `d3` (Graph), `@tanstack/react-virtual`, `sonner`,
-  `react-markdown` — messen, was der Kegel wirklich importiert, und in
-  `package.json` eintragen. Tailwind-Klassen laufen ueber den bestehenden
-  Glob `packages/*/src/**`.
-- **Beweis**: `pnpm typecheck:packages` prueft das Paket isoliert — ein
-  Rueckwaerts-Import scheitert dort mit `TS2307`. Die Schnitt-Tests laufen
-  danach gegen `packages/module-explorer/src/gallery`.
-- **Stop**: Ein `@/`-Import taucht beim Umzug auf, den der Schnitt-Test nicht
-  sah → erst den Test schaerfen, dann weiter. `pnpm build` >2x rot ohne
-  Fortschritt → abbrechen.
-- **Modell**: `claude-opus`, Thinking medium. Neuer Agent; dieses Brief
-  genuegt.
+`git mv` von 110 Dateien nach `packages/module-explorer/src/gallery/`
+(`components/`, `hooks/`, `lib/`, `contexts/`, `atoms/`); `git log --follow`
+haelt. Paket-intern sind alle `@/`-Importe relativ geworden (63 Dateien); die
+App importiert die Galerie nur noch ueber `@ks/module-explorer/react`
+(17 Dateien), die Tests ueber den Test-Alias `@ks/module-explorer/gallery/*`
+(31 Dateien; nur in `vitest.config.ts` und den tsconfig-`paths`, nicht in den
+Paket-Exports — ein Waechter-Test verbietet ihn der App).
+
+Was das Paket dazubekam: `@ks/util`, `@ks/api-client`, `@ks/viewers` als
+Abhaengigkeiten, `d3`, `react-markdown`, `remark-gfm` als Peers — und
+`"sideEffects": false`. Ohne das zoege jeder Import aus dem React-Barrel
+(z. B. `galleryFiltersAtom` im Wurzel-Layout) die ganze Galerie in den Chunk.
+
+Vier Bausteine, die die Klimamassnahmen-Detailansicht der App wiederverwendet
+(`SdgProfile`, `StakeholderPositions`, `AiText`, `OriginalQuote`), sind
+exportiert — sie kamen ueber RELATIVE Importe, die keine Messung mit `@/`
+gesehen hatte.
+
+**Beweise**: `pnpm typecheck:packages` prueft das Paket isoliert (ohne
+`@/`-Pfad) — gruen. `galerie-schnitt.test.ts`: „die Galerie im Paket
+importiert nichts aus `@/`" und „die App importiert keine Galerie-Interna",
+beide Gegenproben gelaufen. Alle Wurzeln der aelteren Faelle zeigen ins Paket.
+
+**Stand**: `GalleryRoot` kommt aus dem Paket. Damit ist die Landkarten-Zeile
+M4 vollstaendig, und M5 kann beginnen.
+
+## 7. Hand-off fuer M5 — `@ks/embed`
+
+- **Ziel** (AGENT-BRIEF-M5, Schritte 2, 4, 5): `<KnowledgeScoutExplorer
+  baseUrl library view locale />` in der Next-Anwendung von AECED, anonym,
+  nur oeffentliche Inhalte. Termin: Arbeitstreffen 15.09.
+- **Basis-URL zuerst**: 41 `fetch('/api/…')` in der Galerie (gezaehlt in §1)
+  laufen ueber einen Host-Kontext mit `ApiClientConfig.baseUrl`
+  (`@ks/api-client` kennt ihn schon). In der App leer, im Embed die Instanz.
+  Beweis: ein Test, der nacktes `fetch('/api` im Paket verbietet.
+- **Embed-Adressierung**: eine zweite `GalleryNavigation`, die den Zustand
+  im Speicher haelt (der Gast fasst die Wirts-URL nicht an, Owner
+  2026-08-29), plus `STILLER_GASTGEBER` und `ANONYMOUS_VIEWER` — die drei
+  Kontexte sind dafuer gebaut.
+- **Renderer**: das Embed liefert seine eigene `detailRenderers`-Tabelle;
+  AECED-Inhalte sind `book` (Owner 2026-09-09), also reicht der Buch-Renderer
+  — der liegt heute in der App (`ingestion-book-detail`, 85 Zeilen + Kegel)
+  und muss ins Paket oder ins Embed.
+- **Huelle**: `packages/embed` mit Build (tsup), CSS-Scoping fuer Tailwind
+  in einer fremden Seite, `@ks/i18n` als Prop; CORS auf den oeffentlichen
+  Lese-Routen der Instanz.
+- **Stop**: Story und Chat NICHT mitnehmen (STAND.md, „Nicht in diesem
+  Vorhaben"). Ein Fetch braucht Anmeldung → er gehoert nicht ins Embed.
+- **Modell**: `claude-opus`, Thinking high — Architektur mit Trade-offs
+  (Basis-URL-Durchreichung, CSS). Neuer Agent; dieses Brief und
+  `AGENT-BRIEF-M5.md` genuegen.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import { sortDocsByTableColumn } from '@ks/module-explorer/gallery/lib/table-sort'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 const baseDoc = (id: string, fileId: string, title: string): DocCardMeta => ({
   id,

@@ -423,6 +423,9 @@ importers:
 
   packages/module-explorer:
     dependencies:
+      '@ks/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@ks/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -435,6 +438,15 @@ importers:
       '@ks/ui':
         specifier: workspace:*
         version: link:../ui
+      '@ks/util':
+        specifier: workspace:*
+        version: link:../util
+      '@ks/viewers':
+        specifier: workspace:*
+        version: link:../viewers
+      d3:
+        specifier: ^7
+        version: 7.9.0
       jotai:
         specifier: ^2.11.0
         version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
@@ -444,6 +456,12 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
+      react-markdown:
+        specifier: ^9.0.3
+        version: 9.1.0(@types/react@18.3.23)(react@18.2.0)
+      remark-gfm:
+        specifier: ^4.0.0
+        version: 4.0.1
 
   packages/shell:
     dependencies:
@@ -3129,6 +3147,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@unrs/resolver-binding-darwin-arm64@1.7.11':
     resolution: {integrity: sha512-i3/wlWjQJXMh1uiGtiv7k1EYvrrS3L1hdwmWJJiz1D8jWy726YFYPIxQWbEIVPVAgrfRR0XNlLrTQwq17cuCGw==}

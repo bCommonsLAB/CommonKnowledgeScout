@@ -14,7 +14,7 @@ import { parseWebsiteSections } from "@/lib/website/parse-website-sections"
 import { SectionBlock } from "@/components/library/website/website-landing-blocks"
 import { useWebsiteDetail } from "@/components/library/website/use-website-landing-data"
 import { getSiteParamForDoc } from "@/lib/website/site-navigation"
-import type { DocCardMeta } from "@/lib/gallery/types"
+import type { DocCardMeta } from "@ks/contracts"
 
 interface WebsiteSiteFooterProps {
   libraryId: string

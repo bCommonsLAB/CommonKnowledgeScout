@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { galleryFiltersAtom } from '@ks/module-explorer/react'
 import { useLibraries } from '@ks/shell/react'
 import { ScrollArea, Button } from '@ks/ui'
 import { StoryTopics } from '../story/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import { useSetAtom } from 'jotai'
-import { chatReferencesAtom } from '@/atoms/chat-references-atom'
+import { chatReferencesAtom } from '@ks/module-explorer/react'
 import {
   type Character,
   type AccessPerspective,
@@ -43,7 +43,7 @@ import { useChatTOC } from './hooks/use-chat-toc'
 import type { QueryLog } from '@/types/query-log'
 import type { GalleryFilters } from '@ks/contracts'
 import { useTranslation } from '@ks/i18n/react'
-import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
+import { useGalleryData } from '@ks/module-explorer/react'
 import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
 import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 

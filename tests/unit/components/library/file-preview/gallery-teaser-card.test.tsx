@@ -18,9 +18,9 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
-import { DocumentCard } from '@/components/library/gallery/document-card'
+import { DocumentCard } from '@ks/module-explorer/gallery/components/document-card'
 import { GalleryTeaserCard } from '@/components/library/file-preview/gallery-teaser-card'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 const push = vi.fn()
 const replace = vi.fn()
@@ -45,18 +45,18 @@ vi.mock('@ks/i18n/react', () => ({
   }),
 }))
 
-vi.mock('@/lib/gallery/resolve-cover-url-client', () => ({
+vi.mock('@ks/module-explorer/gallery/lib/resolve-cover-url-client', () => ({
   coverRefNeedsApiResolution: () => false,
   resolveCoverUrlViaApi: vi.fn().mockResolvedValue(null),
 }))
 
-vi.mock('@/components/library/gallery/speaker-icons', () => ({
+vi.mock('@ks/module-explorer/gallery/components/speaker-icons', () => ({
   SpeakerOrAuthorIcons: () => null,
 }))
-vi.mock('@/components/library/gallery/source-stars-badge', () => ({
+vi.mock('@ks/module-explorer/gallery/components/source-stars-badge', () => ({
   SourceStarsBadge: () => null,
 }))
-vi.mock('@/components/library/gallery/source-comments-badge', () => ({
+vi.mock('@ks/module-explorer/gallery/components/source-comments-badge', () => ({
   SourceCommentsBadge: () => null,
 }))
 

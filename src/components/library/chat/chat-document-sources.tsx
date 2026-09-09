@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useAtom } from 'jotai'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { galleryFiltersAtom } from '@ks/module-explorer/react'
 import { useActiveLibraryId } from '@ks/shell/react'
 import { Button, Badge, Tooltip, TooltipContent, TooltipTrigger } from '@ks/ui'
 import { FileText, Filter } from 'lucide-react'

@@ -21,7 +21,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { useLibraries } from '@ks/shell/react'
 import { WebsiteDetail } from "@/components/library/website-detail"
-import { DocumentCard } from "@/components/library/gallery/document-card"
+import { DocumentCard } from "@ks/module-explorer/react"
 import { WebsiteSiteFooter } from "@/components/library/website/website-site-footer"
 import { useWebsiteDocs, useWebsiteDetail, fetchDocs } from "@/components/library/website/use-website-landing-data"
 import {
@@ -32,7 +32,7 @@ import {
 } from "@/lib/website/site-navigation"
 import { useTranslation } from "@ks/i18n/react"
 import { getEffectiveDocumentNavigationSlug } from "@ks/util"
-import type { DocCardMeta } from "@/lib/gallery/types"
+import type { DocCardMeta } from "@ks/contracts"
 
 interface WebsiteLandingLiveProps {
   libraryId: string

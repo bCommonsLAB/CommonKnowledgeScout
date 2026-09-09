@@ -13,14 +13,14 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
-import { FilterContextBar } from '@/components/library/gallery/filter-context-bar'
+import { FilterContextBar } from '@ks/module-explorer/gallery/components/filter-context-bar'
 
 const pushMock = vi.fn()
 let currentSearch = ''
 
 // Seit M4f schreibt die Leiste nicht mehr selbst in die Adresse, sondern sagt
 // `pushParams(next)`. Der Mock zeichnet auf, was sie sagen wollte.
-vi.mock('@/contexts/gallery-navigation-context', () => ({
+vi.mock('@ks/module-explorer/gallery/contexts/gallery-navigation-context', () => ({
   useGalleryNavigation: () => ({
     params: new URLSearchParams(currentSearch),
     pushParams: (next: URLSearchParams) => pushMock(next.toString()),
@@ -28,7 +28,7 @@ vi.mock('@/contexts/gallery-navigation-context', () => ({
 }))
 
 let mockIsMember = true
-vi.mock('@/hooks/gallery/use-library-role', () => ({
+vi.mock('@ks/module-explorer/gallery/hooks/use-library-role', () => ({
   useLibraryRole: () => ({
     isMember: mockIsMember,
     isSignedIn: true,
@@ -52,20 +52,20 @@ vi.mock('jotai', async () => {
   return { ...actual, useAtomValue: () => ({}) }
 })
 
-vi.mock('@/atoms/gallery-filters', () => ({
+vi.mock('@ks/module-explorer/gallery/atoms/gallery-filters', () => ({
   galleryFiltersAtom: { toString: () => 'galleryFilters' },
 }))
 
-vi.mock('@/components/library/gallery/view-mode-toggle', () => ({
+vi.mock('@ks/module-explorer/gallery/components/view-mode-toggle', () => ({
   ViewModeToggle: () => <div data-testid="view-mode-toggle" />,
 }))
-vi.mock('@/components/library/gallery/gallery-card-density-toggle', () => ({
+vi.mock('@ks/module-explorer/gallery/components/gallery-card-density-toggle', () => ({
   GalleryCardDensityToggle: () => <div data-testid="density-toggle" />,
 }))
-vi.mock('@/components/library/gallery/bulk-delete-button', () => ({
+vi.mock('@ks/module-explorer/gallery/components/bulk-delete-button', () => ({
   BulkDeleteButton: () => <div data-testid="bulk-delete" />,
 }))
-vi.mock('@/components/library/gallery/bulk-publish-button', () => ({
+vi.mock('@ks/module-explorer/gallery/components/bulk-publish-button', () => ({
   BulkPublishButton: () => <div data-testid="bulk-publish" />,
 }))
 

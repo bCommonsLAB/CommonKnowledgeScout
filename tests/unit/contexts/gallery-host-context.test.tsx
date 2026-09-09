@@ -24,7 +24,7 @@ import {
   STILLER_GASTGEBER,
   SchlichtesBild,
   type GalleryHost,
-} from '@/contexts/gallery-host-context'
+} from '@ks/module-explorer/gallery/contexts/gallery-host-context'
 
 describe('useGalleryHost', () => {
   it('wirft ohne Anbieter, statt still nichts zu tun', () => {

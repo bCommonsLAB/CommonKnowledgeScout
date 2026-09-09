@@ -11,7 +11,7 @@
 
 import { Badge } from '@ks/ui'
 import { useActiveLibraryId } from '@ks/shell/react'
-import { useLibraryRole } from '@/hooks/gallery/use-library-role'
+import { useLibraryRole } from '@ks/module-explorer/react'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'
 import { getVerificationStatusDisplay } from '@/lib/library-verification/status-display'
 import type { LibraryVerificationStatus } from '@/lib/library-verification/types'

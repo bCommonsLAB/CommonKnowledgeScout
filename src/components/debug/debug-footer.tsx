@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { currentFolderIdAtom, selectedFileAtom } from '@/atoms/library-atom';
 import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { useStorage } from '@/contexts/storage-context';
-import { galleryFiltersAtom } from '@/atoms/gallery-filters';
+import { galleryFiltersAtom } from '@ks/module-explorer/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { ShadowTwinArtifactsTable } from '@/components/library/shared/shadow-twin-artifacts-table';

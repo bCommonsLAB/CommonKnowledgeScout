@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   coverRefNeedsApiResolution,
   leafFileNameForSiblingMatch,
-} from '@/lib/gallery/resolve-cover-url-client'
+} from '@ks/module-explorer/gallery/lib/resolve-cover-url-client'
 
 describe('coverRefNeedsApiResolution', () => {
   it('erkennt http(s)-URLs als bereits auflösbar', () => {

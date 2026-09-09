@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { sortDocsByTableColumn, getDocSortValue } from '@/lib/gallery/table-sort'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import { sortDocsByTableColumn, getDocSortValue } from '@ks/module-explorer/gallery/lib/table-sort'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 function doc(partial: Partial<DocCardMeta> & { id: string }): DocCardMeta {
   return { id: partial.id, ...partial }

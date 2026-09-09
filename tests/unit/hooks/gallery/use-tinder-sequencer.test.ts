@@ -12,8 +12,8 @@
 
 import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { useTinderSequencer } from '@/hooks/gallery/use-tinder-sequencer'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import { useTinderSequencer } from '@ks/module-explorer/gallery/hooks/use-tinder-sequencer'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 function makeDoc(id: string): DocCardMeta {
   return { id, fileId: id, title: id, fileName: id } as DocCardMeta

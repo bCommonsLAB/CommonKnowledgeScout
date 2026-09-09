@@ -15,8 +15,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
-import { ItemsGrid } from '@/components/library/gallery/items-grid'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import { ItemsGrid } from '@ks/module-explorer/gallery/components/items-grid'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
@@ -27,7 +27,7 @@ vi.mock('@ks/i18n/react', () => ({
   }),
 }))
 
-vi.mock('@/components/library/gallery/document-card', () => ({
+vi.mock('@ks/module-explorer/gallery/components/document-card', () => ({
   DocumentCard: ({ doc }: { doc: DocCardMeta }) => (
     <div data-testid="document-card-mock" data-id={doc.id}>{doc.title || doc.fileName}</div>
   ),

@@ -26,7 +26,7 @@ import {
   GalleryHostProvider,
   type GalleryHost,
   type GalleryImageProps,
-} from '@/contexts/gallery-host-context'
+} from '@ks/module-explorer/react'
 
 /** `next/image` hinter dem Bild-Vertrag der Galerie — Prop fuer Prop durchgereicht. */
 function NextBild({ src, alt, className, fill, width, height, loading, unoptimized, onError }: GalleryImageProps) {

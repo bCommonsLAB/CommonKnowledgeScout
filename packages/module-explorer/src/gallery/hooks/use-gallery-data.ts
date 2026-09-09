@@ -1,0 +1,381 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSetAtom, useAtomValue } from 'jotai'
+import { galleryDataAtom } from '../atoms/gallery-data'
+import type { DocCardMeta } from '../lib/types'
+import type { DocReference, QuerySource } from '@ks/contracts'
+
+/**
+ * Patcht ein einzelnes Dokument im aktuellen Galerie-State (`docs` und
+ * `groups`). Wird vom optimistic-Toggle der Sterne aufgerufen, damit die
+ * Karte den neuen `favoriteCount`/`favoriteVoters`/`isFavorite` sofort
+ * widerspiegelt - ohne den teuren Server-Refetch.
+ */
+export type GalleryDocMutator = (current: DocCardMeta) => DocCardMeta
+
+export function useGalleryData(
+  filters: Record<string, string[] | undefined>, 
+  mode: 'gallery' | 'story', 
+  searchQuery: string, 
+  libraryId?: string,
+  options?: {
+    skipApiCall?: boolean
+    refreshKey?: number
+    groupByField?: string
+    /**
+     * Wenn true, wird `?sort=stars` an die Galerie-API gesendet. Damit
+     * sortiert der Server global nach `favoriteCount` (siehe Plan, Welle 2).
+     * Member-only - die API ignoriert den Param fuer Nicht-Member.
+     */
+    sortByStars?: boolean
+    /**
+     * Wenn true, wird `?sort=rating` an die Galerie-API gesendet. Der Server
+     * sortiert dann global nach dem Roh-`rating` (= co2*durchsetzbarkeit/
+     * kosten); "Kosten unbekannt" (rating null) landet ans Ende. Oeffentlich.
+     */
+    sortByRating?: boolean
+    /**
+     * Schliesst einen `detailViewType` serverseitig aus der Liste aus (z.B.
+     * `website` in der oeffentlichen Slug-Galerie). Wirkt auf Liste, Gruppierung
+     * UND Zaehlung, weil serverseitig gefiltert wird.
+     */
+    excludeDetailViewType?: string
+    /**
+     * Globale Spalten-Sortierung der Tabellenansicht: sendet
+     * `?sortField=<key>&sortDir=<dir>` und erzwingt die FLACHE Liste
+     * (Gruppierung aus — Spaltenkopf-Sort = EINE Rangliste ueber alles).
+     * Hat Vorrang vor sortByStars/sortByRating.
+     */
+    sortByColumn?: { field: string; dir: 'asc' | 'desc' } | null
+  }
+) {
+  const setGalleryData = useSetAtom(galleryDataAtom)
+  const galleryDataFromAtom = useAtomValue(galleryDataAtom)
+  const skipApiCall = options?.skipApiCall ?? false
+  const sortByStars = options?.sortByStars ?? false
+  const sortByRating = options?.sortByRating ?? false
+  const excludeDetailViewType = options?.excludeDetailViewType
+  const sortByColumn = options?.sortByColumn ?? null
+  // Stabiler Dependency-Schluessel (unabhaengig von der Objekt-Identitaet des Callers)
+  const sortByColumnKey = sortByColumn ? `${sortByColumn.field}:${sortByColumn.dir}` : ''
+
+  const [docs, setDocs] = useState<DocCardMeta[]>([])
+  const [totalCount, setTotalCount] = useState<number>(0)
+  const [loading, setLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const LIMIT = 50
+
+  // Gruppenweise Pagination: State für serverseitig gruppierte Antworten (fließendes Scrollen).
+  // Spalten-Sortierung erzwingt die flache Liste (Server lehnt groupBy+sortField ab).
+  const groupByFieldOpt = options?.groupByField ?? 'year'
+  const useGroupedApi = groupByFieldOpt !== 'none' && !sortByColumn
+  const GROUPS_LIMIT = 5
+  const [groups, setGroups] = useState<Array<[string | number, DocCardMeta[]]>>([])
+  const [, setTotalGroups] = useState(0)
+  
+  // Memoize filters string für Dependency-Array
+  const filtersString = useMemo(() => JSON.stringify(filters), [filters])
+  
+  // Reset bei Filter-Änderungen, Refresh-Key oder Sort-Wechsel.
+  // Wichtig: sortByStars verhaelt sich semantisch wie ein Filter; bei
+  // Wechsel muessen wir die erste Page neu vom Server holen (sonst kommt
+  // die alte year-Sortierung zurueck).
+  useEffect(() => {
+    if (skipApiCall) return
+    setPage(1)
+    setHasMore(true)
+    setDocs([])
+    setTotalCount(0)
+    setGroups([])
+    setTotalGroups(0)
+    setIsLoadingMore(false)
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey])
+  
+  useEffect(() => {
+    // Überspringe API-Aufruf wenn skipApiCall true ist
+    if (skipApiCall) return
+    
+    let cancelled = false
+    const isFirstPage = page === 1
+    
+    async function load() {
+      if (!libraryId) return
+      
+      // Beim ersten Laden: loading, beim Nachladen: isLoadingMore
+      if (isFirstPage) {
+        setLoading(true)
+        setGalleryData(prev => ({ ...prev, loading: true, error: null }))
+      } else {
+        setIsLoadingMore(true)
+        setGalleryData(prev => ({ ...prev, isLoadingMore: true }))
+      }
+      setError(null)
+      try {
+        const params = new URLSearchParams()
+        Object.entries(filters).forEach(([k, arr]) => {
+          if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
+        })
+        if (searchQuery.trim()) {
+          params.append('search', searchQuery.trim())
+        }
+
+        if (useGroupedApi) {
+          // Serverseitige Gruppierung: Pagination nach Gruppen, neue Blöcke werden unten angehängt
+          const groupOffset = (page - 1) * GROUPS_LIMIT
+          params.append('groupBy', groupByFieldOpt)
+          params.append('groupOffset', String(groupOffset))
+          params.append('groupsLimit', String(GROUPS_LIMIT))
+        } else {
+          params.append('limit', String(LIMIT))
+          params.append('skip', String((page - 1) * LIMIT))
+        }
+        if (sortByColumn) {
+          // Globale Spalten-Sortierung im Server (flache Liste, leere Werte
+          // ans Ende, stabile Sekundaerschluessel — siehe column-sort.ts).
+          params.append('sortField', sortByColumn.field)
+          params.append('sortDir', sortByColumn.dir)
+        } else if (sortByStars) {
+          // Globale Sterne-Sortierung im Server (`vector-repo.findDocs(Grouped)`),
+          // Sekundaerschluessel year/upsertedAt fuer stabile Pagination.
+          params.append('sort', 'stars')
+        } else if (sortByRating) {
+          // Globale Rating-Sortierung im Server (rating desc, null ans Ende).
+          params.append('sort', 'rating')
+        }
+        if (excludeDetailViewType) {
+          params.append('excludeDetailViewType', excludeDetailViewType)
+        }
+
+        const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
+        const res = await fetch(url, { cache: 'no-store' })
+        const ct = res.headers.get('content-type') || ''
+        if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Dokumente')
+        
+        if (useGroupedApi && !cancelled && Array.isArray(data?.groups)) {
+          const newGroups = data.groups as Array<{ key: string | number; items: DocCardMeta[] }>
+          const totalG = typeof data.totalGroups === 'number' ? data.totalGroups : 0
+          // Gesamtzahl aller Dokumente (vom Server) - wichtig für korrekte Anzeige "X Quellen"
+          const serverTotalDocs = typeof data.total === 'number' ? data.total : 0
+          const groupOffset = (page - 1) * GROUPS_LIMIT
+          const hasMoreGroups = groupOffset + newGroups.length < totalG
+          const newGroupTuples = newGroups.map(
+            g => [g.key, g.items] as [string | number, DocCardMeta[]],
+          )
+          const newFlat = newGroupTuples.flatMap(([, items]) => items)
+
+          setGroups(prev => isFirstPage ? newGroupTuples : [...prev, ...newGroupTuples])
+          setTotalGroups(totalG)
+          setHasMore(hasMoreGroups)
+          setDocs(prev => isFirstPage ? newFlat : [...prev, ...newFlat])
+          // Verwende die Gesamtzahl vom Server (statt inkrementelles Addieren)
+          setTotalCount(serverTotalDocs)
+          setGalleryData(prev => ({
+            docs: isFirstPage ? newFlat : [...prev.docs, ...newFlat],
+            totalCount: serverTotalDocs,
+            loading: false,
+            isLoadingMore: false,
+            error: null,
+            hasMore: hasMoreGroups,
+          }))
+        } else if (!useGroupedApi && !cancelled && Array.isArray(data?.items)) {
+          const newItems = data.items as DocCardMeta[]
+          const total = typeof data.total === 'number' ? data.total : newItems.length
+          const hasMoreData = newItems.length === LIMIT
+          const updatedDocs = isFirstPage ? newItems : [...docs, ...newItems]
+          
+          setHasMore(hasMoreData)
+          setDocs(updatedDocs)
+          setTotalCount(total)
+          
+          setGalleryData({
+            docs: updatedDocs,
+            totalCount: total,
+            loading: false,
+            isLoadingMore: false,
+            error: null,
+            hasMore: hasMoreData,
+          })
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
+        if (!cancelled) {
+          setError(msg)
+          setGalleryData(prev => ({
+            ...prev,
+            loading: false,
+            isLoadingMore: false,
+            error: msg,
+          }))
+        }
+      } finally {
+        if (!cancelled) {
+          if (isFirstPage) {
+            setLoading(false)
+            setGalleryData(prev => ({ ...prev, loading: false }))
+          } else {
+            setIsLoadingMore(false)
+            setGalleryData(prev => ({ ...prev, isLoadingMore: false }))
+          }
+        }
+      }
+    }
+    load()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey])
+
+
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      setPage(p => p + 1)
+    }
+  }
+
+  /**
+   * Wendet einen Mutator auf das Doc mit der angegebenen `fileId` an
+   * und propagiert die Aenderung in alle abhaengigen States (`docs`,
+   * `groups`, Atom). Wenn das Doc nicht gefunden wird, ist der Aufruf
+   * ein No-op.
+   *
+   * Wird vom optimistic-Toggle der Sterne genutzt, damit der Counter
+   * sofort reagiert; bei Fehler kann der Caller dieselbe Funktion mit
+   * dem inversen Update fuer den Rollback aufrufen.
+   */
+  const mutateDoc = useCallback(
+    (fileId: string, updater: GalleryDocMutator) => {
+      if (!fileId) return
+      const apply = (doc: DocCardMeta): DocCardMeta => {
+        if ((doc.fileId || doc.id) !== fileId) return doc
+        return updater(doc)
+      }
+      setDocs(prev => prev.map(apply))
+      setGroups(prev =>
+        prev.map(([key, items]) => [key, items.map(apply)] as [string | number, DocCardMeta[]]),
+      )
+      setGalleryData(prev => ({ ...prev, docs: prev.docs.map(apply) }))
+    },
+    [setGalleryData],
+  )
+
+  // Wenn skipApiCall true ist, verwende Atom-Daten für Rückgabe
+  const shouldUseAtomData = skipApiCall
+  const finalDocs = shouldUseAtomData ? galleryDataFromAtom.docs : docs
+  const finalTotalCount = shouldUseAtomData ? galleryDataFromAtom.totalCount : totalCount
+  const finalLoading = shouldUseAtomData ? galleryDataFromAtom.loading : loading
+  const finalError = shouldUseAtomData ? galleryDataFromAtom.error : error
+  const finalHasMore = shouldUseAtomData ? galleryDataFromAtom.hasMore : hasMore
+  const finalIsLoadingMore = shouldUseAtomData ? galleryDataFromAtom.isLoadingMore : isLoadingMore
+  
+  const finalFilteredDocs = finalDocs
+  
+  // Gruppierung: bei serverseitiger Gruppierung (groupByField !== 'none') kommen Gruppen aus State;
+  // sonst clientseitige Gruppierung aus finalFilteredDocs
+  const groupByField = options?.groupByField || 'year'
+  
+  const groupedDocsClient = useMemo(() => {
+    // Spalten-Sortierung: KEINE clientseitige Re-Gruppierung — die Antwort
+    // ist eine global sortierte flache Liste und muss es bleiben.
+    if (groupByField === 'none' || sortByColumn) {
+      return [['', finalFilteredDocs] as [string, DocCardMeta[]]]
+    }
+    const grouped = new Map<number | string, DocCardMeta[]>()
+    const noGroupLabel = groupByField === 'year' ? 'Ohne Jahrgang' : 'Ohne Zuordnung'
+    for (const doc of finalFilteredDocs) {
+      let groupValue: string | number | undefined
+      if (groupByField === 'year') {
+        groupValue = doc.year
+      } else {
+        const rawValue = (doc as unknown as Record<string, unknown>)[groupByField]
+        if (typeof rawValue === 'string' && rawValue.length > 0) groupValue = rawValue
+        else if (typeof rawValue === 'number') groupValue = rawValue
+      }
+      const key = groupValue ?? noGroupLabel
+      if (!grouped.has(key)) grouped.set(key, [])
+      grouped.get(key)!.push(doc)
+    }
+    const noGroupLabelSort = groupByField === 'year' ? 'Ohne Jahrgang' : 'Ohne Zuordnung'
+    const sorted = Array.from(grouped.entries()).sort((a, b) => {
+      const keyA = a[0]
+      const keyB = b[0]
+      if (keyA === noGroupLabelSort) return 1
+      if (keyB === noGroupLabelSort) return -1
+      if (groupByField === 'year') {
+        const yearA = typeof keyA === 'string' ? parseInt(keyA, 10) : keyA
+        const yearB = typeof keyB === 'string' ? parseInt(keyB, 10) : keyB
+        return (yearB as number) - (yearA as number)
+      }
+      return String(keyA).localeCompare(String(keyB), 'de')
+    })
+    return sorted
+  }, [finalFilteredDocs, groupByField, sortByColumn])
+
+  const groupedDocs = useGroupedApi ? groups : groupedDocsClient
+  
+  return { 
+    docs: finalDocs, 
+    setDocs, 
+    loading: finalLoading, 
+    error: finalError, 
+    filteredDocs: finalFilteredDocs, 
+    docsByYear: groupedDocs, // Umbenennung wäre besser, aber für Rückwärtskompatibilität beibehalten
+    groupedDocs, // Neuer Name für Klarheit
+    groupByField, // Aktuelles Gruppierungsfeld zurückgeben
+    loadMore, 
+    hasMore: finalHasMore, 
+    isLoadingMore: finalIsLoadingMore, 
+    totalCount: finalTotalCount,
+    mutateDoc,
+  }
+}
+
+/**
+ * Gruppiert Dokumente nach Referenzen
+ * @param docs Alle verfügbaren Dokumente
+ * @param references Referenzen, die vom LLM verwendet wurden
+ * @param sources Sources, die vom Retriever gefunden wurden
+ * @returns Gruppierte Dokumente: usedDocs (in Antwort verwendet) und unusedDocs (gefunden, aber nicht verwendet)
+ */
+export function groupDocsByReferences(
+  docs: DocCardMeta[],
+  references: DocReference[],
+  sources?: QuerySource[]
+): { usedDocs: DocCardMeta[]; unusedDocs: DocCardMeta[] } {
+  // Extrahiere fileIds aus references
+  const usedFileIds = new Set(references.map(ref => ref.fileId))
+  
+  // Gruppiere Dokumente nach Referenzen
+  
+  // Filtere Dokumente, die in references sind
+  const usedDocs = docs.filter(doc => {
+    const fileId = doc.fileId || doc.id
+    return usedFileIds.has(fileId)
+  })
+  
+  // Für unusedDocs: Extrahiere fileIds aus sources, die nicht in references sind
+  const unusedFileIds = new Set<string>()
+  if (sources && sources.length > 0) {
+    for (const source of sources) {
+      // Extrahiere fileId aus source.id (Format: "fileId-chunkIndex" oder ähnlich)
+      const fileId = source.id.split('-')[0]
+      if (!usedFileIds.has(fileId)) {
+        unusedFileIds.add(fileId)
+      }
+    }
+  }
+  
+  // Filtere Dokumente, die in unusedFileIds sind
+  const unusedDocs = docs.filter(doc => {
+    const fileId = doc.fileId || doc.id
+    return unusedFileIds.has(fileId)
+  })
+  
+  return { usedDocs, unusedDocs }
+}
+
+

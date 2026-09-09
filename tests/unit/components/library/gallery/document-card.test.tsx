@@ -22,15 +22,15 @@
 import type React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render as rtlRender, screen, fireEvent } from '@testing-library/react'
-import { DocumentCard } from '@/components/library/gallery/document-card'
-import { GalleryHostProvider, STILLER_GASTGEBER } from '@/contexts/gallery-host-context'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import { DocumentCard } from '@ks/module-explorer/gallery/components/document-card'
+import { GalleryHostProvider, STILLER_GASTGEBER } from '@ks/module-explorer/gallery/contexts/gallery-host-context'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 // Sammle Aufrufe der Adressierung zentral, damit Tests die
 // Aufrufe pro Klick gegenzaehlen koennen.
 const openDocumentMock = vi.fn()
 
-vi.mock('@/contexts/gallery-navigation-context', () => ({
+vi.mock('@ks/module-explorer/gallery/contexts/gallery-navigation-context', () => ({
   useGalleryNavigation: () => ({
     openDocument: (...args: unknown[]) => openDocumentMock(...args),
     closeDocument: vi.fn(),
@@ -43,12 +43,12 @@ vi.mock('@ks/util', async (importOriginal) => ({
   getEffectiveDocumentNavigationSlug: (doc: DocCardMeta) => doc.fileId || doc.id || null,
 }))
 
-vi.mock('@/lib/gallery/resolve-cover-url-client', () => ({
+vi.mock('@ks/module-explorer/gallery/lib/resolve-cover-url-client', () => ({
   coverRefNeedsApiResolution: () => false,
   resolveCoverUrlViaApi: vi.fn().mockResolvedValue(null),
 }))
 
-vi.mock('@/lib/gallery/cover-ref-display-name', () => ({
+vi.mock('@ks/module-explorer/gallery/lib/cover-ref-display-name', () => ({
   displayBasenameFromCoverRef: (ref?: string) => ref || '',
 }))
 
@@ -61,17 +61,17 @@ vi.mock('@ks/i18n/react', () => ({
   }),
 }))
 
-vi.mock('@/components/library/gallery/speaker-icons', () => ({
+vi.mock('@ks/module-explorer/gallery/components/speaker-icons', () => ({
   SpeakerOrAuthorIcons: () => <div data-testid="speaker-icons-mock" />,
 }))
 
-vi.mock('@/components/library/gallery/source-stars-badge', () => ({
+vi.mock('@ks/module-explorer/gallery/components/source-stars-badge', () => ({
   SourceStarsBadge: (props: { libraryId?: string; fileId?: string }) => (
     <div data-testid="source-stars-badge-mock" data-library={props.libraryId} data-file={props.fileId} />
   ),
 }))
 
-vi.mock('@/components/library/gallery/source-comments-badge', () => ({
+vi.mock('@ks/module-explorer/gallery/components/source-comments-badge', () => ({
   SourceCommentsBadge: (props: { libraryId?: string; fileId?: string }) => (
     <div data-testid="source-comments-badge-mock" data-library={props.libraryId} data-file={props.fileId} />
   ),

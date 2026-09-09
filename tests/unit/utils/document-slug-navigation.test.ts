@@ -5,7 +5,7 @@ import {
   NAVIGATION_SLUG_MAX_LEN,
 } from '@ks/util'
 import { buildDocumentSlugFallback } from '@ks/util'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 describe('getEffectiveDocumentNavigationSlug', () => {
   it('verwendet persistierten slug unverändert', () => {

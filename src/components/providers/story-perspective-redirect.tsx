@@ -28,7 +28,7 @@ import { useAtomValue } from 'jotai'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useActiveLibraryId } from '@ks/shell/react'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
-import { readGalleryMode } from '@/lib/gallery/mode-params'
+import { readGalleryMode } from '@ks/module-explorer/react'
 
 /** localStorage-Schluessel: Perspektive wurde einmal gewaehlt, nicht mehr nachfragen. */
 export const STORY_PERSPECTIVE_SET_FLAG = 'story-perspective-set'
