@@ -65,8 +65,8 @@ export interface GalleryHost {
 export function SchlichtesBild({ src, alt, className, fill, width, height, loading, onError }: GalleryImageProps) {
   // Bewusst kein `next/image`: Dieser Renderer ist die rahmenneutrale Basis
   // fuer Umgebungen ohne Next-Server. Die App reicht ihren eigenen herein.
-  // eslint-disable-next-line @next/next/no-img-element
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={alt}
