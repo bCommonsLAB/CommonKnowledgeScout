@@ -363,8 +363,12 @@ export interface CoverageTotals {
    * `wiederverwendet` = Zeile aus dem `checkStand` uebernommen
    * (Fingerabdruck-Tor). Ein Lauf, der alles wiederverwendet, ist damit von
    * einem Lauf unterscheidbar, der nichts gefunden hat.
+   *
+   * OPTIONAL, weil gespeicherte Reports aus Scans vor dem Tor es nicht tragen
+   * (wie `neuesteEigeneAenderung` seit W8): fehlt es, ist der Lese-Aufwand
+   * NICHT BEKANNT — das benennen, statt Null zu behaupten.
    */
-  engineCheck: { gelesen: number; wiederverwendet: number }
+  engineCheck?: { gelesen: number; wiederverwendet: number }
   /** Durch Sammel-Gaps (`ungesichtet`) zusammengefasste Einzel-Befunde. */
   collapsedGaps: number
   scanErrors: number

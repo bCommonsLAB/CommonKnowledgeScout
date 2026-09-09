@@ -149,7 +149,9 @@ function leererSyncReport(rows: SourceSyncReportRow[]): LibrarySyncReport {
     totalSources: rows.length, scannedFiles: 0, skippedWithoutDoc: 0, skippedExcluded: 0,
     changed: 0, conflicts: 0, needsPipeline: 0, needsReextract: 0,
     planned: {}, selected: {}, executed: {}, failed: {},
-    errors: 0, sources: rows, sourcesTruncated: false,
+    // Fingerabdruck-Tor: die Fixture-Welt liest immer frisch.
+    errors: 0, wiederverwendet: 0, gelesen: rows.length,
+    sources: rows, sourcesTruncated: false,
   }
 }
 

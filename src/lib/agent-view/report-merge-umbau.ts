@@ -169,7 +169,9 @@ export function baueMergeTotals(args: {
     gapsByType: byType,
     gapsByActor: byActor,
     skippedExcluded: { ...args.skippedExcluded },
-    engineCheck: { ...args.engineCheck },
+    // Unveraendert durchreichen: fehlt der Zaehler im Teil-Report (Scan vor
+    // dem Tor), bleibt er auch im Merge-Ergebnis unbekannt statt erfunden.
+    engineCheck: args.engineCheck,
     collapsedGaps,
     scanErrors: args.gaps.filter((gap) => gap.type === 'scan_error').length,
   }
