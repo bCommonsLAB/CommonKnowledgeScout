@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 import {
   selectMainMenuDocs,
   selectFooterLinkDocs,

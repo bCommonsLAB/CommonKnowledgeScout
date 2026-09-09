@@ -24,7 +24,7 @@
  */
 
 import { registerActiveLibraryChangeEffect } from '@ks/shell/react'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { galleryFiltersAtom } from '@ks/module-explorer/react'
 
 registerActiveLibraryChangeEffect((set) => {
   set(galleryFiltersAtom, {})

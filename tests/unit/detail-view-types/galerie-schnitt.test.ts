@@ -49,21 +49,24 @@ function collectSourceFiles(dir: string, acc: string[] = []): string[] {
 }
 
 describe('Galerie-Schnitt', () => {
-  it('kein Server-Bereich importiert aus src/lib/gallery', () => {
+  it('kein Server-Bereich importiert die Galerie', () => {
+    // Seit M4i liegt die Galerie in `@ks/module-explorer/react` (React-Barrel)
+    // bzw. unter `.../gallery/` (Interna). Das React-freie Wurzel-Barrel
+    // (`@ks/module-explorer`, z. B. `localizeDocMetaJson`) darf der Server nutzen.
     const offenders: string[] = []
     for (const root of SERVER_ROOTS) {
       for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
         const content = readFileSync(file, 'utf-8')
-        if (/from ['"]@\/lib\/gallery\//.test(content)) {
+        if (/from ['"]@ks\/module-explorer\/(react|gallery)/.test(content)) {
           offenders.push(relative(REPO_ROOT, file).replace(/\\/g, '/'))
         }
       }
     }
     expect(
       offenders,
-      `Server-Code importiert aus der Galerie:\n${offenders.join('\n')}\n` +
-        'Gemeinsame Dokument-Fachlogik gehoert nach src/lib/documents/, ' +
-        'gemeinsame Typen nach @ks/contracts.'
+      `Server-Code importiert die Galerie:\n${offenders.join('\n')}\n` +
+        'Gemeinsame Dokument-Fachlogik gehoert nach src/lib/documents/ oder ins ' +
+        'React-freie Wurzel-Barrel, gemeinsame Typen nach @ks/contracts.'
     ).toEqual([])
   })
 
@@ -85,9 +88,9 @@ describe('Galerie-Schnitt', () => {
     // im Embed gibt es aber gar keine Anmeldung (ADR 0008). Der Betrachter
     // wird jetzt hereingereicht (`useGalleryViewer`).
     const GALLERY_ROOTS = [
-      'src/components/library/gallery',
-      'src/hooks/gallery',
-      'src/lib/gallery',
+      'packages/module-explorer/src/gallery/components',
+      'packages/module-explorer/src/gallery/hooks',
+      'packages/module-explorer/src/gallery/lib',
     ]
     const offenders: string[] = []
     for (const root of GALLERY_ROOTS) {
@@ -112,7 +115,7 @@ describe('Galerie-Schnitt', () => {
     // aussah, war ein geteilter Begriff ohne Zuhause — das Referenz-Vokabular
     // liegt jetzt in @ks/contracts, und `ReferenceList` ist dorthin gezogen,
     // wo sie ohnehin ausschliesslich benutzt wurde (01-audit-galerie-chat.md).
-    const GALLERY_ROOTS = ['src/components/library/gallery', 'src/hooks/gallery']
+    const GALLERY_ROOTS = ['packages/module-explorer/src/gallery/components', 'packages/module-explorer/src/gallery/hooks']
 
     // Keine Ausnahme mehr. `gallery-root` holte das Chat-Panel als Slot per
     // `next/dynamic`; seit M4f reicht der Montagepunkt es als `storyPanel`
@@ -142,7 +145,7 @@ describe('Galerie-Schnitt', () => {
     //
     // Dieser Test geht eine Ebene weiter: Welche App-Module importiert der
     // Galerie-Kegel, und ziehen DIESE einen Auth-Anbieter?
-    const GALLERY_ROOTS = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
+    const GALLERY_ROOTS = ['packages/module-explorer/src/gallery/components', 'packages/module-explorer/src/gallery/hooks', 'packages/module-explorer/src/gallery/lib']
 
     // Keine Ausnahmen mehr. `use-session-headers` war die letzte: Der Hook
     // bekommt den Anmeldezustand jetzt hereingereicht, statt ihn bei Clerk zu
@@ -189,15 +192,11 @@ describe('Galerie-Schnitt', () => {
     // nach `packages/` umzieht; jede neue `next/`-Zeile darin waere ein
     // Schritt zurueck.
     const KEGEL = [
-      'src/components/library/gallery',
-      'src/hooks/gallery',
-      'src/lib/gallery',
-      'src/contexts/gallery-host-context.tsx',
-      'src/contexts/gallery-navigation-context.tsx',
-      'src/contexts/gallery-viewer-context.tsx',
-      'src/atoms/chat-references-atom.ts',
-      'src/atoms/gallery-data.ts',
-      'src/atoms/gallery-filters.ts',
+      'packages/module-explorer/src/gallery/components',
+      'packages/module-explorer/src/gallery/hooks',
+      'packages/module-explorer/src/gallery/lib',
+      'packages/module-explorer/src/gallery/contexts',
+      'packages/module-explorer/src/gallery/atoms',
     ]
     const offenders: string[] = []
     for (const root of KEGEL) {
@@ -226,7 +225,7 @@ describe('Galerie-Schnitt', () => {
     // den Kegel gezogen. Was die Galerie aus `components/library/*` braucht,
     // liegt damit vollstaendig unter `gallery/` — Voraussetzung fuer den
     // Umzug (M4i), bei dem `@/components/library/...` nicht mehr aufloest.
-    const KEGEL = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
+    const KEGEL = ['packages/module-explorer/src/gallery/components', 'packages/module-explorer/src/gallery/hooks', 'packages/module-explorer/src/gallery/lib']
     const offenders: string[] = []
     for (const root of KEGEL) {
       for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
@@ -246,42 +245,42 @@ describe('Galerie-Schnitt', () => {
     ).toEqual([])
   })
 
-  it('der Galerie-Kegel importiert aus @/ nur noch seine eigenen Ordner', () => {
-    // Welle M4h („Vokabular in Pakete"): Die letzten zehn Helfer sind in
-    // Pakete gezogen (`@ks/contracts`, `@ks/util`, `@ks/api-client`,
-    // `@ks/module-explorer`) oder in den Kegel. Was der Kegel jetzt noch aus
-    // `@/` holt, ist er selbst — und genau das zieht in M4i um. Jeder andere
-    // `@/`-Import waere beim Umzug ein `TS2307`.
-    const EIGENE = [
-      'components/library/gallery/',
-      'hooks/gallery/',
-      'lib/gallery/',
-      'contexts/gallery-host-context',
-      'contexts/gallery-navigation-context',
-      'contexts/gallery-viewer-context',
-      'atoms/gallery-data',
-      'atoms/gallery-filters',
-      'atoms/chat-references-atom',
-    ]
-    const KEGEL = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
+  it('die Galerie im Paket importiert nichts aus @/', () => {
+    // Welle M4i (der Umzug): Der Kegel liegt in `packages/module-explorer/src/gallery`.
+    // Dort loest `@/` nicht auf — `pnpm typecheck:packages` prueft das isoliert
+    // mit TS2307; dieser Fall sagt es schneller und lesbarer.
     const offenders: string[] = []
-    for (const root of KEGEL) {
-      for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
-        const content = readFileSync(file, 'utf-8')
-        const fremd = [...content.matchAll(/(?:from|import)\s*\(?\s*['"]@\/([^'"]+)['"]/g)]
-          .map((m) => m[1])
-          .filter((pfad) => !EIGENE.some((eigen) => pfad === eigen.replace(/\/$/, '') || pfad.startsWith(eigen)))
-        if (fremd.length > 0) {
-          offenders.push(`${relative(REPO_ROOT, file).replace(/\\/g, '/')}: ${fremd.join(', ')}`)
-        }
+    for (const file of collectSourceFiles(join(REPO_ROOT, 'packages/module-explorer/src/gallery'))) {
+      const content = readFileSync(file, 'utf-8')
+      const fremd = [...content.matchAll(/(?:from|import)\s*\(?\s*['"](@\/[^'"]+)['"]/g)].map((m) => m[1])
+      if (fremd.length > 0) {
+        offenders.push(`${relative(REPO_ROOT, file).replace(/\\/g, '/')}: ${fremd.join(', ')}`)
       }
     }
     expect(
       offenders,
-      `Galerie-Code importiert App-Helfer:\n${offenders.join('\n')}\n` +
-        'Persistiertes Vokabular nach @ks/contracts, rahmenneutrale Helfer nach @ks/util, ' +
-        'Client-Protokoll nach @ks/api-client, Modul-Logik nach @ks/module-explorer — ' +
-        'oder per git mv in den Kegel, wenn nur die Galerie es braucht.'
+      `Galerie-Code im Paket importiert aus der App:\n${offenders.join('\n')}\n` +
+        'Ein Paket kennt die App nicht. Was die Galerie braucht, kommt als Slot oder ' +
+        'Kontext herein oder liegt in einem Shared-Paket.'
+    ).toEqual([])
+  })
+
+  it('die App importiert keine Galerie-Interna', () => {
+    // Der Alias `@ks/module-explorer/gallery/*` existiert nur fuer Tests
+    // (vitest.config.ts, tsconfig paths). App-Code nimmt den Einstieg
+    // `@ks/module-explorer/react` — was dort nicht exportiert ist, ist
+    // Paket-intern und darf sich aendern, ohne dass die App es merkt.
+    const offenders: string[] = []
+    for (const file of collectSourceFiles(join(REPO_ROOT, 'src'))) {
+      const content = readFileSync(file, 'utf-8')
+      if (/from ['"]@ks\/module-explorer\/gallery\//.test(content)) {
+        offenders.push(relative(REPO_ROOT, file).replace(/\\/g, '/'))
+      }
+    }
+    expect(
+      offenders,
+      `App-Code greift auf Galerie-Interna zu:\n${offenders.join('\n')}\n` +
+        'Was die App braucht, exportiert packages/module-explorer/src/gallery/index.ts.'
     ).toEqual([])
   })
 })

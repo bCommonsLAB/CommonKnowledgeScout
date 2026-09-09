@@ -23,7 +23,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import {
   GalleryNavigationProvider,
   type GalleryNavigation,
-} from '@/contexts/gallery-navigation-context'
+} from '@ks/module-explorer/react'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 
 /** Slug aus `/explore/<slug>[/…]`, sonst `null`. */

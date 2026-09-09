@@ -2,7 +2,7 @@
 
 import React from 'react'
 import dynamic from 'next/dynamic'
-import { GalleryRoot, type GalleryRootProps } from '@/components/library/gallery/gallery-root'
+import { GalleryRoot, type GalleryRootProps } from '@ks/module-explorer/react'
 import { GalleryAppProviders } from '@/components/providers/gallery-app-providers'
 import { CaptureContentButton } from '@/components/submissions/capture-content-button'
 import { DETAIL_RENDERERS } from '@/components/library/gallery-detail-renderers'

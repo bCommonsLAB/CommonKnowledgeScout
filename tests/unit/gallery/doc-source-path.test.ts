@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildGalleryDocSourcePathLine,
   buildGalleryDocSourcePathParts,
-} from '@/lib/gallery/doc-source-path'
-import type { DocCardMeta } from '@/lib/gallery/types'
+} from '@ks/module-explorer/gallery/lib/doc-source-path'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 function encodePathLikeClient(relativePath: string): string {
   const utf8Bytes = new TextEncoder().encode(relativePath.replace(/^\/+|\/+$/g, ''))

@@ -38,7 +38,7 @@ import {
 import { useTranslation } from '@ks/i18n/react'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
-import { normalizeGalleryCardDensity } from '@/lib/gallery/gallery-card-density'
+import { normalizeGalleryCardDensity } from '@ks/module-explorer/react'
 
 // Zod-Schema für Chat-Konfiguration
 export const chatFormSchema = z.object({

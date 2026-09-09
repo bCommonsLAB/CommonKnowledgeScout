@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { nextParamsForMode, readGalleryMode, type GalleryMode } from '@/lib/gallery/mode-params'
+import { nextParamsForMode, readGalleryMode, type GalleryMode } from '@ks/module-explorer/gallery/lib/mode-params'
 
 const p = (s: string) => new URLSearchParams(s)
 

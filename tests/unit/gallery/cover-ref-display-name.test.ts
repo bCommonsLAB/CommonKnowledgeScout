@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { displayBasenameFromCoverRef } from '@/lib/gallery/cover-ref-display-name'
+import { displayBasenameFromCoverRef } from '@ks/module-explorer/gallery/lib/cover-ref-display-name'
 
 describe('displayBasenameFromCoverRef', () => {
   it('liefert letztes URL-Segment für https', () => {

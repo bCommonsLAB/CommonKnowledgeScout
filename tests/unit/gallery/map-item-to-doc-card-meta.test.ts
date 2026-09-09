@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { mapItemToDocCardMeta } from '@/lib/gallery/types'
+import { mapItemToDocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 import type { Item } from '@/types/item'
 
 describe('mapItemToDocCardMeta', () => {

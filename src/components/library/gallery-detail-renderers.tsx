@@ -30,7 +30,7 @@
 
 import * as React from 'react'
 import type { DetailViewType } from '@ks/contracts'
-import type { DetailRenderer, DetailRenderProps } from '@/components/library/gallery/detail-overlay'
+import type { DetailRenderer, DetailRenderProps } from '@ks/module-explorer/react'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'

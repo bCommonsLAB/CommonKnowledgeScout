@@ -1,0 +1,122 @@
+'use client'
+
+import React from 'react'
+import { Input } from '@ks/ui'
+import { Search } from 'lucide-react'
+import { useScrollVisibility } from '@ks/ui'
+import { ViewModeToggle } from './view-mode-toggle'
+import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
+import type { GalleryCardDensity } from '../lib/gallery-card-density'
+
+export type ViewMode = 'grid' | 'table' | 'graph'
+
+export interface GalleryStickyHeaderProps {
+  headline: string
+  subtitle?: string
+  description?: string
+  searchPlaceholder: string
+  queryValue: string
+  onChangeQuery: (v: string) => void
+  viewMode?: ViewMode
+  onViewModeChange?: (mode: ViewMode) => void
+  /** Nur bei Grid: Karten-Raster kompakt vs. komfortabel */
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
+  /** Graph-Modus als dritte Ansicht anbieten (nur wenn pro Library aktiviert). */
+  showGraph?: boolean
+  /** Optionale Aktionen rechts in der Toolbar (z.B. „Inhalte erfassen"). */
+  actions?: React.ReactNode
+  /**
+   * Verifikations-Abzeichen neben der Ueberschrift. Als Slot (M4g): Es liest
+   * die Rolle und die Verifikations-API der App — die Galerie zeigt nur, was
+   * ihr der Montagepunkt gibt. Kein Slot, kein Abzeichen (Embed).
+   */
+  verifikationsAbzeichen?: React.ReactNode
+}
+
+/**
+ * Sticky-Header der Gallery-Ansicht:
+ * - Blendet beim Scrollen Titel/Untertitel/Erklärung aus
+ * - Lässt die Suchleiste sichtbar
+ * - Keine Änderungen an anderer Scroll-Logik
+ */
+export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
+  const {
+    headline,
+    subtitle,
+    description,
+    searchPlaceholder,
+    queryValue,
+    onChangeQuery,
+    viewMode = 'grid',
+    onViewModeChange,
+    cardDensity = 'comfortable',
+    onCardDensityChange,
+    showGraph = false,
+    actions,
+    verifikationsAbzeichen,
+  } = props
+
+  // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
+  // isVisible === false bedeutet: Header-Bereich ausblenden (condensed)
+  const isVisible = useScrollVisibility()
+  const isCondensed = !isVisible
+
+  return (
+    <div className="sticky top-0 z-20 bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-b">
+      <div 
+        className={`transition-all duration-300 overflow-hidden ${
+          isCondensed 
+            ? 'max-h-0 opacity-0 pointer-events-none' 
+            : 'max-h-96 opacity-100'
+        }`}
+        style={{
+          willChange: isCondensed ? 'max-height, opacity' : 'auto',
+          // Verhindere Layout-Shifts während Transition (robuster für ältere Geräte)
+          contain: 'layout style paint'
+        }}
+      >
+        <div className="py-4 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-3xl font-bold">{headline}</h2>
+            {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2); kommt vom Montagepunkt. */}
+            {verifikationsAbzeichen}
+          </div>
+          {subtitle ? <p className="text-sm text-muted-foreground font-medium">{subtitle}</p> : null}
+          {description ? (
+            <p className="text-sm leading-relaxed text-muted-foreground max-w-3xl">{description}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="py-2 lg:py-1 flex items-center gap-2 sm:gap-4">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={queryValue}
+            onChange={(e) => onChangeQuery(e.target.value)}
+            className="pl-10 text-sm sm:text-base"
+          />
+        </div>
+        {/* Karten-Dichte vor Galerie/Tabelle (Dichte nur im Grid); Bezeichnungen nur in Tooltips */}
+        {onViewModeChange && (
+          <div className="flex items-center gap-2 shrink-0">
+            {viewMode === 'grid' && onCardDensityChange && (
+              <GalleryCardDensityToggle
+                cardDensity={cardDensity}
+                onCardDensityChange={onCardDensityChange}
+              />
+            )}
+            <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} showGraph={showGraph} />
+          </div>
+        )}
+        {actions ? <div className="flex items-center gap-2 shrink-0">{actions}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+
+

@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useIsMobile } from '@/components/library/gallery/gallery-root/hooks/use-is-mobile'
+import { useIsMobile } from '@ks/module-explorer/gallery/components/gallery-root/hooks/use-is-mobile'
 
 describe('useIsMobile', () => {
   let originalInnerWidth: number

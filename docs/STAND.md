@@ -94,6 +94,12 @@ Neu dazugekommen:
   Lokalisierung nach `@ks/module-explorer`. Der Sprung zur Perspektiven-Wahl
   ist App-Politik (`StoryPerspectiveRedirect`), nicht mehr Galerie. Der Kegel
   importiert aus `@/` nur noch sich selbst — **umzugsfertig**. Offen: M4i.
+- 2026-09-09: **M4i** erledigt (eine PR): die Galerie liegt in
+  `packages/module-explorer/src/gallery/` (110 Dateien per `git mv`),
+  `GalleryRoot` kommt aus `@ks/module-explorer/react`; die App-Bruecken
+  (Clerk, Next-Adressierung, Gastgeber) bleiben in der App. Punkt 3 ist
+  damit fuer die Galerie abgeschlossen; Story/Chat/Website bleiben Slots.
+  Naechstes: Punkte 2, 4, 5 (`@ks/embed`), Hand-off in `AGENT-BRIEF-M4f.md` §7.
 - 2026-09-09: Hotfix #248 — oldiesforfuture.org war seit dem 30.08. kaputt
   (Folge von #234: Galerie-Karte ausserhalb der Galerie ohne Anbieter).
   Lehre: ein Anbieter-Buendel `GalleryAppProviders` an jedem Montagepunkt,

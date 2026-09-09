@@ -14,7 +14,7 @@ import * as React from "react"
 import { mapToWebsiteDetail } from "@/lib/mappers/doc-meta-mappers"
 import { localizeDocMetaJson } from "@ks/module-explorer"
 import type { WebsiteDetailData } from "@/components/library/website-detail"
-import type { DocCardMeta } from "@/lib/gallery/types"
+import type { DocCardMeta } from "@ks/contracts"
 
 export async function fetchDocs(
   libraryId: string,

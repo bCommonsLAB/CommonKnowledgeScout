@@ -45,7 +45,7 @@ import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
 import { ViewerLoggerBridge } from "@/components/providers/viewer-logger-bridge"
 import { LibraryChangeBridge } from "@/components/providers/library-change-bridge"
 import { ClerkGalleryViewerBridge } from "@/components/providers/clerk-gallery-viewer-bridge"
-import { GalleryViewerProvider, ANONYMOUS_VIEWER } from "@/contexts/gallery-viewer-context"
+import { GalleryViewerProvider, ANONYMOUS_VIEWER } from "@ks/module-explorer/react"
 import { headers, cookies } from 'next/headers'
 import { getLocale, type Locale } from '@ks/i18n'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'

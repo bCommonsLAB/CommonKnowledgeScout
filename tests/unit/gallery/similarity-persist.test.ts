@@ -7,8 +7,8 @@ import { describe, it, expect } from 'vitest'
 import {
   deriveSimilarityEdgesFromDocs,
   deriveSimilarityStaleness,
-} from '@/hooks/gallery/use-similarity-edges'
-import type { DocCardMeta } from '@/lib/gallery/types'
+} from '@ks/module-explorer/gallery/hooks/use-similarity-edges'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 function doc(fileId: string, extra: Partial<DocCardMeta> = {}): DocCardMeta {
   return { id: `${fileId}-meta`, fileId, ...extra }

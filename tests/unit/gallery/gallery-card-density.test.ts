@@ -4,7 +4,7 @@ import {
   itemsGridClassForDensity,
   groupedItemsGridClassForDensity,
   galleryCardDensityStorageKey,
-} from '@/lib/gallery/gallery-card-density'
+} from '@ks/module-explorer/gallery/lib/gallery-card-density'
 
 describe('normalizeGalleryCardDensity', () => {
   it('akzeptiert compact und comfortable', () => {

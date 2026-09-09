@@ -34,7 +34,7 @@ import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-typ
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer'
 // Alert, AlertDescription entfernt (aktuell nicht verwendet)
 import { GalleryTeaserCard } from './file-preview/gallery-teaser-card'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import type { DocCardMeta } from '@ks/contracts'
 import { AlertTriangle, X, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { validateAndRepairShadowTwin } from '@/lib/shadow-twin/shared'

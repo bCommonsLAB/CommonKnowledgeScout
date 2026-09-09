@@ -9,6 +9,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Nur fuer Tests: Zugriff auf Galerie-Interna im Paket. App-Code darf
+      // diesen Pfad nicht nutzen (galerie-schnitt.test.ts prueft das).
+      '@ks/module-explorer/gallery': fileURLToPath(new URL('./packages/module-explorer/src/gallery', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },

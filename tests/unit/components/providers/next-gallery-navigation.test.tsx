@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { NextGalleryNavigation } from '@/components/providers/next-gallery-navigation'
-import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
+import { useGalleryNavigation } from '@ks/module-explorer/gallery/contexts/gallery-navigation-context'
 
 let currentPath: string | null = '/library/gallery'
 let currentSearch = ''

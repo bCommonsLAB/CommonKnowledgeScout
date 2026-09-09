@@ -2,7 +2,7 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
-import { ViewTypeLeadFilter } from '@/components/library/gallery/view-type-lead-filter'
+import { ViewTypeLeadFilter } from '@ks/module-explorer/gallery/components/view-type-lead-filter'
 
 afterEach(() => cleanup())
 

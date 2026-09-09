@@ -14,8 +14,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useCardDensity } from '@/components/library/gallery/gallery-root/hooks/use-card-density'
-import { galleryCardDensityStorageKey } from '@/lib/gallery/gallery-card-density'
+import { useCardDensity } from '@ks/module-explorer/gallery/components/gallery-root/hooks/use-card-density'
+import { galleryCardDensityStorageKey } from '@ks/module-explorer/gallery/lib/gallery-card-density'
 
 describe('useCardDensity', () => {
   beforeEach(() => {

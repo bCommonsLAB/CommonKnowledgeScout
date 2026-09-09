@@ -7,9 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { ClimateActionRating } from "./climate-action-rating";
-import { StakeholderPositions } from "./gallery/stakeholder-positions";
-import { SdgProfile } from "./gallery/sdg-profile";
-import { AiText, OriginalQuote } from "./gallery/provenance-text";
+import { StakeholderPositions, SdgProfile, AiText, OriginalQuote } from "@ks/module-explorer/react";
 import type { SdgValue } from "@ks/util";
 import { cn } from "@/lib/utils";
 

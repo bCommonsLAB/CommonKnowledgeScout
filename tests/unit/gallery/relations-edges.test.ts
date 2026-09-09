@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { buildRelationsEdges } from '@/hooks/gallery/use-relations-edges'
-import type { DocCardMeta } from '@/lib/gallery/types'
-import { endpointId } from '@/components/library/gallery/graph/graph-types'
+import { buildRelationsEdges } from '@ks/module-explorer/gallery/hooks/use-relations-edges'
+import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
+import { endpointId } from '@ks/module-explorer/gallery/components/graph/graph-types'
 
 function doc(id: string, fields: Partial<DocCardMeta> = {}): DocCardMeta {
   return { id, fileId: id, title: id, ...fields }

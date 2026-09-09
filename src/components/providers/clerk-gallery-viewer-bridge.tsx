@@ -23,7 +23,7 @@
 
 import { useMemo, type ReactNode } from 'react'
 import { useAuth, useUser } from '@clerk/nextjs'
-import { GalleryViewerProvider, type GalleryViewer } from '@/contexts/gallery-viewer-context'
+import { GalleryViewerProvider, type GalleryViewer } from '@ks/module-explorer/react'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import { getPreferredUserDisplayName } from '@/lib/auth/user-display-name'
 

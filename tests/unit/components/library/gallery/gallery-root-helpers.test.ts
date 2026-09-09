@@ -18,7 +18,7 @@ import {
   resolveGroupByField,
   pickFacetsForTableColumns,
   resolveDetailViewTypeForDoc,
-} from '@/components/library/gallery/gallery-root/helpers'
+} from '@ks/module-explorer/gallery/components/gallery-root/helpers'
 import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
 
 describe('VALID_DETAIL_VIEW_TYPES', () => {

@@ -13,7 +13,7 @@ import {
   fillRadius,
   polarToCartesian,
   wedgePath,
-} from '@/components/library/gallery/sdg-wheel'
+} from '@ks/module-explorer/gallery/components/sdg-wheel'
 
 describe('sdg-meta Stammdaten', () => {
   it('enthält genau 17 SDGs mit fortlaufenden Ids 1..17', () => {

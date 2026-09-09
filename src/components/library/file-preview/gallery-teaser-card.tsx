@@ -30,8 +30,8 @@
  */
 
 import { GalleryAppProviders } from '@/components/providers/gallery-app-providers'
-import { DocumentCard } from '@/components/library/gallery/document-card'
-import type { DocCardMeta } from '@/lib/gallery/types'
+import { DocumentCard } from '@ks/module-explorer/react'
+import type { DocCardMeta } from '@ks/contracts'
 
 export function GalleryTeaserCard({ doc }: { doc: DocCardMeta }) {
   return (
