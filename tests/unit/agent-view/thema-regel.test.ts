@@ -41,7 +41,7 @@ function ereignis(args: {
   name?: string
   stand: Bearbeitungsstand | null
   themen?: string[]
-  parentFolderId?: string
+  parentFolderId?: string | null
   ohneIndex?: boolean
 }): ArchiveFolderNode {
   const name = args.name ?? '2026-09-09 Besprechung Roland'
@@ -50,7 +50,10 @@ function ereignis(args: {
   if (args.stand !== null) meta.bearbeitungsstand = args.stand
   return ordner({
     folderId: `f-${name}`, name, path: pfad,
-    parentFolderId: args.parentFolderId ?? 'f-vorhaben', depth: 3,
+    // Kein `??`: `parentFolderId: null` muss NULL bleiben, sonst prueft der
+    // Wurzel-Fall unten in Wahrheit den Normalfall.
+    parentFolderId: args.parentFolderId === undefined ? 'f-vorhaben' : args.parentFolderId,
+    depth: 3,
     index: args.ohneIndex === true ? null : index(meta, pfad),
     bearbeitungsstand: args.stand,
   })
@@ -126,8 +129,10 @@ describe('thema_fehlt', () => {
   })
 
   it('ohne Vorhaben im gescannten Satz wird nicht geraten (Teilbaum unterhalb des Vorhabens)', () => {
-    const kind = ereignis({ stand: 'erschlossen', parentFolderId: null })
-    expect(pruefe([kind])).toEqual([])
+    // Beide Enden der Kette: gar kein Elternteil (Scan-Wurzel) und ein
+    // Elternteil, das ausserhalb des gescannten Satzes liegt.
+    expect(pruefe([ereignis({ stand: 'erschlossen', parentFolderId: null })])).toEqual([])
+    expect(pruefe([ereignis({ stand: 'erschlossen', parentFolderId: 'f-ausserhalb' })])).toEqual([])
   })
 
   it('ein BERICHT.md macht den Ordner zum Vorhaben, auch ohne passenden Namen', () => {
