@@ -1,5 +1,8 @@
 # 00-Audit: Deterministischer Cover-Image- / Medien-Flow
 
+> **Stand: geplant seit 2026-09-09** (Owner-Entscheidung). 11 Schritte geplant, keiner umgesetzt.
+> Kein Vorhaben arbeitet daran; Vorrat in [`docs/STAND.md`](../../STAND.md).
+
 **Stand:** 2026-04-30
 **Branch:** master
 **Quellen-Diagnose:** [Cover-Image-Bug Diagnose](#) (siehe Konversation 2026-04-30)

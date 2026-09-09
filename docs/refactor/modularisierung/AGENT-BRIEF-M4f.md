@@ -4,9 +4,10 @@ Stand: 2026-09-09. Owner-Entscheidung: **Die Galerie wird zuerst als
 npm-React-Komponente gebaut, dann eingebettet (AECED), danach P8. Ein iframe
 ist keine Option.**
 
-Nachfolger von M4e. M4 hat die Wurzelkomponente ins Paket gebracht und die
-Galerie als Slot hereingereicht; dieses Brief beschreibt, wie der Slot
-verschwindet. M5 (`@ks/embed`) beginnt erst, wenn `GalleryRoot` aus
+Nachfolger von M4e und die Ausfuehrung der Schritte 1 und 3 aus
+[`AGENT-BRIEF-M5.md`](AGENT-BRIEF-M5.md) (Vorhaben 1 in `docs/STAND.md`).
+M4 hat die Wurzelkomponente ins Paket gebracht und die Galerie als Slot
+hereingereicht; dieses Brief beschreibt, wie der Slot verschwindet. M5 (`@ks/embed`) beginnt erst, wenn `GalleryRoot` aus
 `@ks/module-explorer/react` kommt.
 
 ## 1. Die Messung (Stand `master` 66ef1f3e)

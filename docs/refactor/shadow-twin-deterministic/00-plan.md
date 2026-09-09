@@ -1,5 +1,8 @@
 # Plan (lokale Session): Deterministisches Shadow-Twin Daten- & Dateimodell — Fallbacks eliminieren
 
+> **Stand: geplant seit 2026-09-09** (Owner-Entscheidung). Befunde A1/B1/B2 liegen vor, nichts gebaut. A1 (stiller Sprach-Rückfall) wird mit der Mehrsprachigkeit fällig.
+> Kein Vorhaben arbeitet daran; Vorrat in [`docs/STAND.md`](../../STAND.md).
+
 Status: ENTWURF für lokale Session
 Erstellt: Remote-Session (peter.aichner)
 Zielbranch lokal: von `master` (enthält die gemergten Transkript-Änderungen, in denen das Problem auftritt)

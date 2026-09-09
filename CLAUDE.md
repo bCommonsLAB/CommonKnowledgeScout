@@ -78,10 +78,12 @@ auf `docs/contracts/` (Zuordnung siehe Routing-Index oben):
 
 ## Pläne
 
-Aktive Pläne liegen unter [docs/plans/](docs/plans/), erledigte unter
-[docs/plans/archiv/](docs/plans/archiv/). Der aktive Plan ist in `AGENTS.md`
-benannt. Die `status:`-Marker in den Plan-Dateien sind nicht verlässlich
-gepflegt — im Zweifel gegen den Code prüfen.
+Was gerade getragen wird, steht in [docs/STAND.md](docs/STAND.md): ein
+Vorhaben nach dem anderen, mit Brief. Aktive Pläne liegen unter
+[docs/plans/](docs/plans/), wartende unter [docs/plans/geplant/](docs/plans/geplant/),
+erledigte unter [docs/plans/archiv/](docs/plans/archiv/). Die `status:`-Marker
+in den Plan-Dateien sind nicht verlässlich gepflegt — maßgeblich sind
+`STAND.md` und der Code.
 
 ## Coding-Konventionen
 

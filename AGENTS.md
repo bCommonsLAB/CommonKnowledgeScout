@@ -6,121 +6,43 @@ Detaillierte Begruendungen + Beispiele:
 
 ## Aktueller Fahrplan (zuerst lesen)
 
-**Laufender Strang (Stand 2026-08-27): Modularisierung.** EINE Quelle, damit
-Sessions nicht doppelt bauen:
+**Eine Quelle fuer den Stand: [`docs/STAND.md`](docs/STAND.md).** Dort steht,
+welches Vorhaben „jetzt" traegt, was geplant ist, was erledigt und was
+verworfen. Es gibt keinen Zustand „offen" mehr. Gearbeitet wird **ein
+Vorhaben nach dem anderen**; Agenten arbeiten nur am Vorhaben, das in
+`STAND.md` auf „jetzt" steht, es sei denn, der Owner sagt es anders.
 
-- **Was**: KnowledgeScout in Pakete schneiden (Schale + Module + Shared
-  Libraries), damit einzelne Bereiche in fremde Seiten einbettbar sind, ohne
-  doppelten Code und ohne unnoetige Client-Chunks.
-- **Grundlage**: ADR [0007](docs/adr/0007-modularisierung-monorepo-schale-module.md)
-  bis [0010](docs/adr/0010-retrieval-profile.md); Zuschnitt und Wellenplan in
-  [`docs/architecture/modul-landkarte.md`](docs/architecture/modul-landkarte.md) §5;
-  Umbau-Garantien in
-  [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
-- **Agent-Brief M1** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
-- **Agent-Brief M2** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
-- **Agent-Brief M3** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M3.md`](docs/refactor/modularisierung/AGENT-BRIEF-M3.md)
-- **Agent-Brief M4** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md)
-- **Agent-Brief M4b** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4b.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4b.md)
-  (`@ks/ui`; enthaelt den Nachtrag zum Build-Fehler und die Korrektur zum
-  `cn`-Schnitt: Teil-Extraktionen koennen `git log --follow` NICHT halten)
-- **Agent-Brief M4c** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4c.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4c.md)
-  (`@ks/i18n` mit zwei Einstiegspunkten; Locale-Atom bleibt paketintern)
-- **Agent-Brief M4d** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4d.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4d.md)
-  (`ClientLibrary` → `@ks/contracts`, in kurz und voll geteilt; TopNav ohne
-  Symbol; Chat-Vokabular samt Werteliste mitgewandert; `LibraryIdentityDto`
-  abgeloest)
-- **Agent-Brief M4e** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4e.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4e.md)
-  (Library-Auswahl → `@ks/shell/react`, Atome paketintern, acht Hooks;
-  Ordner-/Dateizustand bleibt in der App; Galerie-Filter-Reset per Injection;
-  `@ks/shell/testing` fuer Tests. Enthaelt den TopNav-Befund)
-- **Agent-Brief M4f** (laufend, 2026-09-09): [`docs/refactor/modularisierung/AGENT-BRIEF-M4f.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4f.md)
-  (Owner-Entscheidung: Galerie zuerst als npm-Komponente, dann Embed, dann P8 —
-  kein iframe. Messung + Wellenplan M4f–M4i → M5. M4f = „Next raus":
-  Adressierung Teil B, Bilder ueber den Gastgeber, Story-Panel als Slot;
-  Beweis: kein `next/*` im Galerie-Kegel. M4g = fremde Bausteine als Slots:
-  Renderer-Tabelle als Prop, Website/Story-Kopf/Abzeichen hereingereicht;
-  Beweis: der Kegel importiert aus `components/library` nur sich selbst)
-- **Landkarten-Zeile M4 abgeschlossen** (2026-08-28): `ExplorerRoot` liegt in
-  `@ks/module-explorer/react`, `/explore/[slug]` ist nur noch der Montagepunkt.
-  Slug als Prop, Betrachter als zwei Booleans, Galerie und Hinweis als Slots —
-  kein Next-Routing, kein Auth-Anbieter im Modul. Nachtrag am Ende von
-  [`AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md).
-- **Naechster Schritt**: **M4h** (Vokabular in Pakete; Posten und
-  Stop-Bedingungen in AGENT-BRIEF-M4f §5), dann M4i (der Umzug der Galerie
-  nach `packages/module-explorer`). Erst danach beginnt Phase B mit **M5**
-  (AECED-Pilot: `@ks/embed` + Headless-Lese-API); die Basis-URL fuer die
-  Modul-Fetches kommt dort (G3). Messung und Wellenplan in AGENT-BRIEF-M4f.
-  Voll-App bleibt unveraendert (Verhaltensneutralitaet ist Abnahmekriterium
-  jeder A-Welle).
-- **Galerie-Audit** (2026-08-29):
-  [`00-audit-galerie.md`](docs/refactor/modularisierung/00-audit-galerie.md).
-  Gemessen: 15.594 Zeilen Kern **plus ~8.240 Zeilen Fremdkegel** — am Stueck
-  nicht schneidbar. Drei Vorarbeits-Wellen, benannt nach dem Muttername
-  „Galerie" (die Kuerzel G1–G5 sind fuer die Umbau-Garantien in
-  `migrations-strategie.md` reserviert):
-  - **Galerie-Vertrag** (erledigt): `DocCardMeta` & Co nach `@ks/contracts`,
-    serverseitige Fachlogik nach `src/lib/documents/`
-  - **Galerie-Eine-Quelle** (erledigt): eine Werteliste statt dreizehn Kopien,
-    eine Verteilstelle statt vier Typ-Zweigen
-  - **Galerie-Betrachter** (erledigt): kein Auth-Anbieter mehr im Modul; der
-    Betrachter wird hereingereicht (vier Felder), in der App aus Clerk
-  - **Galerie-Adressierung** (offen): Protokoll statt `next/navigation` — die
-    Welle, die das Einbetten freischaltet, und die riskanteste. Wartet auf
-    einen Konsumenten (Garantie G3), Netz liegt
-    (`tests/unit/utils/document-navigation-routen.test.ts`)
-  - **Galerie-Chat-Mittelschicht** (offen, vermessen): siehe
-    [`01-audit-galerie-chat.md`](docs/refactor/modularisierung/01-audit-galerie-chat.md).
-    Befund: Die Kopplung ist fast nur Vokabular, `ChatReferenceList` liegt im
-    Chat-Ordner und wird **nur** von der Galerie benutzt, und der Chat haengt
-    an der Galerie staerker (7 Dateien) als umgekehrt (3). Empfohlen ist,
-    die Mittelschicht zu benennen statt den Chat mitzunehmen
+- **Vorhaben 1 (jetzt): AECED, Galerie als einbettbare Komponente (M5).**
+  Brief: [`docs/refactor/modularisierung/AGENT-BRIEF-M5.md`](docs/refactor/modularisierung/AGENT-BRIEF-M5.md)
+  (fuenf Schritte, Vorgeschichte M1–M4e, Regeln aus frueheren Wellen).
+  Die Schritte 1 und 3 laufen als Teilwellen M4f–M4i mit eigener Messung:
+  [`AGENT-BRIEF-M4f.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4f.md)
+  (M4f und M4g erledigt, M4h und M4i offen).
+- **Vorhaben 2: Klimamaßnahmen Südtirol, Vortrag 30.09.** (OneDrive-Anmeldung
+  stabil neu aufsetzen, Library-Anpassungen, Webseite; Konzept im Archiv).
+- **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10.); die Erfassung
+  wird dort in einem Zug bereinigt (Alt-Endpunkte, ADR 0003, Welle 3-VI).
 
-  **Pakete pro `detailViewType` wurden geprueft und verworfen** — die
-  Faehigkeiten (Kommentare, Sterne, Graph) spannen bereits ueber alle Typen;
-  erneut zu pruefen erst in M6, per Bundle-Messung. Der Blocker fuers Einbetten
-  ist nicht die Groesse, sondern `src/utils/document-navigation.ts`: die Datei
-  kennt zwei fest verdrahtete Routen-Formen und faellt sonst auf
-  `/library/gallery` zurueck.
-- **Umzugs-Messung** (2026-08-30):
-  [`02-audit-umzug.md`](docs/refactor/modularisierung/02-audit-umzug.md) — die
-  Grundlage fuer den eigentlichen Umzug nach `@ks/module-explorer`.
-  Der Umfang laut Landkarte §5 sind **189 Dateien / 34.760 Zeilen**.
-  **Befund, der den Zuschnitt aendert: `src/lib/chat` gehoert nicht hinein.**
-  32 Dateien, 9.939 Zeilen Server-Stack (DB, Ingestion, Repositories, Jobs);
-  15 seiner 23 Aussen-Gruppen braucht nur dieser Ordner, 52 Dateien ausserhalb
-  haengen daran, und die Chat-UI zieht 28 ihrer 30 Importe aus einer einzigen
-  Vokabeldatei (`lib/chat/constants`, 816 Zeilen, bereits
-  abhaengigkeitsfrei, 51 Konsumenten). **Die Landkarten-Zeile §5 ist insoweit
-  zu korrigieren.** Ohne `lib/chat`: 157 Dateien / 24.821 Zeilen.
-  Die fuenf UI-Bereiche haengen nur ueber **14 Kreuzverweise** zusammen (mit
-  Zyklen Galerie ↔ Chat-UI und Galerie ↔ Website) — erst die zu Slots machen,
-  dann Bereich fuer Bereich umziehen. Reihenfolge und Beweis-Ziele im Audit.
-- **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
-  bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
-  Docker-Build nicht — gruene PR-Checks sind kein Beleg.
+**Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent in
+`docs/STAND.md` unter „Neu dazugekommen" des laufenden Vorhabens ein (mit
+Datum), nicht nur in den Hand-off.
 
-**Abgeschlossene Straenge** (nicht neu aufgreifen):
+**Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
+bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
+Docker-Build nicht — gruene PR-Checks sind kein Beleg.
 
-- **Werkbank/Agentensicht**: Wellen W1–W8 und A1–A7 sind umgesetzt
-  ([`docs/concepts/projektauftrag-werkbank-abnahme.md`](docs/concepts/projektauftrag-werkbank-abnahme.md),
-  Testsession dokumentiert). Kuration laeuft nach ADR 0006 (Modell B).
-  **A7 (05.09.2026)** ergaenzt den Tab „Aktuell" als Default-Einstieg: die
-  Tages-Uebersicht („woran arbeite ich gerade?") wird aus den Bericht-Feldern
-  der `VorhabenCard`s gerechnet — dieselbe Quelle wie der Sichten-Export
-  `Organisation/AKTUELL.md`, kein zweiter Scan und kein zweiter Parser.
-  **A7b** schaltet die Postfach-Frische scharf: `postfach_ab`/`postfach_bis`
-  (Korrespondenz-Methode des Archivs, Format `JJJJ-KWnn`) reisen auf der Karte
-  mit, die Aktuell-Sicht zeigt den Rueckstand, und oberhalb der pro Library
-  konfigurierten Schwelle (`agentView.postfachMaxRueckstandWochen`, fehlt =
-  Regel aus) meldet der Scan den Cowork-Befund `postfach_veraltet`. Damit sagt
-  die Liste selbst, wann sie nicht mehr aktuell ist.
+**Abgeschlossene Straenge** (nicht neu aufgreifen; Kurzliste in
+`docs/STAND.md`): Refactor-Wellen 1.1–3-IV und 4, Shadow Twin Mongo-only,
+Werkbank/Agentensicht W0–W5, W1–W8, A1–A7b (Kuration nach ADR 0006, Tab
+„Aktuell" aus den Bericht-Feldern der `VorhabenCard`s, Postfach-Frische
+ueber `agentView.postfachMaxRueckstandWochen`), Modularisierung M1–M4e,
+Storage ueber MCP ST1–ST4.
 
-**Ruhender Strang**: Die Juni-Roadmap
+**Ruhend / geplant**: alles im Vorrat von `docs/STAND.md`, darunter die
+Juni-Roadmap
 [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md)
-(Plan 1 Library-Konsistenz, Plan 2 Onboarding-Flow) bleibt gueltig, wurde aber
-zugunsten der Werkbank zurueckgestellt. Plan 1 ist bis auf A4-Feinschliff
-erledigt. Erst wieder aufgreifen, wenn der Owner es sagt.
+(Plan 1 bis auf A4-Feinschliff erledigt, Plan 2 Onboarding-Flow). Erst
+wieder aufgreifen, wenn der Owner es in ein Vorhaben holt.
 
 ## Pflicht-Lektuere zu Beginn jedes Tasks
 
@@ -128,8 +50,9 @@ erledigt. Erst wieder aufgreifen, wenn der Owner es sagt.
    laedt die immer geltenden Contracts per `@`-Import)
 2. Fuer den bearbeiteten Pfad: die im Routing-Index genannten Contracts
    unter `docs/contracts/` — der passende Contract-Skill fasst sie zusammen
-3. Diese Datei — insb. den Abschnitt „Aktueller Fahrplan"
-4. [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md) (Reihenfolge + Plan-1-Kickoff)
+3. Diese Datei — insb. den Abschnitt „Aktueller Fahrplan" — und
+   [`docs/STAND.md`](docs/STAND.md) (welches Vorhaben traegt, was wartet)
+4. Den Brief des laufenden Vorhabens (in `STAND.md` verlinkt)
 5. Bei Refactor-Tasks: `docs/refactor/<modul>/00-audit.md` (Bestands-
    Audit) und `docs/refactor/<modul>/AGENT-BRIEF.md` (falls vorhanden)
 
@@ -194,13 +117,15 @@ Detail (warum, Symptome, Ausnahmen):
 
 ## Pläne
 
-- Aktive Plaene liegen unter [`docs/plans/`](docs/plans/)
-- Aktiver Plan: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
+- Aktive Plaene liegen unter [`docs/plans/`](docs/plans/) — seit 2026-09-09
+  ist der Ordner leer; das laufende Vorhaben hat seinen Brief, siehe
+  [`docs/STAND.md`](docs/STAND.md)
+- Geplante Plaene (gewollt, ohne Termin): [`docs/plans/geplant/`](docs/plans/geplant/)
 - Erledigte/gegenstandslose Plaene: [`docs/plans/archiv/`](docs/plans/archiv/)
-  (mit Begruendung je Plan in der dortigen README)
-- Bei jedem Task: zuerst den referenzierten Plan komplett lesen,
+  (mit Beleg und Restnotiz je Plan in der dortigen README)
+- Bei jedem Task: zuerst den referenzierten Plan bzw. Brief komplett lesen,
   dann das genannte Todo abarbeiten. Die `status:`-Marker in den Plan-Dateien
-  sind NICHT verlaesslich gepflegt — im Zweifel gegen den Code pruefen.
+  sind NICHT verlaesslich gepflegt — massgeblich sind `STAND.md` und der Code.
 
 ## Architecture Decision Records (ADR)
 
@@ -211,15 +136,15 @@ Detail (warum, Symptome, Ausnahmen):
 - Aktiv: `docs/adr/0002-galerie-sterne-ohne-clerk-read.md` —
   Galerie-Sterne und Voter-Namen kommen aus MongoDB + `GET docs`,
   nicht aus Clerk-Aggregations- oder Display-Name-Routen
-- Vorgeschlagen: `docs/adr/0003-wizard-schema-template-trennen.md` —
+- Vorgeschlagen (geplant, reserviert fuer Vorhaben SHF): `docs/adr/0003-wizard-schema-template-trennen.md` —
   Wizard (Flow/UI, generisch) und Schema-Template (Datenmodell + Renderer +
   Extractor, pro docType) werden getrennt und zur Laufzeit gemerged;
   Feld-Bindungsmodell bewusst offen
-- Vorgeschlagen: `docs/adr/0004-capture-publish-entkopplung-inbox-modell.md` —
+- Aktiv (akzeptiert 2026-09-09, gebaut seit Juni): `docs/adr/0004-capture-publish-entkopplung-inbox-modell.md` —
   Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
   Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
   ist ein rechte-gateter, idempotenter Promotion-Job
-- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
+- Zurueckgestellt (2026-09-09): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
   Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
   (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
   vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
@@ -228,12 +153,12 @@ Detail (warum, Symptome, Ausnahmen):
   angenommen (oranger Haken), der Mensch markiert nur Fehler (Stopp-Zeichen,
   `twin_status: fehlerhaft` + `flagged_by/at/note`); Sammelaktionen werden
   zurueckgebaut, Zaehler zaehlt Widerstaende statt Bestaetigungen
-- Vorgeschlagen: `docs/adr/0007-modularisierung-monorepo-schale-module.md` —
+- Aktiv (akzeptiert 2026-09-09): `docs/adr/0007-modularisierung-monorepo-schale-module.md` —
   pnpm-Monorepo mit Schale (`@ks/shell`), Modul-Paketen (`@ks/module-*`) und
   Shared Libraries; SiteConfig pro Deployment; Core- vs. Modul-APIs mit
   Route-Handler-Fabriken; Detail: `docs/architecture/modul-landkarte.md` +
   `docs/architecture/einsatz-szenarien.md` + `migrations-strategie.md`
-- Vorgeschlagen: `docs/adr/0008-deployment-ziele.md` — Ein Deployment, viele
+- Aktiv (akzeptiert 2026-09-09): `docs/adr/0008-deployment-ziele.md` — Ein Deployment, viele
   Sites (Host→SiteConfig zur Laufzeit, `next/dynamic` je Modul); eigene
   Compilate nur bei anderer Laufzeit (Electron, npm-Embed); Module exportieren
   montierbare Wurzelkomponenten.
@@ -251,10 +176,10 @@ Detail (warum, Symptome, Ausnahmen):
   Besitzers und kennt keine Scopes; wer ihn hat, erreicht auch die
   schreibenden MCP-Werkzeuge. Bis das anders ist: Schluessel nur an Parteien,
   denen man auch Schreibzugriff anvertraut
-- Vorgeschlagen: `docs/adr/0009-library-foederation.md` — mehrere Libraries
+- Vorgeschlagen (geplant, M8): `docs/adr/0009-library-foederation.md` — mehrere Libraries
   pro Site (primary + federated); Frage- und Inhalts-Bruecken auf Basis des
   Perspektiven-Bruecken-Zielbilds; Inhalts-Bruecken vorberechnet
-- Vorgeschlagen: `docs/adr/0010-retrieval-profile.md` — Profile pro Library
+- Vorgeschlagen (geplant, M8): `docs/adr/0010-retrieval-profile.md` — Profile pro Library
   (UI-Variante + pluggbare Retrieval-Strategie + Sprachen), Laie/Experte;
   Ingestion-Post-Prozesse (z.B. Geo-Normalisierung) als Pipeline-Phasen
 
