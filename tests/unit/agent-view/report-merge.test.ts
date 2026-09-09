@@ -125,6 +125,36 @@ describe('mergeTeilbaumReport — benannte Fallbacks', () => {
     expect(ergebnis).toMatchObject({ merged: false, grund: 'konventionen_geaendert' })
   })
 
+  // Befund 09.09.2026 (Cowork): Der Vergleich zaehlte fuenf von acht Feldern
+  // auf. Weil der Merge die Konventionen des GESPEICHERTEN Reports uebernimmt,
+  // antwortete ein Teilbaum-Scan nach einer Schwellen-Aenderung still mit der
+  // alten Schwelle — der Agent konnte nicht erkennen, ob eine Regel scharf ist.
+  it.each([
+    ['postfachMaxRueckstandWochen', { postfachMaxRueckstandWochen: 2 }],
+    ['repoMaxRueckstandTage', { repoMaxRueckstandTage: 14 }],
+    ['themenVokabularGepflegt', { themenVokabularGepflegt: true }],
+    ['scanExcludeGlobs', { scanExcludeGlobs: ['**/temp/**'] }],
+    ['standardTemplate', { standardTemplate: 'standard-meeting' }],
+    ['vorhabenFolderPattern', { vorhabenFolderPattern: '^\\d{2}\\.\\d{2} ' }],
+    ['indexRequiredMaxDepth', { indexRequiredMaxDepth: 2 }],
+  ])('JEDES Konventionsfeld schlaegt durch: %s', async (_name, abweichung) => {
+    const { voll0, teil1 } = await paar()
+    const andere = { ...teil1, conventions: { ...KONVENTIONEN, ...abweichung } }
+    const ergebnis = mergeTeilbaumReport({ voll: voll0, teil: andere })
+    expect(ergebnis).toMatchObject({ merged: false, grund: 'konventionen_geaendert' })
+  })
+
+  it('ein gespeicherter Report ohne das neue Feld gilt als geaendert, nicht als gleich', async () => {
+    // Reports von vor einem neuen Konventionsfeld tragen dort `undefined`.
+    // Sie duerfen NICHT stillschweigend mergen — sonst behauptet der Report
+    // eine Konvention, die dieser Scan nie gesehen hat.
+    const { voll0, teil1 } = await paar()
+    const alt = { ...voll0, conventions: { ...KONVENTIONEN } }
+    delete (alt.conventions as Partial<typeof alt.conventions>).repoMaxRueckstandTage
+    const ergebnis = mergeTeilbaumReport({ voll: alt, teil: teil1 })
+    expect(ergebnis).toMatchObject({ merged: false, grund: 'konventionen_geaendert' })
+  })
+
   it('Voll-Scan als „Teil" ist ein Aufruffehler, kein Fallback', async () => {
     const { voll0 } = await paar()
     expect(() => mergeTeilbaumReport({ voll: voll0, teil: voll0 })).toThrow(/scope\.folderId/)

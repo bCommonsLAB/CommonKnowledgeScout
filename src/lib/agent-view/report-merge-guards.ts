@@ -10,7 +10,7 @@
  * @module agent-view
  */
 
-import type { CoverageReport, CoverageTreeNode } from './types'
+import type { CoverageConventions, CoverageReport, CoverageTreeNode } from './types'
 
 export type MergeFallbackGrund =
   | 'voll_report_ist_teilbaum'
@@ -28,15 +28,45 @@ function fallback(grund: MergeFallbackGrund, erklaerung: string): MergeErgebnis 
   return { merged: false, grund, erklaerung: `${erklaerung} — der Teil-Report ersetzt den gespeicherten (wie vor W8).` }
 }
 
-function konventionenGleich(a: CoverageReport['conventions'], b: CoverageReport['conventions']): boolean {
-  return (
-    a.standardTemplate === b.standardTemplate &&
-    a.vorhabenFolderPattern === b.vorhabenFolderPattern &&
-    a.indexRequiredMaxDepth === b.indexRequiredMaxDepth &&
-    a.berichtFreshness === b.berichtFreshness &&
-    a.scanExcludeGlobs.length === b.scanExcludeGlobs.length &&
-    a.scanExcludeGlobs.every((glob, idx) => glob === b.scanExcludeGlobs[idx])
-  )
+/**
+ * Vergleich je Konventionsfeld — VOLLSTAENDIGES `Record` (Muster
+ * `GAP_REGISTRY`): Ein neues Feld ohne Eintrag ist ein TYPFEHLER, kein
+ * stilles Loch.
+ *
+ * Befund 09.09.2026 (Cowork): Die frühere Fassung zaehlte fuenf von acht
+ * Feldern auf; `postfachMaxRueckstandWochen` (A7b), `repoMaxRueckstandTage`
+ * (C1) und `themenVokabularGepflegt` (B3c) fehlten. Folge war kein blosser
+ * Anzeigefehler: Weil `mergeReports` die Konventionen des
+ * GESPEICHERTEN Voll-Reports uebernimmt, hat ein Teilbaum-Scan nach einer
+ * Schwellen-Aenderung stillschweigend weiter mit der alten Schwelle
+ * geantwortet — und ein Agent konnte nicht erkennen, ob eine Regel scharf
+ * ist. Genau dafuer ist `conventions` da (`no-silent-fallbacks.md`).
+ *
+ * Ein gespeicherter Report von VOR einem neuen Feld traegt dort `undefined`
+ * und ist damit ungleich `null` — der Merge faellt dann laut zurueck
+ * („einmal voll scannen"), statt eine unbekannte Konvention zu behaupten.
+ */
+const KONVENTIONEN_VERGLEICH: {
+  [K in keyof CoverageConventions]: (a: CoverageConventions[K], b: CoverageConventions[K]) => boolean
+} = {
+  standardTemplate: (a, b) => a === b,
+  vorhabenFolderPattern: (a, b) => a === b,
+  indexRequiredMaxDepth: (a, b) => a === b,
+  berichtFreshness: (a, b) => a === b,
+  postfachMaxRueckstandWochen: (a, b) => a === b,
+  repoMaxRueckstandTage: (a, b) => a === b,
+  themenVokabularGepflegt: (a, b) => a === b,
+  scanExcludeGlobs: (a, b) => a.length === b.length && a.every((glob, idx) => glob === b[idx]),
+}
+
+function konventionenGleich(a: CoverageConventions, b: CoverageConventions): boolean {
+  for (const key of Object.keys(KONVENTIONEN_VERGLEICH) as (keyof CoverageConventions)[]) {
+    // Der Cast buendelt die feldweise korrekten Signaturen des Records auf
+    // einen gemeinsamen Aufruf — die Typsicherheit steckt in der Tabelle.
+    const gleich = KONVENTIONEN_VERGLEICH[key] as (x: unknown, y: unknown) => boolean
+    if (!gleich(a[key], b[key])) return false
+  }
+  return true
 }
 
 function hatW8Skalare(nodes: readonly CoverageTreeNode[]): boolean {
