@@ -15,8 +15,8 @@
  *
  * Die Bruecke sitzt in der Provider-Kette von `layout.tsx` INNERHALB von
  * `ClerkProvider` (sie liest dessen Hooks) und umschliesst alles, was die
- * Galerie-Hooks nutzt — auch `filter-context-bar` und die
- * Verifikations-Abzeichen ausserhalb des Galerie-Ordners.
+ * Galerie-Hooks nutzt — auch die Verifikations-Abzeichen ausserhalb des
+ * Galerie-Ordners.
  *
  * @module providers
  */

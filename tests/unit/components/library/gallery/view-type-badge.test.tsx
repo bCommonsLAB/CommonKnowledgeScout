@@ -2,7 +2,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
-import { ViewTypeBadge } from '@/components/library/view-type-badge'
+import { ViewTypeBadge } from '@/components/library/gallery/view-type-badge'
 
 afterEach(() => cleanup())
 

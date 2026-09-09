@@ -16,7 +16,7 @@
  */
 
 import React from 'react'
-import Image from 'next/image'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@ks/ui'
 import { Calendar, MapPin, User, FileText } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
@@ -32,6 +32,7 @@ export interface StandardCardProps {
 }
 
 export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: StandardCardProps) {
+  const { Bild } = useGalleryHost()
   return (
     <Card
       className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 relative'
@@ -67,7 +68,7 @@ export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: Stan
             {/* Cover-Thumbnail + Speaker-Icons + Titel fuer Standard-Dokumente (Buecher, PDFs, etc.) */}
             {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
               <div className='flex-shrink-0 w-[80px] h-[120px] bg-secondary rounded border border-border overflow-hidden shadow-sm'>
-                <Image
+                <Bild
                   src={doc.coverThumbnailUrl || doc.coverImageUrl || ''}
                   alt={doc.title || doc.shortTitle || doc.fileName || 'Cover'}
                   width={80}

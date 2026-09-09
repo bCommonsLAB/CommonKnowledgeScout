@@ -17,7 +17,7 @@ import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-count
 import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
-import { ViewTypeBadge } from '@/components/library/view-type-badge'
+import { ViewTypeBadge } from '@/components/library/gallery/view-type-badge'
 import { getPresentDetailViewTypes } from '@/lib/detail-view-types/view-type-display'
 import { formatUpsertedAt } from '@ks/util'
 

@@ -21,7 +21,7 @@
  */
 
 import React from 'react'
-import Image from 'next/image'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { Cpu, MemoryStick, HardDrive } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useTranslation } from '@ks/i18n/react'
@@ -41,6 +41,7 @@ export function RefurbedDeviceCard({
   libraryId,
   onToggleFavorite,
 }: RefurbedDeviceCardProps) {
+  const { Bild } = useGalleryHost()
   const { t } = useTranslation()
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
@@ -67,7 +68,7 @@ export function RefurbedDeviceCard({
     >
       {/* Hintergrundbild: Thumbnail bevorzugt fuer bessere Performance */}
       {displayImageUrl ? (
-        <Image
+        <Bild
           src={displayImageUrl}
           alt={primaryTitle}
           fill

@@ -11,24 +11,36 @@ import type { DetailViewType } from '@ks/contracts'
 import { SourceStarsCell } from './source-stars-cell'
 import { RatingModeBar } from './rating/rating-mode-bar'
 import { SourceCommentsPanel } from './source-comments-panel'
-import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
-import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
-import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
-import { IngestionDivaDocumentDetail } from '@/components/library/ingestion-diva-document-detail'
-import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-texture-detail'
-import { IngestionRefurbedDeviceDetail } from '@/components/library/ingestion-refurbed-device-detail'
-import { IngestionWebsiteDetail } from '@/components/library/ingestion-website-detail'
 import { useTranslation } from '@ks/i18n/react'
 import { useLibraries } from '@ks/shell/react'
 import { SdgProfile } from '@/components/library/gallery/sdg-profile'
 import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@ks/util'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
 import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
-import type { BookDetailData } from '@/components/library/book-detail'
-import type { SessionDetailData } from '@/components/library/session-detail'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { mapToBookDetail, mapToSessionDetail } from '@/lib/mappers/doc-meta-mappers'
 import { localizeDocMetaJson } from '@/lib/i18n/get-localized'
+
+/** Was ein Renderer braucht, um eine Detailansicht zu bauen. */
+export interface DetailRenderProps {
+  libraryId: string
+  fileId: string
+  /**
+   * Die Antwort von `/doc-meta`, `docMetaJson` bereits mit der aktiven Locale
+   * veredelt — `null`, solange sie laedt oder wenn es keine gab. Der Renderer
+   * mappt sie selbst in seine Form; die Galerie kennt die Formen nicht.
+   */
+  docMeta: Record<string, unknown> | null
+  /** `true`, sobald der Doc-Meta-Abruf abgeschlossen ist — auch ohne Ergebnis. */
+  isDocMetaReady: boolean
+  fallbackLocale?: string
+}
+
+/**
+ * Eine Detailansicht als Komponente. Bewusst keine blosse Funktion: Renderer
+ * duerfen Hooks nutzen (die Buch- und Session-Ansicht memoisieren ihr
+ * Mapping, weil `initialData` dort in einem Effekt haengt).
+ */
+export type DetailRenderer = React.ComponentType<DetailRenderProps>
 
 export interface DetailOverlayProps {
   open: boolean
@@ -37,6 +49,13 @@ export interface DetailOverlayProps {
   fileId: string
   /** Typ der Detailansicht — Werteliste aus der zentralen Registry */
   viewType: DetailViewType
+  /**
+   * Welche Ansicht zu welchem Typ gehoert. Kommt vom Montagepunkt (M4g): Die
+   * Galerie kennt die zehn Detail-Komponenten der App nicht mehr. Der
+   * `Record` haelt die Typgrenze — ein neuer `detailViewType` ist dort ein
+   * Typfehler, bis er eine Ansicht hat.
+   */
+  detailRenderers: Record<DetailViewType, DetailRenderer>
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -83,6 +102,7 @@ export function DetailOverlay({
   libraryId,
   fileId,
   viewType,
+  detailRenderers,
   title,
   doc,
   currentMode = 'gallery',
@@ -178,9 +198,9 @@ export function DetailOverlay({
   const effectivePrevDoc = ratingActive ? sequencer.prevDoc : prevDoc ?? null
   const effectiveNextDoc = ratingActive ? sequencer.nextDoc : nextDoc ?? null
 
-  // Vorgemappte Detail-Daten (durch doc-meta Prefetch), bereits sprach-veredelt.
-  const [prefetchedBookData, setPrefetchedBookData] = React.useState<BookDetailData | null>(null)
-  const [prefetchedSessionData, setPrefetchedSessionData] = React.useState<SessionDetailData | null>(null)
+  // Die Doc-Meta-Antwort, bereits sprach-veredelt. Das Mapping in die Form der
+  // jeweiligen Ansicht macht der Renderer (M4g) — die Galerie kennt sie nicht.
+  const [docMeta, setDocMeta] = React.useState<Record<string, unknown> | null>(null)
   const [isDocMetaReady, setIsDocMetaReady] = React.useState(false)
   const [sessionUrl, setSessionUrl] = React.useState<string | null>(null)
   // Lokalisiertes docMetaJson fuer das generische SDG-Profil (alle View-Typen).
@@ -202,16 +222,14 @@ export function DetailOverlay({
   // in der Originalsprache landet, falls keine Translation existiert.
   React.useEffect(() => {
     if (!open) {
-      setPrefetchedBookData(null)
-      setPrefetchedSessionData(null)
+      setDocMeta(null)
       setIsDocMetaReady(false)
       setSessionUrl(null)
       setSdgDocMeta(null)
       return
     }
 
-    setPrefetchedBookData(null)
-    setPrefetchedSessionData(null)
+    setDocMeta(null)
     setIsDocMetaReady(false)
     setSdgDocMeta(null)
 
@@ -224,17 +242,11 @@ export function DetailOverlay({
         if (!res.ok || !json?.docMetaJson) return
 
         const docMetaJson = json.docMetaJson as Record<string, unknown>
-        // Locale-Veredelung VOR dem Detail-Mapping
+        // Locale-Veredelung VOR dem Detail-Mapping (das der Renderer macht)
         const localized = localizeDocMetaJson(docMetaJson, locale, fallbackLocale)
-        const localizedJson = { ...json, docMetaJson: localized }
+        setDocMeta({ ...(json as Record<string, unknown>), docMetaJson: localized })
         // Raw (lokalisiertes) docMetaJson fuer das generische SDG-Profil behalten.
         setSdgDocMeta(localized as Record<string, unknown>)
-
-        if (viewType === 'session') {
-          try { setPrefetchedSessionData(mapToSessionDetail(localizedJson as unknown)) } catch { setPrefetchedSessionData(null) }
-        } else if (viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture' && viewType !== 'refurbedDevice' && viewType !== 'website') {
-          try { setPrefetchedBookData(mapToBookDetail(localizedJson as unknown)) } catch { setPrefetchedBookData(null) }
-        }
 
         // URL fuer Sessions speichern (oben rechts „Original"-Link)
         if (viewType === 'session' && typeof docMetaJson.url === 'string') {
@@ -398,10 +410,10 @@ export function DetailOverlay({
           {ratingActive ? commentsBlock : null}
           <DetailBody
             viewType={viewType}
+            renderers={detailRenderers}
             libraryId={libraryId}
             fileId={fileId}
-            prefetchedSessionData={prefetchedSessionData}
-            prefetchedBookData={prefetchedBookData}
+            docMeta={docMeta}
             isDocMetaReady={isDocMetaReady}
             fallbackLocale={fallbackLocale}
           />
@@ -425,87 +437,28 @@ export function DetailOverlay({
   )
 }
 
-interface DetailBodyProps {
-  viewType: DetailOverlayProps['viewType']
-  libraryId: string
-  fileId: string
-  prefetchedSessionData: SessionDetailData | null
-  prefetchedBookData: BookDetailData | null
-  isDocMetaReady: boolean
-  fallbackLocale?: string
+interface DetailBodyProps extends DetailRenderProps {
+  viewType: DetailViewType
+  renderers: Record<DetailViewType, DetailRenderer>
 }
-
-/** Was ein Renderer braucht, um eine Detailansicht zu bauen. */
-type DetailRenderProps = Omit<DetailBodyProps, 'viewType'>
-
-type DetailRenderer = (props: DetailRenderProps) => React.ReactElement
-
-const renderBookDetail: DetailRenderer = ({ libraryId, fileId, prefetchedBookData, isDocMetaReady, fallbackLocale }) => (
-  <IngestionBookDetail
-    libraryId={libraryId}
-    fileId={fileId}
-    initialData={prefetchedBookData || undefined}
-    suspendInitialFetch={!isDocMetaReady}
-    fallbackLocale={fallbackLocale}
-  />
-)
 
 /**
- * Zuordnung Renderer-Typ → Detailansicht.
- *
- * `Record<DetailViewType, …>` ist hier der eigentliche Punkt: Wer in
- * `@ks/contracts` einen neuen `detailViewType` ergaenzt, bekommt an dieser
- * Stelle einen Typfehler, bis er eine Ansicht zuordnet. Vorher stand hier eine
- * Negativ-Liste (`viewType !== 'session' && …`), durch die jeder unbekannte
- * Typ still als Buch gerendert wurde — ein stiller Fallback
- * (`docs/contracts/no-silent-fallbacks.md`, Galerie-Audit Befund 3).
- *
- * `testimonial` und `blog` zeigen bewusst die Buch-Ansicht. Fuer `testimonial`
- * existiert mit `testimonial-detail.tsx` zwar eine eigene Komponente, sie war
- * aber nie angeschlossen; sie jetzt zu verdrahten waere eine
- * Verhaltensaenderung und braucht eine Entscheidung, keine Refactoring-Welle.
+ * Waehlt die Ansicht zum Typ. Die Tabelle selbst kommt vom Montagepunkt
+ * (`gallery-detail-renderers.tsx` in der App, M4g); hier steht nur noch die
+ * Auswahl — und der laute Fall fuer einen Typ, der der Tabelle fehlt.
  */
-const DETAIL_RENDERERS: Record<DetailViewType, DetailRenderer> = {
-  book: renderBookDetail,
-  testimonial: renderBookDetail,
-  blog: renderBookDetail,
-  session: ({ libraryId, fileId, prefetchedSessionData, isDocMetaReady, fallbackLocale }) => (
-    <IngestionSessionDetail
-      libraryId={libraryId}
-      fileId={fileId}
-      initialData={prefetchedSessionData || undefined}
-      suspendInitialFetch={!isDocMetaReady}
-      fallbackLocale={fallbackLocale}
-    />
-  ),
-  climateAction: ({ libraryId, fileId, fallbackLocale }) => (
-    <IngestionClimateActionDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-  ),
-  divaDocument: ({ libraryId, fileId, fallbackLocale }) => (
-    <IngestionDivaDocumentDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-  ),
-  divaTexture: ({ libraryId, fileId }) => (
-    <IngestionDivaTextureDetail libraryId={libraryId} fileId={fileId} />
-  ),
-  refurbedDevice: ({ libraryId, fileId, fallbackLocale }) => (
-    <IngestionRefurbedDeviceDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-  ),
-  website: ({ libraryId, fileId, fallbackLocale }) => (
-    <IngestionWebsiteDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
-  ),
-}
-
-function DetailBody({ viewType, ...renderProps }: DetailBodyProps) {
+function DetailBody({ viewType, renderers, ...renderProps }: DetailBodyProps) {
   // Die Typgrenze deckt den Normalfall ab. Sollte ein ungeprueftes
   // detailViewType aus alter Library-Config doch durchkommen, wird das
   // ausdruecklich gemeldet statt still zur Buch-Ansicht zu werden.
-  const render = DETAIL_RENDERERS[viewType]
-  if (!render) {
+  const Renderer = renderers[viewType]
+  if (!Renderer) {
     console.error(`[DetailBody] Unbekannter detailViewType "${viewType}" — es wird die Buch-Ansicht gezeigt.`)
   }
+  const Ansicht = Renderer ?? renderers.book
   return (
     <div className='p-0 w-full max-w-full overflow-x-hidden'>
-      {(render ?? renderBookDetail)(renderProps)}
+      <Ansicht {...renderProps} />
     </div>
   )
 }

@@ -15,6 +15,9 @@ Vorhaben nach dem anderen**; Agenten arbeiten nur am Vorhaben, das in
 - **Vorhaben 1 (jetzt): AECED, Galerie als einbettbare Komponente (M5).**
   Brief: [`docs/refactor/modularisierung/AGENT-BRIEF-M5.md`](docs/refactor/modularisierung/AGENT-BRIEF-M5.md)
   (fuenf Schritte, Vorgeschichte M1–M4e, Regeln aus frueheren Wellen).
+  Die Schritte 1 und 3 laufen als Teilwellen M4f–M4i mit eigener Messung:
+  [`AGENT-BRIEF-M4f.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4f.md)
+  (M4f und M4g erledigt, M4h und M4i offen).
 - **Vorhaben 2: Klimamaßnahmen Südtirol, Vortrag 30.09.** (OneDrive-Anmeldung
   stabil neu aufsetzen, Library-Anpassungen, Webseite; Konzept im Archiv).
 - **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10.); die Erfassung

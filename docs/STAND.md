@@ -76,7 +76,19 @@ vor der Galerie.
 
 Neu dazugekommen:
 
-- (noch nichts; Einträge als `- JJJJ-MM-TT: …`)
+- 2026-09-09: Punkt 1 (Adressierung) ist als Welle **M4f** erledigt (PR
+  „M4f: Next raus"): kein `next/*` mehr im Galerie-Kegel, Bilder ueber den
+  Gastgeber (`next/image` bleibt in der App), Story-Panel als Slot.
+  Messung und Wellenplan M4f–M4i in `AGENT-BRIEF-M4f.md`.
+- 2026-09-09: Punkt 3, erster Teil, ist als Welle **M4g** erledigt: die
+  Renderer-Tabelle und drei weitere App-Bausteine sind Slots, der Kegel
+  importiert aus `components/library` nur sich selbst. Der Schnitt ist
+  bewusst nur die Galerie (nicht Chat-UI, Story, Website — passt zu „Nicht
+  in diesem Vorhaben"). Offen: M4h (Helfer in Pakete), M4i (der Umzug).
+- 2026-09-09: Hotfix #248 — oldiesforfuture.org war seit dem 30.08. kaputt
+  (Folge von #234: Galerie-Karte ausserhalb der Galerie ohne Anbieter).
+  Lehre: ein Anbieter-Buendel `GalleryAppProviders` an jedem Montagepunkt,
+  Waechter-Test `karte-ausserhalb-galerie.test.ts`.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

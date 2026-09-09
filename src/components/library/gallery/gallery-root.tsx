@@ -1,14 +1,13 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import type { DocReference, QuerySource, DetailViewType } from '@ks/contracts'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { Tabs, TabsContent, toast, Button, ScrollArea } from '@ks/ui'
-import { FilterContextBar } from '@/components/library/filter-context-bar'
-import { StoryModeHeader } from '@/components/library/story/story-mode-header'
+import { FilterContextBar } from '@/components/library/gallery/filter-context-bar'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ViewTypeLeadFilter } from '@/components/library/gallery/view-type-lead-filter'
@@ -19,9 +18,9 @@ import type { ViewMode } from '@/components/library/gallery/gallery-sticky-heade
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useDebouncedValue } from '@/hooks/gallery/use-debounced-value'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
-import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
+import { DetailOverlay, type DetailRenderer } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { useGalleryConfig } from '@/hooks/gallery/use-gallery-config'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 import { useAllGalleryDocs } from '@/hooks/gallery/use-all-gallery-docs'
@@ -32,7 +31,6 @@ import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { ReferencesSheet } from './references-sheet'
-import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
@@ -40,7 +38,6 @@ import { useOwnFavoriteIds, useUserStates } from '@/hooks/gallery/use-user-state
 import { useGalleryViewer } from '@/contexts/gallery-viewer-context'
 import { applyFavoriteToggleOptimistic, findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
-import dynamic from 'next/dynamic'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
 import { normalizeGalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
@@ -53,7 +50,6 @@ import {
 } from './gallery-root/helpers'
 import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
-import { WebsiteLandingLive } from '@/components/library/website/website-landing-live'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -76,24 +72,36 @@ export interface GalleryRootProps {
    * kann aus `libraryIdProp` ODER aus dem Auswahl-Atom kommen.
    */
   kopfAktionen?: (libraryId: string) => React.ReactNode
+  /**
+   * Das Story-Panel (der Chat in der eingebetteten Variante). Als Slot, weil
+   * der Chat ein anderer Bereich ist und die Galerie ihn bisher per
+   * `next/dynamic` holte — ein Paket kennt kein `next/dynamic` (M4f). Die App
+   * reicht ihn am Montagepunkt herein und laedt ihn dort weiterhin faul.
+   */
+  storyPanel?: (libraryId: string) => React.ReactNode
+  /**
+   * Welche Detailansicht zu welchem Renderer-Typ gehoert (M4g). Pflicht: Die
+   * Galerie kennt die Detail-Komponenten der App nicht mehr, und ohne Tabelle
+   * gibt es nichts zu zeigen — das soll auffallen, nicht leer bleiben.
+   */
+  detailRenderers: Record<DetailViewType, DetailRenderer>
+  /**
+   * Die Website-Landingpage im Modus `site` (M4g). Sie liegt in der App
+   * (`website/website-landing-live`) und liest dort ihre eigenen APIs.
+   */
+  siteView?: (opts: { libraryId: string; onShowGallery: () => void }) => React.ReactNode
+  /** Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht mit dem Story-Modus um. */
+  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void }) => React.ReactNode
+  /** Verifikations-Abzeichen neben der Ueberschrift; kein Slot, kein Abzeichen. */
+  verifikationsAbzeichen?: React.ReactNode
 }
 
-const LazyChatPanel = dynamic(
-  () => import('@/components/library/chat/chat-panel').then((module) => module.ChatPanel),
-  {
-    ssr: false,
-    loading: () => <div className='text-sm text-muted-foreground p-4'>Lade Story-Panel…</div>,
-  }
+// Graph-Modus faul laden (D3 nutzt Browser-APIs). `React.lazy` statt
+// `next/dynamic`: Die Galerie wird am Montagepunkt ohnehin ohne SSR montiert.
+const LazyDocGraph = lazy(() =>
+  import('@/components/library/gallery/graph/doc-graph').then((module) => ({ default: module.DocGraph }))
 )
-
-// Graph-Modus client-only laden (D3 nutzt Browser-APIs; kein SSR).
-const LazyDocGraph = dynamic(
-  () => import('@/components/library/gallery/graph/doc-graph').then((module) => module.DocGraph),
-  {
-    ssr: false,
-    loading: () => <div className='text-sm text-muted-foreground p-4'>Lade Graph…</div>,
-  }
-)
+const GRAPH_LADEHINWEIS = <div className='text-sm text-muted-foreground p-4'>Lade Graph…</div>
 
 export function GalleryRoot({
   libraryIdProp,
@@ -101,6 +109,11 @@ export function GalleryRoot({
   defaultToSite = false,
   hideWebsiteDocs = false,
   kopfAktionen,
+  storyPanel,
+  detailRenderers,
+  siteView,
+  storyHeader,
+  verifikationsAbzeichen,
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useActiveLibraryId()
@@ -126,9 +139,9 @@ export function GalleryRoot({
     queryId?: string
   } | null>(null)
   const prevQueryIdRef = React.useRef<string | undefined>(undefined)
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  // Die Adresse kommt hereingereicht; die Galerie weiss nicht, auf welcher Seite sie steht (M4f)
+  const navigation = useGalleryNavigation()
+  const searchParams = navigation.params
   // Der Betrachter kommt hereingereicht, nicht aus Clerk. `selfEmail`/`selfName`
   // braucht die Galerie, um sich in einer Voter-Liste selbst wiederzuerkennen;
   // `isSignedIn` speist die Session-Header fuer anonyme Aufrufe.
@@ -213,31 +226,15 @@ export function GalleryRoot({
         ? localStorage.getItem('story-perspective-set')
         : null
       
-      // Navigiere zur Perspective-Seite nur wenn:
-      // 1. Keine Perspektive gesetzt ist ODER nur Default
-      // 2. Flag noch nicht gesetzt ist (beim ersten Mal)
-      // 3. Wir nicht bereits auf der Perspective-Seite sind
-      if ((!hasPerspective || isDefaultPerspective) && !perspectiveSetFlag && pathname && !pathname.includes('/perspective')) {
-        // Prüfe ob wir auf einer explore-Seite sind
-        const isExplorePage = pathname.startsWith('/explore/')
-        if (isExplorePage) {
-          // Extrahiere Slug aus pathname
-          const slugMatch = pathname.match(/\/explore\/([^/]+)/)
-          if (slugMatch && slugMatch[1]) {
-            router.push(`/explore/${slugMatch[1]}/perspective`)
-          }
-        } else if (pathname.startsWith('/library/gallery')) {
-          // Für normale Library-Seiten: Navigiere zur Perspective-Seite mit libraryId
-          if (libraryId) {
-            const params = new URLSearchParams(searchParams?.toString() || '')
-            params.set('libraryId', libraryId)
-            params.set('from', 'story')
-            router.push(`/library/gallery/perspective?${params.toString()}`)
-          }
-        }
+      // Zur Perspektiven-Wahl nur, wenn keine (oder nur die Default-)
+      // Perspektive gesetzt ist und das Flag noch fehlt (beim ersten Mal).
+      // Ob es von der aktuellen Seite aus etwas zu springen gibt, weiss die
+      // Adressierung — nicht die Galerie (M4f).
+      if ((!hasPerspective || isDefaultPerspective) && !perspectiveSetFlag) {
+        navigation.openPerspective(libraryId || null)
       }
     }
-  }, [mode, character, pathname, router, libraryId, searchParams])
+  }, [mode, character, navigation, libraryId])
   // useGalleryConfig verwendet jetzt direkt die Übersetzungen basierend auf detailViewType
   // initialDetailViewType verhindert das Flackern beim ersten Render
   const { texts, detailViewType } = useGalleryConfig(
@@ -705,8 +702,7 @@ export function GalleryRoot({
       setReferencesSheetMode(null)
       setReferencesSheetData(null)
     }
-    // Nutze zentrale Utility-Funktion für URL-basierte Navigation
-    openDocumentBySlug(slug, router, pathname, searchParams)
+    navigation.openDocument(slug)
   }
   
   const handleCloseDocument = () => {
@@ -716,8 +712,7 @@ export function GalleryRoot({
     }
     isClosingRef.current = true
     
-    // Verwende zentrale Utility-Funktion zum Entfernen des doc-Parameters
-    closeDocument(router, pathname, searchParams)
+    navigation.closeDocument()
     
     // Reset closing flag nach kurzer Verzögerung
     setTimeout(() => {
@@ -998,15 +993,17 @@ export function GalleryRoot({
               Batch-Loader um DB-Connections (Timeouts, Befund 2026-07-08).
               Bei Fehler zeigen wir den Teilbestand, statt gar nichts. */}
           {!allGraphDocs.loading && graphDocs.length > 0 && (
-            <LazyDocGraph
-              docs={graphDocs}
-              graph={graphConfig}
-              onOpenDocument={handleOpenDocument}
-              fieldLabels={facetFieldLabels}
-              libraryId={libraryId || undefined}
-              onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
-              canManageRelations={isOwner}
-            />
+            <Suspense fallback={GRAPH_LADEHINWEIS}>
+              <LazyDocGraph
+                docs={graphDocs}
+                graph={graphConfig}
+                onOpenDocument={handleOpenDocument}
+                fieldLabels={facetFieldLabels}
+                libraryId={libraryId || undefined}
+                onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
+                canManageRelations={isOwner}
+              />
+            </Suspense>
           )}
         </div>
       )
@@ -1073,8 +1070,11 @@ export function GalleryRoot({
         <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           {/* Phase 3 (E4/E7): Statt des alten web/-Snapshot-iframes rendert die
              „Startseite" jetzt die produktive website-Landingpage aus Live-Daten. */}
-          {libraryId ? (
-            <WebsiteLandingLive libraryId={libraryId} onShowGallery={() => setMode('gallery')} />
+          {libraryId && siteView ? (
+            siteView({ libraryId, onShowGallery: () => setMode('gallery') })
+          ) : libraryId ? (
+            // Kein stiller Leerraum: Site-Modus erlaubt, aber keine Landingpage montiert.
+            <div className="p-6 text-sm text-muted-foreground">Keine Website-Ansicht montiert.</div>
           ) : (
             <div className="p-6 text-sm text-muted-foreground">{t('gallery.loading')}</div>
           )}
@@ -1085,6 +1085,7 @@ export function GalleryRoot({
         {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
+            verifikationsAbzeichen={verifikationsAbzeichen}
             headline={texts.headline}
             subtitle={texts.subtitle}
             description={texts.description}
@@ -1210,11 +1211,16 @@ export function GalleryRoot({
         {mode === 'story' && (
         <TabsContent value="story" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden">
           <div className="flex-shrink-0">
-            <StoryModeHeader libraryId={libraryId || ''} onBackToGallery={() => setMode('gallery')} />
+            {storyHeader ? storyHeader({ libraryId: libraryId || '', onBackToGallery: () => setMode('gallery') }) : null}
           </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr] flex-1 min-h-0 overflow-hidden">
             <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
-              <LazyChatPanel libraryId={libraryId} variant='embedded' />
+              {storyPanel ? (
+                storyPanel(libraryId)
+              ) : (
+                // Kein stiller Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das.
+                <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
+              )}
             </div>
             {/* Nur auf Desktop mounten — auf Mobil war die Spalte bisher nur
                 CSS-versteckt und hat Liste/Hooks trotzdem doppelt betrieben. */}
@@ -1274,6 +1280,7 @@ export function GalleryRoot({
           libraryId={libraryId || ''}
           fileId={selectedDoc.fileId || selectedDoc.id}
           viewType={detailViewTypeForDoc}
+          detailRenderers={detailRenderers}
           doc={selectedDoc}
           currentMode={galleryDataMode}
           isSwitchingRef={isSwitchingToStoryModeRef}

@@ -17,8 +17,8 @@
  * uebersehen; der Unit-Test der Karte mockt den Kontext und konnte es nicht
  * sehen.
  *
- * Diese Huelle stellt den Zustand von vor #234 wieder her: `NextGalleryNavigation`
- * fuehrt einen Klick auf der `/library`-Route per `openDocumentBySlug` zu
+ * Diese Huelle stellt den Zustand von vor #234 wieder her: `GalleryAppProviders`
+ * (Adressierung + Gastgeber) fuehrt einen Klick auf der `/library`-Route per `openDocumentBySlug` zu
  * `/library/gallery?doc=…` — wie die Karte es frueher selbst getan hat
  * (`tests/unit/utils/document-navigation-routen.test.ts`, Fall „push auf
  * Nicht-Galerie-Route").
@@ -29,14 +29,14 @@
  * @module components/library/file-preview
  */
 
-import { NextGalleryNavigation } from '@/components/providers/next-gallery-navigation'
+import { GalleryAppProviders } from '@/components/providers/gallery-app-providers'
 import { DocumentCard } from '@/components/library/gallery/document-card'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 export function GalleryTeaserCard({ doc }: { doc: DocCardMeta }) {
   return (
-    <NextGalleryNavigation>
+    <GalleryAppProviders>
       <DocumentCard doc={doc} />
-    </NextGalleryNavigation>
+    </GalleryAppProviders>
   )
 }

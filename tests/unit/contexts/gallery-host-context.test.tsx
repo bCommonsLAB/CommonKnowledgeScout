@@ -22,6 +22,7 @@ import {
   GalleryHostProvider,
   useGalleryHost,
   STILLER_GASTGEBER,
+  SchlichtesBild,
   type GalleryHost,
 } from '@/contexts/gallery-host-context'
 
@@ -36,7 +37,7 @@ describe('useGalleryHost', () => {
 
   it('reicht den Gastgeber durch', () => {
     const jobGestartet = vi.fn()
-    const host: GalleryHost = { jobGestartet }
+    const host: GalleryHost = { jobGestartet, Bild: SchlichtesBild }
     const wrapper = ({ children }: { children: ReactNode }) => (
       <GalleryHostProvider host={host}>{children}</GalleryHostProvider>
     )

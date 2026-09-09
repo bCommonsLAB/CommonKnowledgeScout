@@ -13,15 +13,18 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
-import { FilterContextBar } from '@/components/library/filter-context-bar'
+import { FilterContextBar } from '@/components/library/gallery/filter-context-bar'
 
 const pushMock = vi.fn()
 let currentSearch = ''
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock, replace: vi.fn() }),
-  usePathname: () => '/library/lib-1/gallery',
-  useSearchParams: () => new URLSearchParams(currentSearch),
+// Seit M4f schreibt die Leiste nicht mehr selbst in die Adresse, sondern sagt
+// `pushParams(next)`. Der Mock zeichnet auf, was sie sagen wollte.
+vi.mock('@/contexts/gallery-navigation-context', () => ({
+  useGalleryNavigation: () => ({
+    params: new URLSearchParams(currentSearch),
+    pushParams: (next: URLSearchParams) => pushMock(next.toString()),
+  }),
 }))
 
 let mockIsMember = true

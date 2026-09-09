@@ -23,13 +23,13 @@ const GALERIE = 'src/components/library/gallery/'
 
 /**
  * Bekannte Aufrufstellen ausserhalb der Galerie und wo ihr Anbieter sitzt.
- * `anbieterIn` ist die Datei, die `NextGalleryNavigation` montiert — sie
+ * `anbieterIn` ist die Datei, die `GalleryAppProviders` montiert — sie
  * wird unten wirklich geprueft, nicht nur behauptet.
  */
 const BEKANNTE_AUFRUFSTELLEN: Record<string, { anbieterIn: string; warum: string }> = {
   'src/components/library/file-preview/gallery-teaser-card.tsx': {
     anbieterIn: 'src/components/library/file-preview/gallery-teaser-card.tsx',
-    warum: 'Teaser im Job-Report-Tab; die Huelle bringt den Anbieter selbst mit.',
+    warum: 'Teaser im Job-Report-Tab; die Huelle bringt die Anbieter selbst mit.',
   },
   'src/components/library/website/website-landing-live.tsx': {
     anbieterIn: 'src/app/page.tsx',
@@ -69,7 +69,7 @@ describe('Galerie-Karte ausserhalb der Galerie', () => {
       unbekannt,
       `Galerie-Karte ausserhalb der Galerie ohne eingetragenen Anbieter:\n${unbekannt.join('\n')}\n` +
         'DocumentCard braucht einen GalleryNavigationProvider (wirft sonst). ' +
-        'Entweder GalleryTeaserCard verwenden oder NextGalleryNavigation am ' +
+        'Entweder GalleryTeaserCard verwenden oder GalleryAppProviders am ' +
         'Montagepunkt setzen — und die Stelle oben eintragen.'
     ).toEqual([])
   })
@@ -79,11 +79,11 @@ describe('Galerie-Karte ausserhalb der Galerie', () => {
     expect(verwaist, `Eingetragen, aber importiert die Karte nicht mehr:\n${verwaist.join('\n')}`).toEqual([])
   })
 
-  it('der benannte Anbieter montiert NextGalleryNavigation wirklich', () => {
+  it('der benannte Anbieter montiert GalleryAppProviders wirklich', () => {
     const behauptet: string[] = []
     for (const [stelle, { anbieterIn }] of Object.entries(BEKANNTE_AUFRUFSTELLEN)) {
       const inhalt = readFileSync(join(REPO_ROOT, anbieterIn), 'utf-8')
-      if (!/<NextGalleryNavigation[\s>]/.test(inhalt)) behauptet.push(`${stelle} → ${anbieterIn}`)
+      if (!/<GalleryAppProviders[\s>]/.test(inhalt)) behauptet.push(`${stelle} → ${anbieterIn}`)
     }
     expect(behauptet, `Anbieter behauptet, aber nicht montiert:\n${behauptet.join('\n')}`).toEqual([])
   })

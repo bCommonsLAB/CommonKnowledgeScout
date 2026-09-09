@@ -97,7 +97,10 @@ Schritt 3 wird selbst in Teil-PRs zerlegt.
 Punkte, die beim Bauen sichtbar werden, hier mit Datum eintragen und
 zugleich in `docs/STAND.md` unter Vorhaben 1.
 
-- (noch nichts)
+- 2026-09-09: Schritt 1 als M4f erledigt, Schritt 3 (Slots) als M4g —
+  siehe Nachtrag unten und `docs/STAND.md`.
+- 2026-09-09: Hotfix #248 — oldiesforfuture.org war seit #234 kaputt;
+  Lehre: `GalleryAppProviders` an jedem Montagepunkt, Waechter-Test.
 
 ## Hand-off
 
@@ -105,3 +108,25 @@ Jede Schritt-PR endet mit dem Hand-off-Block aus `AGENTS.md` §Hand-off.
 Der nächste Schritt dieses Briefs ist die nächste Welle; der Name folgt der
 Konvention `M5-<schritt>` (z. B. `M5-adressierung`, `M5-basis-url`,
 `M5-umzug-1-chat-vokabular`).
+
+## Nachtrag (2026-09-09): Teilwellen M4f–M4i
+
+Die Schritte 1 und 3 werden als vier Teilwellen gefahren, jede mit eigener
+Messung und eigenem Beweis-Test — Plan und Zahlen in
+[`AGENT-BRIEF-M4f.md`](AGENT-BRIEF-M4f.md):
+
+| Schritt hier | Teilwelle | Stand |
+|---|---|---|
+| 1 Galerie-Adressierung | **M4f** — Next raus (Adressierung Teil B, Bilder ueber den Gastgeber, Story-Panel als Slot) | erledigt |
+| 3 Kreuzverweise zu Slots | **M4g** — Renderer-Tabelle als Prop, Website/Story-Kopf/Abzeichen als Slots | erledigt |
+| 3 Helfer, Umzug | **M4h** (Vokabular in Pakete), **M4i** (`git mv` nach `packages/module-explorer`) | offen |
+| 2, 4, 5 | M5 im engeren Sinn — beginnt, wenn `GalleryRoot` aus dem Paket kommt | offen |
+
+Eine Abweichung von der Reihenfolge in `02-audit-umzug.md` §4, bewusst: Es
+zieht **nur die Galerie** um, nicht Chat-UI, Story und Website. Das deckt sich
+mit „Nicht in diesem Vorhaben" in `STAND.md`; die drei Bereiche kommen als
+Slots herein und ziehen spaeter nach.
+
+Zur Benennung: Die Teilwellen heissen M4f–M4i, nicht `M5-<schritt>`, weil sie
+Phase-A-Wellen sind (Voll-App unveraendert, Verhaltensneutralitaet als
+Abnahmekriterium; Konvention R3). M5 beginnt mit dem Embed selbst.
