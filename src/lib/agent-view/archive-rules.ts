@@ -22,6 +22,7 @@ import type { ArchiveFolderNode } from './archive-types'
 import { BERICHT_FILE_NAME, INDEX_FILE_NAME } from './archive-scan'
 import { createGap } from './gap-registry'
 import { checkPostfachVeraltet } from './postfach-regel'
+import { checkRepoVeraltet } from './repo-regel'
 import type { CoverageGap } from './types'
 
 export interface ArchiveRuleConventions {
@@ -36,6 +37,11 @@ export interface ArchiveRuleConventions {
    * null = die Library fuehrt keine Postfach-Auswertung, Regel inaktiv.
    */
   postfachMaxRueckstandWochen: number | null
+  /**
+   * Wunschliste 5, C1: Ab wie vielen Tagen ist `repo_stand_am` veraltet?
+   * null = die Library prueft ihre Berichte nicht gegen Repos, Regel inaktiv.
+   */
+  repoMaxRueckstandTage: number | null
 }
 
 export interface ArchiveRuleContext {
@@ -192,6 +198,7 @@ export function evaluateArchiveRules(folder: ArchiveFolderNode, ctx: ArchiveRule
     checkReportMissing(folder, pattern, ctx.isLibraryRoot),
     checkBerichtVeraltet(folder, ctx),
     checkPostfachVeraltet(folder, ctx),
+    checkRepoVeraltet(folder, ctx),
   ]
   return gaps.filter((gap): gap is CoverageGap => gap !== null)
 }

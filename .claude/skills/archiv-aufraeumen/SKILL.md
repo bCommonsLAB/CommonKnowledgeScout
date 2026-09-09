@@ -368,6 +368,8 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `index_missing` | Cowork · warning | `_INDEX.md` nach Vorlage anlegen |
 | `report_missing` | Cowork · warning | `BERICHT.md` nach Vorlage anlegen |
 | `bericht_veraltet` | Cowork · warning | Bericht nachziehen (siehe Stolpersteine) |
+| `sicht_veraltet` | Cowork · warning | `AKTUELL.md`/`PROJEKTE.md` in `Organisation/` ist älter als der jüngste Bericht der Library (Wunschliste 5, B1). Auflösung immer dieselbe: `sichten_regenerieren`. Kommt nur beim Library-weiten Scan, nie im Teilbaum |
+| `repo_veraltet` | Cowork · warning | Der Bericht nennt ein `repo:`, aber `repo_stand_am` fehlt, ist unlesbar oder älter als die Library-Schwelle (Wunschliste 5, C1). Aussagen gegen den aktuellen Stand prüfen, dann `repo_stand_am` (Prüftag, `JJJJ-MM-TT`) und optional `repo_stand` (Commit) im Frontmatter nachziehen. Inaktiv, wenn die Library keine Schwelle setzt |
 > Auch hier zaehlt seit 27.08.2026 nur eine **Inhalts**-Aenderung: Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht mehr. Frueher liess jeder Pruef-Klick `bericht_veraltet` und damit `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten nicht schliessen liess.
 | `verweis_veraltet` | Cowork · warning | verwiesenes Ziel ist jünger — Verweis prüfen, dann Bericht neu speichern |
 | `verweis_tot` | Cowork · error | Verweis zeigt ins Leere — Ziel suchen oder Verweis entfernen |
@@ -448,6 +450,14 @@ Dropdown — beim Aufräumen liegt die Übersicht ohnehin hier (Entscheidung
   der Stand im Storage ab, wird nichts geschrieben (Riegel gegen
   konkurrierende Schreiber). Wie jeder Schreibvorgang: vorher fragen, bei
   mehreren Vorhaben einmal pro Gruppe.
+- **Das Vokabular ist eine Regel, keine Bitte (seit 2.28.0).** Namen, die
+  nicht in `abdeckung_lesen → themen.vokabular` stehen, weist
+  `themen_setzen` ab (`thema_unbekannt`) und nennt die nächstliegenden
+  Einträge — ein Tippfehler wie `KS-Datenmodel` wird nicht mehr
+  geschrieben. Ist ein Thema bewusst neu, `neuesThemaErlauben: true`
+  setzen; die Antwort nennt es dann als `neueThemen`, und Peter nimmt es
+  in die Library-Einstellungen auf. Hat die Library kein Vokabular,
+  sagt die Antwort `vokabularPruefung: kein_vokabular_konfiguriert`.
 
 ### 6 — Neu scannen, berichten, Stand setzen
 
@@ -586,6 +596,9 @@ gerade erst erledigt hat.
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
 Einstellungen aus- und wieder einzuschalten. Fehlt `stand_setzen`, ist die
 Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
+Nimmt `themen_setzen` kein `neuesThemaErlauben` an oder schreibt es einen
+Namen außerhalb des Vokabulars ohne Widerspruch, ist die Fassung älter als
+2.28.0 — dann fehlen auch die Befunde `sicht_veraltet` und `repo_veraltet`.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt

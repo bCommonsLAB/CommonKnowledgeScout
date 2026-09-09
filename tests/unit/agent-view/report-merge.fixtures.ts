@@ -19,7 +19,7 @@ export const KONVENTIONEN: CoverageConventions = {
   standardTemplate: null,
   vorhabenFolderPattern: null,
   indexRequiredMaxDepth: null,
-  berichtFreshness: true, postfachMaxRueckstandWochen: null,
+  berichtFreshness: true, postfachMaxRueckstandWochen: null, repoMaxRueckstandTage: null,
   scanExcludeGlobs: [],
 }
 

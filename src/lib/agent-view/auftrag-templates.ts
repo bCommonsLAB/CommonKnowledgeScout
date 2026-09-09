@@ -30,6 +30,10 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `Aktualisiere ${pfad}: der Bericht ist aelter als die juengste Aenderung seines Vorhabens${detail(gap)}. Arbeite die neuen/geaenderten Twins ein.`,
   postfach_veraltet: (gap, pfad) =>
     `Werte die Korrespondenz zu ${pfad} nach: ${gap.message}${detail(gap)}. Vorgehen nach Organisation/Aufraeumen/Korrespondenz-Methode.md — vom Vorhaben aus suchen (Gegenstellen + Zeitfenster), nach Betreff aussortieren, nur Entscheidungen/Zahlen/Zusagen/Auflagen oeffnen. Ertrag sind Chronologie-Zeilen (Quellenspalte Mail) und Randbedingungen im BERICHT.md; danach postfach_bis auf die ausgewertete Kalenderwoche setzen.`,
+  repo_veraltet: (gap, pfad) =>
+    `Pruefe die Aussagen in ${pfad} gegen den aktuellen Stand des Repos: ${gap.message}${detail(gap)}. Was sich geaendert hat, nachziehen; danach repo_stand_am auf den Prueftag und repo_stand auf den Commit setzen.`,
+  sicht_veraltet: (gap, pfad) =>
+    `Erzeuge die Sichten neu (sichten_regenerieren): ${pfad} ist aelter als der juengste Bericht der Library${detail(gap)}.`,
   verweis_tot: (gap, pfad) =>
     `Repariere in ${pfad} den toten Verweis: ${gap.message}${detail(gap)}. Ziel korrigieren oder den Verweis entfernen und im Text vermerken.`,
   verweis_veraltet: (gap, pfad) =>

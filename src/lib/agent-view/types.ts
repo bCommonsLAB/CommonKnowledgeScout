@@ -68,6 +68,8 @@ export type CoverageGapType =
   | 'index_missing'
   | 'bericht_veraltet'
   | 'postfach_veraltet'
+  | 'sicht_veraltet'
+  | 'repo_veraltet'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'
@@ -320,6 +322,12 @@ export interface CoverageConventions {
    * inaktiv (dieselbe Form wie {@link CoverageConventions.indexRequiredMaxDepth}).
    */
   postfachMaxRueckstandWochen: number | null
+  /**
+   * Wunschliste 5, C1: Ab wie vielen Tagen gilt `repo_stand_am` im
+   * `BERICHT.md` als veraltet? null = Regel inaktiv (dieselbe Form wie die
+   * Postfach-Schwelle) — Libraries ohne Repo-Bezug merken nichts.
+   */
+  repoMaxRueckstandTage: number | null
   /** Wirksame Ausschluss-Muster des Scans (Welle 0b). */
   scanExcludeGlobs: string[]
 }

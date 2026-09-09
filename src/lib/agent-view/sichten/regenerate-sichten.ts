@@ -26,11 +26,11 @@ import type { Library } from '@/types/library'
 import { renderAktuell } from './aktuell-render'
 import { sammleProjekte, zaehleProjektordner } from './bericht-lesen'
 import { renderProjekte } from './projekte-render'
-import type { ProjektDatensatz } from './types'
+import { AKTUELL_FILE_NAME, PROJEKTE_FILE_NAME, SICHTEN_ORDNER, type ProjektDatensatz } from './types'
 
-export const SICHTEN_ORDNER = 'Organisation'
-export const AKTUELL_FILE_NAME = 'AKTUELL.md'
-export const PROJEKTE_FILE_NAME = 'PROJEKTE.md'
+// Die Namen wohnen in `./types` (ohne Storage-Importe), damit die Regel
+// `sicht_veraltet` sie ziehen kann; hier weiter exportiert fuer bestehende Aufrufer.
+export { SICHTEN_ORDNER, AKTUELL_FILE_NAME, PROJEKTE_FILE_NAME } from './types'
 /** Berichte liegen auf Ebene 2-3 (projekte.py MAX_TIEFE); tiefer sind Ereignisordner. */
 export const BERICHTE_MAX_DEPTH = 3
 /** Parallele Listings: 369 Ordner seriell = 80 s, mit 6 parallel 54 s (zu knapp am 60-s-Limit), mit 10 deutlich darunter. */

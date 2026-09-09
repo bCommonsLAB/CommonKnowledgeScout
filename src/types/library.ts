@@ -201,6 +201,13 @@ export interface StorageConfig {
      */
     postfachMaxRueckstandWochen?: number;
     /**
+     * Wunschliste 5, C1: Ab wie vielen Tagen meldet der Scan `repo_veraltet`?
+     * Grundlage ist `repo_stand_am` im `BERICHT.md` (Tag der letzten Pruefung
+     * der Aussagen gegen das in `repo:` genannte Repo, Format `JJJJ-MM-TT`).
+     * Fehlt das Feld, ist die Regel INAKTIV. Kein Secret.
+     */
+    repoMaxRueckstandTage?: number;
+    /**
      * Lokaler Wurzelpfad des Archivs (F3): rendert im Auftrags-Generator
      * absolute Pfade fuer die Cowork-Session. Leer = archiv-relative Pfade.
      * KS kennt nur Provider-Pfade — dieser Wert ist reine Anzeige-Hilfe.

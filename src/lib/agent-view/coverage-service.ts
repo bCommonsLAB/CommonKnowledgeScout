@@ -24,6 +24,7 @@
 import type { DocumentVerificationResult } from '@/lib/library-verification/types'
 import type { LibrarySyncReport } from '@/lib/shadow-twin/sync-engine/report-types'
 import { compileVorhabenPattern, evaluateArchiveRules } from './archive-rules'
+import { checkSichtVeraltet } from './sicht-regel'
 import type { ArchiveScanResult } from './archive-types'
 import { buildFileIndex, buildNewestChangeBySubtree, buildOwnChangeByFolder, locateFamilies, type RawTwinFamily } from './coverage-inputs'
 import { auditAllDocuments } from './document-audit'
@@ -182,6 +183,9 @@ export async function runCoverageScan(
       }),
     ),
     ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern }),
+    // Wunschliste 5, B1: erzeugte Sichten gegen den juengsten Bericht — nur im
+    // Library-weiten Scan, im Teilbaum liegt der juengste Bericht womoeglich ausserhalb.
+    ...checkSichtVeraltet({ folders, scopeFolderId: request.scopeFolderId, berichtFreshness: conventions.berichtFreshness }),
   ]
 
   const budget = applyGapBudget(folders, gaps)
