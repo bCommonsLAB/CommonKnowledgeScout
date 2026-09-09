@@ -151,6 +151,20 @@ entscheidet das Vorabtreffen.
 
 Neu dazugekommen: (noch nichts)
 
+## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
+
+- **Was**: Der Sync-Engine-Check liest heute bei jedem `abdeckung_scannen` jede
+  Markdown-Datei jeder Twin-Familie (~330 ms je Datei, zwei Anfragen). Ein
+  Fingerabdruck aus dem Ordner-Listing plus Mongo-`updatedAt` soll das Lesen
+  auf geänderte Quellen beschränken; ein zweiter Lauf über ein unverändertes
+  Archiv macht null `getBinary`-Aufrufe.
+- **Warum jetzt**: beschleunigt die tägliche Archivarbeit mit Cowork und
+  entschärft das 60-Sekunden-Limit, ohne den Job-Modus vorzuziehen. Kein
+  Bezug zu M5, deshalb als Zwischenschnitt neben Vorhaben 1.
+- **Brief**: [`docs/refactor/twin-fingerabdruck/AGENT-BRIEF.md`](refactor/twin-fingerabdruck/AGENT-BRIEF.md)
+  (Stufe 1 Pflicht, Stufe 2 eigene PR).
+- Neu dazugekommen: (noch nichts)
+
 ## Vorrat: geplant
 
 Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
@@ -183,7 +197,7 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   als dritte Zahl in Fußzeile und Graph-Panel (Stufe 3d des Summen-Plans)
 - DIVA-Texturen Stufen 4 bis 7 (Galerie-Verifikation, Korrektur-Lauf, Persistenz, Migration)
 - Storage über MCP, Rest aus ST1–ST4: Coverage-Nachführung nach Ordner-Umzug;
-  Job-Modus für Scans über dem 60-Sekunden-Limit (Q7)
+  Job-Modus für Scans über dem 60-Sekunden-Limit (Q7) — der Twin-Fingerabdruck (Zwischenschnitt) nimmt den meisten Läufen den Grund; danach neu messen
 - Modularisierung: M6 Oldies-SiteConfig, M7 `@ks/module-agent-view`, M8
   Föderation (ADR 0009) + Retrieval-Profile (ADR 0010), `apps/`-Ebene
 - ADR 0005 Co-Creator mit eigener Storage-Auth
