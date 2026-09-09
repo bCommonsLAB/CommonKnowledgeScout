@@ -196,6 +196,17 @@ Neu dazugekommen: (noch nichts)
     das gäbe einen Import-Zyklus). Wer an `sync-plan/**` oder an dem, was
     `collect-*` einsammelt, etwas ändert, zählt sie hoch; sonst verteilt ein
     Deployment alte Pläne weiter.
+  - **2026-09-09 — der `^src/`-Filter in `AGENTS.md` war falsch, `ci-main` 515
+    ist daran zerbrochen.** Dort stand, die restlichen `tsc`-Treffer lägen in
+    `tests/**` und der Next-Build prüfe sie nicht. Er prüft sie: `tsconfig.json`
+    zieht mit `**/*.ts` auch `tests/**` ein. Die zwei neuen Pflichtfelder am
+    `LibrarySyncReport` brachen `report-merge.fixtures.ts` — grün bei `pnpm test`,
+    `pnpm lint` und `tsc | grep '^src/'`, rot erst im Docker-Build auf `master`.
+    Dass ältere `.test.ts`-Fehler den Build passieren lassen, trägt nicht: Next
+    meldet den ersten Fehler, den es findet. `AGENTS.md` ist korrigiert und nennt
+    jetzt den Vorher/Nachher-Vergleich, der Pflichtfeld-Erweiterungen absichert.
+    Zusätzlich ist `CoverageTotals.engineCheck` optional — gespeicherte Reports
+    aus Scans vor dem Tor tragen es nicht.
 
 ## Vorrat: geplant
 
