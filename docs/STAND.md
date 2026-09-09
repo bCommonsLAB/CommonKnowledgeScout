@@ -172,12 +172,17 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 - **Wunschliste 5 „Wissen und Zustand auseinanderhalten"** (Cowork, 2026-09-09,
   im Archiv unter `24.09 KnowledgeScout/2026-09-09 Wunschliste 5 - …md`; Belege am
   Code geprüft). Fünf Punkte, zwei Schnitte:
-  - Schnitt 1, klein (~1,5 Tage): A1 `themen_setzen` weist unbekannte Themen
-    zurück (heute stiller Fallback, `tools-themen.ts`, `use-werkbank-themen.ts`);
-    B1 Befund `sicht_veraltet` (AKTUELL/PROJEKTE älter als jüngster Bericht,
-    Muster `bericht_veraltet` in `archive-rules.ts`); C1 `repo_stand` im
-    Bericht-Frontmatter plus Befund `repo_veraltet` nach Alter, Muster
-    `postfach_veraltet` (Variante ohne Repo-Zugriff im Dienst)
+  - Schnitt 1 **erledigt** (Owner-Go 09.09., Werkzeugsatz 2.28.0): A1
+    `themen_setzen` weist unbekannte Themen ab (`thema_unbekannt`, Vorschläge,
+    Schalter `neuesThemaErlauben`); B1 Befund `sicht_veraltet`
+    (`sicht-regel.ts`, nur Library-weiter Scan); C1 Befund `repo_veraltet`
+    (`repo-frische.ts`, `repo-regel.ts`) mit Frontmatter `repo_stand_am` +
+    optional `repo_stand` und Library-Schwelle `agentView.repoMaxRueckstandTage`.
+    **Archiv-Nachzug durch Cowork:** die beiden Felder in
+    `Organisation/Aufraeumen/Konventionen.md` aufnehmen und in den vier
+    Berichten mit `repo:` setzen; Schwelle in den Library-Einstellungen
+    eintragen, sonst bleibt `repo_veraltet` stumm. Nicht gebaut: die
+    Repo-Spalte in der Aktuell-Sicht der Werkbank (C1-Wunsch, UI)
   - Schnitt 2, mittel (~1,5 Tage): B3 `themen_setzen` unterhalb des Vorhabens
     mit `_INDEX.md`-Anlage und Stapel, Befund `thema_fehlt` ab
     `bearbeitungsstand: erschlossen`
