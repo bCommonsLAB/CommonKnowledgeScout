@@ -8,7 +8,6 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { Tabs, TabsContent, toast, Button, ScrollArea } from '@ks/ui'
 import { FilterContextBar } from '@/components/library/gallery/filter-context-bar'
-import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ViewTypeLeadFilter } from '@/components/library/gallery/view-type-lead-filter'
@@ -19,7 +18,7 @@ import type { ViewMode } from '@/components/library/gallery/gallery-sticky-heade
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useDebouncedValue } from '@/hooks/gallery/use-debounced-value'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
-import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
+import { DetailOverlay, type DetailRenderer } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
 import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { useGalleryConfig } from '@/hooks/gallery/use-gallery-config'
@@ -51,7 +50,6 @@ import {
 } from './gallery-root/helpers'
 import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
-import { WebsiteLandingLive } from '@/components/library/website/website-landing-live'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -81,6 +79,21 @@ export interface GalleryRootProps {
    * reicht ihn am Montagepunkt herein und laedt ihn dort weiterhin faul.
    */
   storyPanel?: (libraryId: string) => React.ReactNode
+  /**
+   * Welche Detailansicht zu welchem Renderer-Typ gehoert (M4g). Pflicht: Die
+   * Galerie kennt die Detail-Komponenten der App nicht mehr, und ohne Tabelle
+   * gibt es nichts zu zeigen — das soll auffallen, nicht leer bleiben.
+   */
+  detailRenderers: Record<DetailViewType, DetailRenderer>
+  /**
+   * Die Website-Landingpage im Modus `site` (M4g). Sie liegt in der App
+   * (`website/website-landing-live`) und liest dort ihre eigenen APIs.
+   */
+  siteView?: (opts: { libraryId: string; onShowGallery: () => void }) => React.ReactNode
+  /** Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht mit dem Story-Modus um. */
+  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void }) => React.ReactNode
+  /** Verifikations-Abzeichen neben der Ueberschrift; kein Slot, kein Abzeichen. */
+  verifikationsAbzeichen?: React.ReactNode
 }
 
 // Graph-Modus faul laden (D3 nutzt Browser-APIs). `React.lazy` statt
@@ -97,6 +110,10 @@ export function GalleryRoot({
   hideWebsiteDocs = false,
   kopfAktionen,
   storyPanel,
+  detailRenderers,
+  siteView,
+  storyHeader,
+  verifikationsAbzeichen,
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useActiveLibraryId()
@@ -1053,8 +1070,11 @@ export function GalleryRoot({
         <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           {/* Phase 3 (E4/E7): Statt des alten web/-Snapshot-iframes rendert die
              „Startseite" jetzt die produktive website-Landingpage aus Live-Daten. */}
-          {libraryId ? (
-            <WebsiteLandingLive libraryId={libraryId} onShowGallery={() => setMode('gallery')} />
+          {libraryId && siteView ? (
+            siteView({ libraryId, onShowGallery: () => setMode('gallery') })
+          ) : libraryId ? (
+            // Kein stiller Leerraum: Site-Modus erlaubt, aber keine Landingpage montiert.
+            <div className="p-6 text-sm text-muted-foreground">Keine Website-Ansicht montiert.</div>
           ) : (
             <div className="p-6 text-sm text-muted-foreground">{t('gallery.loading')}</div>
           )}
@@ -1065,6 +1085,7 @@ export function GalleryRoot({
         {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
+            verifikationsAbzeichen={verifikationsAbzeichen}
             headline={texts.headline}
             subtitle={texts.subtitle}
             description={texts.description}
@@ -1190,7 +1211,7 @@ export function GalleryRoot({
         {mode === 'story' && (
         <TabsContent value="story" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden">
           <div className="flex-shrink-0">
-            <StoryModeHeader libraryId={libraryId || ''} onBackToGallery={() => setMode('gallery')} />
+            {storyHeader ? storyHeader({ libraryId: libraryId || '', onBackToGallery: () => setMode('gallery') }) : null}
           </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr] flex-1 min-h-0 overflow-hidden">
             <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
@@ -1259,6 +1280,7 @@ export function GalleryRoot({
           libraryId={libraryId || ''}
           fileId={selectedDoc.fileId || selectedDoc.id}
           viewType={detailViewTypeForDoc}
+          detailRenderers={detailRenderers}
           doc={selectedDoc}
           currentMode={galleryDataMode}
           isSwitchingRef={isSwitchingToStoryModeRef}

@@ -38,15 +38,17 @@ Sessions nicht doppelt bauen:
   (Owner-Entscheidung: Galerie zuerst als npm-Komponente, dann Embed, dann P8 —
   kein iframe. Messung + Wellenplan M4f–M4i → M5. M4f = „Next raus":
   Adressierung Teil B, Bilder ueber den Gastgeber, Story-Panel als Slot;
-  Beweis: kein `next/*` im Galerie-Kegel)
+  Beweis: kein `next/*` im Galerie-Kegel. M4g = fremde Bausteine als Slots:
+  Renderer-Tabelle als Prop, Website/Story-Kopf/Abzeichen hereingereicht;
+  Beweis: der Kegel importiert aus `components/library` nur sich selbst)
 - **Landkarten-Zeile M4 abgeschlossen** (2026-08-28): `ExplorerRoot` liegt in
   `@ks/module-explorer/react`, `/explore/[slug]` ist nur noch der Montagepunkt.
   Slug als Prop, Betrachter als zwei Booleans, Galerie und Hinweis als Slots —
   kein Next-Routing, kein Auth-Anbieter im Modul. Nachtrag am Ende von
   [`AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md).
-- **Naechster Schritt**: **M4g** (fremde Bausteine als Slots), dann M4h
-  (Vokabular in Pakete) und M4i (der Umzug der Galerie nach
-  `packages/module-explorer`). Erst danach beginnt Phase B mit **M5**
+- **Naechster Schritt**: **M4h** (Vokabular in Pakete; Posten und
+  Stop-Bedingungen in AGENT-BRIEF-M4f §5), dann M4i (der Umzug der Galerie
+  nach `packages/module-explorer`). Erst danach beginnt Phase B mit **M5**
   (AECED-Pilot: `@ks/embed` + Headless-Lese-API); die Basis-URL fuer die
   Modul-Fetches kommt dort (G3). Messung und Wellenplan in AGENT-BRIEF-M4f.
   Voll-App bleibt unveraendert (Verhaltensneutralitaet ist Abnahmekriterium

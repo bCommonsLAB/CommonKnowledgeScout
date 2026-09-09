@@ -219,4 +219,31 @@ describe('Galerie-Schnitt', () => {
         'oder ein Slot am Montagepunkt (src/app/library/gallery/client.tsx).'
     ).toEqual([])
   })
+
+  it('der Galerie-Kegel importiert aus components/library nur sich selbst', () => {
+    // Welle M4g („fremde Bausteine als Slots"): Die zehn Detail-Renderer, die
+    // Website-Landingpage, der Story-Kopf und das Verifikations-Abzeichen
+    // kommen vom Montagepunkt herein; Filterleiste und Typ-Abzeichen sind in
+    // den Kegel gezogen. Was die Galerie aus `components/library/*` braucht,
+    // liegt damit vollstaendig unter `gallery/` — Voraussetzung fuer den
+    // Umzug (M4i), bei dem `@/components/library/...` nicht mehr aufloest.
+    const KEGEL = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
+    const offenders: string[] = []
+    for (const root of KEGEL) {
+      for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
+        const content = readFileSync(file, 'utf-8')
+        const fremd = [...content.matchAll(/from ['"]@\/components\/library\/([^'"]+)['"]/g)]
+          .map((m) => m[1])
+          .filter((pfad) => !pfad.startsWith('gallery/') && pfad !== 'gallery')
+        if (fremd.length > 0) {
+          offenders.push(`${relative(REPO_ROOT, file).replace(/\\/g, '/')}: ${fremd.join(', ')}`)
+        }
+      }
+    }
+    expect(
+      offenders,
+      `Galerie-Code importiert fremde Bausteine aus components/library:\n${offenders.join('\n')}\n` +
+        'Ein App-Baustein kommt als Slot herein (GalleryRootProps) oder zieht per git mv in den Kegel.'
+    ).toEqual([])
+  })
 })

@@ -136,18 +136,58 @@ jede Aufrufstelle sie wirklich montiert.
 Keine Detail-Renderer, kein Vokabular-Umzug, kein Byte in `packages/`. Keine
 Basis-URL. Kein Story-Modus.
 
-## 4. Hand-off fuer M4g
+## 4. M4g — fremde Bausteine als Slots (umgesetzt, 2026-09-09)
 
-- **Welle**: M4g — Fremde Bausteine als Slots. Branch
-  `claude/modularisierung-m4g-<suffix>`.
-- **Kern**: `DETAIL_RENDERERS` aus `detail-overlay.tsx` wird eine Prop
-  `detailRenderers: Record<DetailViewType, DetailRenderer>`; `client.tsx`
-  liefert die heutige Tabelle. Die Typgrenze bleibt erzwungen. Dazu
-  `renderSite` (Website-Landingpage) und die Verifikations-Badge als Slot;
-  `story-mode-header` und `view-type-badge` ziehen per `git mv` in den Kegel.
+Der Kegel importiert aus `src/components/library/*` nur noch sich selbst.
+Test in `galerie-schnitt.test.ts`, Gegenprobe gelaufen.
+
+**Die Renderer-Tabelle ist eine Prop.** `DETAIL_RENDERERS` liegt jetzt in
+`src/components/library/gallery-detail-renderers.tsx` (App) und kommt als
+`detailRenderers: Record<DetailViewType, DetailRenderer>` herein — die
+Typgrenze ist umgezogen, nicht aufgeweicht. Die Galerie laedt die Doc-Meta,
+lokalisiert sie und reicht sie dem Renderer als `docMeta`; das Mapping in
+`BookDetailData`/`SessionDetailData` macht der Renderer selbst. Damit sind
+auch `lib/mappers/doc-meta-mappers` (690 Zeilen) und die zwei Detail-Typen
+aus dem Kegel verschwunden — der M4h-Posten wird kleiner.
+
+**Renderer sind Komponenten, keine Funktionen.** `IngestionBookDetail` und
+`IngestionSessionDetail` haengen `initialData` in einen Effekt; ein bei jedem
+Render neu gemapptes Objekt wuerde ihn endlos feuern. Die App-Renderer
+memoisieren deshalb ueber der Doc-Meta.
+
+**Drei weitere Slots**: `siteView` (Website-Landingpage), `storyHeader`
+(Story-Kopf — er zieht `story-header` und `perspective-display` nach sich,
+also Story-Glue, das mit dem Story-Modus umzieht), `verifikationsAbzeichen`
+(liest Rolle und Verifikations-API der App). `view-type-badge` ist per
+`git mv` in den Kegel gezogen.
+
+**Was die Seiten der Voll-App noch mitgeben duerfen**, sagt
+`GalleryClientProps` in `client.tsx` — alle Slots setzt der Montagepunkt
+selbst.
+
+Stand des Kegels nach M4g: kein `next/*`, kein fremder Baustein aus
+`components/library`. Was bleibt, sind die Helfer (M4h).
+
+## 5. Hand-off fuer M4h — Vokabular in Pakete
+
+- **Welle**: M4h. Branch `claude/modularisierung-m4h-<suffix>`. Vermutlich
+  zwei PRs.
+- **Posten** (Stand nach M4g, neu zu messen): `detail-view-types/registry`
+  679, `detail-view-types/view-type-display` 47, `i18n/get-localized` 260,
+  `lib/chat/constants` 817 (ueber `story-context-atom`), `types/item` 228,
+  `utils/document-slug-navigation` 114, `utils/document-navigation` 129 (nur
+  die Bruecke, bleibt App), `documents/stakeholder-meta` 59,
+  `templates/detail-view-type-utils` 42, `lib/utils` 80 (`cn` → `@ks/util`),
+  `use-session-headers` 46. `doc-meta-mappers` ist erledigt.
+- **Je Posten entscheiden**: nach `@ks/contracts` (persistiertes Vokabular),
+  nach `@ks/util` (rahmenneutrale Helfer) oder in den Kegel (nur die Galerie
+  nutzt es). Messwert: Wer importiert es sonst?
 - **Beweis**: ein Fall in `galerie-schnitt.test.ts` — der Kegel importiert
-  nichts aus `src/components/library/*` ausser `gallery/`.
-- **Stop**: Ein Renderer braucht mehr als `libraryId`, `fileId`,
-  `fallbackLocale` und die zwei Prefetch-Daten → messen, nicht raten.
+  aus `@/` nur noch seine eigenen Ordner (`components/library/gallery`,
+  `hooks/gallery`, `lib/gallery`, `contexts/gallery-*`, die vier Atome).
+- **Stop**: `types/item` hat 444 Nutzer. Wenn die Galerie nur `Item` als Typ
+  braucht, gehoert der Typ nach `@ks/contracts` — NICHT alle 444 Nutzer
+  umstellen. Und `registry` ist mit Einstellungen, Vorlagen und Chat
+  geteilt; beide sind eigene Posten, keine Nebenarbeit.
 - **Modell**: `claude-opus`, Thinking medium. Neuer Agent; dieses Brief und
   `00-audit-galerie.md` genuegen.

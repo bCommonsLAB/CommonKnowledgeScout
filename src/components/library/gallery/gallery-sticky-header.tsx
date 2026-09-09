@@ -6,7 +6,6 @@ import { Search } from 'lucide-react'
 import { useScrollVisibility } from '@ks/ui'
 import { ViewModeToggle } from './view-mode-toggle'
 import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
-import { LibraryVerificationBadge } from '@/components/library/library-verification-badge'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 export type ViewMode = 'grid' | 'table' | 'graph'
@@ -27,6 +26,12 @@ export interface GalleryStickyHeaderProps {
   showGraph?: boolean
   /** Optionale Aktionen rechts in der Toolbar (z.B. „Inhalte erfassen"). */
   actions?: React.ReactNode
+  /**
+   * Verifikations-Abzeichen neben der Ueberschrift. Als Slot (M4g): Es liest
+   * die Rolle und die Verifikations-API der App — die Galerie zeigt nur, was
+   * ihr der Montagepunkt gibt. Kein Slot, kein Abzeichen (Embed).
+   */
+  verifikationsAbzeichen?: React.ReactNode
 }
 
 /**
@@ -49,6 +54,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     onCardDensityChange,
     showGraph = false,
     actions,
+    verifikationsAbzeichen,
   } = props
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
@@ -73,8 +79,8 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
         <div className="py-4 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-3xl font-bold">{headline}</h2>
-            {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2). */}
-            <LibraryVerificationBadge />
+            {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2); kommt vom Montagepunkt. */}
+            {verifikationsAbzeichen}
           </div>
           {subtitle ? <p className="text-sm text-muted-foreground font-medium">{subtitle}</p> : null}
           {description ? (
