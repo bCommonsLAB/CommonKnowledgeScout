@@ -32,6 +32,8 @@ export function buildTotals(args: {
   budget: number
   /** Ausschluesse, die die Sync-Engine gezaehlt hat (Welle 0b). */
   engineSkippedExcluded: number
+  /** Lese-Aufwand des Engine-Checks (Fingerabdruck-Tor, Stufe 1). */
+  engineCheck: { gelesen: number; wiederverwendet: number }
 }): CoverageTotals {
   const { byType, byActor } = tally(args.gaps)
   return {
@@ -43,6 +45,7 @@ export function buildTotals(args: {
     gapsByType: byType,
     gapsByActor: byActor,
     skippedExcluded: { archive: args.archive.skippedExcluded, engine: args.engineSkippedExcluded },
+    engineCheck: args.engineCheck,
     collapsedGaps: args.budget,
     scanErrors: args.gaps.filter((gap) => gap.type === 'scan_error').length,
   }

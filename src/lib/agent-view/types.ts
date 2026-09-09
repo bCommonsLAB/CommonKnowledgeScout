@@ -338,6 +338,13 @@ export interface CoverageTotals {
    * Sichtbar statt still (Gap-Budget, `no-silent-fallbacks.mdc`).
    */
   skippedExcluded: { archive: number; engine: number }
+  /**
+   * Wie teuer der Engine-Check war: `gelesen` = Twin-Familien frisch gelesen,
+   * `wiederverwendet` = Zeile aus dem `checkStand` uebernommen
+   * (Fingerabdruck-Tor). Ein Lauf, der alles wiederverwendet, ist damit von
+   * einem Lauf unterscheidbar, der nichts gefunden hat.
+   */
+  engineCheck: { gelesen: number; wiederverwendet: number }
   /** Durch Sammel-Gaps (`ungesichtet`) zusammengefasste Einzel-Befunde. */
   collapsedGaps: number
   scanErrors: number

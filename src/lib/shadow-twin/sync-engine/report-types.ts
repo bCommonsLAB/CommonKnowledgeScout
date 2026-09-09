@@ -75,6 +75,14 @@ export interface LibrarySyncReport {
   failed: OperationCounts
   /** Summe fehlgeschlagener Operationen + Quell-Fehler. */
   errors: number
+  /**
+   * Quellen, deren Zeile aus dem `checkStand` wiederverwendet wurde (Tor des
+   * check-Modus, kein `getBinary`). Ein Lauf, der alles wiederverwendet, ist
+   * damit von einem Lauf unterscheidbar, der nichts gefunden hat.
+   */
+  wiederverwendet: number
+  /** Quellen, deren Twin-Familie gelesen und frisch geplant wurde. */
+  gelesen: number
   sources: SourceSyncReportRow[]
   sourcesTruncated: boolean
 }

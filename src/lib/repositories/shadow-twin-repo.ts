@@ -11,6 +11,34 @@ import { getCollection } from '@/lib/mongodb-service'
 import type { ArtifactKey, ArtifactKind } from '@/lib/shadow-twin/artifact-types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { FileLogger } from '@/lib/debug/logger'
+import type { SourceSyncReportRow } from '@/lib/shadow-twin/sync-engine/report-types'
+
+/**
+ * Merker des Fingerabdruck-Tors (check-Modus der Sync-Engine).
+ *
+ * Beschreibt, WAS beim letzten Check zu sehen war — Listing der Twin-Familie,
+ * Mongo-Stand des Dokuments, Version der Plan-Logik — und WAS dabei
+ * herauskam. Stimmen alle vier Merkmale beim naechsten Check noch, wird
+ * `zeile` wiederverwendet, statt die ganze Familie zu lesen.
+ *
+ * Bewusst NICHT in `filesystemSync`: das beschreibt den Spiegel, dies den
+ * letzten Lauf. Der Stand ist wegwerfbar — ihn zu loeschen kostet nur einen
+ * vollen Check.
+ */
+export interface ShadowTwinCheckStand {
+  /** SHA-1 ueber das Listing der Twin-Familie (siehe `sync-engine/check-stand.ts`). */
+  fingerabdruck: string
+  dateien: number
+  /** `updatedAt` des Dokuments beim letzten Check. */
+  mongoUpdatedAt: string
+  /** {@link import('@/lib/shadow-twin/sync-engine/check-stand').SYNC_ENGINE_VERSION} beim letzten Check. */
+  engineVersion: string
+  /** Pfadlaenge des Quell-Ordners beim letzten Check; null = war unbekannt. */
+  parentPathLength: number | null
+  geprueftAm: string
+  /** Report-Zeile des letzten Checks (ohne `executed`/`error` — die gibt es im check nicht). */
+  zeile: SourceSyncReportRow
+}
 
 export interface ShadowTwinArtifactRecord {
   markdown: string
@@ -44,7 +72,14 @@ export interface ShadowTwinDocument {
     shadowTwinFolderId?: string | null
     lastSyncedAt?: string | null
   }
+  /** Merker des Fingerabdruck-Tors; siehe {@link ShadowTwinCheckStand}. */
+  checkStand?: ShadowTwinCheckStand
   createdAt: string
+  /**
+   * Aenderungsstand des Dokuments. JEDER Schreibweg setzt ihn — das
+   * Fingerabdruck-Tor des check-Modus vergleicht gegen ihn, und ein Weg, der
+   * ihn ausliesse, machte einen veralteten Plan unsichtbar wiederverwendbar.
+   */
   updatedAt: string
 }
 
@@ -680,9 +715,11 @@ export async function deleteArtifactsByLanguage(args: {
         }
         unsetPaths[buildArtifactPath(key)] = ''
       }
+      // updatedAt mitziehen: ein geloeschtes Artefakt aendert den Plan, und das
+      // Fingerabdruck-Tor sieht Mongo-Aenderungen nur an diesem Feld.
       await col.updateOne(
         { _id: doc._id },
-        { $unset: unsetPaths }
+        { $unset: unsetPaths, $set: { updatedAt: new Date().toISOString() } }
       )
     }
   }
@@ -710,11 +747,15 @@ export async function deleteShadowTwinArtifact(args: {
   const { libraryId, sourceId, artifactKey } = args
   const path = buildArtifactPath(artifactKey)
   const col = await getShadowTwinCollection(libraryId)
+  // updatedAt mitziehen (wie deleteArtifactsByLanguage): das Fingerabdruck-Tor
+  // des check-Modus erkennt Mongo-Aenderungen nur an diesem Feld. Der
+  // $exists-Filter haelt die Rueckgabe ehrlich — sonst meldete das $set jeden
+  // Aufruf als "geloescht", auch wenn das Artefakt gar nicht da war.
   const result = await col.updateOne(
-    { libraryId, sourceId },
-    { $unset: { [path]: '' } }
+    { libraryId, sourceId, [path]: { $exists: true } },
+    { $unset: { [path]: '' }, $set: { updatedAt: new Date().toISOString() } }
   )
-  return result.modifiedCount > 0
+  return result.matchedCount > 0
 }
 
 export function logShadowTwinRepoError(scope: string, error: unknown): void {

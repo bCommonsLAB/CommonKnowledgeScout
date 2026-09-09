@@ -145,3 +145,33 @@ Wenn du im Modul `shadow-twin` Code anfasst:
       `library.config?.shadowTwin?.*`-Zugriff?
 - [ ] Werden neue Stores ueber `ShadowTwinService` erzeugt, nicht direkt
       instanziert (ausser in Tests)?
+- [ ] Setzt jeder neue Schreibweg auf ein Twin-Dokument `updatedAt`? (siehe §8)
+
+## §8 Fingerabdruck-Tor des check-Modus (`checkStand`)
+
+Der Check der Sync-Engine ueberspringt das Lesen einer Twin-Familie, wenn sich
+seit dem letzten Lauf nachweislich nichts geaendert hat. Der Nachweis liegt in
+`doc.checkStand` (`sync-engine/check-stand.ts`,
+`repositories/shadow-twin-check-stand.ts`) und besteht aus vier Merkmalen:
+Listing-Fingerabdruck, `updatedAt` des Dokuments, `SYNC_ENGINE_VERSION` und
+Pfadlaenge des Quell-Ordners. Nur wenn ALLE vier passen, wird die gespeicherte
+Report-Zeile wiederverwendet.
+
+Daraus folgen drei Pflichten:
+
+- **Jeder Schreibweg auf ein Twin-Dokument setzt `updatedAt`.** Auch `$unset`,
+  `$pull` und Patches auf Teilpfade (`artifacts.…`, `binaryFragments.…`).
+  Wer es auslaesst, macht einen veralteten Plan unsichtbar wiederverwendbar —
+  das ist ein stiller Fallback im Sinne von `no-silent-fallbacks.md`, nur
+  langsamer sichtbar.
+- **`SYNC_ENGINE_VERSION` hochzaehlen**, wenn sich aendert, WAS geplant wird:
+  jede Aenderung an `sync-plan/**` oder an dem, was `collect-*` einsammelt.
+  Sonst reicht ein Deployment alte Plaene weiter.
+- **Das Tor gilt nur im Modus `check`.** `repair` verwendet nie wieder und
+  loescht den Stand nach einer ausgefuehrten Operation. Schlaegt ein Listing
+  fehl, gibt es kein Tor: voller Weg, Fehler in der Report-Zeile.
+
+`erzwingen: true` umgeht das Tor (`runLibrarySync`, `twins_pruefen`,
+`abdeckung_scannen`) — fuer den Fall, dass ausserhalb von KnowledgeScout am
+Storage gearbeitet wurde. Die Zaehler `gelesen` und `wiederverwendet` im
+Report machen jeden Lauf pruefbar.

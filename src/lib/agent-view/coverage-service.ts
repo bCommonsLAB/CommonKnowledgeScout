@@ -205,6 +205,7 @@ export async function runCoverageScan(
     folders, families, gaps: effectiveGaps, archive,
     budget: budget.collapsed,
     engineSkippedExcluded: syncReport.skippedExcluded ?? 0,
+    engineCheck: { gelesen: syncReport.gelesen, wiederverwendet: syncReport.wiederverwendet },
   })
 
   // Twin-Knoten des Baums (Welle 4, F4): fuehrendes Artefakt + Kurationszustand.
