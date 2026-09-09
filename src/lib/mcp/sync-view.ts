@@ -130,6 +130,14 @@ export function summarizeSyncReport(report: LibrarySyncReport, opts: { maxRows?:
       pipelineNoetig: report.needsPipeline,
       reextraktionNoetig: report.needsReextract,
       fehler: report.errors,
+      /** Quellen, die frisch gelesen und geplant wurden (Twin-Familie geoeffnet). */
+      gelesen: report.gelesen,
+      /**
+       * Quellen, die unveraendert waren und deren letzte Zeile wiederverwendet
+       * wurde (Fingerabdruck-Tor, kein Storage-Lesen). Hohe Zahl = der Lauf war
+       * billig, NICHT = er hat nichts gefunden.
+       */
+      wiederverwendet: report.wiederverwendet,
     },
     operationen: {
       geplant: report.planned,

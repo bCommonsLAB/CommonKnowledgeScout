@@ -24,6 +24,7 @@ import { findeKnoten } from '@/lib/agent-view/teilbaum'
 import { summarizeCoverageReport } from './coverage-view'
 import { summarizeSyncReport } from './sync-view'
 import {
+  ERZWINGEN,
   FOLDER_ID,
   LIBRARY_ID,
   SCOPE_PFAD,
@@ -150,11 +151,13 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         'KS-Oberflaeche (Agentensicht → „Neu scannen"). Ein Teilbaum-Scan MERGED in den gespeicherten ' +
         'Voll-Report (die Gesamtsicht bleibt vollstaendig); ist der Merge nicht beweisbar, ersetzt der ' +
         'Teil-Report ihn und inVollReportGemergt=false nennt den Grund. Schreibt NUR den Report-Cache. ' +
+        'Der Engine-Check darin liest nur Twin-Familien, die sich geaendert haben ' +
+        '(totalsLibraryWeit.engineCheck: gelesen vs. wiederverwendet; erzwingen=true liest alles). ' +
         'Die ANTWORT ist so weit wie die Frage: Bei folderId/pfad beschreibt sie NUR diesen Teilbaum ' +
         '(antwortFuerTeilbaum nennt ihn) — die Gesamtsicht bleibt im gespeicherten Report erhalten.',
-      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD },
+      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD, erzwingen: ERZWINGEN },
     },
-    async ({ libraryId, folderId, pfad }) => {
+    async ({ libraryId, folderId, pfad, erzwingen }) => {
       try {
         const userEmail = mcpUserEmail()
         const library = await requireLibrary(userEmail, libraryId)
@@ -168,6 +171,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
           // Bei pfad-Aufruf kennt der Report seinen library-relativen Scope —
           // damit koennen spaetere library-relative Filter abgebildet werden.
           scopePath: pfad ?? null,
+          erzwingen: erzwingen ?? false,
         })
         // Antwort auf den GESCANNTEN Teilbaum begrenzen (Cowork-Befund
         // 27.08.2026): Der Scan merged in den Voll-Report — ohne Prefix fasste
@@ -204,13 +208,16 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       title: 'Twins pruefen (check)',
       description:
         'Sync-Engine im check-Modus: Konflikte, Alt-Namen, fehlende Spiegel, Pipeline-Bedarf — ' +
-        'als Plan-Vorschau. Es wird NICHTS geschrieben, aber es ist ein LIVE-Lauf gegen den ' +
-        'Storage (kein Cache), und der MCP-Client bricht nach ~60 Sekunden ab: IMMER auf einen ' +
-        'Teilbaum begrenzen — per folderId ODER per pfad (braucht keinen Report). Liest nur.',
-      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD },
+        'als Plan-Vorschau. Es werden keine Artefakte geschrieben, aber es ist ein LIVE-Lauf ' +
+        'gegen den Storage: das Ordner-Listing wird IMMER frisch geholt. Nur Quellen, deren ' +
+        'Twin-Familie sich seit dem letzten Check nachweislich nicht geaendert hat, uebernehmen ' +
+        'ihre letzte Zeile (zaehler.wiederverwendet vs. zaehler.gelesen; erzwingen=true umgeht das). ' +
+        'Der MCP-Client bricht nach ~60 Sekunden ab: IMMER auf einen Teilbaum begrenzen — per ' +
+        'folderId ODER per pfad (braucht keinen Report).',
+      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD, erzwingen: ERZWINGEN },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, folderId, pfad }) => {
+    async ({ libraryId, folderId, pfad, erzwingen }) => {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
@@ -218,6 +225,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         const report = await runLibrarySync({
           libraryId, userEmail, mode: 'check', preset: 'repair',
           scope: scope ? { folderId: scope } : {},
+          erzwingen: erzwingen ?? false,
         })
         return jsonResult(summarizeSyncReport(report))
       } catch (error) {

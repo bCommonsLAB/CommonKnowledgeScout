@@ -99,6 +99,8 @@ describe('scanneUndSpeichere', () => {
 
     expect(h.scan).toHaveBeenCalledWith({
       libraryId: 'L', userEmail: 'a@b.c', folderId: 'F', scopePath: '4. Oeko/26.01 X',
+      // Fingerabdruck-Tor: ohne ausdrueckliches `erzwingen` bleibt es zu.
+      erzwingen: false,
     })
   })
 })

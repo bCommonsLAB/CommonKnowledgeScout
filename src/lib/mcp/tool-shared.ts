@@ -66,6 +66,14 @@ export const SCOPE_PFAD = z
   .min(1)
   .optional()
   .describe('ALTERNATIVE zu folderId: library-relativer Ordnerpfad (z. B. "26.01 Klima/Berichte") — wird direkt gegen den Storage aufgeloest, braucht KEINEN Report')
+export const ERZWINGEN = z
+  .boolean()
+  .optional()
+  .describe(
+    'Jede Twin-Familie frisch lesen, statt unveraenderte Quellen aus dem letzten Check zu uebernehmen. ' +
+    'TEUER (rund 0,3 s pro Artefakt-Datei) — nur setzen, wenn ein Befund begruendet angezweifelt wird ' +
+    'oder ausserhalb von KnowledgeScout am Storage gearbeitet wurde.',
+  )
 
 /**
  * Teilbaum-Scope aufloesen: folderId direkt, oder pfad billig gegen den

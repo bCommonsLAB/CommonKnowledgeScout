@@ -97,6 +97,12 @@ export interface ScanLibraryCoverageArgs {
   scopePath?: string | null
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
   now?: () => string
+  /**
+   * Fingerabdruck-Tor der Sync-Engine umgehen: jede Quelle frisch lesen.
+   * Teuer (ein `getBinary` je Artefakt) — nur, wenn ein Plan-Befund
+   * begruendet angezweifelt wird.
+   */
+  erzwingen?: boolean
 }
 
 /**
@@ -122,6 +128,7 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
         mode: 'check',
         preset: 'repair',
         scope: folderId ? { folderId } : {},
+        erzwingen: args.erzwingen ?? false,
       }),
     loadTwinFamilies: async () => (await getAllShadowTwins(libraryId)).map(toRawTwinFamily),
     // A1 unveraendert wiederverwenden (check-Modus, ohne SSE): der Generator

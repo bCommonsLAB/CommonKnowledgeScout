@@ -16,32 +16,37 @@
  * (Uebernahme via Migrations-Writer). Nur Dateien ohne Artefakte zaehlen als
  * `skippedWithoutDoc`.
  *
+ * Stufe 1 „Twin-Fingerabdruck": Im Modus `check` steht vor der Sammlung ein
+ * Tor (`check-stand.ts`). Hat sich seit dem letzten Lauf weder das Listing der
+ * Twin-Familie noch das Mongo-Dokument geaendert, wird die gespeicherte
+ * Report-Zeile wiederverwendet — ohne `getBinary`. Der Modus `repair`
+ * verwendet nie wieder.
+ *
  * @module shadow-twin/sync-engine
  */
 
 import { effectiveScanExcludeGlobs } from './scan-exclude'
+import { FileLogger } from '@/lib/debug/logger'
 import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { planSourceSync, type SourceSyncPlan } from '@/lib/shadow-twin/sync-plan/plan-source-sync'
 import { filterAllowedOperations, type SyncPreset } from '@/lib/shadow-twin/sync-plan/allowed-ops'
-import { REPORT_ONLY_OPERATION_TYPES, type SyncOperation } from '@/lib/shadow-twin/sync-plan/types'
 import { DEFAULT_PATH_BUDGET } from '@/lib/shadow-twin/sync-plan/plan-name-migration'
+import { clearCheckStand, setCheckStand } from '@/lib/repositories/shadow-twin-check-stand'
+import { pruefeCheckStand, type CheckStandKennung } from './check-stand'
 import type { NameMigrationContext } from './collect-name-migration'
 import { collectSourceInput, type CollectedSource } from './collect-source-input'
 import { collectStorageOnlySource } from './collect-storage-only-source'
 import { executeSourcePlan, type OperationOutcome } from './execute-source-plan'
 import { FolderCache } from './folder-cache'
+import { baueOperationsReport, verbucheAusfuehrung, verbucheZeile } from './report-tally'
 import { resolveSources, type LibrarySyncScope } from './resolve-sources'
-import type { LibrarySyncReport, OperationCounts, SourceOperationReport, SourceSyncReportRow, SyncMode } from './report-types'
+import type { LibrarySyncReport, SourceSyncReportRow, SyncMode } from './report-types'
 
 export type { LibrarySyncScope } from './resolve-sources'
 
 const DEFAULT_MAX_SOURCE_DETAILS = 500
-
-function bump(counts: OperationCounts, type: SyncOperation['type']): void {
-  counts[type] = (counts[type] ?? 0) + 1
-}
 
 /** Fuehrt einen Sync-Lauf aus (check ODER repair) und liefert den Report. */
 export async function runLibrarySync(args: {
@@ -53,8 +58,10 @@ export async function runLibrarySync(args: {
   maxSourceDetails?: number
   /** Pfad-Budget der Namens-Migration in Zeichen (Default {@link DEFAULT_PATH_BUDGET}). */
   pathBudget?: number
+  /** Fingerabdruck-Tor umgehen: jede Quelle frisch lesen und planen. */
+  erzwingen?: boolean
 }): Promise<LibrarySyncReport> {
-  const { libraryId, userEmail, mode, preset = 'repair', scope = {}, maxSourceDetails = DEFAULT_MAX_SOURCE_DETAILS, pathBudget = DEFAULT_PATH_BUDGET } = args
+  const { libraryId, userEmail, mode, preset = 'repair', scope = {}, maxSourceDetails = DEFAULT_MAX_SOURCE_DETAILS, pathBudget = DEFAULT_PATH_BUDGET, erzwingen = false } = args
 
   const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
   if (!library) throw new Error(`Library nicht gefunden: ${libraryId}`)
@@ -83,13 +90,41 @@ export async function runLibrarySync(args: {
     totalSources: pairs.length, scannedFiles, skippedWithoutDoc, skippedExcluded,
     changed: 0, conflicts: 0, needsPipeline: 0, needsReextract: 0,
     planned: {}, selected: {}, executed: {}, failed: {},
-    errors: 0, sources: [], sourcesTruncated: false,
+    errors: 0, wiederverwendet: 0, gelesen: 0, sources: [], sourcesTruncated: false,
+  }
+
+  /** Zeile in den Report legen (mit Kappungs-Grenze). */
+  const merkeZeile = (zeile: SourceSyncReportRow): void => {
+    if (report.sources.length < maxSourceDetails) report.sources.push(zeile)
+    else report.sourcesTruncated = true
   }
 
   for (const { doc, sourceItem, parentPathLength } of pairs) {
     let row: SourceSyncReportRow
     try {
       const nameMigrationCtx: NameMigrationContext = { ...baseNameMigrationCtx, parentPathLength: parentPathLength ?? null }
+
+      // Fingerabdruck-Tor (nur check): unveraenderte Familie → letzte Zeile
+      // wiederverwenden. Schlaegt das Listing fehl, gibt es kein Tor — der
+      // volle Weg laeuft und meldet den Fehler (`no-silent-fallbacks`).
+      let kennung: CheckStandKennung | null = null
+      if (mode === 'check' && doc) {
+        const tor = await pruefeCheckStand({ doc, folderCache, parentPathLength: parentPathLength ?? null })
+          .catch((err: unknown) => {
+            FileLogger.warn('shadow-twins/sync-engine', 'Fingerabdruck-Tor uebersprungen (Listing nicht lesbar)', {
+              sourceId: doc.sourceId, error: err instanceof Error ? err.message : String(err),
+            })
+            return null
+          })
+        if (tor && !erzwingen && tor.zeile) {
+          report.wiederverwendet++
+          verbucheZeile(report, tor.zeile)
+          merkeZeile(tor.zeile)
+          continue
+        }
+        kennung = tor?.aktuell ?? null
+      }
+
       // Doc-Pfad wie bisher; Storage-only-Quellen (Welle 5a) liefern dieselben
       // Formen (CollectedSource + Plan) und laufen durch identisches Reporting.
       let collected: CollectedSource
@@ -110,6 +145,7 @@ export async function runLibrarySync(args: {
         collected = adoption.collected
         plan = adoption.plan
       }
+      report.gelesen++
       const selectedOps = filterAllowedOperations(plan.operations, preset, { persistToFilesystem })
       const selectedSet = new Set(selectedOps)
 
@@ -122,36 +158,7 @@ export async function runLibrarySync(args: {
           })
         : []
       const outcomeByOp = new Map(outcomes.map((o) => [o.operation, o]))
-
-      const operations: SourceOperationReport[] = plan.operations.map((op) => {
-        const outcome = outcomeByOp.get(op)
-        return {
-          type: op.type, kind: op.kind, targetLanguage: op.targetLanguage,
-          templateName: op.templateName, fileName: op.fileName, newFileName: op.newFileName,
-          overwrite: op.overwrite, count: op.count, note: op.note,
-          selected: selectedSet.has(op),
-          ...(mode === 'repair' && selectedSet.has(op)
-            ? { executed: outcome?.executed === true, ...(outcome?.error ? { error: outcome.error } : {}) }
-            : {}),
-        }
-      })
-
-      for (const op of plan.operations) {
-        bump(report.planned, op.type)
-        if (selectedSet.has(op)) bump(report.selected, op.type)
-        if (op.type === 'conflict') report.conflicts++
-        if (op.type === 'needs-pipeline') report.needsPipeline++
-      }
-      for (const outcome of outcomes) {
-        if (REPORT_ONLY_OPERATION_TYPES.has(outcome.operation.type)) continue
-        if (outcome.executed) bump(report.executed, outcome.operation.type)
-        else {
-          bump(report.failed, outcome.operation.type)
-          report.errors++
-        }
-      }
-      if (plan.transcriptStatus === 'needs-reextract') report.needsReextract++
-      if (selectedOps.length > 0) report.changed++
+      const operations = baueOperationsReport({ operations: plan.operations, selected: selectedSet, outcomeByOp, mode })
 
       row = {
         sourceId: plan.sourceId, sourceName: collected.input.sourceName,
@@ -159,6 +166,18 @@ export async function runLibrarySync(args: {
         winnerName: plan.winnerName, winnerOrigin: plan.winnerOrigin, winnerPages: plan.winnerPages,
         operations,
         notes: [...collected.collectNotes, ...plan.notes],
+      }
+      // Aus der Zeile zaehlen, nicht aus dem Plan: eine wiederverwendete Zeile
+      // laeuft durch dieselbe Funktion und kann so nicht anders zaehlen.
+      verbucheZeile(report, row)
+      verbucheAusfuehrung(report, outcomes)
+
+      // Stand fortschreiben: im check festhalten, was gerade gesehen wurde;
+      // nach einer Reparatur verwerfen (Storage und Mongo sind jetzt anders).
+      if (mode === 'check' && doc && kennung) {
+        await setCheckStand({ libraryId, sourceId: doc.sourceId, checkStand: { ...kennung, geprueftAm: new Date().toISOString(), zeile: row } })
+      } else if (mode === 'repair' && doc && outcomes.some((o) => o.executed)) {
+        await clearCheckStand({ libraryId, sourceId: doc.sourceId })
       }
     } catch (err) {
       report.errors++
@@ -171,8 +190,7 @@ export async function runLibrarySync(args: {
       }
     }
 
-    if (report.sources.length < maxSourceDetails) report.sources.push(row)
-    else report.sourcesTruncated = true
+    merkeZeile(row)
   }
 
   return report

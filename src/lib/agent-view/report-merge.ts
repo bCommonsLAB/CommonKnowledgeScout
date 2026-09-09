@@ -174,7 +174,15 @@ export function mergeTeilbaumReport(args: { voll: CoverageReport; teil: Coverage
       derived: true,
       scope: { folderId: null, path: null },
       conventions: voll.conventions,
-      totals: baueMergeTotals({ tree, gaps, families: familien.families, skippedExcluded: voll.totals.skippedExcluded }),
+      // engineCheck kommt aus dem TEIL-Report: er beschreibt den Lese-Aufwand
+      // des Laufs, der gerade stattgefunden hat. Die Zahl des gespeicherten
+      // Voll-Reports gehoert zu einem anderen Lauf — sie zu behalten oder gar
+      // zu addieren, waere eine erfundene Kennzahl.
+      totals: baueMergeTotals({
+        tree, gaps, families: familien.families,
+        skippedExcluded: voll.totals.skippedExcluded,
+        engineCheck: teil.totals.engineCheck,
+      }),
       gaps,
       tree,
       vorhaben: karten,

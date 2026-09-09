@@ -340,7 +340,9 @@ export async function* repairThumbnailsForLibrary(
         await col.updateOne(
           { sourceId: twin.sourceId },
           {
-            $set: { 'binaryFragments.$[elem].variant': 'original' }
+            // updatedAt mitziehen: das Fingerabdruck-Tor des Sync-Checks
+            // erkennt Mongo-Aenderungen nur an diesem Feld.
+            $set: { 'binaryFragments.$[elem].variant': 'original', updatedAt: new Date().toISOString() }
           },
           {
             arrayFilters: [{ 'elem.hash': originalImage.hash }]
@@ -381,7 +383,9 @@ export async function* repairThumbnailsForLibrary(
       if (Object.keys(artifactUpdates).length > 0) {
         await col.updateOne(
           { sourceId: twin.sourceId },
-          { $set: artifactUpdates }
+          // updatedAt mitziehen: hier aendert sich Artefakt-Markdown, und das
+          // Fingerabdruck-Tor des Sync-Checks sieht das nur an diesem Feld.
+          { $set: { ...artifactUpdates, updatedAt: new Date().toISOString() } }
         )
       }
       
@@ -591,7 +595,8 @@ export async function repairBinaryFragmentVariants(libraryId: string): Promise<{
             'binaryFragments.name': thumb.name
           },
           {
-            $set: { 'binaryFragments.$.sourceHash': original.hash }
+            // updatedAt mitziehen (siehe Fingerabdruck-Tor des Sync-Checks).
+            $set: { 'binaryFragments.$.sourceHash': original.hash, updatedAt: new Date().toISOString() }
           }
         )
         sourceHashUpdates++
@@ -804,7 +809,9 @@ export async function* regenerateAllThumbnails(
       if (Object.keys(artifactUpdates).length > 0) {
         await col.updateOne(
           { sourceId: twin.sourceId },
-          { $set: artifactUpdates }
+          // updatedAt mitziehen: hier aendert sich Artefakt-Markdown, und das
+          // Fingerabdruck-Tor des Sync-Checks sieht das nur an diesem Feld.
+          { $set: { ...artifactUpdates, updatedAt: new Date().toISOString() } }
         )
       }
       

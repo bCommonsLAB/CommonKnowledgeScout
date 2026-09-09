@@ -27,6 +27,8 @@ export interface ScanSpeichernArgs {
   folderId: string | null
   /** Library-relativer Scope-Pfad (nur beim pfad-Aufruf der Bruecke bekannt). */
   scopePath?: string | null
+  /** Fingerabdruck-Tor der Sync-Engine umgehen (teuer, siehe `check-stand.ts`). */
+  erzwingen?: boolean
 }
 
 export interface ScanSpeichernErgebnis {
@@ -76,6 +78,7 @@ export async function scanneUndSpeichere(args: ScanSpeichernArgs): Promise<ScanS
     userEmail: args.userEmail,
     folderId: args.folderId,
     scopePath: args.scopePath ?? null,
+    erzwingen: args.erzwingen ?? false,
   })
 
   // Voll-Scan ersetzt immer — es gibt nichts zu mergen.

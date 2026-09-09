@@ -144,6 +144,8 @@ export function baueMergeTotals(args: {
   gaps: readonly CoverageGap[]
   families: readonly TwinFamilySummary[]
   skippedExcluded: CoverageTotals['skippedExcluded']
+  /** Lese-Aufwand des Engine-Checks aus dem Teil-Report (der gerade lief). */
+  engineCheck: CoverageTotals['engineCheck']
 }): CoverageTotals {
   const nodes = new Map<string, CoverageTreeNode>()
   flatten(args.tree, nodes)
@@ -167,6 +169,7 @@ export function baueMergeTotals(args: {
     gapsByType: byType,
     gapsByActor: byActor,
     skippedExcluded: { ...args.skippedExcluded },
+    engineCheck: { ...args.engineCheck },
     collapsedGaps,
     scanErrors: args.gaps.filter((gap) => gap.type === 'scan_error').length,
   }

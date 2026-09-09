@@ -169,7 +169,33 @@ Neu dazugekommen: (noch nichts)
   Bezug zu M5, deshalb als Zwischenschnitt neben Vorhaben 1.
 - **Brief**: [`docs/refactor/twin-fingerabdruck/AGENT-BRIEF.md`](refactor/twin-fingerabdruck/AGENT-BRIEF.md)
   (Stufe 1 Pflicht, Stufe 2 eigene PR).
-- Neu dazugekommen: (noch nichts)
+- **Stufe 1 gebaut** (2026-09-09): Tor in
+  `src/lib/shadow-twin/sync-engine/check-stand.ts`, Ablage im Twin-Dokument als
+  `checkStand` (`src/lib/repositories/shadow-twin-check-stand.ts`), Zähler
+  `wiederverwendet`/`gelesen` im Report, Schalter `erzwingen` an
+  `twins_pruefen` und `abdeckung_scannen`. Sieben Tests mit gezähltem
+  `getBinary` in `tests/unit/shadow-twin/check-stand.test.ts`. Stufe 2 (eine
+  Anfrage statt zwei im OneDrive-Provider) bleibt offen.
+- Neu dazugekommen:
+  - **2026-09-09 — `updatedAt` war nicht überall gesetzt.** Der Fingerabdruck
+    verlässt sich auf `updatedAt` des Twin-Dokuments; fünf Schreibwege setzten
+    es nicht und hätten einen veralteten Plan unsichtbar wiederverwendbar
+    gemacht. Nachgezogen in derselben PR: `deleteArtifactsByLanguage` und
+    `deleteShadowTwinArtifact` (`shadow-twin-repo.ts`) sowie drei Wege in
+    `thumbnail-repair-service.ts` (variant-Patch, sourceHash-Patch und die
+    beiden Blöcke, die Artefakt-Markdown patchen).
+  - **2026-09-09 — Pfadlänge gehört in die Kennung.** Das Pfad-Budget der
+    Namens-Migration (Welle 5c) hängt an der Ordnertiefe, die nur der Scan
+    kennt. Sie steht deshalb mit im Fingerabdruck. Folge: ein per-Datei-Check
+    aus der Archiv-UI (`sourceIds`-Scope, Tiefe unbekannt) und ein
+    Teilbaum-Scan rechnen für dieselbe Quelle verschiedene Stände — beide
+    korrekt, aber sie verdrängen einander. Bei Bedarf messen, ob das in der
+    Praxis vorkommt.
+  - **2026-09-09 — `SYNC_ENGINE_VERSION` will gepflegt werden.** Die Konstante
+    steht in `check-stand.ts` (nicht wie im Brief in `run-library-sync.ts` —
+    das gäbe einen Import-Zyklus). Wer an `sync-plan/**` oder an dem, was
+    `collect-*` einsammelt, etwas ändert, zählt sie hoch; sonst verteilt ein
+    Deployment alte Pläne weiter.
 
 ## Vorrat: geplant
 
