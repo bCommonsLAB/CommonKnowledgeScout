@@ -38,7 +38,8 @@ vi.mock('@/contexts/gallery-navigation-context', () => ({
   }),
 }))
 
-vi.mock('@/utils/document-slug-navigation', () => ({
+vi.mock('@ks/util', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ks/util')>()),
   getEffectiveDocumentNavigationSlug: (doc: DocCardMeta) => doc.fileId || doc.id || null,
 }))
 

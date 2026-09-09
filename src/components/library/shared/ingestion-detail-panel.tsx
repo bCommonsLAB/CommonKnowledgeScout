@@ -12,7 +12,7 @@ import { IngestionRefurbedDeviceDetail } from "@/components/library/ingestion-re
 import { IngestionWebsiteDetail } from "@/components/library/ingestion-website-detail"
 import { useLibraries } from '@ks/shell/react'
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
-import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
+import { getDetailViewType } from "@ks/contracts"
 
 interface IngestionDetailPanelProps {
   libraryId: string

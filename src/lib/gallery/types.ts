@@ -1,6 +1,24 @@
 'use client'
 
-import type { Item } from '@/types/item';
+
+/**
+ * Was die Galerie von einem Dokument aus der Datenbank liest — nicht mehr.
+ * Bis M4h war das `Item` aus `@/types/item` (das seinerseits den
+ * Ingestion-Builder kennt). Strukturell erfuellt `Item` diese Form; die
+ * Galerie braucht den Rest nicht zu kennen.
+ */
+export interface GalleryItem {
+  id: string
+  fileName: string
+  docType: string
+  parentId?: string
+  year?: number
+  authors?: string[]
+  region?: string
+  upsertedAt: string
+  /** Strukturierte Metadaten (Frontmatter-Felder, ohne markdown) */
+  meta: Record<string, unknown>
+}
 import type { DocCardMeta } from '@ks/contracts';
 
 /**
@@ -32,7 +50,7 @@ export interface StatsResponse { ok?: boolean; indexExists?: boolean; totals?: S
  * @param item Item aus MongoDB
  * @returns DocCardMeta für Gallery-Komponenten
  */
-export function mapItemToDocCardMeta(item: Item): DocCardMeta {
+export function mapItemToDocCardMeta(item: GalleryItem): DocCardMeta {
   return {
     id: item.id,
     fileId: item.id,

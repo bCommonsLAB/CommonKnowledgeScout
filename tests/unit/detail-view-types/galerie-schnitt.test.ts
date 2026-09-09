@@ -198,7 +198,6 @@ describe('Galerie-Schnitt', () => {
       'src/atoms/chat-references-atom.ts',
       'src/atoms/gallery-data.ts',
       'src/atoms/gallery-filters.ts',
-      'src/atoms/story-context-atom.ts',
     ]
     const offenders: string[] = []
     for (const root of KEGEL) {
@@ -244,6 +243,45 @@ describe('Galerie-Schnitt', () => {
       offenders,
       `Galerie-Code importiert fremde Bausteine aus components/library:\n${offenders.join('\n')}\n` +
         'Ein App-Baustein kommt als Slot herein (GalleryRootProps) oder zieht per git mv in den Kegel.'
+    ).toEqual([])
+  })
+
+  it('der Galerie-Kegel importiert aus @/ nur noch seine eigenen Ordner', () => {
+    // Welle M4h („Vokabular in Pakete"): Die letzten zehn Helfer sind in
+    // Pakete gezogen (`@ks/contracts`, `@ks/util`, `@ks/api-client`,
+    // `@ks/module-explorer`) oder in den Kegel. Was der Kegel jetzt noch aus
+    // `@/` holt, ist er selbst — und genau das zieht in M4i um. Jeder andere
+    // `@/`-Import waere beim Umzug ein `TS2307`.
+    const EIGENE = [
+      'components/library/gallery/',
+      'hooks/gallery/',
+      'lib/gallery/',
+      'contexts/gallery-host-context',
+      'contexts/gallery-navigation-context',
+      'contexts/gallery-viewer-context',
+      'atoms/gallery-data',
+      'atoms/gallery-filters',
+      'atoms/chat-references-atom',
+    ]
+    const KEGEL = ['src/components/library/gallery', 'src/hooks/gallery', 'src/lib/gallery']
+    const offenders: string[] = []
+    for (const root of KEGEL) {
+      for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
+        const content = readFileSync(file, 'utf-8')
+        const fremd = [...content.matchAll(/(?:from|import)\s*\(?\s*['"]@\/([^'"]+)['"]/g)]
+          .map((m) => m[1])
+          .filter((pfad) => !EIGENE.some((eigen) => pfad === eigen.replace(/\/$/, '') || pfad.startsWith(eigen)))
+        if (fremd.length > 0) {
+          offenders.push(`${relative(REPO_ROOT, file).replace(/\\/g, '/')}: ${fremd.join(', ')}`)
+        }
+      }
+    }
+    expect(
+      offenders,
+      `Galerie-Code importiert App-Helfer:\n${offenders.join('\n')}\n` +
+        'Persistiertes Vokabular nach @ks/contracts, rahmenneutrale Helfer nach @ks/util, ' +
+        'Client-Protokoll nach @ks/api-client, Modul-Logik nach @ks/module-explorer — ' +
+        'oder per git mv in den Kegel, wenn nur die Galerie es braucht.'
     ).toEqual([])
   })
 })

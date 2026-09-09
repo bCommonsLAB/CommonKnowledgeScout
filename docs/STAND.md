@@ -85,6 +85,12 @@ Neu dazugekommen:
   importiert aus `components/library` nur sich selbst. Der Schnitt ist
   bewusst nur die Galerie (nicht Chat-UI, Story, Website — passt zu „Nicht
   in diesem Vorhaben"). Offen: M4h (Helfer in Pakete), M4i (der Umzug).
+- 2026-09-09: **M4h** erledigt (eine PR): zehn Helfer in Pakete oder in den
+  Kegel — Registry, Anzeige-Labels und Doc-Meta-Typen nach `@ks/contracts`,
+  Slug-Regeln nach `@ks/util`, anonyme Sitzung nach `@ks/api-client`,
+  Lokalisierung nach `@ks/module-explorer`. Der Sprung zur Perspektiven-Wahl
+  ist App-Politik (`StoryPerspectiveRedirect`), nicht mehr Galerie. Der Kegel
+  importiert aus `@/` nur noch sich selbst — **umzugsfertig**. Offen: M4i.
 - 2026-09-09: Hotfix #248 — oldiesforfuture.org war seit dem 30.08. kaputt
   (Folge von #234: Galerie-Karte ausserhalb der Galerie ohne Anbieter).
   Lehre: ein Anbieter-Buendel `GalleryAppProviders` an jedem Montagepunkt,

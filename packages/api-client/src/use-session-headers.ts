@@ -14,7 +14,7 @@
  */
 
 import { useMemo } from 'react'
-import { getOrCreateSessionId } from '@/lib/session/session-utils'
+import { getOrCreateSessionId } from './anonymous-session'
 
 /**
  * Hook, der Session-ID Header für anonyme Nutzer zurückgibt

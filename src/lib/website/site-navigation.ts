@@ -16,7 +16,7 @@ import type { DocCardMeta } from '@ks/contracts'
 import {
   docMatchesNavigationSlug,
   getEffectiveDocumentNavigationSlug,
-} from '@/utils/document-slug-navigation'
+} from '@ks/util'
 
 const MENU_AREA_MAIN = 'main'
 const MENU_AREA_FOOTER = 'footer'

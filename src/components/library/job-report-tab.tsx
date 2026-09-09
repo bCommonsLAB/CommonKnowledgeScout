@@ -27,7 +27,7 @@ import {
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
 import { useLibraries } from '@ks/shell/react'
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { getDetailViewType } from '@ks/contracts'
 import { DETAIL_VIEW_TYPES, type DetailViewType } from '@/lib/detail-view-types/registry'
 import { MediaTab } from './media-tab'
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'

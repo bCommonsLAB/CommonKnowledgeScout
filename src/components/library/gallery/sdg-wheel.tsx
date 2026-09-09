@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
-import { SDG_LIST, type SdgValue } from "@ks/util";
+import { cn, SDG_LIST, type SdgValue } from "@ks/util";
 
 /**
  * src/components/library/gallery/sdg-wheel.tsx

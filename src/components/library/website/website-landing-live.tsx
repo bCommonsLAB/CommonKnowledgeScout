@@ -31,7 +31,7 @@ import {
   resolveSiteParamDoc,
 } from "@/lib/website/site-navigation"
 import { useTranslation } from "@ks/i18n/react"
-import { getEffectiveDocumentNavigationSlug } from "@/utils/document-slug-navigation"
+import { getEffectiveDocumentNavigationSlug } from "@ks/util"
 import type { DocCardMeta } from "@/lib/gallery/types"
 
 interface WebsiteLandingLiveProps {

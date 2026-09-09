@@ -1,4 +1,4 @@
-import type { DocMeta, ChapterMetaEntry } from '@/types/doc-meta'
+import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 
 export interface MetaDocument {
   libraryId: string

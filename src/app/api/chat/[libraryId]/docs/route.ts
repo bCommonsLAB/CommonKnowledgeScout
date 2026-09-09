@@ -8,7 +8,7 @@ import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibra
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { isValidDetailViewType, getSummableFields } from '@/lib/detail-view-types/registry'
 import { aggregateDocFieldSums } from '@/lib/repositories/vector-repo-sums'
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { getDetailViewType } from '@ks/contracts'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 import { resolveColumnSort } from '@/lib/documents/column-sort'
 import { buildGallerySort } from '@/lib/documents/gallery-sort'

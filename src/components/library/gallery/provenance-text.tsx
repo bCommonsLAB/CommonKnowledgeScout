@@ -4,7 +4,7 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Quote } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from '@ks/util';
 import { Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 
 /**

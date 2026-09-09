@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { VIEW_TYPE_LABELS } from "@/lib/detail-view-types/view-type-display"
-import type { DetailViewType } from "@/lib/detail-view-types/registry"
+import { VIEW_TYPE_LABELS } from "@ks/contracts"
+import type { DetailViewType } from "@ks/contracts"
 
 interface ViewTypeLeadFilterProps {
   /** Vorhandene Inhaltstypen der Library (aus der Facetten-API). */

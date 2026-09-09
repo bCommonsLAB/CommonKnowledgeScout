@@ -8,7 +8,7 @@
  * @module ingestion
  */
 
-import type { DocMeta } from '@/types/doc-meta'
+import type { DocMeta } from '@ks/contracts'
 
 /**
  * Erstellt einen kombinierten Text aus Dokument-Metadaten für Embedding.

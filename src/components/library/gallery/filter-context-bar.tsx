@@ -15,7 +15,7 @@ import { RecomputeAllRelationsButton } from '@/components/library/gallery/recomp
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 
 interface FilterContextBarProps {
   docCount: number

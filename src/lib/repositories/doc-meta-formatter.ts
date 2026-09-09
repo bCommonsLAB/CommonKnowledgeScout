@@ -1,7 +1,7 @@
 import type { DocCardMeta } from '@ks/contracts'
 import type { VectorDocument } from './vector-repo'
-import { localizeDocMetaJson } from '@/lib/i18n/get-localized'
-import type { DocTranslationsMeta } from '@/types/doc-meta'
+import { localizeDocMetaJson } from '@ks/module-explorer'
+import type { DocTranslationsMeta } from '@ks/contracts'
 import type { FavoriteVoter } from '@/types/source-user-state'
 
 /**

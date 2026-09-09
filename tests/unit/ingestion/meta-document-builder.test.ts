@@ -14,7 +14,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
-import type { DocMeta, ChapterMetaEntry } from '@/types/doc-meta'
+import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 
 const baseMongoDoc: DocMeta = {
   libraryId: 'lib1',

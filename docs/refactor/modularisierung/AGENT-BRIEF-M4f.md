@@ -169,26 +169,55 @@ selbst.
 Stand des Kegels nach M4g: kein `next/*`, kein fremder Baustein aus
 `components/library`. Was bleibt, sind die Helfer (M4h).
 
-## 5. Hand-off fuer M4h — Vokabular in Pakete
+## 5. M4h — Vokabular in Pakete (umgesetzt, 2026-09-09, eine PR)
 
-- **Welle**: M4h. Branch `claude/modularisierung-m4h-<suffix>`. Vermutlich
-  zwei PRs.
-- **Posten** (Stand nach M4g, neu zu messen): `detail-view-types/registry`
-  679, `detail-view-types/view-type-display` 47, `i18n/get-localized` 260,
-  `lib/chat/constants` 817 (ueber `story-context-atom`), `types/item` 228,
-  `utils/document-slug-navigation` 114, `utils/document-navigation` 129 (nur
-  die Bruecke, bleibt App), `documents/stakeholder-meta` 59,
-  `templates/detail-view-type-utils` 42, `lib/utils` 80 (`cn` → `@ks/util`),
-  `use-session-headers` 46. `doc-meta-mappers` ist erledigt.
-- **Je Posten entscheiden**: nach `@ks/contracts` (persistiertes Vokabular),
-  nach `@ks/util` (rahmenneutrale Helfer) oder in den Kegel (nur die Galerie
-  nutzt es). Messwert: Wer importiert es sonst?
-- **Beweis**: ein Fall in `galerie-schnitt.test.ts` — der Kegel importiert
-  aus `@/` nur noch seine eigenen Ordner (`components/library/gallery`,
-  `hooks/gallery`, `lib/gallery`, `contexts/gallery-*`, die vier Atome).
-- **Stop**: `types/item` hat 444 Nutzer. Wenn die Galerie nur `Item` als Typ
-  braucht, gehoert der Typ nach `@ks/contracts` — NICHT alle 444 Nutzer
-  umstellen. Und `registry` ist mit Einstellungen, Vorlagen und Chat
-  geteilt; beide sind eigene Posten, keine Nebenarbeit.
-- **Modell**: `claude-opus`, Thinking medium. Neuer Agent; dieses Brief und
-  `00-audit-galerie.md` genuegen.
+Der Kegel importiert aus `@/` nur noch seine eigenen Ordner. Test in
+`galerie-schnitt.test.ts`, Gegenprobe gelaufen. Zehn Posten, je nach
+Messwert (wer nutzt es sonst, was importiert es selbst):
+
+| Posten | Wohin | Warum |
+|---|---|---|
+| `detail-view-types/registry` (679) | `@ks/contracts` (`detail-view-type-registry.ts`) | Konfiguration je Renderer-Typ = Vertrag. **Ohne das zod-Schema** — das bleibt im App-Shim `src/lib/detail-view-types/registry.ts`, ueber den die 32 App-Nutzer weiterlaufen. Der Kegel importiert direkt aus dem Paket |
+| `view-type-display` (47), `detail-view-type-utils` (42) | `@ks/contracts` | Labels und die Regel „Frontmatter vor Config vor `book`" lesen persistierte Werte |
+| `types/doc-meta` (121) | `@ks/contracts` (`doc-meta.ts`) | die persistierte Form samt Uebersetzungs-Maps; 11 Nutzer direkt umgestellt |
+| `document-slug-persist` (25), `document-slug-navigation` (114) | `@ks/util` | reine Zeichenketten-Arbeit; die Navigations-Seite liest ihr Dokument strukturell (`NavigationSlugSource`), damit `@ks/util` ohne `@ks/contracts` bleibt |
+| `session-utils` (153), `use-session-headers` (46) | `@ks/api-client` | Session-ID und `X-Session-ID` sind Client-Protokoll, nicht Galerie |
+| `i18n/get-localized` (260) | `@ks/module-explorer` (`doc-meta/get-localized.ts`) | Modul-Logik ueber den Vertrags-Typen; das Wurzel-Barrel ist React-frei, auch der Server-Formatter liest sie dort |
+| `stakeholder-meta` (59) | Kegel (`lib/gallery/`) | null Fremdnutzer, Kundenwissen mit Icons — laut `@ks/util`-Kopf ausdruecklich nicht ins Paket |
+| `lib/utils` (`cn`) | `@ks/util` | lag laengst dort; fuenf Kegel-Dateien holten es ueber die App |
+| `types/item` (228) | **nicht bewegt** | die Galerie liest vom `Item` neun Felder — `GalleryItem` in `lib/gallery/types.ts` beschreibt genau die; `Item` erfuellt es strukturell. Die 444 Nutzer sind nie angefasst worden |
+| `lib/chat/constants` (817, ueber `story-context-atom`) | **nicht bewegt** | Die Galerie las den Story-Zustand nur fuer den Sprung zur Perspektiven-Wahl. Das ist App-Politik: jetzt `StoryPerspectiveRedirect` in `GalleryAppProviders`; `openPerspective` ist aus dem Adressierungs-Vertrag verschwunden, `story-context-atom` aus dem Kegel |
+
+Zwei Ueberraschungen beim Messen: `types/item` hatte **einen** Nutzer, nicht
+444 (die Zahl war ein Symbolzaehler); und `get-localized`/`lib/utils` wurden
+zum Teil mit doppelten Anfuehrungszeichen importiert — der Schnitt-Test
+faengt beide Formen.
+
+Stand des Kegels nach M4h: kein `next/*`, kein fremder Baustein, kein
+App-Helfer. **Er ist umzugsfertig.**
+
+## 6. Hand-off fuer M4i — der Umzug
+
+- **Welle**: M4i. Branch `claude/modularisierung-m4i-<suffix>`. Vermutlich
+  zwei PRs entlang `lib/gallery` + `hooks/gallery` (erst) und
+  `components/library/gallery` (dann), jeweils mit den Kontexten und Atomen.
+- **Ziel**: `git mv` nach `packages/module-explorer/src/gallery/…`;
+  `GalleryRoot` samt `GalleryRootProps`, den drei Kontexten
+  (`GalleryViewer`, `GalleryNavigation`, `GalleryHost`) und
+  `STILLER_GASTGEBER`/`ANONYMOUS_VIEWER` aus `@ks/module-explorer/react`.
+  Die drei App-Bruecken (`ClerkGalleryViewerBridge`, `NextGalleryNavigation`,
+  `AppGalleryHost`) und `GalleryAppProviders` bleiben in der App und
+  importieren die Kontexte aus dem Paket.
+- **Was das Paket dafuer braucht**: `jotai`, `lucide-react`, `react` sind
+  Peers; dazu kommen `d3` (Graph), `@tanstack/react-virtual`, `sonner`,
+  `react-markdown` — messen, was der Kegel wirklich importiert, und in
+  `package.json` eintragen. Tailwind-Klassen laufen ueber den bestehenden
+  Glob `packages/*/src/**`.
+- **Beweis**: `pnpm typecheck:packages` prueft das Paket isoliert — ein
+  Rueckwaerts-Import scheitert dort mit `TS2307`. Die Schnitt-Tests laufen
+  danach gegen `packages/module-explorer/src/gallery`.
+- **Stop**: Ein `@/`-Import taucht beim Umzug auf, den der Schnitt-Test nicht
+  sah → erst den Test schaerfen, dann weiter. `pnpm build` >2x rot ohne
+  Fortschritt → abbrechen.
+- **Modell**: `claude-opus`, Thinking medium. Neuer Agent; dieses Brief
+  genuegt.

@@ -4,7 +4,7 @@ import * as React from "react";
 import { ClimateActionDetail, type ClimateActionDetailData } from "./climate-action-detail";
 import { useTranslation } from "@ks/i18n/react";
 import { mapToClimateActionDetail } from "@/lib/mappers/doc-meta-mappers";
-import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
+import { localizeDocMetaJson } from "@ks/module-explorer";
 
 interface IngestionClimateActionDetailProps {
   libraryId: string;

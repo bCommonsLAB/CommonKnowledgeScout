@@ -4,7 +4,7 @@ import * as React from "react";
 import { SessionDetail, type SessionDetailData } from "./session-detail";
 import { useTranslation } from "@ks/i18n/react";
 import { mapToSessionDetail } from "@/lib/mappers/doc-meta-mappers";
-import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
+import { localizeDocMetaJson } from "@ks/module-explorer";
 
 interface IngestionSessionDetailProps {
   libraryId: string;

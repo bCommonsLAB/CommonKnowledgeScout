@@ -1,5 +1,5 @@
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
-import type { DocMeta } from '@/types/doc-meta'
+import type { DocMeta } from '@ks/contracts'
 import { safeText } from '@/lib/utils/string-utils'
 
 export interface VectorDocument {

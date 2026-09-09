@@ -1,7 +1,7 @@
 /**
  * @fileoverview Dokument-Slug für die NAVIGATION (`?doc=…`).
  *
- * Gegenstück zu `@/lib/documents/document-slug-persist`, das den Slug erzeugt,
+ * Gegenstück zu `document-slug-persist`, das den Slug erzeugt,
  * der als `meta.slug` dauerhaft geschrieben wird. Hier wird NICHT neu
  * slugifiziert: die Regel kommt aus `buildDocumentSlugFallback`, diese Datei
  * legt nur zwei Dinge obendrauf, die ausschließlich für URLs gelten —
@@ -11,10 +11,23 @@
  * liegen in MongoDB und im Frontmatter. Wer die Regel ändert, ändert sie
  * dort — nicht hier.
  *
- * @module utils/document-slug-navigation
+ * @module util/document-slug-navigation
  */
-import type { DocCardMeta } from '@ks/contracts'
-import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist'
+import { buildDocumentSlugFallback } from './document-slug-persist'
+
+/**
+ * Was die Navigations-Regel von einem Dokument lesen muss — nicht mehr.
+ * `NavigationSlugSource` (Galerie) und `DocMeta` (Detail) erfuellen das strukturell;
+ * `@ks/util` bleibt damit ohne Abhaengigkeit auf `@ks/contracts`.
+ */
+export interface NavigationSlugSource {
+  id?: string
+  fileId?: string
+  fileName?: string
+  title?: string
+  shortTitle?: string
+  slug?: unknown
+}
 
 /** Längenbegrenzung des synthetischen Navigations-Slugs (ohne Suffix). */
 export const NAVIGATION_SLUG_MAX_LEN = 80
@@ -38,7 +51,7 @@ function truncateSlug(s: string, maxLen: number): string {
   return s.slice(0, maxLen).replace(/-+$/g, '')
 }
 
-function readPersistedSlug(doc: DocCardMeta): string {
+function readPersistedSlug(doc: NavigationSlugSource): string {
   return typeof doc.slug === 'string' ? doc.slug.trim() : ''
 }
 
@@ -46,10 +59,10 @@ function readPersistedSlug(doc: DocCardMeta): string {
  * Basis des synthetischen Slugs — DIESELBE Kandidaten-Reihenfolge wie beim
  * Persistieren (`ingestion-service`: fileName → source_file → title;
  * `phase-template`: Artefaktname → Quellname → title). Beide Seiten sehen
- * denselben `fileName` (`mapItemToDocCardMeta` reicht `item.fileName` durch),
+ * denselben `fileName` (`mapItemToNavigationSlugSource` reicht `item.fileName` durch),
  * also rechnen sie für dasselbe Dokument dieselbe Basis.
  */
-function buildNavigationSlugBase(doc: DocCardMeta): string {
+function buildNavigationSlugBase(doc: NavigationSlugSource): string {
   return truncateSlug(
     buildDocumentSlugFallback(doc.fileName, doc.title, doc.shortTitle),
     NAVIGATION_SLUG_MAX_LEN
@@ -61,7 +74,7 @@ function buildNavigationSlugBase(doc: DocCardMeta): string {
  * noch zum MATCHEN gebraucht, damit bereits geteilte Links nicht ins Leere
  * zeigen. Nicht zum Erzeugen neuer Links verwenden.
  */
-function buildLegacyNavigationSlugBase(doc: DocCardMeta): string {
+function buildLegacyNavigationSlugBase(doc: NavigationSlugSource): string {
   return truncateSlug(
     buildDocumentSlugFallback(doc.title, doc.shortTitle, doc.fileName),
     NAVIGATION_SLUG_MAX_LEN
@@ -77,7 +90,7 @@ function buildLegacyNavigationSlugBase(doc: DocCardMeta): string {
  *
  * @returns `null` nur wenn weder fileId noch id vorhanden sind
  */
-export function getEffectiveDocumentNavigationSlug(doc: DocCardMeta): string | null {
+export function getEffectiveDocumentNavigationSlug(doc: NavigationSlugSource): string | null {
   const fid = doc.fileId || doc.id
   if (!fid) return null
 
@@ -98,7 +111,7 @@ export function getEffectiveDocumentNavigationSlug(doc: DocCardMeta): string | n
  * 2. der synthetische Slug nach heutiger Regel,
  * 3. der synthetische Slug nach der alten, titelzuerst-Regel.
  */
-export function docMatchesNavigationSlug(doc: DocCardMeta, docSlug: string): boolean {
+export function docMatchesNavigationSlug(doc: NavigationSlugSource, docSlug: string): boolean {
   if (!docSlug) return false
 
   const persisted = readPersistedSlug(doc)

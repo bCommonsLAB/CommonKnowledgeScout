@@ -3,7 +3,7 @@ import {
   getViewTypeLabel,
   getPresentDetailViewTypes,
   VIEW_TYPE_LABELS,
-} from '@/lib/detail-view-types/view-type-display'
+} from '@ks/contracts'
 
 describe('getViewTypeLabel', () => {
   it('liefert ein Label fuer gueltige Typen', () => {

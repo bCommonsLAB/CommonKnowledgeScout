@@ -1,13 +1,15 @@
 /**
- * @fileoverview Detail-View-Type Utilities
+ * @fileoverview Welcher Renderer-Typ fuer ein Dokument gilt — Frontmatter vor Library-Config vor `book`.
+ *
+ * Seit M4h in `@ks/contracts`: Die Regel liest persistierte Werte (Frontmatter,
+ * Library-Config) und gehoert damit zum Vertrag, nicht zur Vorlagen-Logik.
  * 
  * @description
  * Helper-Funktionen für die Bestimmung des Detail-View-Types aus Frontmatter mit Fallback auf Library-Config.
  */
 
-import type { TemplatePreviewDetailViewType } from './template-types'
-import type { LibraryChatConfig } from '@/types/library'
-import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
+import type { LibraryChatConfig } from './library-chat'
+import { isDetailViewType, type DetailViewType } from './detail-view-type'
 
 /**
  * Bestimmt den Detail-View-Type aus bereits geparstem Frontmatter mit Fallback auf Library-Config.
@@ -21,18 +23,18 @@ import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 export function getDetailViewType(
   meta: Record<string, unknown>,
   libraryConfig?: LibraryChatConfig
-): TemplatePreviewDetailViewType {
+): DetailViewType {
   // Gueltigkeit gegen die zentrale Registry — hier standen frueher zwei
   // eigene Kopien der Werteliste (Galerie-Audit, Befund 3c).
 
   // 1. Prüfe Frontmatter
-  if (isValidDetailViewType(meta.detailViewType)) {
+  if (isDetailViewType(meta.detailViewType)) {
     return meta.detailViewType
   }
 
   // 2. Fallback: Library-Config
   const configDetailViewType = libraryConfig?.gallery?.detailViewType
-  if (isValidDetailViewType(configDetailViewType)) {
+  if (isDetailViewType(configDetailViewType)) {
     return configDetailViewType
   }
 

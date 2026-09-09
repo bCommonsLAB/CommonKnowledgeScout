@@ -1,6 +1,6 @@
 "use client"
 
-import { getOrCreateSessionId } from '@/lib/session/session-utils'
+import { getOrCreateSessionId } from '@ks/api-client'
 import type { WizardSession, WizardSessionEvent, WizardSessionError } from '@/types/wizard-session'
 
 export interface WizardUserIdentifierClient {

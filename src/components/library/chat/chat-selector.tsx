@@ -30,7 +30,7 @@ export function ChatSelector({ libraryId, activeChatId, onChatChange, onCreateNe
       setError(null)
       try {
         // Session-ID für anonyme Nutzer
-        const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+        const { getOrCreateSessionId } = await import('@ks/api-client')
         const sessionId = getOrCreateSessionId()
         const headers: Record<string, string> = {}
         if (!sessionId.startsWith('temp-')) {
@@ -68,7 +68,7 @@ export function ChatSelector({ libraryId, activeChatId, onChatChange, onCreateNe
   const handleCreateNewChat = async () => {
     try {
       // Session-ID für anonyme Nutzer
-      const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+      const { getOrCreateSessionId } = await import('@ks/api-client')
       const sessionId = getOrCreateSessionId()
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (!sessionId.startsWith('temp-')) {

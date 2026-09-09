@@ -12,7 +12,7 @@
 
 import * as React from "react"
 import { mapToWebsiteDetail } from "@/lib/mappers/doc-meta-mappers"
-import { localizeDocMetaJson } from "@/lib/i18n/get-localized"
+import { localizeDocMetaJson } from "@ks/module-explorer"
 import type { WebsiteDetailData } from "@/components/library/website-detail"
 import type { DocCardMeta } from "@/lib/gallery/types"
 

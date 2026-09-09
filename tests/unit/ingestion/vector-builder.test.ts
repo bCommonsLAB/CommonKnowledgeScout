@@ -17,7 +17,7 @@ import {
   type RAGResult,
 } from '@/lib/ingestion/vector-builder'
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
-import type { DocMeta } from '@/types/doc-meta'
+import type { DocMeta } from '@ks/contracts'
 
 const baseMongoDoc: DocMeta = {
   libraryId: 'lib1',

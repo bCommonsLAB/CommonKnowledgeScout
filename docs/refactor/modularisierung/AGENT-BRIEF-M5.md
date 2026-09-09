@@ -119,7 +119,8 @@ Messung und eigenem Beweis-Test — Plan und Zahlen in
 |---|---|---|
 | 1 Galerie-Adressierung | **M4f** — Next raus (Adressierung Teil B, Bilder ueber den Gastgeber, Story-Panel als Slot) | erledigt |
 | 3 Kreuzverweise zu Slots | **M4g** — Renderer-Tabelle als Prop, Website/Story-Kopf/Abzeichen als Slots | erledigt |
-| 3 Helfer, Umzug | **M4h** (Vokabular in Pakete), **M4i** (`git mv` nach `packages/module-explorer`) | offen |
+| 3 Helfer | **M4h** — zehn Helfer nach `@ks/contracts`, `@ks/util`, `@ks/api-client`, `@ks/module-explorer` oder in den Kegel; der Kegel importiert aus `@/` nur noch sich selbst | erledigt |
+| 3 Umzug | **M4i** (`git mv` nach `packages/module-explorer`) | offen |
 | 2, 4, 5 | M5 im engeren Sinn — beginnt, wenn `GalleryRoot` aus dem Paket kommt | offen |
 
 Eine Abweichung von der Reihenfolge in `02-audit-umzug.md` §4, bewusst: Es

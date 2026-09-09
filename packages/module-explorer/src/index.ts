@@ -19,3 +19,10 @@ export {
   classifyExplorerApiRoute,
 } from './api/namespaces'
 export type { ExplorerApiExclusion, ExplorerRouteVerdict } from './api/namespaces'
+
+// Dokument-Metadaten in der Sprache des Betrachters (M4h aus
+// `src/lib/i18n/get-localized.ts`): reine Nachschlage-Logik ueber den
+// Uebersetzungs-Maps aus `@ks/contracts`, ohne React — Galerie, Detail-
+// ansichten und der Doc-Meta-Formatter des Servers lesen sie hier.
+export { getLocalized, getLocalizedLabel, getLocalizedTopics, localizeDocMetaJson } from './doc-meta/get-localized'
+export type { TranslationScope, LocalizableDoc } from './doc-meta/get-localized'
