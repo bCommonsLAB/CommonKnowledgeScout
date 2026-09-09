@@ -150,6 +150,11 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 - Modularisierung: M6 Oldies-SiteConfig, M7 `@ks/module-agent-view`, M8
   Föderation (ADR 0009) + Retrieval-Profile (ADR 0010), `apps/`-Ebene
 - ADR 0005 Co-Creator mit eigener Storage-Auth
+- Verschlüsselung der gespeicherten Storage-Zugangsdaten (Encryption-at-rest):
+  liegt fertig als ein Commit auf `origin/claude/lucid-planck-b9i6gj`
+  (63a64bb9, 2026-06-22, 12 Dateien), nie gemergt; im Code gibt es heute keine
+  Verschlüsselung. Der einzige verbliebene Alt-Branch (Bereinigung 2026-09-09:
+  176 Branches gelöscht, alle in master oder per PR gemergt)
 - Settings-UX-Folgeplan: Start-Flow, automatisierte Oberflächentests
 - Dateigrößen-Reste der Refactor-Wellen: `onedrive-provider.ts` 2.294,
   `job-report-tab.tsx` 2.262, `phase-template.ts` 2.037, `file-list.tsx` 1.761,
