@@ -82,7 +82,17 @@ export function datumKurz(date: Date): string {
   return `${tag}.${monat}.${date.getFullYear()}`
 }
 
-/** Obsidian-Wikilink auf den Bericht eines Vorhabens. */
+/** Obsidian-Wikilink auf den Bericht eines Vorhabens (Fliesstext, Listen). */
 export function berichtLink(projekt: ProjektDatensatz, label: string): string {
   return `[[${projekt.ordner}/BERICHT|${label}]]`
+}
+
+/**
+ * Derselbe Wikilink fuer eine Markdown-Tabellenzelle: Der Alias-Strich `|`
+ * muss dort als `\|` stehen, sonst liest Obsidian ihn als Spaltentrenner —
+ * der Link zerfaellt und alle Spalten rechts davon rutschen um eins
+ * (Befund 09.09.2026 in `Organisation/AKTUELL.md`).
+ */
+export function berichtLinkInTabelle(projekt: ProjektDatensatz, label: string): string {
+  return `[[${projekt.ordner}/BERICHT\\|${label}]]`
 }
