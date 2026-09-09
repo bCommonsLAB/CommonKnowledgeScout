@@ -84,6 +84,6 @@ Begründung:
 
 ## Referenzen
 
-- Plan: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+- Plan: [docs/plans/archiv/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../plans/archiv/refactor-strategie-drift-eliminieren_06fd8014.plan.md) (archiviert 2026-09-09)
 - AGENTS-Konventionen: [AGENTS.md](../../AGENTS.md)
 - Bestehende Contracts external-jobs: [../contracts/external-jobs-integration-tests.md](../contracts/external-jobs-integration-tests.md), [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md)

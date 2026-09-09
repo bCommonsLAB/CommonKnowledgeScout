@@ -130,7 +130,7 @@ die Begriffsliste verworfen wurde. Das ist beabsichtigt: Nicht jedes Modell kenn
 
 - **Sprecher-Labels.** Der Batch-Weg fordert `verbose_json` an, nicht `diarized_json`,
   und wertet keine Sprecher-Segmente aus. Geplant, nicht gebaut — siehe
-  `docs/plans/audio-namensraum-und-diarisierung_c4f81a37.plan.md`.
+  `docs/plans/geplant/audio-namensraum-und-diarisierung_c4f81a37.plan.md` (seit 2026-09-09 geplant, ohne Termin).
 - **Live-Kontext außerhalb des Wizards.** Nur der Erfassungsschritt läuft auf `live`;
   Testimonial-Recorder, Werkbank-Korrektur, Pipeline-Sheet und Edit-Draft nutzen
   weiterhin den Batch-Weg. Umstellen wäre je ein `mode="live"`.

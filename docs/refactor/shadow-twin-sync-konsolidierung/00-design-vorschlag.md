@@ -1,5 +1,8 @@
 # Welle 4 — Design-Vorschlag: EINE Sync-Engine (Prüfen / Reparieren)
 
+> **Stand: geplant seit 2026-09-09** (Owner-Entscheidung). nur Bestandsaufnahme vom 2026-08-09; ein Schreibpfad statt vier bleibt das Ziel.
+> Kein Vorhaben arbeitet daran; Vorrat in [`docs/STAND.md`](../../STAND.md).
+
 Status: ENTWURF zur Abstimmung (2026-08-07, keine Code-Änderungen)
 Basis: Hand-off 2026-08-07 §4.2, Zielmodell `shadow-twin-deterministic/04-zielmodell.md` §9,
 UI-Kartierung aller Aufrufstellen (diese Session).

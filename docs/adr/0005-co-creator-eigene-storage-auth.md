@@ -1,7 +1,8 @@
 # ADR 0005 — Co-Creator: eigene Storage-Authentifizierung + Trennung Galerie/Erkunden vs. Archiv
 
-- **Status**: Vorgeschlagen — **deponiert 2026-06-03**, noch nicht entschieden,
-  Umsetzung ist ein eigener spaeterer Arbeitsschritt
+- **Status**: Zurückgestellt (2026-09-09; deponiert seit 2026-06-03, nicht
+  entschieden; wird aufgegriffen, sobald ein Vorhaben fremde Mitwirkende mit
+  eigenem Storage braucht — siehe `docs/STAND.md`, Vorrat)
 - **Datum**: 2026-06-03
 - **Entscheider**: Repo-Owner
 - **Verwandt**: ADR-0004 (Storage-Verfuegbarkeit/Token-Handling),

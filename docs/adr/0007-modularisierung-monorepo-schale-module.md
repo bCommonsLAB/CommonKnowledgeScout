@@ -1,6 +1,8 @@
 # ADR 0007 — Modularisierung: pnpm-Monorepo, Schale, Modul-Pakete
 
-- **Status**: Vorgeschlagen
+- **Status**: Akzeptiert (2026-09-09; nach dieser Entscheidung wurden M1 bis
+  M4e gebaut, acht Pakete unter `packages/`; Status nachgezogen, siehe
+  `docs/STAND.md`)
 - **Datum**: 2026-08-25
 - **Kontext**: Anforderung des Owners, einzelne Anwendungsbereiche
   (zuerst Explorer/Chat und Agentensicht) in andere Webseiten zu bringen,
