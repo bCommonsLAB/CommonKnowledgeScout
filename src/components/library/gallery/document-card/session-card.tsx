@@ -18,7 +18,7 @@
  */
 
 import React from 'react'
-import Image from 'next/image'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { Calendar } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from '../speaker-icons'
@@ -33,6 +33,7 @@ export interface SessionCardProps {
 }
 
 export function SessionCard({ doc, onClick, libraryId, onToggleFavorite }: SessionCardProps) {
+  const { Bild } = useGalleryHost()
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
 
@@ -53,7 +54,7 @@ export function SessionCard({ doc, onClick, libraryId, onToggleFavorite }: Sessi
     >
       {/* Hintergrundbild: Thumbnail bevorzugt fuer bessere Performance */}
       {displayImageUrl ? (
-        <Image
+        <Bild
           src={displayImageUrl}
           alt={doc.shortTitle || doc.title || doc.fileName || 'Session'}
           fill

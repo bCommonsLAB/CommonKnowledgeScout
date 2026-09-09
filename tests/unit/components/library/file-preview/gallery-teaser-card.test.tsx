@@ -84,7 +84,7 @@ describe('Galerie-Karte ausserhalb der Galerie', () => {
     }
   })
 
-  it('GalleryTeaserCard rendert die Karte, weil sie den Anbieter mitbringt', () => {
+  it('GalleryTeaserCard rendert die Karte, weil sie die Anbieter mitbringt', () => {
     render(<GalleryTeaserCard doc={doc} />)
     expect(screen.getByText('Teaser-Dokument')).toBeTruthy()
     // Nur gerendert, nicht navigiert: Der Teaser hat weder libraryId noch

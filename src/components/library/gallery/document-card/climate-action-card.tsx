@@ -17,7 +17,7 @@
  */
 
 import React from 'react'
-import Image from 'next/image'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { Gauge } from 'lucide-react'
 import { cn } from '@ks/util'
 import type { DocCardMeta } from '@/lib/gallery/types'
@@ -38,6 +38,7 @@ export function ClimateActionCard({
   libraryId,
   onToggleFavorite,
 }: ClimateActionCardProps) {
+  const { Bild } = useGalleryHost()
   const status = mapBewertungToStatus(doc.lv_bewertung)
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.offen
   const IconComponent = STATUS_ICON_MAP[config.icon]
@@ -52,7 +53,7 @@ export function ClimateActionCard({
     >
       {/* Hintergrundbild: Thumbnail bevorzugt fuer bessere Performance */}
       {displayImageUrl ? (
-        <Image
+        <Bild
           src={displayImageUrl}
           alt={doc.shortTitle || doc.title || doc.fileName || 'Cover'}
           fill

@@ -14,7 +14,7 @@ import { BulkPublishButton } from '@/components/library/gallery/bulk-publish-but
 import { RecomputeAllRelationsButton } from '@/components/library/gallery/recompute-all-relations-button'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { cn } from '@/lib/utils'
 
 interface FilterContextBarProps {
@@ -98,9 +98,8 @@ export function FilterContextBar({
   // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  // Adresse lesen und mit Verlaufseintrag schreiben — wohin, weiss die App (M4f)
+  const { params: searchParams, pushParams } = useGalleryNavigation()
   const { isMember } = useLibraryRole(libraryId)
   const onlyFavoritesActive = searchParams?.get('favorites') === '1'
   const onlyStarredActive = searchParams?.get('starred') === '1'
@@ -112,40 +111,35 @@ export function FilterContextBar({
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyFavoritesActive) params.delete('favorites')
     else params.set('favorites', '1')
-    const qs = params.toString()
-    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+    pushParams(params)
   }
 
   const toggleOnlyStarred = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyStarredActive) params.delete('starred')
     else params.set('starred', '1')
-    const qs = params.toString()
-    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+    pushParams(params)
   }
 
   const toggleOnlyCommented = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyCommentedActive) params.delete('commented')
     else params.set('commented', '1')
-    const qs = params.toString()
-    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+    pushParams(params)
   }
 
   const toggleSortByStars = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (sortByStarsActive) params.delete('sort')
     else params.set('sort', 'stars')
-    const qs = params.toString()
-    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+    pushParams(params)
   }
 
   const toggleSortByRating = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (sortByRatingActive) params.delete('sort')
     else params.set('sort', 'rating')
-    const qs = params.toString()
-    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+    pushParams(params)
   }
   
   // Erstelle eine Map für schnelles Label-Lookup

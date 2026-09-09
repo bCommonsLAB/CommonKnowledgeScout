@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import Image from 'next/image'
+import { useGalleryHost } from '@/contexts/gallery-host-context'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 
 export interface DocLike {
@@ -124,6 +124,7 @@ export function SpeakerIcon({ name, imageUrl, size = 'h-20 w-20', compact = fals
   size?: string;
   compact?: boolean;
 }) {
+  const { Bild } = useGalleryHost()
   const [imageError, setImageError] = useState(false)
   const textSize = compact ? 'text-xs' : 'text-base'
   
@@ -133,7 +134,7 @@ export function SpeakerIcon({ name, imageUrl, size = 'h-20 w-20', compact = fals
         <TooltipTrigger asChild>
           <div className={`flex items-center justify-center ${size} rounded-full bg-primary/10 text-primary ${textSize} font-medium border-2 border-background hover:border-primary/30 transition-colors overflow-hidden shrink-0 shadow-sm relative`}>
             {imageUrl && !imageError ? (
-              <Image 
+              <Bild 
                 src={imageUrl} 
                 alt={name}
                 fill

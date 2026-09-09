@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useGalleryNavigation } from '@/contexts/gallery-navigation-context'
 import { useAtom } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
@@ -36,9 +36,7 @@ export function SwitchToStoryModeButton({
   isSwitchingRef,
 }: SwitchToStoryModeButtonProps) {
   const { t } = useTranslation()
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const navigation = useGalleryNavigation()
   const [, setFilters] = useAtom(galleryFiltersAtom)
 
   const handleClick = React.useCallback(async () => {
@@ -63,26 +61,17 @@ export function SwitchToStoryModeButton({
     // Entferne doc Parameter explizit und navigiere direkt zur Story-Mode URL
     // Verwende bereinigte searchParams, um Race Condition zu vermeiden
     try {
-      const params = new URLSearchParams(searchParams?.toString() || '')
-      
+      const params = new URLSearchParams(navigation.params.toString())
+
       // Entferne doc Parameter explizit (MUSS zuerst passieren!)
       params.delete('doc')
-      
+
       // Setze mode Parameter auf story (auch wenn bereits gesetzt)
       params.set('mode', 'story')
-      
-      // Navigiere basierend auf aktueller Route
-      if (pathname?.startsWith('/explore/')) {
-        const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
-        if (librarySlugMatch && librarySlugMatch[1]) {
-          const librarySlug = librarySlugMatch[1]
-          router.replace(`/explore/${librarySlug}?${params.toString()}`, { scroll: false })
-        }
-      } else {
-        // Library-Route
-        router.replace(`/library/gallery?${params.toString()}`, { scroll: false })
-      }
-      
+
+      // Ohne Verlaufseintrag — wohin genau, entscheidet die Adressierung (M4f)
+      navigation.replaceParams(params)
+
       // WICHTIG: Prüfe, ob docShortTitle vorhanden ist, bevor wir Filter setzen
       if (!docShortTitle) {
         if (isSwitchingRef) {
@@ -134,7 +123,7 @@ export function SwitchToStoryModeButton({
         })
       })
     } catch (error) {
-      // Navigations-Fehler werden hier gefangen, weil `router.push`
+      // Navigations-Fehler werden hier gefangen, weil der Router
       // bei abgebrochenen Routen werfen kann. Wir loggen den Fehler
       // (no-silent-fallbacks.mdc) und greifen auf den Filter-Fallback
       // zurueck, damit der User trotzdem den Story-Modus erreicht.
@@ -166,7 +155,7 @@ export function SwitchToStoryModeButton({
         }, 0)
       }
     }
-  }, [doc, currentMode, onClose, isSwitchingRef, router, pathname, searchParams, setFilters])
+  }, [doc, currentMode, onClose, isSwitchingRef, navigation, setFilters])
 
   return (
     <div className="shrink-0">

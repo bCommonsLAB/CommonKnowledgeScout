@@ -11,7 +11,6 @@
  * - Default-Card (kein bekannter Type) rendert mit Titel
  *
  * Mocks:
- * - next/image (vermeidet Next.js-Image-Loader)
  * - resolve-cover-url-client (DivaTextureCard ruft API)
  * - gallery-navigation-context (die Adressierung)
  *
@@ -20,21 +19,16 @@
  * entscheidet der Montagepunkt. Der Mock sitzt deshalb am Kontext.
  */
 
+import type React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { cleanup, render as rtlRender, screen, fireEvent } from '@testing-library/react'
 import { DocumentCard } from '@/components/library/gallery/document-card'
+import { GalleryHostProvider, STILLER_GASTGEBER } from '@/contexts/gallery-host-context'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 // Sammle Aufrufe der Adressierung zentral, damit Tests die
 // Aufrufe pro Klick gegenzaehlen koennen.
 const openDocumentMock = vi.fn()
-
-vi.mock('next/image', () => ({
-  default: (props: { src?: string; alt?: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={props.src} alt={props.alt} data-testid="next-image-mock" />
-  ),
-}))
 
 vi.mock('@/contexts/gallery-navigation-context', () => ({
   useGalleryNavigation: () => ({
@@ -81,6 +75,11 @@ vi.mock('@/components/library/gallery/source-comments-badge', () => ({
     <div data-testid="source-comments-badge-mock" data-library={props.libraryId} data-file={props.fileId} />
   ),
 }))
+
+/** Die Karten fragen den Gastgeber nach dem Bild-Renderer (M4f); hier der schlichte. */
+function render(ui: React.ReactElement) {
+  return rtlRender(<GalleryHostProvider host={STILLER_GASTGEBER}>{ui}</GalleryHostProvider>)
+}
 
 function makeDoc(overrides: Partial<DocCardMeta> = {}): DocCardMeta {
   return {

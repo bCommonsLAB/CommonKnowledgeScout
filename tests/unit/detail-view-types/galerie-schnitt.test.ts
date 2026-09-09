@@ -114,17 +114,13 @@ describe('Galerie-Schnitt', () => {
     // wo sie ohnehin ausschliesslich benutzt wurde (01-audit-galerie-chat.md).
     const GALLERY_ROOTS = ['src/components/library/gallery', 'src/hooks/gallery']
 
-    // Bewusste Ausnahme, mit Begruendung statt stillschweigend:
-    // `gallery-root` laedt das Chat-Panel als SLOT per `next/dynamic`. Fuer ein
-    // Paket muesste es als Prop hereinkommen — dieselbe Frage wie bei der
-    // Galerie im Explorer, und sie faellt mit der Adressierungs-Welle zusammen.
-    const SLOT_EXCEPTIONS = new Set(['src/components/library/gallery/gallery-root.tsx'])
-
+    // Keine Ausnahme mehr. `gallery-root` holte das Chat-Panel als Slot per
+    // `next/dynamic`; seit M4f reicht der Montagepunkt es als `storyPanel`
+    // herein. Die Galerie nennt den Chat damit an keiner Stelle mehr.
     const offenders: string[] = []
     for (const root of GALLERY_ROOTS) {
       for (const file of collectSourceFiles(join(REPO_ROOT, root))) {
         const relPath = relative(REPO_ROOT, file).replace(/\\/g, '/')
-        if (SLOT_EXCEPTIONS.has(relPath)) continue
         const content = readFileSync(file, 'utf-8')
         if (/['"]@\/(components\/library\/chat|lib\/chat|types\/chat-response|types\/query-log)/.test(content)) {
           offenders.push(relPath)
@@ -182,6 +178,45 @@ describe('Galerie-Schnitt', () => {
       offenders,
       `Die Galerie erreicht einen Auth-Anbieter ueber:\n${offenders.join('\n')}\n` +
         'Solche Helfer bekommen den Anmeldezustand hereingereicht, statt ihn zu erfragen.'
+    ).toEqual([])
+  })
+
+  it('der Galerie-Kegel importiert kein next/*', () => {
+    // Welle M4f („Next raus"): `@ks/module-explorer` hat kein `next` in den
+    // Abhaengigkeiten — was die Galerie von Next brauchte, kommt jetzt herein:
+    // die Adresse ueber `GalleryNavigation`, Bilder ueber `GalleryHost.Bild`,
+    // das Story-Panel als Slot. Der Kegel hier ist genau das, was in M4i
+    // nach `packages/` umzieht; jede neue `next/`-Zeile darin waere ein
+    // Schritt zurueck.
+    const KEGEL = [
+      'src/components/library/gallery',
+      'src/hooks/gallery',
+      'src/lib/gallery',
+      'src/contexts/gallery-host-context.tsx',
+      'src/contexts/gallery-navigation-context.tsx',
+      'src/contexts/gallery-viewer-context.tsx',
+      'src/atoms/chat-references-atom.ts',
+      'src/atoms/gallery-data.ts',
+      'src/atoms/gallery-filters.ts',
+      'src/atoms/story-context-atom.ts',
+    ]
+    const offenders: string[] = []
+    for (const root of KEGEL) {
+      const abs = join(REPO_ROOT, root)
+      const files = statSync(abs).isDirectory() ? collectSourceFiles(abs) : [abs]
+      for (const file of files) {
+        const content = readFileSync(file, 'utf-8')
+        const treffer = content.match(/from ['"]next\/[^'"]*['"]/g)
+        if (treffer) {
+          offenders.push(`${relative(REPO_ROOT, file).replace(/\\/g, '/')}: ${treffer.join(', ')}`)
+        }
+      }
+    }
+    expect(
+      offenders,
+      `Galerie-Code importiert aus next/*:\n${offenders.join('\n')}\n` +
+        'Adresse: GalleryNavigation. Bilder: GalleryHost.Bild. Faules Laden: React.lazy ' +
+        'oder ein Slot am Montagepunkt (src/app/library/gallery/client.tsx).'
     ).toEqual([])
   })
 })
