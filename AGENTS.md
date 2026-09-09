@@ -102,9 +102,31 @@ Wer App-Code (`src/**`) anfasst, prueft deshalb zusaetzlich:
 npx tsc --noEmit -p tsconfig.json 2>&1 | grep '^src/'
 ```
 
-Muss LEER sein. (Die uebrigen Treffer liegen in `tests/**` und sind
-vorbestehend — der Next-Build typprueft sie nicht.) **Nicht auf einzelne
-Dateien filtern:** Genau daran ist der Fehler vom 28.08. vorbeigerutscht.
+Muss LEER sein. **Nicht auf einzelne Dateien filtern:** Genau daran ist der
+Fehler vom 28.08. vorbeigerutscht.
+
+**ACHTUNG, der `^src/`-Filter reicht NICHT (Befund 09.09.2026):** Hier stand,
+die uebrigen Treffer laegen in `tests/**` und der Next-Build pruefe sie nicht.
+Das ist FALSCH. `tsconfig.json` zieht mit `**/*.ts` und `**/*.tsx` auch
+`tests/**` ein, und `pnpm build` typprueft das mit — der `ci-main`-Lauf 515 ist
+genau daran gescheitert (`tests/unit/agent-view/report-merge.fixtures.ts`,
+zwei neue Pflichtfelder an einem Interface). Dass eine Reihe alter
+`.test.ts`-Fehler den Build trotzdem passieren laesst, ist kein Verlass: Next
+meldet den ERSTEN Fehler, den es findet, und welcher das ist, haengt an der
+Auswertungsreihenfolge.
+
+Wer ein Interface um ein Pflichtfeld erweitert, prueft deshalb VOLLSTAENDIG
+und vergleicht gegen den Stand vor der Aenderung — neu dazugekommene Zeilen
+sind die eigenen:
+
+```bash
+npx tsc --noEmit -p tsconfig.json 2>&1 | grep 'error TS' | sed 's/(.*//' | sort -u > /tmp/nachher.txt
+git stash -q && npx tsc --noEmit -p tsconfig.json 2>&1 | grep 'error TS' | sed 's/(.*//' | sort -u > /tmp/vorher.txt && git stash pop -q
+comm -13 /tmp/vorher.txt /tmp/nachher.txt   # muss LEER sein
+```
+
+Guenstiger und sicherer, als das an `ci-main` zu merken: dort faellt es erst
+nach dem Merge auf, im Docker-Build auf `master`.
 
 **Beim User lokal vor Merge (Pflicht):**
 
