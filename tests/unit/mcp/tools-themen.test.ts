@@ -59,7 +59,7 @@ beforeEach(() => {
   h.registriert.clear()
   registerThemenTool(server)
   h.requireProvider.mockResolvedValue({ marke: 'provider' })
-  h.setzeThemen.mockResolvedValue({ themen: ['KS-Plattform'] })
+  h.setzeThemen.mockResolvedValue({ themen: ['KS-Plattform'], indexAngelegt: false })
   libraryMit(['KS-Plattform', 'KS-Datenmodell', 'ACT-Klima'])
 })
 
@@ -102,6 +102,62 @@ describe('themen_setzen: Vokabular-Riegel', () => {
 
   it('erwarteteThemen wird unveraendert an den Schreibweg gereicht', async () => {
     await aufrufen({ themen: ['ACT-Klima'], erwarteteThemen: ['KS-Plattform'] })
-    expect(h.setzeThemen.mock.calls[0][3]).toEqual({ erwarteteThemen: ['KS-Plattform'] })
+    expect(h.setzeThemen.mock.calls[0][3]).toEqual({ erwarteteThemen: ['KS-Plattform'], indexAnlegen: false })
+  })
+})
+
+describe('themen_setzen: Ordner unterhalb des Vorhabens (Wunschliste 5, B3)', () => {
+  it('indexAnlegen wird an den Schreibweg gereicht und die Antwort sagt es', async () => {
+    h.setzeThemen.mockResolvedValue({ themen: ['ACT-Klima'], indexAngelegt: true })
+    const antwort = await aufrufen({ themen: ['ACT-Klima'], indexAnlegen: true })
+    expect(h.setzeThemen.mock.calls[0][3]).toEqual({ erwarteteThemen: null, indexAnlegen: true })
+    expect(antwort).toMatchObject({ ok: true, wert: { gesetzt: { indexAngelegt: true } } })
+  })
+
+  it('Stapel: jeder Ordner wird genau einmal geschrieben, mit derselben Liste', async () => {
+    const antwort = await aufrufen({ folderId: undefined, folderIds: ['f-1', 'f-2', 'f-3'], themen: ['ACT-Klima'] })
+    expect(h.setzeThemen).toHaveBeenCalledTimes(3)
+    expect(h.setzeThemen.mock.calls.map((call) => call[0])).toEqual(['f-1', 'f-2', 'f-3'])
+    expect(h.setzeThemen.mock.calls.map((call) => call[1])).toEqual([['ACT-Klima'], ['ACT-Klima'], ['ACT-Klima']])
+    expect(antwort).toMatchObject({ ok: true, wert: { ok: true, gesetzt: 3, gescheitert: 0 } })
+  })
+
+  it('Stapel: ein gescheiterter Ordner steht in seiner Zeile, ok wird false', async () => {
+    h.setzeThemen
+      .mockResolvedValueOnce({ themen: ['ACT-Klima'], indexAngelegt: false })
+      .mockRejectedValueOnce(Object.assign(new Error('kein Index'), { code: 'kein_index' }))
+    const antwort = await aufrufen({ folderId: undefined, folderIds: ['f-1', 'f-2'], themen: ['ACT-Klima'] })
+    expect(h.setzeThemen).toHaveBeenCalledTimes(2)
+    const wert = (antwort as { wert: { ok: boolean; gescheitert: number; zeilen: Array<Record<string, unknown>> } }).wert
+    expect(wert.ok).toBe(false)
+    expect(wert.gescheitert).toBe(1)
+    expect(wert.zeilen[1]).toMatchObject({ folderId: 'f-2', code: 'kein_index' })
+  })
+
+  it('ein unbekanntes Thema stoppt den GANZEN Stapel vor dem ersten Schreibweg', async () => {
+    const antwort = await aufrufen({ folderId: undefined, folderIds: ['f-1', 'f-2'], themen: ['KS-Datenmodel'] })
+    expect(h.setzeThemen).not.toHaveBeenCalled()
+    expect(h.requireProvider).not.toHaveBeenCalled()
+    expect(antwort).toMatchObject({ ok: false, code: 'thema_unbekannt' })
+  })
+
+  it('folderId und folderIds zusammen: kein Schreibweg, benannter Fehler', async () => {
+    const antwort = await aufrufen({ folderIds: ['f-2'], themen: ['ACT-Klima'] })
+    expect(h.setzeThemen).not.toHaveBeenCalled()
+    expect(h.requireLibrary).not.toHaveBeenCalled()
+    expect(antwort).toMatchObject({ ok: false })
+    expect((antwort as { fehler: string }).fehler).toMatch(/nicht beides/)
+  })
+
+  it('folderIds liefert Zeilen, auch bei EINEM Ordner — die Form haengt an der Adressierung', async () => {
+    const antwort = await aufrufen({ folderId: undefined, folderIds: ['f-1'], themen: ['ACT-Klima'] })
+    expect(antwort).toMatchObject({ ok: true, wert: { ok: true, gesetzt: 1, zeilen: [{ folderId: 'f-1' }] } })
+    expect((antwort as { wert: Record<string, unknown> }).wert).not.toHaveProperty('gesetzt.themen')
+  })
+
+  it('der Einzelaufruf meldet einen Fehlschlag weiterhin als Fehler, nicht als Zeile', async () => {
+    h.setzeThemen.mockRejectedValue(Object.assign(new Error('kein Index'), { code: 'kein_index' }))
+    const antwort = await aufrufen({ themen: ['ACT-Klima'] })
+    expect(antwort).toMatchObject({ ok: false, code: 'kein_index' })
   })
 })

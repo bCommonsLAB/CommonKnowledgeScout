@@ -34,6 +34,8 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `Pruefe die Aussagen in ${pfad} gegen den aktuellen Stand des Repos: ${gap.message}${detail(gap)}. Was sich geaendert hat, nachziehen; danach repo_stand_am auf den Prueftag und repo_stand auf den Commit setzen.`,
   sicht_veraltet: (gap, pfad) =>
     `Erzeuge die Sichten neu (sichten_regenerieren): ${pfad} ist aelter als der juengste Bericht der Library${detail(gap)}.`,
+  thema_fehlt: (gap, pfad) =>
+    `Vergib Themen fuer ${pfad}${detail(gap)}: themen_setzen auf DIESEN Ordner (nicht auf das Vorhaben). Namen aus dem Vokabular der Library (abdeckung_lesen -> themen.vokabular); der Ordnername ist ein Ereignisname und verraet das Thema NICHT — dafuer die Transformationen bzw. den Bericht lesen. Mehrere Ordner in EINEM Aufruf ueber folderIds; fehlt dort ein _INDEX.md, legt indexAnlegen: true eines nach Vorlage an.`,
   verweis_tot: (gap, pfad) =>
     `Repariere in ${pfad} den toten Verweis: ${gap.message}${detail(gap)}. Ziel korrigieren oder den Verweis entfernen und im Text vermerken.`,
   verweis_veraltet: (gap, pfad) =>

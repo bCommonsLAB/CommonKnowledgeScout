@@ -149,3 +149,56 @@ describe('setzeThemen mit erwarteteThemen (Riegel der MCP-Bruecke)', () => {
     expect(hochgeladen(p)).toBe('---\nthemen: [Neu]\n---\nBody.')
   })
 })
+
+describe('setzeThemen mit indexAnlegen (Wunschliste 5, B3a)', () => {
+  function leererOrdner(): ReturnType<typeof ports> {
+    const p = ports('')
+    ;(p.listFolder as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    return p
+  }
+
+  it('ohne den Schalter bleibt es bei kein_index — der Fehler nennt den Ausweg', async () => {
+    const p = leererOrdner()
+    await expect(setzeThemen('f-1', ['A'], p, { erwarteteThemen: null })).rejects.toThrow(/indexAnlegen: true/)
+    expect(p.uploadMarkdown).not.toHaveBeenCalled()
+  })
+
+  it('legt das _INDEX.md nach Vorlage an und schreibt die Themen hinein — EIN Upload', async () => {
+    const p = leererOrdner()
+    const ergebnis = await setzeThemen('f-1', ['Retrieval', 'RAG'], p, {
+      erwarteteThemen: null,
+      indexAnlegen: true,
+    })
+    expect(ergebnis).toEqual({ themen: ['Retrieval', 'RAG'], indexAngelegt: true })
+    expect(p.uploadMarkdown).toHaveBeenCalledTimes(1)
+    expect(p.readText).not.toHaveBeenCalled()
+    expect(p.deleteFile).not.toHaveBeenCalled()
+    const geschrieben = hochgeladen(p)
+    expect(geschrieben).toContain('themen: [Retrieval, RAG]')
+    expect(geschrieben).toContain('type: index')
+    expect(geschrieben).toContain('# 26.01 Klima — was hier liegt')
+  })
+
+  it('die Vorlage traegt KEINEN bearbeitungsstand — der bleibt stand_setzen', async () => {
+    // Ein geratenes `ungesichtet` waere nicht neutral: das Gap-Budget
+    // fasst alle Befunde unter einem ungesichteten Ordner zusammen.
+    const p = leererOrdner()
+    await setzeThemen('f-1', ['A'], p, { erwarteteThemen: null, indexAnlegen: true })
+    expect(hochgeladen(p)).not.toContain('bearbeitungsstand:')
+  })
+
+  it('erwarteteThemen greift auch beim Anlegen: eine Erwartung an eine neue Datei ist ein Widerspruch', async () => {
+    const p = leererOrdner()
+    await expect(
+      setzeThemen('f-1', ['A'], p, { erwarteteThemen: ['Alt'], indexAnlegen: true }),
+    ).rejects.toThrow(ThemenWiderspruchError)
+    expect(p.uploadMarkdown).not.toHaveBeenCalled()
+  })
+
+  it('ein vorhandenes _INDEX.md wird trotz Schalter gelesen, nicht ersetzt', async () => {
+    const p = ports('---\ntitel: Klima\nthemen: [Alt]\n---\n\nBody.')
+    const ergebnis = await setzeThemen('f-1', ['Neu'], p, { erwarteteThemen: ['Alt'], indexAnlegen: true })
+    expect(ergebnis.indexAngelegt).toBe(false)
+    expect(hochgeladen(p)).toBe('---\ntitel: Klima\nthemen: [Neu]\n---\n\nBody.')
+  })
+})

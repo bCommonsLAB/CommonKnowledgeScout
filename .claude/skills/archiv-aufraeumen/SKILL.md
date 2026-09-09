@@ -370,6 +370,7 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `bericht_veraltet` | Cowork · warning | Bericht nachziehen (siehe Stolpersteine) |
 | `sicht_veraltet` | Cowork · warning | `AKTUELL.md`/`PROJEKTE.md` in `Organisation/` ist älter als der jüngste Bericht der Library (Wunschliste 5, B1). Auflösung immer dieselbe: `sichten_regenerieren`. Kommt nur beim Library-weiten Scan, nie im Teilbaum |
 | `repo_veraltet` | Cowork · warning | Der Bericht nennt ein `repo:`, aber `repo_stand_am` fehlt, ist unlesbar oder älter als die Library-Schwelle (Wunschliste 5, C1). Aussagen gegen den aktuellen Stand prüfen, dann `repo_stand_am` (Prüftag, `JJJJ-MM-TT`) und optional `repo_stand` (Commit) im Frontmatter nachziehen. Inaktiv, wenn die Library keine Schwelle setzt |
+| `thema_fehlt` | Cowork · warning | Ein Ereignisordner **unterhalb** des Vorhabens trägt ab `bearbeitungsstand: erschlossen` kein `themen:` (Wunschliste 5, B3). `themen_setzen` auf **diesen** Ordner, nicht auf das Vorhaben; mehrere in einem Aufruf über `folderIds`. Greift nur, wenn die Library ein Themen-Vokabular führt, und nur, wo eine `_INDEX.md` einen Stand erklärt — fehlt sie, ist `index_missing` zuständig und `indexAnlegen: true` erledigt beides |
 > Auch hier zaehlt seit 27.08.2026 nur eine **Inhalts**-Aenderung: Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht mehr. Frueher liess jeder Pruef-Klick `bericht_veraltet` und damit `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten nicht schliessen liess.
 | `verweis_veraltet` | Cowork · warning | verwiesenes Ziel ist jünger — Verweis prüfen, dann Bericht neu speichern |
 | `verweis_tot` | Cowork · error | Verweis zeigt ins Leere — Ziel suchen oder Verweis entfernen |
@@ -445,11 +446,22 @@ Dropdown — beim Aufräumen liegt die Übersicht ohnehin hier (Entscheidung
   darauf hinweist. Die Zuordnung verlangt den Blick in den Bericht
   (`BERICHT.md`/`_INDEX.md`), der in Schritt 4 ohnehin offen war.
 - **Schreiben mit `themen_setzen`:** `themen` ersetzt die komplette Liste;
-  `erwarteteThemen` ist Pflicht — exakt die Themen, die gerade am Vorhaben
-  zu sehen sind, explizit `null`, wenn der Ordner keine deklariert. Weicht
+  `erwarteteThemen` ist Pflicht — exakt die Themen, die gerade am Ordner
+  zu sehen sind, explizit `null`, wenn er keine deklariert. Weicht
   der Stand im Storage ab, wird nichts geschrieben (Riegel gegen
   konkurrierende Schreiber). Wie jeder Schreibvorgang: vorher fragen, bei
   mehreren Vorhaben einmal pro Gruppe.
+- **Themen gehören auch unter das Vorhaben (seit 2.29.0).** `themen_setzen`
+  nimmt jeden Ordner, nicht mehr nur das Vorhaben — erst dadurch zeigt das
+  Themenregister in ein Vorhaben *hinein* statt nur bis zu ihm (`24.09
+  KnowledgeScout` führte ein Schlagwort für 53 Ereignisordner). Fehlt dort
+  eine `_INDEX.md`, legt `indexAnlegen: true` eine nach Vorlage an; sie trägt
+  bewusst **keinen** `bearbeitungsstand` — der bleibt `stand_setzen`, und ein
+  geratenes `ungesichtet` würde alle Befunde des Teilbaums zu einem
+  `teilbaum_ungesichtet` zusammenfassen. `folderIds` vergibt dieselbe Liste an
+  bis zu 30 Ordner in EINEM Aufruf; der `erwarteteThemen`-Riegel gilt dann für
+  alle (`null` ist der Regelfall), und ein gescheiterter Ordner steht in seiner
+  Zeile, ohne den Stapel abzubrechen. Verschiedene Listen = mehrere Aufrufe.
 - **Das Vokabular ist eine Regel, keine Bitte (seit 2.28.0).** Namen, die
   nicht in `abdeckung_lesen → themen.vokabular` stehen, weist
   `themen_setzen` ab (`thema_unbekannt`) und nennt die nächstliegenden
@@ -599,6 +611,8 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Nimmt `themen_setzen` kein `neuesThemaErlauben` an oder schreibt es einen
 Namen außerhalb des Vokabulars ohne Widerspruch, ist die Fassung älter als
 2.28.0 — dann fehlen auch die Befunde `sicht_veraltet` und `repo_veraltet`.
+Nimmt es kein `folderIds` bzw. kein `indexAnlegen`, ist sie älter als 2.29.0 —
+dann fehlt auch der Befund `thema_fehlt`.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
