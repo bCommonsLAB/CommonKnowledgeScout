@@ -24,14 +24,18 @@ export class StandValidationError extends Error {
   readonly code = 'invalid_request' as const
 }
 
-/** Stufe 1: Ordner ohne `_INDEX.md` — Index-Autorenschaft ist Cowork-Arbeit (Route: 409). */
+/**
+ * Stufe 1: Ordner ohne `_INDEX.md` — Index-Autorenschaft ist Cowork-Arbeit
+ * (Route: 409). Der zweite Aufrufer (Themen, B3) darf eines anlegen und nennt
+ * dafuer seinen eigenen Ausweg; der Code `kein_index` bleibt derselbe.
+ */
 export class KeinIndexError extends Error {
   readonly code = 'kein_index' as const
-  constructor(folderName: string) {
-    super(
-      `Ordner „${folderName}" hat kein _INDEX.md — die Stand-Route legt nie eines an. ` +
-        'Index-Autorenschaft ist Cowork-Inhaltsarbeit: Auftrag erteilen statt Datei erzeugen.',
-    )
+  constructor(
+    folderName: string,
+    ausweg = 'die Stand-Route legt nie eines an. Index-Autorenschaft ist Cowork-Inhaltsarbeit: Auftrag erteilen statt Datei erzeugen.',
+  ) {
+    super(`Ordner „${folderName}" hat kein _INDEX.md — ${ausweg}`)
   }
 }
 

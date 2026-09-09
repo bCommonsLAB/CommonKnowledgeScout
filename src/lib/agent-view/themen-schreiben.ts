@@ -16,6 +16,11 @@
  * misslingt die Chirurgie, wird NICHTS geschrieben. Ersetzen + Wieder-
  * herstellung laufen ueber {@link ersetzeIndex} (Menschen-Datei, laut).
  *
+ * Wunschliste 5, B3a (09.09.2026): Der Ordner muss kein Vorhaben mehr sein.
+ * Fehlt dort ein `_INDEX.md`, legt `indexAnlegen: true` eines nach Vorlage an
+ * — sonst bliebe die feinste Themenaufloesung ein Wert je Vorhaben (in
+ * `24.09 KnowledgeScout`: ein Index bei 53 Ereignisordnern).
+ *
  * Aussenzugriffe ueber Ports — ohne Storage unit-testbar.
  *
  * @module agent-view
@@ -25,6 +30,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import type { StorageItem } from '@/lib/storage/types'
 import { INDEX_FILE_NAME } from './archive-scan'
 import { OrdnerNichtGefundenError, istStorageNotFound } from './bericht-laden'
+import { baueIndexVorlage } from './index-vorlage'
 import { asList } from './sichten/bericht-lesen'
 import { ersetzeIndex, type StandSchreibenPorts } from './stand-schreiben'
 import { KeinIndexError } from './stand-plan'
@@ -78,6 +84,8 @@ export function eindampfeThemenBlockliste(markdown: string): string {
 
 export interface ThemenErgebnis {
   themen: string[]
+  /** B3a: Das `_INDEX.md` gab es nicht und wurde nach Vorlage angelegt. */
+  indexAngelegt: boolean
 }
 
 export interface ThemenOptionen {
@@ -90,6 +98,13 @@ export interface ThemenOptionen {
    * Optionen weg.
    */
   erwarteteThemen: readonly string[] | null
+  /**
+   * B3a: Fehlt das `_INDEX.md`, eines nach Vorlage anlegen statt
+   * {@link KeinIndexError} zu werfen. Bewusst ein SCHALTER und keine
+   * Vorgabe: Eine Datei entsteht nur, wenn der Aufrufer sie will —
+   * `no-silent-fallbacks.md`. Ohne ihn bleibt das Verhalten von A6.
+   */
+  indexAnlegen?: boolean
 }
 
 /** Riegel: gelesener Ist-Stand gegen die Sicht des Aufrufers (reihenfolgetreu). */
@@ -104,10 +119,15 @@ function pruefeErwarteteThemen(aktuell: readonly string[], erwartet: readonly st
 }
 
 /**
- * Setzt die gepflegten Themen eines Vorhabens: `_INDEX.md` lesen, `themen:`
+ * Setzt die gepflegten Themen EINES Ordners: `_INDEX.md` lesen, `themen:`
  * zeilen-chirurgisch ersetzen (JSON-Flow-Liste), ruecklesen, ersetzen.
- * Ohne `_INDEX.md` gibt es keine Selbstdeklaration — {@link KeinIndexError},
- * dieselbe Regel wie beim Stand (kein automatisch erfundenes Index-Geruest).
+ *
+ * Seit B3 ist der Ordner nicht mehr auf die Vorhabensebene beschraenkt —
+ * jeder Ordner darf Themen tragen, damit das Themenregister in den
+ * Ereignisordner hinein zeigen kann statt nur bis zum Vorhaben. Ohne
+ * `_INDEX.md` gibt es dort noch keine Selbstdeklaration: Standard bleibt
+ * {@link KeinIndexError}, `indexAnlegen: true` legt eines nach Vorlage an
+ * (siehe `index-vorlage.ts` — ohne `bearbeitungsstand`).
  */
 export async function setzeThemen(
   folderId: string,
@@ -128,9 +148,18 @@ export async function setzeThemen(
   }
 
   const index = items.find((item) => item.type === 'file' && item.metadata.name === INDEX_FILE_NAME)
-  if (!index) throw new KeinIndexError(await ports.folderName())
+  const indexAngelegt = index === undefined
+  if (indexAngelegt && optionen?.indexAnlegen !== true) {
+    throw new KeinIndexError(
+      await ports.folderName(),
+      'themen_setzen legt nur mit indexAnlegen: true eines an (Vorlage ohne bearbeitungsstand — ' +
+        'der bleibt stand_setzen). Ohne Index kann der Ordner kein Thema tragen.',
+    )
+  }
 
-  const original = await ports.readText(index.id)
+  // Die Vorlage laeuft durch DENSELBEN Patch- und Ruecklese-Weg wie eine
+  // bestehende Datei — ein Schreibweg, ein Serialisierer, kein Drift.
+  const original = index ? await ports.readText(index.id) : baueIndexVorlage(await ports.folderName())
   if (optionen !== undefined) {
     pruefeErwarteteThemen(asList(parseFrontmatter(original).meta.themen), optionen.erwarteteThemen)
   }
@@ -148,5 +177,5 @@ export async function setzeThemen(
   }
 
   await ersetzeIndex(ports, folderId, gepatcht)
-  return { themen: geprueft }
+  return { themen: geprueft, indexAngelegt }
 }
