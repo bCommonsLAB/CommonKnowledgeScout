@@ -15,7 +15,7 @@
  * @module agent-view/sichten
  */
 
-import { berichtLink, datumKurz, datumLesbar, isoHeute, istUeberfaellig, type ProjektDatensatz } from './types'
+import { berichtLinkInTabelle, datumKurz, datumLesbar, isoHeute, istUeberfaellig, type ProjektDatensatz } from './types'
 
 /** Flaches Frontmatter der erzeugten Sicht (AGENTS.md: snake_case, eine Ebene). */
 export function sichtFrontmatter(sicht: 'aktuell' | 'projekte', now: Date): string {
@@ -76,7 +76,7 @@ export function renderAktuell(projekte: readonly ProjektDatensatz[], now: Date):
     if (p.naechsterTermin && !p.terminFixiert) termin += ' ⚠️'
     if (istUeberfaellig(p.naechsterTermin, heute)) termin += ' ⚠️ überfällig'
     const zuletzt = p.letzteAktivitaet ? datumLesbar(p.letzteAktivitaet) : '—'
-    z.push(`| ${berichtLink(p, p.projekt)} | ${p.rolle ?? '—'} | ${zuletzt} | ${termin} |`)
+    z.push(`| ${berichtLinkInTabelle(p, p.projekt)} | ${p.rolle ?? '—'} | ${zuletzt} | ${termin} |`)
   }
   z.push('')
 
