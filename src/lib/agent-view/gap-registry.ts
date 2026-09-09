@@ -94,6 +94,9 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // Bei Cowork, weil `sichten_regenerieren` die Aufloesung ist; Schritt 3 wie
   // der Bericht, dessen Sicht sie sind.
   sicht_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Sicht ueberholt' },
+  // Wunschliste 5, C1: der Pruefstand des Berichts gegen sein Repo fehlt oder
+  // ist aelter als die Schwelle — dasselbe Muster wie das Postfach, fuer Code.
+  repo_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Repo-Stand nicht geprueft' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

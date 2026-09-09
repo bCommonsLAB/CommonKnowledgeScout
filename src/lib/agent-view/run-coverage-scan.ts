@@ -55,6 +55,11 @@ export function readConventions(library: Library): CoverageConventions {
       && Number.isFinite(agentView.postfachMaxRueckstandWochen)
         ? agentView.postfachMaxRueckstandWochen
         : null,
+    // Wunschliste 5, C1: dieselbe Form wie die Postfach-Schwelle — fehlt ⇒ Regel inaktiv.
+    repoMaxRueckstandTage:
+      typeof agentView?.repoMaxRueckstandTage === 'number' && Number.isFinite(agentView.repoMaxRueckstandTage)
+        ? agentView.repoMaxRueckstandTage
+        : null,
     // D3: leer konfiguriert -> dokumentierter Plattform-Default; der Report zeigt die wirksame Liste.
     scanExcludeGlobs: [...effectiveScanExcludeGlobs(library.config?.scanExcludeGlobs)],
   }

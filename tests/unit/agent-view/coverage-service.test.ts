@@ -13,7 +13,7 @@ const CONVENTIONS: CoverageConventions = {
   standardTemplate: STANDARD,
   vorhabenFolderPattern: null,
   indexRequiredMaxDepth: null,
-  berichtFreshness: true, postfachMaxRueckstandWochen: null,
+  berichtFreshness: true, postfachMaxRueckstandWochen: null, repoMaxRueckstandTage: null,
   scanExcludeGlobs: ['temp'],
 }
 

@@ -159,6 +159,27 @@ export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFo
 
         <FormField
           control={form.control}
+          name="agentViewRepoMaxTage"
+          render={({ field }) => (
+            <FormItem className="rounded-lg border p-4">
+              <FormLabel className="text-base">Repo-Pruefstand (Tage)</FormLabel>
+              <FormDescription>
+                Ab wie vielen Tagen meldet der Scan &bdquo;Repo-Stand nicht
+                geprueft&ldquo;? Grundlage ist <code>repo_stand_am</code> im{" "}
+                <code>BERICHT.md</code> (Tag der letzten Pruefung gegen das in{" "}
+                <code>repo:</code> genannte Repo, Format <code>JJJJ-MM-TT</code>).
+                Leer = Regel aus &mdash; fuer Bibliotheken ohne Code-Bezug.
+              </FormDescription>
+              <FormControl>
+                <Input inputMode="numeric" placeholder="z. B. 7" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="agentViewLocalRootPath"
           render={({ field }) => (
             <FormItem className="rounded-lg border p-4">

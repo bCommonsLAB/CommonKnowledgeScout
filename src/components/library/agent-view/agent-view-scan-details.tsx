@@ -98,6 +98,15 @@ export function AgentViewScanDetails({ report }: { report: CoverageReport }) {
             }
             title="Ab wann postfach_bis im BERICHT.md als veraltet gilt (A7b) — aus = die Library fuehrt keine Postfach-Auswertung."
           />
+          <Zeile
+            label="Repo-Pruefstand"
+            wert={
+              typeof conventions.repoMaxRueckstandTage === 'number'
+                ? `ab ${String(conventions.repoMaxRueckstandTage)} Tagen`
+                : 'aus'
+            }
+            title="Ab wann repo_stand_am im BERICHT.md als veraltet gilt (Wunschliste 5, C1) — aus = die Library prueft Berichte nicht gegen Repos."
+          />
         </section>
       </PopoverContent>
     </Popover>

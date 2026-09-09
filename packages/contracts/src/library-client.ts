@@ -90,6 +90,9 @@ export interface ClientLibrary {
       vorhabenFolderPattern?: string;
       indexRequiredMaxDepth?: number;
       berichtFreshness?: boolean;
+      postfachMaxRueckstandWochen?: number;
+      /** Wunschliste 5, C1: Schwelle in Tagen fuer `repo_veraltet`; fehlt = Regel aus. */
+      repoMaxRueckstandTage?: number;
       localRootPath?: string;
       /** A6: kuratiertes Themen-Vokabular (Dropdown des Themen-Editors). */
       themen?: string[];

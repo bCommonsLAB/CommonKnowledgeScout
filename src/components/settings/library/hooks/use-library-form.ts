@@ -90,6 +90,14 @@ export const libraryFormSchema = z.object({
       { message: "Ganze Zahl 0–52 oder leer (Regel aus)" },
     )
     .default(""),
+  // Wunschliste 5, C1: leer = Regel aus; Tage als String (wie die Postfach-Wochen).
+  agentViewRepoMaxTage: z
+    .string()
+    .refine(
+      (wert) => wert.trim() === "" || (/^\d{1,3}$/.test(wert.trim()) && Number(wert.trim()) <= 365),
+      { message: "Ganze Zahl 0–365 oder leer (Regel aus)" },
+    )
+    .default(""),
   agentViewLocalRootPath: z.string().default(""),
   // A6: Themen-Vokabular — eine Zeile pro Thema (Persistenz als Array,
   // Muster scanExcludeGlobs). Kommas/Klammern trennen die _INDEX-Liste.
@@ -143,14 +151,16 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
   agentViewIndexDepth: string;
   agentViewBerichtFreshness: boolean;
   agentViewPostfachMaxWochen: string;
+  agentViewRepoMaxTage: string;
   agentViewLocalRootPath: string;
   agentViewThemen: string;
 } {
   const agentView = (config?.agentView ?? null) as
-    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; postfachMaxRueckstandWochen?: unknown; localRootPath?: unknown; themen?: unknown }
+    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; postfachMaxRueckstandWochen?: unknown; repoMaxRueckstandTage?: unknown; localRootPath?: unknown; themen?: unknown }
     | null;
   const depth = agentView?.indexRequiredMaxDepth;
   const postfachWochen = agentView?.postfachMaxRueckstandWochen;
+  const repoTage = agentView?.repoMaxRueckstandTage;
   return {
     // Default AUS: Agentensicht ist ein Opt-in pro Library (Pilot-Entscheid 2026-08-21).
     agentViewEnabled: agentView?.enabled === true,
@@ -159,6 +169,7 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
     agentViewBerichtFreshness: agentView?.berichtFreshness !== false,
     agentViewPostfachMaxWochen:
       typeof postfachWochen === "number" && Number.isFinite(postfachWochen) ? String(postfachWochen) : "",
+    agentViewRepoMaxTage: typeof repoTage === "number" && Number.isFinite(repoTage) ? String(repoTage) : "",
     agentViewLocalRootPath: typeof agentView?.localRootPath === "string" ? agentView.localRootPath : "",
     agentViewThemen: Array.isArray(agentView?.themen)
       ? agentView.themen.filter((thema): thema is string => typeof thema === "string").join("\n")
@@ -269,6 +280,7 @@ export function useLibraryForm(createNew: boolean) {
       agentViewIndexDepth: "",
       agentViewBerichtFreshness: true,
       agentViewPostfachMaxWochen: "",
+      agentViewRepoMaxTage: "",
       agentViewLocalRootPath: "",
       agentViewThemen: "",
       captureWizards: undefined,
@@ -509,6 +521,9 @@ export function useLibraryForm(createNew: boolean) {
               berichtFreshness: data.agentViewBerichtFreshness,
               ...(data.agentViewPostfachMaxWochen.trim() !== ""
                 ? { postfachMaxRueckstandWochen: Number(data.agentViewPostfachMaxWochen.trim()) }
+                : {}),
+              ...(data.agentViewRepoMaxTage.trim() !== ""
+                ? { repoMaxRueckstandTage: Number(data.agentViewRepoMaxTage.trim()) }
                 : {}),
               ...(data.agentViewLocalRootPath.trim() !== ""
                 ? { localRootPath: data.agentViewLocalRootPath.trim() }

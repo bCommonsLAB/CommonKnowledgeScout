@@ -62,7 +62,7 @@ function report(vorhaben: VorhabenCard[], postfachMaxRueckstandWochen: number | 
     scope: { folderId: null },
     conventions: {
       standardTemplate: null, vorhabenFolderPattern: null, indexRequiredMaxDepth: null,
-      berichtFreshness: true, postfachMaxRueckstandWochen, scanExcludeGlobs: [],
+      berichtFreshness: true, postfachMaxRueckstandWochen, repoMaxRueckstandTage: null, scanExcludeGlobs: [],
     },
     totals: {
       folders: 1, files: 0, sources: 0, twins: 0, gaps: 0,
