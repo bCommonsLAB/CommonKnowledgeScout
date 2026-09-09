@@ -19,6 +19,12 @@ Code, der seit Monaten in Produktion läuft, gilt als abgenommen, auch ohne
 Abnahmedokument. Die `status:`-Marker in Plan-Dateien sind unzuverlässig;
 maßgeblich ist diese Datei und der Code.
 
+Die vier Wörter beschreiben **Arbeitspakete im Repo** (Pläne, Wellen, ADRs).
+Sie sind Prosa in dieser Datei. Peters Archiv kennt am Vorhaben `status:
+aktiv | ruhend | abgeschlossen` und an der Erschließung `bearbeitungsstand:`;
+sollten die vier Wörter je ins Frontmatter, heißt das Feld nicht `status`,
+sondern `arbeitsstand`, damit nichts kollidiert.
+
 ## Wie gearbeitet wird: ein Vorhaben nach dem anderen
 
 Die Einheit der Arbeit ist das **Vorhaben**, ein Anwendungsprojekt mit
@@ -35,7 +41,7 @@ Arbeit:
 Ein Vorhaben ist fertig, wenn sein Termin bedient ist. Was von den
 mitgenommenen Themen übrig bleibt, geht mit Notiz zurück in den Vorrat.
 
-**Reihenfolge: 1 AECED → 2 Vortrag 30.09. → 3 SHF.** Agenten arbeiten nur
+**Reihenfolge: 1 AECED → 2 Klimamaßnahmen/Vortrag 30.09. → 3 SHF.** Agenten arbeiten nur
 am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
 
 ## Vorhaben 1 · AECED: Galerie als einbettbare Komponente (M5) — jetzt
@@ -72,21 +78,31 @@ Neu dazugekommen:
 
 - (noch nichts; Einträge als `- JJJJ-MM-TT: …`)
 
-## Vorhaben 2 · Vortrag 30.09. — danach
+## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
 - **Termin**: 30.09.
-- **Ziel**: eine Vorführung, die eine Stunde lang nicht hängen bleibt.
+- **Was es ist**: ein Auftritt mit der Library „Klimamaßnahmen"; Ereignis im
+  Archiv unter `4. Ökosozialer Aktivismus/26.01 Klimamassnahmen Südtirol`.
+  Dort wird konzipiert, was die Library und eine Webseite dafür brauchen;
+  hier steht nur die Arbeitsliste.
+- **Ziel**: eine Vorführung, die eine Stunde lang nicht hängen bleibt, und
+  eine Library, die zeigt, was der Vortrag verspricht.
 
 Bekannte Punkte:
 
 1. OneDrive-Anmeldung stabil neu aufsetzen; sie fällt nach ein bis zwei
    Wochen aus. Teilfortschritt 27.08. (Netzwerkfehler löschen die Anmeldung
    nicht mehr) ist drin.
-2. Inhalt des Vortrags festlegen: Library, Weg durch Galerie, Chat, Werkbank.
-   Daraus kommen weitere Punkte.
+2. Anpassungen an der Library „Klimamaßnahmen" (Umfang aus dem Konzept im
+   Archiv-Ordner; noch nicht festgelegt).
+3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
+   Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
+   im Konzept).
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294
-Zeilen), nur wenn die Anmeldung dort umgebaut wird; ADR 0005 nur entscheiden.
+Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
+dem Vorrat (Mapper-Paritätstest, LLM-bereinigte Summe als dritte Zahl), wenn
+die Library ohnehin angefasst wird; ADR 0005 nur entscheiden.
 
 Neu dazugekommen: (noch nichts)
 
