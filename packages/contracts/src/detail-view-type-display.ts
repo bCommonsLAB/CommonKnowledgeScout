@@ -10,7 +10,7 @@
  * Labels (no-silent-fallbacks.mdc).
  */
 
-import { DETAIL_VIEW_TYPES, type DetailViewType, isValidDetailViewType } from './registry'
+import { DETAIL_VIEW_TYPES, type DetailViewType, isDetailViewType } from './detail-view-type'
 
 /** Lesbares, deutsches Label je Inhaltstyp. */
 export const VIEW_TYPE_LABELS: Record<DetailViewType, string> = {
@@ -27,7 +27,7 @@ export const VIEW_TYPE_LABELS: Record<DetailViewType, string> = {
 
 /** Liefert das Format-Label oder `null` (unbekannter/fehlender Typ). */
 export function getViewTypeLabel(viewType: string | undefined): string | null {
-  if (!viewType || !isValidDetailViewType(viewType)) return null
+  if (!viewType || !isDetailViewType(viewType)) return null
   return VIEW_TYPE_LABELS[viewType as DetailViewType]
 }
 
@@ -40,7 +40,7 @@ export function getPresentDetailViewTypes(
 ): DetailViewType[] {
   const present = new Set<string>()
   for (const value of values) {
-    if (value && isValidDetailViewType(value)) present.add(value)
+    if (value && isDetailViewType(value)) present.add(value)
   }
   return DETAIL_VIEW_TYPES.filter((type) => present.has(type))
 }

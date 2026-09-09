@@ -4,7 +4,7 @@ import * as React from "react";
 import { WebsiteDetail, type WebsiteDetailData } from "./website-detail";
 import { useTranslation } from "@ks/i18n/react";
 import { mapToWebsiteDetail } from "@/lib/mappers/doc-meta-mappers";
-import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
+import { localizeDocMetaJson } from "@ks/module-explorer";
 
 interface IngestionWebsiteDetailProps {
   libraryId: string;

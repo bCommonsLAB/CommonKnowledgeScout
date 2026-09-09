@@ -91,23 +91,6 @@ export function NextGalleryNavigation({ children }: { children: ReactNode }) {
         }
         router.push(`/library/gallery${suffix}`)
       },
-
-      // Abgelesen aus `gallery-root`: nur von der Galerie-Seite aus, nie von
-      // der Perspektiven-Seite selbst. /explore braucht den Slug, /library die
-      // libraryId — fehlt eines davon, gibt es nichts zu springen.
-      openPerspective: (libraryId: string | null) => {
-        if (!pathname || pathname.includes('/perspective')) return
-        if (isExplore) {
-          if (exploreSlug) router.push(`/explore/${exploreSlug}/perspective`)
-          return
-        }
-        if (pathname.startsWith('/library/gallery') && libraryId) {
-          const next = new URLSearchParams(searchParams?.toString() || '')
-          next.set('libraryId', libraryId)
-          next.set('from', 'story')
-          router.push(`/library/gallery/perspective?${next.toString()}`)
-        }
-      },
     }
   }, [router, pathname, searchParams])
 

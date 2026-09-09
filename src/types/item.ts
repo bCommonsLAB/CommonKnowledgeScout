@@ -26,7 +26,7 @@
  */
 
 import type { MetaDocument } from '@/lib/ingestion/meta-document-builder';
-import type { ChapterMetaEntry } from '@/types/doc-meta';
+import type { ChapterMetaEntry } from '@ks/contracts';
 
 /**
  * Bekannte Item-Typen.

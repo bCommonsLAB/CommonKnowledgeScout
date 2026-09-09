@@ -6,7 +6,7 @@ import { resolveFacetScope } from '@/lib/chat/facet-scope'
 import { aggregateFacets, distinctViewTypes, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { getDetailViewType } from '@ks/contracts'
 import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {

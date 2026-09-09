@@ -18,7 +18,7 @@ import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@ks/util'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
 import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { localizeDocMetaJson } from '@/lib/i18n/get-localized'
+import { localizeDocMetaJson } from '@ks/module-explorer'
 
 /** Was ein Renderer braucht, um eine Detailansicht zu bauen. */
 export interface DetailRenderProps {

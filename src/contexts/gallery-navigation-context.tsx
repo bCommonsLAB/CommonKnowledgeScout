@@ -61,12 +61,6 @@ export interface GalleryNavigation {
    * `nextParamsForMode`; ob ein Verlaufseintrag entsteht, ist Sache der App.
    */
   applyModeParams(next: URLSearchParams): void
-  /**
-   * Zur Perspektiven-Wahl springen — wenn der Story-Modus ohne gesetzte
-   * Perspektive startet. In der App ist das eine eigene Seite; sie kennt ihre
-   * Routen und entscheidet, ob es dort etwas zu springen gibt.
-   */
-  openPerspective(libraryId: string | null): void
 }
 
 // Ohne Default: Ein fehlender Anbieter ist ein Verdrahtungsfehler und soll

@@ -3,8 +3,8 @@ import {
   docMatchesNavigationSlug,
   getEffectiveDocumentNavigationSlug,
   NAVIGATION_SLUG_MAX_LEN,
-} from '@/utils/document-slug-navigation'
-import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist'
+} from '@ks/util'
+import { buildDocumentSlugFallback } from '@ks/util'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 describe('getEffectiveDocumentNavigationSlug', () => {

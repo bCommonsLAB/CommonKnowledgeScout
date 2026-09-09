@@ -23,7 +23,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 // buildTwinRelativeMediaRef wurde mit der Galerie-Aggregation ausgegliedert
 // (Welle 3-II-Hooks-a, Schritt 2/4 — siehe use-gallery-items.ts).
 import { VIEW_TYPE_REGISTRY, type DetailViewType, type ViewTypeMediaConfig } from '@/lib/detail-view-types/registry'
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { getDetailViewType } from '@ks/contracts'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 // fetchShadowTwinMarkdown + updateShadowTwinMarkdown wurden mit den
 // 4 async-Helpers ausgegliedert und nur noch dort verwendet

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@ks/u
 import { cn } from "@/lib/utils"
 import { Check } from "lucide-react"
 import { DETAIL_VIEW_TYPES } from "@/lib/detail-view-types/registry"
-import { VIEW_TYPE_LABELS } from "@/lib/detail-view-types/view-type-display"
+import { VIEW_TYPE_LABELS } from "@ks/contracts"
 import { JobProgressBar } from "@/components/library/file-preview/job-progress-bar"
 
 interface SelectSchemaTypeStepProps {

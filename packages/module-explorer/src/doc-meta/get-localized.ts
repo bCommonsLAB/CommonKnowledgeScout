@@ -22,7 +22,7 @@ import type {
   DocTranslationsMeta,
   GalleryTranslatedFields,
   DetailTranslatedFields,
-} from '@/types/doc-meta'
+} from '@ks/contracts'
 
 /** Sub-Map-Auswahl: aus welcher der beiden Translations-Maps gelesen werden soll. */
 export type TranslationScope = 'gallery' | 'detail'

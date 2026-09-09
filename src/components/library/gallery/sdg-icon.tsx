@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
-import { sdgIconPath } from "@ks/util";
+import { cn, sdgIconPath } from "@ks/util";
 
 /**
  * src/components/library/gallery/sdg-icon.tsx

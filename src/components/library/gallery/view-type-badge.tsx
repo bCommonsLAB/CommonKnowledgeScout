@@ -7,7 +7,7 @@
  */
 
 import { Badge } from '@ks/ui'
-import { getViewTypeLabel } from '@/lib/detail-view-types/view-type-display'
+import { getViewTypeLabel } from '@ks/contracts'
 
 export interface ViewTypeBadgeProps {
   detailViewType?: string

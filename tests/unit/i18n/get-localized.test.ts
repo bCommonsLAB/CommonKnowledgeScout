@@ -3,7 +3,7 @@ import {
   getLocalized,
   getLocalizedLabel,
   getLocalizedTopics,
-} from '@/lib/i18n/get-localized'
+} from '@ks/module-explorer'
 
 /**
  * Unit-Tests fuer den `getLocalized()`-Helper.

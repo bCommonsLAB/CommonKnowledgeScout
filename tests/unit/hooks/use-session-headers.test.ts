@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useSessionHeaders } from '@ks/api-client'
 
 const SPEICHER_SCHLUESSEL_KANDIDATEN = ['sessionId', 'session-id', 'ks-session-id']
 

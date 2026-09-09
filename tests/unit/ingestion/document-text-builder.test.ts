@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { buildDocumentTextForEmbedding } from '@/lib/ingestion/document-text-builder'
-import type { DocMeta } from '@/types/doc-meta'
+import type { DocMeta } from '@ks/contracts'
 
 const emptyMongoDoc = {
   libraryId: 'lib1',

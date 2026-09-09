@@ -5,7 +5,7 @@ import { BookDetail, type BookDetailData } from "@/components/library/book-detai
 import { SessionDetail, type SessionDetailData } from "@/components/library/session-detail"
 import { useIngestionDataContext } from "./ingestion-data-context"
 import { mapToBookDetail, mapToSessionDetail } from "@/lib/mappers/doc-meta-mappers"
-import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
+import { getDetailViewType } from "@ks/contracts"
 import { useLibraries } from '@ks/shell/react'
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 

@@ -15,7 +15,7 @@ import { ItemsView } from '@/components/library/gallery/items-view'
 import { GroupedItemsView } from '@/components/library/gallery/grouped-items-view'
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useSessionHeaders } from '@ks/api-client'
 import { useDebouncedValue } from '@/hooks/gallery/use-debounced-value'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
 import { DetailOverlay, type DetailRenderer } from '@/components/library/gallery/detail-overlay'
@@ -26,19 +26,18 @@ import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 import { useAllGalleryDocs } from '@/hooks/gallery/use-all-gallery-docs'
 import { useGalleryFacets } from '@/hooks/gallery/use-gallery-facets'
 import { useGallerySums } from '@/hooks/gallery/use-gallery-sums'
-import { getSummableFields } from '@/lib/detail-view-types/registry'
+import { getSummableFields } from '@ks/contracts'
 import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { ReferencesSheet } from './references-sheet'
-import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug-navigation'
+import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useOwnFavoriteIds, useUserStates } from '@/hooks/gallery/use-user-states'
 import { useGalleryViewer } from '@/contexts/gallery-viewer-context'
 import { applyFavoriteToggleOptimistic, findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
-import { storyCharacterAtom } from '@/atoms/story-context-atom'
+import { getDetailViewType } from '@ks/contracts'
 import { normalizeGalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 // Pure-Helpers + Hooks (Welle 3-III-a Modul-Split, siehe gallery-root/)
@@ -151,7 +150,6 @@ export function GalleryRoot({
   
   // Nur den Character-Atomwert lesen (leichtgewichtig).
   // Vermeidet den schweren useStoryContext-Hook inkl. Modell-Fetch im Gallery-Load.
-  const character = useAtomValue(storyCharacterAtom)
 
   // Lade detailViewType und groupByField direkt aus dem librariesAtom, um Flackern zu vermeiden
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
@@ -214,27 +212,9 @@ export function GalleryRoot({
   
   // Mode und searchParams werden automatisch über React State verwaltet
   
-  // Prüfe beim Wechsel zum Story-Modus, ob Perspektive gesetzt ist
-  useEffect(() => {
-    if (mode === 'story') {
-      // Prüfe ob bereits Perspektive gesetzt ist (Character-Array nicht leer)
-      const hasPerspective = character.length > 0
-      const isDefaultPerspective = character.length === 1 && character[0] === 'business'
-      
-      // Prüfe localStorage-Flag (für einmaliges Öffnen)
-      const perspectiveSetFlag = typeof window !== 'undefined' 
-        ? localStorage.getItem('story-perspective-set')
-        : null
-      
-      // Zur Perspektiven-Wahl nur, wenn keine (oder nur die Default-)
-      // Perspektive gesetzt ist und das Flag noch fehlt (beim ersten Mal).
-      // Ob es von der aktuellen Seite aus etwas zu springen gibt, weiss die
-      // Adressierung — nicht die Galerie (M4f).
-      if ((!hasPerspective || isDefaultPerspective) && !perspectiveSetFlag) {
-        navigation.openPerspective(libraryId || null)
-      }
-    }
-  }, [mode, character, navigation, libraryId])
+  // Story-Modus ohne Perspektive → Perspektiven-Wahl: Das entscheidet seit M4h
+  // die App (`StoryPerspectiveRedirect`), nicht die Galerie — sie las dafuer
+  // Story-Zustand, der ihr nicht gehoert.
   // useGalleryConfig verwendet jetzt direkt die Übersetzungen basierend auf detailViewType
   // initialDetailViewType verhindert das Flackern beim ersten Render
   const { texts, detailViewType } = useGalleryConfig(

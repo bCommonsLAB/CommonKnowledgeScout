@@ -4,7 +4,7 @@ import * as React from "react";
 import { DivaDocumentDetail, type DivaDocumentDetailData } from "./diva-document-detail";
 import { useTranslation } from "@ks/i18n/react";
 import { mapToDivaDocumentDetail } from "@/lib/mappers/doc-meta-mappers";
-import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
+import { localizeDocMetaJson } from "@ks/module-explorer";
 
 interface IngestionDivaDocumentDetailProps {
   libraryId: string;

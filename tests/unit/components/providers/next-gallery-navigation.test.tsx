@@ -101,27 +101,4 @@ describe('NextGalleryNavigation', () => {
       expect(push).toHaveBeenCalledWith('/library/gallery')
     })
   })
-
-  describe('openPerspective — Sprung zur Perspektiven-Wahl', () => {
-    it('auf /explore zur Perspektiven-Seite des Slugs', () => {
-      bruecke('/explore/sfscon').openPerspective('lib-1')
-      expect(push).toHaveBeenCalledWith('/explore/sfscon/perspective')
-    })
-
-    it('auf /library/gallery mit libraryId und Herkunft, bestehende Parameter bleiben', () => {
-      bruecke('/library/gallery', 'sort=stars').openPerspective('lib-1')
-      expect(push).toHaveBeenCalledWith('/library/gallery/perspective?sort=stars&libraryId=lib-1&from=story')
-    })
-
-    it('auf /library/gallery ohne libraryId gibt es nichts zu springen', () => {
-      bruecke('/library/gallery').openPerspective(null)
-      expect(push).not.toHaveBeenCalled()
-    })
-
-    it('von der Perspektiven-Seite selbst nie — sonst Schleife', () => {
-      bruecke('/explore/sfscon/perspective').openPerspective('lib-1')
-      bruecke('/library/gallery/perspective').openPerspective('lib-1')
-      expect(push).not.toHaveBeenCalled()
-    })
-  })
 })

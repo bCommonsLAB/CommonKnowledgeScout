@@ -36,3 +36,10 @@ export * from './shadow-twin-folder-name'
 // null Abhaengigkeiten, arbeitet auf `Record<string, unknown>` — siehe die
 // Abgrenzung im Kopf dieser Datei.
 export * from './sdg-meta'
+
+// Die Slug-Regeln (M4h): `document-slug-persist` erzeugt den dauerhaften
+// `meta.slug`, `document-slug-navigation` den fuer `?doc=`. Reine
+// Zeichenketten-Arbeit; die Navigations-Seite liest ihr Dokument strukturell
+// (`NavigationSlugSource`), damit dieses Paket ohne `@ks/contracts` bleibt.
+export * from './document-slug-persist'
+export * from './document-slug-navigation'

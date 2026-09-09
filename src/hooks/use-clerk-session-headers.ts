@@ -13,7 +13,7 @@
  */
 
 import { useUser } from '@clerk/nextjs'
-import { useSessionHeaders } from './use-session-headers'
+import { useSessionHeaders } from '@ks/api-client'
 
 export function useClerkSessionHeaders(): Record<string, string> {
   const { isSignedIn } = useUser()

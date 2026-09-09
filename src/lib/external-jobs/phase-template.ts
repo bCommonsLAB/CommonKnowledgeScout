@@ -36,7 +36,7 @@ import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
 import { computeRatingRaw } from '@/lib/documents/rating'
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
-import { buildDocumentSlugFallback } from '@/lib/documents/document-slug-persist'
+import { buildDocumentSlugFallback } from '@ks/util'
 
 // Helper extractFixedFieldsFromTemplate wurde in eigene Datei
 // phase-template/extract-meta.ts ausgelagert (Modul-Split, Plan-Schritt 4
@@ -965,7 +965,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       try {
         const [{ validateMediaExistence, buildMediaFieldsConfig }, { getDetailViewType }] = await Promise.all([
           import('@/lib/templates/media-existence-validator'),
-          import('@/lib/templates/detail-view-type-utils'),
+          import('@ks/contracts'),
         ])
         const detailViewType = getDetailViewType(rawMetaFromLlm, args.libraryConfig)
         const mediaConfig = buildMediaFieldsConfig(detailViewType)

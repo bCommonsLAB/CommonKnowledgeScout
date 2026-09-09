@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { getDetailViewType } from '@ks/contracts'
 
 describe('getDetailViewType', () => {
   it('liefert Default "book" wenn weder Frontmatter noch Library-Config', () => {

@@ -31,7 +31,7 @@
 
 import type { Collection, Document } from 'mongodb'
 import { getCollection } from '@/lib/mongodb-service'
-import type { DocMeta } from '@/types/doc-meta'
+import type { DocMeta } from '@ks/contracts'
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
 import crypto from 'crypto'
 const colCache = new Map<string, Collection<DocMeta>>()
