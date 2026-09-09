@@ -90,6 +90,10 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // weil Cowork die Korrespondenz-Methode ausfuehrt; Schritt 3, weil der
   // Ertrag in den Bericht wandert (Chronologie-Zeilen, Randbedingungen).
   postfach_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Postfach nicht ausgewertet' },
+  // Wunschliste 5, B1: AKTUELL.md/PROJEKTE.md aelter als der juengste Bericht.
+  // Bei Cowork, weil `sichten_regenerieren` die Aufloesung ist; Schritt 3 wie
+  // der Bericht, dessen Sicht sie sind.
+  sicht_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Sicht ueberholt' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

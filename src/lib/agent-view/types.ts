@@ -68,6 +68,7 @@ export type CoverageGapType =
   | 'index_missing'
   | 'bericht_veraltet'
   | 'postfach_veraltet'
+  | 'sicht_veraltet'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'

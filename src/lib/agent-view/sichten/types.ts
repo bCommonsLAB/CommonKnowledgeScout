@@ -75,6 +75,11 @@ export function sauber(text: string): string {
   return text.replace(/\*\*|`|\*/g, '').replace(/\s+/g, ' ').trim()
 }
 
+/** Ordner unter der Library-Wurzel, in den die Sichten geschrieben werden. */
+export const SICHTEN_ORDNER = 'Organisation'
+export const AKTUELL_FILE_NAME = 'AKTUELL.md'
+export const PROJEKTE_FILE_NAME = 'PROJEKTE.md'
+
 /** Deutsches Datum fuer Kopfzeilen (`22.08.2026`). */
 export function datumKurz(date: Date): string {
   const tag = String(date.getDate()).padStart(2, '0')
