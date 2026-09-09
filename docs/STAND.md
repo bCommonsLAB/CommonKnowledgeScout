@@ -134,6 +134,22 @@ Neu dazugekommen: (noch nichts)
 
 Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
+- **Wunschliste 5 „Wissen und Zustand auseinanderhalten"** (Cowork, 2026-09-09,
+  im Archiv unter `24.09 KnowledgeScout/2026-09-09 Wunschliste 5 - …md`; Belege am
+  Code geprüft). Fünf Punkte, zwei Schnitte:
+  - Schnitt 1, klein (~1,5 Tage): A1 `themen_setzen` weist unbekannte Themen
+    zurück (heute stiller Fallback, `tools-themen.ts`, `use-werkbank-themen.ts`);
+    B1 Befund `sicht_veraltet` (AKTUELL/PROJEKTE älter als jüngster Bericht,
+    Muster `bericht_veraltet` in `archive-rules.ts`); C1 `repo_stand` im
+    Bericht-Frontmatter plus Befund `repo_veraltet` nach Alter, Muster
+    `postfach_veraltet` (Variante ohne Repo-Zugriff im Dienst)
+  - Schnitt 2, mittel (~1,5 Tage): B3 `themen_setzen` unterhalb des Vorhabens
+    mit `_INDEX.md`-Anlage und Stapel, Befund `thema_fehlt` ab
+    `bearbeitungsstand: erschlossen`
+  - Zurückgestellt: B2 Repo-Verweise prüfen — der Dienst hat keinen Zugriff auf
+    `~/projects/`; erst mit lokaler Hülle (M7) sinnvoll. C2 ist keine
+    Code-Änderung (Feld `arbeitsstand`, Konventionen-Datei im Archiv)
+  - Vermerk: vor Vorhaben 3 SHF einplanen, sonst ist der Drift bis dahin wieder da
 - Audio-Namensraum und Diarisierung: `docs/plans/geplant/audio-namensraum-und-diarisierung_c4f81a37.plan.md`
 - Mehrsprachigkeit DE/IT/EN (Naturmuseum): ADR 0010 Retrieval-Profile plus
   der stille Sprach-Rückfall A1 aus `docs/refactor/shadow-twin-deterministic/`
