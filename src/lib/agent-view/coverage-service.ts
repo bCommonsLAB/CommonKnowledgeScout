@@ -25,6 +25,7 @@ import type { DocumentVerificationResult } from '@/lib/library-verification/type
 import type { LibrarySyncReport } from '@/lib/shadow-twin/sync-engine/report-types'
 import { compileVorhabenPattern, evaluateArchiveRules } from './archive-rules'
 import { checkSichtVeraltet } from './sicht-regel'
+import { checkThemaFehlt } from './thema-regel'
 import type { ArchiveScanResult } from './archive-types'
 import { buildFileIndex, buildNewestChangeBySubtree, buildOwnChangeByFolder, locateFamilies, type RawTwinFamily } from './coverage-inputs'
 import { auditAllDocuments } from './document-audit'
@@ -186,6 +187,10 @@ export async function runCoverageScan(
     // Wunschliste 5, B1: erzeugte Sichten gegen den juengsten Bericht — nur im
     // Library-weiten Scan, im Teilbaum liegt der juengste Bericht womoeglich ausserhalb.
     ...checkSichtVeraltet({ folders, scopeFolderId: request.scopeFolderId, berichtFreshness: conventions.berichtFreshness }),
+    // Wunschliste 5, B3c: Ereignisordner unterhalb eines Vorhabens, die ab
+    // `erschlossen` kein Thema tragen — die Regel braucht den Ordnerbaum
+    // (Vorhabens-Vorfahre) und laeuft deshalb ueber `folders`, nicht je Knoten.
+    ...checkThemaFehlt({ folders, vorhabenPattern, vokabularGepflegt: conventions.themenVokabularGepflegt }),
   ]
 
   const budget = applyGapBudget(folders, gaps)

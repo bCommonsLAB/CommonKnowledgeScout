@@ -70,6 +70,12 @@ export type CoverageGapType =
   | 'postfach_veraltet'
   | 'sicht_veraltet'
   | 'repo_veraltet'
+  /**
+   * B3c: Ereignisordner unterhalb eines Vorhabens, der ab
+   * `bearbeitungsstand: erschlossen` kein `themen:` traegt — ueber das
+   * Themenregister nicht auffindbar.
+   */
+  | 'thema_fehlt'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'
@@ -328,6 +334,12 @@ export interface CoverageConventions {
    * Postfach-Schwelle) — Libraries ohne Repo-Bezug merken nichts.
    */
   repoMaxRueckstandTage: number | null
+  /**
+   * Wunschliste 5, B3c: Fuehrt die Library ein Themen-Vokabular
+   * (`agentView.themen`)? Ohne eines ist `thema_fehlt` inaktiv — dieselbe
+   * Form wie die beiden Schwellen darueber.
+   */
+  themenVokabularGepflegt: boolean
   /** Wirksame Ausschluss-Muster des Scans (Welle 0b). */
   scanExcludeGlobs: string[]
 }

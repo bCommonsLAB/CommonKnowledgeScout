@@ -60,6 +60,9 @@ export function readConventions(library: Library): CoverageConventions {
       typeof agentView?.repoMaxRueckstandTage === 'number' && Number.isFinite(agentView.repoMaxRueckstandTage)
         ? agentView.repoMaxRueckstandTage
         : null,
+    // Wunschliste 5, B3c: `thema_fehlt` lebt vom kuratierten Vokabular (A6).
+    // Kein Vokabular = die Library fuehrt keine Themen = Regel inaktiv.
+    themenVokabularGepflegt: Array.isArray(agentView?.themen) && agentView.themen.length > 0,
     // D3: leer konfiguriert -> dokumentierter Plattform-Default; der Report zeigt die wirksame Liste.
     scanExcludeGlobs: [...effectiveScanExcludeGlobs(library.config?.scanExcludeGlobs)],
   }

@@ -97,6 +97,11 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // Wunschliste 5, C1: der Pruefstand des Berichts gegen sein Repo fehlt oder
   // ist aelter als die Schwelle — dasselbe Muster wie das Postfach, fuer Code.
   repo_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Repo-Stand nicht geprueft' },
+  // Wunschliste 5, B3c: Ereignisordner ab `erschlossen` ohne `themen:`. Bei
+  // Cowork, weil die Zuordnung aus dem Inhalt kommt und kein Job sie rechnet
+  // (die Ordnernamen sind Ereignisnamen und verraten das Thema nicht);
+  // Schritt 3, weil das Thema mit dem Bericht entsteht — dieselbe Lesearbeit.
+  thema_fehlt: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Kein Thema' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

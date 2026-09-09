@@ -107,6 +107,11 @@ export function AgentViewScanDetails({ report }: { report: CoverageReport }) {
             }
             title="Ab wann repo_stand_am im BERICHT.md als veraltet gilt (Wunschliste 5, C1) — aus = die Library prueft Berichte nicht gegen Repos."
           />
+          <Zeile
+            label="Themen-Pflicht"
+            wert={conventions.themenVokabularGepflegt ? 'aktiv' : 'aus'}
+            title="Meldet Ereignisordner ab bearbeitungsstand: erschlossen ohne themen: (Wunschliste 5, B3) — aus = die Library fuehrt kein Themen-Vokabular."
+          />
         </section>
       </PopoverContent>
     </Popover>
