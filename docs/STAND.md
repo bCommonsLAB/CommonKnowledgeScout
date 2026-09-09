@@ -215,13 +215,34 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
     Berichten mit `repo:` setzen; Schwelle in den Library-Einstellungen
     eintragen, sonst bleibt `repo_veraltet` stumm. Nicht gebaut: die
     Repo-Spalte in der Aktuell-Sicht der Werkbank (C1-Wunsch, UI)
-  - Schnitt 2, mittel (~1,5 Tage): B3 `themen_setzen` unterhalb des Vorhabens
-    mit `_INDEX.md`-Anlage und Stapel, Befund `thema_fehlt` ab
-    `bearbeitungsstand: erschlossen`
+  - Schnitt 2 **erledigt** (Werkzeugsatz 2.29.0): B3a `themen_setzen` nimmt
+    jeden Ordner unterhalb des Vorhabens und legt mit `indexAnlegen: true`
+    eine fehlende `_INDEX.md` nach Vorlage an (bewusst OHNE
+    `bearbeitungsstand` — der bleibt `stand_setzen`, und ein geratenes
+    `ungesichtet` würde das Gap-Budget alle Befunde des Teilbaums
+    zusammenfassen lassen); B3b Stapel über `folderIds` (bis 30 Ordner,
+    dieselbe Liste, ein gescheiterter Ordner bricht nichts ab,
+    `themen-stapel.ts`); B3c Befund `thema_fehlt` (`thema-regel.ts`, Cowork ·
+    warning, ab `bearbeitungsstand: erschlossen`, nur unterhalb eines
+    Vorhabens, nur bei gepflegtem `agentView.themen`).
+    **Archiv-Nachzug durch Cowork:** Themen an den Ereignisordnern der
+    aktiven Vorhaben vergeben — sonst bleibt der Befund nur eine Liste
   - Zurückgestellt: B2 Repo-Verweise prüfen — der Dienst hat keinen Zugriff auf
     `~/projects/`; erst mit lokaler Hülle (M7) sinnvoll. C2 ist keine
     Code-Änderung (Feld `arbeitsstand`, Konventionen-Datei im Archiv)
-  - Vermerk: vor Vorhaben 3 SHF einplanen, sonst ist der Drift bis dahin wieder da
+  - Neu dazugekommen 2026-09-09 (bei B3c gemessen): Ein Ereignisordner ohne
+    `_INDEX.md` erklärt keinen Stand und bleibt für `thema_fehlt` stumm; ob
+    `index_missing` dort greift, hängt an `indexRequiredMaxDepth`. Wenn die
+    Themenvergabe flächig laufen soll, die Tiefe je Library prüfen
+  - Neu dazugekommen 2026-09-09: Ein Teilbaum-Scan, dessen Wurzel selbst
+    unterhalb des Vorhabens liegt, sieht kein Vorhaben und meldet
+    `thema_fehlt` nicht (dieselbe Grenze wie `sicht_veraltet`). Der übliche
+    Vorhabens-Scan sieht alles; bei Bedarf messen, ob das in der Praxis stört
+  - Themendossiers als erzeugte Sicht (Teil D der Wunschliste) setzen B3 voraus
+    und sind damit ab jetzt möglich — kommen in eine spätere Liste
+  - Vermerk (09.09.): Beide Schnitte sind gebaut; offen bleibt nur der
+    Archiv-Nachzug durch Cowork. Der gehört vor Vorhaben 3 SHF, sonst ist der
+    Drift bis dahin wieder da
 - Audio-Namensraum und Diarisierung: `docs/plans/geplant/audio-namensraum-und-diarisierung_c4f81a37.plan.md`
 - Mehrsprachigkeit DE/IT/EN (Naturmuseum): ADR 0010 Retrieval-Profile plus
   der stille Sprach-Rückfall A1 aus `docs/refactor/shadow-twin-deterministic/`
