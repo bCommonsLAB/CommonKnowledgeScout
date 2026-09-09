@@ -103,7 +103,8 @@ describe('renderAktuell', () => {
     expect(out).toContain('> Termine mit ⚠️ sind noch nicht vereinbart')
     const tabelle = out.split('## Aktive Projekte')[1].split('## Was als Nächstes')[0]
     expect(tabelle.indexOf('26.01 Klimamassnahmen')).toBeLessThan(tabelle.indexOf('24.09 KnowledgeScout'))
-    expect(out).toContain('| [[4. Ökosozialer Aktivismus/26.01 Klimamassnahmen Südtirol/BERICHT|26.01 Klimamassnahmen Südtirol]] | anwendung | 22. August 2026 | 25. August 2026 ⚠️ |')
+    // Der Alias-Strich ist in der Tabellenzelle als `\|` maskiert, sonst zerfaellt der Link in Obsidian
+    expect(out).toContain('| [[4. Ökosozialer Aktivismus/26.01 Klimamassnahmen Südtirol/BERICHT\\|26.01 Klimamassnahmen Südtirol]] | anwendung | 22. August 2026 | 25. August 2026 ⚠️ |')
     expect(out).toContain('- CO₂-Index finalisieren')
     expect(out).not.toContain('Dritter Punkt')
     expect(out).toContain('- 23.01 Buch — ruhend, zuletzt 1. September 2024')
