@@ -46,7 +46,10 @@ am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
 
 ## Vorhaben 1 · AECED: Galerie als einbettbare Komponente (M5) — jetzt
 
-- **Termin**: der nächste; der 31.08. ist überschritten.
+- **Termin**: **Dienstag, 15.09.2026, ganztägiges Arbeitstreffen mit AECED**
+  (Owner, 09.09.). Bis dahin soll das Gröbste stehen: die Schritte 1 bis 4 so
+  weit, dass der Einbau in die fremde Next-Anwendung gezeigt werden kann. Der
+  31.08. ist überschritten.
 - **Ziel**: `<KnowledgeScoutExplorer baseUrl="…" library="aeced" view="gallery" />`
   läuft in der Next-Anwendung von AECED, liest anonym von der zentralen
   Instanz, zeigt nur öffentliche Inhalte (ADR 0008, Nachtrag 2026-08-29).
