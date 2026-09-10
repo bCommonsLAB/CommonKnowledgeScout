@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
+import { renderToString } from 'react-dom/server'
 
 vi.mock('@ks/module-explorer/react', async (original) => ({
   ...(await original<typeof import('@ks/module-explorer/react')>()),
@@ -71,6 +72,21 @@ describe('KnowledgeScoutExplorer', () => {
     expect(rahmen.className).toBe('ks-embed')
     expect(rahmen.style.height).toBe('600px')
     await screen.findByTestId('galerie')
+  })
+
+  it('rendert auf dem Server nur den Rahmen — nichts, was beim Hydrieren von der Sprache abhaengt', () => {
+    // Nachweis in einer Next-16-App (10.09.2026): Der Server renderte „Loading…",
+    // der Browser „Lade…" — Hydrierungsfehler, danach zeichnete React die ganze
+    // fremde Seite neu. Die Galerie montiert deshalb erst im Browser.
+    const fetchMock = stubFetch({})
+
+    const html = renderToString(<KnowledgeScoutExplorer {...GRUND} height="600px" />)
+
+    expect(html).toMatch(/^<div class="ks-embed" style="[^"]*height:600px/)
+    // Der Rahmen haelt, was in ihm `fixed` steht (Detailansicht): nicht das Fenster der fremden Seite.
+    expect(html).toMatch(/^<div class="ks-embed" style="[^"]*contain:layout/)
+    expect(html).not.toMatch(/Lade|Loading/)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('lehnt eine geschuetzte Library ab — das Embed zeigt nur Oeffentliches', async () => {

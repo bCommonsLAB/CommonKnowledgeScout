@@ -71,17 +71,27 @@ export function KnowledgeScoutExplorer({
     if (fehler) console.error(`[KnowledgeScoutExplorer] ${fehler}`)
   }, [fehler])
 
+  // Die Galerie montiert erst im Browser, wenn der Rahmen steht. Sie laedt ihre
+  // Daten ohnehin dort; auf dem Server entstuende nur ein Ladezustand, dessen
+  // Sprache beim Hydrieren nicht zum Browser passt (Hydrierungsfehler im
+  // Nachweis in einer Next-16-App, 10.09.2026). Der Rahmen selbst steht sofort
+  // da, mit seiner Hoehe — die fremde Seite springt nicht.
+  //
+  // `contain: layout` macht den Rahmen zum Bezug fuer alles, was in ihm `fixed`
+  // steht: Die Detailansicht der Galerie (`fixed inset-0`) deckte sonst das
+  // ganze Fenster der fremden Seite zu (Nachweis, 10.09.2026). Ihr z-index
+  // zaehlt so nur im Rahmen; Radix-Menues (floating-ui) kennen den Bezug.
   return (
     <div
       ref={setRahmen}
       className={className ? `ks-embed ${className}` : 'ks-embed'}
-      style={{ display: 'flex', flexDirection: 'column', position: 'relative', height }}
+      style={{ display: 'flex', flexDirection: 'column', position: 'relative', height, contain: 'layout' }}
     >
       {'fehler' in aufbau ? (
         <p role="alert" className="p-4 text-sm text-destructive">
           KnowledgeScoutExplorer: {aufbau.fehler}
         </p>
-      ) : (
+      ) : rahmen === null ? null : (
         <JotaiProvider store={store}>
           <EmbedLocale locale={aufbau.locale} />
           <PortalContainerProvider container={rahmen}>

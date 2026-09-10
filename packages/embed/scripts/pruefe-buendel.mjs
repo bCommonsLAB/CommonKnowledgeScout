@@ -14,6 +14,11 @@ for (const datei of readdirSync(dist).filter((d) => d.endsWith('.js'))) {
   const code = readFileSync(join(dist, datei), 'utf-8')
   const fremd = [...code.matchAll(/(?:from|import)\s*\(?\s*["']((?:@ks|next)(?:\/[^"']*)?)["']/g)].map((m) => m[1])
   if (fremd.length > 0) fehler.push(`${datei} importiert ${[...new Set(fremd)].join(', ')}`)
+  // esbuilds `require`-Ersatz: Steht er im Buendel, lehnt Turbopack (Next 16) das
+  // Paket ab („dynamic usage of require is not supported").
+  if (code.includes('Dynamic require of')) {
+    fehler.push(`${datei} enthaelt den require-Ersatz von esbuild (ein CommonJS-Modul holt ein externes per require)`)
+  }
 }
 
 const typen = join(dist, 'index.d.ts')
@@ -35,4 +40,4 @@ if (fehler.length > 0) {
   console.error(`Buendel nicht auslieferbar:\n- ${fehler.join('\n- ')}`)
   process.exit(1)
 }
-console.log('Buendel geprueft: keine @ks- oder next-Importe, Typen und Stile vorhanden, "use client" vorn.')
+console.log('Buendel geprueft: keine @ks- oder next-Importe, kein require-Ersatz, Typen und Stile vorhanden, "use client" vorn.')

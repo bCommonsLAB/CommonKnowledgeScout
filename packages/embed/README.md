@@ -36,10 +36,12 @@ export default function Galerie() {
 | `height` | Höhe des Rahmens (Standard `80vh`); die Galerie scrollt darin |
 | `className` | Zusätzliche Klassen für den Rahmen |
 
-- React 18 bringt die Anwendung mit. Die Komponente ist eine
-  Client-Komponente (`"use client"` steht im Bündel).
+- React 18 oder 19 bringt die Anwendung mit (geprüft mit Next 16, React 19
+  und Turbopack). Die Komponente ist eine Client-Komponente (`"use client"`
+  steht im Bündel); auf dem Server rendert sie nur den leeren Rahmen, die
+  Galerie montiert und lädt im Browser.
 - Alle Stile liegen unter `.ks-embed` und wirken nicht auf die übrige Seite.
-  Dialoge und Menüs öffnen innerhalb dieses Rahmens.
+  Dialoge, Menüs und die Detailansicht öffnen innerhalb dieses Rahmens.
 - Falsche Props (Basis-URL ohne `https://`, unbekannte Sprache) meldet die
   Komponente sichtbar im Rahmen und in der Konsole.
 - Eine Library, die eine Anmeldung verlangt, wird nicht angezeigt.
