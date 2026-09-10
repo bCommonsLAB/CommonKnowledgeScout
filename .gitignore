@@ -53,3 +53,6 @@ template-samples/oldiesforfuture-original/
 
 # Reparatur-/Migrations-Backups (enthalten Prod-Daten, nie committen)
 backups/
+
+# Datei-Paket von @ks/embed (pnpm pack, M5)
+packages/embed/*.tgz

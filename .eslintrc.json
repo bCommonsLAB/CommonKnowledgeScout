@@ -1,5 +1,6 @@
 {
   "root": true,
+  "ignorePatterns": ["packages/embed/dist/", "packages/embed/scripts/"],
   "extends": [
     "next/core-web-vitals",
     "plugin:@typescript-eslint/recommended"
