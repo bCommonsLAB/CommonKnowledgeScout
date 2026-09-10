@@ -126,7 +126,9 @@ Messung und eigenem Beweis-Test — Plan und Zahlen in
 | 3 Helfer | **M4h** — zehn Helfer nach `@ks/contracts`, `@ks/util`, `@ks/api-client`, `@ks/module-explorer` oder in den Kegel; der Kegel importiert aus `@/` nur noch sich selbst | erledigt |
 | 3 Umzug | **M4i** — `git mv` von 110 Dateien nach `packages/module-explorer/src/gallery/`; `GalleryRoot` aus `@ks/module-explorer/react` | erledigt |
 | 2 Basis-URL | **M5-basis-url** — alle Requests ueber `InstanceApi`, Sortierung in `03-audit-embed-fetches.md` | erledigt |
-| 4, 5 | M5 im engeren Sinn: Embed-Adressierung, Buch-Renderer, Huelle, Nachweis; Hand-off in `AGENT-BRIEF-M4f.md` §7 | offen |
+| Embed-Adressierung (Hand-off §7) | **M5-adressierung** — `SpeicherGalleryNavigation` und `EmbedGalleryProviders` (#267, auf `master` als #268) | erledigt |
+| Buch-Renderer (Hand-off §7) | **M5-buch-renderer** — Buch-Ansicht per `git mv` ins Paket, App-Huellen unter den alten Pfaden, `BuchDetailRenderer` und `EMBED_DETAIL_RENDERERS` | gebaut |
+| 4, 5 | M5 im engeren Sinn: Huelle `packages/embed`, Nachweis in fremder Next-App; Hand-off in `AGENT-BRIEF-M4f.md` §7 | offen |
 
 Eine Abweichung von der Reihenfolge in `02-audit-umzug.md` §4, bewusst: Es
 zieht **nur die Galerie** um, nicht Chat-UI, Story und Website. Das deckt sich

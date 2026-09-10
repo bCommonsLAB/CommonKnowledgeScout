@@ -118,6 +118,33 @@ Neu dazugekommen:
   `x-locale` loest einen Preflight aus, wirkt aber nicht; das Locale-Cookie
   geht von fremder Herkunft nicht mit; `explorerGate` zaehlt den Host der
   Instanz. Details im Audit 03.
+- 2026-09-10: **M5-adressierung** gebaut (gestapelt auf M5-basis-url):
+  `SpeicherGalleryNavigation` fuehrt `doc`, `mode`, `view` usw. im
+  React-Zustand statt in der URL — ohne Verlauf, ohne teilbare Adresse.
+  `EmbedGalleryProviders` buendelt Betrachter (`ANONYMOUS_VIEWER`), Gastgeber
+  (`STILLER_GASTGEBER` mit Instanz) und Adressierung, als Gegenstueck zu
+  `GalleryAppProviders`. Waechter: das Paket fasst `window.location` und
+  `history` nicht an. Nebenbei: Der Teilen-Knopf blendete sich bei leerer
+  Adresse nicht aus, obwohl der Vertrag von `documentShareUrl` das versprach.
+- 2026-09-10: #267 landete im Branch von #266 statt auf `master` (25 s nach
+  #266 gemergt, bevor GitHub die Basis umgestellt hatte). Ersatz-PR #268 mit
+  demselben Commit. Lehre: gestapelte PRs erst mergen, wenn ihre Basis auf
+  `master` zeigt — oder gleich gegen `master` stellen.
+- 2026-09-10: **M5-buch-renderer** gebaut: Die Buch-Detailansicht liegt im
+  Paket (`gallery/components/book-detail/`, per `git mv`: Ansicht,
+  Kapitelliste, Anhang-Liste, KI-Hinweis, `reference-format`). Was es in einer
+  fremden Seite nicht gibt, kommt herein: Bild, Markdown, KI-Hinweis-Link,
+  Zurueck-Link. Die App reicht unter den alten Pfaden `next/image`,
+  `MarkdownPreview` und `next/link` herein, ihr Verhalten bleibt gleich. Das
+  Embed bekommt `BuchDetailRenderer` (aus der schon geladenen `docMeta`, kein
+  zweiter Request) und `EMBED_DETAIL_RENDERERS` (Buch, Testimonial, Blog →
+  Buch; alle anderen sagen ausdruecklich „noch nicht verfuegbar"). Mapper und
+  Typen liegen in `doc-meta/book-detail-mapper.ts`, `getFileType` in `@ks/util`.
+- 2026-09-10: Befund fuer Punkt 4: `md` aus `@ks/viewers` rendert rohes HTML
+  (`html: true`) und zieht zwei highlight.js-Stylesheets; die `prose`-Klassen
+  brauchen im CSS des Embeds das Tailwind-Typography-Plugin. In der fremden
+  Seite pruefen — der Inhalt kommt aus der eigenen Library, aber er landet
+  jetzt im DOM eines Kunden.
 - 2026-09-10 (kein M5-Bezug, beim lokalen Audio-Test gefunden): `.mpeg`/`.mpg`
   fehlten in allen acht Endungslisten — die Vorschau zeigte „Keine Vorschau
   verfuegbar" und keinen Transkribier-Knopf. Nachgezogen auf Branch

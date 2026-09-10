@@ -283,4 +283,25 @@ describe('Galerie-Schnitt', () => {
         'Was die App braucht, exportiert packages/module-explorer/src/gallery/index.ts.'
     ).toEqual([])
   })
+
+  it('das Paket fasst die Adresse des Gastgebers nicht an (M5)', () => {
+    // Im Embed laeuft die Galerie als Gast in einer fremden Seite; deren
+    // Adresse gehoert ihr nicht (Owner-Entscheidung 2026-08-29). Adressiert wird
+    // ueber GalleryNavigation — in der App per Next, im Embed im Speicher.
+    const MUSTER =
+      /\bwindow\.location\b|\blocation\.(?:href|assign|replace|search|hash)\b|\bhistory\.(?:pushState|replaceState|back|go)\b/
+    const offenders: string[] = []
+    for (const file of collectSourceFiles(join(REPO_ROOT, 'packages/module-explorer/src'))) {
+      readFileSync(file, 'utf-8').split('\n').forEach((zeile, i) => {
+        const t = zeile.trim()
+        if (t.startsWith('//') || t.startsWith('*')) return
+        if (MUSTER.test(zeile)) offenders.push(`${relative(REPO_ROOT, file).replace(/\\/g, '/')}:${i + 1}: ${t}`)
+      })
+    }
+    expect(
+      offenders,
+      `Das Paket greift auf die Adresse des Gastgebers zu:\n${offenders.join('\n')}\n` +
+        'Adressieren ueber useGalleryNavigation() — die App schreibt in die URL, das Embed in den Speicher.'
+    ).toEqual([])
+  })
 })

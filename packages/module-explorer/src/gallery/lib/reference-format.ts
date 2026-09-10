@@ -1,19 +1,20 @@
 /**
- * Referenz-Format-Klassifizierer (Plan 1 · A4c).
+ * Referenz-Format-Klassifizierer (Plan 1 · A4c). Seit M5 im Paket, weil die
+ * Anhang-Liste der Buch-Ansicht (Embed) damit klassifiziert.
  *
  * Reine, storage-agnostische Hilfen, um einen Verweis/Anhang in einer Story
  * (eine URL oder ein Dateiname) seinem Anzeige-Format zuzuordnen — damit
  * `ReferenceList` ihn formatgerecht rendert (Audio → Player, Bild → Vorschau,
  * PDF → Dokument-Button, Web → Link …) statt nur „PDF vs. Link".
  *
- * Quelle der Format-Erkennung ist `getFileType` (extension-map.ts) — KEIN
+ * Quelle der Format-Erkennung ist `getFileType` (`@ks/util`) — KEIN
  * zweites Endungs-Mapping (Single Source of Truth). Unbekannte/neue
  * `getFileType`-Werte landen NICHT still in einem Default, sondern werden
  * geloggt (no-silent-fallbacks.mdc). Keine React-Abhaengigkeit → voll
  * unit-testbar.
  */
 
-import { getFileType } from '@/components/library/file-preview/extension-map'
+import { getFileType } from '@ks/util'
 
 /** Anzeige-Format eines Story-Verweises (steuert den Renderer). */
 export type ReferenceFormat =
