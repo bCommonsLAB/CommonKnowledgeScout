@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import Image from "next/image"
+import type { ComponentType } from "react"
 import { ExternalLink, FileText, Globe, Paperclip } from "lucide-react"
 import {
   classifyReferences,
@@ -9,9 +9,10 @@ import {
   type ClassifiedReference,
   type ReferenceFormat,
   type ReferenceInput,
-} from "@/lib/library/reference-format"
+} from "../../lib/reference-format"
+import type { GalleryImageProps } from "../../contexts/gallery-host-context"
 
-interface ReferenceListProps {
+interface AttachmentListProps {
   /**
    * Verweise/Anhaenge: reine URLs (z.B. data.attachments_url) ODER
    * `{ url, name }` (aufgeloeste Links, Format aus dem Dateinamen).
@@ -19,6 +20,8 @@ interface ReferenceListProps {
   references: ReferenceInput[] | undefined
   /** Optionaler Abschnitts-Titel (Default: „Anhänge"). */
   title?: string
+  /** Womit die Bild-Vorschauen gerendert werden (App: `next/image`, Embed: `<img>`). */
+  Bild: ComponentType<GalleryImageProps>
 }
 
 /** Deutsche Gruppen-Labels — exhaustiv ueber ReferenceFormat (kein Default-Loch). */
@@ -38,8 +41,13 @@ const FORMAT_LABEL: Record<ReferenceFormat, string> = {
  * Web → Link. Ersetzt die fruehere „PDF vs. Link"-Klassifikation.
  *
  * Storage-agnostisch: arbeitet nur auf URLs/Metadaten, kennt kein Backend.
+ *
+ * Seit M5 im Paket (vorher `src/components/library/story/reference-list.tsx`,
+ * dort als `ReferenceList` weiter fuer die Session-Ansicht): Die Buch-Ansicht
+ * des Embeds zeigt damit ihre Anhaenge. Anderer Name, weil die Galerie mit
+ * `reference-list.tsx` schon eine Liste hat — die der Chat-Quellen.
  */
-export function ReferenceList({ references, title = "Anhänge" }: ReferenceListProps) {
+export function AttachmentList({ references, title = "Anhänge", Bild }: AttachmentListProps) {
   const groups = React.useMemo(
     () => groupReferencesByFormat(classifyReferences(references)),
     [references],
@@ -55,7 +63,7 @@ export function ReferenceList({ references, title = "Anhänge" }: ReferenceListP
       </h2>
       <div className="space-y-4">
         {groups.map((group) => (
-          <ReferenceGroup key={group.format} format={group.format} items={group.items} />
+          <ReferenceGroup key={group.format} format={group.format} items={group.items} Bild={Bild} />
         ))}
       </div>
     </section>
@@ -65,16 +73,17 @@ export function ReferenceList({ references, title = "Anhänge" }: ReferenceListP
 interface ReferenceGroupProps {
   format: ReferenceFormat
   items: ClassifiedReference[]
+  Bild: ComponentType<GalleryImageProps>
 }
 
-function ReferenceGroup({ format, items }: ReferenceGroupProps) {
+function ReferenceGroup({ format, items, Bild }: ReferenceGroupProps) {
   return (
     <div data-format={format}>
       <h3 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
         {FORMAT_LABEL[format]}
       </h3>
       {format === "image" ? (
-        <ImageGrid items={items} />
+        <ImageGrid items={items} Bild={Bild} />
       ) : format === "video" ? (
         <MediaPlayers items={items} kind="video" />
       ) : format === "audio" ? (
@@ -86,7 +95,7 @@ function ReferenceGroup({ format, items }: ReferenceGroupProps) {
   )
 }
 
-function ImageGrid({ items }: { items: ClassifiedReference[] }) {
+function ImageGrid({ items, Bild }: { items: ClassifiedReference[]; Bild: ComponentType<GalleryImageProps> }) {
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item, idx) => (
@@ -97,7 +106,7 @@ function ImageGrid({ items }: { items: ClassifiedReference[] }) {
           rel="noopener noreferrer"
           className="block w-24 h-24 rounded border border-border overflow-hidden bg-secondary"
         >
-          <Image
+          <Bild
             src={item.url}
             alt={item.name}
             width={96}
@@ -152,4 +161,4 @@ function LinkList({ items, format }: { items: ClassifiedReference[]; format: Ref
   )
 }
 
-export default ReferenceList
+export default AttachmentList

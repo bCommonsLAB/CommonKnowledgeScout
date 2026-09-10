@@ -6,7 +6,7 @@ import {
   referenceDisplayName,
   REFERENCE_FORMAT_ORDER,
   type ReferenceFormat,
-} from '@/lib/library/reference-format'
+} from '@ks/module-explorer/gallery/lib/reference-format'
 
 describe('classifyReference', () => {
   const cases: Array<[string, ReferenceFormat]> = [

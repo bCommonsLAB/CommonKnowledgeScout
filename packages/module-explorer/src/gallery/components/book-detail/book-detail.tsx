@@ -1,62 +1,52 @@
 "use client";
 
+/**
+ * @fileoverview Die Buch-Detailansicht — seit M5 im Paket, weil das Embed Buecher zeigt.
+ *
+ * @description
+ * Bis M5 lag sie in der App (`src/components/library/book-detail.tsx`) und
+ * holte sich dort vier Dinge, die es in einer fremden Seite nicht gibt:
+ * `next/image` fuer Cover und Anhang-Vorschauen, `next/link` fuer den
+ * Zurueck-Link, die Archiv-Vorschau `MarkdownPreview` (mit Speicher-Kontext,
+ * Clerk und `next/navigation` dahinter) und den KI-Hinweis mit `next/link`.
+ * Diese vier kommen jetzt herein (`BookDetailProps`) — Pflicht bzw.
+ * ausdruecklich `null`, kein stiller Rueckfall.
+ *
+ * Die App reicht ihre Varianten unter dem alten Pfad herein, ihr Verhalten
+ * bleibt gleich. Das Embed nimmt `BuchDetailRenderer` (schlichtes `<img>`,
+ * `MarkdownBody`, KI-Hinweis auf die Instanz). Datentypen und Mapper liegen
+ * in `doc-meta/book-detail-mapper.ts`.
+ */
+
 import * as React from "react";
+import type { ComponentType, ReactNode } from "react";
 import { Badge } from '@ks/ui'
-import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink, Globe } from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
+import { Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink, Globe } from "lucide-react";
+import type { BookDetailData } from "../../../doc-meta/book-detail-mapper";
+import type { GalleryImageProps } from "../../contexts/gallery-host-context";
+import { classifyReference } from "../../lib/reference-format";
 import { ChapterAccordion } from "./chapter-accordion";
-import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
-import { MarkdownPreview } from "./markdown-preview";
-import { ReferenceList } from "./story/reference-list";
-import { classifyReference } from "@/lib/library/reference-format";
+import { AttachmentList } from "./attachment-list";
 
-export interface Chapter {
-  order: number;
-  level: number;
-  title: string;
-  startPage?: number;
-  endPage?: number;
-  summary?: string;
-  keywords?: string[];
+/** Was die Ansicht ueber einen Markdown-Abschnitt sagt. */
+export interface BookMarkdownProps {
+  content: string;
+  className?: string;
 }
 
-export interface BookDetailData {
-  title: string;
-  authors: string[];
-  /** Autoren-Bilder, Index-basiert gemappt auf authors[] */
-  authors_image_url?: string[];
-  year: number | string;
-  pages?: number;
-  region?: string;
-  summary?: string;
-  source?: string;
-  issue?: string | number;
-  language?: string;
-  docType?: string;
-  commercialStatus?: string;
-  topics?: string[];
-  chapters?: Chapter[];
-  chunkCount?: number;
-  chaptersCount?: number;
-  fileId?: string;
-  fileName?: string;
-  upsertedAt?: string;
-  markdown?: string;
-  coverImageUrl?: string;
-  /** Generische URL: kann PDF-URL oder Web-Link sein */
-  url?: string;
-  /** Anhänge (Dokumente, PDFs, etc.) */
-  attachments_url?: string[];
-}
-
-interface BookDetailProps {
+export interface BookDetailProps {
   data: BookDetailData;
-  backHref?: string;
-  showBackLink?: boolean;
+  /** Womit Cover und Anhang-Vorschauen gerendert werden (App: `next/image`, Embed: `<img>`). */
+  Bild: ComponentType<GalleryImageProps>;
+  /** Womit Zusammenfassung und Inhalt gerendert werden (App: `MarkdownPreview`, Embed: `MarkdownBody`). */
+  Markdown: ComponentType<BookMarkdownProps>;
+  /** Hinweis auf KI-generierte Inhalte unter Zusammenfassung und Inhalt (EU AI Act Art. 50). */
+  kiHinweis: ReactNode;
+  /** Zurueck-Link ueber dem Titel; `null`, wenn der Montagepunkt keinen zeigt. */
+  backLink: ReactNode;
 }
 
-export function BookDetail({ data, backHref = "/library", showBackLink = false }: BookDetailProps) {
+export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDetailProps) {
   const title = data.title || "—";
   const authors = Array.isArray(data.authors) ? data.authors : [];
 
@@ -65,19 +55,14 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
-      {showBackLink ? (
-        <Link href={backHref} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6">
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Zurück</span>
-        </Link>
-      ) : null}
+      {backLink}
 
       {/* Titel-/Kopfbereich: mit Cover klein links, sonst nur Titel + Badges */}
       <div className="mb-6">
         {data.coverImageUrl ? (
           <div className="flex gap-4 items-start">
             <div className="flex-shrink-0 w-[136px] h-[204px] bg-secondary rounded border border-border overflow-hidden flex items-center justify-center">
-              <Image
+              <Bild
                 src={data.coverImageUrl}
                 alt={title}
                 width={136}
@@ -164,15 +149,15 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Zusammenfassung</h2>
           <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-muted-foreground">
-            <MarkdownPreview content={normalizeEscapedNewlines(data.summary)} compact className="min-h-0 w-full" />
+            <Markdown content={normalizeEscapedNewlines(data.summary)} className="min-h-0 w-full" />
           </div>
-          <AIGeneratedNotice compact />
+          {kiHinweis}
         </section>
       )}
 
       {/* Verweise/Anhänge aus attachments_url, je Format gerendert (A4c) –
            nach Zusammenfassung, vor Metadaten. url hat oben einen eigenen Button. */}
-      <ReferenceList references={data.attachments_url} title="Dokumente & Links" />
+      <AttachmentList references={data.attachments_url} title="Dokumente & Links" Bild={Bild} />
 
       <div className="grid grid-cols-2 gap-3 mb-6">
         <section className="bg-card border border-border rounded-lg p-4">
@@ -208,14 +193,13 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">Inhalt</h2>
           <div className="prose prose-slate dark:prose-invert max-w-none">
-            <MarkdownPreview 
-              content={data.markdown} 
-              compact={true}
+            <Markdown
+              content={data.markdown}
               className="min-h-0 w-full"
             />
           </div>
           {/* KI-Info-Hinweis für KI-generierte Inhalte */}
-          <AIGeneratedNotice compact />
+          {kiHinweis}
         </section>
       )}
 
