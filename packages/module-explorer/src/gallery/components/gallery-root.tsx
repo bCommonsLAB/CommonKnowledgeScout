@@ -77,6 +77,8 @@ export interface GalleryRootProps {
    * der Chat ein anderer Bereich ist und die Galerie ihn bisher per
    * `next/dynamic` holte — ein Paket kennt kein `next/dynamic` (M4f). Die App
    * reicht ihn am Montagepunkt herein und laedt ihn dort weiterhin faul.
+   * Ohne Slot gibt es auch keinen Knopf in den Story-Modus — das Embed zeigt
+   * nur die Galerie (M5, „Story und Chat nicht mitnehmen").
    */
   storyPanel?: (libraryId: string) => React.ReactNode
   /**
@@ -1093,8 +1095,8 @@ export function GalleryRoot({
                 onOpenFilters={() => setShowFilters(true)}
                 onClear={handleClearFilters}
                 facetDefs={facetDefs}
-                ctaLabel={t('gallery.switchToStoryMode')}
-                onCta={() => setMode('story')}
+                ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}
+                onCta={storyPanel ? () => setMode('story') : undefined}
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
                 viewMode={viewMode}
@@ -1144,8 +1146,8 @@ export function GalleryRoot({
                     onClear={handleClearFilters}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
-                    ctaLabel={t('gallery.switchToStoryMode')}
-                    onCta={() => setMode('story')}
+                    ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}
+                    onCta={storyPanel ? () => setMode('story') : undefined}
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
                     viewMode={viewMode}

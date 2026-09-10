@@ -51,15 +51,37 @@ function normalizeBaseUrl(baseUrl: string | undefined): string {
   return baseUrl.replace(/\/+$/, '')
 }
 
-export function createInstanceApi(config: ApiClientConfig): InstanceApi {
+export interface InstanceApiOptions extends ApiClientConfig {
+  /**
+   * Sprache fuer jede Anfrage als `Accept-Language` (M5, Embed). Das
+   * Locale-Cookie der Instanz geht von einer fremden Seite nicht mit, die
+   * Middleware liest dann `Accept-Language` (Audit 03). Fuer Browser ein
+   * freier Kopf — kein CORS-Preflight. Ein ausdruecklich gesetzter Kopf der
+   * Anfrage bleibt stehen.
+   */
+  acceptLanguage?: string
+}
+
+/** `init` mit Sprache; ein schon gesetzter `Accept-Language` gewinnt. */
+function mitSprache(init: RequestInit | undefined, sprache: string): RequestInit {
+  const headers = new Headers(init?.headers)
+  if (!headers.has('Accept-Language')) headers.set('Accept-Language', sprache)
+  return { ...init, headers }
+}
+
+export function createInstanceApi(config: InstanceApiOptions): InstanceApi {
   const baseUrl = normalizeBaseUrl(config.baseUrl)
   const bound: ApiClientConfig = { baseUrl }
+  const sprache = config.acceptLanguage
+  if (sprache !== undefined && sprache.trim() === '') {
+    throw new Error('acceptLanguage der Instanz ist leer — weglassen oder eine Sprache angeben')
+  }
   return {
     baseUrl,
     url: (path) => apiUrl(path, bound),
     // `fetch` erst beim Aufruf nachschlagen, nicht beim Erzeugen festhalten —
     // sonst griffe ein in Tests gestubbtes `fetch` nicht.
-    fetch: (path, init) => fetch(apiUrl(path, bound), init),
+    fetch: (path, init) => fetch(apiUrl(path, bound), sprache ? mitSprache(init, sprache) : init),
   }
 }
 

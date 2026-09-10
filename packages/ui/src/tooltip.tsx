@@ -4,6 +4,7 @@ import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@ks/util"
+import { usePortalContainer } from "./portal-container"
 
 const TooltipProvider = TooltipPrimitive.Provider
 
@@ -25,6 +26,8 @@ const TooltipContent = React.forwardRef<
     disablePortal?: boolean
   }
 >(({ className, sideOffset = 4, disablePortal = false, ...props }, ref) => {
+  // Oben im Rumpf, nicht im Ternary unten: Hooks laufen bei jedem Render.
+  const container = usePortalContainer()
   const content = (
     <TooltipPrimitive.Content
       ref={ref}
@@ -37,7 +40,7 @@ const TooltipContent = React.forwardRef<
       {...props}
     />
   )
-  return disablePortal ? content : <TooltipPrimitive.Portal>{content}</TooltipPrimitive.Portal>
+  return disablePortal ? content : <TooltipPrimitive.Portal container={container}>{content}</TooltipPrimitive.Portal>
 })
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
