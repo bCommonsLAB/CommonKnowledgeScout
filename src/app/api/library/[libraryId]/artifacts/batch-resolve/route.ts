@@ -12,9 +12,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import { getServerProvider } from '@/lib/storage/server-provider';
+import { withRequestStorageCache } from '@/lib/storage/provider-request-cache';
 import { resolveArtifact, type ResolvedArtifact } from '@/lib/shadow-twin/artifact-resolver';
+import { ShadowTwinProviderIncompleteError } from '@/lib/shadow-twin/errors';
 import { LibraryService } from '@/lib/services/library-service';
-import type { StorageItem, StorageProvider } from '@/lib/storage/types';
+import type { StorageItem } from '@/lib/storage/types';
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config';
 import { getShadowTwinsBySourceIds, readTranscriptRecord } from '@/lib/repositories/shadow-twin-repo';
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select';
@@ -304,31 +306,26 @@ export async function POST(
       // Transformation) summiert sich das auf Dutzende Sekunden. Wir laden die Eltern-
       // Ordner einmalig vor und cachen jede weitere Auflistung (z.B. die Shadow-Twin-
       // Unterordner) bei Erstzugriff. Nur noetig, wenn der Fallback ueberhaupt laeuft.
-      const fsFolderCache = new Map<string, StorageItem[]>();
-      const fsCachedProvider = {
-        ...provider,
-        listItemsById: async (folderId: string): Promise<StorageItem[]> => {
-          const cached = fsFolderCache.get(folderId);
-          if (cached) return cached;
-          const items = await provider.listItemsById(folderId);
-          fsFolderCache.set(folderId, items);
-          return items;
-        },
-      } as StorageProvider;
+      //
+      // WICHTIG: Proxy statt `{ ...provider }`. Die Provider-Methoden liegen auf dem
+      // Prototype; der fruehere Spread verlor sie (u.a. getBinary), und die
+      // Varianten-Auswahl im Resolver wertete jede Variante still als leer
+      // (Befund 2026-09-10).
+      const fsCachedProvider = withRequestStorageCache(provider);
 
       if (fsFallbackEnabled) {
         const uniqueParentIds = Array.from(new Set(body.sources.map((s) => s.parentId)));
         await Promise.all(
           uniqueParentIds.map(async (parentId) => {
             try {
-              fsFolderCache.set(parentId, await provider.listItemsById(parentId));
+              await fsCachedProvider.listItemsById(parentId);
             } catch (err) {
-              // Preload optional: leeres Array, damit Fallback nicht crasht.
+              // Preload optional: Fehler werden nicht gecacht; die Aufloesung je
+              // Quelle versucht das Listing erneut und meldet selbst.
               FileLogger.warn('artifacts/batch-resolve', 'Preload (Mongo-Pfad) fehlgeschlagen', {
                 parentId,
                 error: err instanceof Error ? err.message : String(err),
               });
-              fsFolderCache.set(parentId, []);
             }
           }),
         );
@@ -350,13 +347,16 @@ export async function POST(
             preferredKind: kind,
           });
           if (!resolved) return null;
-          // Artefakt-Item bevorzugt aus dem Ordner-Cache, sonst gezielt laden.
-          const cachedItem = (fsFolderCache.get(resolved.shadowTwinFolderId || source.parentId) || [])
-            .find((it) => it.id === resolved.fileId);
-          const item = cachedItem || await provider.getItemById(resolved.fileId);
+          // Artefakt-Item bevorzugt aus dem (gecachten) Ordner-Listing, sonst gezielt laden.
+          const folderItems = await fsCachedProvider.listItemsById(resolved.shadowTwinFolderId || source.parentId);
+          const cachedItem = folderItems.find((it) => it.id === resolved.fileId);
+          const item = cachedItem || await fsCachedProvider.getItemById(resolved.fileId);
           if (!item) return null;
           return { ...resolved, item };
         } catch (err) {
+          // Programmierfehler (unvollstaendiger Provider) ist kein optionaler
+          // Fallback-Fehler: laut nach oben, die Route antwortet mit 500.
+          if (err instanceof ShadowTwinProviderIncompleteError) throw err;
           // Storage-Fallback ist optional; ein Fehler darf die Liste nicht kippen.
           FileLogger.debug('artifacts/batch-resolve', 'Storage-Fallback (Mongo-Pfad) fehlgeschlagen', {
             sourceId: source.sourceId,

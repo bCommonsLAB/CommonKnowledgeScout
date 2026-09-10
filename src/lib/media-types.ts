@@ -64,7 +64,7 @@ export function getMediaKind(file: StorageItem): MediaKind {
   if (mime.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return "audio"
   
   // Video-Dateien
-  if (mime.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return "video"
+  if (mime.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv|mpeg|mpg)$/.test(name)) return "video"
   
   // Bild-Dateien
   if (mime.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(name)) return "image"

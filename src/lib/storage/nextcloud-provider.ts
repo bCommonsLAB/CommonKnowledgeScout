@@ -81,6 +81,8 @@ function guessMimeType(filename: string): string {
     wav: 'audio/wav',
     mp4: 'video/mp4',
     webm: 'video/webm',
+    mpeg: 'video/mpeg',
+    mpg: 'video/mpeg',
     zip: 'application/zip',
     doc: 'application/msword',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
