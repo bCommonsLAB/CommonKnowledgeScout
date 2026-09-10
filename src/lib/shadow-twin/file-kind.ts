@@ -14,7 +14,7 @@
  * - `markdown`: Markdown-/Text-Dateien (`.md`, `.mdx`, `.txt`).
  * - `image`: Bilder (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.bmp`, `.ico`).
  * - `audio`: Audio-Dateien (`.mp3`, `.m4a`, `.wav`, `.ogg`, `.opus`, `.flac`).
- * - `video`: Video-Dateien (`.mp4`, `.mov`, `.avi`, `.webm`, `.mkv`).
+ * - `video`: Video-Dateien (`.mp4`, `.mov`, `.avi`, `.webm`, `.mkv`, `.mpeg`, `.mpg`).
  * - `binary`: Alles andere (Default-Fallback).
  */
 export type FileKind = 'markdown' | 'image' | 'audio' | 'video' | 'binary';
@@ -37,7 +37,7 @@ export function getFileKind(fileName: string, mimeType?: string): FileKind {
   if (mime.includes('markdown') || /\.(md|mdx|txt)$/.test(name)) return 'markdown';
   if (mime.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(name)) return 'image';
   if (mime.startsWith('audio/') || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return 'audio';
-  if (mime.startsWith('video/') || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return 'video';
+  if (mime.startsWith('video/') || /\.(mp4|mov|avi|webm|mkv|mpeg|mpg)$/.test(name)) return 'video';
   return 'binary';
 }
 
@@ -79,6 +79,8 @@ export function getMimeTypeFromFileName(fileName: string): string | undefined {
     avi: 'video/x-msvideo',
     webm: 'video/webm',
     mkv: 'video/x-matroska',
+    mpeg: 'video/mpeg',
+    mpg: 'video/mpeg',
     // Markdown / Text
     md: 'text/markdown',
     mdx: 'text/markdown',

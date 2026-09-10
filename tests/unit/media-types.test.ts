@@ -25,6 +25,13 @@ describe('media-types', () => {
       expect(getMediaKind(makeItem('file', 'image/jpeg'))).toBe('image')
       expect(getMediaKind(makeItem('file', 'image/png'))).toBe('image')
     })
+
+    it('erkennt MPEG-Video an Endung und MIME-Type', () => {
+      expect(getMediaKind(makeItem('feedback.mpeg'))).toBe('video')
+      expect(getMediaKind(makeItem('feedback.mpg'))).toBe('video')
+      expect(getMediaKind(makeItem('feedback.mpeg', 'application/octet-stream'))).toBe('video')
+      expect(getMediaKind(makeItem('file', 'video/mpeg'))).toBe('video')
+    })
   })
 
   describe('isPipelineSupported', () => {
