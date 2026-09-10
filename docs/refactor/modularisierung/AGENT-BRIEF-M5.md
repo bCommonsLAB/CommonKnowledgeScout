@@ -128,8 +128,9 @@ Messung und eigenem Beweis-Test — Plan und Zahlen in
 | 2 Basis-URL | **M5-basis-url** — alle Requests ueber `InstanceApi`, Sortierung in `03-audit-embed-fetches.md` | erledigt |
 | Embed-Adressierung (Hand-off §7) | **M5-adressierung** — `SpeicherGalleryNavigation` und `EmbedGalleryProviders` (#267, auf `master` als #268) | erledigt |
 | Buch-Renderer (Hand-off §7) | **M5-buch-renderer** — Buch-Ansicht per `git mv` ins Paket, App-Huellen unter den alten Pfaden, `BuchDetailRenderer` und `EMBED_DETAIL_RENDERERS` (#269) | erledigt |
-| 4 CORS (Instanz) | **M5-cors** — Preflight und `Access-Control-Allow-Origin: *` fuer die Lese-Routen des Embeds, ohne Anmeldedaten | gebaut |
-| 4, 5 | Huelle `packages/embed` (tsup, CSS unter `.ks-embed`, Datei-Paket per `pnpm pack`, Owner 2026-09-10), Nachweis in fremder Next-App | offen |
+| 4 CORS (Instanz) | **M5-cors** — Preflight und `Access-Control-Allow-Origin: *` fuer die Lese-Routen des Embeds, ohne Anmeldedaten (#271) | gebaut |
+| 4 Huelle | **M5-huelle** — `packages/embed`: `KnowledgeScoutExplorer`, tsup-Buendel, CSS unter `.ks-embed`, Datei-Paket per `pnpm pack` (Owner 2026-09-10) | gebaut |
+| 5 Nachweis | Einbau in eine fremde Next-App; Frage `apps/embed-demo` ja/nein offen | offen |
 
 Eine Abweichung von der Reihenfolge in `02-audit-umzug.md` §4, bewusst: Es
 zieht **nur die Galerie** um, nicht Chat-UI, Story und Website. Das deckt sich
