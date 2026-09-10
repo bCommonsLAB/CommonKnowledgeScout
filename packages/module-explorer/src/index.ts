@@ -26,3 +26,9 @@ export type { ExplorerApiExclusion, ExplorerRouteVerdict } from './api/namespace
 // ansichten und der Doc-Meta-Formatter des Servers lesen sie hier.
 export { getLocalized, getLocalizedLabel, getLocalizedTopics, localizeDocMetaJson } from './doc-meta/get-localized'
 export type { TranslationScope, LocalizableDoc } from './doc-meta/get-localized'
+
+// Die Buch-Detailansicht in Daten (M5): Vertrag und Mapper aus der
+// doc-meta-Antwort, ohne React. Die App re-exportiert den Mapper in
+// `src/lib/mappers/doc-meta-mappers.ts`; der Server uebersetzt damit.
+export { mapToBookDetail } from './doc-meta/book-detail-mapper'
+export type { BookDetailData, Chapter } from './doc-meta/book-detail-mapper'
