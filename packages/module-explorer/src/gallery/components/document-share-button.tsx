@@ -133,6 +133,11 @@ export function DocumentShareButton({
   // Prüfe, ob native Share API verfügbar ist
   const hasNativeShare = typeof navigator !== 'undefined' && !!navigator.share
 
+  // Ohne teilbare Adresse kein Teilen-Knopf — so verspricht es der Vertrag von
+  // `documentShareUrl`. Im Embed gibt es keine Adresse, die das Dokument
+  // wieder oeffnet (M5); bis dahin haette der Knopf einen leeren Link geteilt.
+  if (!getDocumentUrl()) return null
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

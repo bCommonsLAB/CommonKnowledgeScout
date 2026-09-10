@@ -118,6 +118,14 @@ Neu dazugekommen:
   `x-locale` loest einen Preflight aus, wirkt aber nicht; das Locale-Cookie
   geht von fremder Herkunft nicht mit; `explorerGate` zaehlt den Host der
   Instanz. Details im Audit 03.
+- 2026-09-10: **M5-adressierung** gebaut (gestapelt auf M5-basis-url):
+  `SpeicherGalleryNavigation` fuehrt `doc`, `mode`, `view` usw. im
+  React-Zustand statt in der URL — ohne Verlauf, ohne teilbare Adresse.
+  `EmbedGalleryProviders` buendelt Betrachter (`ANONYMOUS_VIEWER`), Gastgeber
+  (`STILLER_GASTGEBER` mit Instanz) und Adressierung, als Gegenstueck zu
+  `GalleryAppProviders`. Waechter: das Paket fasst `window.location` und
+  `history` nicht an. Nebenbei: Der Teilen-Knopf blendete sich bei leerer
+  Adresse nicht aus, obwohl der Vertrag von `documentShareUrl` das versprach.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
