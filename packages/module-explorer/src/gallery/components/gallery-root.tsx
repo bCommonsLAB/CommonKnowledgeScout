@@ -36,6 +36,7 @@ import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
 import { useOwnFavoriteIds, useUserStates } from '../hooks/use-user-states'
 import { useGalleryViewer } from '../contexts/gallery-viewer-context'
+import { useInstanz } from '../contexts/gallery-host-context'
 import { applyFavoriteToggleOptimistic, findDocInGroupedDocs } from '../lib/apply-favorite-optimistic'
 import { getDetailViewType } from '@ks/contracts'
 import { normalizeGalleryCardDensity } from '../lib/gallery-card-density'
@@ -115,6 +116,7 @@ export function GalleryRoot({
   verifikationsAbzeichen,
 }: GalleryRootProps) {
   const { t } = useTranslation()
+  const instanz = useInstanz()
   const libraryIdFromAtom = useActiveLibraryId()
   const libraryId = libraryIdProp || libraryIdFromAtom
   const libraries = useLibraries()
@@ -442,7 +444,7 @@ export function GalleryRoot({
     if (!libraryId || !activeLibrary || !isOwner) return
     const existingGallery = (activeLibrary.config?.chat?.gallery ?? {}) as Record<string, unknown>
     const galleryPayload = { ...existingGallery, graph: nextGraph }
-    const res = await fetch(`/api/libraries/${encodeURIComponent(libraryId)}`, {
+    const res = await instanz.fetch(`/api/libraries/${encodeURIComponent(libraryId)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(sessionHeaders as Record<string, string>) },
       body: JSON.stringify({ id: libraryId, config: { chat: { gallery: galleryPayload } } }),
@@ -456,7 +458,7 @@ export function GalleryRoot({
       ? ({ ...l, config: { ...l.config, chat: { ...l.config?.chat, gallery: galleryPayload } } } as typeof l)
       : l))
     toast({ title: t('gallery.graph.saved') })
-  }, [libraryId, activeLibrary, isOwner, sessionHeaders, setLibraries, libraries, t])
+  }, [libraryId, activeLibrary, isOwner, sessionHeaders, setLibraries, libraries, t, instanz])
 
   // Dynamischer Platzhalter für das Suchfeld basierend auf den tatsächlich durchsuchten Feldern
   // Die Suche durchsucht: title, shortTitle + alle String/String[]-Facetten
@@ -496,7 +498,7 @@ export function GalleryRoot({
 
     async function loadSources() {
       try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId as string)}`, {
+        const res = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId as string)}`, {
           cache: 'no-store',
           headers: Object.keys(sessionHeaders).length > 0 ? (sessionHeaders as Record<string, string>) : undefined,
         })
@@ -523,7 +525,7 @@ export function GalleryRoot({
     return () => {
       cancelled = true
     }
-  }, [chatReferences?.queryId, libraryId, sessionHeaders])
+  }, [chatReferences?.queryId, libraryId, sessionHeaders, instanz])
 
   // State für zusätzlich geladene Dokumente aus references
   const [additionalDocs, setAdditionalDocs] = React.useState<DocCardMeta[]>([])
@@ -556,7 +558,7 @@ export function GalleryRoot({
         const params = new URLSearchParams()
         missingFileIds.forEach(fileId => params.append('fileId', fileId))
         
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs/by-fileids?${params.toString()}`, {
+        const res = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs/by-fileids?${params.toString()}`, {
           cache: 'no-store',
           headers: Object.keys(sessionHeaders).length > 0 ? (sessionHeaders as Record<string, string>) : undefined,
         })
@@ -580,7 +582,7 @@ export function GalleryRoot({
     return () => {
       cancelled = true
     }
-  }, [chatReferences?.references, libraryId, docs, loading, sessionHeaders])
+  }, [chatReferences?.references, libraryId, docs, loading, sessionHeaders, instanz])
 
   // Kombiniere docs mit additionalDocs für die Gruppierung
   const allDocs = React.useMemo(() => {

@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { useInstanz } from '../contexts/gallery-host-context'
 
 export interface GallerySumField {
   sum: number
@@ -41,6 +42,7 @@ export function useGallerySums(
 ): GallerySumsState {
   const enabled = options?.enabled ?? false
   const refreshKey = options?.refreshKey ?? 0
+  const instanz = useInstanz()
 
   const [state, setState] = useState<GallerySumsState>({
     sums: null,
@@ -72,7 +74,7 @@ export function useGallerySums(
         if (searchQuery.trim()) params.append('search', searchQuery.trim())
         params.append('aggregate', 'sums')
 
-        const res = await fetch(
+        const res = await instanz.fetch(
           `/api/chat/${encodeURIComponent(currentLibraryId)}/docs?${params.toString()}`,
           { cache: 'no-store', signal: controller.signal },
         )
@@ -110,7 +112,7 @@ export function useGallerySums(
       cancelled = true
       controller.abort()
     }
-  }, [enabled, libraryId, filtersString, searchQuery, refreshKey])
+  }, [enabled, libraryId, filtersString, searchQuery, refreshKey, instanz])
 
   return state
 }

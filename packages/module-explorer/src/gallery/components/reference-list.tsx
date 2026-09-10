@@ -18,6 +18,7 @@ import { FileText, ExternalLink } from 'lucide-react'
 import { ViewTypeBadge } from './view-type-badge'
 import { useSessionHeaders } from '@ks/api-client'
 import { useGalleryViewer } from '../contexts/gallery-viewer-context'
+import { useInstanz } from '../contexts/gallery-host-context'
 import { useTranslation } from '@ks/i18n/react'
 import {
   getSourceTypeLabel,
@@ -49,6 +50,7 @@ export function ReferenceList({ references, libraryId, queryId, onDocumentClick,
   const activeLibraryId = useActiveLibraryId()
   const { isSignedIn: viewerIsSignedIn } = useGalleryViewer()
   const sessionHeaders = useSessionHeaders(viewerIsSignedIn)
+  const instanz = useInstanz()
   const [sources, setSources] = useState<QuerySource[]>([])
   const [isLoadingSources, setIsLoadingSources] = useState(false)
 
@@ -69,7 +71,7 @@ export function ReferenceList({ references, libraryId, queryId, onDocumentClick,
           return
         }
         
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
+        const res = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
           cache: 'no-store',
           headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
         })
@@ -103,7 +105,7 @@ export function ReferenceList({ references, libraryId, queryId, onDocumentClick,
     return () => {
       cancelled = true
     }
-  }, [queryId, libraryId, sessionHeaders])
+  }, [queryId, libraryId, sessionHeaders, instanz])
 
   // extractSourceType, groupReferencesByFileId, getSourceTypeLabel sind in ./reference-list/helpers.ts
   // (Welle 3-III-b: Pure-Helper-Extraktion)

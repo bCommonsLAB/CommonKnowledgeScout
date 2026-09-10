@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useLibraryRole } from './use-library-role'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type {
   SourceComment,
   SourceCommentThreadResponse,
@@ -35,6 +36,7 @@ export function useSourceComments(
   options: { enabled?: boolean } = {},
 ): UseSourceCommentsResult {
   const { isSignedIn, isLoading: isRoleLoading } = useLibraryRole(libraryId)
+  const instanz = useInstanz()
   const enabled = options.enabled !== false
   const [comments, setComments] = useState<SourceComment[]>([])
   const [filteredToOwn, setFilteredToOwn] = useState(false)
@@ -51,7 +53,7 @@ export function useSourceComments(
     setError(null)
     try {
       const url = `/api/library/${encodeURIComponent(libraryId)}/source-comments?fileId=${encodeURIComponent(fileId)}`
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await instanz.fetch(url, { cache: 'no-store' })
       if (!res.ok) {
         throw new Error(`Kommentare konnten nicht geladen werden (HTTP ${res.status})`)
       }
@@ -65,7 +67,7 @@ export function useSourceComments(
     } finally {
       setIsLoading(false)
     }
-  }, [libraryId, fileId, isSignedIn])
+  }, [libraryId, fileId, isSignedIn, instanz])
 
   useEffect(() => {
     if (isRoleLoading) return
@@ -81,7 +83,7 @@ export function useSourceComments(
 
       setError(null)
       try {
-        const res = await fetch(
+        const res = await instanz.fetch(
           `/api/library/${encodeURIComponent(libraryId)}/source-comments`,
           {
             method: 'POST',
@@ -101,7 +103,7 @@ export function useSourceComments(
         throw err
       }
     },
-    [libraryId, fileId, isSignedIn],
+    [libraryId, fileId, isSignedIn, instanz],
   )
 
   const editComment = useCallback(
@@ -112,7 +114,7 @@ export function useSourceComments(
 
       setError(null)
       try {
-        const res = await fetch(
+        const res = await instanz.fetch(
           `/api/library/${encodeURIComponent(libraryId)}/source-comments/${encodeURIComponent(commentId)}`,
           {
             method: 'PATCH',
@@ -134,7 +136,7 @@ export function useSourceComments(
         throw err
       }
     },
-    [libraryId],
+    [libraryId, instanz],
   )
 
   const removeComment = useCallback(
@@ -143,7 +145,7 @@ export function useSourceComments(
 
       setError(null)
       try {
-        const res = await fetch(
+        const res = await instanz.fetch(
           `/api/library/${encodeURIComponent(libraryId)}/source-comments/${encodeURIComponent(commentId)}`,
           { method: 'DELETE' },
         )
@@ -161,7 +163,7 @@ export function useSourceComments(
         throw err
       }
     },
-    [libraryId],
+    [libraryId, instanz],
   )
 
   return {

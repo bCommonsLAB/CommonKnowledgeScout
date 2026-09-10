@@ -19,6 +19,7 @@ import { SwitchToStoryModeButton } from './switch-to-story-mode-button'
 import { DocumentShareButton } from './document-share-button'
 import type { DocCardMeta } from '../lib/types'
 import { localizeDocMetaJson } from '../../doc-meta/get-localized'
+import { useInstanz } from '../contexts/gallery-host-context'
 
 /** Was ein Renderer braucht, um eine Detailansicht zu bauen. */
 export interface DetailRenderProps {
@@ -116,6 +117,7 @@ export function DetailOverlay({
 }: DetailOverlayProps) {
   const { t, locale } = useTranslation()
   const { isMember, isSignedIn } = useLibraryRole(libraryId)
+  const instanz = useInstanz()
   // SDG-Profil ist ein library-uebergreifendes Anzeige-Flag (kein Secret).
   // Wohnt unter der Story-/Galerie-Config (config.chat.gallery.showSdgProfile),
   // nicht in der Library-Storage-Config.
@@ -237,7 +239,7 @@ export function DetailOverlay({
       try {
         const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`
         // x-locale Header sorgt server-seitig fuer locale-spezifische Projection
-        const res = await fetch(url, { cache: 'no-store', headers: { 'x-locale': locale } })
+        const res = await instanz.fetch(url, { cache: 'no-store', headers: { 'x-locale': locale } })
         const json = await res.json()
         if (!res.ok || !json?.docMetaJson) return
 
@@ -260,7 +262,7 @@ export function DetailOverlay({
     }
 
     void loadDocMeta()
-  }, [open, libraryId, fileId, viewType, locale, fallbackLocale])
+  }, [open, libraryId, fileId, viewType, locale, fallbackLocale, instanz])
 
   // Kommentar-Sektion (eine Instanz). Position haengt vom Modus ab:
   // im Bewertungsmodus oben (schnell kommentieren vor "Wichtig & weiter"),

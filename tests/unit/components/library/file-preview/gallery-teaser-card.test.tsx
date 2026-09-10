@@ -47,6 +47,7 @@ vi.mock('@ks/i18n/react', () => ({
 
 vi.mock('@ks/module-explorer/gallery/lib/resolve-cover-url-client', () => ({
   coverRefNeedsApiResolution: () => false,
+  coverUrlAufInstanz: (url: string) => url,
   resolveCoverUrlViaApi: vi.fn().mockResolvedValue(null),
 }))
 

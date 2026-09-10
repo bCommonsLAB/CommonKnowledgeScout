@@ -15,6 +15,7 @@ import React, { useState } from 'react'
 import { Globe2, RefreshCw, Send } from 'lucide-react'
 import { Button, useToast } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { DocCardMeta } from '../lib/types'
 
 export interface PublishDocumentButtonProps {
@@ -36,6 +37,7 @@ export interface PublishDocumentButtonProps {
 export function PublishDocumentButton({ doc, libraryId, onChanged }: PublishDocumentButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const instanz = useInstanz()
   const [isLoading, setIsLoading] = useState(false)
 
   const fileId = doc.fileId || doc.id
@@ -45,7 +47,7 @@ export function PublishDocumentButton({ doc, libraryId, onChanged }: PublishDocu
   async function call(status: 'published' | 'draft', force = false) {
     setIsLoading(true)
     try {
-      const res = await fetch(
+      const res = await instanz.fetch(
         `/api/chat/${encodeURIComponent(libraryId)}/docs/publish`,
         {
           method: 'POST',

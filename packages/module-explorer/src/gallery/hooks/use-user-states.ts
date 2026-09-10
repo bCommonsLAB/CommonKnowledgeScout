@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { InstanceApi } from '@ks/api-client'
 import { useLibraryRole } from './use-library-role'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type {
   OwnUserStatesResponse,
   SetUserStateResponse,
@@ -60,7 +62,7 @@ function notifySubscribers(cache: LibraryCache): void {
   for (const sub of cache.subscribers) sub()
 }
 
-async function flushPending(libraryId: string): Promise<void> {
+async function flushPending(libraryId: string, instanz: InstanceApi): Promise<void> {
   const cache = getLibraryCache(libraryId)
   cache.flushTimer = null
   if (cache.pending.size === 0) return
@@ -74,7 +76,7 @@ async function flushPending(libraryId: string): Promise<void> {
   // base64-kodierten fileIds sonst das URL-Limit (HTTP 431).
   const url = `/api/library/${encodeURIComponent(libraryId)}/source-user-states/bulk`
   try {
-    const res = await fetch(url, {
+    const res = await instanz.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileIds: ids }),
@@ -99,17 +101,17 @@ async function flushPending(libraryId: string): Promise<void> {
   }
 }
 
-function scheduleFlush(libraryId: string): void {
+function scheduleFlush(libraryId: string, instanz: InstanceApi): void {
   const cache = getLibraryCache(libraryId)
   if (cache.flushTimer !== null) return
   cache.flushTimer = setTimeout(() => {
-    cache.inFlight = flushPending(libraryId).finally(() => {
+    cache.inFlight = flushPending(libraryId, instanz).finally(() => {
       cache.inFlight = null
     })
   }, 200)
 }
 
-function enqueueFileIds(libraryId: string, fileIds: readonly string[]): boolean {
+function enqueueFileIds(libraryId: string, fileIds: readonly string[], instanz: InstanceApi): boolean {
   const cache = getLibraryCache(libraryId)
   let queued = false
   for (const id of fileIds) {
@@ -119,7 +121,7 @@ function enqueueFileIds(libraryId: string, fileIds: readonly string[]): boolean 
     cache.pending.add(id)
     queued = true
   }
-  if (queued) scheduleFlush(libraryId)
+  if (queued) scheduleFlush(libraryId, instanz)
   return queued
 }
 
@@ -165,6 +167,7 @@ export function useUserStates(
   visibleFileIds: readonly string[] = [],
 ): UseUserStatesResult {
   const { isMember, isLoading: isRoleLoading } = useLibraryRole(libraryId)
+  const instanz = useInstanz()
 
   // Tick-State, damit React re-rendert, sobald sich der Modul-Cache
   // aendert. Wir lesen die echten Werte direkt aus dem Cache, vermeiden
@@ -191,8 +194,8 @@ export function useUserStates(
   useEffect(() => {
     if (isRoleLoading) return
     if (!libraryId || !isMember || visibleFileIds.length === 0) return
-    enqueueFileIds(libraryId, visibleFileIds)
-  }, [libraryId, isMember, isRoleLoading, visibleFileIds])
+    enqueueFileIds(libraryId, visibleFileIds, instanz)
+  }, [libraryId, isMember, isRoleLoading, visibleFileIds, instanz])
 
   const isNotImportant = useCallback(
     (fileId: string): boolean => {
@@ -215,7 +218,7 @@ export function useUserStates(
       notifySubscribers(cache)
 
       try {
-        const res = await fetch(
+        const res = await instanz.fetch(
           `/api/library/${encodeURIComponent(libraryId)}/source-user-states`,
           {
             method: 'POST',
@@ -240,7 +243,7 @@ export function useUserStates(
         setError(message)
       }
     },
-    [libraryId, isMember],
+    [libraryId, isMember, instanz],
   )
 
   return useMemo(
@@ -271,6 +274,7 @@ export function useOwnFavoriteIds(
   options: { enabled: boolean } = { enabled: true },
 ): UseOwnFavoriteIdsResult {
   const { isMember, isLoading: isRoleLoading } = useLibraryRole(libraryId)
+  const instanz = useInstanz()
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set())
   const [notImportantIds, setNotImportantIds] = useState<Set<string>>(() => new Set())
   const [isReady, setIsReady] = useState(false)
@@ -301,7 +305,7 @@ export function useOwnFavoriteIds(
 
     const promise = (async () => {
       try {
-        const res = await fetch(
+        const res = await instanz.fetch(
           `/api/library/${encodeURIComponent(libraryId)}/source-user-states`,
           { cache: 'no-store' },
         )
@@ -332,7 +336,7 @@ export function useOwnFavoriteIds(
       }
     })()
     allFavoritesInFlight.set(libraryId, promise)
-  }, [libraryId, isMember, isRoleLoading, options.enabled])
+  }, [libraryId, isMember, isRoleLoading, options.enabled, instanz])
 
   return useMemo(
     () => ({ favoriteIds, notImportantIds, isReady }),

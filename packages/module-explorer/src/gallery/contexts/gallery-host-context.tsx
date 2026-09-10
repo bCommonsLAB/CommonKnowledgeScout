@@ -23,10 +23,17 @@
  * Beides ohne Rueckgabewert bzw. ohne Rueckfrage: Die Galerie darf nicht
  * davon abhaengen, WIE der Gastgeber reagiert.
  *
+ * Welle M5 fuegt die dritte hinzu: **gegen welche Instanz die Galerie
+ * spricht.** Jeder Request des Pakets geht ueber `instanz` (`useInstanz()`):
+ *
+ * - **Voll-App**: `SAME_ORIGIN_API` — relative Pfade, wie bisher.
+ * - **Embed**: die zentrale Instanz, `createInstanceApi({ baseUrl })`.
+ *
  * @module contexts
  */
 
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
+import { SAME_ORIGIN_API, type InstanceApi } from '@ks/api-client'
 
 /**
  * Was die Galerie ueber ein Bild sagt. Zugeschnitten auf die fuenf
@@ -59,6 +66,12 @@ export interface GalleryHost {
   jobGestartet(): void
   /** Womit der Gastgeber Bilder rendert. */
   Bild: ComponentType<GalleryImageProps>
+  /**
+   * Gegen welche Instanz die Galerie spricht. `instanz-fetch.test.ts`
+   * verbietet im Paket jedes andere `fetch`. Die Identitaet muss stabil sein:
+   * Hooks fuehren `instanz` in ihren Abhaengigkeiten.
+   */
+  instanz: InstanceApi
 }
 
 /** Ein Bild ohne Optimierung — was jede Seite kann. */
@@ -81,10 +94,15 @@ export function SchlichtesBild({ src, alt, className, fill, width, height, loadi
   )
 }
 
-/** Gastgeber, der nichts anzuzeigen hat und Bilder schlicht rendert — der Normalfall im Embed. */
+/**
+ * Gastgeber, der nichts anzuzeigen hat und Bilder schlicht rendert. Er spricht
+ * mit der eigenen Herkunft; das Embed setzt die zentrale Instanz dazu:
+ * `{ ...STILLER_GASTGEBER, instanz: createInstanceApi({ baseUrl }) }`.
+ */
 export const STILLER_GASTGEBER: GalleryHost = {
   jobGestartet: () => {},
   Bild: SchlichtesBild,
+  instanz: SAME_ORIGIN_API,
 }
 
 // Ohne Default: Ein fehlender Anbieter ist ein Verdrahtungsfehler und soll
@@ -113,4 +131,9 @@ export function useGalleryHost(): GalleryHost {
     )
   }
   return host
+}
+
+/** Die Instanz der Galerie — Kurzform fuer `useGalleryHost().instanz`. */
+export function useInstanz(): InstanceApi {
+  return useGalleryHost().instanz
 }

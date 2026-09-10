@@ -28,6 +28,7 @@ import {
 } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { md } from '@ks/viewers'
+import { useInstanz } from '../contexts/gallery-host-context'
 
 interface LatestReport {
   markdown: string
@@ -75,6 +76,7 @@ export interface OverlapReportDialogProps {
 export function OverlapReportDialog({ libraryId, canManage, variant = 'overlap' }: OverlapReportDialogProps) {
   const { t } = useTranslation()
   const cfg = VARIANTS[variant]
+  const instanz = useInstanz()
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [starting, setStarting] = React.useState(false)
@@ -85,7 +87,7 @@ export function OverlapReportDialog({ libraryId, canManage, variant = 'overlap' 
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/${cfg.apiBase}/latest`, {
+      const res = await instanz.fetch(`/api/library/${encodeURIComponent(libraryId)}/${cfg.apiBase}/latest`, {
         cache: 'no-store',
       })
       if (res.status === 404) {
@@ -101,7 +103,7 @@ export function OverlapReportDialog({ libraryId, canManage, variant = 'overlap' 
     } finally {
       setLoading(false)
     }
-  }, [libraryId, cfg.apiBase])
+  }, [libraryId, cfg.apiBase, instanz])
 
   React.useEffect(() => {
     if (open) void loadLatest()
@@ -110,7 +112,7 @@ export function OverlapReportDialog({ libraryId, canManage, variant = 'overlap' 
   const handleRecompute = React.useCallback(async () => {
     setStarting(true)
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/${cfg.apiBase}/recompute`, {
+      const res = await instanz.fetch(`/api/library/${encodeURIComponent(libraryId)}/${cfg.apiBase}/recompute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -129,7 +131,7 @@ export function OverlapReportDialog({ libraryId, canManage, variant = 'overlap' 
     } finally {
       setStarting(false)
     }
-  }, [libraryId, t, cfg.apiBase, cfg.syncRecompute, loadLatest])
+  }, [libraryId, t, cfg.apiBase, cfg.syncRecompute, loadLatest, instanz])
 
   const handleDownload = React.useCallback(() => {
     if (!report) return

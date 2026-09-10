@@ -15,6 +15,7 @@ import { useUser, SignInButton } from "@clerk/nextjs"
 import { Button } from '@ks/ui'
 import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
+import { SAME_ORIGIN_API } from '@ks/api-client'
 import { ExplorerRoot } from '@ks/module-explorer/react'
 import { LibraryVerificationWarning } from '@/components/library/library-verification-warning'
 
@@ -36,6 +37,7 @@ export default function ExplorePage() {
     <ExplorerRoot
       slug={slug}
       viewer={{ isLoaded, isSignedIn: isSignedIn === true }}
+      instanz={SAME_ORIGIN_API}
       renderSignInPrompt={({ slug: targetSlug }) => (
         <SignInButton mode="modal" fallbackRedirectUrl={`/explore/${targetSlug}`}>
           <Button>

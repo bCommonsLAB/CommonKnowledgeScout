@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { DocCardMeta } from '../lib/types'
 import type { GraphData, GraphLink } from '../components/graph/graph-types'
 import { limitLinks, toDocNode } from './use-shared-meta-edges'
@@ -86,6 +87,7 @@ export interface RelationsEdgesResult {
 
 export function useRelationsEdges(params: UseRelationsEdgesParams): RelationsEdgesResult {
   const { docs, libraryId, enabled, minWeight, maxEdgesPerNode, maxEdgesTotal } = params
+  const instanz = useInstanz()
 
   const [rawEdges, setRawEdges] = useState<RelationEdge[]>([])
   const [loading, setLoading] = useState(false)
@@ -117,7 +119,7 @@ export function useRelationsEdges(params: UseRelationsEdgesParams): RelationsEdg
         // POST statt GET: bei vielen Knoten (Hunderte) sprengt eine fileIds-Query
         // die Header-Grenze des Servers (HTTP 431). fileIds gehen daher in den Body.
         const requestUrl = `/api/library/${encodeURIComponent(currentLibraryId)}/doc-relations`
-        const res = await fetch(requestUrl, {
+        const res = await instanz.fetch(requestUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileIds: ids }),
@@ -146,7 +148,7 @@ export function useRelationsEdges(params: UseRelationsEdgesParams): RelationsEdg
       cancelled = true
       controller.abort()
     }
-  }, [enabled, libraryId, fileIdsKey])
+  }, [enabled, libraryId, fileIdsKey, instanz])
 
   const data = useMemo(
     () => buildRelationsEdges({ docs, edges: rawEdges, minWeight, maxEdgesPerNode, maxEdgesTotal }),

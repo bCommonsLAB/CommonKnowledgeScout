@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { DocCardMeta } from '../lib/types'
 
 /** Batch-Größe pro Request — muss unter dem Server-Cap (500) liegen. */
@@ -52,6 +53,7 @@ export function useAllGalleryDocs(
 ): AllGalleryDocsResult {
   const enabled = options?.enabled ?? false
   const refreshKey = options?.refreshKey ?? 0
+  const instanz = useInstanz()
   const [state, setState] = useState<AllGalleryDocsResult>(INITIAL_STATE)
 
   // Stabiler Dependency-Schlüssel statt Objekt-Identität (wie use-gallery-data).
@@ -82,7 +84,7 @@ export function useAllGalleryDocs(
           params.append('skip', String(skip))
 
           const url = `/api/chat/${encodeURIComponent(libraryId as string)}/docs?${params.toString()}`
-          const res = await fetch(url, { cache: 'no-store' })
+          const res = await instanz.fetch(url, { cache: 'no-store' })
           const ct = res.headers.get('content-type') || ''
           if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
           const data = await res.json()
@@ -127,7 +129,7 @@ export function useAllGalleryDocs(
 
     loadAll()
     return () => { cancelled = true }
-  }, [enabled, libraryId, filtersString, searchQuery, refreshKey])
+  }, [enabled, libraryId, filtersString, searchQuery, refreshKey, instanz])
 
   return state
 }

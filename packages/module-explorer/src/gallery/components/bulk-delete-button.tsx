@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
   useToast,
 } from '@ks/ui'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { DocCardMeta } from '../lib/types'
 
 export interface BulkDeleteButtonProps {
@@ -63,6 +64,7 @@ export function BulkDeleteButton({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const { toast } = useToast()
+  const instanz = useInstanz()
 
   // Anzeige-Anzahl: explicit > totalCount > geladene Docs.
   const documentCount = explicitFileIds
@@ -108,7 +110,7 @@ export function BulkDeleteButton({
         }
 
         const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${params.toString() ? `?${params.toString()}` : ''}`
-        const idsResponse = await fetch(idsUrl)
+        const idsResponse = await instanz.fetch(idsUrl)
 
         if (!idsResponse.ok) {
           throw new Error('Fehler beim Laden der Dokument-IDs')
@@ -123,7 +125,7 @@ export function BulkDeleteButton({
       }
 
       // Lösche alle gefilterten Dokumente
-      const response = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs/delete`, {
+      const response = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs/delete`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

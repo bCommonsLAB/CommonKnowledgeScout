@@ -20,8 +20,11 @@ import { cn } from '@ks/util'
 import type { DocCardMeta } from '../../lib/types'
 import {
   coverRefNeedsApiResolution,
+  coverUrlAufInstanz,
   resolveCoverUrlViaApi,
 } from '../../lib/resolve-cover-url-client'
+import { useInstanz } from '../../contexts/gallery-host-context'
+import { useLibraryRole } from '../../hooks/use-library-role'
 import { displayBasenameFromCoverRef } from '../../lib/cover-ref-display-name'
 import { SourceStarsBadge } from '../source-stars-badge'
 import { SourceCommentsBadge } from '../source-comments-badge'
@@ -46,9 +49,11 @@ export function DivaTextureCard({
   onToggleFavorite,
   onClassificationChanged,
 }: DivaTextureCardProps) {
+  const instanz = useInstanz()
+  const { isMember } = useLibraryRole(libraryId)
   const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
   const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
-    rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
+    rawRef && !coverRefNeedsApiResolution(rawRef) ? coverUrlAufInstanz(rawRef, instanz) : undefined
   )
 
   // Nur-Dateiname / relativer Verweis: ueber API in streaming-url
@@ -60,7 +65,7 @@ export function DivaTextureCard({
       return
     }
     if (!coverRefNeedsApiResolution(ref)) {
-      setDisplayImageUrl(ref)
+      setDisplayImageUrl(coverUrlAufInstanz(ref, instanz))
       return
     }
     // Lokale Kopien: TS narrowed `doc.fileId` nicht in async-Closures
@@ -79,6 +84,7 @@ export function DivaTextureCard({
         coverRef: ref,
         // docMetaJson.sourceFileName: echte Quell-Textur (Shadow-Twin / resolve-binary-url)
         sourceFileName: doc.sourceFileName?.trim() || doc.fileName,
+        instanz,
       })
       if (!cancelled) {
         setDisplayImageUrl(resolved ?? undefined)
@@ -87,7 +93,7 @@ export function DivaTextureCard({
     return () => {
       cancelled = true
     }
-  }, [doc.coverImageUrl, doc.coverThumbnailUrl, doc.fileId, doc.fileName, doc.sourceFileName, libraryId])
+  }, [doc.coverImageUrl, doc.coverThumbnailUrl, doc.fileId, doc.fileName, doc.sourceFileName, libraryId, instanz])
 
   // Galerie: Primaerzeile = docMetaJson.sourceFileName (Quell-Textur),
   // sonst Cover-Basename, nicht zuerst .md-Dateiname.
@@ -201,7 +207,9 @@ export function DivaTextureCard({
 
       <DivaTextureClassificationBadges doc={doc} />
 
-      {libraryId && doc.detailViewType === 'divaTexture' ? (
+      {/* Die Klassifikations-Aktionen schreiben (PATCH; der Server verlangt Zugriff
+          auf die Library) — nur fuer Owner/Co-Creator, im anonymen Embed nie (M5). */}
+      {libraryId && isMember && doc.detailViewType === 'divaTexture' ? (
         <div className='absolute bottom-12 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100'>
           <DivaTextureClassificationActions
             doc={doc}
