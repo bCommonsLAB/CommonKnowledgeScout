@@ -238,8 +238,10 @@ export function DetailOverlay({
     const loadDocMeta = async () => {
       try {
         const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`
-        // x-locale Header sorgt server-seitig fuer locale-spezifische Projection
-        const res = await instanz.fetch(url, { cache: 'no-store', headers: { 'x-locale': locale } })
+        // Keine eigene `x-locale`-Kopfzeile: Die Middleware setzt sie aus Cookie
+        // bzw. `Accept-Language` selbst und ueberschreibt, was der Client schickt.
+        // Von einer fremden Seite (Embed) kostete sie nur einen Preflight (Audit 03).
+        const res = await instanz.fetch(url, { cache: 'no-store' })
         const json = await res.json()
         if (!res.ok || !json?.docMetaJson) return
 

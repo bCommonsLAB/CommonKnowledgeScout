@@ -171,6 +171,17 @@ Neu dazugekommen:
   Beleg: Job `8b1275b0-…` (lokal gegen Prod-DB). Passt zu den 25
   „Worker-Timeout" und den `stale_running_reaped` auf dem Server. Eigene
   Aufgabe angelegt.
+- 2026-09-10: Owner-Entscheidungen fuer die Huelle: Build mit tsup, CSS unter
+  einer Huelle `.ks-embed`, Auslieferung als Datei-Paket (`pnpm pack`),
+  CORS fuer jede Herkunft, aber nur oeffentliche Libraries.
+- 2026-09-10: **M5-cors** gebaut: `src/lib/embed/embed-cors.ts` nennt die
+  Lese-Routen des Embeds; die Middleware beantwortet deren Preflight vor der
+  Anmeldung (204) und setzt `Access-Control-Allow-Origin: *` — bewusst ohne
+  `Allow-Credentials`, das Embed ist damit anonym per Protokoll. Schreibende
+  Routen bekommen keinen CORS-Kopf (Test). Der wirkungslose `x-locale`-Kopf
+  der Detailansicht ist weg (die Middleware setzt ihn selbst), damit
+  `doc-meta` ohne Preflight geht. Am Dev-Server live geprueft. **Muss vor dem
+  15.09. auf der Instanz laufen**, sonst liest das Embed dort nichts.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
