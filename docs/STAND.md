@@ -145,6 +145,32 @@ Neu dazugekommen:
   brauchen im CSS des Embeds das Tailwind-Typography-Plugin. In der fremden
   Seite pruefen — der Inhalt kommt aus der eigenen Library, aber er landet
   jetzt im DOM eines Kunden.
+- 2026-09-10 (kein M5-Bezug, beim lokalen Audio-Test gefunden): `.mpeg`/`.mpg`
+  fehlten in allen acht Endungslisten — die Vorschau zeigte „Keine Vorschau
+  verfuegbar" und keinen Transkribier-Knopf. Nachgezogen auf Branch
+  `claude/test-audio-archive-14e078`; lokal mit zwei Sprachnachrichten in
+  „tapping into abundance" bewiesen (Secretary-Videoweg, amharisches
+  Transkript). Auf demselben Branch behoben: `provider.getBinary is not a
+  function` — batch-resolve reichte einen per `{ ...provider }` kopierten
+  Provider an den Resolver (Methoden auf dem Prototype fehlten, jede
+  Transkript-Variante galt still als leer); jetzt `withRequestStorageCache`,
+  eine fehlende Methode wirft `ShadowTwinProviderIncompleteError`. Offen
+  daneben: der Server-Secretary hatte im August noch 200 MB Audio-Grenze und
+  scheiterte an mehreren `.mp4` mit ffmpeg; der Job-Monitor zeigt „Worker
+  gestoppt", obwohl `/api/external/jobs/worker` `running` meldet.
+- 2026-09-10 (kein M5-Bezug): **Grosse Dateien starten mehrfach.** Die
+  Start-Route laedt die Quelle erst komplett aus dem Storage (377-MB-Video:
+  über 60 s); der Worker bricht nach `JOBS_WORKER_START_TIMEOUT_MS` (60 s) ab
+  und startet neu, die abgebrochenen Aufrufe laufen aber weiter. Folge:
+  dasselbe Video dreimal beim Secretary, jeder Start setzt einen neuen
+  `jobSecretHash`, 29 Rueckmeldungen scheitern mit 401 (hash mismatch), 145
+  werden als fremder Prozess ignoriert, zwischendurch steht der Job auf
+  „running" mit `worker_start_giveup`. Nach rund sechs Minuten wurde er doch
+  fertig und das Transkript gespeichert (zweimal geschrieben) — ob am Ende
+  eine Rueckmeldung angenommen wird, haengt am Wettlauf der drei Starts.
+  Beleg: Job `8b1275b0-…` (lokal gegen Prod-DB). Passt zu den 25
+  „Worker-Timeout" und den `stale_running_reaped` auf dem Server. Eigene
+  Aufgabe angelegt.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

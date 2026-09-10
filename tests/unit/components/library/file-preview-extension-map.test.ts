@@ -40,6 +40,8 @@ describe('getFileType', () => {
     ['doc.txt', 'markdown'],
     ['video.mp4', 'video'],
     ['video.MOV', 'video'],
+    ['feedback.mpeg', 'video'],
+    ['feedback.MPG', 'video'],
     ['audio.mp3', 'audio'],
     ['audio.opus', 'audio'],
     ['photo.jpg', 'image'],
