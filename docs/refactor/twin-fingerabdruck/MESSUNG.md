@@ -39,7 +39,49 @@ das ist optional, die Aussage „zweiter Lauf ≈ 0 Reads" trägt für sich.
 Ein Teilbaum, kein Voll-Scan: die Messung soll in Minuten fertig sein, und der
 Teilbaum ist genau der Fall, für den das Tor gebaut wurde.
 
-## Ablauf
+## Wo messen: Prod oder lokal?
+
+**Prod ist für die Kernzahl der bessere Ort** — dort liegt das echte Archiv mit
+echter OneDrive-Latenz, und genau danach fragt der Brief. Die MCP-Brücke gibt
+die Zähler direkt zurück, ohne Dev-Server und ohne Log-Auswertung:
+
+```
+abdeckung_scannen(libraryId: "ID_OnedriveTest",
+                  pfad: "6. bCommonsLab prototyping/24.09 KnowledgeScout")
+```
+
+→ in der Antwort `totalsLibraryWeit.engineCheck: { gelesen, wiederverwendet }`,
+die Dauer ist die Laufzeit des Aufrufs. Zweimal ausführen, nichts dazwischen
+ändern — fertig.
+
+| | Prod | Lokal |
+|---|---|---|
+| Zähler `gelesen`/`wiederverwendet` | ✅ direkt in der Antwort | ✅ |
+| Dauer unter echter Last | ✅ | ⚠️ eigene Leitung, eigene Maschine |
+| `getBinary`-Zeilen im Log | ❌ nur mit Container-Log-Zugriff | ✅ |
+| „nichts geändert dazwischen" kontrollierbar | ⚠️ live | ✅ |
+
+Die `getBinary`-Zeilen sind die **Gegenprobe**, nicht der Beweis — `gelesen`
+kommt aus der Engine selbst. Für die Entscheidung über Stufe 2 reicht Prod.
+Lokal lohnt nur, wenn die Zahlen sich widersprechen und man sehen will, wer
+sonst noch liest.
+
+**Zwei Dinge vorher prüfen:**
+
+1. **Läuft der neue Stand überhaupt in Prod?** Das Deployment ist ein
+   Fire-and-Forget-`curl` an Dokploy (`ci-main.yml`, Schritt „Trigger
+   deployment") — ein Release-Tag beweist nicht, dass der Container ihn fährt.
+   Entscheidender Test: `twins_pruefen` auf einen kleinen Teilbaum. Enthält die
+   Antwort `zaehler.gelesen`, läuft der neue Stand. Fehlt das Feld, ist das
+   Deployment nicht durch, und jede Messung misst den alten Code.
+2. **Bietet die Brücke `erzwingen` an?** Falls nicht: die Desktop-App cached die
+   Toolliste — Erweiterung aus- und einschalten (siehe „Befund" unten).
+
+**Was die Messung in Prod schreibt:** je Quelle ein `checkStand` am
+Twin-Dokument. Additiv, wegwerfbar (löschen kostet nur einen vollen Check) und
+kein Sonderrisiko der Messung — jeder normale Check in Prod tut das ohnehin.
+
+## Ablauf (lokale Variante, wenn die `getBinary`-Zahl gebraucht wird)
 
 ### Vorbereitung
 
@@ -171,5 +213,30 @@ abdeckung_scannen(libraryId: "ID_OnedriveTest",
                   erzwingen: true)
 ```
 
-Das setzt voraus, dass die Brücke auf die **lokale** Instanz zeigt, nicht auf
-die deployte — sonst misst man den falschen Server.
+Bei der lokalen Variante muss die Brücke auf die **lokale** Instanz zeigen,
+nicht auf die deployte — sonst misst man den falschen Server.
+
+## Zwei Befunde aus PR #261 (nicht Teil der Messung, aber hier notiert)
+
+**1. `TOOLSET_VERSION` wurde nicht erhöht.** Die Regel in `tools-info.ts` lautet:
+bei JEDER Werkzeug-/Schema-Änderung hochzählen. PR #261 hat `twins_pruefen` und
+`abdeckung_scannen` um `erzwingen` erweitert und die Version bei 2.28.0 gelassen.
+Erst PR #263 hob sie auf 2.29.0 — aus anderem Anlass. Folge: Es gab ein Fenster,
+in dem die Brücke Schema-mit-`erzwingen` auslieferte und dabei „2.28.0" meldete.
+Wer in diesem Fenster die Toolliste gecacht hat, hält eine 2.28.0, die nicht der
+2.28.0 anderer Clients entspricht — genau die Drift, die der Mechanismus sichtbar
+machen soll. Seit 2.29.0 ist alles wieder konsistent; ein Client, der `erzwingen`
+nicht anbietet, braucht den Toggle (Erweiterung aus/ein). **Kein Code-Fix nötig**
+— der Stand auf `master` passt zu 2.29.0. Die Lehre gilt der nächsten
+Schema-Änderung.
+
+**2. `twins_pruefen` ist nicht mehr streng lesend.** Das Werkzeug trägt
+`annotations: { readOnlyHint: true }` (`tools.ts`), schreibt seit dem Tor im
+check-Modus aber je Quelle einen `checkStand`. Der Beschreibungstext ist
+angepasst („Es werden keine **Artefakte** geschrieben"), die Annotation nicht.
+Ein Merker-Feld zu schreiben ist im Geist von „read-only" vertretbar, wörtlich
+aber nicht — und `readOnlyHint` ist für Agenten das Signal, das Werkzeug
+bedenkenlos aufzurufen. **Offen, Owner-Entscheidung:** Annotation ehrlich machen
+(`readOnlyHint` entfernen und in der Beschreibung sagen, was geschrieben wird)
+oder bewusst so lassen, mit Begründung im Code-Kommentar. Nicht stillschweigend
+stehen lassen.
