@@ -66,7 +66,10 @@ beide Richtungen. Alle anderen Schreib-Aktionen standen schon hinter
 
 ## Befunde fuer Schritt 4 (Huelle, CORS)
 
-Laut Messung, dort vor dem Bauen gegenzupruefen:
+Laut Messung, dort vor dem Bauen gegenzupruefen. **Stand 2026-09-10
+(M5-cors):** 1 bis 3 erledigt (`src/lib/embed/embed-cors.ts`, Preflight in
+der Middleware vor der Anmeldung); 4 zur Haelfte — `x-locale` ist entfernt,
+die Sprache schickt die Huelle als `Accept-Language`.
 
 1. Es gibt nirgends `Access-Control-*`-Header (`src`, `packages`, `next.config`).
 2. Die anonymen Ausnahmen in `src/middleware.ts` gelten fuer GET/POST/DELETE,
