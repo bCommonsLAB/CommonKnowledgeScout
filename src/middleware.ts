@@ -23,6 +23,7 @@
  */
 
 import { verifyMcpAccountKey } from '@/lib/mcp/account-key';
+import { embedCorsHeaders } from '@/lib/embed/embed-cors';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@ks/i18n';
@@ -64,6 +65,14 @@ if (process.env.NODE_ENV === 'development') {
 
 // Verwende die offizielle Clerk-Middleware
 export default clerkMiddleware(async (auth, req) => {
+  // Embed (M5): Den Preflight fuer die oeffentlichen Lese-Routen beantworten,
+  // BEVOR die Anmeldung geprueft wird — sonst endet OPTIONS in auth.protect()
+  // als 404, und der Browser schickt die eigentliche Anfrage nie ab (Audit 03).
+  if (req.method === 'OPTIONS') {
+    const preflight = embedCorsHeaders('OPTIONS', req.nextUrl.pathname);
+    if (preflight) return new NextResponse(null, { status: 204, headers: preflight });
+  }
+
   // Domain-Kopplung (Variante B): Eine per PUBLIC_DOMAIN_LIBRARY_MAP gemappte
   // Domain (z.B. oldiesforfuture.org) darf NUR ihre eigene Library ausliefern.
   // Fremde /explore/<slug>-Anfragen werden zur Hauptplattform umgeleitet
@@ -240,6 +249,13 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);
+
+  // Embed (M5): Antworten der Lese-Routen fuer fremde Herkuenfte lesbar machen.
+  // Ob die Library oeffentlich ist, entscheidet weiter die Route selbst.
+  const embedCors = embedCorsHeaders(req.method, path);
+  if (embedCors) {
+    for (const [name, value] of Object.entries(embedCors)) response.headers.set(name, value);
+  }
 
   if (isPublic) return response;
 
