@@ -203,6 +203,18 @@ Neu dazugekommen:
 - 2026-09-10: Offen fuer Punkt 5 (Nachweis): Die Frage „Demo-App
   `apps/embed-demo` ja oder nein" ist nicht entschieden. Bis dahin zeigt der
   Rauchtest das Buendel in jsdom, nicht in einer fremden Next-App.
+- 2026-09-10: **`ci-main` nach #272 rot** (Docker-Build, `51d3228b`):
+  `next build` prueft die Typen jeder Datei der Root-`tsconfig.json`, auch
+  `packages/embed/tsup.config.ts` — und `tsup` fehlt im Image. Das Dockerfile
+  installiert nur die Root-Abhaengigkeiten (`COPY package.json
+  pnpm-lock.yaml`, ohne Workspace); lokal hat jedes Paket eigene
+  `node_modules`, darum war der Pre-Merge-Check gruen. **Neue Luecke zwischen
+  lokalem Build und Image.** Behoben auf `claude/modularisierung-m5-docker-build`:
+  Bau-Konfigurationen der Pakete (`packages/*/*.config.ts`) sind raus aus der
+  Root-`tsconfig.json` und ESLint und werden im `tsconfig.json` ihres Pakets
+  geprueft. Waechter `tests/unit/packages/docker-abhaengigkeiten.test.ts`:
+  Jeder Import unter `packages/`, den die App-Typpruefung sieht, muss mit den
+  Root-Abhaengigkeiten aufloesbar sein. `ci-main` fuer #271 (CORS) war gruen.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
