@@ -13,7 +13,8 @@
  *   Galerie heraus.
  * - Bilder rendert die App mit `next/image` — optimiert ueber `/_next/image`
  *   und die `remotePatterns` in `next.config.js`, genau wie vor Welle M4f.
- *   Die Galerie selbst kennt `next/image` nicht mehr.
+ *   Die Galerie selbst kennt `next/image` nicht mehr. `NextBild` hat seit M5
+ *   eine eigene Datei, weil auch die App-Huellen der Buch-Ansicht es brauchen.
  * - Die Instanz ist die eigene Herkunft (`SAME_ORIGIN_API`): relative Pfade,
  *   wie vor Welle M5. Nur das Embed setzt hier eine fremde Basis-URL.
  *
@@ -21,32 +22,11 @@
  */
 
 import { useMemo, type ReactNode } from 'react'
-import Image from 'next/image'
 import { useSetAtom } from 'jotai'
 import { SAME_ORIGIN_API } from '@ks/api-client'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
-import {
-  GalleryHostProvider,
-  type GalleryHost,
-  type GalleryImageProps,
-} from '@ks/module-explorer/react'
-
-/** `next/image` hinter dem Bild-Vertrag der Galerie — Prop fuer Prop durchgereicht. */
-function NextBild({ src, alt, className, fill, width, height, loading, unoptimized, onError }: GalleryImageProps) {
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      className={className}
-      fill={fill}
-      width={width}
-      height={height}
-      loading={loading}
-      unoptimized={unoptimized}
-      onError={onError}
-    />
-  )
-}
+import { GalleryHostProvider, type GalleryHost } from '@ks/module-explorer/react'
+import { NextBild } from './next-bild'
 
 export function AppGalleryHost({ children }: { children: ReactNode }) {
   const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)

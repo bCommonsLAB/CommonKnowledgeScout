@@ -24,6 +24,16 @@ export { SdgProfile } from './components/sdg-profile'
 export { StakeholderPositions } from './components/stakeholder-positions'
 export { AiText, OriginalQuote } from './components/provenance-text'
 
+// Die Buch-Detailansicht (M5): im Paket, weil das Embed Buecher zeigt. Bilder,
+// Markdown, KI-Hinweis und Zurueck-Link kommen herein — die App reicht ihre
+// Next-Varianten unter den alten Pfaden herein, das Embed schlichte.
+export { BookDetail, type BookDetailProps, type BookMarkdownProps } from './components/book-detail/book-detail'
+export { AttachmentList } from './components/book-detail/attachment-list'
+export { AIGeneratedNotice, type HinweisLinkProps } from './components/book-detail/ai-generated-notice'
+export { MarkdownBody } from './components/book-detail/markdown-body'
+export { BuchDetailRenderer } from './components/book-detail/book-detail-renderer'
+export { EMBED_DETAIL_RENDERERS } from './components/embed-detail-renderers'
+
 export {
   GalleryViewerProvider,
   useGalleryViewer,
