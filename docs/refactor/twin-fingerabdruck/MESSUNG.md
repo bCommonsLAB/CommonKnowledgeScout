@@ -1,4 +1,51 @@
-# Messung Twin-Fingerabdruck Stufe 1 — Anleitung für die lokale Sitzung
+# Messung Twin-Fingerabdruck Stufe 1
+
+## Ergebnis (2026-09-10, Prod, Library `ID_OnedriveTest`)
+
+Teilbaum `6. bCommonsLab prototyping/24.09 KnowledgeScout` — 75 Quellen,
+306 gescannte Dateien. Alle vier Läufe innerhalb von fünf Minuten, ohne
+Änderung am Archiv dazwischen.
+
+| Lauf | Werkzeug | `gelesen` | `wiederverwendet` | Dauer |
+|---|---|---|---|---|
+| 1 | `abdeckung_scannen`, kalt (kein `checkStand`) | — | — | **Timeout > 60 s** |
+| 2 | `abdeckung_scannen`, warm | **0** | 75 | durch, < 60 s |
+| 3 | `twins_pruefen`, warm | **0** | 75 | **29,4 s** |
+| 4 | `twins_pruefen`, `erzwingen: true` | — | — | **Timeout > 60 s** |
+
+**Läufe 3 und 4 sind der saubere Vorher/Nachher-Vergleich**: dasselbe Werkzeug,
+derselbe Teilbaum, dieselbe Minute. `erzwingen: true` ist exakt das alte
+Verhalten und reißt die 60-Sekunden-Grenze; mit Tor sind es 29 Sekunden bei
+**null** `getBinary`-Aufrufen. Die Zusage des Briefs ist damit belegt.
+
+Die Zahl kommt aus der Engine selbst (`zaehler.gelesen`), nicht aus einem
+Log-Filter — die Gegenprobe über `getBinary`-Zeilen im Container-Log war
+deshalb nicht nötig.
+
+### Was die verbleibenden 29 Sekunden sind
+
+**Nicht Lesen — Listen.** Das Tor spart die `getBinary`-Aufrufe, nicht die
+Ordner-Listings; die holt der Check bewusst immer frisch, sonst könnte er
+Änderungen gar nicht erkennen. 306 Dateien über viele Ordner sind der Rest.
+
+### Folge für Stufe 2 — Empfehlung: nicht bauen
+
+Stufe 2 („eine Anfrage statt zwei") halbiert die Anfragen **je gelesener
+Datei**. Im warmen Fall liest der Check null Dateien — Stufe 2 spart dort
+**exakt nichts**. Sie hilft nur im kalten Fall (Läufe 1 und 4).
+
+Und auch dort trägt sie nicht weit genug: von zwei Anfragen (~330 ms) auf eine
+(~180 ms) sind rund 45 % der Lesezeit. Ein kalter Lauf über 60 s käme damit auf
+grob 45 s — immer noch dicht an der Grenze, immer noch zerbrechlich. Für den
+kalten Fall ist der **Job-Modus** aus dem Vorrat („Scans über dem
+60-Sekunden-Limit") das passende Werkzeug, nicht Stufe 2.
+
+Der tägliche Fall — wiederholtes Aufräumen an einem Vorhaben — ist jetzt warm
+und schnell. Damit ist der Anlass für Stufe 2 weg.
+
+---
+
+## Anleitung (für Wiederholungen)
 
 > Offener Punkt aus [`AGENT-BRIEF.md`](AGENT-BRIEF.md). Stufe 1 ist gebaut und
 > auf `master` (PRs #261 + #262, `ci-main` 516 grün). Was fehlt, ist die

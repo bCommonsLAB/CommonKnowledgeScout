@@ -174,9 +174,42 @@ Neu dazugekommen: (noch nichts)
   `checkStand` (`src/lib/repositories/shadow-twin-check-stand.ts`), Zähler
   `wiederverwendet`/`gelesen` im Report, Schalter `erzwingen` an
   `twins_pruefen` und `abdeckung_scannen`. Sieben Tests mit gezähltem
-  `getBinary` in `tests/unit/shadow-twin/check-stand.test.ts`. Stufe 2 (eine
-  Anfrage statt zwei im OneDrive-Provider) bleibt offen.
+  `getBinary` in `tests/unit/shadow-twin/check-stand.test.ts`.
+- **Gemessen (2026-09-10, Prod, `ID_OnedriveTest`, Teilbaum `24.09
+  KnowledgeScout`, 75 Quellen)** — Anleitung und Details:
+  [`MESSUNG.md`](refactor/twin-fingerabdruck/MESSUNG.md).
+
+  | Lauf | `gelesen` | `wiederverwendet` | Dauer |
+  |---|---|---|---|
+  | `twins_pruefen` mit Tor | **0** | 75 | **29,4 s** |
+  | `twins_pruefen` `erzwingen: true` (= altes Verhalten) | — | — | **Timeout > 60 s** |
+  | `abdeckung_scannen` kalt (erster Lauf) | — | — | **Timeout > 60 s** |
+  | `abdeckung_scannen` warm | **0** | 75 | durch |
+
+  Dasselbe Werkzeug, derselbe Teilbaum, dieselbe Minute: die Zusage des Briefs
+  („zweiter Lauf macht null `getBinary`-Aufrufe") ist belegt.
+- **Stufe 2 wird nicht gebaut** (Empfehlung 2026-09-10, Owner entscheidet).
+  Sie halbiert die Anfragen je **gelesener** Datei — im warmen Fall liest der
+  Check null Dateien, dort spart sie exakt nichts. Im kalten Fall bringt sie
+  rund 45 % der Lesezeit, was einen 60-s-Lauf auf grob 45 s brächte: weiter
+  dicht an der Grenze. Für den kalten Fall ist der **Job-Modus** aus dem Vorrat
+  das passende Werkzeug. Der tägliche Fall ist jetzt warm und schnell — der
+  Anlass für Stufe 2 ist damit weg.
 - Neu dazugekommen:
+  - **2026-09-10 — `twins_pruefen` ist nicht mehr streng lesend.** Das Werkzeug
+    trägt `annotations: { readOnlyHint: true }` (`src/lib/mcp/tools.ts`),
+    schreibt im check-Modus seit dem Tor aber je Quelle einen `checkStand`.
+    Der Beschreibungstext wurde angepasst („keine **Artefakte**"), die
+    Annotation nicht. Für Agenten ist `readOnlyHint` das Signal, ein Werkzeug
+    bedenkenlos aufzurufen. **Offen, Owner-Entscheidung:** Annotation ehrlich
+    machen oder bewusst so lassen, mit Begründung im Code.
+  - **2026-09-10 — `TOOLSET_VERSION` wurde bei der `erzwingen`-Erweiterung
+    nicht erhöht.** Die Regel in `tools-info.ts` verlangt es bei jeder
+    Schema-Änderung; PR #261 ließ sie bei 2.28.0, erst PR #263 hob sie aus
+    anderem Anlass auf 2.29.0. Dazwischen lag ein Fenster, in dem die Brücke
+    Schema-mit-`erzwingen` auslieferte und „2.28.0" meldete — genau die Drift,
+    die der Mechanismus sichtbar machen soll. Seither wieder konsistent, kein
+    Code-Fix nötig; die Lehre gilt der nächsten Schema-Änderung.
   - **2026-09-09 — `updatedAt` war nicht überall gesetzt.** Der Fingerabdruck
     verlässt sich auf `updatedAt` des Twin-Dokuments; fünf Schreibwege setzten
     es nicht und hätten einen veralteten Plan unsichtbar wiederverwendbar
