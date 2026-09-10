@@ -24,13 +24,24 @@ async function readErrorMessage(response: Response): Promise<string> {
   return `HTTP-Fehler: ${response.status}`
 }
 
+/**
+ * Die Adresse eines API-Pfads. Der Pfad MUSS mit `/` beginnen: Ein Pfad ohne
+ * Schraegstrich wuerde im Embed relativ zur fremden Seite aufgeloest und
+ * landete dort still auf dem falschen Server.
+ */
+export function apiUrl(path: string, config?: ApiClientConfig): string {
+  if (!path.startsWith('/')) {
+    throw new Error(`API-Pfad muss mit "/" beginnen, war: "${path}"`)
+  }
+  return `${config?.baseUrl ?? ''}${path}`
+}
+
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
   config?: ApiClientConfig,
 ): Promise<T> {
-  const url = `${config?.baseUrl ?? ''}${path}`
-  const response = await fetch(url, init)
+  const response = await fetch(apiUrl(path, config), init)
   if (!response.ok) {
     throw new Error(await readErrorMessage(response))
   }

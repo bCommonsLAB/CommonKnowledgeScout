@@ -38,7 +38,7 @@ export interface RecomputeAllRelationsButtonProps {
 export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: RecomputeAllRelationsButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { jobGestartet } = useGalleryHost()
+  const { jobGestartet, instanz } = useGalleryHost()
   // Aktive Galerie-Filter mitgeben: ist ein Filter aktiv, wird nur diese
   // Teilmenge berechnet; sonst der ganze Bestand (in Batches).
   const filters = useAtomValue(galleryFiltersAtom)
@@ -50,7 +50,7 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
       const activeFilters = Object.fromEntries(
         Object.entries(filters).filter(([, v]) => Array.isArray(v) && v.length > 0),
       )
-      const res = await fetch(
+      const res = await instanz.fetch(
         `/api/library/${encodeURIComponent(libraryId)}/doc-relations/recompute`,
         {
           method: 'POST',

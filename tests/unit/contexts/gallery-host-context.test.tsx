@@ -13,14 +13,18 @@
  * wird also nie ausgefuehrt — live geprueft und genau das gesehen. Ein
  * Owner-Durchgang haette einen echten Neuberechnungs-Job gegen die
  * Produktivdatenbank gestartet.
+ *
+ * Seit M5 sagt der Gastgeber auch, gegen welche Instanz die Galerie spricht.
  */
 
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import { SAME_ORIGIN_API, createInstanceApi } from '@ks/api-client'
 import {
   GalleryHostProvider,
   useGalleryHost,
+  useInstanz,
   STILLER_GASTGEBER,
   SchlichtesBild,
   type GalleryHost,
@@ -37,7 +41,7 @@ describe('useGalleryHost', () => {
 
   it('reicht den Gastgeber durch', () => {
     const jobGestartet = vi.fn()
-    const host: GalleryHost = { jobGestartet, Bild: SchlichtesBild }
+    const host: GalleryHost = { jobGestartet, Bild: SchlichtesBild, instanz: SAME_ORIGIN_API }
     const wrapper = ({ children }: { children: ReactNode }) => (
       <GalleryHostProvider host={host}>{children}</GalleryHostProvider>
     )
@@ -56,5 +60,24 @@ describe('useGalleryHost', () => {
 
     const { result } = renderHook(() => useGalleryHost(), { wrapper })
     expect(() => result.current.jobGestartet()).not.toThrow()
+  })
+})
+
+describe('useInstanz', () => {
+  it('liefert die Instanz des Gastgebers — im Embed die zentrale', () => {
+    const instanz = createInstanceApi({ baseUrl: 'https://knowledgescout.org' })
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <GalleryHostProvider host={{ ...STILLER_GASTGEBER, instanz }}>{children}</GalleryHostProvider>
+    )
+
+    const { result } = renderHook(() => useInstanz(), { wrapper })
+
+    expect(result.current).toBe(instanz)
+    expect(result.current.url('/api/chat/lib-1/docs')).toBe('https://knowledgescout.org/api/chat/lib-1/docs')
+  })
+
+  it('wirft ohne Anbieter wie useGalleryHost', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(() => renderHook(() => useInstanz())).toThrowError(/GalleryHostProvider/)
   })
 })

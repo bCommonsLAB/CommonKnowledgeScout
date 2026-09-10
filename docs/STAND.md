@@ -104,6 +104,20 @@ Neu dazugekommen:
   (Folge von #234: Galerie-Karte ausserhalb der Galerie ohne Anbieter).
   Lehre: ein Anbieter-Buendel `GalleryAppProviders` an jedem Montagepunkt,
   Waechter-Test `karte-ausserhalb-galerie.test.ts`.
+- 2026-09-10: **M5-basis-url** erledigt (Punkt 2): Alle 43 Requests des
+  Explorer-Pakets laufen ueber die Instanz (`InstanceApi` aus `@ks/api-client`;
+  in der Galerie `useInstanz()` am Gastgeber, am Explorer-Eintritt die Prop
+  `instanz`). Die Voll-App setzt `SAME_ORIGIN_API`, relative Pfade wie bisher.
+  Waechter `instanz-fetch.test.ts`. Sortierung in
+  `refactor/modularisierung/03-audit-embed-fetches.md`: 12 Lese-Requests fuer
+  das Embed (fuer AECED davon 4 bis 7), 7 nur angemeldet, 21 Schreiben, 3 tot
+  (`gallery/lib/api.ts`, geloescht). Die DIVA-Klassifizierung erschien auch
+  anonym — jetzt nur fuer Mitglieder.
+- 2026-09-10: Befunde fuer Punkt 4 (Huelle): nirgends CORS-Header; die
+  Middleware laesst `OPTIONS` nicht anonym durch, ein Preflight scheitert also;
+  `x-locale` loest einen Preflight aus, wirkt aber nicht; das Locale-Cookie
+  geht von fremder Herkunft nicht mit; `explorerGate` zaehlt den Host der
+  Instanz. Details im Audit 03.
 - 2026-09-10 (kein M5-Bezug, beim lokalen Audio-Test gefunden): `.mpeg`/`.mpg`
   fehlten in allen acht Endungslisten — die Vorschau zeigte „Keine Vorschau
   verfuegbar" und keinen Transkribier-Knopf. Nachgezogen auf Branch
@@ -280,6 +294,12 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   - Vermerk (09.09.): Beide Schnitte sind gebaut; offen bleibt nur der
     Archiv-Nachzug durch Cowork. Der gehört vor Vorhaben 3 SHF, sonst ist der
     Drift bis dahin wieder da
+- Galerie-Rolle fuer angemeldete Fremde (Befund M5, 2026-09-10): `useLibraryRole`
+  nimmt `accessRole ?? 'owner'`, und `ExplorerRoot` legt die angezeigte
+  oeffentliche Library ohne `accessRole` in den Libraries-Atom. Ein angemeldeter
+  Fremder sieht auf `/explore/{slug}` deshalb Verwaltungs-Bedienelemente; der
+  Server lehnt die Aktionen ab. Fuer das anonyme Embed ohne Wirkung. Beleg:
+  `refactor/modularisierung/03-audit-embed-fetches.md`
 - Audio-Namensraum und Diarisierung: `docs/plans/geplant/audio-namensraum-und-diarisierung_c4f81a37.plan.md`
 - Mehrsprachigkeit DE/IT/EN (Naturmuseum): ADR 0010 Retrieval-Profile plus
   der stille Sprach-Rückfall A1 aus `docs/refactor/shadow-twin-deterministic/`

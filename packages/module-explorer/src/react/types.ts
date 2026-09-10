@@ -10,6 +10,7 @@
 
 import type { ReactNode } from 'react'
 
+import type { InstanceApi } from '@ks/api-client'
 import type { Character, SocialContext, TargetLanguage } from '@ks/contracts'
 
 /**
@@ -98,6 +99,12 @@ export interface ExplorerRootProps {
   /** Welche Library gezeigt wird. Kommt NICHT aus dem Datei-Routing. */
   slug: string
   viewer: ExplorerViewer
+  /**
+   * Gegen welche Instanz das Modul spricht (M5): in der Voll-App
+   * `SAME_ORIGIN_API`, im Embed die zentrale Instanz. Dieselbe, die die
+   * Galerie ueber ihren Gastgeber bekommt.
+   */
+  instanz: InstanceApi
   /**
    * Die Galerie. Sie liegt bis zu ihrer eigenen Welle in der Anwendung
    * (1.319 Zeilen mit 38 App-Importen) und wird deshalb hereingereicht.

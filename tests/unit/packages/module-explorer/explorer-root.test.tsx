@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
+import { SAME_ORIGIN_API, createInstanceApi } from '@ks/api-client'
 import { ExplorerRoot } from '@ks/module-explorer/react'
 import type { ExplorerLibraryPayload } from '@ks/module-explorer/react'
 
@@ -50,6 +51,7 @@ function renderRoot(props: Partial<React.ComponentProps<typeof ExplorerRoot>> = 
       <ExplorerRoot
         slug="oldies"
         viewer={{ isLoaded: true, isSignedIn: false }}
+        instanz={SAME_ORIGIN_API}
         renderGallery={({ libraryId, showSiteTab }) => (
           <div data-testid="galerie">{`galerie:${libraryId}:${showSiteTab}`}</div>
         )}
@@ -151,5 +153,16 @@ describe('ExplorerRoot — montierbar ohne Next-Routing und ohne Clerk', () => {
 
     await waitFor(() => expect(screen.getByTestId('galerie')).toBeDefined())
     expect(screen.queryByTestId('hinweis')).toBeNull()
+  })
+
+  it('liest von der hereingereichten Instanz, nicht von der eigenen Herkunft (Embed, M5)', async () => {
+    const fetchMock = stubFetch({ '/api/public/libraries/': { ok: true, body: { library: oeffentlich } } })
+
+    renderRoot({ instanz: createInstanceApi({ baseUrl: 'https://knowledgescout.org' }) })
+
+    await waitFor(() => expect(screen.getByTestId('galerie')).toBeDefined())
+    expect(fetchMock).toHaveBeenCalledWith('https://knowledgescout.org/api/public/libraries/oldies', {
+      cache: 'no-store',
+    })
   })
 })

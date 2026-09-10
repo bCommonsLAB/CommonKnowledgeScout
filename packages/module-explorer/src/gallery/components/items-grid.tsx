@@ -11,6 +11,8 @@ import {
 import { Button, toast } from '@ks/ui'
 import { Sparkles, RefreshCw, Loader2 } from 'lucide-react'
 import { GroupClassifyDialog } from './group-classify-dialog'
+import { useInstanz } from '../contexts/gallery-host-context'
+import { useLibraryRole } from '../hooks/use-library-role'
 
 export interface ItemsGridProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>
@@ -49,14 +51,19 @@ export function ItemsGrid({
   onGroupClassified,
 }: ItemsGridProps) {
   const { t } = useTranslation()
+  const instanz = useInstanz()
+  const { isMember } = useLibraryRole(libraryId)
 
   // Bei 'none' keine Gruppen-Header anzeigen
   const showGroupHeaders = groupByField !== 'none'
 
   // Stoffgruppen-Klassifikation (Stufe 4): nur sichtbar wenn nach group_name
-  // gruppiert wird und ein libraryId vorhanden ist.
+  // gruppiert wird und ein libraryId vorhanden ist — und nur fuer Owner/
+  // Co-Creator: die Route schreibt und verlangt Zugriff auf die Library. Bis M5
+  // sahen auch anonyme Besucher die Knoepfe (der Server lehnte ab); im Embed
+  // duerfen Schreib-Aktionen gar nicht erscheinen.
   const supportsGroupClassify =
-    groupByField === 'group_name' && typeof libraryId === 'string' && libraryId.length > 0
+    isMember && groupByField === 'group_name' && typeof libraryId === 'string' && libraryId.length > 0
   const [classifyGroupName, setClassifyGroupName] = React.useState<string | null>(null)
   const threshold =
     typeof autoApplyConfidenceThreshold === 'number' &&
@@ -111,7 +118,7 @@ export function ItemsGrid({
     let refreshedMembers = 0
     for (const groupName of eligibleBulkGroups) {
       try {
-        const res = await fetch('/api/diva-texture/group-classify', {
+        const res = await instanz.fetch('/api/diva-texture/group-classify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ libraryId, groupName, dryRun: false }),
@@ -140,7 +147,7 @@ export function ItemsGrid({
     })
     onGroupClassified?.()
     setBulkBusy(false)
-  }, [libraryId, eligibleBulkGroups, onGroupClassified])
+  }, [libraryId, eligibleBulkGroups, onGroupClassified, instanz])
 
   return (
     // @container markiert dieses Element als Container Query Container

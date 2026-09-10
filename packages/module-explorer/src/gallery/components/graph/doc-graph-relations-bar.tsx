@@ -27,14 +27,14 @@ interface DocGraphRelationsBarProps {
 
 export function DocGraphRelationsBar({ libraryId, canManage, stale, computedAt }: DocGraphRelationsBarProps) {
   const { t } = useTranslation()
-  const { jobGestartet } = useGalleryHost()
+  const { jobGestartet, instanz } = useGalleryHost()
   const [busy, setBusy] = useState(false)
 
   const recompute = async () => {
     if (!libraryId || busy) return
     setBusy(true)
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/doc-relations/recompute`, {
+      const res = await instanz.fetch(`/api/library/${encodeURIComponent(libraryId)}/doc-relations/recompute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scope: 'library' }),

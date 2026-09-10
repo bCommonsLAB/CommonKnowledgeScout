@@ -4,8 +4,13 @@
  * Frontmatter/Media-Lifecycle speichert oft nur Dateinamen (keine URLs).
  * CSS `background-image: url("nur-dateiname.jpg")` ist im Browser ungültig —
  * daher Auflösung über dieselben API-Endpunkte wie die Job-Vorschau.
+ *
+ * Beide Endpunkte und `streaming-url` verlangen eine Anmeldung; anonym (im
+ * Embed) bleibt ein nur als Dateiname gespeichertes Cover leer
+ * (`docs/refactor/modularisierung/03-audit-embed-fetches.md`).
  */
 
+import type { InstanceApi } from '@ks/api-client'
 import { parseTwinRelativeImageRef } from '@ks/util'
 
 /** true, wenn die Referenz nicht direkt als Bild-URL verwendet werden kann */
@@ -16,6 +21,14 @@ export function coverRefNeedsApiResolution(ref: string): boolean {
   if (u.startsWith('/api/storage/streaming-url')) return false
   if (u.startsWith('data:')) return false
   return true
+}
+
+/**
+ * Ein direkt nutzbarer Verweis, der ein Pfad ist (`/api/storage/streaming-url…`),
+ * gilt auf der Instanz — nicht auf der Seite, die die Galerie zeigt (Embed, M5).
+ */
+export function coverUrlAufInstanz(url: string, instanz: InstanceApi): string {
+  return url.startsWith('/') ? instanz.url(url) : url
 }
 
 /**
@@ -38,6 +51,8 @@ export interface ResolveCoverUrlViaApiOptions {
   coverRef: string
   /** Hilft dem Server-Fallback (Mongo Shadow-Twin → Storage) */
   sourceFileName?: string
+  /** Die Instanz der Galerie (M5): Requests und gebaute Bild-URLs beziehen sich auf sie. */
+  instanz: InstanceApi
 }
 
 /**
@@ -45,12 +60,12 @@ export interface ResolveCoverUrlViaApiOptions {
  * Reihenfolge: resolve-binary-url (Mongo + Storage-Fallbacks), dann Geschwister im selben Ordner.
  */
 export async function resolveCoverUrlViaApi(options: ResolveCoverUrlViaApiOptions): Promise<string | null> {
-  const { libraryId, fileId, coverRef, sourceFileName } = options
+  const { libraryId, fileId, coverRef, sourceFileName, instanz } = options
   const fragmentName = coverRef.trim()
   if (!fragmentName) return null
 
   try {
-    const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`, {
+    const res = await instanz.fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,7 +77,8 @@ export async function resolveCoverUrlViaApi(options: ResolveCoverUrlViaApiOption
     })
     if (res.ok) {
       const json = (await res.json()) as { resolvedUrl?: string }
-      if (json.resolvedUrl) return json.resolvedUrl
+      // Der Server liefert eine Azure-URL oder den relativen `streaming-url`-Pfad.
+      if (json.resolvedUrl) return coverUrlAufInstanz(json.resolvedUrl, instanz)
     }
   } catch {
     // absichtlich: zweiter Versuch sibling-files
@@ -72,7 +88,7 @@ export async function resolveCoverUrlViaApi(options: ResolveCoverUrlViaApiOption
   if (!leaf) return null
 
   try {
-    const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/sibling-files`, {
+    const res = await instanz.fetch(`/api/library/${encodeURIComponent(libraryId)}/sibling-files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceId: fileId }),
@@ -81,7 +97,9 @@ export async function resolveCoverUrlViaApi(options: ResolveCoverUrlViaApiOption
     const json = (await res.json()) as { files?: Array<{ id: string; name: string }> }
     const match = json.files?.find((f) => f.name.toLowerCase() === leaf.toLowerCase())
     if (match) {
-      return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(match.id)}`
+      return instanz.url(
+        `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(match.id)}`,
+      )
     }
   } catch {
     return null

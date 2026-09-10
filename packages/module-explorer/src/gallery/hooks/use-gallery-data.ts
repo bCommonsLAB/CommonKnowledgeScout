@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { galleryDataAtom } from '../atoms/gallery-data'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { DocCardMeta } from '../lib/types'
 import type { DocReference, QuerySource } from '@ks/contracts'
 
@@ -50,6 +51,7 @@ export function useGalleryData(
     sortByColumn?: { field: string; dir: 'asc' | 'desc' } | null
   }
 ) {
+  const instanz = useInstanz()
   const setGalleryData = useSetAtom(galleryDataAtom)
   const galleryDataFromAtom = useAtomValue(galleryDataAtom)
   const skipApiCall = options?.skipApiCall ?? false
@@ -151,7 +153,7 @@ export function useGalleryData(
         }
 
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
-        const res = await fetch(url, { cache: 'no-store' })
+        const res = await instanz.fetch(url, { cache: 'no-store' })
         const ct = res.headers.get('content-type') || ''
         if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
         const data = await res.json()
@@ -228,7 +230,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey, instanz])
 
 
   const loadMore = () => {

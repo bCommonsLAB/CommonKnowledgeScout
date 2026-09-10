@@ -14,6 +14,8 @@
  * - Bilder rendert die App mit `next/image` — optimiert ueber `/_next/image`
  *   und die `remotePatterns` in `next.config.js`, genau wie vor Welle M4f.
  *   Die Galerie selbst kennt `next/image` nicht mehr.
+ * - Die Instanz ist die eigene Herkunft (`SAME_ORIGIN_API`): relative Pfade,
+ *   wie vor Welle M5. Nur das Embed setzt hier eine fremde Basis-URL.
  *
  * @module providers
  */
@@ -21,6 +23,7 @@
 import { useMemo, type ReactNode } from 'react'
 import Image from 'next/image'
 import { useSetAtom } from 'jotai'
+import { SAME_ORIGIN_API } from '@ks/api-client'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
 import {
   GalleryHostProvider,
@@ -52,6 +55,7 @@ export function AppGalleryHost({ children }: { children: ReactNode }) {
     () => ({
       jobGestartet: () => setJobPanelOpen(true),
       Bild: NextBild,
+      instanz: SAME_ORIGIN_API,
     }),
     [setJobPanelOpen]
   )

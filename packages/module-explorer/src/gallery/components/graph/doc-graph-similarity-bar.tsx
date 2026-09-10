@@ -27,14 +27,14 @@ interface DocGraphSimilarityBarProps {
 
 export function DocGraphSimilarityBar({ libraryId, canManage, stale, computedAt }: DocGraphSimilarityBarProps) {
   const { t } = useTranslation()
-  const { jobGestartet } = useGalleryHost()
+  const { jobGestartet, instanz } = useGalleryHost()
   const [busy, setBusy] = useState(false)
 
   const recompute = async () => {
     if (!libraryId || busy) return
     setBusy(true)
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/doc-similarity/recompute`, {
+      const res = await instanz.fetch(`/api/library/${encodeURIComponent(libraryId)}/doc-similarity/recompute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

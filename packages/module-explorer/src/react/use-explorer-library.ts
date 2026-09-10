@@ -6,9 +6,12 @@
  *
  * Das Netzwerkprotokoll selbst steht in `explorer-access.ts` (Zugriff) und in
  * `loadPublicOrMember` unten — hier lebt nur die Zustandsmaschine davor.
+ * Jeder Request geht ueber die hereingereichte `instanz` (M5): in der
+ * Voll-App die eigene Herkunft, im Embed die zentrale Instanz.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { InstanceApi } from '@ks/api-client'
 import { useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { fetchAccessStatus, postAccessRequest } from './explorer-access'
 import { toClientLibrary } from './to-client-library'
@@ -39,8 +42,8 @@ export interface ExplorerLibraryState {
 }
 
 /** Laedt die Library aus Sicht eines angemeldeten Mitglieds; `null`, wenn keine da ist. */
-async function loadMemberLibrary(slug: string): Promise<ExplorerLibraryPayload | null> {
-  const response = await fetch(
+async function loadMemberLibrary(slug: string, instanz: InstanceApi): Promise<ExplorerLibraryPayload | null> {
+  const response = await instanz.fetch(
     `/api/library/explore-by-slug/${encodeURIComponent(slug)}`,
     { cache: 'no-store' },
   )
@@ -53,6 +56,7 @@ export function useExplorerLibrary(
   slug: string,
   viewer: ExplorerViewer,
   texts: ExplorerLibraryTexts,
+  instanz: InstanceApi,
 ): ExplorerLibraryState {
   const [library, setLibrary] = useState<ExplorerLibraryPayload | null>(null)
   const [context, setContext] = useState<ExplorerContext | null>(null)
@@ -100,7 +104,7 @@ export function useExplorerLibrary(
       }
       lastAccessCheckRef.current = { libraryId: loaded.id, timestamp: now }
 
-      const status = await fetchAccessStatus(loaded.id)
+      const status = await fetchAccessStatus(loaded.id, instanz)
       if (cancelled) return
       setAccessStatus(status)
       if (status.hasAccess) {
@@ -114,7 +118,7 @@ export function useExplorerLibrary(
       setLoading(true)
       setError(null)
 
-      const pubRes = await fetch(`/api/public/libraries/${slug}`, { cache: 'no-store' })
+      const pubRes = await instanz.fetch(`/api/public/libraries/${slug}`, { cache: 'no-store' })
       if (cancelled) return
 
       if (pubRes.ok) {
@@ -125,7 +129,7 @@ export function useExplorerLibrary(
         let ctx: ExplorerContext = 'public'
 
         if (viewerLoaded && isSignedIn) {
-          const member = await loadMemberLibrary(slug)
+          const member = await loadMemberLibrary(slug, instanz)
           if (cancelled) return
           if (member) {
             loaded = member
@@ -145,7 +149,7 @@ export function useExplorerLibrary(
           setLoading(false)
           return
         }
-        const member = await loadMemberLibrary(slug)
+        const member = await loadMemberLibrary(slug, instanz)
         if (cancelled) return
         if (member) {
           await adopt(member, 'member')
@@ -166,7 +170,7 @@ export function useExplorerLibrary(
     }
   }, [
     slug, slugMissing, libraryNotFound, errorLoadingLibrary,
-    viewerLoaded, isSignedIn, setLibraries, setActiveLibraryId,
+    viewerLoaded, isSignedIn, setLibraries, setActiveLibraryId, instanz,
   ])
 
   const requestAccess = useCallback(async () => {
@@ -174,14 +178,14 @@ export function useExplorerLibrary(
 
     setRequestingAccess(true)
     try {
-      setAccessStatus(await postAccessRequest(library.id))
+      setAccessStatus(await postAccessRequest(library.id, instanz))
     } catch (err) {
       console.error('Fehler beim Erstellen der Zugriffsanfrage:', err)
       setError(err instanceof Error ? err.message : 'Fehler beim Erstellen der Zugriffsanfrage')
     } finally {
       setRequestingAccess(false)
     }
-  }, [library])
+  }, [library, instanz])
 
   return { library, context, loading, error, accessStatus, requestingAccess, requestAccess }
 }

@@ -39,6 +39,7 @@ function ExplorerNoticePage({ children }: { children: React.ReactNode }) {
 export function ExplorerRoot({
   slug,
   viewer,
+  instanz,
   renderGallery,
   renderSignInPrompt,
   renderNotice,
@@ -53,7 +54,7 @@ export function ExplorerRoot({
 
   const {
     library, context, loading, error, accessStatus, requestingAccess, requestAccess,
-  } = useExplorerLibrary(slug, viewer, texts)
+  } = useExplorerLibrary(slug, viewer, texts, instanz)
 
   if (loading || !viewer.isLoaded) {
     return <ExplorerLoading />

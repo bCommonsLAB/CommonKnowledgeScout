@@ -35,7 +35,7 @@ export interface DocRelationsButtonProps {
 export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { jobGestartet } = useGalleryHost()
+  const { jobGestartet, instanz } = useGalleryHost()
   // Aktive Galerie-Filter mitgeben: stellt sicher, dass die Maßnahme im (ggf.
   // großen) Katalog gefunden wird (gefilterte Teilmenge statt CATALOG_LIMIT-Cap).
   const filters = useAtomValue(galleryFiltersAtom)
@@ -50,7 +50,7 @@ export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsBu
       const activeFilters = Object.fromEntries(
         Object.entries(filters).filter(([, v]) => Array.isArray(v) && v.length > 0),
       )
-      const res = await fetch(
+      const res = await instanz.fetch(
         `/api/library/${encodeURIComponent(libraryId)}/doc-relations/recompute`,
         {
           method: 'POST',

@@ -24,6 +24,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render as rtlRender, screen, fireEvent } from '@testing-library/react'
 import { DocumentCard } from '@ks/module-explorer/gallery/components/document-card'
 import { GalleryHostProvider, STILLER_GASTGEBER } from '@ks/module-explorer/gallery/contexts/gallery-host-context'
+import {
+  ANONYMOUS_VIEWER,
+  GalleryViewerProvider,
+  type GalleryViewer,
+} from '@ks/module-explorer/gallery/contexts/gallery-viewer-context'
+import { Provider as JotaiProvider, createStore } from 'jotai'
+import { useEffect } from 'react'
+import { useSetLibraries } from '@ks/shell/react'
+import type { ClientLibrary } from '@ks/contracts'
 import type { DocCardMeta } from '@ks/module-explorer/gallery/lib/types'
 
 // Sammle Aufrufe der Adressierung zentral, damit Tests die
@@ -45,6 +54,7 @@ vi.mock('@ks/util', async (importOriginal) => ({
 
 vi.mock('@ks/module-explorer/gallery/lib/resolve-cover-url-client', () => ({
   coverRefNeedsApiResolution: () => false,
+  coverUrlAufInstanz: (url: string) => url,
   resolveCoverUrlViaApi: vi.fn().mockResolvedValue(null),
 }))
 
@@ -77,9 +87,16 @@ vi.mock('@ks/module-explorer/gallery/components/source-comments-badge', () => ({
   ),
 }))
 
-/** Die Karten fragen den Gastgeber nach dem Bild-Renderer (M4f); hier der schlichte. */
-function render(ui: React.ReactElement) {
-  return rtlRender(<GalleryHostProvider host={STILLER_GASTGEBER}>{ui}</GalleryHostProvider>)
+/**
+ * Die Karten fragen den Gastgeber nach dem Bild-Renderer (M4f), die DIVA-Karte
+ * zusaetzlich den Betrachter nach seiner Rolle (M5). Default: anonym, wie im Embed.
+ */
+function render(ui: React.ReactElement, viewer: GalleryViewer = ANONYMOUS_VIEWER) {
+  return rtlRender(
+    <GalleryViewerProvider viewer={viewer}>
+      <GalleryHostProvider host={STILLER_GASTGEBER}>{ui}</GalleryHostProvider>
+    </GalleryViewerProvider>,
+  )
 }
 
 function makeDoc(overrides: Partial<DocCardMeta> = {}): DocCardMeta {
@@ -204,5 +221,47 @@ describe('DocumentCard (Switch)', () => {
       expect(badge.getAttribute('data-file')).toBe('file-1')
       unmount()
     }
+  })
+})
+
+describe('DIVA-Karte: Schreib-Aktionen nur fuer Mitglieder (M5)', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  const diva = makeDoc({ title: 'Textur', detailViewType: 'divaTexture' })
+
+  it('zeigt anonymen Besuchern keine Klassifikations-Aktionen — der Embed-Fall', () => {
+    // Bis M5 erschien das Menue auch anonym; der Server lehnte den PATCH ab,
+    // aber im Embed duerfen Schreib-Aktionen gar nicht erst auftauchen.
+    render(<DocumentCard doc={diva} libraryId="lib-99" />)
+    expect(screen.queryByLabelText('Klassifikations-Aktionen')).toBeNull()
+  })
+
+  it('zeigt sie Owner/Co-Creator der Library (Gegenprobe)', async () => {
+    function MitLibrary({ children }: { children: React.ReactNode }) {
+      const setLibraries = useSetLibraries()
+      useEffect(() => {
+        setLibraries([{ id: 'lib-99', label: 'Texturen' } as ClientLibrary])
+      }, [setLibraries])
+      return <>{children}</>
+    }
+    const angemeldet: GalleryViewer = {
+      isLoaded: true,
+      isSignedIn: true,
+      email: 'owner@example.org',
+      displayName: 'Owner',
+    }
+
+    render(
+      <JotaiProvider store={createStore()}>
+        <MitLibrary>
+          <DocumentCard doc={diva} libraryId="lib-99" />
+        </MitLibrary>
+      </JotaiProvider>,
+      angemeldet,
+    )
+
+    expect(await screen.findByLabelText('Klassifikations-Aktionen')).toBeDefined()
   })
 })

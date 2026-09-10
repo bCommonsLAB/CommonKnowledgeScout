@@ -33,7 +33,9 @@ import {
   toast,
 } from '@ks/ui'
 import { MoreVertical, Lock, Ban, Pencil, RefreshCw } from 'lucide-react'
+import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '../../lib/types'
+import { useInstanz } from '../../contexts/gallery-host-context'
 import { MaterialClassificationEditDialog } from './material-classification-edit-dialog'
 
 export interface DivaTextureClassificationActionsProps {
@@ -53,11 +55,12 @@ interface PatchBody {
 }
 
 async function patchMaterial(
+  instanz: InstanceApi,
   libraryId: string,
   fileId: string,
   patch: PatchBody,
 ): Promise<{ triggersVisualRefresh: boolean }> {
-  const res = await fetch('/api/diva-texture/material-classification', {
+  const res = await instanz.fetch('/api/diva-texture/material-classification', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ libraryId, fileId, patch }),
@@ -83,13 +86,14 @@ export function DivaTextureClassificationActions({
   const refresh = doc.needs_visual_refresh === true
   const [isEditOpen, setIsEditOpen] = React.useState(false)
   const [isBusy, setIsBusy] = React.useState(false)
+  const instanz = useInstanz()
 
   const callPatch = React.useCallback(
     async (patch: PatchBody, successMessage: string) => {
       if (fileId === null) return
       setIsBusy(true)
       try {
-        const result = await patchMaterial(libraryId, fileId, patch)
+        const result = await patchMaterial(instanz, libraryId, fileId, patch)
         toast({
           title: successMessage,
           description: result.triggersVisualRefresh
@@ -107,7 +111,7 @@ export function DivaTextureClassificationActions({
         setIsBusy(false)
       }
     },
-    [libraryId, fileId, onChanged],
+    [instanz, libraryId, fileId, onChanged],
   )
 
   if (fileId === null) return null
