@@ -101,6 +101,10 @@ zugleich in `docs/STAND.md` unter Vorhaben 1.
   siehe Nachtrag unten und `docs/STAND.md`.
 - 2026-09-09: Hotfix #248 — oldiesforfuture.org war seit #234 kaputt;
   Lehre: `GalleryAppProviders` an jedem Montagepunkt, Waechter-Test.
+- 2026-09-10: Schritt 2 (Basis-URL) als **M5-basis-url** erledigt. Messung
+  und Sortierung der 43 Requests in
+  [`03-audit-embed-fetches.md`](03-audit-embed-fetches.md), dort auch die
+  Befunde fuer Schritt 4 (CORS, Preflight, Locale, Cover-URLs).
 
 ## Hand-off
 
@@ -121,7 +125,8 @@ Messung und eigenem Beweis-Test — Plan und Zahlen in
 | 3 Kreuzverweise zu Slots | **M4g** — Renderer-Tabelle als Prop, Website/Story-Kopf/Abzeichen als Slots | erledigt |
 | 3 Helfer | **M4h** — zehn Helfer nach `@ks/contracts`, `@ks/util`, `@ks/api-client`, `@ks/module-explorer` oder in den Kegel; der Kegel importiert aus `@/` nur noch sich selbst | erledigt |
 | 3 Umzug | **M4i** — `git mv` von 110 Dateien nach `packages/module-explorer/src/gallery/`; `GalleryRoot` aus `@ks/module-explorer/react` | erledigt |
-| 2, 4, 5 | M5 im engeren Sinn — kann beginnen; Hand-off in `AGENT-BRIEF-M4f.md` §7 | offen |
+| 2 Basis-URL | **M5-basis-url** — alle Requests ueber `InstanceApi`, Sortierung in `03-audit-embed-fetches.md` | erledigt |
+| 4, 5 | M5 im engeren Sinn: Embed-Adressierung, Buch-Renderer, Huelle, Nachweis; Hand-off in `AGENT-BRIEF-M4f.md` §7 | offen |
 
 Eine Abweichung von der Reihenfolge in `02-audit-umzug.md` §4, bewusst: Es
 zieht **nur die Galerie** um, nicht Chat-UI, Story und Website. Das deckt sich

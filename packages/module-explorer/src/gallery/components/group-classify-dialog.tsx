@@ -27,6 +27,8 @@ import {
   toast,
 } from '@ks/ui'
 import { Loader2 } from 'lucide-react'
+import type { InstanceApi } from '@ks/api-client'
+import { useInstanz } from '../contexts/gallery-host-context'
 
 /** Klassifikations-Snapshot, der vom Server zurueckkommt. */
 interface ClassificationResult {
@@ -68,11 +70,12 @@ export interface GroupClassifyDialogProps {
 }
 
 async function callGroupClassify(
+  instanz: InstanceApi,
   libraryId: string,
   groupName: string,
   dryRun: boolean,
 ): Promise<ClassificationResult> {
-  const res = await fetch('/api/diva-texture/group-classify', {
+  const res = await instanz.fetch('/api/diva-texture/group-classify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ libraryId, groupName, dryRun }),
@@ -96,6 +99,7 @@ export function GroupClassifyDialog({
   const [isLoading, setIsLoading] = React.useState(false)
   const [isApplying, setIsApplying] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const instanz = useInstanz()
 
   // Bei jedem Oeffnen einen frischen Dry-Run starten — vermeidet stale Daten,
   // wenn der User die Gruppe inzwischen veraendert hat.
@@ -108,7 +112,7 @@ export function GroupClassifyDialog({
     let cancelled = false
     setIsLoading(true)
     setError(null)
-    callGroupClassify(libraryId, groupName, true)
+    callGroupClassify(instanz, libraryId, groupName, true)
       .then((result) => {
         if (!cancelled) setPreview(result)
       })
@@ -121,14 +125,14 @@ export function GroupClassifyDialog({
     return () => {
       cancelled = true
     }
-  }, [open, libraryId, groupName])
+  }, [open, libraryId, groupName, instanz])
 
   const handleApply = async (): Promise<void> => {
     if (!preview) return
     setIsApplying(true)
     setError(null)
     try {
-      const result = await callGroupClassify(libraryId, groupName, false)
+      const result = await callGroupClassify(instanz, libraryId, groupName, false)
       setPreview(result)
       toast({
         title: 'Stoffgruppen-Klassifikation uebernommen',

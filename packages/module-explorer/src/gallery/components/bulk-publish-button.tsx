@@ -37,6 +37,7 @@ import {
   useToast,
 } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
+import { useInstanz } from '../contexts/gallery-host-context'
 
 export interface BulkPublishButtonProps {
   /** Library-ID */
@@ -73,6 +74,7 @@ export function BulkPublishButton({
 }: BulkPublishButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const instanz = useInstanz()
   const [isPublishing, setIsPublishing] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
@@ -108,7 +110,7 @@ export function BulkPublishButton({
         const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${
           params.toString() ? `?${params.toString()}` : ''
         }`
-        const idsResponse = await fetch(idsUrl)
+        const idsResponse = await instanz.fetch(idsUrl)
         if (!idsResponse.ok) {
           throw new Error(t('gallery.publishAll.errors.loadIds'))
         }
@@ -122,7 +124,7 @@ export function BulkPublishButton({
       }
 
       // 2) Bulk-Publish-Aufruf. Achtung: Server limitiert auf 500 pro Request.
-      const response = await fetch(
+      const response = await instanz.fetch(
         `/api/chat/${encodeURIComponent(libraryId)}/docs/publish-bulk`,
         {
           method: 'POST',

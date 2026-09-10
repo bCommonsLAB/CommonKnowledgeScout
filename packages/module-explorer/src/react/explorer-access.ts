@@ -1,13 +1,14 @@
 /**
  * Zugriffsprotokoll des Explorers — ohne React, damit pruefbar.
  *
- * Warum eigenes `fetch` statt `@ks/api-client`: `apiGet` wirft bei jedem
- * Nicht-OK-Response (bewusst, siehe `no-silent-fallbacks.md`). Dieses
+ * Warum `instanz.fetch` mit roher Response statt `apiGet`: `apiGet` wirft bei
+ * jedem Nicht-OK-Response (bewusst, siehe `no-silent-fallbacks.md`). Dieses
  * Protokoll BRAUCHT aber die Status-Codes — 429 heisst „zu viele Anfragen",
  * und die Antwort traegt eine eigene Meldung. Ein geworfener Fehler
  * verschluckt genau diese Unterscheidung.
  */
 
+import type { InstanceApi } from '@ks/api-client'
 import type { ExplorerAccessStatus } from './types'
 
 /**
@@ -17,9 +18,9 @@ import type { ExplorerAccessStatus } from './types'
  * Ablehnung IST hier die Antwort, kein Fehlerfall. Nur ein Netzwerkabbruch
  * ist einer, und auch der wird benannt statt verschluckt.
  */
-export async function fetchAccessStatus(libraryId: string): Promise<ExplorerAccessStatus> {
+export async function fetchAccessStatus(libraryId: string, instanz: InstanceApi): Promise<ExplorerAccessStatus> {
   try {
-    const response = await fetch(`/api/libraries/${libraryId}/access-check`, {
+    const response = await instanz.fetch(`/api/libraries/${libraryId}/access-check`, {
       cache: 'no-store',
     })
 
@@ -58,8 +59,8 @@ export async function fetchAccessStatus(libraryId: string): Promise<ExplorerAcce
  * hier ein echter Fehlschlag einer Nutzeraktion und gehoert dem Aufrufer
  * gemeldet.
  */
-export async function postAccessRequest(libraryId: string): Promise<ExplorerAccessStatus> {
-  const response = await fetch(`/api/libraries/${libraryId}/access-request`, {
+export async function postAccessRequest(libraryId: string, instanz: InstanceApi): Promise<ExplorerAccessStatus> {
+  const response = await instanz.fetch(`/api/libraries/${libraryId}/access-request`, {
     method: 'POST',
   })
 

@@ -28,6 +28,7 @@ import {
   toast,
 } from '@ks/ui'
 import { Loader2 } from 'lucide-react'
+import { useInstanz } from '../../contexts/gallery-host-context'
 
 /** Materialklassen-Enum laut Template (`Diva-Texture-Analysis.md`). */
 const MATERIAL_CLASSES = [
@@ -71,6 +72,7 @@ export function MaterialClassificationEditDialog({
   const [materialClass, setMaterialClass] = React.useState(currentMaterialClass)
   const [materialType, setMaterialType] = React.useState(currentMaterialType)
   const [isSaving, setIsSaving] = React.useState(false)
+  const instanz = useInstanz()
 
   // Bei (Neu-)Oeffnen Werte aus den Props uebernehmen — der User soll mit dem
   // aktuellen Stand starten, nicht mit alten Edit-Werten.
@@ -93,7 +95,7 @@ export function MaterialClassificationEditDialog({
     }
     setIsSaving(true)
     try {
-      const res = await fetch('/api/diva-texture/material-classification', {
+      const res = await instanz.fetch('/api/diva-texture/material-classification', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

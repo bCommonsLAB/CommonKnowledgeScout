@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLibraryRole } from './use-library-role'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { SourceCommentCountsResponse } from '@ks/contracts'
 
 interface UseSourceCommentCountsResult {
@@ -23,6 +24,7 @@ export function useSourceCommentCounts(
   visibleFileIds: string[],
 ): UseSourceCommentCountsResult {
   const { isSignedIn, isLoading: isRoleLoading } = useLibraryRole(libraryId)
+  const instanz = useInstanz()
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [filteredToOwn, setFilteredToOwn] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -51,7 +53,7 @@ export function useSourceCommentCounts(
         // POST mit Body statt GET-Query: bei grossen Libraries sprengen die
         // base64-kodierten fileIds sonst das URL-Limit (HTTP 431).
         const url = `/api/library/${encodeURIComponent(libraryId)}/source-comments/counts`
-        const res = await fetch(url, {
+        const res = await instanz.fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileIds: missing }),
@@ -78,7 +80,7 @@ export function useSourceCommentCounts(
       cancelled = true
       clearTimeout(handle)
     }
-  }, [libraryId, isSignedIn, isRoleLoading, visibleFileIds])
+  }, [libraryId, isSignedIn, isRoleLoading, visibleFileIds, instanz])
 
   return { counts, filteredToOwn, isLoading }
 }

@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
   useToast,
 } from '@ks/ui'
+import { useInstanz } from '../contexts/gallery-host-context'
 import type { DocCardMeta } from '../lib/types'
 
 export interface DeleteDocumentButtonProps {
@@ -44,6 +45,7 @@ export function DeleteDocumentButton({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const { toast } = useToast()
+  const instanz = useInstanz()
 
   // Stelle sicher, dass fileId vorhanden ist
   const fileId = doc.fileId || doc.id
@@ -56,7 +58,7 @@ export function DeleteDocumentButton({
     setIsDeleting(true)
 
     try {
-      const response = await fetch(
+      const response = await instanz.fetch(
         `/api/chat/${encodeURIComponent(libraryId)}/docs/delete?fileId=${encodeURIComponent(fileId)}`,
         {
           method: 'DELETE',
