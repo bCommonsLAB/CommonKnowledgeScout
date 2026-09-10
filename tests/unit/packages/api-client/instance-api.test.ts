@@ -58,4 +58,40 @@ describe('createInstanceApi', () => {
     })
     expect(res).toBe(antwort)
   })
+
+  it('schickt die Sprache als Accept-Language mit (Embed, M5)', async () => {
+    const instanz = createInstanceApi({ baseUrl: 'https://ks.example', acceptLanguage: 'it' })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await instanz.fetch('/api/chat/lib-1/docs', { cache: 'no-store' })
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    expect(new Headers(init.headers).get('Accept-Language')).toBe('it')
+    expect(init.cache).toBe('no-store')
+  })
+
+  it('ein ausdruecklich gesetzter Accept-Language der Anfrage bleibt stehen', async () => {
+    const instanz = createInstanceApi({ baseUrl: 'https://ks.example', acceptLanguage: 'it' })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await instanz.fetch('/api/x', { headers: { 'Accept-Language': 'de' } })
+
+    expect(new Headers((fetchMock.mock.calls[0][1] as RequestInit).headers).get('Accept-Language')).toBe('de')
+  })
+
+  it('ohne Sprache reicht sie init unveraendert durch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    const init = { cache: 'no-store' as const }
+
+    await SAME_ORIGIN_API.fetch('/api/x', init)
+
+    expect(fetchMock.mock.calls[0][1]).toBe(init)
+  })
+
+  it('weist eine leere Sprache ab', () => {
+    expect(() => createInstanceApi({ baseUrl: '', acceptLanguage: ' ' })).toThrow(/acceptLanguage/)
+  })
 })

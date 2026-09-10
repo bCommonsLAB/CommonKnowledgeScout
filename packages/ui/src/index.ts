@@ -14,6 +14,8 @@
 export * from './accordion'
 export * from './alert'
 export * from './alert-dialog'
+// Wohin Radix-Portale rendern — im Embed in den Rahmen `.ks-embed` (M5).
+export * from './portal-container'
 export * from './avatar'
 export * from './badge'
 export * from './button'

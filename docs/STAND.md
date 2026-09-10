@@ -182,6 +182,27 @@ Neu dazugekommen:
   der Detailansicht ist weg (die Middleware setzt ihn selbst), damit
   `doc-meta` ohne Preflight geht. Am Dev-Server live geprueft. **Muss vor dem
   15.09. auf der Instanz laufen**, sonst liest das Embed dort nichts.
+- 2026-09-10: **M5-huelle** gebaut: `packages/embed` mit
+  `<KnowledgeScoutExplorer baseUrl library view="gallery" locale height? />`.
+  tsup baut ein ESM-Buendel (React extern, alles andere drin, `"use client"`
+  vorn), `scripts/build-css.mjs` Tailwind mit dem Theme aus
+  `src/styles/globals.css`, jede Regel unter `.ks-embed`;
+  `pnpm --filter @ks/embed run pack:datei` erzeugt `ks-embed-0.1.0.tgz`, und
+  `scripts/pruefe-buendel.mjs` laesst den Bau scheitern, wenn `next`- oder
+  `@ks`-Importe im Buendel stehen. Dazu: Radix-Portale in `@ks/ui` rendern per
+  `PortalContainerProvider` in den Rahmen (App unveraendert: ohne Anbieter
+  `<body>`); der Story-Knopf erscheint nur mit Story-Slot; `createInstanceApi`
+  schickt die Sprache als `Accept-Language`; `@ks/i18n` ist
+  `sideEffects: false` (sonst zog das Buendel `next/navigation` mit).
+  Rauchtest: Das gebaute Buendel rendert die ganze Galerie in jsdom gegen eine
+  gestubbte Instanz.
+- 2026-09-10: Befund Buendelgroesse: minifiziert 186 KB Einstieg, 1,7 MB
+  gemeinsames Stueck (vor allem highlight.js mit allen Sprachen aus
+  `@ks/viewers`), 89 KB Graph (nachgeladen), CSS 96 KB. Fuer den 15.09.
+  tragbar; spaeter highlight.js auf die noetigen Sprachen kuerzen.
+- 2026-09-10: Offen fuer Punkt 5 (Nachweis): Die Frage „Demo-App
+  `apps/embed-demo` ja oder nein" ist nicht entschieden. Bis dahin zeigt der
+  Rauchtest das Buendel in jsdom, nicht in einer fremden Next-App.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

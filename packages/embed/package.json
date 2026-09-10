@@ -1,0 +1,42 @@
+{
+  "name": "@ks/embed",
+  "version": "0.1.0",
+  "private": true,
+  "description": "KnowledgeScout — die Galerie einer oeffentlichen Library als Komponente fuer fremde React- und Next-Anwendungen (M5, AECED)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/index.d.ts",
+    "dist/styles.css",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "tsup && node scripts/build-css.mjs && node scripts/pruefe-buendel.mjs",
+    "pack:datei": "pnpm run build && pnpm pack"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@ks/api-client": "workspace:*",
+    "@ks/i18n": "workspace:*",
+    "@ks/module-explorer": "workspace:*",
+    "@ks/ui": "workspace:*",
+    "jotai": "^2.11.0",
+    "tsup": "^8.5.1"
+  }
+}

@@ -9,6 +9,9 @@
  */
 
 export { ExplorerRoot } from './explorer-root'
+// Das Eintrittsprotokoll ohne den Seitenrahmen von ExplorerRoot — die Huelle
+// des Embeds (M5) laedt die Library damit und bestimmt Groesse und Kopf selbst.
+export { useExplorerLibrary, type ExplorerLibraryState, type ExplorerLibraryTexts } from './use-explorer-library'
 export { toClientLibrary } from './to-client-library'
 export { fetchAccessStatus, postAccessRequest } from './explorer-access'
 export type {
