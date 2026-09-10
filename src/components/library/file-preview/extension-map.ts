@@ -93,6 +93,8 @@ export function getFileType(fileName: string): string {
     case 'mov':
     case 'webm':
     case 'mkv':
+    case 'mpeg':
+    case 'mpg':
       return 'video'
     case 'mp3':
     case 'm4a':

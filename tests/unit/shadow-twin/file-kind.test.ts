@@ -42,6 +42,8 @@ describe('getFileKind', () => {
     expect(getFileKind('clip.mp4')).toBe('video')
     expect(getFileKind('clip.mov')).toBe('video')
     expect(getFileKind('clip.webm')).toBe('video')
+    expect(getFileKind('clip.mpeg')).toBe('video')
+    expect(getFileKind('clip.mpg')).toBe('video')
     expect(getFileKind('clip.bin', 'video/mp4')).toBe('video')
   })
 
@@ -81,6 +83,8 @@ describe('getMimeTypeFromFileName', () => {
     expect(getMimeTypeFromFileName('clip.mp4')).toBe('video/mp4')
     expect(getMimeTypeFromFileName('clip.mov')).toBe('video/quicktime')
     expect(getMimeTypeFromFileName('clip.webm')).toBe('video/webm')
+    expect(getMimeTypeFromFileName('clip.mpeg')).toBe('video/mpeg')
+    expect(getMimeTypeFromFileName('clip.mpg')).toBe('video/mpeg')
   })
 
   it('liefert text/markdown fuer .md/.mdx', () => {

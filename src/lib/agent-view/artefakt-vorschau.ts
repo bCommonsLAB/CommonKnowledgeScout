@@ -18,7 +18,7 @@ export type VorschauArt = 'audio' | 'video' | 'pdf' | 'bild' | 'text' | 'keine'
 
 const ART_NACH_ENDUNG: Record<string, VorschauArt> = {
   m4a: 'audio', mp3: 'audio', wav: 'audio', ogg: 'audio', flac: 'audio', aac: 'audio', opus: 'audio',
-  mp4: 'video', webm: 'video', mov: 'video', m4v: 'video',
+  mp4: 'video', webm: 'video', mov: 'video', m4v: 'video', mpeg: 'video', mpg: 'video',
   pdf: 'pdf',
   png: 'bild', jpg: 'bild', jpeg: 'bild', gif: 'bild', webp: 'bild', svg: 'bild',
   md: 'text', txt: 'text',

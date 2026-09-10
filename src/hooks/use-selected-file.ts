@@ -14,6 +14,8 @@ function getFileType(fileName: string): string {
     case 'mp4':
     case 'avi':
     case 'mov':
+    case 'mpeg':
+    case 'mpg':
       return 'video';
     case 'mp3':
     case 'm4a':

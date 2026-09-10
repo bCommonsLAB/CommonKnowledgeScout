@@ -74,6 +74,8 @@ export function getFileTypeFromName(fileName: string): string {
     case 'mkv':
     case 'wmv':
     case 'flv':
+    case 'mpeg':
+    case 'mpg':
       return 'video';
     // Audio
     case 'mp3':
