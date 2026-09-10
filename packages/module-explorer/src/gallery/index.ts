@@ -35,6 +35,13 @@ export {
   useGalleryNavigation,
   type GalleryNavigation,
 } from './contexts/gallery-navigation-context'
+// Embed (M5): Adressierung im Speicher und das Anbieter-Buendel, Gegenstueck
+// zu NextGalleryNavigation und GalleryAppProviders in der App.
+export {
+  SpeicherGalleryNavigation,
+  type SpeicherGalleryNavigationProps,
+} from './contexts/speicher-gallery-navigation'
+export { EmbedGalleryProviders, type EmbedGalleryProvidersProps } from './contexts/embed-gallery-providers'
 export {
   GalleryHostProvider,
   useGalleryHost,
