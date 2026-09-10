@@ -60,6 +60,12 @@ export interface DetailOverlayProps {
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
+  /**
+   * Gibt es einen Story-Modus, in den der Knopf wechseln kann? Die App reicht
+   * immer einen Story-Slot herein, das Embed nie (M5: Story und Chat bleiben
+   * draussen). Ohne Slot fuehrte „In Story Mode ansehen" ins Leere.
+   */
+  storyModusVerfuegbar: boolean
   /** Optional: Aktueller Mode für den SwitchToStoryModeButton */
   currentMode?: 'gallery' | 'story'
   /** Optional: Ref für Flag, um zu verhindern, dass selectedDoc während des Wechsels verwendet wird */
@@ -106,6 +112,7 @@ export function DetailOverlay({
   detailRenderers,
   title,
   doc,
+  storyModusVerfuegbar,
   currentMode = 'gallery',
   isSwitchingRef,
   fallbackLocale,
@@ -377,12 +384,14 @@ export function DetailOverlay({
               <div className='flex items-center gap-2 flex-wrap'>
                 <div className='ml-auto flex items-center gap-2'>
                   <DocumentShareButton doc={doc} title={displayTitle} />
-                  <SwitchToStoryModeButton
-                    doc={doc}
-                    currentMode={currentMode}
-                    onClose={onClose}
-                    isSwitchingRef={isSwitchingRef}
-                  />
+                  {storyModusVerfuegbar ? (
+                    <SwitchToStoryModeButton
+                      doc={doc}
+                      currentMode={currentMode}
+                      onClose={onClose}
+                      isSwitchingRef={isSwitchingRef}
+                    />
+                  ) : null}
                 </div>
               </div>
               {/* Bewertungsmodus ist Member-only und braucht eine Geschwister-

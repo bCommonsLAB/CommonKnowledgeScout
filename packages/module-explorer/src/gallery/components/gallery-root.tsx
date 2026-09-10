@@ -1266,6 +1266,7 @@ export function GalleryRoot({
           viewType={detailViewTypeForDoc}
           detailRenderers={detailRenderers}
           doc={selectedDoc}
+          storyModusVerfuegbar={Boolean(storyPanel)}
           currentMode={galleryDataMode}
           isSwitchingRef={isSwitchingToStoryModeRef}
           // Fallback-Locale aus Library-Config (siehe Doc-Translations Refactor)

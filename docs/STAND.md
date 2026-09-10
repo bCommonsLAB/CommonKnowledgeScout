@@ -215,6 +215,31 @@ Neu dazugekommen:
   geprueft. Waechter `tests/unit/packages/docker-abhaengigkeiten.test.ts`:
   Jeder Import unter `packages/`, den die App-Typpruefung sieht, muss mit den
   Root-Abhaengigkeiten aufloesbar sein. `ci-main` fuer #271 (CORS) war gruen.
+- 2026-09-10: **M5-nachweis** (Owner: im Projekt `commoning-methods`, eigener
+  Worktree `ks-embed-nachweis`, Seite `/ks-embed-nachweis`, Library
+  `commoning` von knowledgescout.org). Die fremde App laeuft mit Next 16,
+  React 19 und Turbopack — vier Befunde, alle im Paket behoben:
+  (1) `peerDependencies` erlaubten nur React 18, `npm install` scheiterte;
+  jetzt `^18.2.0 || ^19.0.0`. (2) Turbopack lehnte das Buendel ab („dynamic
+  usage of require is not supported"): esbuild liess fuer
+  `use-sync-external-store/shim` (aus Radix und swr) einen `require`-Ersatz
+  stehen; ein tsup-Plugin lenkt `require("react")` auf ESM-`import` um, und
+  `pruefe-buendel.mjs` laesst den Bau am Ersatz scheitern. (3)
+  Hydrierungsfehler (Server „Loading…", Browser „Lade…"), danach zeichnete
+  React die ganze fremde Seite neu: Die Galerie montiert erst im Browser, auf
+  dem Server steht nur der Rahmen. (4) Die Detailansicht (`fixed inset-0`)
+  deckte das ganze Fenster der fremden Seite zu: `contain: layout` am Rahmen
+  haelt sie darin. Dazu zeigt die Detailansicht „In Story Mode ansehen" nur
+  mit Story-Slot (Waechter in `galerie-schnitt.test.ts`). Geprueft: alle
+  Anfragen gehen an knowledgescout.org, Cover kommen aus dem Blob-Speicher,
+  Stile greifen im Rahmen, CORS ist auf der Instanz live.
+- 2026-09-10: **Vor dem 15.09. offen**: Auf knowledgescout.org gibt es keine
+  oeffentliche Library `aeced` (404; oeffentlich sind commoning, biodiv,
+  cast-neustift-2026, klimamassnahmen, oldiesforfuture, sfscon-talks). Ohne
+  sie meldet das Embed bei AECED eine unbekannte Library. Ausserdem wirbt der
+  Standardtext der Galerie (`texts.book.description` in `@ks/i18n`) fuer den
+  Story Mode, den es im Embed nicht gibt — fuer AECED eigene Galerie-Texte in
+  der Library setzen.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

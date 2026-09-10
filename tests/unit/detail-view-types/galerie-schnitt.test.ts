@@ -304,4 +304,27 @@ describe('Galerie-Schnitt', () => {
         'Adressieren ueber useGalleryNavigation() — die App schreibt in die URL, das Embed in den Speicher.'
     ).toEqual([])
   })
+
+  it('Story-Knoepfe nur, wenn es einen Story-Slot gibt (M5)', () => {
+    // Im Embed gibt es keinen Story-Modus (M5: Story und Chat bleiben draussen).
+    // Der Nachweis in einer fremden App (10.09.2026) zeigte „In Story Mode
+    // ansehen" in der Detailansicht — ein Knopf ins Leere. Beide Story-Knoepfe
+    // haengen deshalb am Slot `storyPanel`, den nur die App hereinreicht.
+    const komponenten = join(REPO_ROOT, 'packages/module-explorer/src/gallery/components')
+    const wurzel = readFileSync(join(komponenten, 'gallery-root.tsx'), 'utf-8')
+    const overlay = readFileSync(join(komponenten, 'detail-overlay.tsx'), 'utf-8')
+
+    expect(wurzel).toContain('storyModusVerfuegbar={Boolean(storyPanel)}')
+    expect(wurzel).toContain("ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}")
+    expect(wurzel).not.toMatch(/ctaLabel=\{t\('gallery\.switchToStoryMode'\)\}/)
+    expect(overlay).toMatch(/\{storyModusVerfuegbar \? \(\s*<SwitchToStoryModeButton/)
+
+    // Kein zweiter Weg zum Knopf an der Bedingung vorbei.
+    const verwendungen = collectSourceFiles(join(REPO_ROOT, 'packages/module-explorer/src')).flatMap((file) =>
+      (readFileSync(file, 'utf-8').match(/<SwitchToStoryModeButton\b/g) ?? []).map(() =>
+        relative(REPO_ROOT, file).replace(/\\/g, '/'),
+      ),
+    )
+    expect(verwendungen).toEqual(['packages/module-explorer/src/gallery/components/detail-overlay.tsx'])
+  })
 })

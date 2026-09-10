@@ -130,7 +130,7 @@ Messung und eigenem Beweis-Test — Plan und Zahlen in
 | Buch-Renderer (Hand-off §7) | **M5-buch-renderer** — Buch-Ansicht per `git mv` ins Paket, App-Huellen unter den alten Pfaden, `BuchDetailRenderer` und `EMBED_DETAIL_RENDERERS` (#269) | erledigt |
 | 4 CORS (Instanz) | **M5-cors** — Preflight und `Access-Control-Allow-Origin: *` fuer die Lese-Routen des Embeds, ohne Anmeldedaten (#271) | gebaut |
 | 4 Huelle | **M5-huelle** — `packages/embed`: `KnowledgeScoutExplorer`, tsup-Buendel, CSS unter `.ks-embed`, Datei-Paket per `pnpm pack` (Owner 2026-09-10) | gebaut |
-| 5 Nachweis | Einbau in eine fremde Next-App; Frage `apps/embed-demo` ja/nein offen | offen |
+| 5 Nachweis | **M5-nachweis** — Einbau in `commoning-methods` (Next 16, React 19, Turbopack; Owner 2026-09-10, keine `apps/embed-demo`); vier Befunde im Paket behoben, Library `aeced` fehlt auf der Instanz | gebaut |
 
 Eine Abweichung von der Reihenfolge in `02-audit-umzug.md` §4, bewusst: Es
 zieht **nur die Galerie** um, nicht Chat-UI, Story und Website. Das deckt sich
