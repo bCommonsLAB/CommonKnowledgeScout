@@ -357,6 +357,16 @@ Neu dazugekommen:
   Anwendung), 74 Popups; jede Anwendung läuft jetzt von S0/S1 bis S11
   (Peters Archiv bis S9). Offen:
   Bestands-Screenshots (lokal) als Vorlage.
+- 2026-09-11 — **Architektur und Datenhaltung der Stationen** konzipiert
+  (Owner-Frage abends): [`plans/erfassungs-architektur-stationen-datenhaltung.plan.md`](plans/erfassungs-architektur-stationen-datenhaltung.plan.md).
+  Der Wizard ist die Maschine von S4/S5 und wird durch das Composer-Konzept
+  fertig, nicht ersetzt; die übrigen Stationen sind Regelsatz je Library
+  (neues Feld `capture.*`) plus Erweiterung bestehender Module; Neubau nur
+  Anlagen-Modell, Bewertungsmodell mit Fenstern, Sichtbarkeits-Regel,
+  Synthese mit Fassungen. Datenhaltung: Verfahren in MongoDB (neu
+  `consents`, `assessments`, `syntheses`), Wissen als Dokument mit flachem
+  Frontmatter im Storage, Rohdaten im Blob. Wellen E0–E7, Pflicht bis Freeze
+  E0–E4 (34–49 PT). Wizard-Editor nach dem Freeze.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

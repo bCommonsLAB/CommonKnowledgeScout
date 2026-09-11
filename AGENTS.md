@@ -141,7 +141,9 @@ Detail (warum, Symptome, Ausnahmen):
 
 - Aktive Plaene liegen unter [`docs/plans/`](docs/plans/) — dort liegt seit
   2026-09-11 das Detailkonzept des Erfassungs-Composers fuer Vorhaben 3
-  (`erfassungs-composer-s4-s5.plan.md`); das laufende Vorhaben hat seinen
+  (`erfassungs-composer-s4-s5.plan.md`) und das Konzept zu Architektur und
+  Datenhaltung der Stationen (`erfassungs-architektur-stationen-datenhaltung.plan.md`);
+  das laufende Vorhaben hat seinen
   Brief, siehe [`docs/STAND.md`](docs/STAND.md)
 - Geplante Plaene (gewollt, ohne Termin): [`docs/plans/geplant/`](docs/plans/geplant/)
 - Erledigte/gegenstandslose Plaene: [`docs/plans/archiv/`](docs/plans/archiv/)
