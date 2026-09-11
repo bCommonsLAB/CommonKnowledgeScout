@@ -334,18 +334,19 @@ Neu dazugekommen:
   mobile-first, die auf dem Desktop nur breiter wird (Plan, Abschnitt 5.1).
   Später zu klären: Service Worker im Next-Build, persistentes Rate-Limit.
 - 2026-09-11 — **Composer als Klickmodell in Figma** gebaut (Screen-Landkarte,
-  Section `node-id=27-2` rechts vom Board): Legende Kontext → Konfiguration,
+  ehemals Section `node-id=27-2`, jetzt Matrix `60-2`): Legende Kontext → Konfiguration,
   fünf Kontext-Reihen (Basis SHF, Moderation in Vertretung, Dialogformate,
   AECED, Klimamaßnahmen mit Bewertungskarte und Fachkundigen-Hinweis) in
   390 × 844, Prototyp-Verbindungen in der Basis-Reihe. Belegt, dass
   Kontexte über Einladungs-Token, Schema, Rolle und Library-Regelsatz an
   dieselbe Station kommen, nicht über einen zweiten Ablauf. Ausgedehnt auf
   alle Stationen (Owner 11.09.): Section „S0–S3 Eintritt und Orientieren"
-  (`node-id=36-2`), „S6–S7" (`42-2`), „S8–S8b" (`47-2`), „S9–S11"
-  (`47-37`) — alle 13 Stationen als Klickmodell in fünf Sections rechts vom
-  Board (x = 6000, Stationsreihenfolge von oben nach unten), Prototyp-
-  Verbindungen über die Sections hinweg. Offen: Anordnung vom Owner
-  abnehmen, Bestands-Screenshots (lokal) als Vorlage einhängen.
+  bis „S9–S11" — alle 13 Stationen als Klickmodell, Prototyp-Verbindungen
+  über die Stationen hinweg. Auf Owner-Wunsch (abends) als **Matrix**
+  umgehängt (`node-id=60-2`): eine Zeile je Anwendung, eine Spalte je
+  Station, Schnittlinien zum Ausdrucken — waagrecht die Storyline einer
+  Anwendung, senkrecht alle Varianten einer Station. Rahmen verschoben,
+  nicht neu gebaut. Offen: Bestands-Screenshots (lokal) als Vorlage.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

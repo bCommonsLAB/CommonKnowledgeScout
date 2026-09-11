@@ -47,7 +47,7 @@ todos:
 (Empfehlung: in KnowledgeScout bauen, als Paket `@ks/capture`, C-fähig).
 **Figma:** Screen-Landkarte https://www.figma.com/design/2Eb9gkeKcHzhY7kR1kPyKs —
 Abnahme an T-S4.1 bis T-S5.2 (Abschnitt 8). Ausarbeitung als Klickmodell
-(seit 11.09., rechts vom Board): https://www.figma.com/design/2Eb9gkeKcHzhY7kR1kPyKs?node-id=27-2
+(seit 11.09., rechts vom Board, Matrix Anwendungen × Stationen): https://www.figma.com/design/2Eb9gkeKcHzhY7kR1kPyKs?node-id=60-2
 
 **Leitplanken:** ADR 0003 ist die Richtung (`wizard-flow-entity.ts` bleibt die
 Naht). ADR 0004 gilt: die Erfassung schreibt nie ins Ziel. ADR 0006 gilt für
@@ -371,7 +371,7 @@ Telefonrahmen schon; was fehlt, ist die Ausarbeitung und die wenigen
 Desktop-Spiegel.
 
 **Stand 11.09., Figma-Section „Composer — Ausarbeitung (Klickmodell)"**
-(`node-id=27-2`, rechts vom Board): eine Legende „Was je Kontext anders ist —
+(ehemals `node-id=27-2`, seit abends in der Matrix `60-2`): eine Legende „Was je Kontext anders ist —
 und woher es kommt", darunter vier Reihen in Telefonbreite. Reihe 1 Basis (SHF
 Teilnehmende) mit sechs Frames T-S4.1, T-S4.2, T-S4.3, T-S4.3b Fehlerfall,
 T-S5.1, T-S5.2 und Prototyp-Verbindungen (Startpunkt „Composer · Basis").
@@ -390,7 +390,7 @@ stehen als gestrichelte Platzhalter „= Basis".
 Die Ausarbeitung wird auf alle Stationen ausgedehnt (Owner 11.09.): rechts
 vom Board eine Spalte von Sections in Stationsreihenfolge, gleicher Aufbau
 (Legende, Kontext-Reihen, Platzhalter). Stand 11.09.: Section „S0–S3 ·
-Eintritt und Orientieren" (`node-id=36-2`, über der Composer-Section) mit
+Eintritt und Orientieren" (ehemals `node-id=36-2`, jetzt in der Matrix) mit
 T-S1.1, T-S1.1b Anmelden per E-Mail-Code, T-S2.1, T-S2.2, T-S3.1 (Reihe
 Teilnehmende, Prototyp bis in den Composer), M-S0.1, M-S0.2, M-S1.2, M-S3.2
 (Moderation), D-S2.2 (Dialogformate), A-S1.1 und N-S1.1 (AECED, Naturmuseum).
@@ -418,9 +418,20 @@ Maßnahmen finden (beide gebauter Bestand). Prototyp-Verbindungen laufen
 T-S5.2 „Zur Übersicht" → T-S11.1, T-S11.1 „Weiteres beitragen" → T-S4.1,
 T-S10.1 „Alle Beiträge" → T-S9.1, M-S6.4 „Auf Beamer zeigen" → M-S10.2,
 T-S8b.1 „Stimmt so" → T-S11.1, D-S8b.3 „Entwurf erzeugen" → D-S10.1.
-Anordnung: fünf Sections bei x = 6000 rechts vom Board, von oben nach
-unten S0–S3, S4–S5, S6–S7, S8–S8b, S9–S11; jede Reihe ein Kontext, jeder
-Rahmen 390 × 844, unveränderte Screens als gestrichelte Platzhalter.
+**Anordnung als Matrix (Owner 11.09., abends):** die fünf Sections sind zu
+einer einzigen Section „Matrix · Anwendungen × Stationen" (`node-id=60-2`,
+rechts vom Board bei x = 6000) umgehängt — die Rahmen wurden verschoben, nicht
+neu gebaut, Prototyp-Verbindungen und Startpunkte blieben erhalten. Eine
+Zeile je Anwendung (SHF Teilnehmende, SHF Moderation, Dialogformate, AECED,
+Klimamaßnahmen, Naturmuseum, Peters Archiv), eine Spalte je Station S0 bis
+S11 (S8b eigene Spalte, S7 als Zustandsvarianten). Waagrecht ausgeschnitten
+ergibt eine Zeile die Storyline einer Anwendung, senkrecht eine Spalte alle
+Varianten einer Station; gestrichelte Schnittlinien zwischen Spalten und
+Zeilen sind dafür eingezeichnet. Leere Zelle heißt „wie Basis" oder „kommt
+nicht vor", gestrichelte Rahmen sind unveränderte Screens mit Notiz. Die
+fünf Legenden „Was je Kontext anders ist" liegen gesammelt unter der Matrix.
+Rund 12.200 × 9.700 px; die früheren node-ids 36-2, 27-2, 42-2, 47-2, 47-37
+gibt es nicht mehr.
 
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
