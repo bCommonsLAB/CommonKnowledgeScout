@@ -455,6 +455,17 @@ eigenen Sprünge. Reihenfolgen: SHF Teilnehmende 19 Screens, SHF Moderation
 2. Der Start ist der erste Flow-Startpunkt; Prototyp-Link:
 https://www.figma.com/proto/2Eb9gkeKcHzhY7kR1kPyKs?node-id=66-2&starting-point-node-id=66%3A2&scaling=scale-down-width
 
+**Zwischenscreens für Testpersonen (Owner 11.09.):** Vor jeder Station
+liegt in jeder Anwendungskette ein Zwischenscreen in der Stationsfarbe
+(Section „Play-Modus · Zwischenscreens", `node-id=70-2`, unter der Matrix,
+Zeile je Anwendung, Spalte je Station): Anwendungs-Pille oben, „Station S4 ·
+Beitragen", zwei bis drei Sätze Zweck der Station in Du-Form, „Gleich siehst
+du" mit den Screens dieser Station in dieser Anwendung, Button „Weiter" oder
+Tipp auf die Fläche. 40 Zwischenscreens (Teilnehmende 11, Moderation 11,
+Dialogformate 6, AECED 4, Klimamaßnahmen 4, Naturmuseum 2, Peters Archiv 2);
+die Pille zeigt dort „S4 · Einstieg". Die Zwecktexte je Station sind die
+Kurzfassung der Landkarte §4 und ändern sich mit ihr.
+
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
 Telefonbreite abfotografiert (Chrome-Gerätemodus 390 × 844), im Archivordner
