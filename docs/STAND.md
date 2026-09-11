@@ -295,11 +295,36 @@ Rate-Limiting.
 Mitgenommene alte Themen, vom Owner am 09.09. entschieden: **Die Erfassung
 wird hier in einem Zug bereinigt**, nicht vorab. Dazu gehören die beiden
 Alt-Endpunkte `events/finalize` und `events/publish-final` (Phase 6 von
-generic-finalize-wizard; werden in `creation-wizard.tsx` noch aktiv gerufen),
+generic-finalize-wizard; Befund 11.09.: nur `publish-final` wird in
+`creation-wizard.tsx` noch gerufen, `:2730` und `:2825`; `events/finalize` hat
+in `src/**` keinen Aufrufer mehr),
 ADR 0003 Wizard/Schema, und die Reste aus Welle 3-VI. Mehrsprachigkeit DE/IT:
 entscheidet das Vorabtreffen.
 
-Neu dazugekommen: (noch nichts)
+Neu dazugekommen:
+
+- 2026-09-11 — **Erfassungs-Flow analysiert** (Handover aus dem Archiv,
+  `24.09 KnowledgeScout/2026-09-10 Konzept Erfassungs-Flow generisch und mobil/`):
+  [`analysis/erfassungs-flow-wiederverwendung.md`](analysis/erfassungs-flow-wiederverwendung.md)
+  stuft die dreizehn Stationen S0–S11 am Code ein (konfigurieren / erweitern /
+  portieren / neu, mit Belegen aus KnowledgeScout, NatureScout, BetterWriter) und
+  listet vierzehn Widersprüche zwischen Konzept und Code. Kernbefunde: S0 ist
+  nicht „fehlt", sondern erweitern (Mitgliedschaft mit vier Rollen und
+  Einladungs-Token existiert); die Stimme ist binär, nicht Skala; die Werkbank
+  ist twin-gebunden und nimmt den Wartekorb nicht auf; die Outbox persistiert
+  nicht. Pflicht bis Freeze 31–48 PT, Plattform gesamt 45–65 PT.
+  [`analysis/erfassungs-flow-bauweisen-vergleich.md`](analysis/erfassungs-flow-bauweisen-vergleich.md)
+  vergleicht „in KnowledgeScout" gegen „eigenständige App als Endpoint-Client"
+  gegen „eigenständige App mit React-Paketen". Empfehlung: **A jetzt, C-fähig
+  gebaut** — `@ks/capture` spricht nur über `InstanceApi`; der Write-Key wird
+  die erste tokenfähige Schreibroute. Umschaltpunkt am 16.09.: SPID/CIE,
+  Offline-First mit Store-App, oder getrennte Auslieferung fürs Land.
+  Offen: Detailkonzept Composer S4/S5 (Handover Teil 3) unter `docs/plans/`.
+- 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
+  und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
+  `packages/module-explorer/src/gallery/**`, Sterne unter
+  `api/library/[id]/source-user-states/`). Nachziehen, sobald die Contracts der
+  Galerie mitziehen.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
 
