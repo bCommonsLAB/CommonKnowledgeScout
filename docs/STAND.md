@@ -348,7 +348,9 @@ Neu dazugekommen:
   Anwendung, senkrecht alle Varianten einer Station. Rahmen verschoben,
   nicht neu gebaut. Farbleitsystem auf beiden Boards vereinheitlicht:
   Anwendungen warm/grün (Zeilenbänder), Stationen kühl je Gruppe
-  (Spaltenköpfe). Offen: Bestands-Screenshots (lokal) als Vorlage.
+  (Spaltenköpfe). Play-Modus: Start-Screen `66-2` mit Anwendungswahl,
+  je Anwendung Tipp-für-Tipp durch alle Screens (Handy: Figma-App oder
+  Prototyp-Link). Offen: Bestands-Screenshots (lokal) als Vorlage.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

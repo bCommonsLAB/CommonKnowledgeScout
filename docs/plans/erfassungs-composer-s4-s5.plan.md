@@ -444,6 +444,17 @@ Zeilenband, die Station ein farbiger Spaltenkopf mit Farbbalken. So sieht
 man beim Ausschneiden, wo eine Anwendung verläuft und wo eine Station
 anfängt und aufhört.
 
+**Play-Modus fürs Handy (Owner 11.09.):** Start-Screen „Anwendung wählen"
+(`node-id=66-2`, unter der Matrix rechts neben den Legenden) mit sieben
+farbigen Wahlkarten. Danach ist jeder Screen einer Anwendung per Tipp auf
+die Fläche mit dem nächsten verkettet (Stationsreihenfolge, am Ende zurück
+zum Start); eine Pille in der Statusleiste zeigt Station und Stand
+(„S4 · 6/19") und führt zurück und weiter. Die blauen Buttons behalten ihre
+eigenen Sprünge. Reihenfolgen: SHF Teilnehmende 19 Screens, SHF Moderation
+16, Dialogformate 7, AECED 4, Klimamaßnahmen 4, Naturmuseum 2, Peters Archiv
+2. Der Start ist der erste Flow-Startpunkt; Prototyp-Link:
+https://www.figma.com/proto/2Eb9gkeKcHzhY7kR1kPyKs?node-id=66-2&starting-point-node-id=66%3A2&scaling=scale-down-width
+
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
 Telefonbreite abfotografiert (Chrome-Gerätemodus 390 × 844), im Archivordner
