@@ -319,7 +319,11 @@ Neu dazugekommen:
   gebaut** — `@ks/capture` spricht nur über `InstanceApi`; der Write-Key wird
   die erste tokenfähige Schreibroute. Umschaltpunkt am 16.09.: SPID/CIE,
   Offline-First mit Store-App, oder getrennte Auslieferung fürs Land.
-  Offen: Detailkonzept Composer S4/S5 (Handover Teil 3) unter `docs/plans/`.
+  Detailkonzept Composer S4/S5 (Handover Teil 3):
+  [`plans/erfassungs-composer-s4-s5.plan.md`](plans/erfassungs-composer-s4-s5.plan.md)
+  — Anlagen-Modell mit Zustand je Anlage, Paket `@ks/capture`, Abgeben
+  sobald eine Anlage fertig ist, elf PR-Scheiben C0–C10 (13–18 PT, +2–3
+  für den Write-Key), Abnahme an T-S4.1 bis T-S5.2. Offen: S0-Detailkonzept.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

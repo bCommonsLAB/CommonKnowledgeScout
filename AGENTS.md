@@ -139,9 +139,10 @@ Detail (warum, Symptome, Ausnahmen):
 
 ## Pläne
 
-- Aktive Plaene liegen unter [`docs/plans/`](docs/plans/) — seit 2026-09-09
-  ist der Ordner leer; das laufende Vorhaben hat seinen Brief, siehe
-  [`docs/STAND.md`](docs/STAND.md)
+- Aktive Plaene liegen unter [`docs/plans/`](docs/plans/) — dort liegt seit
+  2026-09-11 das Detailkonzept des Erfassungs-Composers fuer Vorhaben 3
+  (`erfassungs-composer-s4-s5.plan.md`); das laufende Vorhaben hat seinen
+  Brief, siehe [`docs/STAND.md`](docs/STAND.md)
 - Geplante Plaene (gewollt, ohne Termin): [`docs/plans/geplant/`](docs/plans/geplant/)
 - Erledigte/gegenstandslose Plaene: [`docs/plans/archiv/`](docs/plans/archiv/)
   (mit Beleg und Restnotiz je Plan in der dortigen README)
