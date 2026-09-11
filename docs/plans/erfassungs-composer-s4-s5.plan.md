@@ -394,9 +394,33 @@ Eintritt und Orientieren" (`node-id=36-2`, über der Composer-Section) mit
 T-S1.1, T-S1.1b Anmelden per E-Mail-Code, T-S2.1, T-S2.2, T-S3.1 (Reihe
 Teilnehmende, Prototyp bis in den Composer), M-S0.1, M-S0.2, M-S1.2, M-S3.2
 (Moderation), D-S2.2 (Dialogformate), A-S1.1 und N-S1.1 (AECED, Naturmuseum).
-Es folgen S6–S7, S8–S8b, S9–S11. Die Reihen belegen die Regel
+Die Reihen belegen die Regel
 aus der Legende: derselbe Ablauf, dieselben Karten — anders ist nur, was aus
 Einladungs-Token, Schema, Rolle und Library-Regelsatz kommt.
+
+**Alle Stationen stehen (Stand 11.09., abends).** Drei weitere Sections in
+derselben Spalte, gleicher Aufbau. „S6–S7 · Reagieren und Zustand"
+(`node-id=42-2`, unter der Composer-Section): T-S6.1 Vorschlag & Einwand,
+T-S6.2, die S7-Zustände eines Themas vor und nach eigener Abgabe
+(Teilnehmende), M-S6.3, M-S6.4 (Moderation), D-S6.1 (Dialogformate), P-S6.1
+(Peters Archiv). „S8–S8b · Kuratieren und Verdichten" (`node-id=47-2`):
+M-S8.1 Eingang, M-S8.2 Beitrag prüfen, M-S8b.1 Synthese-Vorschlag, M-S8b.2
+Fassung freigeben (Moderation), T-S8b.1 Meine Sätze im Ergebnis
+(Teilnehmende), D-S8b.3 Quellen für den Artikel wählen (Dialogformate),
+N-S8.1 Fachliche Prüfung (Naturmuseum), P-S8.1 Werkbank als gebauter
+Bestand. „S9–S11 · Wiederfinden, Zeigen, Nachverfolgen" (`node-id=47-37`):
+T-S9.1 Was liegt dazu vor?, T-S10.1 Ergebnis, T-S11.1 Meine Beiträge
+(Teilnehmende), M-S9.2 Nachschlagen, M-S10.2 Beamer-Ansicht als
+16:9-Rahmen mit eigener Route, M-S11.2 Wer fehlt noch (Moderation), D-S10.1
+Artikel veröffentlichen, A-S10.1 eingebettete Galerie und K-S9.1
+Maßnahmen finden (beide gebauter Bestand). Prototyp-Verbindungen laufen
+über die Sections hinweg: T-S3.1 „Was liegt dazu vor?" → S7-Zustand,
+T-S5.2 „Zur Übersicht" → T-S11.1, T-S11.1 „Weiteres beitragen" → T-S4.1,
+T-S10.1 „Alle Beiträge" → T-S9.1, M-S6.4 „Auf Beamer zeigen" → M-S10.2,
+T-S8b.1 „Stimmt so" → T-S11.1, D-S8b.3 „Entwurf erzeugen" → D-S10.1.
+Anordnung: fünf Sections bei x = 6000 rechts vom Board, von oben nach
+unten S0–S3, S4–S5, S6–S7, S8–S8b, S9–S11; jede Reihe ein Kontext, jeder
+Rahmen 390 × 844, unveränderte Screens als gestrichelte Platzhalter.
 
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in

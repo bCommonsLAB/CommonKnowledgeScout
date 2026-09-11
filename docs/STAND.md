@@ -341,8 +341,11 @@ Neu dazugekommen:
   Kontexte über Einladungs-Token, Schema, Rolle und Library-Regelsatz an
   dieselbe Station kommen, nicht über einen zweiten Ablauf. Ausgedehnt auf
   alle Stationen (Owner 11.09.): Section „S0–S3 Eintritt und Orientieren"
-  (`node-id=36-2`) mit Teilnehmenden-, Moderations-, Dialog- und
-  AECED/Naturmuseum-Reihe steht; S6–S7, S8–S8b, S9–S11 folgen.
+  (`node-id=36-2`), „S6–S7" (`42-2`), „S8–S8b" (`47-2`), „S9–S11"
+  (`47-37`) — alle 13 Stationen als Klickmodell in fünf Sections rechts vom
+  Board (x = 6000, Stationsreihenfolge von oben nach unten), Prototyp-
+  Verbindungen über die Sections hinweg. Offen: Anordnung vom Owner
+  abnehmen, Bestands-Screenshots (lokal) als Vorlage einhängen.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
