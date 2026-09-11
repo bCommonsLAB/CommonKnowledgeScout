@@ -1,6 +1,6 @@
 ---
 name: erfassungs-composer-s4-s5
-overview: "Detailkonzept für den Composer (Stationen S4 Beitragen und S5 Prüfen & Abgeben): Beitrag mit mehreren Anlagen und Zustand je Anlage, Composer als Paket @ks/capture, Abgeben sobald eine Anlage fertig ist, mobiler Pfad mit Kamera, Mikrofon und Wiederaufnahme, creation-wizard.tsx auf einen Orchestrator geschrumpft. Handover Teil 3 vom 11.09.2026, Vorhaben 3 (SHF)."
+overview: "Detailkonzept für den Composer (Stationen S4 Beitragen und S5 Prüfen & Abgeben): Beitrag mit mehreren Anlagen und Zustand je Anlage, Composer als Paket @ks/capture, Abgeben sobald eine Anlage fertig ist, mobiler Pfad mit Kamera, Mikrofon und Wiederaufnahme, creation-wizard.tsx auf einen Orchestrator geschrumpft. Handover Teil 3 vom 11.09.2026, Vorhaben 3 (SHF). Owner-Entscheidungen 11.09.: nur Clerk, kein kontoloser Pfad, Zielbild eine Library je Organisation."
 status: konzept
 todos:
   - id: c0-freeze
@@ -30,8 +30,8 @@ todos:
   - id: c8-publish-registry
     content: "publish als zwölftes Preset in die Step-Registry; publish-strategy.ts entscheidet nach Schema-Konfiguration (submission | shadow-twin-overwrite | event-publish-final), nicht nach templateId; Session-Telemetrie in useWizardTelemetry; creation-wizard.tsx auf Orchestrator (Flow auflösen, Schritt rendern, abgeben) unter 400 Zeilen."
     status: pending
-  - id: c9-write-key
-    content: "NUR bei Entscheidung 3 = „für alle“: Entität capture_keys (Hash, libraryId, docType, Kontingent, Ablauf, Widerruf), Routen /api/public/submissions/*, öffentliche Secretary-Routen von eventFileId auf Key-Scope verallgemeinert, persistentes Rate-Limit in MongoDB (Muster NatureScout login-code-service)."
+  - id: c9-einladungs-token
+    content: "Einladungs-Token an Library, Zieltyp (docType) und Rolle binden; Ablauf und optionales Kontingent am Token; /beitragen/[zugang] löst das Token auf und verlangt eine Clerk-Session (Owner 11.09.: kein kontoloser Pfad, Write-Key nur für Angemeldete)."
     status: pending
   - id: c10-aufraeumen
     content: "wizard-file-compute.ts auf Anlagen-Route umstellen, pickAnalyzableSource entfernen, binaryRefs-Schreibpfad abschalten, Doku (umbauplan-generischer-erfassungs-wizard.md §8.1, STAND.md) nachziehen."
@@ -52,13 +52,16 @@ Abnahme an T-S4.1 bis T-S5.2 (Abschnitt 8).
 Naht). ADR 0004 gilt: die Erfassung schreibt nie ins Ziel. ADR 0006 gilt für
 alles Sichten. Keine stillen Fallbacks. Frontmatter bleibt flach. Nicht
 angefasst ohne Entscheidung: `events/*` (Phase 6), Widerstandsmessung (O3).
+Nicht Teil des Umfangs (Owner 11.09.): kontoloser Zugang, SPID/CIE,
+Offline-First mit Store-App.
 
-**Benannte Varianten** statt stiller Annahmen, wo eine Owner-Entscheidung fehlt:
+**Owner-Entscheidungen vom 11.09.** (ersetzen die zuvor benannten Varianten):
 
-| Entscheidung (Konzept §8) | Variante A | Variante B | Wirkung auf dieses Konzept |
-|---|---|---|---|
-| 1 · Anmeldeweg | Einladungslink ohne Passwort (Clerk-Session nach Einlösen) | eigenes Konto / SPID-CIE | Composer identisch; nur der `InstanceApi`-Träger (Cookie) und die Route `/beitragen/[zugang]` unterscheiden sich. SPID/CIE: Clerk-Tauglichkeit vor dem 16.09. prüfen |
-| 3 · Zugang ohne Konto | Write-Key mit Kontingent für alle Vorhaben | beim SHF nur personalisierter Einladungslink, Write-Key nur für AECED | Scheibe C9 wird bei B kleiner (kein SHF-Kontingent), fällt aber nicht weg |
+| Entscheidung (Konzept §8) | Entschieden | Wirkung auf dieses Konzept |
+|---|---|---|
+| 1 · Anmeldeweg | **Clerk, sonst nichts.** Der Einladungslink führt zur Clerk-Anmeldung (passwortlos per E-Mail-Code ist Clerk-Bordmittel), danach in den Composer. Kein SPID/CIE | `/beitragen/[zugang]` verlangt eine Clerk-Session; `InstanceApi` läuft über das Cookie |
+| 3 · Zugang ohne Konto | **Nein.** Einen Write-Key gibt es nur für Angemeldete — als Einladungs-Token, der Library, Zieltyp und Rolle bindet | Der öffentliche Pfad (Abschnitt 3.2) entfällt; Scheibe C9 schrumpft auf das Token-Binding |
+| Organisationen | **Zielbild: jede Organisation hat ihre eigene Library.** Ob schon in der ersten Ausbaustufe, ist offen | `attribution.organisation` ist dann aus der Library ableitbar, nicht frei einzugeben; S0 bleibt eigenes Konzept |
 
 ## 1. Datenmodell
 
@@ -128,7 +131,9 @@ Mensch, kopiert der Client die Felder in `metadata`; die Herkunft bleibt in
 Zuschreibung (S2: Klarname, Organisation, Interessengruppe, in Vertretung,
 anonym) und Sichtbarkeit (S7) sind **eigene Blöcke am Beitrag**, die der
 Prüfen-Schirm zeigt. Sie werden in den Konzepten S2/S7 modelliert; dieses
-Konzept reserviert nur die Felder `attribution` und `visibility`.
+Konzept reserviert nur die Felder `attribution` und `visibility`. Gilt das
+Zielbild „eine Library je Organisation" (Owner 11.09.), kommt die Organisation
+aus der Library-Mitgliedschaft und wird nicht frei eingegeben.
 
 ### 1.3 Verhältnis zu `binaryRefs` und Migration
 
@@ -211,10 +216,11 @@ Was je Art sofort sichtbar ist und was im Hintergrund läuft (Konzept 4.2):
 | `GET /api/submissions/[id]` | geändert | liefert `attachments` und `proposal`; trägt `version` für Polling (Client fragt alle 3 s, solange eine Anlage `wird_ausgewertet` ist) |
 | `POST /api/submissions/[id]/analyze` | geändert | wird zu „alle Anlagen in `erfasst` auswerten" — ein Job je Anlage mit `correlation.options.attachmentId`; `pickAnalyzableSource` entfällt |
 
-Fortschritt läuft über **Polling des Beitrags**, nicht über den SSE-Stream
-(`/api/external/jobs/stream` ist an die Clerk-Session gebunden, `route.ts:9-14`,
-und für den kontolosen Pfad unbrauchbar). Ein Pfad für beide Fälle, SSE
-bleibt Option für später.
+Fortschritt läuft über **Polling des Beitrags**, nicht über den SSE-Stream.
+Der Stream (`/api/external/jobs/stream`, an die Clerk-Session gebunden,
+`route.ts:9-14`) wäre mit Anmeldepflicht nutzbar, bricht aber im Wackelnetz
+und braucht Wiederverbindungslogik; Polling mit Backoff ist auf dem Telefon
+der robustere Weg. SSE bleibt Option für später.
 
 Der Job-Rückfluss (`applyAnalysisResult`) wird auf die Anlage umgestellt:
 `extractAttachmentIdFromJob` neben `extractSubmissionIdFromJob`; ohne
@@ -222,25 +228,28 @@ Der Job-Rückfluss (`applyAnalysisResult`) wird auf die Anlage umgestellt:
 `attachmentId` schreibt er in `attachments[].result` und setzt `fertig` oder
 `fehlgeschlagen` — nie beides still.
 
-### 3.2 Öffentlicher Pfad (Write-Key, getrennt)
+### 3.2 Kein öffentlicher Pfad — Einladungs-Token für Angemeldete
 
-Nur bei Entscheidung 3, Variante A in voller Breite; bei Variante B nur für AECED.
+Owner-Entscheidung 11.09.: **Beitragen setzt eine Clerk-Anmeldung voraus.**
+Ein Write-Key existiert nur für Angemeldete und ist ein **Einladungs-Token**,
+der Library, Zieltyp und Rolle bindet. Damit entfallen die zuvor geplanten
+Routen unter `/api/public/submissions/*` und die Verallgemeinerung der
+öffentlichen Secretary-Routen; die Testimonial-Kette
+(`testimonialWriteKey` + `eventFileId`) bleibt unverändert, bis Testimonials
+auf den Composer gezogen sind.
 
-| Route | Zweck |
-|---|---|
-| `POST /api/public/submissions` | Body trägt `writeKey`; Server löst `capture_keys` auf (Hash-Vergleich wie `account-key-service.ts:47-54`), prüft Ablauf, Widerruf, Kontingent; legt `draft` an mit `createdBy = 'key:<label>'`, `createdByRole` bleibt leer (kontolos, wie in `wizard-submission.ts:36` vorgesehen) |
-| `POST /api/public/submissions/[id]/attachments`, `PATCH …/[attId]`, `POST …/propose`, `POST …/submit`, `GET …/[id]` | Spiegel der angemeldeten Routen; jede prüft `writeKey` + Zugehörigkeit der Submission zum Key |
-| `POST /api/public/secretary/realtime-session`, `…/process-audio` | von `eventFileId` auf `keyScope` verallgemeinert; die Testimonial-Kette bleibt als zweiter Aufrufer, bis Testimonials auf den Composer gezogen sind |
+Was das Token trägt und wie es zum Bestand passt:
 
-Entität `capture_keys`: `{ keyHash, libraryId, docType, wizardId?, label,
-quota: { maxSubmissions, maxAttachments, maxBytes }, used: {…}, expiresAt,
-revokedAt?, createdBy, createdAt }`. Kontingent wird beim Anlegen einer
-Anlage verbraucht, nicht bei der Abgabe (Kosten entstehen bei der
-Auswertung, Konzept 5.4). Rate-Limit persistent in MongoDB nach dem Muster
-`login-code-service.ts:179-192` — die drei heutigen Limiter sind prozesslokal.
+| Bestandteil | Bestand | Ergänzung |
+|---|---|---|
+| Token, Einlösung, Mitgliedschaft `pending → active` | `library-members-repo.ts:66-108`, `:137-169`; Route `api/libraries/invites/[token]/accept` | Token bekommt `docType` (Zieltyp) und optional einen Einladungssatz; beides landet nach dem Einlösen in der Session-Route `/beitragen/[zugang]` |
+| Rolle | `contributor` (erfasst, sieht eigenen Beitrag, publiziert nicht) | keine |
+| Kontingent, Ablauf, Widerruf | Widerruf = Mitglied entfernen; Ablauf und Kontingent fehlen | `expiresAt` und optional `quota` am Token; Kontingent wird beim Anlegen einer Anlage verbraucht (Kosten entstehen bei der Auswertung) |
+| Rate-Limit | je Nutzer prozesslokal für Realtime-Tickets | später persistent (Bauweisen-Vergleich, Abschnitt 6) |
 
-Ein Beitrag ohne Konto landet **zwingend** in `pending`; `promote` ist für
-Key-Beiträge nicht erreichbar (kein Reviewer-Recht am Key).
+Der Beitrag eines Contributors landet **zwingend** in `pending`; `promote`
+bleibt Owner und Co-Creator vorbehalten (`resolveCreatorRole`,
+`submission-capture.ts:34-42`).
 
 ### 3.3 Was entfällt
 
@@ -317,14 +326,50 @@ Standard-Flow rendert durch `@ks/capture`.
 
 | Route | Wer | Schale | `InstanceApi` |
 |---|---|---|---|
-| `/beitragen/[zugang]` | Einladungslink (Var. 1A) oder Write-Key (Var. 3A) | schlank, mobil, ohne Dateibaum | Cookie bzw. Key |
+| `/beitragen/[zugang]` | Einladungslink; Clerk-Session Pflicht (nach dem Einlösen des Tokens) | schlank, mobil, ohne Dateibaum | Cookie |
 | `/library/create/[typeId]` | angemeldete Owner/Co-Creator/Contributor | heutige Schale | Cookie |
 
-`[zugang]` ist ein opakes Token; die Seite löst es serverseitig auf
-(Einladung → Clerk-Session verlangen; Key → kontolos) und montiert dieselbe
-`CaptureRoot` mit `docType` und Einladungssatz aus dem Token.
+`[zugang]` ist das Einladungs-Token; die Seite löst es serverseitig auf,
+verlangt eine Clerk-Session (sonst Umleitung zur Anmeldung und zurück) und
+montiert dieselbe `CaptureRoot` mit `docType` und Einladungssatz aus dem Token.
 
 ## 5. Mobil
+
+### 5.1 Eine Ansicht, nicht zwei
+
+Frage des Owners (11.09.): Ist die mobile Ansicht eine zweite View, die beim
+Verkleinern des Browsers umschaltet, oder immer nur eine View für Desktop und
+Mobil? **Für den Composer: eine View, mobile-first entworfen, die auf dem
+Desktop nur breiter wird.** Der Beitragspfad ist eine einspaltige Folge
+(Eingabefeld, Kartenstrom, Prüfen, Bestätigung); auf einem großen Bildschirm
+bekommt dieselbe Spalte eine Maximalbreite (rund 640 px) und wird zentriert —
+so, wie ein Chat-Eingabefeld auf dem Desktop aussieht. Kein Umschalten, keine
+zweite Komponente; Tailwind-Breakpoints in derselben Komponente entscheiden
+Randabstände, Position der Aktionsleiste (unten fixiert vs. unter der Spalte)
+und Kartenbreite. Der Browser schaltet beim Verkleinern von selbst um, weil
+das reine CSS-Medienabfragen sind.
+
+Wo dieselbe Regel **nicht** reicht:
+
+| Fläche | Desktop | Mobil | Bauweise |
+|---|---|---|---|
+| Composer, Prüfen, Abgegeben (T-S4.1–T-S5.2) | eine Spalte, zentriert, max. 640 px | eine Spalte, volle Breite, Aktionsleiste unten | **eine View**, Breakpoints nur für Abstände |
+| Wartekorb, Beitrag prüfen (M-S8.1, M-S8.2) | zwei Bereiche nebeneinander: Original neben Transkript | gestapelt, Reiter oder Akkordeon | eine Route, **zwei Layouts** derselben Bausteine per Breakpoint |
+| Themenübersicht, Meine Beiträge (T-S3.1, T-S11.1) | Liste mit Nebenspalte | Liste allein | eine View, Nebenspalte per Breakpoint ausgeblendet |
+| Beamer-Ansicht (M-S10.2) | groß, ohne Bedienelemente | kommt nicht vor | **eigene Route** — eine echte zweite Ansicht, weil andere Aufgabe |
+| Galerie, Werkbank, Settings (Bestand) | Desktop-first mit Seitenleisten | heute faktisch nicht mobil | nicht Teil dieses Konzepts; der Composer bekommt deshalb seine eigene schlanke Schale |
+
+**Für Figma heißt das:** die Screens T-S4.1 bis T-S5.2 in Telefonbreite
+(390 × 844) ausarbeiten, das ist der maßgebliche Entwurf. Dazu je Screen ein
+Desktop-Rahmen (1280 breit), der dieselbe Spalte zentriert zeigt — kein
+zweiter Entwurf, sondern der Nachweis, dass die Spalte trägt. Auto-Layout mit
+„fill container" und einer Maximalbreite am Spaltenrahmen bildet genau das
+Verhalten ab, das später Tailwind erzeugt. Nur für den Wartekorb (M-S8.2)
+lohnt ein zweiter Rahmen mit dem Nebeneinander. Die Screen-Landkarte hat die
+Telefonrahmen schon; was fehlt, ist die Ausarbeitung und die wenigen
+Desktop-Spiegel.
+
+### 5.2 Bausteine
 
 - **Kamera und Mikrofon direkt.** Foto: `<input type="file" accept="image/*"
   capture="environment">` (heute 0 Treffer für `capture=`). Mikrofon: eigener
@@ -387,7 +432,7 @@ Bereits vorhanden und weiter grün zu halten: `submission-status.test.ts`,
 | C5 | Review: nur `kind=content`, Schema-Reihenfolge, sichere Felder oben; Vorschlag übernimmt nichts ohne Klick |
 | C6 | Wiederaufnahme: Id im localStorage → Karten aus `GET`; pending-uploads-Läufer wiederholt idempotent |
 | C8 | Registry kennt zwölf Presets; `publish-strategy` liefert für jede Schema-Angabe genau einen Weg und wirft bei unbekannter |
-| C9 | Key-Auflösung (Hash, Ablauf, Widerruf), Kontingent bei Anlage verbraucht, Rate-Limit persistent |
+| C9 | Einladungs-Token mit `docType`, Ablauf, Kontingent; `/beitragen/[zugang]` ohne Session → Umleitung; Kontingent bei Anlage verbraucht |
 
 Typ-Gate nach `AGENTS.md`: `npx tsc --noEmit` vollständig, vorher/nachher
 verglichen — jede neue Zeile ist die eigene. Kein `pnpm build` im Cloud-Agent.
@@ -409,9 +454,9 @@ Abhängigkeiten:
 | C6 Abgegeben + Wiederaufnahme | 1,5 | C5 | |
 | C7 Mobile Schale `/beitragen`, PWA-Grundlage | 1–1,5 | C6 | |
 | C8 `publish` in Registry, Strategie im Schema, Kern schrumpft | 1,5–2 | C0 | unabhängig vom Paket; nur Alt-Flows |
-| C9 Write-Key (nur Entscheidung 3) | 2–3 | C7 | |
+| C9 Einladungs-Token an Library und Zieltyp binden (Ablauf, Kontingent) | 1–2 | C7 | |
 | C10 Aufräumen | 0,5–1 | alle | |
-| **Summe** | **13–18 (+2–3 mit C9)** | | |
+| **Summe** | **14–20** | | |
 
 C8 kann parallel zu C3–C7 laufen, weil es nur die Alt-Flows berührt. Bei
 Zeitnot fällt zuerst C7-PWA (Manifest, Worker), dann C6-Schicht 2
@@ -449,7 +494,7 @@ Zuschreibung und Sichtbarkeit sind sichtbar (Inhalt aus S2/S7). „Als Entwurf
 behalten" lässt den Beitrag in `draft`.
 
 **T-S5.2 Abgegeben.** Nach „Abgeben" steht der Beitrag in `pending`; die
-Bestätigung sagt „liegt beim Moderator" (Contributor, Key) oder
+Bestätigung sagt „liegt beim Moderator" (Contributor) oder
 „veröffentlicht" (Owner nach `promote`), zeigt „Weiteres beitragen" und den
 Link, unter dem der Beitrag wiederzufinden ist. Eine Anlage, die danach fertig
 wird, ändert die abgegebene Fassung nicht, sondern erscheint im Wartekorb als
@@ -465,13 +510,16 @@ vollständig ohne neue Fehler; `creation-wizard.tsx` nach C8 unter 400 Zeilen.
 
 ## 9. Offen (nicht in diesem Konzept entschieden)
 
-- Entscheidung 1 und 3 (siehe Varianten oben); Clerk-Tauglichkeit für SPID/CIE.
+- Ob „eine Library je Organisation" schon in der ersten Ausbaustufe kommt
+  (Owner 11.09.: Zielbild ja, Zeitpunkt offen) — entscheidet, ob
+  `attribution.organisation` aus der Library kommt oder ein Feld am Beitrag ist.
 - Mehrsprachigkeit der Auswertung: `SUBMISSION_ANALYSIS_DEFAULTS.targetLanguage`
   ist fix `de` (`submission-analysis-job.ts`); entscheidet das Vorabtreffen.
 - Wo die Testimonials (`src/components/public/testimonial-recorder.tsx`,
-  `api/public/testimonials`) auf den Composer gezogen werden — nach C9,
-  eigene Scheibe.
+  `api/public/testimonials`) auf den Composer gezogen werden — eigene Scheibe.
 - Umzug von `src/lib/live-transcription` ins Paket.
+- Service Worker im Next-Build und persistentes Rate-Limit: später klären
+  (Bauweisen-Vergleich, Abschnitt 6).
 
 ## Verweise
 

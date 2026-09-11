@@ -13,7 +13,7 @@ bezieht? Die Station-für-Station-Belege stehen in
 | | **A · In KnowledgeScout** | **B · Eigenständige App, KnowledgeScout als Endpoint** | **C · Eigenständige App mit React-Paketen** |
 |---|---|---|---|
 | Was läuft wo | Erfassung als Modul-Paket `@ks/capture`, montiert in der bestehenden Next-App unter einer mobilen Route; ein Deployment | Zweite App (Web/PWA oder Capacitor/Expo) mit eigenem Stack und eigener Oberfläche; spricht nur HTTP mit KnowledgeScout | Zweite App auf React; importiert `@ks/ui`, `@ks/i18n`, `@ks/api-client`, `@ks/contracts` und ein neues `@ks/capture`; spricht dieselbe HTTP-API wie B |
-| Auth-Pfad | Clerk-Session-Cookie, gleiche Origin; kontolos über Write-Key | Token im Header (Write-Key generalisiert oder Konto-Schlüssel) plus CORS auf allen Schreibrouten; oder Same-Origin per Reverse-Proxy | wie B |
+| Auth-Pfad | Clerk-Session-Cookie, gleiche Origin; kein kontoloser Pfad (Owner 11.09.) | Token im Header (Write-Key generalisiert oder Konto-Schlüssel) plus CORS auf allen Schreibrouten; oder Same-Origin per Reverse-Proxy | wie B |
 | Verhältnis zu ADR 0008 | konform: „ein Deployment, viele Sites; `pwa` ist ein Flag auf `next-app`" (`docs/adr/0008-deployment-ziele.md:62-71`) | eigenes Compilat ohne andere Laufzeit — widerspricht ADR 0008 (`:47-60`), es sei denn, die App wird nativ (Capacitor) oder offline-first | wie B; die Paket-Wiederverwendung ist genau der von ADR 0008 vorgesehene Weg für den Fall „andere Laufzeit" |
 
 Einsatz-Szenario P5 „mobile Feld-Erfassung" ist in
@@ -92,7 +92,7 @@ PT grob, ohne Puffer. „Plattform" = Summe aus der Wiederverwendungs-Analyse
 
 | Kriterium | A · in KnowledgeScout | B · Endpoint | C · React-Pakete |
 |---|---|---|---|
-| Headless-Schreib-API (Token, CORS, SSE, Scopes) | nur Write-Key für den kontolosen Pfad: 2–3 | **8–12** | **8–12** |
+| Headless-Schreib-API (Token, CORS, SSE, Scopes) | 0 — kein kontoloser Pfad (Owner 11.09.) | **8–12** | **8–12** |
 | Erfassungs-UI (S4/S5, 5 Screens Composer + Prüfen) | 12–18 als `@ks/capture` | 12–18 im fremden Stack, plus alles, was `@ks/ui`/`@ks/i18n` sonst liefern: **+4–6** | 12–18 als `@ks/capture`, identisch mit A |
 | Übrige Screens (S0–S3, S6–S11, ~38) | erweitern bestehender Sichten (Inbox, Meine Beiträge, Galerie): 20–30 | **alle neu**, keine Wiederverwendung: 35–50 | Inbox/Meine Beiträge/Galerie liegen heute in `src/app`, nicht in Paketen — für C erst paketieren: 25–40 |
 | Mobil-Grundlage (PWA, Schale, Touch) | 3–5 | 3–5 (freie Wahl, ggf. Capacitor: +5) | 3–5 |
@@ -101,8 +101,8 @@ PT grob, ohne Puffer. „Plattform" = Summe aus der Wiederverwendungs-Analyse
 | **Grobe Summe bis SHF-Freeze (Pflicht)** | **31–48** | **60–90** | **50–75** |
 | Passt in 17 Arbeitstage | mit Schnitt (siehe Wiederverwendungs-Analyse, Abschnitt 5) | nein | nein |
 | ADR 0007/0008 | konform | Nachtrag nötig | Nachtrag nötig (Fall „andere Laufzeit" muss belegt sein) |
-| Anmeldeweg SPID/CIE, falls entschieden | Clerk muss SAML/OIDC gegen SPID tragen — nicht geprüft, Risiko | eigene Auth in der App möglich, aber KnowledgeScout muss die fremde Identität dann per Token-Tausch anerkennen: derselbe Umbau wie die Headless-API | wie B |
-| Offline-first, lange Aufnahmen (Dialogformate) | PWA + IndexedDB; Service-Worker-Kontrolle im Next-Build eingeschränkt | volle Kontrolle; nativ per Capacitor möglich | wie B |
+| Anmeldeweg | entfällt als Kriterium: Clerk ist die einzige Auth-Anforderung (Owner 11.09.) | eigene Auth wäre möglich, ist aber nicht gefordert | wie B |
+| Offline-first, lange Aufnahmen | entfällt als Kriterium: nicht gefordert (Owner 11.09.); Wiederaufnahme nach Abbruch bleibt Teil des Composer-Konzepts | volle Kontrolle, aber nicht gefordert | wie B |
 | Trennung SHF-Spezifik | `@shf/deliberation` als Workspace-Paket | lebt in der App | lebt in der App oder als Paket |
 | Release-Takt | gekoppelt an `ci-main` (Docker-Build, 3–5 USD pro Lauf) | eigener Takt | eigener Takt |
 | Risiko Doppelentwicklung | keins | hoch: Typen, Validierung, Labels doppelt | mittel: Komponenten geteilt, Sichten nicht |
@@ -129,52 +129,40 @@ Vue) hätte Typen, Validierung, Frontmatter-Konventionen und Labels ein zweites
 Mal. `@ks/contracts` und `@ks/api-client` sind TypeScript; außerhalb von
 TypeScript bleibt nur die Wire-Form.
 
-**Wo B oder C trotzdem gewinnen** — drei Bedingungen, jede einzeln ausreichend:
+**Owner-Entscheidung 11.09.:** Die drei Bedingungen, unter denen B oder C
+gewonnen hätten, sind vom Tisch — Clerk ist die einzige Auth-Anforderung
+(kein SPID/CIE), Offline-First mit stundenlangen Aufnahmen und Store-App ist
+kein Thema, und das Land Südtirol verlangt keine getrennte Auslieferung.
+Damit ist A nicht Empfehlung, sondern Entscheidung.
 
-1. Der Anmeldeweg wird SPID/CIE und Clerk kann es nicht tragen. Dann braucht
-   die Erfassung ohnehin eine eigene Identitätsquelle und den Token-Tausch.
-2. Die Dialogformate verlangen Offline-First mit stundenlangen Aufnahmen und
-   einer Store-App. Dann ist Capacitor die „andere Laufzeit" aus ADR 0008.
-3. Das Land Südtirol verlangt für das SHF eine getrennte Auslieferung
-   (eigene Domain, eigener Betrieb, eigene Release-Freigabe).
+## 5. Entscheidung (Owner 11.09.)
 
-Keine der drei ist heute entschieden. Bedingung 1 ist genau Entscheidung 1 aus
-dem Konzept (Abschnitt 8) und gehört auf den 16.09.
-
-## 5. Empfehlung
-
-**A jetzt, C-fähig gebaut.** Konkret:
+**A, auf Modulbasis gebaut, damit alles kompatibel bleibt.** Konkret:
 
 - Die Erfassung entsteht als Paket `@ks/capture` im Workspace und spricht
   **ausschließlich über `InstanceApi`**, mit demselben Unit-Test wie der
   Explorer (kein fremdes `fetch`). Montiert wird sie in der Next-App unter
-  einer mobilen Route mit eigener, schlanker Schale. Damit ist der Weg zu C
-  offen, ohne ihn zu bezahlen.
-- Der kontolose Pfad (Write-Key mit Kontingent und persistentem Rate-Limit)
-  wird als **erste tokenfähige Schreibroute** gebaut — nicht als Sonderfall
-  für Testimonials, sondern als Muster, dem später ein Bereichs-Schlüssel
-  folgen kann. Das ist der billigste Schritt Richtung B.
+  einer mobilen Route mit eigener, schlanker Schale. Der Weg zu C bleibt
+  damit offen, ohne dass er bezahlt wird.
+- **Kein kontoloser Pfad.** Beitragen setzt eine Clerk-Anmeldung voraus; ein
+  Write-Key gibt es nur für Angemeldete — als Einladungs-Token, der Library,
+  Zieltyp und Rolle bindet. Die Headless-Schreib-API entfällt aus dem Umfang.
 - Die SHF-Bauteile kommen als `@shf/deliberation` in denselben Workspace,
   nach der Regel der Landkarte: `@ks/capture` weiß nichts vom
   Stakeholderforum, `@shf/deliberation` bringt keine eigene Erfassung mit.
 - `pwa` wird vom Wort zum Bauteil: Manifest, Service Worker, Viewport,
-  Safe-Area, Touch-Größen — 3 bis 5 PT, in jeder Bauweise fällig.
+  Safe-Area, Touch-Größen — 3 bis 5 PT.
+- **Zielbild Organisationen:** jede Organisation bekommt ihre eigene Library.
+  Ob das schon in der ersten Ausbaustufe kommt, ist offen (Owner 11.09.).
 
-**Umschaltpunkt:** Fällt am 16.09. eine der drei Bedingungen aus Abschnitt 4,
-wird die Headless-Schreib-API (8–12 PT) vorgezogen und ADR 0008 um den Fall
-ergänzt. Das Paket `@ks/capture` bleibt in beiden Fällen dasselbe.
+## 6. Später zu klären (nicht vor dem Bau nötig)
 
-## 6. Was noch zu prüfen ist, bevor die Empfehlung trägt
-
-- **Clerk gegen SPID/CIE**: ob Clerk eine SAML-2.0-Verbindung mit dem
-  SPID-Profil trägt, ist nicht geprüft. Vor dem 16.09. klären, sonst ist
-  Entscheidung 1 nicht entscheidbar.
 - **Service Worker im Next-Build**: welcher Weg (`next-pwa`, Serwist, eigener
   Worker) mit `transpilePackages` und dem Docker-Build von `ci-main` verträglich
-  ist — ein halber Tag Versuch.
+  ist — ein halber Tag Versuch, fällig mit Scheibe C7.
 - **Rate-Limit persistent**: die drei Limiter sind prozesslokal; bei mehr als
-  einer Instanz brauchen Write-Key-Kontingente einen gemeinsamen Speicher
-  (MongoDB reicht, Muster: NatureScout `login-code-service.ts:179-192`).
+  einer Instanz braucht ein Kontingent je Einladungs-Token einen gemeinsamen
+  Speicher (MongoDB reicht, Muster: NatureScout `login-code-service.ts:179-192`).
 
 ## Verweise
 

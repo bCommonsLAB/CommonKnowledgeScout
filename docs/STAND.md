@@ -324,6 +324,15 @@ Neu dazugekommen:
   — Anlagen-Modell mit Zustand je Anlage, Paket `@ks/capture`, Abgeben
   sobald eine Anlage fertig ist, elf PR-Scheiben C0–C10 (13–18 PT, +2–3
   für den Write-Key), Abnahme an T-S4.1 bis T-S5.2. Offen: S0-Detailkonzept.
+- 2026-09-11 — **Owner-Entscheidungen zur Erfassung** (nach Vorlage der
+  Analysen): Bauweise A ist entschieden, auf Modulbasis gebaut (`@ks/capture`
+  über `InstanceApi`); **nur Clerk** als Auth, kein SPID/CIE; **kein Zugang
+  ohne Konto** — ein Write-Key gibt es nur für Angemeldete, als
+  Einladungs-Token an Library und Zieltyp gebunden; Offline-First mit
+  Store-App und getrennte Auslieferung fürs Land sind kein Thema; Zielbild
+  **eine Library je Organisation**, Zeitpunkt offen. Composer: eine View,
+  mobile-first, die auf dem Desktop nur breiter wird (Plan, Abschnitt 5.1).
+  Später zu klären: Service Worker im Next-Build, persistentes Rate-Limit.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

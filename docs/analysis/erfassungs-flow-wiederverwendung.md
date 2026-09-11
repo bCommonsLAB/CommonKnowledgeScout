@@ -141,6 +141,25 @@ Einladungen per Skript), S8b, S9, S11 ins Vorhaben danach.
 - Ohne Entscheidung 1 (Anmeldeweg) und 3 (Zugang ohne Konto) wird das
   Detailkonzept mit benannten Varianten geschrieben, nicht mit einer Annahme.
 
+## 7. Nachtrag — Owner-Entscheidungen vom 11.09.
+
+Nach Vorlage dieser Analyse hat der Owner drei Punkte entschieden, die die
+Einstufung an zwei Stellen verschieben:
+
+- **Nur Clerk.** Kein SPID/CIE, kein eigenes Konto-System. Entscheidung 1 ist
+  damit beantwortet; S1 verliert die Unsicherheit, nicht den Aufwand.
+- **Kein Zugang ohne Konto.** Ein Write-Key gibt es nur für Angemeldete, als
+  Einladungs-Token an Library und Zieltyp gebunden. In S1 entfällt der
+  generalisierte Write-Key mit Kontingent für Anonyme (1–2 PT weniger); die
+  öffentlichen Secretary-Routen bleiben, wie sie sind.
+- **Zielbild: eine Library je Organisation.** Ob in der ersten Ausbaustufe,
+  ist offen. Trifft es zu, wird in S0 „Organisation als Entität" zu
+  „Library-Mitgliedschaft" — also konfigurieren statt erweitern; offen bleiben
+  Interessengruppe, Rolle je Tisch und Einwilligung.
+
+Abschnitt 6, dritter Punkt, ist damit gegenstandslos; das Composer-Konzept
+ist ohne Varianten geschrieben.
+
 ## Verweise
 
 - Handover, Konzept und Flow-Landkarte: Archiv `24.09 KnowledgeScout/2026-09-10 Konzept Erfassungs-Flow generisch und mobil/`
