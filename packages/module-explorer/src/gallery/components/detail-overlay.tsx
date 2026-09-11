@@ -418,7 +418,15 @@ export function DetailOverlay({
           )}
         </div>
 
-        <ScrollArea className='flex-1 w-full overflow-hidden relative'>
+        {/* Radix legt unter dem Viewport ein display:table-Element an, das sich
+            an der Max-Content-Breite des Inhalts ausrichtet. Auf schmalen
+            Rahmen (Mobil, Embed) wuchs die Buch-Ansicht damit ueber das Panel
+            hinaus und wurde rechts abgeschnitten. Block + min-w-0 stellt das
+            normale Umbruchverhalten her (gleiches Muster wie in gallery-root). */}
+        <ScrollArea
+          className='flex-1 w-full overflow-hidden relative'
+          viewportClassName='[&>div]:!block [&>div]:!min-w-0 [&>div]:w-full'
+        >
           {/* Bewertungsmodus: Kommentare oben, direkt unter der Leiste. */}
           {ratingActive ? commentsBlock : null}
           <DetailBody
