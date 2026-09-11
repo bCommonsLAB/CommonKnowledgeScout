@@ -46,7 +46,8 @@ todos:
 [`docs/analysis/erfassungs-flow-bauweisen-vergleich.md`](../analysis/erfassungs-flow-bauweisen-vergleich.md)
 (Empfehlung: in KnowledgeScout bauen, als Paket `@ks/capture`, C-fähig).
 **Figma:** Screen-Landkarte https://www.figma.com/design/2Eb9gkeKcHzhY7kR1kPyKs —
-Abnahme an T-S4.1 bis T-S5.2 (Abschnitt 8).
+Abnahme an T-S4.1 bis T-S5.2 (Abschnitt 8). Ausarbeitung als Klickmodell
+(seit 11.09., rechts vom Board): https://www.figma.com/design/2Eb9gkeKcHzhY7kR1kPyKs?node-id=27-2
 
 **Leitplanken:** ADR 0003 ist die Richtung (`wizard-flow-entity.ts` bleibt die
 Naht). ADR 0004 gilt: die Erfassung schreibt nie ins Ziel. ADR 0006 gilt für
@@ -368,6 +369,19 @@ Verhalten ab, das später Tailwind erzeugt. Nur für den Wartekorb (M-S8.2)
 lohnt ein zweiter Rahmen mit dem Nebeneinander. Die Screen-Landkarte hat die
 Telefonrahmen schon; was fehlt, ist die Ausarbeitung und die wenigen
 Desktop-Spiegel.
+
+**Stand 11.09., Figma-Section „Composer — Ausarbeitung (Klickmodell)"**
+(`node-id=27-2`, rechts vom Board): eine Legende „Was je Kontext anders ist —
+und woher es kommt", darunter vier Reihen in Telefonbreite. Reihe 1 Basis (SHF
+Teilnehmende) mit sechs Frames T-S4.1, T-S4.2, T-S4.3, T-S4.3b Fehlerfall,
+T-S5.1, T-S5.2 und Prototyp-Verbindungen (Startpunkt „Composer · Basis").
+Reihe 2 Moderation in Vertretung (M-S4.4 Person wählen, T-S4.1 und T-S5.1 mit
+Banner und Zuschreibung). Reihe 3 Dialogformate (D-S4.4 langes Testimonial,
+D-S4.4b Anhören und Stellen streichen, T-S5.1 mit Einwilligung je Zitat).
+Reihe 4 AECED (T-S4.1 und T-S5.1 mit Zieltyp „Methode"). Unveränderte Screens
+stehen als gestrichelte Platzhalter „= Basis". Die Reihen belegen die Regel
+aus der Legende: derselbe Ablauf, dieselben Karten — anders ist nur, was aus
+Einladungs-Token, Schema, Rolle und Library-Regelsatz kommt.
 
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
