@@ -471,6 +471,24 @@ Peters Archiv 2). Die Zwecktexte je Station sind die Kurzfassung der
 Landkarte §4 und ändern sich mit ihr. So bleibt sichtbar, was Screen und
 was Hinweis ist, und der Ablauf wird nicht unterbrochen.
 
+**Lückenlose Ketten (Owner 11.09., abends):** Bis dahin waren nur die
+Screens gebaut, die von der Basis abweichen; im Play-Modus fehlten ganzen
+Anwendungen die Stationen dazwischen. Nach der Screen-Landkarte („= T-S3.1"
+usw.) wurden 41 angepasste Kopien der Basis-Screens ergänzt: derselbe
+Aufbau, aber Rolle, Bezugsobjekt und Begriffe der Anwendung (Gespräch und
+Zitat statt Tisch und Beitrag, Methode, Maßnahme, Beobachtung mit Art und
+Ort, Vorhaben und Twin). Platzhalter in denselben Zellen wurden ersetzt.
+Weggelassen, weil ohne Erkenntniswert: S7-Zustände außerhalb der
+Teilnehmenden, Synthese (S8b) bei AECED und Klimamaßnahmen, Bewerten (S6)
+im Naturmuseum, S10 bei Peters Archiv. Die Ketten jetzt: Teilnehmende 19
+Screens (S1–S11), Moderation 17 (S0–S11), Dialogformate 15 (S0–S11, erst
+Gesprächspartnerin Rosa, ab S8 Redaktion Judith, S11 wieder Rosa), AECED 12
+(S0–S11), Klimamaßnahmen 12 (S0–S11), Naturmuseum 11 (S0–S11), Peters Archiv
+9 (S1–S9). 74 Hinweis-Popups. Zwei Screens der Landkarte sind damit erstmals
+ausgeführt: „Twin prüfen" (P-S5.1) und die Redaktionssicht der
+Dialogformate (D-S8.1, D-S8b.2); „Gespräch führen" (D-S4.5) fehlt weiter,
+weil D-S4.4/D-S4.4b dieselbe Station tragen.
+
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
 Telefonbreite abfotografiert (Chrome-Gerätemodus 390 × 844), im Archivordner

@@ -351,8 +351,11 @@ Neu dazugekommen:
   (Spaltenköpfe). Play-Modus: Start-Screen `66-2` mit Anwendungswahl,
   je Anwendung Tipp-für-Tipp durch alle Screens (Handy: Figma-App oder
   Prototyp-Link), vor jeder Station ein Hinweis-Popup (Overlay über dem
-  ersten Screen, Tipp schließt, „?" holt es zurück; Section `70-2`, 40
-  Stück) für Testpersonen. Offen:
+  ersten Screen, Tipp schließt, „?" holt es zurück; Section `70-2`) für
+  Testpersonen. Ketten lückenlos gemacht: 41 angepasste Kopien der
+  Basis-Screens nach der Landkarte (Rolle, Bezugsobjekt, Begriffe je
+  Anwendung), 74 Popups; jede Anwendung läuft jetzt von S0/S1 bis S11
+  (Peters Archiv bis S9). Offen:
   Bestands-Screenshots (lokal) als Vorlage.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
