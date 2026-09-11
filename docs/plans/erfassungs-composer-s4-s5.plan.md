@@ -378,7 +378,13 @@ T-S5.1, T-S5.2 und Prototyp-Verbindungen (Startpunkt „Composer · Basis").
 Reihe 2 Moderation in Vertretung (M-S4.4 Person wählen, T-S4.1 und T-S5.1 mit
 Banner und Zuschreibung). Reihe 3 Dialogformate (D-S4.4 langes Testimonial,
 D-S4.4b Anhören und Stellen streichen, T-S5.1 mit Einwilligung je Zitat).
-Reihe 4 AECED (T-S4.1 und T-S5.1 mit Zieltyp „Methode"). Unveränderte Screens
+Reihe 4 AECED (T-S4.1 und T-S5.1 mit Zieltyp „Methode"). Reihe 5
+Klimamaßnahmen (K-S6.1 Maßnahme bewerten als Bewertungskarte auf derselben
+Bühne, K-S4.1 Hinweis zu einer Maßnahme für Fachkundige mit Papier und zwei
+Sätzen, K-S5.1 Prüfen mit Bezug, Beleg und einer einzigen Sichtbarkeitsstufe);
+dazu die Legendenzeile „Worauf beziehe ich mich" — das Bezugsobjekt (Thema,
+Maßnahme, Vorschlag) kommt aus Route oder Einladungs-Token und erscheint als
+Kontextkarte oben. Unveränderte Screens
 stehen als gestrichelte Platzhalter „= Basis". Die Reihen belegen die Regel
 aus der Legende: derselbe Ablauf, dieselben Karten — anders ist nur, was aus
 Einladungs-Token, Schema, Rolle und Library-Regelsatz kommt.

@@ -335,8 +335,9 @@ Neu dazugekommen:
   Später zu klären: Service Worker im Next-Build, persistentes Rate-Limit.
 - 2026-09-11 — **Composer als Klickmodell in Figma** gebaut (Screen-Landkarte,
   Section `node-id=27-2` rechts vom Board): Legende Kontext → Konfiguration,
-  vier Kontext-Reihen (Basis SHF, Moderation in Vertretung, Dialogformate,
-  AECED) in 390 × 844, Prototyp-Verbindungen in der Basis-Reihe. Belegt, dass
+  fünf Kontext-Reihen (Basis SHF, Moderation in Vertretung, Dialogformate,
+  AECED, Klimamaßnahmen mit Bewertungskarte und Fachkundigen-Hinweis) in
+  390 × 844, Prototyp-Verbindungen in der Basis-Reihe. Belegt, dass
   Kontexte über Einladungs-Token, Schema, Rolle und Library-Regelsatz an
   dieselbe Station kommen, nicht über einen zweiten Ablauf.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
