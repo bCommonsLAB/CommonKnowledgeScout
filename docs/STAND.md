@@ -350,8 +350,9 @@ Neu dazugekommen:
   Anwendungen warm/grün (Zeilenbänder), Stationen kühl je Gruppe
   (Spaltenköpfe). Play-Modus: Start-Screen `66-2` mit Anwendungswahl,
   je Anwendung Tipp-für-Tipp durch alle Screens (Handy: Figma-App oder
-  Prototyp-Link), vor jeder Station ein Zwischenscreen mit Zweck und
-  „Gleich siehst du" (Section `70-2`, 40 Stück) für Testpersonen. Offen:
+  Prototyp-Link), vor jeder Station ein Hinweis-Popup (Overlay über dem
+  ersten Screen, Tipp schließt, „?" holt es zurück; Section `70-2`, 40
+  Stück) für Testpersonen. Offen:
   Bestands-Screenshots (lokal) als Vorlage.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
