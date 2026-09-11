@@ -240,6 +240,14 @@ Neu dazugekommen:
   Standardtext der Galerie (`texts.book.description` in `@ks/i18n`) fuer den
   Story Mode, den es im Embed nicht gibt — fuer AECED eigene Galerie-Texte in
   der Library setzen.
+- 2026-09-11: **M5 komplett auf `master` und deployt** (Version 1.2.246,
+  `ci-main` gruen zu #274; der rote Lauf zu #273 war ein Registry-Fehler beim
+  Hochladen, das Image von #274 enthaelt #272–#274). Kein Code-Schritt offen.
+  Fuer die lokale Sitzung mit beiden Projekten (Library `aeced` einrichten,
+  Embed in commoning-methods pruefen, Paket uebergeben):
+  [`HANDOFF-M5-aeced-lokal.md`](refactor/modularisierung/HANDOFF-M5-aeced-lokal.md).
+  Noch nie geprueft im Embed: Dark Mode der fremden Seite (`.dark .ks-embed`
+  gegen `prefers-color-scheme`) und Mobil.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

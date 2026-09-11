@@ -105,6 +105,10 @@ zugleich in `docs/STAND.md` unter Vorhaben 1.
   und Sortierung der 43 Requests in
   [`03-audit-embed-fetches.md`](03-audit-embed-fetches.md), dort auch die
   Befunde fuer Schritt 4 (CORS, Preflight, Locale, Cover-URLs).
+- 2026-09-11: Alle fuenf Schritte auf `master`, deployt (1.2.246). Was vor
+  dem 15.09. bleibt, ist Einrichtung, kein Code: Library `aeced`, Galerie-
+  Texte, Pruefung in commoning-methods, Paket-Uebergabe — Anleitung fuer die
+  lokale Sitzung in [`HANDOFF-M5-aeced-lokal.md`](HANDOFF-M5-aeced-lokal.md).
 
 ## Hand-off
 
