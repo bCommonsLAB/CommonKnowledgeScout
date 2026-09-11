@@ -433,6 +433,17 @@ fünf Legenden „Was je Kontext anders ist" liegen gesammelt unter der Matrix.
 Rund 12.200 × 9.700 px; die früheren node-ids 36-2, 27-2, 42-2, 47-2, 47-37
 gibt es nicht mehr.
 
+**Farbleitsystem (Owner 11.09.):** Anwendungen in warmen Grün- und Erdtönen
+(SHF Teilnehmende salbei, SHF Moderation oliv, Dialogformate gelb, AECED
+apricot, Klimamaßnahmen koralle, Naturmuseum mint, Peters Archiv sand),
+Stationen in kühlen Tönen je Gruppe (S0–S3 himmelblau, S4–S5 indigo, S6–S7
+violett, S8–S8b petrol, S9–S11 schiefer). Auf der Screen-Landkarte links
+tragen die Spaltenköpfe die Anwendungsfarbe und die Stations-Kacheln die
+Stationsfarbe; in der Matrix rechts ist die Anwendung ein dezentes
+Zeilenband, die Station ein farbiger Spaltenkopf mit Farbbalken. So sieht
+man beim Ausschneiden, wo eine Anwendung verläuft und wo eine Station
+anfängt und aufhört.
+
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
 Telefonbreite abfotografiert (Chrome-Gerätemodus 390 × 844), im Archivordner

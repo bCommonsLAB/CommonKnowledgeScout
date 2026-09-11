@@ -346,7 +346,9 @@ Neu dazugekommen:
   umgehängt (`node-id=60-2`): eine Zeile je Anwendung, eine Spalte je
   Station, Schnittlinien zum Ausdrucken — waagrecht die Storyline einer
   Anwendung, senkrecht alle Varianten einer Station. Rahmen verschoben,
-  nicht neu gebaut. Offen: Bestands-Screenshots (lokal) als Vorlage.
+  nicht neu gebaut. Farbleitsystem auf beiden Boards vereinheitlicht:
+  Anwendungen warm/grün (Zeilenbänder), Stationen kühl je Gruppe
+  (Spaltenköpfe). Offen: Bestands-Screenshots (lokal) als Vorlage.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
