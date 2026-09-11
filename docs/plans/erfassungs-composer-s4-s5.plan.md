@@ -369,6 +369,23 @@ lohnt ein zweiter Rahmen mit dem Nebeneinander. Die Screen-Landkarte hat die
 Telefonrahmen schon; was fehlt, ist die Ausarbeitung und die wenigen
 Desktop-Spiegel.
 
+**Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
+und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
+Telefonbreite abfotografiert (Chrome-Gerätemodus 390 × 844), im Archivordner
+unter `Screenshots/` abgelegt und sind die Vorlage für T-S4.1 bis T-S5.2:
+
+| Bestandsschirm | Route | Was davon in den Composer wandert | Screen |
+|---|---|---|---|
+| Öffentlicher Testimonial-Recorder (`src/components/public/testimonial-recorder.tsx`) | `/public/testimonial?libraryId=…&eventFileId=…&writeKey=…` | ein Schirm: Name, Einwilligung, Diktat mit Mitlauf-Text, Speichern — das ist der Composer im Kleinen | T-S4.1, T-S4.2 |
+| Standard-Flow des Wizards, Schritt „Quelle wählen" (`collect-source-step.tsx`) | `/library/create/standard-capture` | Diktat-Textfeld mit Oszilloskop (`DictationTextarea mode="live"`), Datei-Upload, URL-Import, Fortschritt der Audio-Auswertung | T-S4.2, T-S4.3 |
+| Wizard, Schritte „Prüfen und ergänzen" und „Speichern" (`edit-draft-step.tsx`, Publish-Step) | derselbe Lauf, zwei Schritte weiter | Felder aus dem Schema, Confidence-Markierung, Wartekorb-Hinweis | T-S5.1, T-S5.2 |
+| Meine Beiträge (`my-submissions-client.tsx`) | `/library/my-submissions` | Liste mit Zustand, Analyse anstoßen | T-S11.1 |
+| Wartekorb (`inbox-client.tsx`) | `/library/inbox` | Liste, Freigeben, Zurückweisen | M-S8.1, M-S8.2 |
+
+Was keiner dieser Schirme zeigt und deshalb in Figma neu entsteht: der
+Kartenstrom mit Zustand je Anlage (T-S4.3), der Fehlerfall einer Anlage, die
+Wiederaufnahme, und die Aktionsleiste am unteren Rand.
+
 ### 5.2 Bausteine
 
 - **Kamera und Mikrofon direkt.** Foto: `<input type="file" accept="image/*"
