@@ -385,7 +385,16 @@ Sätzen, K-S5.1 Prüfen mit Bezug, Beleg und einer einzigen Sichtbarkeitsstufe);
 dazu die Legendenzeile „Worauf beziehe ich mich" — das Bezugsobjekt (Thema,
 Maßnahme, Vorschlag) kommt aus Route oder Einladungs-Token und erscheint als
 Kontextkarte oben. Unveränderte Screens
-stehen als gestrichelte Platzhalter „= Basis". Die Reihen belegen die Regel
+stehen als gestrichelte Platzhalter „= Basis".
+
+Die Ausarbeitung wird auf alle Stationen ausgedehnt (Owner 11.09.): rechts
+vom Board eine Spalte von Sections in Stationsreihenfolge, gleicher Aufbau
+(Legende, Kontext-Reihen, Platzhalter). Stand 11.09.: Section „S0–S3 ·
+Eintritt und Orientieren" (`node-id=36-2`, über der Composer-Section) mit
+T-S1.1, T-S1.1b Anmelden per E-Mail-Code, T-S2.1, T-S2.2, T-S3.1 (Reihe
+Teilnehmende, Prototyp bis in den Composer), M-S0.1, M-S0.2, M-S1.2, M-S3.2
+(Moderation), D-S2.2 (Dialogformate), A-S1.1 und N-S1.1 (AECED, Naturmuseum).
+Es folgen S6–S7, S8–S8b, S9–S11. Die Reihen belegen die Regel
 aus der Legende: derselbe Ablauf, dieselben Karten — anders ist nur, was aus
 Einladungs-Token, Schema, Rolle und Library-Regelsatz kommt.
 

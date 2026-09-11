@@ -339,7 +339,10 @@ Neu dazugekommen:
   AECED, Klimamaßnahmen mit Bewertungskarte und Fachkundigen-Hinweis) in
   390 × 844, Prototyp-Verbindungen in der Basis-Reihe. Belegt, dass
   Kontexte über Einladungs-Token, Schema, Rolle und Library-Regelsatz an
-  dieselbe Station kommen, nicht über einen zweiten Ablauf.
+  dieselbe Station kommen, nicht über einen zweiten Ablauf. Ausgedehnt auf
+  alle Stationen (Owner 11.09.): Section „S0–S3 Eintritt und Orientieren"
+  (`node-id=36-2`) mit Teilnehmenden-, Moderations-, Dialog- und
+  AECED/Naturmuseum-Reihe steht; S6–S7, S8–S8b, S9–S11 folgen.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
