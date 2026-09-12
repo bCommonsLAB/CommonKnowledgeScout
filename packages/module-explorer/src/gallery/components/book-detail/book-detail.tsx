@@ -72,7 +72,9 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
               />
             </div>
 
-              <div className="flex-1">
+              {/* min-w-0: sonst waechst die Spalte auf schmalen Rahmen (Mobil, Embed)
+                  an langen Woertern ueber das Panel hinaus. */}
+              <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
               {authors.length > 0 ? (
                 <p className="text-base text-muted-foreground mb-3">{authors.join(", ")}</p>
@@ -148,7 +150,7 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
       {data.summary && !data.markdown && (
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Zusammenfassung</h2>
-          <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-muted-foreground">
+          <div className="prose prose-sm prose-slate dark:prose-invert max-w-none break-words text-muted-foreground">
             <Markdown content={normalizeEscapedNewlines(data.summary)} className="min-h-0 w-full" />
           </div>
           {kiHinweis}
@@ -192,7 +194,7 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
       {data.markdown && (
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">Inhalt</h2>
-          <div className="prose prose-slate dark:prose-invert max-w-none">
+          <div className="prose prose-slate dark:prose-invert max-w-none break-words">
             <Markdown
               content={data.markdown}
               className="min-h-0 w-full"

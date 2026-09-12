@@ -248,6 +248,28 @@ Neu dazugekommen:
   [`HANDOFF-M5-aeced-lokal.md`](refactor/modularisierung/HANDOFF-M5-aeced-lokal.md).
   Noch nie geprueft im Embed: Dark Mode der fremden Seite (`.dark .ks-embed`
   gegen `prefers-color-scheme`) und Mobil.
+- 2026-09-11: **Embed in commoning-methods gegen `commoning` geprueft** (Prod,
+  Paket aus `master` 1.2.247, Next 16.2/React 19/Turbopack, Port 3002):
+  Seite 200, Server-Log und Konsole sauber, alle Anfragen an die Instanz
+  (`public/libraries`, `docs`, `facets`, `doc-meta`), Cover aus dem Blob,
+  9 Quellen, Detailansicht im Rahmen, kein Story-Knopf, `locale` `de`/`en`
+  schaltet Oberflaeche und Anfragen. **Dark Mode**: das Embed folgt der
+  Klasse `dark` am Vorfahren — genau wie commoning-methods selbst
+  (`@custom-variant dark (&:is(.dark *))`); nur `prefers-color-scheme` ohne
+  Klasse laesst beide Seiten hell. Kein Umbau noetig, Hinweis in der README.
+  **Mobil (375 px), Befund + Fix**: Die Buch-Ansicht lief rechts aus dem
+  Panel (Titelspalte 672 px in einem 327 px breiten Panel, Text abgeschnitten)
+  — Radix ScrollArea legt ein `display:table`-Element unter den Viewport, das
+  auf Max-Content-Breite waechst; dazu fehlte der Titelspalte `min-w-0`.
+  Betraf auch die Voll-App auf dem Handy. Fix in `detail-overlay.tsx`
+  (`viewportClassName`, Muster aus `gallery-root`) und `book-detail.tsx`
+  (`min-w-0`, `break-words`), eigene PR. Tabellen im Buchtext scrollen
+  weiterhin in ihrem eigenen Rahmen. Klein, nicht behoben: „Seiten" und
+  „PDF oeffnen" in der Buch-Ansicht sind nicht lokalisiert.
+- 2026-09-11: Library `aeced` weiterhin nicht auf der Instanz (404, oeffentliche
+  Liste unveraendert). Anlegen geht nur angemeldet ueber das Formular
+  (MongoDB nur lesend) — Textentwuerfe liegen in der Antwort der Sitzung,
+  Anlegen und Fuellen macht der Owner.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
