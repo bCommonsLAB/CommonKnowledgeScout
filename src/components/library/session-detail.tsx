@@ -302,10 +302,18 @@ export function SessionDetail({
     }
   }
 
+  /**
+   * Der QR-Code fuehrt zum Gast-Recorder (ohne Anmeldung, Write-Key im Link) —
+   * Owner-Entscheidung 12.09.2026 fuer den Dialog-Fall: die Teilnehmenden
+   * scannen im Raum, die Moderatorin ist anwesend. Der angemeldete Wizard
+   * bleibt als zweiter Knopf.
+   */
+  const qrTestimonialUrl = publicAnonTestimonialUrl || publicWizardTestimonialUrl
+
   async function copyPublicUrl(): Promise<void> {
-    if (!publicWizardTestimonialUrl && !publicAnonTestimonialUrl) return
+    if (!qrTestimonialUrl) return
     try {
-      await navigator.clipboard.writeText(publicWizardTestimonialUrl || publicAnonTestimonialUrl)
+      await navigator.clipboard.writeText(qrTestimonialUrl)
     } catch {
       // ignore
     }
@@ -655,17 +663,17 @@ export function SessionDetail({
                   </>
                 ) : null}
 
-                  {canSeeModeratorTools && (publicWizardTestimonialUrl || publicAnonTestimonialUrl) ? (
+                  {canSeeModeratorTools && qrTestimonialUrl ? (
                   <>
                     <Separator />
                     <div className="grid gap-4 md:grid-cols-[160px_1fr] items-start">
                       <div className="rounded border bg-background p-3 w-fit">
-                        <QRCode value={publicWizardTestimonialUrl || publicAnonTestimonialUrl} size={140} />
+                        <QRCode value={qrTestimonialUrl} size={140} />
                       </div>
                       <div className="space-y-2">
                         <div className="text-sm font-medium">QR-Code für Testimonials</div>
                         <div className="text-xs text-muted-foreground">
-                          Standard: Wizard-Flow (Template-basiert). Optional: anonymer Recorder.
+                          Standard: Gast-Recorder ohne Anmeldung (Link enthält den Schlüssel des Events). Optional: angemeldeter Wizard.
                         </div>
                         <div className="flex items-center gap-2">
                           <Button type="button" variant="outline" size="sm" onClick={() => void copyPublicUrl()}>
@@ -687,7 +695,7 @@ export function SessionDetail({
                             </Button>
                           ) : null}
                         </div>
-                        <div className="text-xs font-mono break-all text-muted-foreground">{publicWizardTestimonialUrl || publicAnonTestimonialUrl}</div>
+                        <div className="text-xs font-mono break-all text-muted-foreground">{qrTestimonialUrl}</div>
                       </div>
                     </div>
                   </>

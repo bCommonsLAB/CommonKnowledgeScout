@@ -317,11 +317,145 @@ Rate-Limiting.
 Mitgenommene alte Themen, vom Owner am 09.09. entschieden: **Die Erfassung
 wird hier in einem Zug bereinigt**, nicht vorab. Dazu gehören die beiden
 Alt-Endpunkte `events/finalize` und `events/publish-final` (Phase 6 von
-generic-finalize-wizard; werden in `creation-wizard.tsx` noch aktiv gerufen),
+generic-finalize-wizard; Befund 11.09.: nur `publish-final` wird in
+`creation-wizard.tsx` noch gerufen, `:2730` und `:2825`; `events/finalize` hat
+in `src/**` keinen Aufrufer mehr),
 ADR 0003 Wizard/Schema, und die Reste aus Welle 3-VI. Mehrsprachigkeit DE/IT:
 entscheidet das Vorabtreffen.
 
-Neu dazugekommen: (noch nichts)
+Neu dazugekommen:
+
+- 2026-09-11 — **Erfassungs-Flow analysiert** (Handover aus dem Archiv,
+  `24.09 KnowledgeScout/2026-09-10 Konzept Erfassungs-Flow generisch und mobil/`):
+  [`analysis/erfassungs-flow-wiederverwendung.md`](analysis/erfassungs-flow-wiederverwendung.md)
+  stuft die dreizehn Stationen S0–S11 am Code ein (konfigurieren / erweitern /
+  portieren / neu, mit Belegen aus KnowledgeScout, NatureScout, BetterWriter) und
+  listet vierzehn Widersprüche zwischen Konzept und Code. Kernbefunde: S0 ist
+  nicht „fehlt", sondern erweitern (Mitgliedschaft mit vier Rollen und
+  Einladungs-Token existiert); die Stimme ist binär, nicht Skala; die Werkbank
+  ist twin-gebunden und nimmt den Wartekorb nicht auf; die Outbox persistiert
+  nicht. Pflicht bis Freeze 31–48 PT, Plattform gesamt 45–65 PT.
+  [`analysis/erfassungs-flow-bauweisen-vergleich.md`](analysis/erfassungs-flow-bauweisen-vergleich.md)
+  vergleicht „in KnowledgeScout" gegen „eigenständige App als Endpoint-Client"
+  gegen „eigenständige App mit React-Paketen". Empfehlung: **A jetzt, C-fähig
+  gebaut** — `@ks/capture` spricht nur über `InstanceApi`; der Write-Key wird
+  die erste tokenfähige Schreibroute. Umschaltpunkt am 16.09.: SPID/CIE,
+  Offline-First mit Store-App, oder getrennte Auslieferung fürs Land.
+  Detailkonzept Composer S4/S5 (Handover Teil 3):
+  [`plans/erfassungs-composer-s4-s5.plan.md`](plans/erfassungs-composer-s4-s5.plan.md)
+  — Anlagen-Modell mit Zustand je Anlage, Paket `@ks/capture`, Abgeben
+  sobald eine Anlage fertig ist, elf PR-Scheiben C0–C10 (13–18 PT, +2–3
+  für den Write-Key), Abnahme an T-S4.1 bis T-S5.2. Offen: S0-Detailkonzept.
+- 2026-09-11 — **Owner-Entscheidungen zur Erfassung** (nach Vorlage der
+  Analysen): Bauweise A ist entschieden, auf Modulbasis gebaut (`@ks/capture`
+  über `InstanceApi`); **nur Clerk** als Auth, kein SPID/CIE; **kein Zugang
+  ohne Konto** — ein Write-Key gibt es nur für Angemeldete, als
+  Einladungs-Token an Library und Zieltyp gebunden; Offline-First mit
+  Store-App und getrennte Auslieferung fürs Land sind kein Thema; Zielbild
+  **eine Library je Organisation**, Zeitpunkt offen. Composer: eine View,
+  mobile-first, die auf dem Desktop nur breiter wird (Plan, Abschnitt 5.1).
+  Später zu klären: Service Worker im Next-Build, persistentes Rate-Limit.
+- 2026-09-11 — **Composer als Klickmodell in Figma** gebaut (Screen-Landkarte,
+  ehemals Section `node-id=27-2`, jetzt Matrix `60-2`): Legende Kontext → Konfiguration,
+  fünf Kontext-Reihen (Basis SHF, Moderation in Vertretung, Dialogformate,
+  AECED, Klimamaßnahmen mit Bewertungskarte und Fachkundigen-Hinweis) in
+  390 × 844, Prototyp-Verbindungen in der Basis-Reihe. Belegt, dass
+  Kontexte über Einladungs-Token, Schema, Rolle und Library-Regelsatz an
+  dieselbe Station kommen, nicht über einen zweiten Ablauf. Ausgedehnt auf
+  alle Stationen (Owner 11.09.): Section „S0–S3 Eintritt und Orientieren"
+  bis „S9–S11" — alle 13 Stationen als Klickmodell, Prototyp-Verbindungen
+  über die Stationen hinweg. Auf Owner-Wunsch (abends) als **Matrix**
+  umgehängt (`node-id=60-2`): eine Zeile je Anwendung, eine Spalte je
+  Station, Schnittlinien zum Ausdrucken — waagrecht die Storyline einer
+  Anwendung, senkrecht alle Varianten einer Station. Rahmen verschoben,
+  nicht neu gebaut. Farbleitsystem auf beiden Boards vereinheitlicht:
+  Anwendungen warm/grün (Zeilenbänder), Stationen kühl je Gruppe
+  (Spaltenköpfe). Play-Modus: Start-Screen `66-2` mit Anwendungswahl,
+  je Anwendung Tipp-für-Tipp durch alle Screens (Handy: Figma-App oder
+  Prototyp-Link), vor jeder Station ein Hinweis-Popup (Overlay über dem
+  ersten Screen, Tipp schließt, „?" holt es zurück; Section `70-2`) für
+  Testpersonen. Ketten lückenlos gemacht: 41 angepasste Kopien der
+  Basis-Screens nach der Landkarte (Rolle, Bezugsobjekt, Begriffe je
+  Anwendung), 74 Popups; jede Anwendung läuft jetzt von S0/S1 bis S11
+  (Peters Archiv bis S9). Offen:
+  Bestands-Screenshots (lokal) als Vorlage.
+- 2026-09-11 — **Architektur und Datenhaltung der Stationen** konzipiert
+  (Owner-Frage abends): [`plans/erfassungs-architektur-stationen-datenhaltung.plan.md`](plans/erfassungs-architektur-stationen-datenhaltung.plan.md).
+  Der Wizard ist die Maschine von S4/S5 und wird durch das Composer-Konzept
+  fertig, nicht ersetzt; die übrigen Stationen sind Regelsatz je Library
+  (neues Feld `capture.*`) plus Erweiterung bestehender Module; Neubau nur
+  Anlagen-Modell, Bewertungsmodell mit Fenstern, Sichtbarkeits-Regel,
+  Synthese mit Fassungen. Datenhaltung: Verfahren in MongoDB (neu
+  `consents`, `assessments`, `syntheses`), Wissen als Dokument mit flachem
+  Frontmatter im Storage, Rohdaten im Blob. Wellen E0–E7, Pflicht bis Freeze
+  E0–E4 (34–49 PT). **Owner-Entscheidungen dazu (11.09. abends):** Flows
+  bleiben Dokumente in MongoDB (`kind='wizard'`); eine Library für das SHF,
+  Library je Organisation später; Aufbewahrung so lange wie möglich, keine
+  automatische Löschung (ADR 0004 O2 vorerst geschlossen); Wizard-Editor nach
+  dem Freeze.
+- 2026-09-12 — **Verzeichnisstruktur im Storage** (Owner-Korrektur zur
+  einen SHF-Library, Konzept §3.4): zwei Bäume `Veranstaltungen/<Reihe>/<Treffen>/`
+  (Themen, Ergebnisse, Protokoll) und `Organisationen/<Name>/Beiträge/<Reihe>/<Treffen>/`
+  (Beiträge), damit der spätere Umzug einer Organisation in eine eigene
+  Library ein Verschieben eines Ordners ist und Storage-Rechte je Organisation
+  gesetzt werden können. Bezug im flachen Frontmatter (`reihe`, `treffen`,
+  `thema`, `tisch`, `organisation`); Ablage als Pfadvorlage je Zieltyp
+  (`capture.ablage`) in der Promotion, ersetzt den `root/inbox`-Default;
+  Synthese-Belege über Submission-Id, nicht nur `fileId`. E0 wächst auf 4–5 PT.
+- 2026-09-12 — **Feedback-Runden vorbereitet**: im Archivordner liegt
+  „2026-09-12 Anwendungsflows und Testleitfaden.md" (die sieben Flows des
+  Klickmodells in Worten, Testanleitung, Fragen je Station, Grenzen) und ein
+  Ordner `Feedback/` mit Vorlage. Befunde aus den Runden fließen ins
+  Composer- und ins Architektur-Konzept; die Screens werden im Klickmodell
+  nachgezogen.
+- 2026-09-12 — **Dialog-Flow: übersehener Bestand.** Der Testimonial-/
+  Dialograum-Flow vom Januar (Event-Container mit `testimonialWriteKey`,
+  Recorder, `event-finalize-de`) trägt den Dialogfall zu über 80 Prozent;
+  Hauptanalyse auf Branch `claude/dialog-flow-bestand`
+  (`docs/analysis/dialog-flow-bestand.md`, mit Prod-DB und Live-Test),
+  Nachtrag der zweiten Prüfung hier:
+  [`analysis/dialog-flow-bestand-nachtrag.md`](analysis/dialog-flow-bestand-nachtrag.md).
+  Kernbefunde: die Gast-Seite `/public/testimonial` ist nicht in den
+  öffentlichen Routen (nur die API läuft ohne Konto), der QR zeigt auf den
+  Login-Wizard, `author_is_named` wirkt nicht, der Recorder hat weder
+  Leitfragen noch Vorschau. Dialog-Welle D0 auf Bestand 10–16 PT, außerhalb
+  des Freeze, neben E0/E1. Die Dialog-Zeile des Klickmodells ist am 12.09.
+  in der Cowork-Sitzung auf neun Screens neu gebaut (Archiv „Dialog-Flow neu
+  - Screen-Vorgabe und Testleitfaden"); Gast-Zugang je Library bleibt
+  Owner-Entscheidung.
+- 2026-09-12 — **Haltung „vorauseilendes Vertrauen"** für die SHF-Zeilen
+  (Archiv „Vorauseilendes Vertrauen - der SHF-Flow im Advocatus-Diaboli"):
+  Tischvereinbarung statt Einwilligungsleiter, keine Sichtbarkeitswahl je
+  Beitrag, CTA „Beitragen", stille Runde, Tisch-QR mit Kontext (Anmeldung
+  bleibt, Owner 12.09.) — im Klickmodell gebaut. Option 2 (Kuratieren als
+  Notbremse, Tisch-Abschluss T-S8b.2) ist gebaut, aber Owner-Entscheidung vor
+  dem 16.09. Regelsatz `capture.*` um `zugang: konto | qr`,
+  `kuratierung: tor | notbremse | keine` und die Tischvereinbarung erweitert,
+  Welle D0 im Architektur-Konzept eingetragen (Abschnitt 5 und 7). Offen:
+  Kostenprüfung der Haltungsänderung am Code (Archiv-Nachziehliste, Teil C2)
+  und ADR 0004 Zweig E2 (Write-Key mit Tisch/Rolle). Figma-Reste (Popups,
+  Legenden, vier Screens) laufen über den Cowork-Handover im Archiv.
+- 2026-09-12 — **Owner-Entscheidungen (abends):** Option 2 „Tisch-Ernte"
+  angenommen (`capture.kuratierung: notbremse` für das SHF, Tisch-Abschluss,
+  Kostenprüfung am Code wird Pflicht vor E0); Gast-Zugang für den Dialogfall
+  ja (`capture.zugang: qr`, Route + QR-Weiche in PR #279 enthalten); drei Nennungsstufen
+  (`author_is_named` muss wirken); Widerruf nur bis zum gemeinsamen Abschluss.
+  Offen: Schlüssel-Ablauf, Inbox-Konformität des Gast-Pfads,
+  `events/finalize`, Form des Abschlusses (Architektur-Konzept, Abschnitt 6
+  und 7).
+- 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
+  und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
+  `packages/module-explorer/src/gallery/**`, Sterne unter
+  `api/library/[id]/source-user-states/`). Nachziehen, sobald die Contracts der
+  Galerie mitziehen.
+- 2026-09-12: **Dialog-Fall (Kolping), nicht Teil dieses Vorhabens, korrigiert
+  aber eine Annahme:** Der Testimonial-Pfad vom Januar laeuft API-seitig ohne
+  Konto, die Gast-Seite `/public/testimonial` fehlte in der Middleware
+  (anonym 404) und der QR-Code zeigte auf den Login-Wizard. Owner-Entscheidung
+  12.09.: Gast-Zugang fuer den Dialog-Fall oeffnen — Route und QR-Weiche
+  repariert (ehemals PR #278, in PR #279 zusammengeführt). Die Entscheidung vom 11.09.
+  („kein Zugang ohne Konto") gilt fuer das SHF; Analyse mit Belegen:
+  `docs/analysis/dialog-flow-bestand.md` (ehemals PR #277, in PR #279 zusammengeführt).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
 
