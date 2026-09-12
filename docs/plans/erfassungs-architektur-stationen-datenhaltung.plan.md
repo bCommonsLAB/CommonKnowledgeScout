@@ -299,7 +299,7 @@ vollständiger `tsc`-Vergleich, Freeze-Tests vor dem Umbau (C0).
 | # | Frage | Entschieden | Wirkung |
 |---|---|---|---|
 | 5 | Option 2 „Tisch-Ernte" (SHF) | **Ja.** Kuratieren als Notbremse statt Tor, Tisch-Abschluss, Ernte-Fenster | `capture.kuratierung: notbremse` für das SHF; Zustand `herausgenommen` mit Grund; T-S8b.2 bleibt; E5 ohne Bulk-Freigabe; Kostenprüfung am Code wird Pflicht vor E0 |
-| 6 | Gast-Zugang für den Dialogfall | **Ja.** `/public/testimonial` öffentlich, QR auf den Gast-Link | `capture.zugang: qr` je Library; PR #278 mergen; Entscheidung vom 11.09. gilt weiter für das SHF |
+| 6 | Gast-Zugang für den Dialogfall | **Ja.** `/public/testimonial` öffentlich, QR auf den Gast-Link | `capture.zugang: qr` je Library; Route + QR-Weiche gebaut (ehemals PR #278, in PR #279 enthalten); Entscheidung vom 11.09. gilt weiter für das SHF |
 | 7 | Nennungsstufen | **Drei:** Name · Spitzname · ohne Namen, nach dem Sprechen | `author_name`, `author_nickname`, `author_is_named` in die Live-Vorlage; `author_is_named` muss in Renderer und Discovery wirken (heute wirkungslos) |
 | 8 | Widerruf | **Bis zum gemeinsamen Abschluss.** Danach nicht mehr | Claim-Token beim Absenden, Löschen durch die Person nur vor dem Abschluss; D-S11.1 zeigt danach nur den Zustand „im Ergebnis"; keine Fassungsfrage |
 

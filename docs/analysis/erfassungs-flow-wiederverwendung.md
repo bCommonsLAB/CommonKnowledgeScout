@@ -172,7 +172,7 @@ ist ohne Varianten geschrieben.
   Tisch-QR: der QR trägt Tisch, Rolle und Organisation, die Anmeldung bleibt.
   Für den **Dialogfall** (Kolping) ist der Gast-Zugang je Library erlaubt
   (Owner 12.09.); der Mechanismus existiert (Testimonial-Write-Key), nur
-  die Seite davor ist nicht öffentlich (Widerspruch 9, 15; PR #278).
+  die Seite davor war nicht öffentlich (Widerspruch 9, 15; behoben in PR #279, ehemals #278).
 - **Haltung „vorauseilendes Vertrauen"** (Archiv, 12.09.): Tischvereinbarung
   statt Einwilligungsleiter, keine Sichtbarkeitswahl je Beitrag, Kuratieren als
   Notbremse (Option 2, Owner 12.09.: angenommen). Die Einstufung von S2, S5, S7 und S8 wird

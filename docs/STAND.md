@@ -416,7 +416,7 @@ Neu dazugekommen:
 - 2026-09-12 — **Owner-Entscheidungen (abends):** Option 2 „Tisch-Ernte"
   angenommen (`capture.kuratierung: notbremse` für das SHF, Tisch-Abschluss,
   Kostenprüfung am Code wird Pflicht vor E0); Gast-Zugang für den Dialogfall
-  ja (`capture.zugang: qr`, PR #278 mergen); drei Nennungsstufen
+  ja (`capture.zugang: qr`, Route + QR-Weiche in PR #279 enthalten); drei Nennungsstufen
   (`author_is_named` muss wirken); Widerruf nur bis zum gemeinsamen Abschluss.
   Offen: Schlüssel-Ablauf, Inbox-Konformität des Gast-Pfads,
   `events/finalize`, Form des Abschlusses (Architektur-Konzept, Abschnitt 6
