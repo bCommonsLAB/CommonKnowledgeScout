@@ -299,7 +299,16 @@ generic-finalize-wizard; werden in `creation-wizard.tsx` noch aktiv gerufen),
 ADR 0003 Wizard/Schema, und die Reste aus Welle 3-VI. Mehrsprachigkeit DE/IT:
 entscheidet das Vorabtreffen.
 
-Neu dazugekommen: (noch nichts)
+Neu dazugekommen:
+
+- 2026-09-12: **Dialog-Fall (Kolping), nicht Teil dieses Vorhabens, korrigiert
+  aber eine Annahme:** Der Testimonial-Pfad vom Januar laeuft API-seitig ohne
+  Konto, die Gast-Seite `/public/testimonial` fehlte in der Middleware
+  (anonym 404) und der QR-Code zeigte auf den Login-Wizard. Owner-Entscheidung
+  12.09.: Gast-Zugang fuer den Dialog-Fall oeffnen — Route und QR-Weiche
+  repariert (PR „Dialog-Fall: Gast-Zugang"). Die Entscheidung vom 11.09.
+  („kein Zugang ohne Konto") gilt fuer das SHF; Analyse mit Belegen:
+  `docs/analysis/dialog-flow-bestand.md` (PR #277).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
 
