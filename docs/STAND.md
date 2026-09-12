@@ -371,6 +371,15 @@ Neu dazugekommen:
   Library je Organisation später; Aufbewahrung so lange wie möglich, keine
   automatische Löschung (ADR 0004 O2 vorerst geschlossen); Wizard-Editor nach
   dem Freeze.
+- 2026-09-12 — **Verzeichnisstruktur im Storage** (Owner-Korrektur zur
+  einen SHF-Library, Konzept §3.4): zwei Bäume `Veranstaltungen/<Reihe>/<Treffen>/`
+  (Themen, Ergebnisse, Protokoll) und `Organisationen/<Name>/Beiträge/<Reihe>/<Treffen>/`
+  (Beiträge), damit der spätere Umzug einer Organisation in eine eigene
+  Library ein Verschieben eines Ordners ist und Storage-Rechte je Organisation
+  gesetzt werden können. Bezug im flachen Frontmatter (`reihe`, `treffen`,
+  `thema`, `tisch`, `organisation`); Ablage als Pfadvorlage je Zieltyp
+  (`capture.ablage`) in der Promotion, ersetzt den `root/inbox`-Default;
+  Synthese-Belege über Submission-Id, nicht nur `fileId`. E0 wächst auf 4–5 PT.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
