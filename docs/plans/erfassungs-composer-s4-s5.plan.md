@@ -56,6 +56,17 @@ angefasst ohne Entscheidung: `events/*` (Phase 6), Widerstandsmessung (O3).
 Nicht Teil des Umfangs (Owner 11.09.): kontoloser Zugang, SPID/CIE,
 Offline-First mit Store-App.
 
+**Nachtrag 12.09. (Cowork-Sitzung, Archiv „Vorauseilendes Vertrauen" und
+„Dialog-Flow neu"):** Für das SHF gilt der **Tisch-QR** — er trägt Tisch,
+Rolle und Organisation als Kontext, die Anmeldung bleibt Pflicht. Der
+**Dialogfall** läuft nicht über diesen Composer, sondern als eigene Welle
+**D0 auf dem Testimonial-Bestand** (Architektur-Konzept, Abschnitt 5); ob dort
+ein Gast-Zugang je Library erlaubt wird, ist eine offene Owner-Entscheidung.
+Die Haltung „vorauseilendes Vertrauen" (Tischvereinbarung statt
+Einwilligungsleiter, keine Sichtbarkeitswahl je Beitrag, CTA „Beitragen" statt
+„Abgeben") ist im Klickmodell gebaut und in Abschnitt 8 nachgezogen; die
+Kostenprüfung am Code steht aus (Abschnitt 9).
+
 **Owner-Entscheidungen vom 11.09.** (ersetzen die zuvor benannten Varianten):
 
 | Entscheidung (Konzept §8) | Entschieden | Wirkung auf dieses Konzept |
@@ -235,9 +246,13 @@ Owner-Entscheidung 11.09.: **Beitragen setzt eine Clerk-Anmeldung voraus.**
 Ein Write-Key existiert nur für Angemeldete und ist ein **Einladungs-Token**,
 der Library, Zieltyp und Rolle bindet. Damit entfallen die zuvor geplanten
 Routen unter `/api/public/submissions/*` und die Verallgemeinerung der
-öffentlichen Secretary-Routen; die Testimonial-Kette
-(`testimonialWriteKey` + `eventFileId`) bleibt unverändert, bis Testimonials
-auf den Composer gezogen sind.
+öffentlichen Secretary-Routen. Die Testimonial-Kette
+(`testimonialWriteKey` + `eventFileId`) bleibt bestehen und trägt den
+Dialogfall als eigene kleine Welle **D0 vor dem Composer**; der Recorder ist
+der Prototyp des Ernte-Screens und der erste Bewohner der mobilen Schale (C7),
+keine Altlast (Nachtrag Dialog-Flow 12.09.). Für das SHF bindet derselbe
+Mechanismus künftig **Tisch und Rolle** statt Zieltyp, mit Clerk davor
+(Tisch-QR, Owner 12.09.).
 
 Was das Token trägt und wie es zum Bestand passt:
 
@@ -370,6 +385,9 @@ lohnt ein zweiter Rahmen mit dem Nebeneinander. Die Screen-Landkarte hat die
 Telefonrahmen schon; was fehlt, ist die Ausarbeitung und die wenigen
 Desktop-Spiegel.
 
+*Die folgenden Absätze sind die Baugeschichte des Klickmodells (11.09.);
+der maßgebliche Stand steht am Ende dieses Abschnitts unter „Stand 12.09.".*
+
 **Stand 11.09., Figma-Section „Composer — Ausarbeitung (Klickmodell)"**
 (ehemals `node-id=27-2`, seit abends in der Matrix `60-2`): eine Legende „Was je Kontext anders ist —
 und woher es kommt", darunter vier Reihen in Telefonbreite. Reihe 1 Basis (SHF
@@ -489,6 +507,37 @@ ausgeführt: „Twin prüfen" (P-S5.1) und die Redaktionssicht der
 Dialogformate (D-S8.1, D-S8b.2); „Gespräch führen" (D-S4.5) fehlt weiter,
 weil D-S4.4/D-S4.4b dieselbe Station tragen.
 
+**Stand 12.09. (Cowork-Sitzung, maßgeblich).** Zwei Zeilen der Matrix sind
+neu gefasst, die übrigen unverändert:
+
+- **Dialogformate (Kolping)**: aus den beiden Kolping-Gesprächen (23.12.2025,
+  15.01.2026) und der Dialog-Flow-Analyse neu gezeichnet — **neun Screens**
+  statt fünfzehn: D-S0.1 Runde anlegen & QR zeigen, D-S1.1 Ankommen über QR,
+  D-S4.1 Ernte · die drei Fragen, D-S4.2 Ernte · deine Stimme (formulierte
+  Fassung, Nennungszeile Name · Spitzname · ohne Namen), D-S5.2 Deine Stimme
+  ist da, D-S8b.1 Gemeinsamer Abschluss (ein Speichern für alle), D-S10.1 Die
+  Dialog-Seite, D-S10.2 In der Galerie · veröffentlichen, D-S11.1 Meine Stimme
+  (Widerruf). Keine Redaktion, kein S2/S3/S6/S8/S9-Screen. Die fünfzehn alten
+  Screens und ihre zwölf Popups sind entfernt. Vorgabe je Screen: Archiv
+  „2026-09-12 Dialog-Flow neu - Screen-Vorgabe und Testleitfaden.md".
+- **SHF Teilnehmende und Moderation**: Haltung „vorauseilendes Vertrauen"
+  (Option 1 + 2 + Tisch-QR aus dem Advocatus-Diaboli-Papier): T-S1.1 QR am
+  Tisch, T-S2.1 Bestätigung statt Frage, T-S2.2 „Was an diesem Tisch gilt"
+  (vier Sätze statt Einwilligungsleiter), T-S5.1 „So erscheint dein Beitrag"
+  ohne Sichtbarkeitswahl mit CTA **Beitragen**, S7 als „stille Runde",
+  T-S8b.1 „Trifft das, was du gemeint hast?", **T-S8b.2 Tisch-Abschluss
+  (neu)**, M-S3.2 Ernte-Fenster, M-S8.1/M-S8.2 Notbremse („im Ergebnis ·
+  herausgenommen mit Grund") statt Tor, M-S11.2 „Wen können wir noch
+  einladen". Option 2 (Notbremse, Tisch-Abschluss) ist im Modell gebaut,
+  aber als Owner-Entscheidung vor dem 16.09. offen.
+
+Ketten jetzt: Teilnehmende **20**, Moderation 17, Dialogformate **9**,
+AECED 12, Klimamaßnahmen 12, Naturmuseum 11, Peters Archiv 9. Was im Rahmen
+noch veraltet ist (Hinweis-Popups der SHF-Zeilen, Legenden, vier unangetastete
+Screens, FigJam-Board), steht mit Text-Ids in der Archiv-Nachziehliste
+„2026-09-12 Nachziehliste - was nach dem 12.09. zu aktualisieren ist.md",
+Teil A, und wird in der Cowork-Sitzung nachgezogen.
+
 **Bestand als Vorlage, nicht neu erfinden.** Drei Schirme existieren heute
 und decken zusammen fast den ganzen Beitragspfad ab. Sie werden in
 Telefonbreite abfotografiert (Chrome-Gerätemodus 390 × 844), im Archivordner
@@ -496,11 +545,11 @@ unter `Screenshots/` abgelegt und sind die Vorlage für T-S4.1 bis T-S5.2:
 
 | Bestandsschirm | Route | Was davon in den Composer wandert | Screen |
 |---|---|---|---|
-| Öffentlicher Testimonial-Recorder (`src/components/public/testimonial-recorder.tsx`) | `/public/testimonial?libraryId=…&eventFileId=…&writeKey=…` | ein Schirm: Name, Einwilligung, Diktat mit Mitlauf-Text, Speichern — das ist der Composer im Kleinen | T-S4.1, T-S4.2 |
+| Öffentlicher Testimonial-Recorder (`src/components/public/testimonial-recorder.tsx`) | `/public/testimonial?libraryId=…&eventFileId=…&writeKey=…` | ein Schirm: Name, Einwilligung, Diktat mit Mitlauf-Text, Speichern — das ist der Composer im Kleinen (ohne Leitfragen und Vorschau: beides gibt es nur im angemeldeten Wizard, Nachtrag 12.09.) | T-S4.1, T-S4.2 |
 | Standard-Flow des Wizards, Schritt „Quelle wählen" (`collect-source-step.tsx`) | `/library/create/standard-capture` | Diktat-Textfeld mit Oszilloskop (`DictationTextarea mode="live"`), Datei-Upload, URL-Import, Fortschritt der Audio-Auswertung | T-S4.2, T-S4.3 |
 | Wizard, Schritte „Prüfen und ergänzen" und „Speichern" (`edit-draft-step.tsx`, Publish-Step) | derselbe Lauf, zwei Schritte weiter | Felder aus dem Schema, Confidence-Markierung, Wartekorb-Hinweis | T-S5.1, T-S5.2 |
 | Meine Beiträge (`my-submissions-client.tsx`) | `/library/my-submissions` | Liste mit Zustand, Analyse anstoßen | T-S11.1 |
-| Wartekorb (`inbox-client.tsx`) | `/library/inbox` | Liste, Freigeben, Zurückweisen | M-S8.1, M-S8.2 |
+| Wartekorb (`inbox-client.tsx`) | `/library/inbox` | Liste, Freigeben, Zurückweisen — im SHF nach Option 2 (offen) als Notbremse: „im Ergebnis · herausgenommen (Grund)" | M-S8.1, M-S8.2 |
 
 Was keiner dieser Schirme zeigt und deshalb in Figma neu entsteht: der
 Kartenstrom mit Zustand je Anlage (T-S4.3), der Fehlerfall einer Anlage, die
@@ -623,14 +672,18 @@ mit „erneut" und „entfernen", und „Weiter" bleibt aktiv.
 dieselben Karten mit demselben Zustand; eine noch nicht hochgeladene Datei
 wird nachgeladen, ohne Dublette.
 
-**T-S5.1 Prüfen & Abgeben.** Die Felder des Zielschemas mit `kind=content`
-erscheinen in Schema-Reihenfolge, vorbelegt aus dem Vorschlag, unsichere Felder
-markiert (Confidence), Titel und Datum oben, Rest aufklappbar. Der Vorschlag
-ist als Vorschlag gekennzeichnet; Ändern ändert nur die bestätigte Fassung.
-Zuschreibung und Sichtbarkeit sind sichtbar (Inhalt aus S2/S7). „Als Entwurf
-behalten" lässt den Beitrag in `draft`.
+**T-S5.1 Prüfen & Beitragen** (Stand 12.09.). Die Felder des Zielschemas
+mit `kind=content` erscheinen in Schema-Reihenfolge, vorbelegt aus dem
+Vorschlag, unsichere Felder markiert (Confidence), Titel und Datum oben, Rest
+aufklappbar. Der Vorschlag ist als Vorschlag gekennzeichnet; Ändern ändert nur
+die bestätigte Fassung. Zuschreibung und Sichtbarkeit stehen als
+**Zustandsangaben** („So erscheint dein Beitrag — wie in der
+Tischvereinbarung": Organisation, Tisch, Sichtbarkeit aus dem Regelsatz),
+**keine Wahl je Beitrag**; abweichen kann man über einen kleinen Link, nicht
+über ein Pflichtfeld. CTA heißt **Beitragen**. „Als Entwurf behalten" lässt
+den Beitrag in `draft`.
 
-**T-S5.2 Abgegeben.** Nach „Abgeben" steht der Beitrag in `pending`; die
+**T-S5.2 Beigetragen.** Nach „Beitragen" steht der Beitrag in `pending`; die
 Bestätigung sagt „liegt beim Moderator" (Contributor) oder
 „veröffentlicht" (Owner nach `promote`), zeigt „Weiteres beitragen" und den
 Link, unter dem der Beitrag wiederzufinden ist. Eine Anlage, die danach fertig
@@ -652,8 +705,21 @@ vollständig ohne neue Fehler; `creation-wizard.tsx` nach C8 unter 400 Zeilen.
   `attribution.organisation` aus der Library kommt oder ein Feld am Beitrag ist.
 - Mehrsprachigkeit der Auswertung: `SUBMISSION_ANALYSIS_DEFAULTS.targetLanguage`
   ist fix `de` (`submission-analysis-job.ts`); entscheidet das Vorabtreffen.
-- Wo die Testimonials (`src/components/public/testimonial-recorder.tsx`,
-  `api/public/testimonials`) auf den Composer gezogen werden — eigene Scheibe.
+- Umgekehrt seit 12.09.: die Testimonials werden **nicht** auf den Composer
+  gezogen; der Recorder ist der Prototyp des Ernte-Screens und trägt den
+  Dialogfall als Welle D0 vor dem Composer. Offen sind die Owner-Entscheidungen
+  der Dialog-Flow-Analyse (Abschnitt 5 dort): Gast-Zugang je Library,
+  Schlüssel-Ablauf, Nennungsstufen live, Inbox-Konformität des Gast-Pfads,
+  `events/finalize` löschen, Form des gemeinsamen Abschlusses, Widerruf nach
+  dem Abschluss.
+- **Option 2 „Tisch-Ernte"** (Kuratieren als Notbremse, Tisch-Abschluss
+  T-S8b.2, Ernte-Fenster): im Klickmodell gebaut, Owner-Entscheidung vor dem
+  16.09. Und die **Kostenprüfung der Haltungsänderung am Code** (Archiv
+  Nachziehliste, Teil C2): Einwilligung je Tisch statt je Person, Sichtbarkeit
+  aus dem Regelsatz mit Ausnahme je Beitrag, Zustand `herausgenommen` neben
+  `published`/`rejected`, Tisch-Abschluss als Objekt, Write-Key an Tisch und
+  Rolle — Erwartung: billiger als es aussieht, weil überwiegend Dinge
+  entfallen.
 - Umzug von `src/lib/live-transcription` ins Paket.
 - Service Worker im Next-Build und persistentes Rate-Limit: später klären
   (Bauweisen-Vergleich, Abschnitt 6).

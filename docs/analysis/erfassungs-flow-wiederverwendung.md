@@ -106,12 +106,13 @@ Reihenfolge in Abschnitt 5 nennt, was für den SHF-Termin zwingend ist.
 | 6 | S0 „○ fehlt", „portieren aus NatureScout" (Landkarte 2, Synergie-Bilanz) | Mitgliedschaft als Entität mit vier Rollen und Einladungs-Token existiert; NatureScout hat die Rolle global und die Organisation dreifach kopiert | S0 ist ◐ und **erweitern**; aus NatureScout kommt nur der Einladungs-Lebenszyklus als Muster |
 | 7 | „Werkbank nimmt den Wartekorb auf (ADR 0006)" (Landkarte 3c, S8) | Werkbank arbeitet auf Twin-Familien und liest aus `shadow-twin-repo` (`werkbank-baum.ts:32`, `korrekturen.ts:23`); keine Abstraktion über Arbeitsgegenstände | S8 wird am Wartekorb erweitert, nicht in die Werkbank verlegt. Übertragbar ist das Prinzip (Widerstand zählen), nicht der Code |
 | 8 | „Die Bausteine dafür (Outbox, Journal, Lückenerkennung) sind im Live-Diktat schon vorhanden und gehören auf den ganzen Beitrag ausgeweitet" (Konzept 4.3) | Outbox ist ein RAM-Ringpuffer von 120 s, nichts wird persistiert (`outbox.ts:26`, `:35`); nur der Mitschnitt geht nach IndexedDB | Wiederaufnahme nach Abbruch ist neu zu bauen; die Live-Diktat-Bausteine helfen für die Aufnahme, nicht für den Entwurf |
-| 9 | „Öffentliche Gegenstücke für die Verarbeitung existieren bereits" (Konzept 4.4) | Existieren, sind aber an `libraryId + eventFileId + testimonialWriteKey` gebunden (`testimonial-write-access.ts:71-109`) | Für einen generischen Write-Key sind die öffentlichen Secretary-Routen zu generalisieren, nicht nur die Abgabe |
+| 9 | „Öffentliche Gegenstücke für die Verarbeitung existieren bereits" (Konzept 4.4) | Existieren, sind aber an `libraryId + eventFileId + testimonialWriteKey` gebunden (`testimonial-write-access.ts:71-109`). Nachtrag 12.09.: nur **per API** — die Gast-Seite `/public/testimonial` fehlt in `isPublicRoute` (`src/middleware.ts:39-52`), über den Browser erreicht heute kein Gast den Flow | Für einen generischen Write-Key sind die öffentlichen Secretary-Routen zu generalisieren, nicht nur die Abgabe; die Seite ist eine Middleware-Zeile |
 | 10 | „`@ks/embed` geplant" (Landkarte 6) | Existiert, v0.1.0, M5 deployt (STAND 11.09.) | S10 ist konfigurieren |
 | 11 | BetterWriter „Teilen mit Rollen (Eigentümer · Bearbeiter · Leser), eingeladen/angenommen" als Fundament für S11 und S0 | Rollen `owner/editor/viewer`; Einladung ohne Token, Ablauf, Widerruf, Versand (`shares/types.ts:18-33`) | Für S0 trägt es nichts, was KnowledgeScout nicht schon hat; für S11 nur die Liste als Copy |
 | 12 | „Overlap-Bericht (gebaut)" als S8b-Beleg für Klimamaßnahmen | Belegspur nur auf Katalogzeilen, Felder `co2`/`kosten`/`massnahme_nr` hartkodiert | Kein Fundament für eine generische Synthese |
 | 13 | Konzept 2.3: Live-Diktat liefert „Outbox" als Bausteine für Wackelnetz | siehe 8 | — |
 | 14 | ADR 0004 nennt eine Rolle `reader` | Im Code nicht vorhanden (`library-members.ts:21`) | ADR-Text passt nicht zur Rollenliste; kein Handlungsbedarf für die Erfassung |
+| 15 | S4 „neu" (diese Analyse, Abschnitt 2 — am Composer mit Anlagen gemessen) | Für den Ein-Quellen-Fall trägt der Testimonial-Recorder den Pfad Diktat → Transkript → Speichern seit Januar (`src/components/public/testimonial-recorder.tsx`, `api/public/testimonials`), ohne Leitfragen und Vorschau (Nachtrag Dialog-Flow 12.09.) | „Neu" bleibt für Anlagen mit Zustand und Wiederaufnahme; Composer-Scheiben C3/C4 minus 2–3 PT; der Dialogfall läuft als Welle D0 auf dem Bestand |
 
 ## 5. Was für den SHF-Termin zwingend ist
 
@@ -159,6 +160,24 @@ Einstufung an zwei Stellen verschieben:
 
 Abschnitt 6, dritter Punkt, ist damit gegenstandslos; das Composer-Konzept
 ist ohne Varianten geschrieben.
+
+## 8. Nachtrag — 12.09.
+
+- **Eine Library für das SHF**, Library je Organisation später. Damit der
+  Umzug dann ein Verschieben ist, sind Organisationen und Veranstaltungen im
+  Storage eigene Verzeichnisse (Architektur-Konzept, Abschnitt 3.4). Für S0
+  heißt das: erweitern (Token-Felder, Profil, Verzeichnisbaum), nicht nur
+  konfigurieren.
+- **„Kein Zugang ohne Konto" gilt für das SHF** — präzisiert durch den
+  Tisch-QR: der QR trägt Tisch, Rolle und Organisation, die Anmeldung bleibt.
+  Für den **Dialogfall** (Kolping) ist ein Gast-Zugang je Library eine offene
+  Owner-Entscheidung; der Mechanismus existiert (Testimonial-Write-Key), nur
+  die Seite davor ist nicht öffentlich (Widerspruch 9, 15).
+- **Haltung „vorauseilendes Vertrauen"** (Archiv, 12.09.): Tischvereinbarung
+  statt Einwilligungsleiter, keine Sichtbarkeitswahl je Beitrag, Kuratieren als
+  Notbremse (Option 2, offen). Die Einstufung von S2, S5, S7 und S8 wird
+  dadurch eher billiger; die Kostenprüfung am Code steht aus
+  (Architektur-Konzept, Abschnitt 7).
 
 ## Verweise
 

@@ -98,8 +98,17 @@ Ergebnis: die Dialog-Zeile schrumpft von fünfzehn auf **sieben** Screens —
 Runde anlegen + QR · Einladung/Recorder-Kopf · Ernte-Screen · „Deine Stimme
 ist da" · gemeinsamer Abschluss (Vorschau am Beamer, Feinschliff, ein
 Speichern) · Dialog-Seite mit Köpfen · Meine Stimme (Widerruf). Das deckt sich
-mit der Hauptanalyse („zwei eigene Screens, der Rest existiert"). Umbau des
-Klickmodells nach Peters Entscheidungen (Hauptanalyse, Abschnitt 5).
+mit der Hauptanalyse („zwei eigene Screens, der Rest existiert").
+
+**Umgesetzt am 12.09. in der Cowork-Sitzung:** Die Zeile „Dialogformate
+(Kolping)" ist im Klickmodell neu gebaut, mit **neun** Screens — die sieben
+Momente oben, wobei die Ernte in zwei Screens geteilt ist (D-S4.1 die drei
+Fragen, D-S4.2 „deine Stimme" mit Nennungszeile) und das Zeigen in zwei
+(D-S10.1 Dialog-Seite, D-S10.2 In der Galerie · veröffentlichen). Drei der
+sieben Entscheidungen sind dafür vorentschieden (Gast-Zugang ja, drei
+Nennungsstufen, Abschluss durch die Moderatorin am Beamer), jede unter einer
+Stunde umkehrbar. Vorgabe je Screen: Archiv „2026-09-12 Dialog-Flow neu -
+Screen-Vorgabe und Testleitfaden.md".
 
 ## 4. Folgen für die drei Konzepte (Ergänzung zu Teil 3)
 

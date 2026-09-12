@@ -397,8 +397,22 @@ Neu dazugekommen:
   öffentlichen Routen (nur die API läuft ohne Konto), der QR zeigt auf den
   Login-Wizard, `author_is_named` wirkt nicht, der Recorder hat weder
   Leitfragen noch Vorschau. Dialog-Welle D0 auf Bestand 10–16 PT, außerhalb
-  des Freeze, neben E0/E1. Die Dialog-Zeile des Klickmodells schrumpft auf
-  sieben Screens, Umbau nach Owner-Entscheidung (Gast-Zugang je Library).
+  des Freeze, neben E0/E1. Die Dialog-Zeile des Klickmodells ist am 12.09.
+  in der Cowork-Sitzung auf neun Screens neu gebaut (Archiv „Dialog-Flow neu
+  - Screen-Vorgabe und Testleitfaden"); Gast-Zugang je Library bleibt
+  Owner-Entscheidung.
+- 2026-09-12 — **Haltung „vorauseilendes Vertrauen"** für die SHF-Zeilen
+  (Archiv „Vorauseilendes Vertrauen - der SHF-Flow im Advocatus-Diaboli"):
+  Tischvereinbarung statt Einwilligungsleiter, keine Sichtbarkeitswahl je
+  Beitrag, CTA „Beitragen", stille Runde, Tisch-QR mit Kontext (Anmeldung
+  bleibt, Owner 12.09.) — im Klickmodell gebaut. Option 2 (Kuratieren als
+  Notbremse, Tisch-Abschluss T-S8b.2) ist gebaut, aber Owner-Entscheidung vor
+  dem 16.09. Regelsatz `capture.*` um `zugang: konto | qr`,
+  `kuratierung: tor | notbremse | keine` und die Tischvereinbarung erweitert,
+  Welle D0 im Architektur-Konzept eingetragen (Abschnitt 5 und 7). Offen:
+  Kostenprüfung der Haltungsänderung am Code (Archiv-Nachziehliste, Teil C2)
+  und ADR 0004 Zweig E2 (Write-Key mit Tisch/Rolle). Figma-Reste (Popups,
+  Legenden, vier Screens) laufen über den Cowork-Handover im Archiv.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
