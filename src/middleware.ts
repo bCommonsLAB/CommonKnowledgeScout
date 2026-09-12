@@ -48,7 +48,11 @@ const isPublicRoute = createRouteMatcher([
   '/info(.*)',
   '/sign-in(.*)', // Clerk Sign-In Route
   '/sign-up(.*)', // Clerk Sign-Up Route
-  '/invite(.*)' // Invite-Accept Route
+  '/invite(.*)', // Invite-Accept Route
+  // Gast-Recorder fuer Testimonials (Dialog-Fall, Owner-Entscheidung 12.09.2026):
+  // die Seite hinter dem QR-Code. Zugang regelt die Seite selbst ueber den
+  // Write-Key des Events (`/api/public/testimonials`, `assertTestimonialWriteAccess`).
+  '/public/testimonial(.*)'
 ]);
 
 // Public routes Log (nur in Development)
@@ -60,6 +64,7 @@ if (process.env.NODE_ENV === 'development') {
     '/api/public(.*)',
     '/api/llm-models(.*)',
     '/info(.*)',
+    '/public/testimonial(.*)',
   ]);
 }
 

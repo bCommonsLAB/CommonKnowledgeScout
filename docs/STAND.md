@@ -426,6 +426,14 @@ Neu dazugekommen:
   `packages/module-explorer/src/gallery/**`, Sterne unter
   `api/library/[id]/source-user-states/`). Nachziehen, sobald die Contracts der
   Galerie mitziehen.
+- 2026-09-12: **Dialog-Fall (Kolping), nicht Teil dieses Vorhabens, korrigiert
+  aber eine Annahme:** Der Testimonial-Pfad vom Januar laeuft API-seitig ohne
+  Konto, die Gast-Seite `/public/testimonial` fehlte in der Middleware
+  (anonym 404) und der QR-Code zeigte auf den Login-Wizard. Owner-Entscheidung
+  12.09.: Gast-Zugang fuer den Dialog-Fall oeffnen — Route und QR-Weiche
+  repariert (ehemals PR #278, in PR #279 zusammengeführt). Die Entscheidung vom 11.09.
+  („kein Zugang ohne Konto") gilt fuer das SHF; Analyse mit Belegen:
+  `docs/analysis/dialog-flow-bestand.md` (ehemals PR #277, in PR #279 zusammengeführt).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
 
