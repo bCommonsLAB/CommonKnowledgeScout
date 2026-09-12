@@ -85,20 +85,20 @@ validiert, in den Settings sichtbar:
 | `capture.rollen` | welche Library-Rolle was darf (heute vier Rollen in `library-members.ts:21`); Kontext-Rolle „Moderation an Tisch 2" als Token-Attribut | S0, S1 |
 | `capture.zuordnung` | welche Zuordnungsfelder gefragt werden (Name, Organisation, Interessengruppe, Sprache, Sektor) und ob „in Vertretung" erlaubt ist | S2 |
 | `capture.einwilligung` | Zwecke, die eingewilligt werden müssen (Veröffentlichung, Namensnennung, Zitat). **Seit 12.09. (SHF, Option 1):** eine **Tischvereinbarung** — vier Sätze, einmal beim Ankommen gelesen, ein „Verstanden" — statt Stufen je Person; die Sätze sind Text im Regelsatz | S2 |
-| `capture.zugang` | `konto` (Einladungs-Token + Clerk-Session; der **Tisch-QR** trägt Tisch, Rolle und Organisation als Kontext, die Anmeldung bleibt — SHF, Owner 12.09.) oder `qr` (Gast-Link ohne Konto, wie der Testimonial-Write-Key — Dialogfall, **Owner-Entscheidung offen**) | S1 |
+| `capture.zugang` | `konto` (Einladungs-Token + Clerk-Session; der **Tisch-QR** trägt Tisch, Rolle und Organisation als Kontext, die Anmeldung bleibt — SHF, Owner 12.09.) oder `qr` (Gast-Link ohne Konto, wie der Testimonial-Write-Key — Dialogfall, **Owner 12.09.: ja**) | S1 |
 | `capture.bewertung` | Bewertungsart je Zieltyp: `stern \| einwand \| widerstand \| zitat_freigabe \| pruefmarke`, Skala, Begründung Pflicht, Fenster ja/nein | S6 |
 | `capture.sichtbarkeit` | Regeln „wer · wann · was": Stufenleiter (Moderation, Tisch, alle, öffentlich), „fremde erst nach eigener Abgabe" (Sprachprobe: „stille Runde"), „nicht während Messung", Anonymisierung je Feld. **Seit 12.09. (Option 1):** die Stufe kommt aus der Tischvereinbarung als Voreinstellung, der Beitrag zeigt sie nur an; abweichen je Beitrag über einen Link, kein Pflichtfeld | S7 |
-| `capture.kuratierung` | `tor` (Freigabe nötig — heute implizit über die Rolle), `notbremse` (alles ist im Ergebnis, die Moderation kann mit Grund herausnehmen, für alle sichtbar — SHF Option 2, **Owner-Entscheidung vor 16.09.**) oder `keine` (Dialogfall: keine Redaktion, Löschen durch die Moderation als Notbremse existiert) | S8 |
+| `capture.kuratierung` | `tor` (Freigabe nötig — heute implizit über die Rolle), `notbremse` (alles ist im Ergebnis, die Moderation kann mit Grund herausnehmen, für alle sichtbar — SHF Option 2, **Owner 12.09.: angenommen**) oder `keine` (Dialogfall: keine Redaktion, Löschen durch die Moderation als Notbremse existiert) | S8 |
 
 **Schicht B · Bestehende Module erweitern** (Code, aber generisch):
 
 | Station | Modul | Was erweitert wird |
 |---|---|---|
 | S0 Einrichten | Settings / Mitglieder (`@ks/module-settings`) | Einladungs-Token um Zieltyp, Kontext (Tisch), Ablauf, Erinnerung; Bezugsobjekte anlegen = Dokumente im Storage (Thema, Gespräch, Maßnahme) |
-| S1 Ankommen | Shell / Middleware | `/beitragen/[zugang]` löst Token auf, verlangt Clerk-Session, setzt Mitgliedschaft `pending → active`; das Token bindet **Tisch und Rolle** (Tisch-QR) statt nur Zieltyp. Bei `capture.zugang: qr` (Dialogfall, offen): `/public/testimonial` in `isPublicRoute` und QR-Weiche auf den Gast-Link |
+| S1 Ankommen | Shell / Middleware | `/beitragen/[zugang]` löst Token auf, verlangt Clerk-Session, setzt Mitgliedschaft `pending → active`; das Token bindet **Tisch und Rolle** (Tisch-QR) statt nur Zieltyp. Bei `capture.zugang: qr` (Dialogfall, Owner 12.09.): `/public/testimonial` in `isPublicRoute` und QR-Weiche auf den Gast-Link |
 | S3 Orientieren, S9 Wiederfinden | Explorer (`@ks/module-explorer`) | Facette „Zustand je Bezugsobjekt", „von dir offen"; Submissions im Index mit Status-Flag; Frage mit Quellenangabe ist der bestehende Chat |
 | S4 Beitragen, S5 Prüfen | Creation (`@ks/module-creation`, neu `@ks/capture`) | Composer-Konzept C0–C10 |
-| S8 Kuratieren | Creation, Wartekorb | Filter, Mehrfachauswahl, Original neben Transkript, Rückweisung mit Grund; bei `kuratierung: notbremse` (Option 2, offen) stattdessen Zustand `herausgenommen` mit Grund, für alle sichtbar, kein Bulk-Freigeben |
+| S8 Kuratieren | Creation, Wartekorb | Filter, Mehrfachauswahl, Original neben Transkript, Rückweisung mit Grund; bei `kuratierung: notbremse` (Option 2, Owner 12.09.) stattdessen Zustand `herausgenommen` mit Grund, für alle sichtbar, kein Bulk-Freigeben |
 | S10 Zeigen | `@ks/embed`, Explorer | Beamer-Route (klein), Karte als zweite Ansicht (Naturmuseum, später) |
 | S11 Nachverfolgen | Creation, „Meine Beiträge" | Zustände `gezählt`, `im Ergebnis`, `Rückfrage`; Rückweisungsgrund; Widerruf |
 
@@ -150,10 +150,10 @@ veraltet und kaum löschbar. Genau das trennt ADR 0002 schon für die Sterne
 | S6 | Messfenster, Runden | MongoDB **neu** `assessment_windows`: `(libraryId, zielId, runde, offenVon, offenBis, zeigeWerte: bool)` | nein | SHF-Modul |
 | S7 Sehen dürfen | keine Daten — eine Regel | Regelsatz in `libraries.config.capture.sichtbarkeit`; Auswertung in `publication-filter.ts` (Chat, Galerie, Submissions) | Draft-Regel | Regel-Engine, Tests je Fall der Landkarte |
 | S7 | Sichtbarkeitsstufe und Anonymität je Beitrag | Frontmatter, flach: `sichtbarkeit: moderation \| tisch \| alle \| oeffentlich`, `anonym: true`; Quelle ist `submission.visibility`, seit 12.09. aus der Tischvereinbarung vorbelegt und nur bei Abweichung je Beitrag gesetzt | nein | Promotion setzt beide (`publish-frontmatter.ts`) |
-| S8 Kuratieren | Freigabe, Rückweisung mit Grund | MongoDB `wizard_submissions.review` + `events[]` (exists) | ja | Bulk, Filter; nichts Neues an den Daten. Bei Option 2 (offen): neuer Zustand `herausgenommen` mit Grund neben `published`/`rejected` (heute terminal), Kostenprüfung steht aus |
+| S8 Kuratieren | Freigabe, Rückweisung mit Grund | MongoDB `wizard_submissions.review` + `events[]` (exists) | ja | Bulk, Filter; nichts Neues an den Daten. Option 2 (Owner 12.09.): neuer Zustand `herausgenommen` mit Grund neben `published`/`rejected` (heute terminal), Kostenprüfung steht aus |
 | S8b Verdichten | Synthese-Vorschlag mit Belegen | MongoDB **neu** `syntheses`: `(libraryId, zielId, fassungen[] {seq, markdown, aussagen[] {text, belege[] {submissionId \| fileId, stelle}}, erstelltAm, erstelltVon, wiederhergestelltAus?}, zeiger {aktuell, neueste})` — Snapshots unveränderlich (Muster BetterWriter `history/snapshots.ts`) | nein | Collection + Lib-Port; Synthese-Job als External Job |
 | S8b | Freigegebene Fassung | Storage unter `Veranstaltungen/{reihe}/{treffen}/Ergebnisse`: Dokument `docType: ergebnis`, `fassung: 3`, `synthese_id: …`; Belege bleiben in MongoDB (Submission-Id), im Markdown nur Fußnoten-Marker | nein | Promotion-Variante „Fassung" |
-| S8b | Tisch-Abschluss (Option 2, offen) | ein Bestätigen für den ganzen Tisch: Fassungsfreigabe mit Tischbezug an `syntheses.fassungen[]` (`bestaetigtVonTisch`, `bestaetigtAm`) oder eigenes Objekt — Kostenprüfung offen | nein | T-S8b.2 |
+| S8b | Tisch-Abschluss (Option 2, Owner 12.09.) | ein Bestätigen für den ganzen Tisch: Fassungsfreigabe mit Tischbezug an `syntheses.fassungen[]` (`bestaetigtVonTisch`, `bestaetigtAm`) oder eigenes Objekt — Kostenprüfung offen | nein | T-S8b.2 |
 | S9 Wiederfinden | Index | `vectors__<lib>`, `doc_meta__<lib>` — auch für Submissions im Wartekorb mit Status-Flag | nur publizierte | `upsertMarkdown` bei Abgabe, Filter erweitert |
 | S10 Zeigen | keine eigenen Daten | liest publizierte Dokumente über `@ks/embed` bzw. Beamer-Route | ja | — |
 | S11 Nachverfolgen | „Meine Beiträge", „Neu:" | **berechnet**: Submissions (`mine`), `assessments` (eigene), `syntheses` mit Belegen auf eigene Submissions (Rückwärts-Index `belege.submissionId`), Ereignisse seit `library_members.zuletztGesehen` | Liste ja | Rückwärts-Index, `zuletztGesehen`, Widerruf-Route |
@@ -269,13 +269,13 @@ Personentage aus der Wiederverwendungs-Analyse, ohne Puffer. Das Fenster
 
 | Welle | Inhalt | Hängt ab von | PT |
 |---|---|---|---|
-| **D0 Dialog auf Bestand** (12.09., neben E0/E1, außerhalb des Freeze) | Gast-Seite `/public/testimonial` in `isPublicRoute` + QR-Weiche; Nennungsstufen live (`author_name`, `author_nickname`, `author_is_named` in der Vorlage, Renderer und Discovery); Leitfragen und Vorschau im Recorder (2–3); Köpfe-Galerie und Gruppenbild (2–3); ein Speichern für alle; Claim-Token und Widerruf (1–2) | Owner-Entscheidungen der Dialog-Flow-Analyse, Abschnitt 5 | 10–16 |
+| **D0 Dialog auf Bestand** (12.09., neben E0/E1, außerhalb des Freeze) | Gast-Seite `/public/testimonial` in `isPublicRoute` + QR-Weiche; Nennungsstufen live (`author_name`, `author_nickname`, `author_is_named` in der Vorlage, Renderer und Discovery); Leitfragen und Vorschau im Recorder (2–3); Köpfe-Galerie und Gruppenbild (2–3); ein Speichern für alle; Claim-Token und Widerruf bis zum Abschluss (1–2) | Owner 12.09.: Gast-Zugang ja, drei Nennungsstufen, Widerruf bis zum Abschluss; offen: Schlüssel-Ablauf, Inbox-Konformität | 10–16 |
 | **E0 Regelsatz** | Feld `capture` an der Library (Zieltypen, Zuordnung, Einwilligung, Bewertung, Sichtbarkeit, **Ablage-Pfadvorlagen**), Settings-Formular, Seed für SHF; Zieltyp-Schemas `reihe`, `treffen`, `organisation`, `thema`, `vorschlag`; Verzeichnisbaum anlegen | — | 4–5 |
 | **E1 Composer** | Scheiben C0–C10 des Composer-Konzepts, inkl. Einladungs-Token (C9) und `publish` in der Registry | E0 (Zieltypen) | 14–20 |
 | **E2 Zuordnung und Einwilligung** | `library_members.profil`, `consents` (Tischvereinbarung je Person; Migration des Testimonial-Bools `consent`), `attribution`/`visibility` an der Submission aus dem Regelsatz vorbelegt, Prüfen-Schirm zeigt beides als Zustand | E1 | 3–4 |
 | **E3 Bewertungsmodell** | `assessments`, `assessment_windows`, Migration der Sterne, Aggregat in `doc_meta`; SHF-Einwandstufen, Fenster, Auswertung als Modul | E0 | 2–3 + 6–10 |
 | **E4 Sichtbarkeit** | Regel-Engine im zentralen Filter, Frontmatter-Felder in der Promotion, Fälle der Landkarte als Tests | E2, E3 | 3–4 |
-| **E5 Wartekorb unter Last** | Filter, Bulk, Original neben Transkript, Grund bei Rückweisung; bei Option 2 stattdessen Notbremse (`herausgenommen` mit Grund) und Tisch-Abschluss | E1, Option-2-Entscheidung | 3–5 |
+| **E5 Wartekorb unter Last** | Filter, Bulk, Original neben Transkript, Grund bei Rückweisung; nach Option 2 (Owner 12.09.) Notbremse (`herausgenommen` mit Grund) und Tisch-Abschluss statt Bulk-Freigabe | E1 | 3–5 |
 | **E6 Synthese und Fassungen** | `syntheses`, Snapshot-Lib (Port), Synthese-Job mit Belegspur, Promotion „Fassung" | E1, E5 | 6–10 |
 | **E7 Wiederfinden und Nachverfolgen** | Submissions im Index, `verfahrensstand`-Facette, „Neu:"-Berechnung, Widerruf, Beamer-Route | E3, E4, E6 | 4–6 |
 
@@ -294,25 +294,29 @@ vollständiger `tsc`-Vergleich, Freeze-Tests vor dem Umbau (C0).
 | 3 | Aufbewahrung | **So lange wie möglich, keine automatische Löschung.** `consents` bleiben auch nach Widerruf (mit `widerrufenAm`), `assessments` nach Rundenende, Submissions nach `published`/`rejected` | Kein Aufräum-Job in Vorhaben 3 (schließt ADR 0004, O2 vorerst); Löschung nur auf ausdrücklichen Wunsch einer Person, dann als eigener Vorgang mit Protokoll |
 | 4 | Wizard-Editor | **Später**, nach dem Freeze | Vorhaben 3 arbeitet mit Seeds; ADR 0003 Phase 4 bleibt geplant |
 
+**Owner, 12.09.:**
+
+| # | Frage | Entschieden | Wirkung |
+|---|---|---|---|
+| 5 | Option 2 „Tisch-Ernte" (SHF) | **Ja.** Kuratieren als Notbremse statt Tor, Tisch-Abschluss, Ernte-Fenster | `capture.kuratierung: notbremse` für das SHF; Zustand `herausgenommen` mit Grund; T-S8b.2 bleibt; E5 ohne Bulk-Freigabe; Kostenprüfung am Code wird Pflicht vor E0 |
+| 6 | Gast-Zugang für den Dialogfall | **Ja.** `/public/testimonial` öffentlich, QR auf den Gast-Link | `capture.zugang: qr` je Library; PR #278 mergen; Entscheidung vom 11.09. gilt weiter für das SHF |
+| 7 | Nennungsstufen | **Drei:** Name · Spitzname · ohne Namen, nach dem Sprechen | `author_name`, `author_nickname`, `author_is_named` in die Live-Vorlage; `author_is_named` muss in Renderer und Discovery wirken (heute wirkungslos) |
+| 8 | Widerruf | **Bis zum gemeinsamen Abschluss.** Danach nicht mehr | Claim-Token beim Absenden, Löschen durch die Person nur vor dem Abschluss; D-S11.1 zeigt danach nur den Zustand „im Ergebnis"; keine Fassungsfrage |
+
 ## 7. Offen nach dem 12.09.
 
-1. **Option 2 „Tisch-Ernte"** (Kuratieren als Notbremse statt Tor,
-   Tisch-Abschluss T-S8b.2, Ernte-Fenster): im Klickmodell gebaut,
-   Entscheidung des Owners vor dem Vorabtreffen am 16.09. Wer die stille
-   Vorsortierung durch die Moderation behalten will, soll es bewusst tun.
-2. **Kostenprüfung der Haltungsänderung am Code** (Archiv-Nachziehliste,
-   Teil C2): Einwilligung je Tisch, Sichtbarkeit aus dem Regelsatz, Zustand
-   `herausgenommen`, Tisch-Abschluss als Objekt, Write-Key an Tisch und
-   Rolle, Ernte-Fenster. Erwartung: billiger, weil überwiegend Dinge
-   entfallen; die Gegenprobe ist, wie viele der 20 Teilnehmenden-Screens
-   nach Option 2 noch gebraucht werden.
-3. **Dialogfall** (Dialog-Flow-Analyse, Abschnitt 5): Gast-Zugang je Library
-   (`capture.zugang: qr`), Schlüssel-Ablauf, Nennungsstufen live,
-   Inbox-Konformität des Gast-Pfads (3–5 PT, ADR 0004), `events/finalize`
-   löschen, Form des gemeinsamen Abschlusses, Widerruf nach dem Abschluss.
-   Im Klickmodell vorentschieden: Gast-Zugang ja, drei Nennungsstufen,
-   Abschluss durch die Moderatorin am Beamer.
-4. **ADR 0004, Zweig E2:** der Write-Key-Pfad fehlt im ADR; nachtragen mit
+1. **Kostenprüfung der Haltungsänderung am Code** (Archiv-Nachziehliste,
+   Teil C2), seit der Entscheidung zu Option 2 Pflicht vor E0: Einwilligung je
+   Tisch, Sichtbarkeit aus dem Regelsatz, Zustand `herausgenommen`,
+   Tisch-Abschluss als Objekt, Write-Key an Tisch und Rolle, Ernte-Fenster.
+   Erwartung: billiger, weil überwiegend Dinge entfallen; die Gegenprobe ist,
+   wie viele der 20 Teilnehmenden-Screens nach Option 2 noch gebraucht werden.
+2. **Dialogfall, Rest** (Dialog-Flow-Analyse, Abschnitt 5): Schlüssel-Ablauf
+   (Ablauf am Key oder manuelles Zurücksetzen), Inbox-Konformität des
+   Gast-Pfads (3–5 PT, ADR 0004; für den ersten Abend nicht nötig),
+   `events/finalize` löschen (Phase 6), Form des gemeinsamen Abschlusses
+   (im Modell: Moderatorin am Beamer, ein Speichern).
+3. **ADR 0004, Zweig E2:** der Write-Key-Pfad fehlt im ADR; nachtragen mit
    Bindung an Tisch und Rolle.
 
 ## Verweise

@@ -108,7 +108,10 @@ Fragen, D-S4.2 „deine Stimme" mit Nennungszeile) und das Zeigen in zwei
 sieben Entscheidungen sind dafür vorentschieden (Gast-Zugang ja, drei
 Nennungsstufen, Abschluss durch die Moderatorin am Beamer), jede unter einer
 Stunde umkehrbar. Vorgabe je Screen: Archiv „2026-09-12 Dialog-Flow neu -
-Screen-Vorgabe und Testleitfaden.md".
+Screen-Vorgabe und Testleitfaden.md". **Owner 12.09.:** Gast-Zugang ja, drei
+Nennungsstufen, Widerruf bis zum gemeinsamen Abschluss (danach nicht mehr);
+Option 2 für das SHF angenommen. Offen bleiben Schlüssel-Ablauf,
+Inbox-Konformität, `events/finalize` und die Form des Abschlusses.
 
 ## 4. Folgen für die drei Konzepte (Ergänzung zu Teil 3)
 

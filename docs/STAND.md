@@ -413,6 +413,14 @@ Neu dazugekommen:
   Kostenprüfung der Haltungsänderung am Code (Archiv-Nachziehliste, Teil C2)
   und ADR 0004 Zweig E2 (Write-Key mit Tisch/Rolle). Figma-Reste (Popups,
   Legenden, vier Screens) laufen über den Cowork-Handover im Archiv.
+- 2026-09-12 — **Owner-Entscheidungen (abends):** Option 2 „Tisch-Ernte"
+  angenommen (`capture.kuratierung: notbremse` für das SHF, Tisch-Abschluss,
+  Kostenprüfung am Code wird Pflicht vor E0); Gast-Zugang für den Dialogfall
+  ja (`capture.zugang: qr`, PR #278 mergen); drei Nennungsstufen
+  (`author_is_named` muss wirken); Widerruf nur bis zum gemeinsamen Abschluss.
+  Offen: Schlüssel-Ablauf, Inbox-Konformität des Gast-Pfads,
+  `events/finalize`, Form des Abschlusses (Architektur-Konzept, Abschnitt 6
+  und 7).
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

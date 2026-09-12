@@ -60,8 +60,8 @@ Offline-First mit Store-App.
 „Dialog-Flow neu"):** Für das SHF gilt der **Tisch-QR** — er trägt Tisch,
 Rolle und Organisation als Kontext, die Anmeldung bleibt Pflicht. Der
 **Dialogfall** läuft nicht über diesen Composer, sondern als eigene Welle
-**D0 auf dem Testimonial-Bestand** (Architektur-Konzept, Abschnitt 5); ob dort
-ein Gast-Zugang je Library erlaubt wird, ist eine offene Owner-Entscheidung.
+**D0 auf dem Testimonial-Bestand** (Architektur-Konzept, Abschnitt 5); der
+Gast-Zugang je Library ist dort erlaubt (Owner 12.09.).
 Die Haltung „vorauseilendes Vertrauen" (Tischvereinbarung statt
 Einwilligungsleiter, keine Sichtbarkeitswahl je Beitrag, CTA „Beitragen" statt
 „Abgeben") ist im Klickmodell gebaut und in Abschnitt 8 nachgezogen; die
@@ -528,8 +528,8 @@ neu gefasst, die übrigen unverändert:
   T-S8b.1 „Trifft das, was du gemeint hast?", **T-S8b.2 Tisch-Abschluss
   (neu)**, M-S3.2 Ernte-Fenster, M-S8.1/M-S8.2 Notbremse („im Ergebnis ·
   herausgenommen mit Grund") statt Tor, M-S11.2 „Wen können wir noch
-  einladen". Option 2 (Notbremse, Tisch-Abschluss) ist im Modell gebaut,
-  aber als Owner-Entscheidung vor dem 16.09. offen.
+  einladen". Option 2 (Notbremse, Tisch-Abschluss) ist im Modell gebaut und
+  vom Owner am 12.09. angenommen.
 
 Ketten jetzt: Teilnehmende **20**, Moderation 17, Dialogformate **9**,
 AECED 12, Klimamaßnahmen 12, Naturmuseum 11, Peters Archiv 9. Was im Rahmen
@@ -549,7 +549,7 @@ unter `Screenshots/` abgelegt und sind die Vorlage für T-S4.1 bis T-S5.2:
 | Standard-Flow des Wizards, Schritt „Quelle wählen" (`collect-source-step.tsx`) | `/library/create/standard-capture` | Diktat-Textfeld mit Oszilloskop (`DictationTextarea mode="live"`), Datei-Upload, URL-Import, Fortschritt der Audio-Auswertung | T-S4.2, T-S4.3 |
 | Wizard, Schritte „Prüfen und ergänzen" und „Speichern" (`edit-draft-step.tsx`, Publish-Step) | derselbe Lauf, zwei Schritte weiter | Felder aus dem Schema, Confidence-Markierung, Wartekorb-Hinweis | T-S5.1, T-S5.2 |
 | Meine Beiträge (`my-submissions-client.tsx`) | `/library/my-submissions` | Liste mit Zustand, Analyse anstoßen | T-S11.1 |
-| Wartekorb (`inbox-client.tsx`) | `/library/inbox` | Liste, Freigeben, Zurückweisen — im SHF nach Option 2 (offen) als Notbremse: „im Ergebnis · herausgenommen (Grund)" | M-S8.1, M-S8.2 |
+| Wartekorb (`inbox-client.tsx`) | `/library/inbox` | Liste, Freigeben, Zurückweisen — im SHF nach Option 2 (Owner 12.09.) als Notbremse: „im Ergebnis · herausgenommen (Grund)" | M-S8.1, M-S8.2 |
 
 Was keiner dieser Schirme zeigt und deshalb in Figma neu entsteht: der
 Kartenstrom mit Zustand je Anlage (T-S4.3), der Fehlerfall einer Anlage, die
@@ -707,14 +707,13 @@ vollständig ohne neue Fehler; `creation-wizard.tsx` nach C8 unter 400 Zeilen.
   ist fix `de` (`submission-analysis-job.ts`); entscheidet das Vorabtreffen.
 - Umgekehrt seit 12.09.: die Testimonials werden **nicht** auf den Composer
   gezogen; der Recorder ist der Prototyp des Ernte-Screens und trägt den
-  Dialogfall als Welle D0 vor dem Composer. Offen sind die Owner-Entscheidungen
-  der Dialog-Flow-Analyse (Abschnitt 5 dort): Gast-Zugang je Library,
-  Schlüssel-Ablauf, Nennungsstufen live, Inbox-Konformität des Gast-Pfads,
-  `events/finalize` löschen, Form des gemeinsamen Abschlusses, Widerruf nach
-  dem Abschluss.
+  Dialogfall als Welle D0 vor dem Composer. Entschieden (Owner 12.09.):
+  Gast-Zugang je Library ja, drei Nennungsstufen, Widerruf bis zum Abschluss.
+  Offen: Schlüssel-Ablauf, Inbox-Konformität des Gast-Pfads,
+  `events/finalize` löschen, Form des gemeinsamen Abschlusses.
 - **Option 2 „Tisch-Ernte"** (Kuratieren als Notbremse, Tisch-Abschluss
-  T-S8b.2, Ernte-Fenster): im Klickmodell gebaut, Owner-Entscheidung vor dem
-  16.09. Und die **Kostenprüfung der Haltungsänderung am Code** (Archiv
+  T-S8b.2, Ernte-Fenster): im Klickmodell gebaut, vom Owner am 12.09.
+  angenommen. Damit Pflicht: die **Kostenprüfung der Haltungsänderung am Code** (Archiv
   Nachziehliste, Teil C2): Einwilligung je Tisch statt je Person, Sichtbarkeit
   aus dem Regelsatz mit Ausnahme je Beitrag, Zustand `herausgenommen` neben
   `published`/`rejected`, Tisch-Abschluss als Objekt, Write-Key an Tisch und

@@ -170,12 +170,12 @@ ist ohne Varianten geschrieben.
   konfigurieren.
 - **„Kein Zugang ohne Konto" gilt für das SHF** — präzisiert durch den
   Tisch-QR: der QR trägt Tisch, Rolle und Organisation, die Anmeldung bleibt.
-  Für den **Dialogfall** (Kolping) ist ein Gast-Zugang je Library eine offene
-  Owner-Entscheidung; der Mechanismus existiert (Testimonial-Write-Key), nur
-  die Seite davor ist nicht öffentlich (Widerspruch 9, 15).
+  Für den **Dialogfall** (Kolping) ist der Gast-Zugang je Library erlaubt
+  (Owner 12.09.); der Mechanismus existiert (Testimonial-Write-Key), nur
+  die Seite davor ist nicht öffentlich (Widerspruch 9, 15; PR #278).
 - **Haltung „vorauseilendes Vertrauen"** (Archiv, 12.09.): Tischvereinbarung
   statt Einwilligungsleiter, keine Sichtbarkeitswahl je Beitrag, Kuratieren als
-  Notbremse (Option 2, offen). Die Einstufung von S2, S5, S7 und S8 wird
+  Notbremse (Option 2, Owner 12.09.: angenommen). Die Einstufung von S2, S5, S7 und S8 wird
   dadurch eher billiger; die Kostenprüfung am Code steht aus
   (Architektur-Konzept, Abschnitt 7).
 
