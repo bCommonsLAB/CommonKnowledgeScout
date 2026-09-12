@@ -386,6 +386,19 @@ Neu dazugekommen:
   Ordner `Feedback/` mit Vorlage. Befunde aus den Runden fließen ins
   Composer- und ins Architektur-Konzept; die Screens werden im Klickmodell
   nachgezogen.
+- 2026-09-12 — **Dialog-Flow: übersehener Bestand.** Der Testimonial-/
+  Dialograum-Flow vom Januar (Event-Container mit `testimonialWriteKey`,
+  Recorder, `event-finalize-de`) trägt den Dialogfall zu über 80 Prozent;
+  Hauptanalyse auf Branch `claude/dialog-flow-bestand`
+  (`docs/analysis/dialog-flow-bestand.md`, mit Prod-DB und Live-Test),
+  Nachtrag der zweiten Prüfung hier:
+  [`analysis/dialog-flow-bestand-nachtrag.md`](analysis/dialog-flow-bestand-nachtrag.md).
+  Kernbefunde: die Gast-Seite `/public/testimonial` ist nicht in den
+  öffentlichen Routen (nur die API läuft ohne Konto), der QR zeigt auf den
+  Login-Wizard, `author_is_named` wirkt nicht, der Recorder hat weder
+  Leitfragen noch Vorschau. Dialog-Welle D0 auf Bestand 10–16 PT, außerhalb
+  des Freeze, neben E0/E1. Die Dialog-Zeile des Klickmodells schrumpft auf
+  sieben Screens, Umbau nach Owner-Entscheidung (Gast-Zugang je Library).
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
