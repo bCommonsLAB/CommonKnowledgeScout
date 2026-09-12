@@ -380,6 +380,12 @@ Neu dazugekommen:
   `thema`, `tisch`, `organisation`); Ablage als Pfadvorlage je Zieltyp
   (`capture.ablage`) in der Promotion, ersetzt den `root/inbox`-Default;
   Synthese-Belege über Submission-Id, nicht nur `fileId`. E0 wächst auf 4–5 PT.
+- 2026-09-12 — **Feedback-Runden vorbereitet**: im Archivordner liegt
+  „2026-09-12 Anwendungsflows und Testleitfaden.md" (die sieben Flows des
+  Klickmodells in Worten, Testanleitung, Fragen je Station, Grenzen) und ein
+  Ordner `Feedback/` mit Vorlage. Befunde aus den Runden fließen ins
+  Composer- und ins Architektur-Konzept; die Screens werden im Klickmodell
+  nachgezogen.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter
