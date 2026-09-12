@@ -366,7 +366,11 @@ Neu dazugekommen:
   Synthese mit Fassungen. Datenhaltung: Verfahren in MongoDB (neu
   `consents`, `assessments`, `syntheses`), Wissen als Dokument mit flachem
   Frontmatter im Storage, Rohdaten im Blob. Wellen E0–E7, Pflicht bis Freeze
-  E0–E4 (34–49 PT). Wizard-Editor nach dem Freeze.
+  E0–E4 (34–49 PT). **Owner-Entscheidungen dazu (11.09. abends):** Flows
+  bleiben Dokumente in MongoDB (`kind='wizard'`); eine Library für das SHF,
+  Library je Organisation später; Aufbewahrung so lange wie möglich, keine
+  automatische Löschung (ADR 0004 O2 vorerst geschlossen); Wizard-Editor nach
+  dem Freeze.
 - 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
   und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
   `packages/module-explorer/src/gallery/**`, Sterne unter

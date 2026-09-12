@@ -1,6 +1,6 @@
 ---
 name: erfassungs-architektur-stationen-datenhaltung
-overview: "Was die dreizehn Stationen S0–S11 mit dem Wizard zu tun haben, welche davon Konfiguration, Erweiterung oder Neubau sind, und wo die Ergebnisse jeder Station liegen (MongoDB, Storage mit flachem Frontmatter, Blob). Antwort auf die Owner-Frage vom 11.09. abends; Grundlage für den Implementierungsplan zu Vorhaben 3."
+overview: "Was die dreizehn Stationen S0–S11 mit dem Wizard zu tun haben, welche davon Konfiguration, Erweiterung oder Neubau sind, und wo die Ergebnisse jeder Station liegen (MongoDB, Storage mit flachem Frontmatter, Blob). Antwort auf die Owner-Frage vom 11.09. abends, vier Entscheidungen dazu vom Owner; Grundlage für den Implementierungsplan zu Vorhaben 3."
 status: konzept
 ---
 
@@ -207,20 +207,14 @@ das Nötigste, S0-Verwaltung per Skript, E6/E7 ins Vorhaben danach).
 Jede Welle: eine PR, Diff-Grenzen nach `AGENTS.md`, `pnpm test`, `pnpm lint`,
 vollständiger `tsc`-Vergleich, Freeze-Tests vor dem Umbau (C0).
 
-## 6. Entscheidungen, die noch fehlen
+## 6. Entscheidungen (Owner, 11.09. abends)
 
-1. **Flows als Dokumente oder Dateien.** Heute liegen sie im Template-Repo
-   (MongoDB, `kind='wizard'`). BetterWriters Flow-Registry (Dateien +
-   Markdown-Prompts) wäre die Alternative. Empfehlung: Dokumente, weil die
-   Settings sie schon kennen und der Editor später dort andockt.
-2. **Eine oder mehrere Libraries je Forum.** Zielbild ist eine Library je
-   Organisation; für das SHF eine Library mit Tischen als Kontext. Das
-   Datenmodell oben funktioniert für beides, `capture.*` ist je Library.
-3. **Aufbewahrung.** Wie lange `consents` nach Widerruf, `assessments` nach
-   Ende einer Runde, `wizard_submissions` nach `published`/`rejected` bleiben
-   (offen seit ADR 0004, O2).
-4. **Wizard-Editor.** Vor oder nach dem Freeze. Empfehlung: danach; Seeds
-   reichen für sieben Zieltypen.
+| # | Frage | Entschieden | Wirkung |
+|---|---|---|---|
+| 1 | Flows als Dokumente oder Dateien | **Dokumente in MongoDB**, `kind='wizard'` im Template-Repo, wie heute | BetterWriters Datei-Registry wird nicht portiert; Seeds je Zieltyp als Dokumente; der spätere Editor dockt in den Settings an |
+| 2 | Eine oder mehrere Libraries je Forum | **Eine Library für das SHF.** Eine Library je Organisation kommt später | Tische und Organisationen sind Felder am Mitglied und Token (`kontext`, `profil.organisation`), keine eigene Library; `capture.*` gilt für diese eine Library |
+| 3 | Aufbewahrung | **So lange wie möglich, keine automatische Löschung.** `consents` bleiben auch nach Widerruf (mit `widerrufenAm`), `assessments` nach Rundenende, Submissions nach `published`/`rejected` | Kein Aufräum-Job in Vorhaben 3 (schließt ADR 0004, O2 vorerst); Löschung nur auf ausdrücklichen Wunsch einer Person, dann als eigener Vorgang mit Protokoll |
+| 4 | Wizard-Editor | **Später**, nach dem Freeze | Vorhaben 3 arbeitet mit Seeds; ADR 0003 Phase 4 bleibt geplant |
 
 ## Verweise
 
