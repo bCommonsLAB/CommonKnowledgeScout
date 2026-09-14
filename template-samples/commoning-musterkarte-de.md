@@ -18,11 +18,13 @@ form: {{form|Genau eine aus: kreis, quadrat, dreieck — die Kartenform dieser F
 karten_nummer: {{karten_nummer|Laufende Kartennummer innerhalb der Familie als Zahl (aus Material/Dateiname); wenn nicht bestimmbar: null}}
 frage: {{frage|Die Leitfrage der Kartenrückseite, wörtlich, mit Fragezeichen; wenn keine erkennbar: ""}}
 haupttext: {{haupttext|Der Absatz DIREKT UNTER der Leitfrage der Rückseite, wörtlich und vollständig; keine Aufzählungen danach mitnehmen}}
+beispiele: {{beispiele|Das Kleingedruckte der Rückseite UNTER dem Haupttext (Beispiele, Fälle), wörtlich, Absätze durch Leerzeile getrennt; Seitenzahlen und Kartennummern am Seitenende weglassen; sonst ""}}
 prozessschritte: {{prozessschritte|Array aus kontrolliertem Vokabular (nur wenn im Material belegt/gepflegt): aneignen-und-kennenlernen, vermitteln-und-ausrichten, beraten-lernen, organisieren-lernen, beginnen, visionieren, projektieren, reflektieren, kultivieren, weiterentwickeln}}
 lernfeld: {{lernfeld|Eine aus: selbstbildung, organisationsbildung, lernen-zwischen-organisationen — nur wenn im Material explizit; sonst ""}}
 aeced_code: {{aeced_code|AECED-Code (z. B. "A.1.2") NUR als Querverweis, nie als Schlüssel; nur wenn im Material explizit; sonst ""}}
 bearbeitungsstatus: {{bearbeitungsstatus|"fertig" oder "in-arbeit" — aus gepflegter status-Zeile im Material; Default "fertig"}}
 verwandte_musterkarten: {{verwandte_musterkarten|Array von SLUGS anderer Musterkarten, auf die diese Karte verweist ([[Wikilinks]] oder explizite Nennungen); Slug = Namensteil NACH dem ersten "_" eines Kartendateinamens; dedupliziert; sonst []}}
+verwandte_musterkarten_md: {{verwandte_musterkarten_md|Markdown-Liste der verwandten Karten, je Zeile `- [Lesbarer Name](?doc=<slug>)`; Lesbarer Name = Slug mit Leerzeichen statt Bindestrichen und großem Anfangsbuchstaben; genau die Slugs aus verwandte_musterkarten; sonst ""}}
 audio_embed_src: {{audio_embed_src|Funkwhale/open.audio-Embed-URL, NUR wenn sie wörtlich im Material steht (audio:-Zeile); sonst ""}}
 audio_beschreibung: {{audio_beschreibung|Beschreibungstext der Audiospur, NUR wenn im Material vorhanden; sonst ""}}
 audio_stream_url: {{audio_stream_url|TECHNISCH: wird von der Pipeline aufgelöst (Funkwhale-API) — IMMER "" zurückgeben}}
@@ -36,19 +38,15 @@ filename: {{filename|Originaldateiname inkl. Endung (technisch)}}
 path: {{path|Verzeichnispfad relativ zur Library (technisch)}}
 ---
 
-# {{title}}
-
-> {{frage}}
+> **{{frage}}**
 
 {{haupttext}}
 
-## Zusammenfassung
+{{beispiele}}
 
-{{summary}}
+## Anschlusskarten
 
-## Verwandte Musterkarten
-
-{{verwandte_musterkarten}}
+{{verwandte_musterkarten_md}}
 
 --- systemprompt
 Rolle:
@@ -70,6 +68,12 @@ Feld-Hinweise:
 - frage: Die Rückseite trägt oben eine Leitfrage — wörtlich übernehmen, inkl. Fragezeichen.
 - haupttext: GENAU der Absatz direkt unter der Leitfrage — vollständig, wörtlich, ohne die
   danach folgenden Aufzählungen/Beispiele. Kein Umformulieren.
+- beispiele: das Kleingedruckte UNTER dem Haupttext (z. B. „In Solidarischen Landwirtschaften …",
+  „Wenn sich Mitglieder … treffen …"), wörtlich, Absätze durch Leerzeile getrennt. Die Zahlen am
+  Seitenende (Kartennummer, Anschlusskarten-Symbole) gehören NICHT dazu.
+- verwandte_musterkarten_md: aus verwandte_musterkarten eine Markdown-Liste bauen, je Zeile
+  `- [Lesbarer Name](?doc=<slug>)`, Lesbarer Name = Slug mit Leerzeichen statt Bindestrichen und
+  großem Anfangsbuchstaben (z. B. `- [Sich in vielfalt gemeinsam ausrichten](?doc=sich-in-vielfalt-gemeinsam-ausrichten)`).
 - verwandte_musterkarten: [[Wikilinks]] wie `[[soziales-quadrat-01_sich-in-vielfalt-...]]`
   → nur den SLUG-Teil nach dem ersten "_" übernehmen (kebab-case), deduplizieren.
 - prozessschritte: NUR Werte aus dem kontrollierten Vokabular (siehe Frontmatter-Anweisung);
@@ -106,11 +110,13 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "karten_nummer": number | null,
   "frage": string,
   "haupttext": string,
+  "beispiele": string,
   "prozessschritte": string[],
   "lernfeld": "selbstbildung" | "organisationsbildung" | "lernen-zwischen-organisationen" | "",
   "aeced_code": string,
   "bearbeitungsstatus": "fertig" | "in-arbeit",
   "verwandte_musterkarten": string[],
+  "verwandte_musterkarten_md": string,
   "audio_embed_src": string,
   "audio_beschreibung": string,
   "audio_stream_url": "",
