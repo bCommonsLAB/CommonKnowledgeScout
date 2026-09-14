@@ -47,8 +47,10 @@ export interface ParsedCompositeSourceEntry {
  *   landet damit im Standard-Transcript-Pfad und meldet ggf. `unresolvedSources`.
  * - Ordner-Segmente VOR der Datei (`audios/karte.mp3`, `pdfs/karte.pdf/template`)
  *   sind ein Pfad relativ zur Sammeldatei: `relativePath` traegt ihn, `name` ist der
- *   Dateiname. Die Quelldatei ist das ERSTE Segment mit Dateiendung; ein Ordner mit
- *   Punkt im Namen vor der Datei wird deshalb nicht unterstuetzt (bewusste Grenze).
+ *   Dateiname. Die Quelldatei ist das LETZTE Segment mit Dateiendung; alles
+ *   danach ist der Template-Suffix (Template-Namen tragen keine Endung). So sind
+ *   auch Ordner mit Punkt im Namen erlaubt, etwa Twin-Ordner
+ *   (`pdfs/_karte.pdf/preview_001.jpg`).
  */
 export function parseCompositeSourceEntry(raw: string): ParsedCompositeSourceEntry {
   if (typeof raw !== 'string' || raw.length === 0) {
@@ -65,17 +67,17 @@ export function parseCompositeSourceEntry(raw: string): ParsedCompositeSourceEnt
     return { name: raw, raw }
   }
 
-  // Das erste Segment mit Dateiendung ist die Quelldatei; alles davor sind
-  // Ordner, alles danach ist der Template-Suffix. Endet der Eintrag selbst auf
-  // eine Dateiendung, ist er ein reiner Pfad ohne Template.
-  const firstFileIndex = segments.findIndex(hasFileExtension)
-  if (firstFileIndex < 0) {
+  // Das letzte Segment mit Dateiendung ist die Quelldatei: alles davor sind
+  // Ordner (auch Twin-Ordner wie `_karte.pdf`), alles danach ist der
+  // Template-Suffix, denn Template-Namen tragen keine Endung.
+  const fileIndex = findLastIndex(segments, hasFileExtension)
+  if (fileIndex < 0) {
     // Kein Segment mit Endung: altes Verhalten (Name bis zum ersten `/`).
     return { name: segments[0], templateName: segments.slice(1).join('/'), raw }
   }
 
-  const pathSegments = segments.slice(0, firstFileIndex + 1)
-  const templateSegments = segments.slice(firstFileIndex + 1)
+  const pathSegments = segments.slice(0, fileIndex + 1)
+  const templateSegments = segments.slice(fileIndex + 1)
   const entry: ParsedCompositeSourceEntry = {
     name: pathSegments[pathSegments.length - 1],
     raw,
@@ -83,6 +85,11 @@ export function parseCompositeSourceEntry(raw: string): ParsedCompositeSourceEnt
   if (pathSegments.length > 1) entry.relativePath = pathSegments.join('/')
   if (templateSegments.length > 0) entry.templateName = templateSegments.join('/')
   return entry
+}
+
+function findLastIndex(items: string[], predicate: (s: string) => boolean): number {
+  for (let i = items.length - 1; i >= 0; i -= 1) if (predicate(items[i])) return i
+  return -1
 }
 
 /** Dateiendung: Punkt plus 1–8 Buchstaben/Ziffern am Ende des Segments. */

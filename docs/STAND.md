@@ -292,6 +292,22 @@ Neu dazugekommen:
   Pre-Merge-Check neben einem laufenden `next dev` aus demselben Worktree
   bricht im Build mit `PageNotFoundError /_document` (gemeinsames `.next`) —
   Dev-Server vorher stoppen.
+- 2026-09-14: **Methode 01 (Auftragsklärung) aus der Methoden-Markdown
+  transformiert und publiziert** (lokal, Branch `claude/composite-methode`).
+  Cover ist die erste PDF-Seite: die Seitenbilder (`preview_001.jpg`,
+  `page_001.jpeg`) liegen im Twin-Ordner `pdfs/_<Name>.pdf/` in der
+  Nextcloud und werden über `_media_files` als Fragmente am Twin der
+  Methoden-Markdown registriert — kein neuer Mechanismus. Dafür liest der
+  Eintrags-Parser die Quelldatei jetzt als LETZTES Segment mit Endung (vorher
+  das erste; Twin-Ordner mit Punkt im Namen waren so nicht adressierbar).
+  Vorlage Methode: Body wie der Steckbrief (Kurzbeschreibung, Ziel/Situation/
+  Raum/Zeit/Material, vollständige Durchführung als `durchfuehrung_md`,
+  Bezug zur Mustersprache, Anwendung des Kartensets, passende Karten als
+  `?doc=`-Links, Video-Link), Bildfelder als Dateinamen, HTML-Entities
+  aufgelöst. Das Video-Frontmatter (`videos/<name>.md`) ist zweite Quelle
+  (`_source_files`), das MP4 wird nicht transkribiert. Befund: OCR-Transkripte
+  enthalten `&amp;`; der Renderer zeigt es richtig, in der API stünde es roh
+  — deshalb die Vorlagen-Regel.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
