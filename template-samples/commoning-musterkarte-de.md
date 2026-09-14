@@ -10,6 +10,7 @@ authors: {{authors|Array; Urheber der Mustersprache falls im Material genannt (z
 date: {{date|Stand-/Erscheinungsdatum YYYY-MM-DD, nur wenn im Material explizit; sonst ""}}
 year: {{year|YYYY oder null, nur wenn im Material explizit}}
 language: {{language|Kartensprache, z. B. "de"}}
+targetLanguage: {{targetLanguage|Zielsprache der Ausgabe, i.d.R. gleich language (de)}}
 source: {{source|Herausgeber/Projekt/Organisation, nur wenn im Material explizit (z. B. "Commons-Institut")}}
 tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert; streng extraktiv aus dem Kartentext}}
 familie: {{familie|Genau eine aus: miteinander, soziales, wirtschaften — aus Material/Kontext (Kartenfamilie)}}
@@ -93,6 +94,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "date": string,
   "year": number | null,
   "language": string,
+  "targetLanguage": string,
   "source": string,
   "tags": string[],
   "familie": "miteinander" | "soziales" | "wirtschaften",
