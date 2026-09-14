@@ -275,12 +275,13 @@ Neu dazugekommen:
   `Web-Entwürfe`), nicht neu anlegen. Owner-Entscheidung: die Karten- und
   Methoden-Markdowns (`musterkarten/*.md`) sind die Quelle der Transformation;
   ihre Artefakte (PDF vorn/hinten, PNGs, Audio) haengen als Sammel-Transkript
-  daran. Dafuer zwei gestapelte PRs: #281 (Pfade in `_source_files`,
-  `_include_self`) und #282 (`_media_files` als Bild-Fragmente am Twin,
+  daran. Dafuer ein PR #282 (auf Owner-Wunsch aus #280/#281/#282
+  zusammengefuehrt): Pfade in `_source_files`, `_include_self`,
+  `_media_files` als Bild-Fragmente am Twin,
   Listen im Frontmatter statt JSON-Text — Ursache war der Whitelist-Parser
   in `response-parser.ts` beim Zurueckschreiben —, Vorlagen `book`, Body der
-  Musterkarte wie die Kartenrueckseite, Anschlusskarten als `?doc=`-Links).
-  #280 ist damit ueberholt. Live geprueft mit Karte 01 in der lokalen
+  Musterkarte wie die Kartenrueckseite, Anschlusskarten als `?doc=`-Links.
+  #280 und #281 sind geschlossen. Live geprueft mit Karte 01 in der lokalen
   Instanz: Cover `k1.png` aus dem Fragment, vier Anschluss-Slugs, sechs Tags.
   Offen beim Owner: Library publizieren (Slug `aeced`), 18 alte
   Galerie-Eintraege loeschen, Facetten (docType, familie, lernfeld,
