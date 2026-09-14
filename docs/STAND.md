@@ -270,6 +270,27 @@ Neu dazugekommen:
   Liste unveraendert). Anlegen geht nur angemeldet ueber das Formular
   (MongoDB nur lesend) — Textentwuerfe liegen in der Antwort der Sitzung,
   Anlegen und Fuellen macht der Owner.
+- 2026-09-14: **AECED-Inhalte aus den gepflegten Karten-Markdowns.** Die
+  Library ist „AECED Webseite" (Nextcloud „Simulation Hessenbox", Ordner
+  `Web-Entwürfe`), nicht neu anlegen. Owner-Entscheidung: die Karten- und
+  Methoden-Markdowns (`musterkarten/*.md`) sind die Quelle der Transformation;
+  ihre Artefakte (PDF vorn/hinten, PNGs, Audio) haengen als Sammel-Transkript
+  daran. Dafuer zwei gestapelte PRs: #281 (Pfade in `_source_files`,
+  `_include_self`) und #282 (`_media_files` als Bild-Fragmente am Twin,
+  Listen im Frontmatter statt JSON-Text — Ursache war der Whitelist-Parser
+  in `response-parser.ts` beim Zurueckschreiben —, Vorlagen `book`, Body der
+  Musterkarte wie die Kartenrueckseite, Anschlusskarten als `?doc=`-Links).
+  #280 ist damit ueberholt. Live geprueft mit Karte 01 in der lokalen
+  Instanz: Cover `k1.png` aus dem Fragment, vier Anschluss-Slugs, sechs Tags.
+  Offen beim Owner: Library publizieren (Slug `aeced`), 18 alte
+  Galerie-Eintraege loeschen, Facetten (docType, familie, lernfeld,
+  prozessschritte) setzen. Offen im Code: Vorlage Methode (Cover aus
+  PDF-Seite 1), die uebrigen 34 Karten/Methoden (Frontmatter, Transkription,
+  Transformation), `?doc=`-Links im Embed abfangen, danach in
+  commoning-methods `NEXT_PUBLIC_KS_INDEX_LIBRARY=aeced`. Befund: der
+  Pre-Merge-Check neben einem laufenden `next dev` aus demselben Worktree
+  bricht im Build mit `PageNotFoundError /_document` (gemeinsames `.next`) —
+  Dev-Server vorher stoppen.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
