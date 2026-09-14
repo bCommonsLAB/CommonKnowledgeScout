@@ -1216,11 +1216,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
   const baseMeta = bodyMetadata || {}
   const forwardedSourceMeta = extractForwardedTemplateSourceFrontmatter(baseMeta)
-  // JSON-Text in Feldern („["a","b"]“) wird zu echten Listen — flaches
-  // Frontmatter mit Arrays statt Strings (Vertrag AGENTS.md, Frontmatter-Format).
-  const finalMeta: Record<string, unknown> = normalizeJsonStringValues(
-    metadataFromTemplate ? { ...forwardedSourceMeta, ...metadataFromTemplate } : { ...baseMeta },
-  )
+  const finalMeta: Record<string, unknown> = metadataFromTemplate
+    ? { ...forwardedSourceMeta, ...metadataFromTemplate }
+    : { ...baseMeta }
   const ssotFlat: Record<string, unknown> = {
     job_id: jobId,
     source_file: job.correlation.source?.name || baseName,
@@ -1332,7 +1330,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     })
   }
   
-  let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
+  // JSON-Text in Feldern („["a","b"]“) wird zu echten Listen — erst NACH dem
+  // Merge, damit auch Werte aus dem Secretary-Markdown (existingMeta) erfasst
+  // sind. Flaches Frontmatter mit Arrays statt Strings (AGENTS.md).
+  let mergedMeta = normalizeJsonStringValues(
+    { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>,
+  )
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
 
   // Welle W10: Faellt `date` aus, steht es fast immer im Ablagepfad
