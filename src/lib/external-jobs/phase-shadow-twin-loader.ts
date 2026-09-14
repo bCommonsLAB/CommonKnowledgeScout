@@ -204,6 +204,8 @@ export async function loadShadowTwinMarkdown(
               targetLanguage: lang,
               compositeMarkdown: result.markdown,
               parentId,
+              compositeFileName: originalName,
+              compositeSourceId: sourceItemId,
             })
 
             if (resolved.unresolvedSources.length > 0) {
@@ -374,6 +376,8 @@ export async function loadShadowTwinMarkdown(
               targetLanguage: lang,
               compositeMarkdown: result.markdown,
               parentId,
+              compositeFileName: originalName,
+              compositeSourceId: sourceItemId,
             })
 
             if (resolved.unresolvedSources.length > 0) {

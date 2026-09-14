@@ -74,6 +74,19 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
         parsedValue = rawValue === 'true'
       } else if (/^[-+]?[0-9]+(\.[0-9]+)?$/.test(rawValue)) {
         parsedValue = Number(rawValue)
+      } else if (
+        (rawValue.startsWith('[') && rawValue.endsWith(']')) ||
+        (rawValue.startsWith('{') && rawValue.endsWith('}'))
+      ) {
+        // Einzeilige JSON-Listen/-Objekte JEDES Schluessels (flaches Frontmatter mit
+        // Listen, z. B. `verwandte_musterkarten: ["a","b"]`) — nicht nur die
+        // jsonKeys unten. Sonst wird eine Liste beim Re-Save zum Text in
+        // Anfuehrungszeichen. Kein gueltiges JSON → Rohstring bleibt.
+        try {
+          parsedValue = JSON.parse(rawValue)
+        } catch {
+          parsedValue = rawValue
+        }
       }
 
       meta[k] = parsedValue
