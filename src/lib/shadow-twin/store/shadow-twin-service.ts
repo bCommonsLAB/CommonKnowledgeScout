@@ -105,8 +105,8 @@ export interface UploadBinaryFragmentOptions {
   fileName: string
   /** MIME-Type (z.B. "image/png") */
   mimeType: string
-  /** Art des Fragments */
-  kind: 'image' | 'audio' | 'video'
+  /** Art des Fragments (`pdf`: Dokument-Anhang einer Sammeldatei) */
+  kind: 'image' | 'audio' | 'video' | 'pdf'
   /** Variante des Fragments (siehe BinaryFragmentVariant in shadow-twin-store.ts) */
   variant?: 'original' | 'thumbnail' | 'preview' | 'page-render'
   /** Hash des Original-Fragments (für Thumbnails/Previews) */

@@ -77,8 +77,12 @@ export interface SessionDetailData {
   language?: string;
   slides?: Slide[];
   video_url?: string;
+  /** Audio-Embed (Funkwhale/open.audio) oder direkte Audio-Datei */
+  audio_url?: string;
   coverImageUrl?: string;
   attachments_url?: string | string[];
+  /** Originale Dateinamen zu attachments_url (Ingestion ersetzt die Namen durch Blob-URLs) */
+  attachments_names?: string[];
   galleryImageUrls?: string[];
   url?: string; // Session-URL auf Event-Website
   // Technische Felder
@@ -188,6 +192,11 @@ export function SessionDetail({
   }, [lightboxImage])
 
   const isEvent = (data.docType || '').toLowerCase() === 'event'
+  // Badge: bei fachlichen Dokumenttypen (z. B. `commoning_musterkarte`) den Typ lesbar
+  // zeigen statt „TALK" — die Ereignis-Ansicht traegt inzwischen auch Karten und Methoden.
+  const docTypeLabel = (data.docType || '').trim().length > 0 && !isEvent
+    ? (data.docType || '').replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : ''
   const eventFileId = data.fileId
   // Für Re-Finalisieren: immer das Original-Event als Basis verwenden (falls vorhanden).
   const flowEventFileId = data.originalFileId || data.fileId
@@ -386,7 +395,7 @@ export function SessionDetail({
             {/* Left: Badge, Title, Teaser, and Speakers */}
             <div className="flex-1 w-full">
               <Badge className="mb-4 bg-blue-500 text-white hover:bg-blue-600">
-                {isEvent ? "Event" : t('event.talk')}
+                {isEvent ? "Event" : docTypeLabel || t('event.talk')}
               </Badge>
 
               <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">{title}</h1>
@@ -404,7 +413,7 @@ export function SessionDetail({
                   Original-Dateinamen, Link auf die aufgelöste (Blob-)URL. */}
               {attachmentNames.length > 0 && (() => {
                 const resolvedRefs = attachmentNames
-                  .map((fileName, idx) => ({ name: getDisplayFileName(fileName), url: resolvedAttachments[idx]?.url }))
+                  .map((fileName, idx) => ({ name: data.attachments_names?.[idx] || getDisplayFileName(fileName), url: resolvedAttachments[idx]?.url }))
                   .filter((x): x is { name: string; url: string } => typeof x.url === 'string' && x.url.length > 0)
                 return (
                   <div className="mb-6">
@@ -540,6 +549,7 @@ export function SessionDetail({
               <EventSummary
                 summary={data.markdown || data.summary || ''}
                 videoUrl={data.video_url}
+                audioUrl={data.audio_url}
                 coverImageUrl={resolvedCoverImageUrl}
                 provider={provider}
                 currentFolderId={currentFolderId}

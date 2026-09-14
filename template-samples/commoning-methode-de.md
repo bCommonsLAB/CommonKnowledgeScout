@@ -1,5 +1,5 @@
 ---
-detailViewType: book
+detailViewType: session
 docType: commoning_methode
 title: {{title|Voller Methodenname (extraktiv, deutsche Schreibweise, ohne Kapitelnummer wie "2.2", z. B. "Auftragsklärung für den Prozess hin zu einer Commoning Organisation")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
@@ -30,10 +30,11 @@ prozessschritte: {{prozessschritte|Array aus kontrolliertem Vokabular (nur wenn 
 lernfeld: {{lernfeld|Eine aus: selbstbildung, organisationsbildung, lernen-zwischen-organisationen — nur wenn explizit; sonst ""}}
 aeced_code: {{aeced_code|AECED-Code NUR als Querverweis, nie als Schlüssel; nur wenn explizit; sonst ""}}
 bearbeitungsstatus: {{bearbeitungsstatus|"fertig" oder "in-arbeit" — aus gepflegter status-Zeile; Default "fertig"}}
-video_url: {{video_url|PeerTube-Watch-URL, NUR wenn sie wörtlich im Material steht (url-Zeile im Video-Frontmatter; spitze Klammern < > entfernen); sonst ""}}
-video_embed_src: {{video_embed_src|PeerTube-Embed-URL (…/videos/embed/<id>), NUR wenn wörtlich im Material (embed_url-Zeile, spitze Klammern entfernen) ODER eindeutig aus video_url ableitbar (/w/<id> → /videos/embed/<id>); sonst ""}}
+video_watch_url: {{video_watch_url|PeerTube-Watch-URL (…/w/<id>), NUR wenn sie wörtlich im Material steht (url-Zeile im Video-Frontmatter; spitze Klammern < > entfernen); sonst ""}}
+video_url: {{video_url|PeerTube-Embed-URL (…/videos/embed/<id>) für den eingebetteten Player, NUR wenn wörtlich im Material (embed_url-Zeile, spitze Klammern entfernen) ODER eindeutig aus video_watch_url ableitbar (/w/<id> → /videos/embed/<id>); sonst ""}}
 video_beschreibung: {{video_beschreibung|Beschreibungstext des Videos (description-Zeile), NUR wenn im Material vorhanden; sonst ""}}
-video_md: {{video_md|Wenn video_url vorhanden: genau eine Markdown-Zeile "[Video zur Methode ansehen (PeerTube)](<video_url>)"; sonst ""}}
+video_md: {{video_md|Wenn video_watch_url vorhanden: genau eine Markdown-Zeile "[Video zur Methode ansehen (PeerTube)](<video_watch_url>)"; sonst ""}}
+attachments_url: {{attachments_url|Array der DATEINAMEN des Methoden-PDFs aus der Quellenübersicht (z. B. "1_Auftragsklärung einer COE_2025-10-29_VP.pdf"; nur Dateiname, ohne Pfad); sonst []}}
 coverImageUrl: {{coverImageUrl|Dateiname des Vorschaubilds der ersten PDF-Seite aus „Verfügbare Medien" (preview_001.jpg), NUR wenn dort vorhanden; sonst ""}}
 bild_vorschau: {{bild_vorschau|Gleicher Dateiname wie coverImageUrl; sonst ""}}
 bild_seite_1: {{bild_seite_1|Dateiname des hochaufgelösten Bilds der ersten PDF-Seite aus „Verfügbare Medien" (page_001.jpeg), NUR wenn dort vorhanden; sonst ""}}
@@ -101,10 +102,11 @@ Querverweis-Regel (wichtig für die Detailansicht):
   (z. B. "Soziales Miteinander") sind KEINE Karten.
 
 Video-Regel:
-- video_url/video_embed_src/video_beschreibung nur aus dem Video-Frontmatter (url, embed_url,
+- video_watch_url/video_url/video_beschreibung nur aus dem Video-Frontmatter (url, embed_url,
   description); spitze Klammern um URLs entfernen. Ableitung Watch→Embed ist erlaubt
   (peertube …/w/<id> → …/videos/embed/<id>), sonst nichts konstruieren.
-- video_md ist genau eine Markdown-Link-Zeile auf video_url oder "".
+- video_md ist genau eine Markdown-Link-Zeile auf video_watch_url oder "".
+- attachments_url: Dateinamen der PDF-Quellen aus der Quellenübersicht, keine Pfade, keine URLs.
 
 Bild-Regel:
 - coverImageUrl/bild_vorschau/bild_seite_1 sind DATEINAMEN aus der Liste „Verfügbare Medien"
@@ -149,10 +151,11 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "lernfeld": "selbstbildung" | "organisationsbildung" | "lernen-zwischen-organisationen" | "",
   "aeced_code": string,
   "bearbeitungsstatus": "fertig" | "in-arbeit",
+  "video_watch_url": string,
   "video_url": string,
-  "video_embed_src": string,
   "video_beschreibung": string,
   "video_md": string,
+  "attachments_url": string[],
   "coverImageUrl": string,
   "bild_vorschau": string,
   "bild_seite_1": string,

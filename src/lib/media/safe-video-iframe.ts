@@ -26,3 +26,32 @@ export function isSafeVideoIframeSrc(raw: string): boolean {
     return false
   }
 }
+
+/**
+ * Prüft, ob eine URL als iframe-src für einen eingebetteten Audio-Player taugt.
+ * Erlaubt: Funkwhale/open.audio-Embed (`/embed.html?type=track…`). Direkte Audio-
+ * Dateien gehören in ein `<audio>`-Element, siehe `isDirectAudioFileUrl`.
+ */
+export function isSafeAudioIframeSrc(raw: string): boolean {
+  const u = raw.trim()
+  if (!u || !/^https?:\/\//i.test(u)) return false
+  try {
+    const parsed = new URL(u)
+    // Funkwhale-Embed (instanzunabhaengig, z. B. open.audio): /embed.html?type=track&id=…
+    if (/\/embed\.html$/.test(parsed.pathname) && parsed.searchParams.has('type')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
+/** Direkte Audio-Datei (mp3, ogg, m4a, wav, opus, flac) über http(s). */
+export function isDirectAudioFileUrl(raw: string): boolean {
+  const u = raw.trim()
+  if (!u || !/^https?:\/\//i.test(u)) return false
+  try {
+    return /\.(mp3|ogg|m4a|wav|opus|flac)(\?|$)/i.test(new URL(u).pathname)
+  } catch {
+    return false
+  }
+}

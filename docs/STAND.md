@@ -308,6 +308,22 @@ Neu dazugekommen:
   (`_source_files`), das MP4 wird nicht transkribiert. Befund: OCR-Transkripte
   enthalten `&amp;`; der Renderer zeigt es richtig, in der API stünde es roh
   — deshalb die Vorlagen-Regel.
+- 2026-09-14: **Owner-Entscheidung: Karten und Methoden als `session`
+  (Ereignis-Ansicht) statt `book`** — sie bettet Video (PeerTube) ein, zeigt
+  Anhänge nach Format und soll Audio abspielen. Gebaut (Branch
+  `claude/composite-methode`, PR #283): Audio-Feld `audio_url` in der
+  Ereignis-Ansicht (Funkwhale/open.audio-Embed als iframe, direkte Dateien als
+  `<audio>`; Guard neben dem Video-Guard), PDFs über `_media_files` als
+  Dokument-Fragmente am Twin (`kind: pdf`), `attachments_url` in beiden
+  Vorlagen mit den Dateinamen der PDF-Quellen; die Ingestion behält die
+  Originalnamen als `attachments_names`, weil die Blob-URL nur den Hash trägt;
+  Badge zeigt den Dokumenttyp lesbar statt „TALK". Karte 01 und Methode 01
+  laufen so: Audio-/Video-Player, PDF-Anhänge mit Namen, Cover. Befund: der
+  open.audio-Track 467545 aus der Karten-Markdown existiert dort nicht („This
+  track wasn't found") — Daten, nicht Code. Offen: die Ereignis-Ansicht ist im
+  Embed noch „nicht verfügbar" (`embed-detail-renderers.tsx`) — sie muss ins
+  Paket wandern, bevor commoning-methods sie zeigen kann; Overlay-Titel „Talk
+  Summary" ist noch Ereignis-Vokabular.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
