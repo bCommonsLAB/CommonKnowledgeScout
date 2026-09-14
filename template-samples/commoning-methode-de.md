@@ -1,5 +1,5 @@
 ---
-detailViewType: methode
+detailViewType: book
 docType: commoning_methode
 title: {{title|Voller Methodenname (extraktiv, deutsche Schreibweise, z. B. "Gordischer Knoten")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
@@ -10,6 +10,7 @@ authors: {{authors|Array; Autor:innen/Urheber der Methode, nur wenn im Dokument 
 date: {{date|Stand-/Erscheinungsdatum YYYY-MM-DD, nur wenn im Dokument explizit; sonst ""}}
 year: {{year|YYYY oder null, nur wenn im Dokument explizit}}
 language: {{language|Dokumentsprache, z. B. "de"}}
+targetLanguage: {{targetLanguage|Zielsprache der Ausgabe, i.d.R. gleich language (de)}}
 source: {{source|Herausgeber/Projekt/Organisation (z. B. Reihe "CommNpractice"), nur wenn explizit}}
 tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, HOECHSTENS 6; streng extraktiv}}
 methoden_nummer: {{methoden_nummer|Laufende Methodennummer als Zahl (aus Material/Dateiname); wenn nicht bestimmbar: null}}
@@ -109,6 +110,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "date": string,
   "year": number | null,
   "language": string,
+  "targetLanguage": string,
   "source": string,
   "tags": string[],
   "methoden_nummer": number | null,
