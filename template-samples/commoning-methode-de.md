@@ -1,5 +1,5 @@
 ---
-detailViewType: methode
+detailViewType: book
 docType: commoning_methode
 title: {{title|Voller Methodenname (extraktiv, deutsche Schreibweise, z. B. "Gordischer Knoten")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}

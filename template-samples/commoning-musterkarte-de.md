@@ -1,5 +1,5 @@
 ---
-detailViewType: musterkarte
+detailViewType: book
 docType: commoning_musterkarte
 title: {{title|Voller Kartentitel (extraktiv, deutsche Schreibweise wie auf der Karte, z. B. "Gemeinsame Absichten und Werte kultivieren")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
