@@ -11,7 +11,7 @@ date: {{date|Stand-/Erscheinungsdatum YYYY-MM-DD, nur wenn im Dokument explizit;
 year: {{year|YYYY oder null, nur wenn im Dokument explizit}}
 language: {{language|Dokumentsprache, z. B. "de"}}
 source: {{source|Herausgeber/Projekt/Organisation (z. B. Reihe "CommNpractice"), nur wenn explizit}}
-tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert; streng extraktiv}}
+tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, HOECHSTENS 6; streng extraktiv}}
 methoden_nummer: {{methoden_nummer|Laufende Methodennummer als Zahl (aus Material/Dateiname); wenn nicht bestimmbar: null}}
 ziel: {{ziel|Ziel: Was soll mit der Methode geübt/erreicht werden? (extraktiv aus "Ziel:"; sonst "")}}
 situation: {{situation|Situation/Problemstellung: Kontext der Methode (extraktiv; sonst "")}}

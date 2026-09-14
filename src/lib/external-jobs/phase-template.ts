@@ -18,6 +18,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-transform-template'
 import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import { runTemplateTransform } from '@/lib/external-jobs/template-run'
+import { normalizeJsonStringValues } from '@/lib/markdown/frontmatter'
 import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
 import { saveMarkdown } from '@/lib/external-jobs/storage'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
@@ -930,6 +931,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       try {
         const { loadAvailableMediaForSource } = await import('@/lib/templates/available-media-loader')
         const mediaResult = await loadAvailableMediaForSource({
+          libraryId: job.libraryId,
           provider,
           sourceItemId: sourceItemIdForMedia,
           parentId: targetParentId,
@@ -1214,9 +1216,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
   const baseMeta = bodyMetadata || {}
   const forwardedSourceMeta = extractForwardedTemplateSourceFrontmatter(baseMeta)
-  const finalMeta: Record<string, unknown> = metadataFromTemplate
-    ? { ...forwardedSourceMeta, ...metadataFromTemplate }
-    : { ...baseMeta }
+  // JSON-Text in Feldern („["a","b"]“) wird zu echten Listen — flaches
+  // Frontmatter mit Arrays statt Strings (Vertrag AGENTS.md, Frontmatter-Format).
+  const finalMeta: Record<string, unknown> = normalizeJsonStringValues(
+    metadataFromTemplate ? { ...forwardedSourceMeta, ...metadataFromTemplate } : { ...baseMeta },
+  )
   const ssotFlat: Record<string, unknown> = {
     job_id: jobId,
     source_file: job.correlation.source?.name || baseName,

@@ -34,6 +34,7 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { isImageMediaFromName } from '@/lib/media-types'
 import { parseFrontmatter, stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { findCompositeSourceItems } from '@/lib/creation/composite-source-path'
+import { parseCompositeMediaFilesFromMeta, registerCompositeMediaFragments } from '@/lib/creation/composite-media-files'
 import { FileLogger } from '@/lib/debug/logger'
 import type { Library } from '@/types/library'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
@@ -115,6 +116,11 @@ export interface CompositeResolveOptions {
    * fuer gepflegte Karten-Markdowns mit Zuordnungszeilen und Wikilinks.
    */
   compositeFileName?: string
+  /**
+   * Storage-Id der Sammeldatei. Mit ihr werden die Bilder aus `_media_files`
+   * als Binaerfragmente an ihren Twin gehaengt (composite-media-files.ts).
+   */
+  compositeSourceId?: string
 }
 
 /** Ergebnis von resolveCompositeTranscript */
@@ -414,12 +420,40 @@ export async function resolveCompositeTranscript(
     resolvedSources.push({ name, index: i + 1, markdown, mimeType })
   }
 
+  // Bilder aus `_media_files` (Pfade wie bei `_source_files`) als Fragmente am
+  // Twin der Sammeldatei registrieren — danach sind sie fuer Modell, Ingestion
+  // und Medien-Reiter unter ihrem Dateinamen auffindbar.
+  const mediaEntries = parseCompositeMediaFilesFromMeta(meta)
+  const mediaSourceItems = [...sourceItems]
+  if (mediaEntries.length > 0) {
+    if (!options.compositeSourceId) {
+      throw new Error('_media_files gesetzt, aber compositeSourceId fehlt — Medien koennen nicht registriert werden')
+    }
+    const medien = await registerCompositeMediaFragments({
+      libraryId,
+      userEmail,
+      provider,
+      compositeSourceId: options.compositeSourceId,
+      compositeFileName: options.compositeFileName ?? 'Sammeldatei',
+      parentId,
+      mediaFiles: mediaEntries,
+    })
+    unresolvedSources.push(...medien.unresolved)
+    // Die Sammeldatei selbst als erstes Item: ihre Fragmente (und Nachbarbilder
+    // in ihrem Ordner) gehoeren in „Verfuegbare Medien“.
+    mediaSourceItems.unshift({
+      id: options.compositeSourceId,
+      name: options.compositeFileName ?? 'Sammeldatei',
+      parentId,
+    })
+  }
+
   // Medien — dieselbe Aggregation wie im Sammel-Transkript / Medien-API
   const { mediaFiles, pdfSections, otherExtracted } = await buildAggregatedMediaForSources({
     libraryId,
     userEmail,
     targetLanguage,
-    sourceItems,
+    sourceItems: mediaSourceItems,
   })
 
   // Eigener Text der Sammeldatei (opt-in per `_include_self: true`): die

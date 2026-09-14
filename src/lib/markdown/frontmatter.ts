@@ -139,13 +139,27 @@ export function parseFrontmatterObjectFromBlock(frontmatter: string): Record<str
   return meta;
 }
 
-
-
-
-
-
-
-
-
-
-
+/**
+ * Macht aus String-Werten, die JSON-Arrays oder -Objekte enthalten
+ * (`"[\"a\",\"b\"]"`), echte Werte. Andere Werte bleiben unveraendert.
+ * Anlass: Der Secretary liefert Listenfelder von Vorlagen teils als JSON-Text;
+ * im Frontmatter sollen es Listen sein, nicht Strings mit Klammern.
+ */
+export function normalizeJsonStringValues(meta: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(meta)) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          out[key] = JSON.parse(trimmed)
+          continue
+        } catch {
+          // kein JSON — String bleibt
+        }
+      }
+    }
+    out[key] = value
+  }
+  return out
+}

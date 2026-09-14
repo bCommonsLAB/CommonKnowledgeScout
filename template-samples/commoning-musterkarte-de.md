@@ -11,7 +11,7 @@ date: {{date|Stand-/Erscheinungsdatum YYYY-MM-DD, nur wenn im Material explizit;
 year: {{year|YYYY oder null, nur wenn im Material explizit}}
 language: {{language|Kartensprache, z. B. "de"}}
 source: {{source|Herausgeber/Projekt/Organisation, nur wenn im Material explizit (z. B. "Commons-Institut")}}
-tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert; streng extraktiv aus dem Kartentext}}
+tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, HOECHSTENS 6; streng extraktiv aus dem Kartentext}}
 familie: {{familie|Genau eine aus: miteinander, soziales, wirtschaften — aus Material/Kontext (Kartenfamilie)}}
 form: {{form|Genau eine aus: kreis, quadrat, dreieck — die Kartenform dieser Familie}}
 karten_nummer: {{karten_nummer|Laufende Kartennummer innerhalb der Familie als Zahl (aus Material/Dateiname); wenn nicht bestimmbar: null}}
@@ -25,9 +25,10 @@ verwandte_musterkarten: {{verwandte_musterkarten|Array von SLUGS anderer Musterk
 audio_embed_src: {{audio_embed_src|Funkwhale/open.audio-Embed-URL, NUR wenn sie wörtlich im Material steht (audio:-Zeile); sonst ""}}
 audio_beschreibung: {{audio_beschreibung|Beschreibungstext der Audiospur, NUR wenn im Material vorhanden; sonst ""}}
 audio_stream_url: {{audio_stream_url|TECHNISCH: wird von der Pipeline aufgelöst (Funkwhale-API) — IMMER "" zurückgeben}}
-bild_vorschau: {{bild_vorschau|TECHNISCH: Storage-Pfad des Vorschaubilds, wird beim Upload gesetzt — IMMER "" zurückgeben}}
-bild_vorderseite: {{bild_vorderseite|TECHNISCH: Storage-Pfad Kartenvorderseite (Bild) — IMMER "" zurückgeben}}
-bild_rueckseite: {{bild_rueckseite|TECHNISCH: Storage-Pfad Kartenrückseite (Bild) — IMMER "" zurückgeben}}
+coverImageUrl: {{coverImageUrl|DATEINAME des Vorschaubilds aus der preview:-Zeile der Karten-Markdown (z. B. "k1.png"), nur wenn er in „Verfügbare Medien" steht; sonst ""}}
+bild_vorschau: {{bild_vorschau|DATEINAME des Vorschaubilds, identisch zu coverImageUrl; sonst ""}}
+bild_vorderseite: {{bild_vorderseite|DATEINAME der Kartenvorderseite aus der png-de-front:-Zeile (nur Dateiname, ohne Pfad); sonst ""}}
+bild_rueckseite: {{bild_rueckseite|DATEINAME der Kartenrückseite aus der png-de-rear:-Zeile (nur Dateiname, ohne Pfad); sonst ""}}
 pdf_vorderseite: {{pdf_vorderseite|TECHNISCH: Storage-Pfad Karten-PDF Vorderseite — IMMER "" zurückgeben}}
 pdf_rueckseite: {{pdf_rueckseite|TECHNISCH: Storage-Pfad Karten-PDF Rückseite — IMMER "" zurückgeben}}
 filename: {{filename|Originaldateiname inkl. Endung (technisch)}}
@@ -74,7 +75,10 @@ Feld-Hinweise:
   Quelle ist die gepflegte `prozessschritte:`-Zeile. Nichts erraten.
 - bearbeitungsstatus: aus `status:`-Zeile; fehlt sie, "fertig".
 - audio_embed_src: nur übernehmen, wenn eine URL wörtlich im Material steht (`audio:`-Zeile).
-- TECHNISCHE Felder (audio_stream_url, bild_*, pdf_*): IMMER "" — sie werden von der
+- Bilder: coverImageUrl/bild_vorschau = Dateiname aus der `preview:`-Zeile, bild_vorderseite/
+  bild_rueckseite = Dateinamen aus `png-de-front:`/`png-de-rear:` — NUR der Dateiname (kein Pfad,
+  keine URL), und nur, wenn er in „Verfügbare Medien" vorkommt.
+- TECHNISCHE Felder (audio_stream_url, pdf_*): IMMER "" — sie werden von der
   Ingest-Pipeline gesetzt, nie vom Modell.
 
 Normalisierung:
@@ -108,9 +112,10 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "audio_embed_src": string,
   "audio_beschreibung": string,
   "audio_stream_url": "",
-  "bild_vorschau": "",
-  "bild_vorderseite": "",
-  "bild_rueckseite": "",
+  "coverImageUrl": string,
+  "bild_vorschau": string,
+  "bild_vorderseite": string,
+  "bild_rueckseite": string,
   "pdf_vorderseite": "",
   "pdf_rueckseite": "",
   "filename": string,
