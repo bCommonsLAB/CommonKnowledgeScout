@@ -11,6 +11,7 @@
  */
 
 import { useTranslation } from '@ks/i18n/react'
+import type { SumPlaceholderField } from '@ks/contracts'
 import type { GallerySumsState } from '../hooks/use-gallery-sums'
 import { OverlapReportDialog } from './overlap-report-dialog'
 
@@ -18,6 +19,11 @@ export interface TableSumsFooterProps {
   sumsState: GallerySumsState
   /** Anzeigenamen je Feld (aus den Facetten-Definitionen); Fallback: Key. */
   fieldLabels?: Record<string, string>
+  /**
+   * Felder, die statt einer Summe einen festen Text zeigen (Registry
+   * `sumPlaceholderFields`, z. B. Kosten „noch zu ermitteln").
+   */
+  pendingFields?: SumPlaceholderField[]
   /** Fuer den Synergie-Bericht (Stufe 3): nur fuer Member sichtbar. */
   libraryId?: string
   /** Member sehen den Bericht-Button (GET ist member-only). */
@@ -34,6 +40,7 @@ function formatSum(value: number): string {
 export function TableSumsFooter({
   sumsState,
   fieldLabels,
+  pendingFields,
   libraryId,
   showReport,
   canManageReport,
@@ -81,6 +88,14 @@ export function TableSumsFooter({
                 {t('gallery.sums.missing', { count: agg.missing })}
               </span>
             )}
+          </div>
+        ))}
+        {(pendingFields ?? []).map(({ field, noteKey }) => (
+          <div key={field} className="flex flex-col" data-testid="sums-pending-field">
+            <span className="text-xs text-muted-foreground">
+              {fieldLabels?.[field] || field}
+            </span>
+            <span className="text-sm font-medium italic text-muted-foreground">{t(noteKey)}</span>
           </div>
         ))}
       </div>

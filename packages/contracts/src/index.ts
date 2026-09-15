@@ -68,8 +68,10 @@ export {
   getTranslatableFields,
   getTranslatableFieldsForScope,
   getSummableFields,
+  getSumPlaceholderFields,
   getTableColumnsForViewType,
 } from './detail-view-type-registry'
+export type { SumPlaceholderField } from './detail-view-type-registry'
 export { VIEW_TYPE_LABELS, getViewTypeLabel, getPresentDetailViewTypes } from './detail-view-type-display'
 export { getDetailViewType } from './resolve-detail-view-type'
 

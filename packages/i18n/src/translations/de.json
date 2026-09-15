@@ -360,6 +360,7 @@
       "loading": "Berechne Summen…",
       "loadError": "Summen konnten nicht geladen werden",
       "missing": "{count} ohne Angabe",
+      "pending": "noch zu ermitteln",
       "graphTitle": "Summen (Schätzung)",
       "naive": "Einfache Summe",
       "adjusted": "Synergiebereinigt",
