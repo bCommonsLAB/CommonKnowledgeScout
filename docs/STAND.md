@@ -62,12 +62,17 @@ am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
   Sammel-Markdowns mit Vorlage `book` plus Video, Audio und Anhängen steht
   (#282, #283); die `?doc=`-Links im Embed öffnen das Dokument in der Galerie
   (#286, `gallery/lib/doc-link.ts`), der Nachweis in commoning-methods ist
-  dort PR #26 (Paket aus 1.2.252). Offen im Code: der Loader könnte fehlende
-  PDF-Transkripte selbst anstoßen (Job-Kette). Befund 15.09.: `aeced` ist auf
-  der Instanz weiterhin nicht öffentlich (`/api/public/libraries/aeced` →
-  404) — bis dahin bleibt commoning-methods auf `commoning`, und der
-  `?doc=`-Weg ist nur im Unit-Test belegt. Alles Weitere ist Inhaltsarbeit
-  auf der Instanz, nicht Repo.
+  dort PR #26 (gemergt; Paket aus `master` 1.2.255 nachgezogen in PR #27).
+  Die Partner-Library ist seit 15.09. nachmittags öffentlich; im Nachweis
+  live belegt: Galerie mit eigenen Texten und Covern, Buch-Ansicht mit
+  Audio-Player und PDF-Anhängen, `?doc=`-Link wechselt das Dokument ohne
+  Neuladen der fremden Seite. Offen im Code: der Loader könnte fehlende
+  PDF-Transkripte selbst anstoßen (Job-Kette). Alles Weitere ist
+  Inhaltsarbeit auf der Instanz (Facetten, restliche Dokumente), nicht Repo.
+  **Vorhaben 1 ist damit bedient.** Nächster Schritt mit dem Partner, wenn
+  er es aufruft: das Manifest der fremden App zur Laufzeit aus der
+  öffentlichen Dokument-API ziehen (eigenes Vorhaben mit Brief; Konzept im
+  Archiv, Headless-API P8 bleibt außen vor).
 - **Verlauf und „Neu dazugekommen"** (Befunde, Entscheidungen, Lehren seit
   09.09.): Archiv `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
