@@ -23,9 +23,11 @@ Vorhaben nach dem anderen**; Agenten arbeiten nur am Vorhaben, das in
 - **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10.); die Erfassung
   wird dort in einem Zug bereinigt (Alt-Endpunkte, ADR 0003, Welle 3-VI).
 
-**Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent in
-`docs/STAND.md` unter „Neu dazugekommen" des laufenden Vorhabens ein (mit
-Datum), nicht nur in den Hand-off.
+**Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent mit Datum
+unter „Neu dazugekommen" des laufenden Vorhabens in
+`24.09 KnowledgeScout/STAND-Vorhaben.md` im Archiv ein (MCP-Bruecke); in
+`docs/STAND.md` nur, wenn sich Arbeitsliste oder naechster Schritt aendern.
+Ohne Archivzugang: in den Hand-off, der Owner traegt nach.
 
 **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
 bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
@@ -74,6 +76,33 @@ wieder aufgreifen, wenn der Owner es in ein Vorhaben holt.
   (z.B. ein Digital-Twin-Objekt) entstehen erst downstream (MongoDB), nicht im
   Frontmatter/Template. Gilt rueckwirkend: bestehende nested Frontmatter sind
   zu vermeiden, nicht zu erweitern.
+
+## Oeffentliches Repo: was hinein darf (Owner 15.09.2026)
+
+Das Repo ist oeffentlich. KnowledgeScout ist eine Querschnitts-Anwendung;
+was hier liegt, darf keiner konkreten Library, Organisation oder Person
+zuzuordnen sein, die das nicht selbst oeffentlich gemacht hat.
+
+- **Konzepte entstehen im Archiv** (KnowledgeScout-Library ueber die
+  MCP-Bruecke), nicht im Repo. Ins Repo kommen nur **abgenommene** Konzepte
+  und Dokumentation, die die Anwendung als Ganzes beschreiben: Stationen,
+  Regelsatz, Datenmodell, Contracts, ADRs. Vorhaben-Stand, Handover, Analysen
+  mit Bezug auf eine bestimmte Library und alle Zwischenstaende bleiben im
+  Archiv; `docs/STAND.md` verweist darauf.
+- **Keine realen Personennamen** ausser dem Owner. Menschen erscheinen als
+  Rolle (Moderation, Teilnehmende, Projektpartnerin) oder als erkennbar
+  erfundene Persona.
+- **Libraries nur unter ihrem Steckbrief-Kuerzel**
+  (`docs/architecture/library-steckbriefe.md`). Verfahrensdetails einer
+  Organisation (Termine, Tische, interne Ablaeufe, Gespraechsinhalte) gehoeren
+  ins Archiv, nicht ins Repo.
+- **Keine Chat-Exporte** im Repo (`docs/_chats/` ist ignoriert). Verlaeufe
+  sind Archiv-Geschichte, nicht Repo-Doku.
+- **Sperrliste:** `bash scripts/welle-pre-merge-check.sh` prueft `docs/`,
+  `src/`, `packages/` gegen `.sperrliste.local` (ein Begriff je Zeile,
+  gitignoriert, liegt nur beim Owner; Vorlage `.sperrliste.example`). Ein
+  Treffer blockiert den Merge. Cloud-Agenten haben die Liste nicht — sie
+  halten sich an die Regeln oben.
 
 ## Querschnitt-Konventionen (vor Reverse-Engineering lesen)
 

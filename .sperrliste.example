@@ -1,0 +1,8 @@
+# Vorlage fuer .sperrliste.local (gitignoriert, liegt nur beim Owner).
+# Ein Begriff je Zeile, Gross-/Kleinschreibung egal, Teilwort-Treffer zaehlen.
+# Kopieren nach .sperrliste.local und mit den echten Begriffen fuellen:
+# reale Personennamen, Organisationen, die nicht oeffentlich sein sollen,
+# interne Projektbezeichnungen. Diese Vorlage selbst enthaelt bewusst keine.
+# Beispiel:
+# Vorname Nachname
+# Interner Projektname

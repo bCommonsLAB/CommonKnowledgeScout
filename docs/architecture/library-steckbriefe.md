@@ -104,7 +104,7 @@ Schema je Steckbrief: **Zweck** · **Nutzerkreis** · **Tätigkeiten** ·
 
 ## 7. Tapping into Abundance
 
-- **Zweck**: Herzensprojekt mit Judith Hafner — Begegnungen mit Frauen und
+- **Zweck**: Herzensprojekt mit einer Projektpartnerin — Begegnungen mit Frauen und
   Frauenprojekten in Afrika und anderen Ländern dokumentieren.
 - **Nutzerkreis**: Menschen vor Ort in Moderationstreffen; Leser/Hörer in
   mehreren Sprachen.
@@ -120,7 +120,7 @@ Schema je Steckbrief: **Zweck** · **Nutzerkreis** · **Tätigkeiten** ·
 
 ## 8. MCS Ethiopia
 
-- Wie Steckbrief 7 (zweite Library desselben Vorhabens mit Judith Hafner).
+- Wie Steckbrief 7 (zweite Library desselben Vorhabens, dieselbe Projektpartnerin).
 
 ## 9. AECED (Uni Marburg)
 

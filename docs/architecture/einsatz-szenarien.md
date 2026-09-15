@@ -186,7 +186,7 @@ als Messlatte.
 | P2 Embed-Komponente | explorer | embed (npm/iframe) | remote | **nur public** | AECED, SFSCON, CAST, Naturmuseum, Tamera |
 | P3 Laie+Experte-Archiv | explorer (+archive) | Site (+pwa, +electron) | local | public→clerk | Umweltarchiv, Pluriversum, Klima (Experten) |
 | P4 Team-Archiv | explorer+archive | Site/Voll-App | local | clerk | Stakeholder Klimaarchiv |
-| P5 Feld-Erfassung | creation (+explorer) | Site, mobil | local | capture/offen | Judith-Libraries, SwapToLearn, Peters Archiv |
+| P5 Feld-Erfassung | creation (+explorer) | Site, mobil | local | capture/offen | Frauenprojekt-Libraries, SwapToLearn, Peters Archiv |
 | P6 Privates Agenten-Archiv | archive+agent-view | electron+mcp | local-first | Besitzer | Peters Archiv |
 | P7 Werkbank | workbench+archive | electron | local-first | Anwender | Diva-Texturen |
 | P8 Headless-API | — (Lese-Handler) | headless | Schluessel | **MCP-Konto-Schluessel** | AECED |
