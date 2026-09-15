@@ -386,7 +386,17 @@ Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
 dem Vorrat (Mapper-Paritätstest, LLM-bereinigte Summe als dritte Zahl), wenn
 die Library ohnehin angefasst wird; ADR 0005 nur entscheiden.
 
-Neu dazugekommen: (noch nichts)
+Neu dazugekommen:
+
+- 2026-09-15 (Galerie-Test Klimamaßnahmen, Branch
+  `claude/gallery-ks-image-reload-bug-1cb140`): Ein einziges Scrollen ans
+  Ende lud alle 606 Karten in einer Kette durch — eine Scroll-Wiederherstellung
+  in `virtualized-items-view.tsx` schob die Ansicht nach jeder Seite um die
+  neue Hoehe nach unten. Entfernt. Dazu Platzhalter-Karten fuer den noch nicht
+  geladenen Rest (`items-grid-placeholders.tsx`) und Kosten aus den Summen
+  (Registry `sumPlaceholderFields`, Anzeige „noch zu ermitteln"). Offen:
+  Desktop- und Mobil-Zweig der Galerie sind zwei Montagepunkte, ein
+  Breitenwechsel ueber 1024 px baut alle Karten neu auf.
 
 ## Vorhaben 3 · SHF: Konsensieren-Modul und Begleitfunktionen — ab 16.09. vorbereiten
 
