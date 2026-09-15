@@ -338,6 +338,27 @@ Neu dazugekommen:
   Medien-Loader jetzt auch PDF-Fragmente, und die Vorlagen verweisen darauf.
   Karte 01 und Methode 01 als `book` mit Player und Anhängen geprüft. Die
   Audio-Erweiterung der Ereignis-Ansicht von gestern bleibt drin (schadet nicht).
+- 2026-09-15: **Abschluss der lokalen Sitzung (14./15.09.) — Stand gegen das Ziel.**
+  Erledigt: Embed in commoning-methods gegen Prod geprüft (Dark Mode, Mobil,
+  Fix #276), Galerie als Hintergrund-Ebene der Bühne „Index" eingebaut
+  (lokaler Branch `ks-embed-nachweis` dort, 4 Commits, nicht gepusht, kein PR);
+  Inhaltsweg für AECED steht: Karten- und Methoden-Markdowns als Sammeldatei,
+  Vorlagen `book` mit Video/Audio/Anhängen (#282, #283, deployt 1.2.251), alle
+  44 Markdowns mit Frontmatter, Karte 01 und Methode 01 publiziert. Gast-Zugang
+  Dialog-Fall (#279). Offen, Owner auf Prod: PDFs zuerst transkribieren
+  (Ordner-Verarbeitung, nur Phase 1: 64 Karten-PDFs, 8 Methoden-PDFs — der
+  Sammellauf legt keine Transkripte an), dann 44 Markdowns transformieren und
+  publizieren; Library veröffentlichen (Slug `aeced`), Facetten setzen;
+  open.audio-Track von Karte 01 korrigieren; 12 Methoden ohne Artefakte.
+  Offen im Code: `?doc=`-Links im Embed; commoning-methods auf
+  `NEXT_PUBLIC_KS_INDEX_LIBRARY=aeced` und den Nachweis-Branch als PR;
+  Loader könnte fehlende PDF-Transkripte selbst anstoßen (Job-Kette).
+  **Nicht begonnen: das Manifest von commoning-methods dynamisch aus
+  KnowledgeScout ziehen** (Konzept dort: `docs/app-concept/detailseiten-konzept.md`,
+  „Datenlayer manifest.json → später Mongo"; das Import-Skript liest weiter die
+  Nextcloud-Markdowns). Baustein dafür ist jetzt da: die Frontmatter der
+  publizierten Dokumente sind über die öffentliche Dokument-API lesbar; die
+  Headless-API P8 bleibt laut Brief außerhalb von M5, bis AECED sie verlangt.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
