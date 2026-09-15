@@ -22,6 +22,8 @@ export interface ItemsViewProps {
   hasMore?: boolean
   /** Pagination: Lade-Status */
   isLoadingMore?: boolean
+  /** Gesamtzahl laut Server — Platzhalter-Karten fuer den noch nicht geladenen Rest. */
+  totalCount?: number
   /** Callback nach erfolgreichem Löschen eines Dokuments */
   onDocumentDeleted?: () => void
   /** Fallback-DetailViewType aus der Library-Config */
@@ -71,6 +73,7 @@ export function ItemsView({
   onLoadMore,
   hasMore,
   isLoadingMore,
+  totalCount,
   onDocumentDeleted,
   libraryDetailViewType,
   groupByField,
@@ -96,6 +99,7 @@ export function ItemsView({
       onLoadMore={onLoadMore}
       hasMore={hasMore}
       isLoadingMore={isLoadingMore}
+      totalCount={totalCount}
       onDocumentDeleted={onDocumentDeleted}
       libraryDetailViewType={libraryDetailViewType}
       groupByField={groupByField}

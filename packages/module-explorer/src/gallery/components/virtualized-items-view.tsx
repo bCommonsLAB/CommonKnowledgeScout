@@ -9,6 +9,7 @@ import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
+import { ItemsGridPlaceholders, placeholderCardCount } from './items-grid-placeholders'
 import { DeleteDocumentButton } from './delete-document-button'
 import { OpenInArchiveButton } from './open-in-archive-button'
 import { PublishDocumentButton } from './publish-document-button'
@@ -20,6 +21,7 @@ import { useUserStates } from '../hooks/use-user-states'
 import { useSourceCommentCounts } from '../hooks/use-source-comment-counts'
 import { formatUpsertedAt } from '@ks/util'
 import { sortDocsByTableColumn } from '../lib/table-sort'
+import { getSumPlaceholderFields } from '@ks/contracts'
 import { findDocInGroupedDocs } from '../lib/apply-favorite-optimistic'
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '../lib/doc-source-path'
@@ -38,6 +40,13 @@ export interface VirtualizedItemsViewProps {
   onLoadMore?: () => void
   hasMore?: boolean
   isLoadingMore?: boolean
+  /**
+   * Gesamtzahl der Dokumente laut Server. Damit stehen im Grid hinter den
+   * geladenen Karten Platzhalter fuer den Rest ({@link ItemsGridPlaceholders});
+   * undefined = keine Platzhalter (z. B. bei clientseitigen Filtern, wo die
+   * Restzahl unbekannt ist).
+   */
+  totalCount?: number
   /** Callback nach erfolgreichem Löschen eines Dokuments */
   onDocumentDeleted?: () => void
   /** Fallback-DetailViewType aus der Library-Config */
@@ -115,6 +124,7 @@ export function VirtualizedItemsView({
   onLoadMore,
   hasMore,
   isLoadingMore,
+  totalCount,
   onDocumentDeleted,
   libraryDetailViewType,
   groupByField,
@@ -168,9 +178,7 @@ export function VirtualizedItemsView({
   }, [])
   const parentRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const scrollOffsetFromBottomRef = useRef<number | null>(null)
   const scrollContainerRef = useRef<HTMLElement | null>(null)
-  const prevDocsLengthRef = useRef<number>(0)
 
   /**
    * Tabellen-Sortierung: Mit `onServerSortChange` (Galerie-Hauptpfad) sortiert
@@ -190,34 +198,17 @@ export function VirtualizedItemsView({
     scrollContainerRef.current = scrollContainer
   }, [])
 
-  // Speichere Scroll-Offset vom Ende vor dem Laden neuer Daten
-  useEffect(() => {
-    if (isLoadingMore && scrollContainerRef.current) {
-      const container = scrollContainerRef.current
-      scrollOffsetFromBottomRef.current = container.scrollHeight - container.scrollTop
-      prevDocsLengthRef.current = docsByYear.reduce((sum, [, docs]) => sum + docs.length, 0)
-    }
-  }, [isLoadingMore, docsByYear])
-
-  // Stelle Scroll-Position nach dem Laden wieder her (relativ zum Ende)
-  useEffect(() => {
-    if (!isLoadingMore && scrollContainerRef.current && scrollOffsetFromBottomRef.current !== null) {
-      const currentDocsLength = docsByYear.reduce((sum, [, docs]) => sum + docs.length, 0)
-      
-      // Nur wiederherstellen, wenn neue Items hinzugefügt wurden
-      if (currentDocsLength > prevDocsLengthRef.current) {
-        requestAnimationFrame(() => {
-          if (scrollContainerRef.current && scrollOffsetFromBottomRef.current !== null) {
-            const newScrollHeight = scrollContainerRef.current.scrollHeight
-            scrollContainerRef.current.scrollTop = newScrollHeight - scrollOffsetFromBottomRef.current
-            scrollOffsetFromBottomRef.current = null
-          }
-        })
-      }
-    }
-  }, [isLoadingMore, docsByYear])
-
-  // Infinite Scroll: Beobachte Sentinel-Element
+  // Infinite Scroll: Beobachte Sentinel-Element.
+  //
+  // Bewusst KEINE Scroll-Wiederherstellung nach dem Nachladen: Neue Seiten
+  // werden unten ANGEHAENGT, der Browser behaelt scrollTop dabei von selbst.
+  // Die fruehere Logik („Abstand zum Ende wiederherstellen", gedacht fuer
+  // vorne eingefuegte Inhalte) hat die Ansicht nach jeder Seite um genau die
+  // Hoehe der neuen Karten nach unten geschoben. Dadurch lag der Sentinel
+  // sofort wieder im Sichtfeld, die naechste Seite lud, die Ansicht sprang
+  // erneut — ein einziges Scrollen ans Ende hat so alle 600 Karten der
+  // Klimamassnahmen-Galerie durchgeladen, und der Nutzer sah pausenlos
+  // frisch ladende Bilder (Befund 2026-09-15).
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || isLoadingMore || !onLoadMore) return
 
@@ -226,18 +217,15 @@ export function VirtualizedItemsView({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasMore && !isLoadingMore) {
-          // Speichere Scroll-Offset vom Ende vor dem Laden
-          if (scrollContainer) {
-            scrollOffsetFromBottomRef.current = scrollContainer.scrollHeight - scrollContainer.scrollTop
-            prevDocsLengthRef.current = docsByYear.reduce((sum, [, docs]) => sum + docs.length, 0)
-          }
           onLoadMore()
         }
       },
       {
         root: scrollContainer,
         rootMargin: '300px', // Lade früher, wenn noch 300px bis zum Ende
-        threshold: 0.1,
+        // 0 statt 0.1: Im Grid ist der Fühler der ganze Platzhalter-Block; der
+        // ist meist hoeher als das Bild, ein Anteil-Schwellwert griffe da nicht.
+        threshold: 0,
       }
     )
 
@@ -417,6 +405,12 @@ export function VirtualizedItemsView({
 
   // Grid-Modus: Einfaches Infinite Scroll ohne vollständige Virtualisierung (wegen unterschiedlicher Card-Höhen)
   if (viewMode === 'grid') {
+    const loadedCount = displayDocsByYear.reduce((sum, [, docs]) => sum + docs.length, 0)
+    const placeholders = placeholderCardCount({
+      totalCount,
+      loadedCount,
+      hasMore: hasMore === true,
+    })
     return (
       <div ref={parentRef}>
         <ItemsGrid
@@ -430,12 +424,29 @@ export function VirtualizedItemsView({
           autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}
           onGroupClassified={onGroupClassified}
         />
-        {/* Sentinel für Infinite Scroll */}
-        {hasMore && (
+        {/* Nachladen: Mit Platzhaltern ist der ganze Platzhalter-Block der
+            Fühler — sobald irgendein Platzhalter im Bild ist, kommt die naechste
+            Seite, und die echten Karten ruecken von oben nach. Wer weit in die
+            Platzhalter springt, bekommt so Seite fuer Seite, bis das Bild voll
+            ist. Ohne Platzhalter (Gesamtzahl unbekannt) wie bisher: kleiner
+            Fühler mit Lade-Text hinter der letzten Karte. */}
+        {hasMore && placeholders === 0 && (
           <div ref={sentinelRef} className="h-20 flex items-center justify-center py-4">
             {isLoadingMore ? (
               <span className="text-sm text-muted-foreground">Lade weitere Dokumente...</span>
             ) : null}
+          </div>
+        )}
+        {hasMore && placeholders > 0 && (
+          // Auch der Fühler selbst darf kein Scroll-Anker sein (siehe
+          // ItemsGridPlaceholders): Der Browser nimmt sonst ihn, wenn er in
+          // seinem Inneren keinen Anker findet, und schiebt die Ansicht mit.
+          <div ref={sentinelRef} className='[overflow-anchor:none]'>
+            <ItemsGridPlaceholders
+              count={placeholders}
+              cardDensity={cardDensity}
+              libraryDetailViewType={libraryDetailViewType}
+            />
           </div>
         )}
       </div>
@@ -716,6 +727,7 @@ export function VirtualizedItemsView({
                 .filter((f) => Boolean(f.label))
                 .map((f) => [f.metaKey, f.label as string]),
             )}
+            pendingFields={getSumPlaceholderFields(libraryDetailViewType)}
             libraryId={libraryId}
             showReport={isMember}
             canManageReport={isOwner}
