@@ -56,3 +56,7 @@ backups/
 
 # Datei-Paket von @ks/embed (pnpm pack, M5)
 packages/embed/*.tgz
+
+# Chat-Exporte und Sperrliste bleiben lokal bzw. im Archiv (oeffentliches Repo)
+docs/_chats/
+.sperrliste.local
