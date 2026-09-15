@@ -75,6 +75,33 @@ wieder aufgreifen, wenn der Owner es in ein Vorhaben holt.
   Frontmatter/Template. Gilt rueckwirkend: bestehende nested Frontmatter sind
   zu vermeiden, nicht zu erweitern.
 
+## Oeffentliches Repo: was hinein darf (Owner 15.09.2026)
+
+Das Repo ist oeffentlich. KnowledgeScout ist eine Querschnitts-Anwendung;
+was hier liegt, darf keiner konkreten Library, Organisation oder Person
+zuzuordnen sein, die das nicht selbst oeffentlich gemacht hat.
+
+- **Konzepte entstehen im Archiv** (KnowledgeScout-Library ueber die
+  MCP-Bruecke), nicht im Repo. Ins Repo kommen nur **abgenommene** Konzepte
+  und Dokumentation, die die Anwendung als Ganzes beschreiben: Stationen,
+  Regelsatz, Datenmodell, Contracts, ADRs. Vorhaben-Stand, Handover, Analysen
+  mit Bezug auf eine bestimmte Library und alle Zwischenstaende bleiben im
+  Archiv; `docs/STAND.md` verweist darauf.
+- **Keine realen Personennamen** ausser dem Owner. Menschen erscheinen als
+  Rolle (Moderation, Teilnehmende, Projektpartnerin) oder als erkennbar
+  erfundene Persona.
+- **Libraries nur unter ihrem Steckbrief-Kuerzel**
+  (`docs/architecture/library-steckbriefe.md`). Verfahrensdetails einer
+  Organisation (Termine, Tische, interne Ablaeufe, Gespraechsinhalte) gehoeren
+  ins Archiv, nicht ins Repo.
+- **Keine Chat-Exporte** im Repo (`docs/_chats/` ist ignoriert). Verlaeufe
+  sind Archiv-Geschichte, nicht Repo-Doku.
+- **Sperrliste:** `bash scripts/welle-pre-merge-check.sh` prueft `docs/`,
+  `src/`, `packages/` gegen `.sperrliste.local` (ein Begriff je Zeile,
+  gitignoriert, liegt nur beim Owner; Vorlage `.sperrliste.example`). Ein
+  Treffer blockiert den Merge. Cloud-Agenten haben die Liste nicht — sie
+  halten sich an die Regeln oben.
+
 ## Querschnitt-Konventionen (vor Reverse-Engineering lesen)
 
 - MongoDB-Repos: [`mongodb-repository-pattern.md`](docs/architecture/mongodb-repository-pattern.md)

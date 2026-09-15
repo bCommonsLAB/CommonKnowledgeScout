@@ -17,7 +17,7 @@ DENSELBEN Inhalten:
   Experten-Zugang — unterschiedlich im UI **und** im Retrieval-Flow.
 - Klimamaßnahmen: anonym = Endkunden-Sicht (Top-20, schöne Startseite);
   angemeldet = Experte mit eigenen Beiträgen.
-- Judith-Hafner-Libraries: Erfassung und Beauskunftung in Oromo/Amharisch —
+- Frauenprojekt-Libraries (Steckbriefe 7 und 8): Erfassung und Beauskunftung in Oromo/Amharisch —
   Mehrsprachigkeit betrifft Transkription, Retrieval und Story Mode gemeinsam.
 - Naturmuseum zusätzlich: Bei Fragen mit Orts-/Gebietsbegriffen sollen
   Dokumente über einen DATENBANK-/Graph-Filter vorgefiltert werden, nicht
@@ -87,7 +87,7 @@ ein UI-Locale (`@ks/i18n` liefert die Mechanik, das Profil die Vorgabe).
 
 - Positiv: „Einfach vs. Experte" wird konfigurierbar statt als zweite
   Codebasis gebaut; der Geo-Retrieval-Sonderweg des Naturmuseums bekommt
-  einen sauberen Platz; die Judith-Libraries werden ohne Sonderzweig
+  einen sauberen Platz; die Frauenprojekt-Libraries werden ohne Sonderzweig
   mehrsprachig.
 - Negativ/Aufwand: Strategie-Registry und Profil-Schema müssen in
   `@ks/contracts` spezifiziert werden; die Explorer-UI braucht zwei

@@ -10,7 +10,12 @@
 #   bash scripts/welle-pre-merge-check.sh
 #   bash scripts/welle-pre-merge-check.sh --skip-build       # nur test+lint
 #   bash scripts/welle-pre-merge-check.sh --only=test        # nur test
-#   (--only akzeptiert: test | typecheck | lint | build)
+#   (--only akzeptiert: sperrliste | test | typecheck | lint | build)
+#
+# Sperrliste: liegt `.sperrliste.local` im Repo-Root (gitignoriert, ein
+# Begriff je Zeile, # fuer Kommentare), wird docs/ src/ packages/ dagegen
+# gegrept (Gross-/Kleinschreibung egal). Ein Treffer blockiert den Merge.
+# Vorlage: .sperrliste.example. Alternativ: KS_SPERRLISTE=/pfad/zur/liste
 #
 # Exit-Code: 0 wenn alles gruen, sonst != 0.
 
@@ -50,6 +55,28 @@ red() {
 }
 
 START_TIME=$(date +%s)
+
+# --- 0. Sperrliste (oeffentliches Repo: keine Namen, keine Library-Zuordnung) ---
+if [[ -z "$ONLY" || "$ONLY" == "sperrliste" ]]; then
+  SPERRLISTE="${KS_SPERRLISTE:-.sperrliste.local}"
+  if [[ -f "$SPERRLISTE" ]]; then
+    banner "Sperrliste ($SPERRLISTE) gegen docs/ src/ packages/"
+    # Kommentare und Leerzeilen aus der Liste entfernen
+    MUSTER=$(grep -vE '^\s*(#|$)' "$SPERRLISTE" || true)
+    if [[ -z "$MUSTER" ]]; then
+      green "OK Sperrliste leer — nichts zu pruefen"
+    elif TREFFER=$(grep -rniF --exclude-dir=node_modules --exclude-dir=.next \
+        -f <(printf '%s\n' "$MUSTER") docs src packages 2>/dev/null); then
+      red "FEHLER Sperrliste: gesperrte Begriffe im Repo — NICHT mergen"
+      printf '%s\n' "$TREFFER" | cut -c1-160 | head -50
+      exit 1
+    else
+      green "OK Sperrliste — keine Treffer"
+    fi
+  else
+    banner "Sperrliste: keine $SPERRLISTE gefunden — uebersprungen (Vorlage: .sperrliste.example)"
+  fi
+fi
 
 # --- 1. pnpm test ---
 if [[ -z "$ONLY" || "$ONLY" == "test" ]]; then
