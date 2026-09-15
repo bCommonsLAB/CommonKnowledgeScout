@@ -158,9 +158,11 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     
     // Links (alle aus docMetaJson)
     video_url: toStr(docMetaJson.video_url),
+    audio_url: toStr((docMetaJson as { audio_url?: unknown }).audio_url),
     coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl)
       || toStr((docMetaJson as { cover_image_url?: unknown }).cover_image_url),
     attachments_url: toStrArr(docMetaJson.attachments_url),
+    attachments_names: toStrArr((docMetaJson as { attachments_names?: unknown }).attachments_names),
     galleryImageUrls: toStrArr((docMetaJson as { galleryImageUrls?: unknown }).galleryImageUrls),
     url: toStr(docMetaJson.url),
     

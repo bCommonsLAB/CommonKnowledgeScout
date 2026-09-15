@@ -303,13 +303,14 @@ describe('validateMediaExistence — Report-Struktur', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('buildMediaFieldsConfig', () => {
-  it('book: coverImageUrl + authors_image_url', () => {
+  it('book: coverImageUrl + authors_image_url + attachments_url', () => {
     const cfg = buildMediaFieldsConfig('book')
     expect(cfg.stringFields).toContain('coverImageUrl')
     expect(cfg.arrayFields).toContain('authors_image_url')
-    // book hat keinen galleryField und keine attachments
+    // book hat keinen galleryField; Anhaenge (attachments_url) werden seit der
+    // Buch-Ansicht mit Medien-Block (15.09.2026) gegen Verfuegbare Medien geprueft.
     expect(cfg.arrayFields).not.toContain('galleryImageUrls')
-    expect(cfg.arrayFields).not.toContain('attachments_url')
+    expect(cfg.arrayFields).toContain('attachments_url')
   })
 
   it('session: coverImageUrl + galleryImageUrls + speakers_image_url + attachments_url', () => {

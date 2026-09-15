@@ -60,4 +60,38 @@ describe('appendTemplateSuffix', () => {
   it('Mit templateName → Suffix mit Schraegstrich', () => {
     expect(appendTemplateSuffix('seite1.pdf', 'tmpl')).toBe('seite1.pdf/tmpl')
   })
+  // ─── Pfade (Karten-Markdown eine Ebene ueber ihren Artefakten) ───────────────
+  it('Ordner-Segmente vor der Datei → relativePath + Dateiname, kein Template', () => {
+    const r = parseCompositeSourceEntry('pdfs-pngs/musterkarten pdf/karte_rueck.pdf')
+    expect(r.name).toBe('karte_rueck.pdf')
+    expect(r.relativePath).toBe('pdfs-pngs/musterkarten pdf/karte_rueck.pdf')
+    expect(r.templateName).toBeUndefined()
+  })
+
+  it('Pfad plus Template-Suffix → beides getrennt', () => {
+    const r = parseCompositeSourceEntry('pdfs/karte.pdf/commoning-musterkarte-de')
+    expect(r.name).toBe('karte.pdf')
+    expect(r.relativePath).toBe('pdfs/karte.pdf')
+    expect(r.templateName).toBe('commoning-musterkarte-de')
+  })
+
+  it('Nachbar ohne Ordner → kein relativePath', () => {
+    expect(parseCompositeSourceEntry('seite1.pdf').relativePath).toBeUndefined()
+    expect(parseCompositeSourceEntry('seite1.pdf/tmpl').relativePath).toBeUndefined()
+  })
+
+  it('Twin-Ordner mit Punkt im Namen vor der Datei: Datei ist das letzte Segment', () => {
+    const raw = 'pdfs/_1_methode.pdf/preview_001.jpg'
+    const r = parseCompositeSourceEntry(raw)
+    expect(r.name).toBe('preview_001.jpg')
+    expect(r.relativePath).toBe(raw)
+    expect(r.templateName).toBeUndefined()
+  })
+
+  it('Datei mit Endung plus Template-Suffix ohne Endung bleibt Suffix-Pfad', () => {
+    const r = parseCompositeSourceEntry('pdfs/_alt.pdf/karte.pdf/commoning-musterkarte-de')
+    expect(r.name).toBe('karte.pdf')
+    expect(r.relativePath).toBe('pdfs/_alt.pdf/karte.pdf')
+    expect(r.templateName).toBe('commoning-musterkarte-de')
+  })
 })

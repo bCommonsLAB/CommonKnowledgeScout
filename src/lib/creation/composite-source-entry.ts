@@ -23,6 +23,13 @@ export interface ParsedCompositeSourceEntry {
    * Nur gesetzt, wenn der Original-Eintrag ein Schraegstrich-Suffix enthielt.
    */
   templateName?: string
+  /**
+   * Pfad der Quelle relativ zum Ordner der Sammeldatei (oder zur Library-
+   * Wurzel), wenn der Eintrag Ordner-Segmente enthaelt — z. B.
+   * `pdfs-pngs/musterkarten pdf/karte_rueck.pdf`. Ohne Ordner-Segmente undefined;
+   * dann liegt die Quelle im selben Ordner wie die Sammeldatei.
+   */
+  relativePath?: string
   /** Original-Eintrag (mit Suffix), nuetzlich fuer Logging und Anzeige. */
   raw: string
 }
@@ -38,25 +45,56 @@ export interface ParsedCompositeSourceEntry {
  * - Leere Teile (`/foo`, `bar/`) → wir betrachten den Eintrag als ungueltig fuer den
  *   Template-Suffix-Pfad und geben nur `name` (Original) zurueck. Der Resolver
  *   landet damit im Standard-Transcript-Pfad und meldet ggf. `unresolvedSources`.
+ * - Ordner-Segmente VOR der Datei (`audios/karte.mp3`, `pdfs/karte.pdf/template`)
+ *   sind ein Pfad relativ zur Sammeldatei: `relativePath` traegt ihn, `name` ist der
+ *   Dateiname. Die Quelldatei ist das LETZTE Segment mit Dateiendung; alles
+ *   danach ist der Template-Suffix (Template-Namen tragen keine Endung). So sind
+ *   auch Ordner mit Punkt im Namen erlaubt, etwa Twin-Ordner
+ *   (`pdfs/_karte.pdf/preview_001.jpg`).
  */
 export function parseCompositeSourceEntry(raw: string): ParsedCompositeSourceEntry {
   if (typeof raw !== 'string' || raw.length === 0) {
     return { name: raw, raw }
   }
 
-  const slashIndex = raw.indexOf('/')
-  if (slashIndex < 0) {
+  if (!raw.includes('/')) {
     return { name: raw, raw }
   }
 
-  const namePart = raw.slice(0, slashIndex)
-  const templatePart = raw.slice(slashIndex + 1)
-
-  if (namePart.length === 0 || templatePart.length === 0) {
+  const segments = raw.split('/')
+  // Leere Teile (`/foo`, `bar/`, `a//b`) → unveraendert als Name, wie bisher.
+  if (segments.some((seg) => seg.length === 0)) {
     return { name: raw, raw }
   }
 
-  return { name: namePart, templateName: templatePart, raw }
+  // Das letzte Segment mit Dateiendung ist die Quelldatei: alles davor sind
+  // Ordner (auch Twin-Ordner wie `_karte.pdf`), alles danach ist der
+  // Template-Suffix, denn Template-Namen tragen keine Endung.
+  const fileIndex = findLastIndex(segments, hasFileExtension)
+  if (fileIndex < 0) {
+    // Kein Segment mit Endung: altes Verhalten (Name bis zum ersten `/`).
+    return { name: segments[0], templateName: segments.slice(1).join('/'), raw }
+  }
+
+  const pathSegments = segments.slice(0, fileIndex + 1)
+  const templateSegments = segments.slice(fileIndex + 1)
+  const entry: ParsedCompositeSourceEntry = {
+    name: pathSegments[pathSegments.length - 1],
+    raw,
+  }
+  if (pathSegments.length > 1) entry.relativePath = pathSegments.join('/')
+  if (templateSegments.length > 0) entry.templateName = templateSegments.join('/')
+  return entry
+}
+
+function findLastIndex(items: string[], predicate: (s: string) => boolean): number {
+  for (let i = items.length - 1; i >= 0; i -= 1) if (predicate(items[i])) return i
+  return -1
+}
+
+/** Dateiendung: Punkt plus 1–8 Buchstaben/Ziffern am Ende des Segments. */
+function hasFileExtension(segment: string): boolean {
+  return /\.[A-Za-z0-9]{1,8}$/.test(segment)
 }
 
 /**

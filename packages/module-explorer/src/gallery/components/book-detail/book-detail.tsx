@@ -27,6 +27,7 @@ import type { GalleryImageProps } from "../../contexts/gallery-host-context";
 import { classifyReference } from "../../lib/reference-format";
 import { ChapterAccordion } from "./chapter-accordion";
 import { AttachmentList } from "./attachment-list";
+import { BookMedia } from "./book-media";
 
 /** Was die Ansicht ueber einen Markdown-Abschnitt sagt. */
 export interface BookMarkdownProps {
@@ -50,6 +51,11 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
   const title = data.title || "—";
   const authors = Array.isArray(data.authors) ? data.authors : [];
 
+  // Anhaenge: Blob-URLs aus attachments_url, beschriftet mit den Originalnamen (attachments_names).
+  const attachmentRefs = Array.isArray(data.attachments_url)
+    ? data.attachments_url.map((url, i) => ({ url, name: data.attachments_names?.[i] ?? '' }))
+    : undefined
+
   // URL-Klassifikation: PDF oder Webseite → immer prominent als Button
   const urlIsPdf = data.url ? classifyReference(data.url) === 'pdf' : false
 
@@ -72,7 +78,9 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
               />
             </div>
 
-              <div className="flex-1">
+              {/* min-w-0: sonst waechst die Spalte auf schmalen Rahmen (Mobil, Embed)
+                  an langen Woertern ueber das Panel hinaus. */}
+              <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
               {authors.length > 0 ? (
                 <p className="text-base text-muted-foreground mb-3">{authors.join(", ")}</p>
@@ -143,12 +151,15 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
         )}
       </div>
 
+      {/* Video-/Audio-Player, nur wenn video_url/audio_url gesetzt und einbettbar sind */}
+      <BookMedia videoUrl={data.video_url} audioUrl={data.audio_url} />
+
       {/* Zusammenfassung nur anzeigen, wenn kein Markdown-Body vorhanden ist —
            der Markdown-Body enthält den Summary bereits am Anfang. */}
       {data.summary && !data.markdown && (
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Zusammenfassung</h2>
-          <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-muted-foreground">
+          <div className="prose prose-sm prose-slate dark:prose-invert max-w-none break-words text-muted-foreground">
             <Markdown content={normalizeEscapedNewlines(data.summary)} className="min-h-0 w-full" />
           </div>
           {kiHinweis}
@@ -157,7 +168,7 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
 
       {/* Verweise/Anhänge aus attachments_url, je Format gerendert (A4c) –
            nach Zusammenfassung, vor Metadaten. url hat oben einen eigenen Button. */}
-      <AttachmentList references={data.attachments_url} title="Dokumente & Links" Bild={Bild} />
+      <AttachmentList references={attachmentRefs} title="Dokumente & Links" Bild={Bild} />
 
       <div className="grid grid-cols-2 gap-3 mb-6">
         <section className="bg-card border border-border rounded-lg p-4">
@@ -192,7 +203,7 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
       {data.markdown && (
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">Inhalt</h2>
-          <div className="prose prose-slate dark:prose-invert max-w-none">
+          <div className="prose prose-slate dark:prose-invert max-w-none break-words">
             <Markdown
               content={data.markdown}
               className="min-h-0 w-full"

@@ -42,6 +42,9 @@ export default function Galerie() {
   Galerie montiert und lädt im Browser.
 - Alle Stile liegen unter `.ks-embed` und wirken nicht auf die übrige Seite.
   Dialoge, Menüs und die Detailansicht öffnen innerhalb dieses Rahmens.
+- Dunkles Design: das Embed folgt der Klasse `dark` an einem Vorfahren
+  (wie Tailwind `darkMode: 'class'`), nicht `prefers-color-scheme`. Schaltet
+  die Seite ihr Design per Klasse um, geht das Embed mit; sonst bleibt es hell.
 - Falsche Props (Basis-URL ohne `https://`, unbekannte Sprache) meldet die
   Komponente sichtbar im Rahmen und in der Konsole.
 - Eine Library, die eine Anmeldung verlangt, wird nicht angezeigt.

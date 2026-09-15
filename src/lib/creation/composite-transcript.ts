@@ -32,7 +32,9 @@ import {
 } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { isImageMediaFromName } from '@/lib/media-types'
-import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { parseFrontmatter, stripAllFrontmatter } from '@/lib/markdown/frontmatter'
+import { findCompositeSourceItems } from '@/lib/creation/composite-source-path'
+import { parseCompositeMediaFilesFromMeta, registerCompositeMediaFragments } from '@/lib/creation/composite-media-files'
 import { FileLogger } from '@/lib/debug/logger'
 import type { Library } from '@/types/library'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
@@ -108,6 +110,17 @@ export interface CompositeResolveOptions {
   compositeMarkdown: string
   /** Parent-Folder-ID (für Medien-Lookup im Verzeichnis) */
   parentId: string
+  /**
+   * Dateiname der Sammeldatei. Traegt sie `_include_self: true` im Frontmatter,
+   * geht ihr eigener Text (ohne Frontmatter) als Quelle mit an die Vorlage —
+   * fuer gepflegte Karten-Markdowns mit Zuordnungszeilen und Wikilinks.
+   */
+  compositeFileName?: string
+  /**
+   * Storage-Id der Sammeldatei. Mit ihr werden die Bilder aus `_media_files`
+   * als Binaerfragmente an ihren Twin gehaengt (composite-media-files.ts).
+   */
+  compositeSourceId?: string
 }
 
 /** Ergebnis von resolveCompositeTranscript */
@@ -290,18 +303,12 @@ export async function resolveCompositeTranscript(
     transformationCount: parsedEntries.filter(e => e.templateName).length,
   })
 
-  // Quelldateien im Verzeichnis suchen, um sourceIds zu ermitteln
+  // Quelldateien im Storage suchen, um sourceIds zu ermitteln — im Ordner der
+  // Sammeldatei oder, bei Eintraegen mit Ordner-Segmenten, ueber den Pfad
+  // (siehe composite-source-path.ts).
   const provider = await getServerProvider(userEmail, libraryId)
-  const siblings = await provider.listItemsById(parentId)
-
-  // Source-Dateien anhand des Namens im Verzeichnis finden
-  const sourceItems: Array<{ id: string; name: string; parentId: string }> = []
-  for (const name of sourceFileNames) {
-    const match = siblings.find(s => s.type === 'file' && s.metadata.name === name)
-    if (match) {
-      sourceItems.push({ id: match.id, name, parentId })
-    }
-  }
+  const itemsByRaw = await findCompositeSourceItems(provider, parentId, parsedEntries)
+  const sourceItems: Array<{ id: string; name: string; parentId: string }> = [...itemsByRaw.values()]
 
   // Shadow-Twins für gefundene Quellen laden (nur fuer evtl. Logging/Validierung)
   const sourceIds = sourceItems.map(s => s.id)
@@ -316,7 +323,7 @@ export async function resolveCompositeTranscript(
   for (let i = 0; i < parsedEntries.length; i++) {
     const entry = parsedEntries[i]
     const { name, templateName, raw } = entry
-    const item = sourceItems.find(s => s.name === name)
+    const item = itemsByRaw.get(raw)
     const mimeType = guessMimeType(name)
     let markdown: string | null = null
 
@@ -413,13 +420,50 @@ export async function resolveCompositeTranscript(
     resolvedSources.push({ name, index: i + 1, markdown, mimeType })
   }
 
+  // Bilder aus `_media_files` (Pfade wie bei `_source_files`) als Fragmente am
+  // Twin der Sammeldatei registrieren — danach sind sie fuer Modell, Ingestion
+  // und Medien-Reiter unter ihrem Dateinamen auffindbar.
+  const mediaEntries = parseCompositeMediaFilesFromMeta(meta)
+  const mediaSourceItems = [...sourceItems]
+  if (mediaEntries.length > 0) {
+    if (!options.compositeSourceId) {
+      throw new Error('_media_files gesetzt, aber compositeSourceId fehlt — Medien koennen nicht registriert werden')
+    }
+    const medien = await registerCompositeMediaFragments({
+      libraryId,
+      userEmail,
+      provider,
+      compositeSourceId: options.compositeSourceId,
+      compositeFileName: options.compositeFileName ?? 'Sammeldatei',
+      parentId,
+      mediaFiles: mediaEntries,
+    })
+    unresolvedSources.push(...medien.unresolved)
+    // Die Sammeldatei selbst als erstes Item: ihre Fragmente (und Nachbarbilder
+    // in ihrem Ordner) gehoeren in „Verfuegbare Medien“.
+    mediaSourceItems.unshift({
+      id: options.compositeSourceId,
+      name: options.compositeFileName ?? 'Sammeldatei',
+      parentId,
+    })
+  }
+
   // Medien — dieselbe Aggregation wie im Sammel-Transkript / Medien-API
   const { mediaFiles, pdfSections, otherExtracted } = await buildAggregatedMediaForSources({
     libraryId,
     userEmail,
     targetLanguage,
-    sourceItems,
+    sourceItems: mediaSourceItems,
   })
+
+  // Eigener Text der Sammeldatei (opt-in per `_include_self: true`): die
+  // gepflegten Zeilen und Wikilinks der Karten-Markdown gehoeren zum Material.
+  if (meta['_include_self'] === true || meta['_include_self'] === 'true') {
+    const selfName = options.compositeFileName ?? 'Sammeldatei'
+    const selfBody = stripAllFrontmatter(compositeMarkdown).trim()
+    resolvedSources.unshift({ name: selfName, index: 0, markdown: selfBody.length > 0 ? selfBody : null, mimeType: 'text/markdown' })
+    sourceFileNames.unshift(selfName)
+  }
 
   // Geflachte Version zusammenbauen
   const resolvedMarkdown = assembleFlattenedMarkdown({

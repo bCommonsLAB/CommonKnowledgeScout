@@ -47,3 +47,6 @@ export * from './document-slug-navigation'
 // Dateityp aus der Endung (M5): Die Anhang-Liste der Buch-Ansicht im Paket
 // klassifiziert Verweise damit; die Archiv-Vorschau re-exportiert ihn.
 export { getFileType } from './file-type'
+
+// Guards fuer eingebettete Video-/Audio-Player (Buch-Ansicht im Paket, Ereignis-Ansicht in der App).
+export { isSafeVideoIframeSrc, isSafeAudioIframeSrc, isDirectAudioFileUrl } from './safe-media-embed'

@@ -1612,7 +1612,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             <div className="divide-y">
           {folders.map((folder) => (
             compact ? (
-              // Kompakt: ohne Einrückung, nur Icon + Name (2 Spalten)
+              // Kompakt: ohne Einrückung — Checkbox, Icon, Name (3 Spalten; mit nur
+              // zwei Spalten rutschte der Name in die 24-px-Spalte und wurde auf
+              // drei Zeichen gekürzt).
               <div
                 key={folder.id}
                 role="button"
@@ -1621,7 +1623,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
                 onDrop={(e) => void handleDropOnFolder(e, folder.id)}
-                className="w-full px-2 py-1 text-xs hover:bg-muted/50 grid grid-cols-[24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
+                className="w-full px-2 py-1 text-xs hover:bg-muted/50 grid grid-cols-[16px_16px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
               >
                 <Checkbox
                   checked={selectedTransformationItems.some(transformationItem => transformationItem.item.id === folder.id)}

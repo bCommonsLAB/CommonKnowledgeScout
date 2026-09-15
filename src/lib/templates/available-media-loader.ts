@@ -24,6 +24,7 @@
 import { getMediaKind, type MediaKind } from '@/lib/media-types'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { AvailableMediaEntry } from '@/lib/templates/media-existence-validator'
+import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 
 /** MediaKinds, die als zuordnungsfaehige Medien gelten (parallel zu sibling-files API) */
 const ASSIGNABLE_MEDIA_KINDS = new Set<MediaKind>(['image', 'pdf', 'link'])
@@ -34,6 +35,11 @@ export const AVAILABLE_MEDIA_LIMIT = 50
 export interface LoadAvailableMediaArgs {
   /** Storage-Provider (vom Aufrufer bereits initialisiert) */
   provider: StorageProvider
+  /**
+   * Optional: Library-Id. Wenn gesetzt, zaehlen auch die Bild-Fragmente des
+   * Twins der Quelle (z. B. Medien einer Sammeldatei) als verfuegbar.
+   */
+  libraryId?: string
   /** ID der Quelldatei (z.B. der pctest.md) */
   sourceItemId: string
   /**
@@ -93,6 +99,23 @@ export async function loadAvailableMediaForSource(
       mimeType: item.metadata.mimeType ?? 'application/octet-stream',
       source: 'sibling' as const,
     }))
+
+  // Bild-Fragmente des Twins (Original-Variante) — Namen, die nicht schon als
+  // Nachbar in der Liste stehen.
+  if (args.libraryId) {
+    const fragments = (await getShadowTwinBinaryFragments(args.libraryId, sourceItemId)) ?? []
+    const bekannt = new Set(allEntries.map((e) => e.name))
+    for (const frag of fragments) {
+      if (!frag.name || frag.variant === 'thumbnail' || bekannt.has(frag.name)) continue
+      const istBild = frag.kind === 'image' || (frag.mimeType ?? '').startsWith('image/')
+      // PDF-Fragmente (Anhaenge einer Sammeldatei) stehen ebenfalls in der Liste, damit
+      // die Vorlage `attachments_url` aus den Dateinamen fuellen kann.
+      const istPdf = frag.kind === 'pdf' || (frag.mimeType ?? '') === 'application/pdf'
+      if (!istBild && !istPdf) continue
+      allEntries.push({ name: frag.name, mimeType: frag.mimeType ?? (istPdf ? 'application/pdf' : 'image/jpeg'), source: 'fragment' })
+      bekannt.add(frag.name)
+    }
+  }
 
   const totalBeforeLimit = allEntries.length
   const entries = allEntries.slice(0, AVAILABLE_MEDIA_LIMIT)

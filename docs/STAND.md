@@ -248,6 +248,117 @@ Neu dazugekommen:
   [`HANDOFF-M5-aeced-lokal.md`](refactor/modularisierung/HANDOFF-M5-aeced-lokal.md).
   Noch nie geprueft im Embed: Dark Mode der fremden Seite (`.dark .ks-embed`
   gegen `prefers-color-scheme`) und Mobil.
+- 2026-09-11: **Embed in commoning-methods gegen `commoning` geprueft** (Prod,
+  Paket aus `master` 1.2.247, Next 16.2/React 19/Turbopack, Port 3002):
+  Seite 200, Server-Log und Konsole sauber, alle Anfragen an die Instanz
+  (`public/libraries`, `docs`, `facets`, `doc-meta`), Cover aus dem Blob,
+  9 Quellen, Detailansicht im Rahmen, kein Story-Knopf, `locale` `de`/`en`
+  schaltet Oberflaeche und Anfragen. **Dark Mode**: das Embed folgt der
+  Klasse `dark` am Vorfahren — genau wie commoning-methods selbst
+  (`@custom-variant dark (&:is(.dark *))`); nur `prefers-color-scheme` ohne
+  Klasse laesst beide Seiten hell. Kein Umbau noetig, Hinweis in der README.
+  **Mobil (375 px), Befund + Fix**: Die Buch-Ansicht lief rechts aus dem
+  Panel (Titelspalte 672 px in einem 327 px breiten Panel, Text abgeschnitten)
+  — Radix ScrollArea legt ein `display:table`-Element unter den Viewport, das
+  auf Max-Content-Breite waechst; dazu fehlte der Titelspalte `min-w-0`.
+  Betraf auch die Voll-App auf dem Handy. Fix in `detail-overlay.tsx`
+  (`viewportClassName`, Muster aus `gallery-root`) und `book-detail.tsx`
+  (`min-w-0`, `break-words`), eigene PR. Tabellen im Buchtext scrollen
+  weiterhin in ihrem eigenen Rahmen. Klein, nicht behoben: „Seiten" und
+  „PDF oeffnen" in der Buch-Ansicht sind nicht lokalisiert.
+- 2026-09-11: Library `aeced` weiterhin nicht auf der Instanz (404, oeffentliche
+  Liste unveraendert). Anlegen geht nur angemeldet ueber das Formular
+  (MongoDB nur lesend) — Textentwuerfe liegen in der Antwort der Sitzung,
+  Anlegen und Fuellen macht der Owner.
+- 2026-09-14: **AECED-Inhalte aus den gepflegten Karten-Markdowns.** Die
+  Library ist „AECED Webseite" (Nextcloud „Simulation Hessenbox", Ordner
+  `Web-Entwürfe`), nicht neu anlegen. Owner-Entscheidung: die Karten- und
+  Methoden-Markdowns (`musterkarten/*.md`) sind die Quelle der Transformation;
+  ihre Artefakte (PDF vorn/hinten, PNGs, Audio) haengen als Sammel-Transkript
+  daran. Dafuer ein PR #282 (auf Owner-Wunsch aus #280/#281/#282
+  zusammengefuehrt): Pfade in `_source_files`, `_include_self`,
+  `_media_files` als Bild-Fragmente am Twin,
+  Listen im Frontmatter statt JSON-Text — Ursache war der Whitelist-Parser
+  in `response-parser.ts` beim Zurueckschreiben —, Vorlagen `book`, Body der
+  Musterkarte wie die Kartenrueckseite, Anschlusskarten als `?doc=`-Links.
+  #280 und #281 sind geschlossen. Live geprueft mit Karte 01 in der lokalen
+  Instanz: Cover `k1.png` aus dem Fragment, vier Anschluss-Slugs, sechs Tags.
+  Offen beim Owner: Library publizieren (Slug `aeced`), 18 alte
+  Galerie-Eintraege loeschen, Facetten (docType, familie, lernfeld,
+  prozessschritte) setzen. Offen im Code: Vorlage Methode (Cover aus
+  PDF-Seite 1), die uebrigen 34 Karten/Methoden (Frontmatter, Transkription,
+  Transformation), `?doc=`-Links im Embed abfangen, danach in
+  commoning-methods `NEXT_PUBLIC_KS_INDEX_LIBRARY=aeced`. Befund: der
+  Pre-Merge-Check neben einem laufenden `next dev` aus demselben Worktree
+  bricht im Build mit `PageNotFoundError /_document` (gemeinsames `.next`) —
+  Dev-Server vorher stoppen.
+- 2026-09-14: **Methode 01 (Auftragsklärung) aus der Methoden-Markdown
+  transformiert und publiziert** (lokal, Branch `claude/composite-methode`).
+  Cover ist die erste PDF-Seite: die Seitenbilder (`preview_001.jpg`,
+  `page_001.jpeg`) liegen im Twin-Ordner `pdfs/_<Name>.pdf/` in der
+  Nextcloud und werden über `_media_files` als Fragmente am Twin der
+  Methoden-Markdown registriert — kein neuer Mechanismus. Dafür liest der
+  Eintrags-Parser die Quelldatei jetzt als LETZTES Segment mit Endung (vorher
+  das erste; Twin-Ordner mit Punkt im Namen waren so nicht adressierbar).
+  Vorlage Methode: Body wie der Steckbrief (Kurzbeschreibung, Ziel/Situation/
+  Raum/Zeit/Material, vollständige Durchführung als `durchfuehrung_md`,
+  Bezug zur Mustersprache, Anwendung des Kartensets, passende Karten als
+  `?doc=`-Links, Video-Link), Bildfelder als Dateinamen, HTML-Entities
+  aufgelöst. Das Video-Frontmatter (`videos/<name>.md`) ist zweite Quelle
+  (`_source_files`), das MP4 wird nicht transkribiert. Befund: OCR-Transkripte
+  enthalten `&amp;`; der Renderer zeigt es richtig, in der API stünde es roh
+  — deshalb die Vorlagen-Regel.
+- 2026-09-14: **Owner-Entscheidung: Karten und Methoden als `session`
+  (Ereignis-Ansicht) statt `book`** — sie bettet Video (PeerTube) ein, zeigt
+  Anhänge nach Format und soll Audio abspielen. Gebaut (Branch
+  `claude/composite-methode`, PR #283): Audio-Feld `audio_url` in der
+  Ereignis-Ansicht (Funkwhale/open.audio-Embed als iframe, direkte Dateien als
+  `<audio>`; Guard neben dem Video-Guard), PDFs über `_media_files` als
+  Dokument-Fragmente am Twin (`kind: pdf`), `attachments_url` in beiden
+  Vorlagen mit den Dateinamen der PDF-Quellen; die Ingestion behält die
+  Originalnamen als `attachments_names`, weil die Blob-URL nur den Hash trägt;
+  Badge zeigt den Dokumenttyp lesbar statt „TALK". Karte 01 und Methode 01
+  laufen so: Audio-/Video-Player, PDF-Anhänge mit Namen, Cover. Befund: der
+  open.audio-Track 467545 aus der Karten-Markdown existiert dort nicht („This
+  track wasn't found") — Daten, nicht Code. Offen: die Ereignis-Ansicht ist im
+  Embed noch „nicht verfügbar" (`embed-detail-renderers.tsx`) — sie muss ins
+  Paket wandern, bevor commoning-methods sie zeigen kann; Overlay-Titel „Talk
+  Summary" ist noch Ereignis-Vokabular.
+- 2026-09-15: **Zurück auf `book`, die Buch-Ansicht bekommt Video und Audio.**
+  Die Galerie-Karten der Ereignis-Ansicht (Querformat-Bild mit Titel darüber)
+  passen nicht zu den Hochformat-Covern der Karten; Owner-Entscheidung: `book`
+  bleibt, und die Buch-Ansicht rendert optional `video_url` (iframe) und
+  `audio_url` (Funkwhale-Embed oder `<audio>`), sonst nichts (`book-media.tsx`
+  im Paket). Die Medien-Guards liegen jetzt in `@ks/util`
+  (`safe-media-embed.ts`), die App-Datei ist eine Hülle. Buch-Mapper und
+  Registry kennen `video_url`, `audio_url`, `attachments_url`,
+  `attachments_names`; Anhänge zeigen die Originalnamen. Befund dabei: der
+  Phantom-Medien-Validator (`validateMediaExistence`) streicht `attachments_url`,
+  wenn die PDFs nicht in „Verfügbare Medien" stehen — deshalb listet der
+  Medien-Loader jetzt auch PDF-Fragmente, und die Vorlagen verweisen darauf.
+  Karte 01 und Methode 01 als `book` mit Player und Anhängen geprüft. Die
+  Audio-Erweiterung der Ereignis-Ansicht von gestern bleibt drin (schadet nicht).
+- 2026-09-15: **Abschluss der lokalen Sitzung (14./15.09.) — Stand gegen das Ziel.**
+  Erledigt: Embed in commoning-methods gegen Prod geprüft (Dark Mode, Mobil,
+  Fix #276), Galerie als Hintergrund-Ebene der Bühne „Index" eingebaut
+  (lokaler Branch `ks-embed-nachweis` dort, 4 Commits, nicht gepusht, kein PR);
+  Inhaltsweg für AECED steht: Karten- und Methoden-Markdowns als Sammeldatei,
+  Vorlagen `book` mit Video/Audio/Anhängen (#282, #283, deployt 1.2.251), alle
+  44 Markdowns mit Frontmatter, Karte 01 und Methode 01 publiziert. Gast-Zugang
+  Dialog-Fall (#279). Offen, Owner auf Prod: PDFs zuerst transkribieren
+  (Ordner-Verarbeitung, nur Phase 1: 64 Karten-PDFs, 8 Methoden-PDFs — der
+  Sammellauf legt keine Transkripte an), dann 44 Markdowns transformieren und
+  publizieren; Library veröffentlichen (Slug `aeced`), Facetten setzen;
+  open.audio-Track von Karte 01 korrigieren; 12 Methoden ohne Artefakte.
+  Offen im Code: `?doc=`-Links im Embed; commoning-methods auf
+  `NEXT_PUBLIC_KS_INDEX_LIBRARY=aeced` und den Nachweis-Branch als PR;
+  Loader könnte fehlende PDF-Transkripte selbst anstoßen (Job-Kette).
+  **Nicht begonnen: das Manifest von commoning-methods dynamisch aus
+  KnowledgeScout ziehen** (Konzept dort: `docs/app-concept/detailseiten-konzept.md`,
+  „Datenlayer manifest.json → später Mongo"; das Import-Skript liest weiter die
+  Nextcloud-Markdowns). Baustein dafür ist jetzt da: die Frontmatter der
+  publizierten Dokumente sind über die öffentliche Dokument-API lesbar; die
+  Headless-API P8 bleibt laut Brief außerhalb von M5, bis AECED sie verlangt.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

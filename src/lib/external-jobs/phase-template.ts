@@ -18,6 +18,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-transform-template'
 import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import { runTemplateTransform } from '@/lib/external-jobs/template-run'
+import { normalizeJsonStringValues } from '@/lib/markdown/frontmatter'
 import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
 import { saveMarkdown } from '@/lib/external-jobs/storage'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
@@ -930,6 +931,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       try {
         const { loadAvailableMediaForSource } = await import('@/lib/templates/available-media-loader')
         const mediaResult = await loadAvailableMediaForSource({
+          libraryId: job.libraryId,
           provider,
           sourceItemId: sourceItemIdForMedia,
           parentId: targetParentId,
@@ -1328,7 +1330,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     })
   }
   
-  let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
+  // JSON-Text in Feldern („["a","b"]“) wird zu echten Listen — erst NACH dem
+  // Merge, damit auch Werte aus dem Secretary-Markdown (existingMeta) erfasst
+  // sind. Flaches Frontmatter mit Arrays statt Strings (AGENTS.md).
+  let mergedMeta = normalizeJsonStringValues(
+    { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>,
+  )
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
 
   // Welle W10: Faellt `date` aus, steht es fast immer im Ablagepfad
