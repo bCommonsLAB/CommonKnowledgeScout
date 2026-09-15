@@ -614,6 +614,14 @@ export function GalleryRoot({
     return allDocs.find(doc => docMatchesNavigationSlug(doc, docSlug)) || null
   }, [docSlug, libraryId, loading, allDocs])
 
+  // Ein `doc`, das zu keinem geladenen Dokument passt (Filter, andere Seite,
+  // falscher Slug in einem `?doc=`-Link), laesst die Detailansicht einfach zu.
+  // Das soll man im Protokoll sehen, nicht raten (no-silent-fallbacks).
+  React.useEffect(() => {
+    if (!docSlug || loading || allDocs.length === 0 || selectedDoc) return
+    console.warn(`[GalleryRoot] Kein geladenes Dokument passt zu doc="${docSlug}"`)
+  }, [docSlug, loading, allDocs.length, selectedDoc])
+
   /**
    * Geschwister-Dokumente fuer die Pfeil-Navigation in der DetailOverlay.
    * Verwendet die aktuell sichtbare/gefilterte Liste (inkl. Favoriten-
