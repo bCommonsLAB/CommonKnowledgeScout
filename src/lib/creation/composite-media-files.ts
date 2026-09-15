@@ -12,11 +12,12 @@
  * sieht das Modell sie in „Verfuegbare Medien“, die Ingestion findet das Cover,
  * der Medien-Reiter zeigt sie — ohne Kopie in der Nextcloud.
  *
- * Nur Bilder; alles andere wird gemeldet, nicht still uebersprungen.
+ * Bilder und PDFs (Anhaenge fuer `attachments_url`); alles andere wird
+ * gemeldet, nicht still uebersprungen.
  */
 
 import { FileLogger } from '@/lib/debug/logger'
-import { isImageMediaFromName } from '@/lib/media-types'
+import { getMediaKindFromName } from '@/lib/media-types'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
@@ -54,7 +55,7 @@ export interface RegisterCompositeMediaOptions {
 export interface RegisterCompositeMediaResult {
   /** Dateinamen, die jetzt als Fragment am Twin haengen (neu oder schon vorhanden). */
   registered: string[]
-  /** Eintraege, die nicht gefunden wurden oder keine Bilder sind. */
+  /** Eintraege, die nicht gefunden wurden oder weder Bild noch PDF sind. */
   unresolved: string[]
 }
 
@@ -78,7 +79,8 @@ export async function registerCompositeMediaFragments(
   let service: ShadowTwinService | null = null
   for (const entry of entries) {
     const item = found.get(entry.raw)
-    if (!item || !isImageMediaFromName(item.name)) {
+    const kind = item ? getMediaKindFromName(item.name) : 'unknown'
+    if (!item || (kind !== 'image' && kind !== 'pdf')) {
       unresolved.push(entry.raw)
       continue
     }
@@ -102,8 +104,8 @@ export async function registerCompositeMediaFragments(
     await service.uploadBinaryFragment({
       buffer,
       fileName: item.name,
-      mimeType: binary.mimeType || 'image/png',
-      kind: 'image',
+      mimeType: binary.mimeType || (kind === 'pdf' ? 'application/pdf' : 'image/png'),
+      kind,
       variant: 'original',
     })
     registered.push(item.name)

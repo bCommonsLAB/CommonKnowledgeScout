@@ -292,6 +292,52 @@ Neu dazugekommen:
   Pre-Merge-Check neben einem laufenden `next dev` aus demselben Worktree
   bricht im Build mit `PageNotFoundError /_document` (gemeinsames `.next`) —
   Dev-Server vorher stoppen.
+- 2026-09-14: **Methode 01 (Auftragsklärung) aus der Methoden-Markdown
+  transformiert und publiziert** (lokal, Branch `claude/composite-methode`).
+  Cover ist die erste PDF-Seite: die Seitenbilder (`preview_001.jpg`,
+  `page_001.jpeg`) liegen im Twin-Ordner `pdfs/_<Name>.pdf/` in der
+  Nextcloud und werden über `_media_files` als Fragmente am Twin der
+  Methoden-Markdown registriert — kein neuer Mechanismus. Dafür liest der
+  Eintrags-Parser die Quelldatei jetzt als LETZTES Segment mit Endung (vorher
+  das erste; Twin-Ordner mit Punkt im Namen waren so nicht adressierbar).
+  Vorlage Methode: Body wie der Steckbrief (Kurzbeschreibung, Ziel/Situation/
+  Raum/Zeit/Material, vollständige Durchführung als `durchfuehrung_md`,
+  Bezug zur Mustersprache, Anwendung des Kartensets, passende Karten als
+  `?doc=`-Links, Video-Link), Bildfelder als Dateinamen, HTML-Entities
+  aufgelöst. Das Video-Frontmatter (`videos/<name>.md`) ist zweite Quelle
+  (`_source_files`), das MP4 wird nicht transkribiert. Befund: OCR-Transkripte
+  enthalten `&amp;`; der Renderer zeigt es richtig, in der API stünde es roh
+  — deshalb die Vorlagen-Regel.
+- 2026-09-14: **Owner-Entscheidung: Karten und Methoden als `session`
+  (Ereignis-Ansicht) statt `book`** — sie bettet Video (PeerTube) ein, zeigt
+  Anhänge nach Format und soll Audio abspielen. Gebaut (Branch
+  `claude/composite-methode`, PR #283): Audio-Feld `audio_url` in der
+  Ereignis-Ansicht (Funkwhale/open.audio-Embed als iframe, direkte Dateien als
+  `<audio>`; Guard neben dem Video-Guard), PDFs über `_media_files` als
+  Dokument-Fragmente am Twin (`kind: pdf`), `attachments_url` in beiden
+  Vorlagen mit den Dateinamen der PDF-Quellen; die Ingestion behält die
+  Originalnamen als `attachments_names`, weil die Blob-URL nur den Hash trägt;
+  Badge zeigt den Dokumenttyp lesbar statt „TALK". Karte 01 und Methode 01
+  laufen so: Audio-/Video-Player, PDF-Anhänge mit Namen, Cover. Befund: der
+  open.audio-Track 467545 aus der Karten-Markdown existiert dort nicht („This
+  track wasn't found") — Daten, nicht Code. Offen: die Ereignis-Ansicht ist im
+  Embed noch „nicht verfügbar" (`embed-detail-renderers.tsx`) — sie muss ins
+  Paket wandern, bevor commoning-methods sie zeigen kann; Overlay-Titel „Talk
+  Summary" ist noch Ereignis-Vokabular.
+- 2026-09-15: **Zurück auf `book`, die Buch-Ansicht bekommt Video und Audio.**
+  Die Galerie-Karten der Ereignis-Ansicht (Querformat-Bild mit Titel darüber)
+  passen nicht zu den Hochformat-Covern der Karten; Owner-Entscheidung: `book`
+  bleibt, und die Buch-Ansicht rendert optional `video_url` (iframe) und
+  `audio_url` (Funkwhale-Embed oder `<audio>`), sonst nichts (`book-media.tsx`
+  im Paket). Die Medien-Guards liegen jetzt in `@ks/util`
+  (`safe-media-embed.ts`), die App-Datei ist eine Hülle. Buch-Mapper und
+  Registry kennen `video_url`, `audio_url`, `attachments_url`,
+  `attachments_names`; Anhänge zeigen die Originalnamen. Befund dabei: der
+  Phantom-Medien-Validator (`validateMediaExistence`) streicht `attachments_url`,
+  wenn die PDFs nicht in „Verfügbare Medien" stehen — deshalb listet der
+  Medien-Loader jetzt auch PDF-Fragmente, und die Vorlagen verweisen darauf.
+  Karte 01 und Methode 01 als `book` mit Player und Anhängen geprüft. Die
+  Audio-Erweiterung der Ereignis-Ansicht von gestern bleibt drin (schadet nicht).
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

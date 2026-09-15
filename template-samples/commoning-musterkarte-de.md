@@ -25,9 +25,11 @@ aeced_code: {{aeced_code|AECED-Code (z. B. "A.1.2") NUR als Querverweis, nie als
 bearbeitungsstatus: {{bearbeitungsstatus|"fertig" oder "in-arbeit" — aus gepflegter status-Zeile im Material; Default "fertig"}}
 verwandte_musterkarten: {{verwandte_musterkarten|Array von SLUGS anderer Musterkarten, auf die diese Karte verweist ([[Wikilinks]] oder explizite Nennungen); Slug = Namensteil NACH dem ersten "_" eines Kartendateinamens; dedupliziert; sonst []}}
 verwandte_musterkarten_md: {{verwandte_musterkarten_md|Markdown-Liste der verwandten Karten, je Zeile `- [Lesbarer Name](?doc=<slug>)`; Lesbarer Name = Slug mit Leerzeichen statt Bindestrichen und großem Anfangsbuchstaben; genau die Slugs aus verwandte_musterkarten; sonst ""}}
+audio_url: {{audio_url|Funkwhale/open.audio-Embed-URL aus der audio:-Zeile (…/embed.html?type=track&id=…), NUR wenn wörtlich im Material; sonst ""}}
 audio_embed_src: {{audio_embed_src|Funkwhale/open.audio-Embed-URL, NUR wenn sie wörtlich im Material steht (audio:-Zeile); sonst ""}}
 audio_beschreibung: {{audio_beschreibung|Beschreibungstext der Audiospur, NUR wenn im Material vorhanden; sonst ""}}
 audio_stream_url: {{audio_stream_url|TECHNISCH: wird von der Pipeline aufgelöst (Funkwhale-API) — IMMER "" zurückgeben}}
+attachments_url: {{attachments_url|Array der DATEINAMEN aller PDF-Einträge aus „Verfügbare Medien" (…_front.pdf, …_rueck.pdf; nur Dateiname, ohne Pfad, in dieser Reihenfolge); sonst []}}
 coverImageUrl: {{coverImageUrl|DATEINAME des Vorschaubilds aus der preview:-Zeile der Karten-Markdown (z. B. "k1.png"), nur wenn er in „Verfügbare Medien" steht; sonst ""}}
 bild_vorschau: {{bild_vorschau|DATEINAME des Vorschaubilds, identisch zu coverImageUrl; sonst ""}}
 bild_vorderseite: {{bild_vorderseite|DATEINAME der Kartenvorderseite aus der png-de-front:-Zeile (nur Dateiname, ohne Pfad); sonst ""}}
@@ -117,7 +119,9 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "bearbeitungsstatus": "fertig" | "in-arbeit",
   "verwandte_musterkarten": string[],
   "verwandte_musterkarten_md": string,
+  "audio_url": string,
   "audio_embed_src": string,
+  "attachments_url": string[],
   "audio_beschreibung": string,
   "audio_stream_url": "",
   "coverImageUrl": string,

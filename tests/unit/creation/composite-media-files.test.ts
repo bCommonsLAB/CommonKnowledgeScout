@@ -48,7 +48,7 @@ const BAUM: Record<string, Array<{ id: string; name: string; type: 'file' | 'fol
     { id: 'prev', name: 'previews', type: 'folder' },
     { id: 'notiz', name: 'notiz.txt', type: 'file' },
   ],
-  prev: [{ id: 'k1', name: 'k1.png', type: 'file' }],
+  prev: [{ id: 'k1', name: 'k1.png', type: 'file' }, { id: 'karte-pdf', name: 'karte-01_front.pdf', type: 'file' }],
   root: [],
 }
 
@@ -57,8 +57,8 @@ function stummelProvider(): StorageProvider {
     listItemsById: async (folderId: string): Promise<StorageItem[]> =>
       (BAUM[folderId] ?? []).map((k) => ({ id: k.id, type: k.type, parentId: folderId, metadata: { name: k.name } })) as unknown as StorageItem[],
     getBinary: async (id: string) => ({
-      blob: new Blob([Buffer.from(id === 'k1' ? 'PNGDATEN' : 'txt')]),
-      mimeType: id === 'k1' ? 'image/png' : 'text/plain',
+      blob: new Blob([Buffer.from(id === 'k1' ? 'PNGDATEN' : id === 'karte-pdf' ? '%PDF-1.4' : 'txt')]),
+      mimeType: id === 'k1' ? 'image/png' : id === 'karte-pdf' ? 'application/pdf' : 'text/plain',
     }),
   } as unknown as StorageProvider
 }
@@ -97,6 +97,16 @@ describe('registerCompositeMediaFragments', () => {
     })
     expect(r.registered).toEqual(['k1.png'])
     expect(uploads).toEqual([])
+  })
+
+  it('registriert PDFs als Dokument-Fragmente (Anhaenge fuer attachments_url)', async () => {
+    const r = await registerCompositeMediaFragments({
+      libraryId: 'lib-1', userEmail: 'u@e.com', provider: stummelProvider(),
+      compositeSourceId: 'karte', compositeFileName: 'karte-01.md', parentId: 'mk',
+      mediaFiles: ['pdfs-pngs/previews/karte-01_front.pdf'],
+    })
+    expect(r.registered).toEqual(['karte-01_front.pdf'])
+    expect(uploads).toEqual([{ fileName: 'karte-01_front.pdf', mimeType: 'application/pdf', size: 8 }])
   })
 
   it('meldet Unbekanntes und Nicht-Bilder als unresolved, statt sie zu uebergehen', async () => {

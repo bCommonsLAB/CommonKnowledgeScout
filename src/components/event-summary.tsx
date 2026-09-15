@@ -4,11 +4,13 @@ import * as React from "react";
 import { Card } from '@ks/ui'
 import { MarkdownPreview } from "@/components/library/markdown-preview";
 import type { StorageProvider } from "@/lib/storage/types";
-import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe";
+import { isSafeVideoIframeSrc, isSafeAudioIframeSrc, isDirectAudioFileUrl } from "@/lib/media/safe-video-iframe";
 
 interface EventSummaryProps {
   summary: string;
-  videoUrl?: string; 
+  videoUrl?: string;
+  /** Audio-Embed (Funkwhale/open.audio) oder direkte Audio-Datei; wird unter Video/Cover als Player gezeigt. */
+  audioUrl?: string;
   coverImageUrl?: string;
   provider?: StorageProvider | null;
   currentFolderId?: string;
@@ -19,13 +21,16 @@ interface EventSummaryProps {
  * Zeigt Markdown-Inhalt mit zentralem MarkdownPreview-Viewer
  * Video ist bereits im Markdown integriert
  */
-export function EventSummary({ summary, videoUrl, coverImageUrl, provider = null, currentFolderId = 'root' }: EventSummaryProps) {
+export function EventSummary({ summary, videoUrl, audioUrl, coverImageUrl, provider = null, currentFolderId = 'root' }: EventSummaryProps) {
   if (!summary) {
     return null;
   }
 
   // Nur echte Embed-URLs (YouTube/Vimeo/https-Video) — sonst relative Dateinamen → HTML-404 im iframe.
   const embeddableVideoUrl = videoUrl && isSafeVideoIframeSrc(videoUrl) ? videoUrl : undefined;
+  // Audio: Embed-Player (iframe, niedrig) oder natives <audio> fuer direkte Dateien.
+  const audioIframeSrc = audioUrl && isSafeAudioIframeSrc(audioUrl) ? audioUrl : undefined;
+  const audioFileSrc = !audioIframeSrc && audioUrl && isDirectAudioFileUrl(audioUrl) ? audioUrl : undefined;
 
   return (
     <Card className="px-6 pt-0 pb-6 w-full max-w-full overflow-x-hidden box-border">
@@ -54,6 +59,24 @@ export function EventSummary({ summary, videoUrl, coverImageUrl, provider = null
             className="w-full h-auto max-h-[520px] object-cover"
             loading="lazy"
           />
+        </div>
+      ) : null}
+      {audioIframeSrc ? (
+        <div className="mb-6 rounded-lg overflow-hidden bg-muted w-full max-w-full box-border border">
+          <iframe
+            src={audioIframeSrc}
+            className="w-full max-w-full"
+            style={{ height: 120 }}
+            allow="autoplay"
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            title="Audio"
+          />
+        </div>
+      ) : audioFileSrc ? (
+        <div className="mb-6 w-full max-w-full">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio controls preload="none" src={audioFileSrc} className="w-full" />
         </div>
       ) : null}
       <div className="prose prose-slate dark:prose-invert max-w-none w-full overflow-x-hidden">

@@ -561,6 +561,13 @@ export class IngestionService {
                 docMetaJsonObj[fieldKey] = await Promise.all(
                   rawValue.map(async (v) => (typeof v === 'string' ? resolveOneMediaRef(v) : v)),
                 )
+                // Anhaenge: die Dateinamen gehen durch die Blob-URL (Hash-Name) verloren —
+                // als `attachments_names` parallel behalten, damit die Ansicht sie beschriften kann.
+                if (fieldKey === 'attachments_url' && !Array.isArray(docMetaJsonObj.attachments_names)) {
+                  docMetaJsonObj.attachments_names = rawValue.map((v) =>
+                    typeof v === 'string' ? v.split('/').filter(Boolean).pop() ?? v : v,
+                  )
+                }
               } else if (typeof rawValue === 'string') {
                 docMetaJsonObj[fieldKey] = await resolveOneMediaRef(rawValue)
               }
