@@ -60,9 +60,14 @@ am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
   Adressierung, Buch-Renderer, CORS, Hülle `@ks/embed`, Nachweis in einer
   fremden Next-16-App) sind gebaut und deployt; der Inhaltsweg über
   Sammel-Markdowns mit Vorlage `book` plus Video, Audio und Anhängen steht
-  (#282, #283). Offen im Code: `?doc=`-Links im Embed abfangen; der Loader
-  könnte fehlende PDF-Transkripte selbst anstoßen (Job-Kette). Alles Weitere
-  ist Inhaltsarbeit auf der Instanz, nicht Repo.
+  (#282, #283); die `?doc=`-Links im Embed öffnen das Dokument in der Galerie
+  (#286, `gallery/lib/doc-link.ts`), der Nachweis in commoning-methods ist
+  dort PR #26 (Paket aus 1.2.252). Offen im Code: der Loader könnte fehlende
+  PDF-Transkripte selbst anstoßen (Job-Kette). Befund 15.09.: `aeced` ist auf
+  der Instanz weiterhin nicht öffentlich (`/api/public/libraries/aeced` →
+  404) — bis dahin bleibt commoning-methods auf `commoning`, und der
+  `?doc=`-Weg ist nur im Unit-Test belegt. Alles Weitere ist Inhaltsarbeit
+  auf der Instanz, nicht Repo.
 - **Verlauf und „Neu dazugekommen"** (Befunde, Entscheidungen, Lehren seit
   09.09.): Archiv `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
