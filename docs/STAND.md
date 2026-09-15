@@ -324,6 +324,20 @@ Neu dazugekommen:
   Embed noch „nicht verfügbar" (`embed-detail-renderers.tsx`) — sie muss ins
   Paket wandern, bevor commoning-methods sie zeigen kann; Overlay-Titel „Talk
   Summary" ist noch Ereignis-Vokabular.
+- 2026-09-15: **Zurück auf `book`, die Buch-Ansicht bekommt Video und Audio.**
+  Die Galerie-Karten der Ereignis-Ansicht (Querformat-Bild mit Titel darüber)
+  passen nicht zu den Hochformat-Covern der Karten; Owner-Entscheidung: `book`
+  bleibt, und die Buch-Ansicht rendert optional `video_url` (iframe) und
+  `audio_url` (Funkwhale-Embed oder `<audio>`), sonst nichts (`book-media.tsx`
+  im Paket). Die Medien-Guards liegen jetzt in `@ks/util`
+  (`safe-media-embed.ts`), die App-Datei ist eine Hülle. Buch-Mapper und
+  Registry kennen `video_url`, `audio_url`, `attachments_url`,
+  `attachments_names`; Anhänge zeigen die Originalnamen. Befund dabei: der
+  Phantom-Medien-Validator (`validateMediaExistence`) streicht `attachments_url`,
+  wenn die PDFs nicht in „Verfügbare Medien" stehen — deshalb listet der
+  Medien-Loader jetzt auch PDF-Fragmente, und die Vorlagen verweisen darauf.
+  Karte 01 und Methode 01 als `book` mit Player und Anhängen geprüft. Die
+  Audio-Erweiterung der Ereignis-Ansicht von gestern bleibt drin (schadet nicht).
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

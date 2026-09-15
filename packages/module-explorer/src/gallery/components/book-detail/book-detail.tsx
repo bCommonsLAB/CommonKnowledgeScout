@@ -27,6 +27,7 @@ import type { GalleryImageProps } from "../../contexts/gallery-host-context";
 import { classifyReference } from "../../lib/reference-format";
 import { ChapterAccordion } from "./chapter-accordion";
 import { AttachmentList } from "./attachment-list";
+import { BookMedia } from "./book-media";
 
 /** Was die Ansicht ueber einen Markdown-Abschnitt sagt. */
 export interface BookMarkdownProps {
@@ -49,6 +50,11 @@ export interface BookDetailProps {
 export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDetailProps) {
   const title = data.title || "—";
   const authors = Array.isArray(data.authors) ? data.authors : [];
+
+  // Anhaenge: Blob-URLs aus attachments_url, beschriftet mit den Originalnamen (attachments_names).
+  const attachmentRefs = Array.isArray(data.attachments_url)
+    ? data.attachments_url.map((url, i) => ({ url, name: data.attachments_names?.[i] ?? '' }))
+    : undefined
 
   // URL-Klassifikation: PDF oder Webseite → immer prominent als Button
   const urlIsPdf = data.url ? classifyReference(data.url) === 'pdf' : false
@@ -145,6 +151,9 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
         )}
       </div>
 
+      {/* Video-/Audio-Player, nur wenn video_url/audio_url gesetzt und einbettbar sind */}
+      <BookMedia videoUrl={data.video_url} audioUrl={data.audio_url} />
+
       {/* Zusammenfassung nur anzeigen, wenn kein Markdown-Body vorhanden ist —
            der Markdown-Body enthält den Summary bereits am Anfang. */}
       {data.summary && !data.markdown && (
@@ -159,7 +168,7 @@ export function BookDetail({ data, Bild, Markdown, kiHinweis, backLink }: BookDe
 
       {/* Verweise/Anhänge aus attachments_url, je Format gerendert (A4c) –
            nach Zusammenfassung, vor Metadaten. url hat oben einen eigenen Button. */}
-      <AttachmentList references={data.attachments_url} title="Dokumente & Links" Bild={Bild} />
+      <AttachmentList references={attachmentRefs} title="Dokumente & Links" Bild={Bild} />
 
       <div className="grid grid-cols-2 gap-3 mb-6">
         <section className="bg-card border border-border rounded-lg p-4">

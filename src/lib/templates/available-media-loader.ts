@@ -108,8 +108,11 @@ export async function loadAvailableMediaForSource(
     for (const frag of fragments) {
       if (!frag.name || frag.variant === 'thumbnail' || bekannt.has(frag.name)) continue
       const istBild = frag.kind === 'image' || (frag.mimeType ?? '').startsWith('image/')
-      if (!istBild) continue
-      allEntries.push({ name: frag.name, mimeType: frag.mimeType ?? 'image/jpeg', source: 'fragment' })
+      // PDF-Fragmente (Anhaenge einer Sammeldatei) stehen ebenfalls in der Liste, damit
+      // die Vorlage `attachments_url` aus den Dateinamen fuellen kann.
+      const istPdf = frag.kind === 'pdf' || (frag.mimeType ?? '') === 'application/pdf'
+      if (!istBild && !istPdf) continue
+      allEntries.push({ name: frag.name, mimeType: frag.mimeType ?? (istPdf ? 'application/pdf' : 'image/jpeg'), source: 'fragment' })
       bekannt.add(frag.name)
     }
   }

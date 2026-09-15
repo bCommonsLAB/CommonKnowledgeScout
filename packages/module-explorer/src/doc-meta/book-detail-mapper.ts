@@ -46,6 +46,12 @@ export interface BookDetailData {
   url?: string;
   /** Anhänge (Dokumente, PDFs, etc.) */
   attachments_url?: string[];
+  /** Originale Dateinamen zu attachments_url (die Blob-URL traegt nur den Hash). */
+  attachments_names?: string[];
+  /** Eingebettetes Video (YouTube/Vimeo/PeerTube-Embed/mp4), optional. */
+  video_url?: string;
+  /** Audio-Player (Funkwhale/open.audio-Embed oder direkte Datei), optional. */
+  audio_url?: string;
 }
 
 /**
@@ -112,6 +118,9 @@ export function mapToBookDetail(input: unknown): BookDetailData {
     markdown: toStr(docMetaJson.markdown),
     coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
     url: toStr(docMetaJson.url),
+    attachments_names: toStrArr(docMetaJson.attachments_names),
+    video_url: toStr(docMetaJson.video_url) || undefined,
+    audio_url: toStr(docMetaJson.audio_url) || undefined,
     attachments_url: (() => {
       const raw = docMetaJson.attachments_url
       if (Array.isArray(raw)) return raw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)

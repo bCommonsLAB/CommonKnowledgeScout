@@ -1,5 +1,5 @@
 ---
-detailViewType: session
+detailViewType: book
 docType: commoning_methode
 title: {{title|Voller Methodenname (extraktiv, deutsche Schreibweise, ohne Kapitelnummer wie "2.2", z. B. "Auftragsklärung für den Prozess hin zu einer Commoning Organisation")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
@@ -34,7 +34,7 @@ video_watch_url: {{video_watch_url|PeerTube-Watch-URL (…/w/<id>), NUR wenn sie
 video_url: {{video_url|PeerTube-Embed-URL (…/videos/embed/<id>) für den eingebetteten Player, NUR wenn wörtlich im Material (embed_url-Zeile, spitze Klammern entfernen) ODER eindeutig aus video_watch_url ableitbar (/w/<id> → /videos/embed/<id>); sonst ""}}
 video_beschreibung: {{video_beschreibung|Beschreibungstext des Videos (description-Zeile), NUR wenn im Material vorhanden; sonst ""}}
 video_md: {{video_md|Wenn video_watch_url vorhanden: genau eine Markdown-Zeile "[Video zur Methode ansehen (PeerTube)](<video_watch_url>)"; sonst ""}}
-attachments_url: {{attachments_url|Array der DATEINAMEN des Methoden-PDFs aus der Quellenübersicht (z. B. "1_Auftragsklärung einer COE_2025-10-29_VP.pdf"; nur Dateiname, ohne Pfad); sonst []}}
+attachments_url: {{attachments_url|Array der DATEINAMEN aller PDF-Einträge aus „Verfügbare Medien" (z. B. "1_Auftragsklärung einer COE_2025-10-29_VP.pdf"; nur Dateiname, ohne Pfad); sonst []}}
 coverImageUrl: {{coverImageUrl|Dateiname des Vorschaubilds der ersten PDF-Seite aus „Verfügbare Medien" (preview_001.jpg), NUR wenn dort vorhanden; sonst ""}}
 bild_vorschau: {{bild_vorschau|Gleicher Dateiname wie coverImageUrl; sonst ""}}
 bild_seite_1: {{bild_seite_1|Dateiname des hochaufgelösten Bilds der ersten PDF-Seite aus „Verfügbare Medien" (page_001.jpeg), NUR wenn dort vorhanden; sonst ""}}
@@ -106,7 +106,7 @@ Video-Regel:
   description); spitze Klammern um URLs entfernen. Ableitung Watch→Embed ist erlaubt
   (peertube …/w/<id> → …/videos/embed/<id>), sonst nichts konstruieren.
 - video_md ist genau eine Markdown-Link-Zeile auf video_watch_url oder "".
-- attachments_url: Dateinamen der PDF-Quellen aus der Quellenübersicht, keine Pfade, keine URLs.
+- attachments_url: Dateinamen der PDF-Einträge aus „Verfügbare Medien", keine Pfade, keine URLs.
 
 Bild-Regel:
 - coverImageUrl/bild_vorschau/bild_seite_1 sind DATEINAMEN aus der Liste „Verfügbare Medien"

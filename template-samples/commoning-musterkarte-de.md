@@ -1,5 +1,5 @@
 ---
-detailViewType: session
+detailViewType: book
 docType: commoning_musterkarte
 title: {{title|Voller Kartentitel (extraktiv, deutsche Schreibweise wie auf der Karte, z. B. "Gemeinsame Absichten und Werte kultivieren")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
@@ -29,7 +29,7 @@ audio_url: {{audio_url|Funkwhale/open.audio-Embed-URL aus der audio:-Zeile (…/
 audio_embed_src: {{audio_embed_src|Funkwhale/open.audio-Embed-URL, NUR wenn sie wörtlich im Material steht (audio:-Zeile); sonst ""}}
 audio_beschreibung: {{audio_beschreibung|Beschreibungstext der Audiospur, NUR wenn im Material vorhanden; sonst ""}}
 audio_stream_url: {{audio_stream_url|TECHNISCH: wird von der Pipeline aufgelöst (Funkwhale-API) — IMMER "" zurückgeben}}
-attachments_url: {{attachments_url|Array der DATEINAMEN der Karten-PDFs aus der Quellenübersicht (…_front.pdf, …_rueck.pdf; nur Dateiname, ohne Pfad), nur wenn dort vorhanden; sonst []}}
+attachments_url: {{attachments_url|Array der DATEINAMEN aller PDF-Einträge aus „Verfügbare Medien" (…_front.pdf, …_rueck.pdf; nur Dateiname, ohne Pfad, in dieser Reihenfolge); sonst []}}
 coverImageUrl: {{coverImageUrl|DATEINAME des Vorschaubilds aus der preview:-Zeile der Karten-Markdown (z. B. "k1.png"), nur wenn er in „Verfügbare Medien" steht; sonst ""}}
 bild_vorschau: {{bild_vorschau|DATEINAME des Vorschaubilds, identisch zu coverImageUrl; sonst ""}}
 bild_vorderseite: {{bild_vorderseite|DATEINAME der Kartenvorderseite aus der png-de-front:-Zeile (nur Dateiname, ohne Pfad); sonst ""}}

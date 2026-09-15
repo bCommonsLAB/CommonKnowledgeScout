@@ -179,13 +179,13 @@ export interface ViewTypeConfig {
 export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
   book: {
     requiredFields: ['title', 'language', 'targetLanguage'],
-    optionalFields: ['summary', 'authors', 'authors_image_url', 'year', 'coverImageUrl', 'chapters', 'pages', 'region', 'topics', 'tags', 'docType', 'source'],
+    optionalFields: ['summary', 'authors', 'authors_image_url', 'year', 'coverImageUrl', 'chapters', 'pages', 'region', 'topics', 'tags', 'docType', 'source', 'url', 'attachments_url', 'attachments_names', 'video_url', 'audio_url'],
     labelKey: 'gallery.detailViewTypeBook',
     descriptionKey: 'gallery.detailViewTypeBookDescription',
     mediaConfig: {
       coverImage: true,
       personField: { listKey: 'authors', imageKey: 'authors_image_url', label: 'Autoren' },
-      attachments: false,
+      attachments: true,
       urlField: true,
     },
     translatable: {
