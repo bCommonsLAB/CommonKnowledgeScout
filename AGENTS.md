@@ -23,9 +23,11 @@ Vorhaben nach dem anderen**; Agenten arbeiten nur am Vorhaben, das in
 - **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10.); die Erfassung
   wird dort in einem Zug bereinigt (Alt-Endpunkte, ADR 0003, Welle 3-VI).
 
-**Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent in
-`docs/STAND.md` unter „Neu dazugekommen" des laufenden Vorhabens ein (mit
-Datum), nicht nur in den Hand-off.
+**Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent mit Datum
+unter „Neu dazugekommen" des laufenden Vorhabens in
+`24.09 KnowledgeScout/STAND-Vorhaben.md` im Archiv ein (MCP-Bruecke); in
+`docs/STAND.md` nur, wenn sich Arbeitsliste oder naechster Schritt aendern.
+Ohne Archivzugang: in den Hand-off, der Owner traegt nach.
 
 **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
 bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den

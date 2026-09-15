@@ -2,9 +2,12 @@
 
 > Eine Quelle für die Frage „woran wird gerade gearbeitet, und was wartet?".
 > Gepflegt von Hand bei jedem Vorhabenswechsel und bei jedem neuen Punkt.
-> Stand: 2026-09-09, entschieden vom Owner. Die ausführliche Landkarte mit
-> Legende und Motiven aller Wellen liegt in Peters Archiv
-> (`24.09 KnowledgeScout/THEMEN.md`); diese Datei ist ihr Repo-Auszug.
+> Stand: 2026-09-15. Die ausführliche Landkarte mit Legende und Motiven aller
+> Wellen liegt in Peters Archiv (`24.09 KnowledgeScout/THEMEN.md`), der
+> Verlauf je Vorhaben mit allen „Neu dazugekommen"-Einträgen in
+> `24.09 KnowledgeScout/STAND-Vorhaben.md` (seit 15.09., Regel „Oeffentliches
+> Repo" in `AGENTS.md`); diese Datei ist der Repo-Auszug: Arbeitsliste,
+> Vorrat, Erledigt, ADRs.
 
 ## Vier Zustände, kein „offen"
 
@@ -46,327 +49,31 @@ am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
 
 ## Vorhaben 1 · AECED: Galerie als einbettbare Komponente (M5) — jetzt
 
-- **Termin**: **Dienstag, 15.09.2026, ganztägiges Arbeitstreffen mit AECED**
-  (Owner, 09.09.). Bis dahin soll das Gröbste stehen: die Schritte 1 bis 4 so
-  weit, dass der Einbau in die fremde Next-Anwendung gezeigt werden kann. Der
-  31.08. ist überschritten.
-- **Ziel**: `<KnowledgeScoutExplorer baseUrl="…" library="aeced" view="gallery" />`
-  läuft in der Next-Anwendung von AECED, liest anonym von der zentralen
+- **Termin**: Arbeitstreffen mit dem Partner am 15.09.2026.
+- **Ziel**: `<KnowledgeScoutExplorer baseUrl="…" library="…" view="gallery" />`
+  läuft in einer fremden Next-Anwendung, liest anonym von der zentralen
   Instanz, zeigt nur öffentliche Inhalte (ADR 0008, Nachtrag 2026-08-29).
   Kein neues Deployment.
-- **Arbeitsauftrag**: [`docs/refactor/modularisierung/AGENT-BRIEF-M5.md`](refactor/modularisierung/AGENT-BRIEF-M5.md)
-
-Bekannte Punkte:
-
-1. Galerie-Adressierung: austauschbares Protokoll statt `next/navigation`
-   in `src/utils/document-navigation.ts`; Netz:
-   `tests/unit/utils/document-navigation-routen.test.ts`
-2. Basis-URL für die Modul-Fetches (bisher bewusst nicht eingebaut, G3)
-3. Galerie ins Paket `@ks/module-explorer`: erst die 14 Kreuzverweise zu
-   Slots machen, dann Bereich für Bereich (Reihenfolge in
-   `02-audit-umzug.md` §4)
-4. Hülle `@ks/embed`: npm-Paket, CORS, anonymer Lesezugriff, Locale als Prop
-5. Nachweis in einer fremden Next-Anwendung
-
-Mitgenommene alte Themen:
-
-- Galerie-Chat-Mittelschicht benennen (`01-audit-galerie-chat.md`), fällig
-  bei Punkt 3
-- `apps/`-Frage nur entscheiden (Demo-App ja/nein), nicht die Next-App umziehen
+- **Arbeitsauftrag**: [`docs/refactor/modularisierung/AGENT-BRIEF-M5.md`](refactor/modularisierung/AGENT-BRIEF-M5.md);
+  lokale Sitzung: [`HANDOFF-M5-aeced-lokal.md`](refactor/modularisierung/HANDOFF-M5-aeced-lokal.md).
+- **Stand 15.09.**: M4f–M4i (Galerie im Paket) und M5 (Basis-URL,
+  Adressierung, Buch-Renderer, CORS, Hülle `@ks/embed`, Nachweis in einer
+  fremden Next-16-App) sind gebaut und deployt; der Inhaltsweg über
+  Sammel-Markdowns mit Vorlage `book` plus Video, Audio und Anhängen steht
+  (#282, #283). Offen im Code: `?doc=`-Links im Embed abfangen; der Loader
+  könnte fehlende PDF-Transkripte selbst anstoßen (Job-Kette). Alles Weitere
+  ist Inhaltsarbeit auf der Instanz, nicht Repo.
+- **Verlauf und „Neu dazugekommen"** (Befunde, Entscheidungen, Lehren seit
+  09.09.): Archiv `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
 Nicht in diesem Vorhaben: M6 bis M8, Headless-API P8, Story und Chat im Embed
 vor der Galerie.
 
-Neu dazugekommen:
-
-- 2026-09-09: Punkt 1 (Adressierung) ist als Welle **M4f** erledigt (PR
-  „M4f: Next raus"): kein `next/*` mehr im Galerie-Kegel, Bilder ueber den
-  Gastgeber (`next/image` bleibt in der App), Story-Panel als Slot.
-  Messung und Wellenplan M4f–M4i in `AGENT-BRIEF-M4f.md`.
-- 2026-09-09: Punkt 3, erster Teil, ist als Welle **M4g** erledigt: die
-  Renderer-Tabelle und drei weitere App-Bausteine sind Slots, der Kegel
-  importiert aus `components/library` nur sich selbst. Der Schnitt ist
-  bewusst nur die Galerie (nicht Chat-UI, Story, Website — passt zu „Nicht
-  in diesem Vorhaben"). Offen: M4h (Helfer in Pakete), M4i (der Umzug).
-- 2026-09-09: **M4h** erledigt (eine PR): zehn Helfer in Pakete oder in den
-  Kegel — Registry, Anzeige-Labels und Doc-Meta-Typen nach `@ks/contracts`,
-  Slug-Regeln nach `@ks/util`, anonyme Sitzung nach `@ks/api-client`,
-  Lokalisierung nach `@ks/module-explorer`. Der Sprung zur Perspektiven-Wahl
-  ist App-Politik (`StoryPerspectiveRedirect`), nicht mehr Galerie. Der Kegel
-  importiert aus `@/` nur noch sich selbst — **umzugsfertig**. Offen: M4i.
-- 2026-09-09: **M4i** erledigt (eine PR): die Galerie liegt in
-  `packages/module-explorer/src/gallery/` (110 Dateien per `git mv`),
-  `GalleryRoot` kommt aus `@ks/module-explorer/react`; die App-Bruecken
-  (Clerk, Next-Adressierung, Gastgeber) bleiben in der App. Punkt 3 ist
-  damit fuer die Galerie abgeschlossen; Story/Chat/Website bleiben Slots.
-  Naechstes: Punkte 2, 4, 5 (`@ks/embed`), Hand-off in `AGENT-BRIEF-M4f.md` §7.
-- 2026-09-09: Hotfix #248 — oldiesforfuture.org war seit dem 30.08. kaputt
-  (Folge von #234: Galerie-Karte ausserhalb der Galerie ohne Anbieter).
-  Lehre: ein Anbieter-Buendel `GalleryAppProviders` an jedem Montagepunkt,
-  Waechter-Test `karte-ausserhalb-galerie.test.ts`.
-- 2026-09-10: **M5-basis-url** erledigt (Punkt 2): Alle 43 Requests des
-  Explorer-Pakets laufen ueber die Instanz (`InstanceApi` aus `@ks/api-client`;
-  in der Galerie `useInstanz()` am Gastgeber, am Explorer-Eintritt die Prop
-  `instanz`). Die Voll-App setzt `SAME_ORIGIN_API`, relative Pfade wie bisher.
-  Waechter `instanz-fetch.test.ts`. Sortierung in
-  `refactor/modularisierung/03-audit-embed-fetches.md`: 12 Lese-Requests fuer
-  das Embed (fuer AECED davon 4 bis 7), 7 nur angemeldet, 21 Schreiben, 3 tot
-  (`gallery/lib/api.ts`, geloescht). Die DIVA-Klassifizierung erschien auch
-  anonym — jetzt nur fuer Mitglieder.
-- 2026-09-10: Befunde fuer Punkt 4 (Huelle): nirgends CORS-Header; die
-  Middleware laesst `OPTIONS` nicht anonym durch, ein Preflight scheitert also;
-  `x-locale` loest einen Preflight aus, wirkt aber nicht; das Locale-Cookie
-  geht von fremder Herkunft nicht mit; `explorerGate` zaehlt den Host der
-  Instanz. Details im Audit 03.
-- 2026-09-10: **M5-adressierung** gebaut (gestapelt auf M5-basis-url):
-  `SpeicherGalleryNavigation` fuehrt `doc`, `mode`, `view` usw. im
-  React-Zustand statt in der URL — ohne Verlauf, ohne teilbare Adresse.
-  `EmbedGalleryProviders` buendelt Betrachter (`ANONYMOUS_VIEWER`), Gastgeber
-  (`STILLER_GASTGEBER` mit Instanz) und Adressierung, als Gegenstueck zu
-  `GalleryAppProviders`. Waechter: das Paket fasst `window.location` und
-  `history` nicht an. Nebenbei: Der Teilen-Knopf blendete sich bei leerer
-  Adresse nicht aus, obwohl der Vertrag von `documentShareUrl` das versprach.
-- 2026-09-10: #267 landete im Branch von #266 statt auf `master` (25 s nach
-  #266 gemergt, bevor GitHub die Basis umgestellt hatte). Ersatz-PR #268 mit
-  demselben Commit. Lehre: gestapelte PRs erst mergen, wenn ihre Basis auf
-  `master` zeigt — oder gleich gegen `master` stellen.
-- 2026-09-10: **M5-buch-renderer** gebaut: Die Buch-Detailansicht liegt im
-  Paket (`gallery/components/book-detail/`, per `git mv`: Ansicht,
-  Kapitelliste, Anhang-Liste, KI-Hinweis, `reference-format`). Was es in einer
-  fremden Seite nicht gibt, kommt herein: Bild, Markdown, KI-Hinweis-Link,
-  Zurueck-Link. Die App reicht unter den alten Pfaden `next/image`,
-  `MarkdownPreview` und `next/link` herein, ihr Verhalten bleibt gleich. Das
-  Embed bekommt `BuchDetailRenderer` (aus der schon geladenen `docMeta`, kein
-  zweiter Request) und `EMBED_DETAIL_RENDERERS` (Buch, Testimonial, Blog →
-  Buch; alle anderen sagen ausdruecklich „noch nicht verfuegbar"). Mapper und
-  Typen liegen in `doc-meta/book-detail-mapper.ts`, `getFileType` in `@ks/util`.
-- 2026-09-10: Befund fuer Punkt 4: `md` aus `@ks/viewers` rendert rohes HTML
-  (`html: true`) und zieht zwei highlight.js-Stylesheets; die `prose`-Klassen
-  brauchen im CSS des Embeds das Tailwind-Typography-Plugin. In der fremden
-  Seite pruefen — der Inhalt kommt aus der eigenen Library, aber er landet
-  jetzt im DOM eines Kunden.
-- 2026-09-10 (kein M5-Bezug, beim lokalen Audio-Test gefunden): `.mpeg`/`.mpg`
-  fehlten in allen acht Endungslisten — die Vorschau zeigte „Keine Vorschau
-  verfuegbar" und keinen Transkribier-Knopf. Nachgezogen auf Branch
-  `claude/test-audio-archive-14e078`; lokal mit zwei Sprachnachrichten in
-  „tapping into abundance" bewiesen (Secretary-Videoweg, amharisches
-  Transkript). Auf demselben Branch behoben: `provider.getBinary is not a
-  function` — batch-resolve reichte einen per `{ ...provider }` kopierten
-  Provider an den Resolver (Methoden auf dem Prototype fehlten, jede
-  Transkript-Variante galt still als leer); jetzt `withRequestStorageCache`,
-  eine fehlende Methode wirft `ShadowTwinProviderIncompleteError`. Offen
-  daneben: der Server-Secretary hatte im August noch 200 MB Audio-Grenze und
-  scheiterte an mehreren `.mp4` mit ffmpeg; der Job-Monitor zeigt „Worker
-  gestoppt", obwohl `/api/external/jobs/worker` `running` meldet.
-- 2026-09-10 (kein M5-Bezug): **Grosse Dateien starten mehrfach.** Die
-  Start-Route laedt die Quelle erst komplett aus dem Storage (377-MB-Video:
-  über 60 s); der Worker bricht nach `JOBS_WORKER_START_TIMEOUT_MS` (60 s) ab
-  und startet neu, die abgebrochenen Aufrufe laufen aber weiter. Folge:
-  dasselbe Video dreimal beim Secretary, jeder Start setzt einen neuen
-  `jobSecretHash`, 29 Rueckmeldungen scheitern mit 401 (hash mismatch), 145
-  werden als fremder Prozess ignoriert, zwischendurch steht der Job auf
-  „running" mit `worker_start_giveup`. Nach rund sechs Minuten wurde er doch
-  fertig und das Transkript gespeichert (zweimal geschrieben) — ob am Ende
-  eine Rueckmeldung angenommen wird, haengt am Wettlauf der drei Starts.
-  Beleg: Job `8b1275b0-…` (lokal gegen Prod-DB). Passt zu den 25
-  „Worker-Timeout" und den `stale_running_reaped` auf dem Server. Eigene
-  Aufgabe angelegt.
-- 2026-09-10: Owner-Entscheidungen fuer die Huelle: Build mit tsup, CSS unter
-  einer Huelle `.ks-embed`, Auslieferung als Datei-Paket (`pnpm pack`),
-  CORS fuer jede Herkunft, aber nur oeffentliche Libraries.
-- 2026-09-10: **M5-cors** gebaut: `src/lib/embed/embed-cors.ts` nennt die
-  Lese-Routen des Embeds; die Middleware beantwortet deren Preflight vor der
-  Anmeldung (204) und setzt `Access-Control-Allow-Origin: *` — bewusst ohne
-  `Allow-Credentials`, das Embed ist damit anonym per Protokoll. Schreibende
-  Routen bekommen keinen CORS-Kopf (Test). Der wirkungslose `x-locale`-Kopf
-  der Detailansicht ist weg (die Middleware setzt ihn selbst), damit
-  `doc-meta` ohne Preflight geht. Am Dev-Server live geprueft. **Muss vor dem
-  15.09. auf der Instanz laufen**, sonst liest das Embed dort nichts.
-- 2026-09-10: **M5-huelle** gebaut: `packages/embed` mit
-  `<KnowledgeScoutExplorer baseUrl library view="gallery" locale height? />`.
-  tsup baut ein ESM-Buendel (React extern, alles andere drin, `"use client"`
-  vorn), `scripts/build-css.mjs` Tailwind mit dem Theme aus
-  `src/styles/globals.css`, jede Regel unter `.ks-embed`;
-  `pnpm --filter @ks/embed run pack:datei` erzeugt `ks-embed-0.1.0.tgz`, und
-  `scripts/pruefe-buendel.mjs` laesst den Bau scheitern, wenn `next`- oder
-  `@ks`-Importe im Buendel stehen. Dazu: Radix-Portale in `@ks/ui` rendern per
-  `PortalContainerProvider` in den Rahmen (App unveraendert: ohne Anbieter
-  `<body>`); der Story-Knopf erscheint nur mit Story-Slot; `createInstanceApi`
-  schickt die Sprache als `Accept-Language`; `@ks/i18n` ist
-  `sideEffects: false` (sonst zog das Buendel `next/navigation` mit).
-  Rauchtest: Das gebaute Buendel rendert die ganze Galerie in jsdom gegen eine
-  gestubbte Instanz.
-- 2026-09-10: Befund Buendelgroesse: minifiziert 186 KB Einstieg, 1,7 MB
-  gemeinsames Stueck (vor allem highlight.js mit allen Sprachen aus
-  `@ks/viewers`), 89 KB Graph (nachgeladen), CSS 96 KB. Fuer den 15.09.
-  tragbar; spaeter highlight.js auf die noetigen Sprachen kuerzen.
-- 2026-09-10: Offen fuer Punkt 5 (Nachweis): Die Frage „Demo-App
-  `apps/embed-demo` ja oder nein" ist nicht entschieden. Bis dahin zeigt der
-  Rauchtest das Buendel in jsdom, nicht in einer fremden Next-App.
-- 2026-09-10: **`ci-main` nach #272 rot** (Docker-Build, `51d3228b`):
-  `next build` prueft die Typen jeder Datei der Root-`tsconfig.json`, auch
-  `packages/embed/tsup.config.ts` — und `tsup` fehlt im Image. Das Dockerfile
-  installiert nur die Root-Abhaengigkeiten (`COPY package.json
-  pnpm-lock.yaml`, ohne Workspace); lokal hat jedes Paket eigene
-  `node_modules`, darum war der Pre-Merge-Check gruen. **Neue Luecke zwischen
-  lokalem Build und Image.** Behoben auf `claude/modularisierung-m5-docker-build`:
-  Bau-Konfigurationen der Pakete (`packages/*/*.config.ts`) sind raus aus der
-  Root-`tsconfig.json` und ESLint und werden im `tsconfig.json` ihres Pakets
-  geprueft. Waechter `tests/unit/packages/docker-abhaengigkeiten.test.ts`:
-  Jeder Import unter `packages/`, den die App-Typpruefung sieht, muss mit den
-  Root-Abhaengigkeiten aufloesbar sein. `ci-main` fuer #271 (CORS) war gruen.
-- 2026-09-10: **M5-nachweis** (Owner: im Projekt `commoning-methods`, eigener
-  Worktree `ks-embed-nachweis`, Seite `/ks-embed-nachweis`, Library
-  `commoning` von knowledgescout.org). Die fremde App laeuft mit Next 16,
-  React 19 und Turbopack — vier Befunde, alle im Paket behoben:
-  (1) `peerDependencies` erlaubten nur React 18, `npm install` scheiterte;
-  jetzt `^18.2.0 || ^19.0.0`. (2) Turbopack lehnte das Buendel ab („dynamic
-  usage of require is not supported"): esbuild liess fuer
-  `use-sync-external-store/shim` (aus Radix und swr) einen `require`-Ersatz
-  stehen; ein tsup-Plugin lenkt `require("react")` auf ESM-`import` um, und
-  `pruefe-buendel.mjs` laesst den Bau am Ersatz scheitern. (3)
-  Hydrierungsfehler (Server „Loading…", Browser „Lade…"), danach zeichnete
-  React die ganze fremde Seite neu: Die Galerie montiert erst im Browser, auf
-  dem Server steht nur der Rahmen. (4) Die Detailansicht (`fixed inset-0`)
-  deckte das ganze Fenster der fremden Seite zu: `contain: layout` am Rahmen
-  haelt sie darin. Dazu zeigt die Detailansicht „In Story Mode ansehen" nur
-  mit Story-Slot (Waechter in `galerie-schnitt.test.ts`). Geprueft: alle
-  Anfragen gehen an knowledgescout.org, Cover kommen aus dem Blob-Speicher,
-  Stile greifen im Rahmen, CORS ist auf der Instanz live.
-- 2026-09-10: **Vor dem 15.09. offen**: Auf knowledgescout.org gibt es keine
-  oeffentliche Library `aeced` (404; oeffentlich sind commoning, biodiv,
-  cast-neustift-2026, klimamassnahmen, oldiesforfuture, sfscon-talks). Ohne
-  sie meldet das Embed bei AECED eine unbekannte Library. Ausserdem wirbt der
-  Standardtext der Galerie (`texts.book.description` in `@ks/i18n`) fuer den
-  Story Mode, den es im Embed nicht gibt — fuer AECED eigene Galerie-Texte in
-  der Library setzen.
-- 2026-09-11: **M5 komplett auf `master` und deployt** (Version 1.2.246,
-  `ci-main` gruen zu #274; der rote Lauf zu #273 war ein Registry-Fehler beim
-  Hochladen, das Image von #274 enthaelt #272–#274). Kein Code-Schritt offen.
-  Fuer die lokale Sitzung mit beiden Projekten (Library `aeced` einrichten,
-  Embed in commoning-methods pruefen, Paket uebergeben):
-  [`HANDOFF-M5-aeced-lokal.md`](refactor/modularisierung/HANDOFF-M5-aeced-lokal.md).
-  Noch nie geprueft im Embed: Dark Mode der fremden Seite (`.dark .ks-embed`
-  gegen `prefers-color-scheme`) und Mobil.
-- 2026-09-11: **Embed in commoning-methods gegen `commoning` geprueft** (Prod,
-  Paket aus `master` 1.2.247, Next 16.2/React 19/Turbopack, Port 3002):
-  Seite 200, Server-Log und Konsole sauber, alle Anfragen an die Instanz
-  (`public/libraries`, `docs`, `facets`, `doc-meta`), Cover aus dem Blob,
-  9 Quellen, Detailansicht im Rahmen, kein Story-Knopf, `locale` `de`/`en`
-  schaltet Oberflaeche und Anfragen. **Dark Mode**: das Embed folgt der
-  Klasse `dark` am Vorfahren — genau wie commoning-methods selbst
-  (`@custom-variant dark (&:is(.dark *))`); nur `prefers-color-scheme` ohne
-  Klasse laesst beide Seiten hell. Kein Umbau noetig, Hinweis in der README.
-  **Mobil (375 px), Befund + Fix**: Die Buch-Ansicht lief rechts aus dem
-  Panel (Titelspalte 672 px in einem 327 px breiten Panel, Text abgeschnitten)
-  — Radix ScrollArea legt ein `display:table`-Element unter den Viewport, das
-  auf Max-Content-Breite waechst; dazu fehlte der Titelspalte `min-w-0`.
-  Betraf auch die Voll-App auf dem Handy. Fix in `detail-overlay.tsx`
-  (`viewportClassName`, Muster aus `gallery-root`) und `book-detail.tsx`
-  (`min-w-0`, `break-words`), eigene PR. Tabellen im Buchtext scrollen
-  weiterhin in ihrem eigenen Rahmen. Klein, nicht behoben: „Seiten" und
-  „PDF oeffnen" in der Buch-Ansicht sind nicht lokalisiert.
-- 2026-09-11: Library `aeced` weiterhin nicht auf der Instanz (404, oeffentliche
-  Liste unveraendert). Anlegen geht nur angemeldet ueber das Formular
-  (MongoDB nur lesend) — Textentwuerfe liegen in der Antwort der Sitzung,
-  Anlegen und Fuellen macht der Owner.
-- 2026-09-14: **AECED-Inhalte aus den gepflegten Karten-Markdowns.** Die
-  Library ist „AECED Webseite" (Nextcloud „Simulation Hessenbox", Ordner
-  `Web-Entwürfe`), nicht neu anlegen. Owner-Entscheidung: die Karten- und
-  Methoden-Markdowns (`musterkarten/*.md`) sind die Quelle der Transformation;
-  ihre Artefakte (PDF vorn/hinten, PNGs, Audio) haengen als Sammel-Transkript
-  daran. Dafuer ein PR #282 (auf Owner-Wunsch aus #280/#281/#282
-  zusammengefuehrt): Pfade in `_source_files`, `_include_self`,
-  `_media_files` als Bild-Fragmente am Twin,
-  Listen im Frontmatter statt JSON-Text — Ursache war der Whitelist-Parser
-  in `response-parser.ts` beim Zurueckschreiben —, Vorlagen `book`, Body der
-  Musterkarte wie die Kartenrueckseite, Anschlusskarten als `?doc=`-Links.
-  #280 und #281 sind geschlossen. Live geprueft mit Karte 01 in der lokalen
-  Instanz: Cover `k1.png` aus dem Fragment, vier Anschluss-Slugs, sechs Tags.
-  Offen beim Owner: Library publizieren (Slug `aeced`), 18 alte
-  Galerie-Eintraege loeschen, Facetten (docType, familie, lernfeld,
-  prozessschritte) setzen. Offen im Code: Vorlage Methode (Cover aus
-  PDF-Seite 1), die uebrigen 34 Karten/Methoden (Frontmatter, Transkription,
-  Transformation), `?doc=`-Links im Embed abfangen, danach in
-  commoning-methods `NEXT_PUBLIC_KS_INDEX_LIBRARY=aeced`. Befund: der
-  Pre-Merge-Check neben einem laufenden `next dev` aus demselben Worktree
-  bricht im Build mit `PageNotFoundError /_document` (gemeinsames `.next`) —
-  Dev-Server vorher stoppen.
-- 2026-09-14: **Methode 01 (Auftragsklärung) aus der Methoden-Markdown
-  transformiert und publiziert** (lokal, Branch `claude/composite-methode`).
-  Cover ist die erste PDF-Seite: die Seitenbilder (`preview_001.jpg`,
-  `page_001.jpeg`) liegen im Twin-Ordner `pdfs/_<Name>.pdf/` in der
-  Nextcloud und werden über `_media_files` als Fragmente am Twin der
-  Methoden-Markdown registriert — kein neuer Mechanismus. Dafür liest der
-  Eintrags-Parser die Quelldatei jetzt als LETZTES Segment mit Endung (vorher
-  das erste; Twin-Ordner mit Punkt im Namen waren so nicht adressierbar).
-  Vorlage Methode: Body wie der Steckbrief (Kurzbeschreibung, Ziel/Situation/
-  Raum/Zeit/Material, vollständige Durchführung als `durchfuehrung_md`,
-  Bezug zur Mustersprache, Anwendung des Kartensets, passende Karten als
-  `?doc=`-Links, Video-Link), Bildfelder als Dateinamen, HTML-Entities
-  aufgelöst. Das Video-Frontmatter (`videos/<name>.md`) ist zweite Quelle
-  (`_source_files`), das MP4 wird nicht transkribiert. Befund: OCR-Transkripte
-  enthalten `&amp;`; der Renderer zeigt es richtig, in der API stünde es roh
-  — deshalb die Vorlagen-Regel.
-- 2026-09-14: **Owner-Entscheidung: Karten und Methoden als `session`
-  (Ereignis-Ansicht) statt `book`** — sie bettet Video (PeerTube) ein, zeigt
-  Anhänge nach Format und soll Audio abspielen. Gebaut (Branch
-  `claude/composite-methode`, PR #283): Audio-Feld `audio_url` in der
-  Ereignis-Ansicht (Funkwhale/open.audio-Embed als iframe, direkte Dateien als
-  `<audio>`; Guard neben dem Video-Guard), PDFs über `_media_files` als
-  Dokument-Fragmente am Twin (`kind: pdf`), `attachments_url` in beiden
-  Vorlagen mit den Dateinamen der PDF-Quellen; die Ingestion behält die
-  Originalnamen als `attachments_names`, weil die Blob-URL nur den Hash trägt;
-  Badge zeigt den Dokumenttyp lesbar statt „TALK". Karte 01 und Methode 01
-  laufen so: Audio-/Video-Player, PDF-Anhänge mit Namen, Cover. Befund: der
-  open.audio-Track 467545 aus der Karten-Markdown existiert dort nicht („This
-  track wasn't found") — Daten, nicht Code. Offen: die Ereignis-Ansicht ist im
-  Embed noch „nicht verfügbar" (`embed-detail-renderers.tsx`) — sie muss ins
-  Paket wandern, bevor commoning-methods sie zeigen kann; Overlay-Titel „Talk
-  Summary" ist noch Ereignis-Vokabular.
-- 2026-09-15: **Zurück auf `book`, die Buch-Ansicht bekommt Video und Audio.**
-  Die Galerie-Karten der Ereignis-Ansicht (Querformat-Bild mit Titel darüber)
-  passen nicht zu den Hochformat-Covern der Karten; Owner-Entscheidung: `book`
-  bleibt, und die Buch-Ansicht rendert optional `video_url` (iframe) und
-  `audio_url` (Funkwhale-Embed oder `<audio>`), sonst nichts (`book-media.tsx`
-  im Paket). Die Medien-Guards liegen jetzt in `@ks/util`
-  (`safe-media-embed.ts`), die App-Datei ist eine Hülle. Buch-Mapper und
-  Registry kennen `video_url`, `audio_url`, `attachments_url`,
-  `attachments_names`; Anhänge zeigen die Originalnamen. Befund dabei: der
-  Phantom-Medien-Validator (`validateMediaExistence`) streicht `attachments_url`,
-  wenn die PDFs nicht in „Verfügbare Medien" stehen — deshalb listet der
-  Medien-Loader jetzt auch PDF-Fragmente, und die Vorlagen verweisen darauf.
-  Karte 01 und Methode 01 als `book` mit Player und Anhängen geprüft. Die
-  Audio-Erweiterung der Ereignis-Ansicht von gestern bleibt drin (schadet nicht).
-- 2026-09-15: **Abschluss der lokalen Sitzung (14./15.09.) — Stand gegen das Ziel.**
-  Erledigt: Embed in commoning-methods gegen Prod geprüft (Dark Mode, Mobil,
-  Fix #276), Galerie als Hintergrund-Ebene der Bühne „Index" eingebaut
-  (lokaler Branch `ks-embed-nachweis` dort, 4 Commits, nicht gepusht, kein PR);
-  Inhaltsweg für AECED steht: Karten- und Methoden-Markdowns als Sammeldatei,
-  Vorlagen `book` mit Video/Audio/Anhängen (#282, #283, deployt 1.2.251), alle
-  44 Markdowns mit Frontmatter, Karte 01 und Methode 01 publiziert. Gast-Zugang
-  Dialog-Fall (#279). Offen, Owner auf Prod: PDFs zuerst transkribieren
-  (Ordner-Verarbeitung, nur Phase 1: 64 Karten-PDFs, 8 Methoden-PDFs — der
-  Sammellauf legt keine Transkripte an), dann 44 Markdowns transformieren und
-  publizieren; Library veröffentlichen (Slug `aeced`), Facetten setzen;
-  open.audio-Track von Karte 01 korrigieren; 12 Methoden ohne Artefakte.
-  Offen im Code: `?doc=`-Links im Embed; commoning-methods auf
-  `NEXT_PUBLIC_KS_INDEX_LIBRARY=aeced` und den Nachweis-Branch als PR;
-  Loader könnte fehlende PDF-Transkripte selbst anstoßen (Job-Kette).
-  **Nicht begonnen: das Manifest von commoning-methods dynamisch aus
-  KnowledgeScout ziehen** (Konzept dort: `docs/app-concept/detailseiten-konzept.md`,
-  „Datenlayer manifest.json → später Mongo"; das Import-Skript liest weiter die
-  Nextcloud-Markdowns). Baustein dafür ist jetzt da: die Frontmatter der
-  publizierten Dokumente sind über die öffentliche Dokument-API lesbar; die
-  Headless-API P8 bleibt laut Brief außerhalb von M5, bis AECED sie verlangt.
-
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
 - **Termin**: 30.09.
-- **Was es ist**: ein Auftritt mit der Library „Klimamaßnahmen"; Ereignis im
-  Archiv unter `4. Ökosozialer Aktivismus/26.01 Klimamassnahmen Südtirol`.
-  Dort wird konzipiert, was die Library und eine Webseite dafür brauchen;
-  hier steht nur die Arbeitsliste.
+- **Was es ist**: ein Auftritt mit der Library „Klimamaßnahmen"; Konzept und
+  Anforderungen im Vorhabensordner des Archivs, hier nur die Arbeitsliste.
 - **Ziel**: eine Vorführung, die eine Stunde lang nicht hängen bleibt, und
   eine Library, die zeigt, was der Vortrag verspricht.
 
@@ -376,7 +83,7 @@ Bekannte Punkte:
    Wochen aus. Teilfortschritt 27.08. (Netzwerkfehler löschen die Anmeldung
    nicht mehr) ist drin.
 2. Anpassungen an der Library „Klimamaßnahmen" (Umfang aus dem Konzept im
-   Archiv-Ordner; noch nicht festgelegt).
+   Archiv; noch nicht festgelegt).
 3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
    Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
    im Konzept).
@@ -386,165 +93,46 @@ Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
 dem Vorrat (Mapper-Paritätstest, LLM-bereinigte Summe als dritte Zahl), wenn
 die Library ohnehin angefasst wird; ADR 0005 nur entscheiden.
 
-Neu dazugekommen: (noch nichts)
+Neu dazugekommen: siehe Archiv `STAND-Vorhaben.md` (noch nichts).
 
 ## Vorhaben 3 · SHF: Konsensieren-Modul und Begleitfunktionen — ab 16.09. vorbereiten
 
-- **Termine**: Vorabtreffen 16.09., Entwicklung 17.09. bis 09.10., Feature
-  Freeze 09.10., Test 13. bis 17.10., Generalprobe 20.10.
-- **Was es ist**: digitale Begleitung des Stakeholderforums Nachhaltigkeit
-  des Landes Südtirol. Anforderungen im Archiv unter
-  `4. Ökosozialer Aktivismus/26.05 SHF Nachhaltigkeit`. Im Repo gibt es
-  noch keinen Plan und keine Zeile Code.
+- **Termin**: Feature Freeze 09.10.; Termine des Partners im Archiv.
+- **Was es ist**: digitale Begleitung eines Beratungsgremiums mit
+  Arbeitstischen (Steckbrief SHF). Anforderungen und Verfahrensdetails im
+  Vorhabensordner des Archivs; im Repo liegen die abgenommenen Konzepte.
+- **Konzepte im Repo** (Stand 12.09., Owner-Entscheidungen 1–8 darin):
+  [`plans/erfassungs-architektur-stationen-datenhaltung.plan.md`](plans/erfassungs-architektur-stationen-datenhaltung.plan.md)
+  (Regelsatz `capture.*`, Datenhaltung je Station, Verzeichnisstruktur,
+  Wellen D0 und E0–E7, Abschnitt 6 Entscheidungen, Abschnitt 7 offen),
+  [`plans/erfassungs-composer-s4-s5.plan.md`](plans/erfassungs-composer-s4-s5.plan.md)
+  (Composer S4/S5, Scheiben C0–C10, Abnahme an den Figma-Screens),
+  [`analysis/erfassungs-flow-wiederverwendung.md`](analysis/erfassungs-flow-wiederverwendung.md),
+  [`analysis/erfassungs-flow-bauweisen-vergleich.md`](analysis/erfassungs-flow-bauweisen-vergleich.md),
+  [`analysis/dialog-flow-bestand.md`](analysis/dialog-flow-bestand.md) mit
+  [`Nachtrag`](analysis/dialog-flow-bestand-nachtrag.md).
 
-Bekannte Punkte: Plan im Repo anlegen · Modul Systemisches Konsensieren
-(Widerstandswerte, Timer, iterative Runden, Auswertung) · geschützter
-Arbeitsbereich mit Rollen · digitaler Check-out der Arbeitsgruppen ·
-Gruppenbeiträge und Kommentierung · anonymisierte öffentliche Sicht mit
-Rate-Limiting.
+Bekannte Punkte: Modul Systemisches Konsensieren (Widerstandswerte, Timer,
+iterative Runden, Auswertung) · geschützter Arbeitsbereich mit Rollen ·
+digitaler Check-out der Arbeitsgruppen · Gruppenbeiträge und Kommentierung ·
+anonymisierte öffentliche Sicht mit Rate-Limiting.
 
 Mitgenommene alte Themen, vom Owner am 09.09. entschieden: **Die Erfassung
 wird hier in einem Zug bereinigt**, nicht vorab. Dazu gehören die beiden
 Alt-Endpunkte `events/finalize` und `events/publish-final` (Phase 6 von
 generic-finalize-wizard; Befund 11.09.: nur `publish-final` wird in
-`creation-wizard.tsx` noch gerufen, `:2730` und `:2825`; `events/finalize` hat
-in `src/**` keinen Aufrufer mehr),
-ADR 0003 Wizard/Schema, und die Reste aus Welle 3-VI. Mehrsprachigkeit DE/IT:
-entscheidet das Vorabtreffen.
+`creation-wizard.tsx` noch gerufen, `events/finalize` hat in `src/**` keinen
+Aufrufer mehr), ADR 0003 Wizard/Schema, und die Reste aus Welle 3-VI.
+Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
 
-Neu dazugekommen:
-
-- 2026-09-11 — **Erfassungs-Flow analysiert** (Handover aus dem Archiv,
-  `24.09 KnowledgeScout/2026-09-10 Konzept Erfassungs-Flow generisch und mobil/`):
-  [`analysis/erfassungs-flow-wiederverwendung.md`](analysis/erfassungs-flow-wiederverwendung.md)
-  stuft die dreizehn Stationen S0–S11 am Code ein (konfigurieren / erweitern /
-  portieren / neu, mit Belegen aus KnowledgeScout, NatureScout, BetterWriter) und
-  listet vierzehn Widersprüche zwischen Konzept und Code. Kernbefunde: S0 ist
-  nicht „fehlt", sondern erweitern (Mitgliedschaft mit vier Rollen und
-  Einladungs-Token existiert); die Stimme ist binär, nicht Skala; die Werkbank
-  ist twin-gebunden und nimmt den Wartekorb nicht auf; die Outbox persistiert
-  nicht. Pflicht bis Freeze 31–48 PT, Plattform gesamt 45–65 PT.
-  [`analysis/erfassungs-flow-bauweisen-vergleich.md`](analysis/erfassungs-flow-bauweisen-vergleich.md)
-  vergleicht „in KnowledgeScout" gegen „eigenständige App als Endpoint-Client"
-  gegen „eigenständige App mit React-Paketen". Empfehlung: **A jetzt, C-fähig
-  gebaut** — `@ks/capture` spricht nur über `InstanceApi`; der Write-Key wird
-  die erste tokenfähige Schreibroute. Umschaltpunkt am 16.09.: SPID/CIE,
-  Offline-First mit Store-App, oder getrennte Auslieferung fürs Land.
-  Detailkonzept Composer S4/S5 (Handover Teil 3):
-  [`plans/erfassungs-composer-s4-s5.plan.md`](plans/erfassungs-composer-s4-s5.plan.md)
-  — Anlagen-Modell mit Zustand je Anlage, Paket `@ks/capture`, Abgeben
-  sobald eine Anlage fertig ist, elf PR-Scheiben C0–C10 (13–18 PT, +2–3
-  für den Write-Key), Abnahme an T-S4.1 bis T-S5.2. Offen: S0-Detailkonzept.
-- 2026-09-11 — **Owner-Entscheidungen zur Erfassung** (nach Vorlage der
-  Analysen): Bauweise A ist entschieden, auf Modulbasis gebaut (`@ks/capture`
-  über `InstanceApi`); **nur Clerk** als Auth, kein SPID/CIE; **kein Zugang
-  ohne Konto** — ein Write-Key gibt es nur für Angemeldete, als
-  Einladungs-Token an Library und Zieltyp gebunden; Offline-First mit
-  Store-App und getrennte Auslieferung fürs Land sind kein Thema; Zielbild
-  **eine Library je Organisation**, Zeitpunkt offen. Composer: eine View,
-  mobile-first, die auf dem Desktop nur breiter wird (Plan, Abschnitt 5.1).
-  Später zu klären: Service Worker im Next-Build, persistentes Rate-Limit.
-- 2026-09-11 — **Composer als Klickmodell in Figma** gebaut (Screen-Landkarte,
-  ehemals Section `node-id=27-2`, jetzt Matrix `60-2`): Legende Kontext → Konfiguration,
-  fünf Kontext-Reihen (Basis SHF, Moderation in Vertretung, Dialogformate,
-  AECED, Klimamaßnahmen mit Bewertungskarte und Fachkundigen-Hinweis) in
-  390 × 844, Prototyp-Verbindungen in der Basis-Reihe. Belegt, dass
-  Kontexte über Einladungs-Token, Schema, Rolle und Library-Regelsatz an
-  dieselbe Station kommen, nicht über einen zweiten Ablauf. Ausgedehnt auf
-  alle Stationen (Owner 11.09.): Section „S0–S3 Eintritt und Orientieren"
-  bis „S9–S11" — alle 13 Stationen als Klickmodell, Prototyp-Verbindungen
-  über die Stationen hinweg. Auf Owner-Wunsch (abends) als **Matrix**
-  umgehängt (`node-id=60-2`): eine Zeile je Anwendung, eine Spalte je
-  Station, Schnittlinien zum Ausdrucken — waagrecht die Storyline einer
-  Anwendung, senkrecht alle Varianten einer Station. Rahmen verschoben,
-  nicht neu gebaut. Farbleitsystem auf beiden Boards vereinheitlicht:
-  Anwendungen warm/grün (Zeilenbänder), Stationen kühl je Gruppe
-  (Spaltenköpfe). Play-Modus: Start-Screen `66-2` mit Anwendungswahl,
-  je Anwendung Tipp-für-Tipp durch alle Screens (Handy: Figma-App oder
-  Prototyp-Link), vor jeder Station ein Hinweis-Popup (Overlay über dem
-  ersten Screen, Tipp schließt, „?" holt es zurück; Section `70-2`) für
-  Testpersonen. Ketten lückenlos gemacht: 41 angepasste Kopien der
-  Basis-Screens nach der Landkarte (Rolle, Bezugsobjekt, Begriffe je
-  Anwendung), 74 Popups; jede Anwendung läuft jetzt von S0/S1 bis S11
-  (Peters Archiv bis S9). Offen:
-  Bestands-Screenshots (lokal) als Vorlage.
-- 2026-09-11 — **Architektur und Datenhaltung der Stationen** konzipiert
-  (Owner-Frage abends): [`plans/erfassungs-architektur-stationen-datenhaltung.plan.md`](plans/erfassungs-architektur-stationen-datenhaltung.plan.md).
-  Der Wizard ist die Maschine von S4/S5 und wird durch das Composer-Konzept
-  fertig, nicht ersetzt; die übrigen Stationen sind Regelsatz je Library
-  (neues Feld `capture.*`) plus Erweiterung bestehender Module; Neubau nur
-  Anlagen-Modell, Bewertungsmodell mit Fenstern, Sichtbarkeits-Regel,
-  Synthese mit Fassungen. Datenhaltung: Verfahren in MongoDB (neu
-  `consents`, `assessments`, `syntheses`), Wissen als Dokument mit flachem
-  Frontmatter im Storage, Rohdaten im Blob. Wellen E0–E7, Pflicht bis Freeze
-  E0–E4 (34–49 PT). **Owner-Entscheidungen dazu (11.09. abends):** Flows
-  bleiben Dokumente in MongoDB (`kind='wizard'`); eine Library für das SHF,
-  Library je Organisation später; Aufbewahrung so lange wie möglich, keine
-  automatische Löschung (ADR 0004 O2 vorerst geschlossen); Wizard-Editor nach
-  dem Freeze.
-- 2026-09-12 — **Verzeichnisstruktur im Storage** (Owner-Korrektur zur
-  einen SHF-Library, Konzept §3.4): zwei Bäume `Veranstaltungen/<Reihe>/<Treffen>/`
-  (Themen, Ergebnisse, Protokoll) und `Organisationen/<Name>/Beiträge/<Reihe>/<Treffen>/`
-  (Beiträge), damit der spätere Umzug einer Organisation in eine eigene
-  Library ein Verschieben eines Ordners ist und Storage-Rechte je Organisation
-  gesetzt werden können. Bezug im flachen Frontmatter (`reihe`, `treffen`,
-  `thema`, `tisch`, `organisation`); Ablage als Pfadvorlage je Zieltyp
-  (`capture.ablage`) in der Promotion, ersetzt den `root/inbox`-Default;
-  Synthese-Belege über Submission-Id, nicht nur `fileId`. E0 wächst auf 4–5 PT.
-- 2026-09-12 — **Feedback-Runden vorbereitet**: im Archivordner liegt
-  „2026-09-12 Anwendungsflows und Testleitfaden.md" (die sieben Flows des
-  Klickmodells in Worten, Testanleitung, Fragen je Station, Grenzen) und ein
-  Ordner `Feedback/` mit Vorlage. Befunde aus den Runden fließen ins
-  Composer- und ins Architektur-Konzept; die Screens werden im Klickmodell
-  nachgezogen.
-- 2026-09-12 — **Dialog-Flow: übersehener Bestand.** Der Testimonial-/
-  Dialograum-Flow vom Januar (Event-Container mit `testimonialWriteKey`,
-  Recorder, `event-finalize-de`) trägt den Dialogfall zu über 80 Prozent;
-  Hauptanalyse auf Branch `claude/dialog-flow-bestand`
-  (`docs/analysis/dialog-flow-bestand.md`, mit Prod-DB und Live-Test),
-  Nachtrag der zweiten Prüfung hier:
-  [`analysis/dialog-flow-bestand-nachtrag.md`](analysis/dialog-flow-bestand-nachtrag.md).
-  Kernbefunde: die Gast-Seite `/public/testimonial` ist nicht in den
-  öffentlichen Routen (nur die API läuft ohne Konto), der QR zeigt auf den
-  Login-Wizard, `author_is_named` wirkt nicht, der Recorder hat weder
-  Leitfragen noch Vorschau. Dialog-Welle D0 auf Bestand 10–16 PT, außerhalb
-  des Freeze, neben E0/E1. Die Dialog-Zeile des Klickmodells ist am 12.09.
-  in der Cowork-Sitzung auf neun Screens neu gebaut (Archiv „Dialog-Flow neu
-  - Screen-Vorgabe und Testleitfaden"); Gast-Zugang je Library bleibt
-  Owner-Entscheidung.
-- 2026-09-12 — **Haltung „vorauseilendes Vertrauen"** für die SHF-Zeilen
-  (Archiv „Vorauseilendes Vertrauen - der SHF-Flow im Advocatus-Diaboli"):
-  Tischvereinbarung statt Einwilligungsleiter, keine Sichtbarkeitswahl je
-  Beitrag, CTA „Beitragen", stille Runde, Tisch-QR mit Kontext (Anmeldung
-  bleibt, Owner 12.09.) — im Klickmodell gebaut. Option 2 (Kuratieren als
-  Notbremse, Tisch-Abschluss T-S8b.2) ist gebaut, aber Owner-Entscheidung vor
-  dem 16.09. Regelsatz `capture.*` um `zugang: konto | qr`,
-  `kuratierung: tor | notbremse | keine` und die Tischvereinbarung erweitert,
-  Welle D0 im Architektur-Konzept eingetragen (Abschnitt 5 und 7). Offen:
-  Kostenprüfung der Haltungsänderung am Code (Archiv-Nachziehliste, Teil C2)
-  und ADR 0004 Zweig E2 (Write-Key mit Tisch/Rolle). Figma-Reste (Popups,
-  Legenden, vier Screens) laufen über den Cowork-Handover im Archiv.
-- 2026-09-12 — **Owner-Entscheidungen (abends):** Option 2 „Tisch-Ernte"
-  angenommen (`capture.kuratierung: notbremse` für das SHF, Tisch-Abschluss,
-  Kostenprüfung am Code wird Pflicht vor E0); Gast-Zugang für den Dialogfall
-  ja (`capture.zugang: qr`, Route + QR-Weiche in PR #279 enthalten); drei Nennungsstufen
-  (`author_is_named` muss wirken); Widerruf nur bis zum gemeinsamen Abschluss.
-  Offen: Schlüssel-Ablauf, Inbox-Konformität des Gast-Pfads,
-  `events/finalize`, Form des Abschlusses (Architektur-Konzept, Abschnitt 6
-  und 7).
-- 2026-09-11 — Routing-Index in `CLAUDE.md` nennt `src/components/library/gallery/**`
-  und `src/lib/gallery/**`; beides existiert nicht mehr (Galerie in
-  `packages/module-explorer/src/gallery/**`, Sterne unter
-  `api/library/[id]/source-user-states/`). Nachziehen, sobald die Contracts der
-  Galerie mitziehen.
-- 2026-09-12: **Dialog-Fall (Kolping), nicht Teil dieses Vorhabens, korrigiert
-  aber eine Annahme:** Der Testimonial-Pfad vom Januar laeuft API-seitig ohne
-  Konto, die Gast-Seite `/public/testimonial` fehlte in der Middleware
-  (anonym 404) und der QR-Code zeigte auf den Login-Wizard. Owner-Entscheidung
-  12.09.: Gast-Zugang fuer den Dialog-Fall oeffnen — Route und QR-Weiche
-  repariert (ehemals PR #278, in PR #279 zusammengeführt). Die Entscheidung vom 11.09.
-  („kein Zugang ohne Konto") gilt fuer das SHF; Analyse mit Belegen:
-  `docs/analysis/dialog-flow-bestand.md` (ehemals PR #277, in PR #279 zusammengeführt).
+- **Stand 15.09.**: Analysen und Konzepte sind auf `master` (#279); der
+  Gast-Zugang zum Testimonial-Recorder (Route + QR-Weiche) ist gebaut.
+  Nächster Schritt im Repo: **Kostenprüfung der Haltungsänderung am Code**
+  (Architektur-Konzept, Abschnitt 7, Punkt 1; Pflicht vor E0), danach Welle
+  E0 (Regelsatz) und D0 (Dialogfall auf dem Testimonial-Bestand).
+- **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
+  Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
+  `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
 
@@ -711,6 +299,10 @@ und Site-Modus · Favoriten und Kommentare · Settings-UX.
 
 ## Pflege
 
-- Neuer Punkt beim Bauen ⇒ Zeile unter „Neu dazugekommen" des laufenden Vorhabens, mit Datum.
+- Neuer Punkt beim Bauen ⇒ Zeile mit Datum unter „Neu dazugekommen" des
+  laufenden Vorhabens in `24.09 KnowledgeScout/STAND-Vorhaben.md` im Archiv
+  (MCP-Brücke, `datei_patchen`); hier nur, wenn sich die Arbeitsliste oder
+  der nächste Schritt ändert. Ohne Archivzugang: in den Hand-off, der Owner
+  trägt nach.
 - Vorhaben fertig ⇒ Abschnitt nach „Erledigt" kürzen, Reste in den Vorrat, nächstes Vorhaben auf „jetzt".
 - Plan-Dateien: aktiv unter `docs/plans/`, wartend unter `docs/plans/geplant/`, fertig unter `docs/plans/archiv/`.
