@@ -63,7 +63,7 @@ export function RefurbedDeviceCard({
 
   return (
     <article
-      className='group relative aspect-[4/3] overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
+      className='group relative aspect-[4/3] overflow-hidden bg-muted rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
       onClick={onClick}
     >
       {/* Hintergrundbild: Thumbnail bevorzugt fuer bessere Performance */}

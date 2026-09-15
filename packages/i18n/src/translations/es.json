@@ -333,6 +333,7 @@
       "loading": "Calculando sumas…",
       "loadError": "No se pudieron cargar las sumas",
       "missing": "{count} sin dato",
+      "pending": "por determinar",
       "graphTitle": "Sumas (estimación)",
       "naive": "Suma simple",
       "adjusted": "Ajustada por sinergia",

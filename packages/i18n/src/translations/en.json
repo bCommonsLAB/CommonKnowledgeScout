@@ -333,6 +333,7 @@
       "loading": "Calculating totals…",
       "loadError": "Totals could not be loaded",
       "missing": "{count} without value",
+      "pending": "to be determined",
       "graphTitle": "Totals (estimate)",
       "naive": "Simple total",
       "adjusted": "Synergy-adjusted",

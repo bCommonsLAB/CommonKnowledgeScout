@@ -16,6 +16,13 @@
       "autoPort": false
     },
     {
+      "name": "next-dev-3002",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "-p", "3002"],
+      "port": 3002,
+      "autoPort": false
+    },
+    {
       "name": "mkdocs-serve",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["docs:serve"],

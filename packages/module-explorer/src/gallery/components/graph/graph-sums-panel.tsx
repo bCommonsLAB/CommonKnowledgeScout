@@ -18,7 +18,7 @@ import { Info } from 'lucide-react'
 import type { DocCardMeta } from '../../lib/types'
 import type { SimilarityNeighborEdge } from '../../hooks/use-similarity-edges'
 import { computeSynergyAdjustedSum } from '../../lib/synergy-sum'
-import { getSummableFields } from '@ks/contracts'
+import { getSummableFields, getSumPlaceholderFields } from '@ks/contracts'
 import { isDetailViewType as isValidDetailViewType } from '@ks/contracts'
 import { useTranslation } from '@ks/i18n/react'
 import { OverlapReportDialog } from '../overlap-report-dialog'
@@ -50,12 +50,16 @@ export function GraphSumsPanel({ docs, edges, fieldLabels, libraryId, canManageR
   const [alpha, setAlpha] = useState<number>(0.5)
 
   // Summenfelder aus dem ViewType der geladenen Dokumente (Positivliste).
-  const fields = useMemo(() => {
-    const viewType = docs
-      .map((d) => (d as { detailViewType?: string }).detailViewType)
-      .find((vt) => isValidDetailViewType(vt))
-    return getSummableFields(viewType)
-  }, [docs])
+  const viewType = useMemo(
+    () =>
+      docs
+        .map((d) => (d as { detailViewType?: string }).detailViewType)
+        .find((vt) => isValidDetailViewType(vt)),
+    [docs],
+  )
+  const fields = useMemo(() => getSummableFields(viewType), [viewType])
+  // Felder ohne Zahl (z. B. Kosten „noch zu ermitteln").
+  const pendingFields = useMemo(() => getSumPlaceholderFields(viewType), [viewType])
 
   const rows = useMemo(
     () =>
@@ -113,6 +117,12 @@ export function GraphSumsPanel({ docs, edges, fieldLabels, libraryId, canManageR
                 {t('gallery.sums.missing', { count: row.missing })}
               </div>
             )}
+          </div>
+        ))}
+        {pendingFields.map(({ field, noteKey }) => (
+          <div key={field}>
+            <div className="font-medium">{fieldLabels?.[field] || field}</div>
+            <div className="italic text-muted-foreground">{t(noteKey)}</div>
           </div>
         ))}
       </div>

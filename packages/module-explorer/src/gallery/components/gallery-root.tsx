@@ -1032,6 +1032,9 @@ export function GalleryRoot({
       onLoadMore={loadMore}
       hasMore={hasMore}
       isLoadingMore={isLoadingMore}
+      // Platzhalter fuer den ungeladenen Rest: nur wenn die Restzahl bekannt
+      // ist. Engagement-Filter arbeiten clientseitig, dort ist sie es nicht.
+      totalCount={anyEngagementFilterActive ? undefined : totalCount}
       onDocumentDeleted={handleDocumentDeleted}
       libraryDetailViewType={detailViewType}
       // Aktive Spalten-Sortierung = flache globale Rangliste ohne Gruppen-Header.

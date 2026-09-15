@@ -333,6 +333,7 @@
       "loading": "Calcolo delle somme…",
       "loadError": "Impossibile caricare le somme",
       "missing": "{count} senza valore",
+      "pending": "da determinare",
       "graphTitle": "Somme (stima)",
       "naive": "Somma semplice",
       "adjusted": "Corretta per sinergie",

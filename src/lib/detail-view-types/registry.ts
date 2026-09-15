@@ -32,6 +32,7 @@ export {
   getTranslatableFields,
   getTranslatableFieldsForScope,
   getSummableFields,
+  getSumPlaceholderFields,
   getTableColumnsForViewType,
 } from '@ks/contracts'
 

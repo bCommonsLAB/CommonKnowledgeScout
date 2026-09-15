@@ -49,7 +49,7 @@ export function SessionCard({ doc, onClick, libraryId, onToggleFavorite }: Sessi
 
   return (
     <article
-      className='group relative aspect-[16/9] overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
+      className='group relative aspect-[16/9] overflow-hidden bg-muted rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
       onClick={onClick}
     >
       {/* Hintergrundbild: Thumbnail bevorzugt fuer bessere Performance */}

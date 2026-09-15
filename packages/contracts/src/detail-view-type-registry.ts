@@ -162,6 +162,19 @@ export interface ViewTypeConfig {
    * summen-und-synergie-aggregation: explizite Liste pro ViewType.
    */
   summableFields?: string[]
+  /**
+   * Felder, die in der Summen-Anzeige (Fusszeile + Graph-Panel) mit einem
+   * festen Text statt einer Zahl erscheinen — z. B. Kosten, deren Summe
+   * fachlich noch nicht belastbar ist. `noteKey` ist der i18n-Schluessel des
+   * Texts. Das Feld wird NICHT aggregiert (kein Server-Aufruf dafuer).
+   */
+  sumPlaceholderFields?: SumPlaceholderField[]
+}
+
+/** Ein Summen-Feld ohne Zahl: Anzeigename aus den Facetten, Text aus i18n. */
+export interface SumPlaceholderField {
+  field: string
+  noteKey: string
 }
 
 /**
@@ -345,8 +358,11 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeClimateAction',
     descriptionKey: 'gallery.detailViewTypeClimateActionDescription',
-    // Nur additive Groessen summieren (kt CO2/Jahr, EUR). Scores bleiben draussen.
-    summableFields: ['co2_einsparung_kt', 'kosten_eur'],
+    // Nur additive Groessen summieren (kt CO2/Jahr). Scores bleiben draussen.
+    // Kosten (EUR) seit 2026-09-15 nicht mehr summiert — die Schaetzungen sind
+    // noch nicht belastbar; die Summen-Anzeige zeigt stattdessen einen Text.
+    summableFields: ['co2_einsparung_kt'],
+    sumPlaceholderFields: [{ field: 'kosten_eur', noteKey: 'gallery.sums.pending' }],
     mediaConfig: {
       coverImage: true,
       attachments: false,
@@ -632,6 +648,16 @@ export function getSummableFields(viewType: string | undefined): string[] {
   if (!viewType) return []
   const config = getViewTypeConfig(viewType)
   return config?.summableFields ?? []
+}
+
+/**
+ * Summen-Felder, die statt einer Zahl einen festen Text zeigen (siehe
+ * `sumPlaceholderFields`). Leeres Array = keine.
+ */
+export function getSumPlaceholderFields(viewType: string | undefined): SumPlaceholderField[] {
+  if (!viewType) return []
+  const config = getViewTypeConfig(viewType)
+  return config?.sumPlaceholderFields ?? []
 }
 
 /**
