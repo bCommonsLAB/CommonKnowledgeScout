@@ -359,6 +359,24 @@ Neu dazugekommen:
   Nextcloud-Markdowns). Baustein dafür ist jetzt da: die Frontmatter der
   publizierten Dokumente sind über die öffentliche Dokument-API lesbar; die
   Headless-API P8 bleibt laut Brief außerhalb von M5, bis AECED sie verlangt.
+- 2026-09-15 (nachmittags): **Nachweis-Branch in commoning-methods ist jetzt
+  ein PR** (bCommonsLAB/commoning-methods#26): Embed-Paket neu aus 1.2.252
+  gebaut (Mobil-Fix, Video/Audio/Anhänge in der Buch-Ansicht), lokal gegen
+  `commoning` auf `/ks-embed-nachweis` und der Bühne „Index" geprüft; nebenbei
+  startet `next-dev` dort wirklich auf 3001 (`next dev` ohne Port lief auf
+  3000). **`?doc=`-Links im Embed gebaut**: `MarkdownBody` im Paket fängt
+  `[Name](?doc=<slug>)` ab und ruft `openDocument` der Galerie-Adressierung;
+  Pfade, fremde Adressen, Klicks mit Zusatztaste bleiben dem Browser
+  (`gallery/lib/doc-link.ts`, Test `markdown-body-doc-links.test.tsx`). Passt
+  ein `doc` zu keinem geladenen Dokument, warnt `GalleryRoot` statt still zu
+  schließen. Befund: **`aeced` ist auf der Instanz weiterhin nicht
+  öffentlich** (`/api/public/libraries/aeced` → 404, die öffentliche Liste
+  nennt sechs Libraries ohne sie) — der Owner meldete Schritt 1 als erledigt;
+  bis die Library öffentlich ist, lässt sich der `?doc=`-Weg nur im Unit-Test
+  zeigen, nicht live, und commoning-methods bleibt auf `commoning`. Der
+  Preview-Dienst löst Launch-Namen über die Launch-Datei des KS-Worktrees auf,
+  nicht über die des Zielprojekts — für einen fremden Server braucht es dort
+  einen eigenen (lokalen) Eintrag.
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 
