@@ -1,6 +1,6 @@
 ---
 name: archiv-aufraeumen
-description: Einen Vorhabensordner im Wissensarchiv über die KnowledgeScout-MCP-Brücke aufräumen — Abdeckung prüfen, Quellen erschließen, Transformationen nachziehen, Dateien und Ordner sauber benennen, Bericht fortschreiben, Stand setzen. Diesen Skill verwenden, sobald von Aufräumen, Abdeckung, Coverage, Befunden, Twins, Shadow Twins, KnowledgeScout, Erschließen, Transkribieren oder davon die Rede ist, einen Archivordner in Ordnung zu bringen oder die Arbeit von KnowledgeScout gegenzuprüfen.
+description: Einen Vorhabensordner im Wissensarchiv über die KnowledgeScout-MCP-Brücke aufräumen — Abdeckung prüfen, Quellen erschließen, Transformationen nachziehen, Dateien und Ordner sauber benennen, Bericht als Zustand neu schreiben, Stand setzen. Diesen Skill verwenden, sobald von Aufräumen, Abdeckung, Coverage, Befunden, Twins, Shadow Twins, KnowledgeScout, Erschließen, Transkribieren oder davon die Rede ist, einen Archivordner in Ordnung zu bringen oder die Arbeit von KnowledgeScout gegenzuprüfen.
 ---
 
 # Archivordner aufräumen
@@ -354,7 +354,7 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `source_without_twin` | KS · error | `quelle_erschliessen` |
 | `transformation_missing` | KS · error | `transformation_starten` |
 | `transformation_stale` | KS · **info** | `transformation_starten` — blockiert die Abnahme nicht. Verglichen wird seit 27.08.2026 der **Inhalts**-Zeitpunkt (`generated_at`), nicht der letzte Write: Peters Verifizieren am Transkript macht die Zusammenfassung NICHT mehr „ueberholt" |
-| `twin_core_missing` | KS · warning | meist mit der Transformation erledigt |
+| `twin_core_missing` | KS · warning | meist mit der Transformation erledigt. **Ausnahme seit 2.30.0:** an einer Notiz oder Verlaufsdatei (`type: notiz` / `verlauf`) ist der Akteur **Cowork** — `generated_by` und `generated_at` per `frontmatter_setzen` nachtragen |
 | `legacy_twin_name` | KS · warning | `twins_synchronisieren`: erst `import`, dann `repair` (deckt auch `split-combined-artifact` ab — das ist eine Migrations-Operation, kein eigener Befund) |
 | `orphan_twin` | KS · warning | Twin ohne Quelle — Ursache prüfen, meist `familie_umziehen` oder `repair` |
 | `twin_stale` | KS · warning | Quelle jünger als ihr Twin → `transformation_starten` |
@@ -374,7 +374,12 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 > Auch hier zaehlt seit 27.08.2026 nur eine **Inhalts**-Aenderung: Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht mehr. Frueher liess jeder Pruef-Klick `bericht_veraltet` und damit `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten nicht schliessen liess.
 | `verweis_veraltet` | Cowork · warning | verwiesenes Ziel ist jünger — Verweis prüfen, dann Bericht neu speichern |
 | `verweis_tot` | Cowork · error | Verweis zeigt ins Leere — Ziel suchen oder Verweis entfernen |
-| `bericht_unvollstaendig` | Cowork · **info** | Bericht lässt Quellen unerwähnt — ergänzen, blockiert nichts |
+| `bericht_unvollstaendig` | Cowork · **info** | Bericht lässt Quellen unerwähnt — seit 2.30.0 zählt auch die Nennung in einer Notiz oder Verlaufsdatei, auf die der Bericht verlinkt (eine Ebene tief; das Detail sagt „über Verweise erwähnt: X (in Notiz.md)"). Die fehlende Quelle deshalb **in der passenden Notiz** nennen, NICHT als Dateiliste in den Bericht schieben |
+| `bericht_zu_lang` | Cowork · warning | `BERICHT.md` größer als die Schwelle seiner `rolle` — **verdichten nach Schritt 6**: Gliederung lesen, Verlauf in Notizen (`type: notiz`, Ereignisordner) und Verlaufsdateien (`type: verlauf`, Vorhabenswurzel) auslagern, im Bericht eine Zeile mit echtem Link lassen. Nichts weglassen: Jede Aussage steht danach im Bericht oder höchstens einen Link entfernt |
+| `status_zu_lang` | Cowork · **info** | `## Status` hat mehr Zeilen als erlaubt (Codeblöcke zählen nicht) — Status neu schreiben: nur was JETZT gilt; die Geschichte dahin gehört in die Chronologie bzw. eine verlinkte Notiz |
+| `bericht_ueberholt` | Cowork · **info** | offene `- [ ]` mit vergangenem Datum oder `naechster_termin` in der Vergangenheit; das Detail nennt jede Zeile wörtlich — abhaken/entfernen, Verschobenes neu datieren, `naechster_termin` auf den nächsten echten Termin setzen oder entfernen |
+| `verlauf_fehlt` | Cowork · **info** | `postfach_bis` gesetzt, aber der Bericht verlinkt auf keine Datei mit `type: verlauf` — `Korrespondenz.md` in der Vorhabenswurzel anlegen (Frontmatter `type: verlauf`, `generated_by`, `generated_at`), KW-Abschnitte aus dem Bericht dorthin verschieben, im Bericht `[[Korrespondenz]]` verlinken |
+| `entwicklung_unberichtet` | Cowork · **info** | ein Eintrag in `Entwicklung.md` (Skill `repo-bericht`, Claude Code) nennt dieses Vorhaben, der Bericht ist älter und verweist nicht darauf — je Eintrag **eine** Chronologiezeile mit Link auf das Sprungziel (`[[Entwicklung#<anker>]]`), erledigte offene Fragen abräumen; Inhalt NICHT kopieren. Erscheint nur, wenn der Plattformbericht auf `[[Entwicklung]]` verlinkt, und im Teilbaum-Scan nur, wenn `Entwicklung.md` im Teilbaum liegt |
 | `teilbaum_ungesichtet` | KS · **info** | Sammel-Befund unter ungesichtetem Ordner — erst strukturieren |
 | `scan_error` | KS · error | Teilbaum nicht lesbar — Ursache melden, nie übergehen |
 | `twin_flagged` | Mensch · error | Peter hat das Artefakt als **fehlerhaft markiert** — Notiz in `flagged_note` lesen, reparieren; die Abnahme bleibt gesperrt, bis Peter danach verifiziert |
@@ -487,10 +492,33 @@ Fortschrittsanzeige. Sie erscheint **nur beim zweiten Scan desselben Scopes**.
 Nach einem Scan mit anderem Scope steht dort `null` mit „Anderer Scan-Scope als
 zuvor"; das ist kein Fehler, nur kein Vergleich.
 
-Dann `BERICHT.md` und `_INDEX.md` nach den Vorlagen aus `Konventionen.md`
-fortschreiben. **Den Erschließungsstand in die `_INDEX.md`**, nicht in den
-Bericht — dort steht `bearbeitungsstand` im Frontmatter, und der Bericht
-verweist nur darauf.
+Dann `_INDEX.md` nach Vorlage nachziehen und den **`BERICHT.md` als Zustand neu
+schreiben — nicht anhängen** (Konventionen, Abschnitt „Länge"):
+
+1. **Erst messen.** `stat` auf den Bericht (Größe) bzw. `berichte.jeVorhaben` in
+   `abdeckung_lesen`; die Schwellen stehen in `conventions`.
+2. **Gliederung statt Volltext.** `datei_lesen` mit
+   `bereich: {art: "gliederung"}` — Überschriften mit Zeilenbereich, Bytes und
+   offenen Punkten. Einträge mit `keineEchteUeberschrift` sind Zeilen in
+   Codeblöcken, keine Abschnitte. Dann nur die Abschnitte lesen, die geändert
+   werden (`bereich: abschnitt`).
+3. **Status neu schreiben** (`abschnitt_ersetzen`): was jetzt gilt, höchstens
+   die erlaubten Zeilen. Ältere Fassungen und Zwischenstände gehören nicht hinein.
+4. **Erledigtes abräumen**, Neues als **eine Chronologiezeile mit Link**. Das
+   Detail kommt in eine Notiz im Ereignisordner (`type: notiz`) oder in eine
+   Verlaufsdatei der Vorhabenswurzel (`type: verlauf`, z. B.
+   `Korrespondenz.md`) — beide mit `generated_by` und `generated_at`, beide
+   vom Bericht aus **verlinkt**, sonst sieht der Scan sie nicht.
+5. **Auf die Antwort achten.** Die Schreibwerkzeuge melden bei `BERICHT.md`
+   `groesseNachher`, `schwelle`, `schwelleUeberschritten`; bei
+   `abschnitt_einfuegen` mit neuer `##`-Überschrift kommt die Rückfrage, ob das
+   in eine Ereignisnotiz gehört. Ein Hinweis, keine Sperre — aber am Ende des
+   Laufs soll der Bericht unter der Schwelle liegen.
+
+**Den Erschließungsstand in die `_INDEX.md`**, nicht in den Bericht — dort
+steht `bearbeitungsstand` im Frontmatter, und der Bericht verweist nur darauf.
+`repo_stand_am` und `repo_stand_commit` setzt der Skill `repo-bericht` in
+Claude Code, nicht dieser Lauf.
 
 **Schreibreihenfolge beachten (Befund 27.08.2026).** `stand_setzen` schreibt in
 die `_INDEX.md` — und macht damit **jeden Verweis darauf veraltet**. Wer den
