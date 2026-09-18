@@ -29,6 +29,8 @@ export function auditAllDocuments(args: {
   begleit?: ReadonlyMap<string, readonly ArchiveDocEntry[]>
   /** Fertiger Index, wenn der Aufrufer ihn schon gebaut hat (spart den zweiten Aufbau). */
   index?: ReferenceIndex
+  /** Gesetzt bei Teilbaum-Scans — siehe `ReferenceAuditArgs.teilbaum`. */
+  teilbaum?: { scopePath: string | null }
 }): CoverageGap[] {
   const index = args.index ?? buildReferenceIndex(buildInventoryTargets({ folders: args.folders, families: args.families, fileIndex: args.fileIndex }))
   const sourcesByFolder = new Map<string, Array<{ name: string; path: string }>>()
@@ -41,7 +43,7 @@ export function auditAllDocuments(args: {
 
   const gaps: CoverageGap[] = []
   for (const folder of args.folders) {
-    if (folder.index) gaps.push(...auditReferences({ doc: folder.index, folderId: folder.folderId, index }))
+    if (folder.index) gaps.push(...auditReferences({ doc: folder.index, folderId: folder.folderId, index, teilbaum: args.teilbaum }))
     if (!folder.bericht) continue
     gaps.push(
       ...auditReferences({
@@ -52,6 +54,7 @@ export function auditAllDocuments(args: {
         // nicht jede Datei ihres Teilbaums aufzaehlen muessen.
         expectedSources: isVorhaben(folder, args.vorhabenPattern) ? sourcesByFolder.get(folder.folderId) ?? [] : [],
         linkedDocs: args.begleit?.get(folder.folderId) ?? [],
+        teilbaum: args.teilbaum,
       }),
     )
   }

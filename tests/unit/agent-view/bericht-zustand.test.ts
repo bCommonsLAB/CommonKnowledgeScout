@@ -152,3 +152,17 @@ describe('bericht_ueberholt', () => {
     expect(checkBerichtUeberholt(folder(bericht({ meta: { naechster_termin: '2026-10-02' } })), scharf)).toBeNull()
   })
 })
+
+describe('Prueflauf 18.09.2026 — Datum im Linkziel ist kein Termin', () => {
+  it('ein offener Punkt, der auf eine datierte Notiz verlinkt, ist nicht ueberholt', () => {
+    const body = [
+      '## Nächste Schritte',
+      '- [ ] Konzept ergaenzen: drei Modi — siehe [[2026-09-08 Besprechung — Notiz]]',
+      '- [ ] Protokoll pruefen ([2026-09-01 Protokoll](2026-09-01%20Treffen/Protokoll.md))',
+      '- [ ] 01.09. Rueckmeldung einholen, Details in [[2026-10-30 Ausblick — Notiz]]',
+    ].join('\n')
+    expect(ueberholtePunkte(body, jetzt, 2).map((f) => f.zeile)).toEqual([
+      '- [ ] 01.09. Rueckmeldung einholen, Details in [[2026-10-30 Ausblick — Notiz]]',
+    ])
+  })
+})

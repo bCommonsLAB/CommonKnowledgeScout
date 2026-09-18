@@ -177,3 +177,34 @@ describe('repo_stand_commit (C3)', () => {
     expect(checkRepoVeraltet(alt, ctx)?.message).toContain('alt0000')
   })
 })
+
+describe('Prueflauf 18.09.2026 — Verweise nach aussen im Teilbaum-Scan', () => {
+  const index = buildReferenceIndex([{ path: 'Korrespondenz.md', name: 'Korrespondenz.md', modifiedAt: FRUEH, kind: 'file' }])
+  const bericht = (body: string) => doc('BERICHT.md', {}, body)
+  const tot = (body: string, teilbaum?: { scopePath: string | null }) =>
+    auditReferences({ doc: bericht(body), folderId: 'f', index, teilbaum }).filter((g) => g.type === 'verweis_tot').length
+
+  it('im Voll-Scan bleibt ein unaufloesbarer Verweis tot', () => {
+    expect(tot('[[Entwicklung#2026-09-12-anker]]')).toBe(1)
+  })
+
+  it('im Teilbaum ist ein blosser Name oder ein Pfad nach aussen nicht beurteilbar', () => {
+    const teilbaum = { scopePath: 'A/26.05 Forum' }
+    expect(tot('[[Entwicklung#2026-09-12-anker]]', teilbaum)).toBe(0)
+    expect(tot('[[B/24.09 Plattform/Entwicklung#x|Entwicklung]]', teilbaum)).toBe(0)
+    expect(tot('[Plan](../24.09%20Plattform/Plan.md)', teilbaum)).toBe(0)
+  })
+
+  it('was IM Teilbaum liegen muesste, bleibt beweisbar tot — und ein Pfad mit Scope-Praefix wird aufgeloest', () => {
+    const teilbaum = { scopePath: 'A/26.05 Forum' }
+    expect(tot('[Notiz](Ereignis/Fehlt.md)', teilbaum)).toBe(1)
+    expect(tot('[[A/26.05 Forum/Fehlt]]', teilbaum)).toBe(1)
+    expect(tot('[[A/26.05 Forum/Korrespondenz]]', teilbaum)).toBe(0)
+  })
+
+  it('Pfadform ohne .md loest im Voll-Scan auf', () => {
+    const voll = buildReferenceIndex([{ path: 'B/24.09 Plattform/Entwicklung.md', name: 'Entwicklung.md', modifiedAt: FRUEH, kind: 'file' }])
+    const gaps = auditReferences({ doc: bericht('[[B/24.09 Plattform/Entwicklung#anker|Entwicklung]]'), folderId: 'f', index: voll })
+    expect(gaps.filter((g) => g.type === 'verweis_tot')).toEqual([])
+  })
+})

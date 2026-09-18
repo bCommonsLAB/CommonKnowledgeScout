@@ -130,6 +130,18 @@ export function datumsangaben(text: string, now: Date): number[] {
   return treffer
 }
 
+/**
+ * Nimmt Verweise aus dem Text, bevor nach Terminen gesucht wird (Prueflauf
+ * 18.09.2026): Ereignisordner und Notizen beginnen per Konvention mit dem
+ * Datum — `[[2026-09-08 Besprechung … — Notiz]]` ist ein Linkziel, kein
+ * Termin. Ohne das traefe die Regel JEDEN offenen Punkt, der — wie verlangt —
+ * auf sein Detail verlinkt. Entfernt werden Wikilinks ganz und Markdown-Links
+ * samt Anzeigetext (der traegt meist denselben Dateinamen).
+ */
+export function ohneVerweise(text: string): string {
+  return text.replace(/!?\[\[[^\]]*\]\]/g, ' ').replace(/!?\[[^\]]*\]\([^)]*\)/g, ' ')
+}
+
 export interface UeberholterPunkt {
   /** Die Zeile WOERTLICH (erste Zeile des Punkts) — per Textsuche auffindbar. */
   zeile: string
@@ -160,7 +172,7 @@ export function ueberholtePunkte(body: string, now: Date, abTagen: number): Uebe
   const heute = heuteUtc(now)
   const ergebnis: UeberholterPunkt[] = []
   for (const punkt of punkte) {
-    const daten = datumsangaben(punkt.text, now)
+    const daten = datumsangaben(ohneVerweise(punkt.text), now)
     if (daten.length === 0) continue
     const tageVorbei = Math.round((heute - Math.max(...daten)) / TAG_MS)
     if (tageVorbei >= abTagen && tageVorbei > 0) ergebnis.push({ zeile: punkt.zeile, tageVorbei })

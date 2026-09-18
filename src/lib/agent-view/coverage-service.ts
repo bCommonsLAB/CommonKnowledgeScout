@@ -210,7 +210,11 @@ export async function runCoverageScan(
         now: generatedAt,
       }),
     ),
-    ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex }),
+    ...auditAllDocuments({
+      folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex,
+      // Im Teilbaum ist ein Verweis nach aussen nicht beurteilbar — das macht der Voll-Scan.
+      teilbaum: request.scopeFolderId === null ? undefined : { scopePath: request.scopePath ?? null },
+    }),
     // Wunschliste 6, Teil C: Notizen/Verlaufsdateien — Pflichtfelder,
     // Korrespondenz ohne Verlauf, Programmierung, die im Bericht fehlt.
     ...folders.flatMap((folder) => {

@@ -86,6 +86,28 @@ abweicht — bei Wunschliste 5 kamen Abweichungen erst im Nachhinein ans Licht.
 8. **Keine neuen Werkzeugnamen.** Die Soll-Toolliste bleibt gleich;
    `bruecke_info` weist die Schema-Änderungen unter `neuInDieserVersion` aus.
 
+## Nachzug aus dem Prüflauf (18.09.2026, Werkzeugsatz 2.30.1)
+
+Der Prüflauf in Cowork hat den Bericht des Anwendungsvorhabens von 69 kB auf
+12 kB gebracht, ohne Informationsverlust in der Stichprobe. Zwei Fehler der
+neuen Regeln sind behoben:
+
+9. **`bericht_ueberholt` las Datumsangaben in Linkzielen.** Notizen und
+   Ereignisordner beginnen mit dem Datum; jeder offene Punkt, der auf sein
+   Detail verlinkte, galt als überholt. Wikilinks und Markdown-Links werden vor
+   der Datumssuche aus dem Text genommen (`ohneVerweise`).
+10. **`verweis_tot` bestrafte den Link, den `entwicklung_unberichtet` verlangt.**
+    Obsidian löst `[[Name]]` im ganzen Archiv auf, ein Teilbaum-Scan kennt nur
+    seinen Teilbaum. Dort ist ein nicht auflösbarer Verweis nur noch dann tot,
+    wenn sein Ziel im Teilbaum liegen müsste (relativer Link ohne `../`, oder
+    Pfad mit dem Präfix des Teilbaums). Bloße Namen und Pfade nach außen
+    beurteilt der Voll-Scan. Folge: Nach einem Teilbaum-Scan fehlt ein solcher
+    toter Verweis im gemergten Report, bis wieder voll gescannt wird.
+    Wikilinks in Pfadform ohne `.md` lösen jetzt auch im Voll-Scan auf.
+
+Offen aus dem Prüflauf, kein Code: Kriterium 5 des Qualitätsmusters („Offene
+Fragen" als eigener Abschnitt) steht weder in den Konventionen noch im Skill.
+
 ## Grenzen
 
 - Kein Bericht wird von Hand umgebaut, auch nicht zum Testen.
