@@ -4,21 +4,22 @@ docType: commoning_musterkarte
 title: {{title|Voller Kartentitel (extraktiv, deutsche Schreibweise wie auf der Karte, z. B. "Gemeinsame Absichten und Werte kultivieren")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
 slug: {{slug|ASCII, lowercase, kebab-case; Umlaute normalisieren (ä→ae, ö→oe, ü→ue, ß→ss); max 80}}
-summary: {{summary|≤1000 Zeichen, extraktiv: worum geht es bei diesem Muster? Kern der Rückseite zusammenfassen}}
+summary: {{summary|≤1000 Zeichen, extraktiv, ganze Sätze: worum geht es bei diesem Muster? Kern der Rückseite zusammenfassen}}
 teaser: {{teaser|2–3 Sätze, nicht identisch zu summary, extraktiv}}
 authors: {{authors|Array; Urheber der Mustersprache falls im Material genannt (z. B. Impressum), sonst []}}
 date: {{date|Stand-/Erscheinungsdatum YYYY-MM-DD, nur wenn im Material explizit; sonst ""}}
-year: {{year|YYYY oder null, nur wenn im Material explizit}}
+year: {{year|YYYY als Zahl oder null, nur wenn im Material explizit — NIE ein leerer String}}
 language: {{language|Kartensprache, z. B. "de"}}
 targetLanguage: {{targetLanguage|Zielsprache der Ausgabe, i.d.R. gleich language (de)}}
-source: {{source|Herausgeber/Projekt/Organisation, nur wenn im Material explizit (z. B. "Commons-Institut")}}
-tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, HOECHSTENS 6; streng extraktiv aus dem Kartentext}}
+source: {{source|Herausgeber/Projekt/Organisation, nur wenn im Material explizit (z. B. "Commons-Institut"); sonst ""}}
+tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, HOECHSTENS 6; streng extraktiv: Kernbegriffe der Karte, keine Einzelwörter aus der Leitfrage (z. B. nicht "code", "design")}}
 familie: {{familie|Genau eine aus: miteinander, soziales, wirtschaften — aus Material/Kontext (Kartenfamilie)}}
 form: {{form|Genau eine aus: kreis, quadrat, dreieck — die Kartenform dieser Familie}}
 karten_nummer: {{karten_nummer|Laufende Kartennummer innerhalb der Familie als Zahl (aus Material/Dateiname); wenn nicht bestimmbar: null}}
 frage: {{frage|Die Leitfrage der Kartenrückseite, wörtlich, mit Fragezeichen; wenn keine erkennbar: ""}}
 haupttext: {{haupttext|Der Absatz DIREKT UNTER der Leitfrage der Rückseite, wörtlich und vollständig; keine Aufzählungen danach mitnehmen}}
-beispiele: {{beispiele|Das Kleingedruckte der Rückseite UNTER dem Haupttext (Beispiele, Fälle), wörtlich, Absätze durch Leerzeile getrennt; Seitenzahlen und Kartennummern am Seitenende weglassen; sonst ""}}
+beispiele_md: {{beispiele_md|Das Kleingedruckte der Rückseite UNTER dem Haupttext (Beispiele, Fälle) als Markdown-Text, wörtlich, Absätze durch Leerzeile getrennt; Seitenzahlen, Kartennummern und Symbole am Seitenende weglassen; sonst ""}}
+beispiele: {{beispiele|Array: je Absatz des Kleingedruckten UNTER dem Haupttext ein Eintrag, wörtlich, in der Reihenfolge der Karte — dieselben Absätze wie in beispiele_md; Seitenzahlen, Kartennummern und Symbole am Seitenende weglassen; sonst []}}
 prozessschritte: {{prozessschritte|Array aus kontrolliertem Vokabular (nur wenn im Material belegt/gepflegt): aneignen-und-kennenlernen, vermitteln-und-ausrichten, beraten-lernen, organisieren-lernen, beginnen, visionieren, projektieren, reflektieren, kultivieren, weiterentwickeln}}
 lernfeld: {{lernfeld|Eine aus: selbstbildung, organisationsbildung, lernen-zwischen-organisationen — nur wenn im Material explizit; sonst ""}}
 aeced_code: {{aeced_code|AECED-Code (z. B. "A.1.2") NUR als Querverweis, nie als Schlüssel; nur wenn im Material explizit; sonst ""}}
@@ -44,7 +45,7 @@ path: {{path|Verzeichnispfad relativ zur Library (technisch)}}
 
 {{haupttext}}
 
-{{beispiele}}
+{{beispiele_md}}
 
 ## Anschlusskarten
 
@@ -64,15 +65,20 @@ Strenge Regeln:
   Slugs in verwandte_musterkarten dürfen aus Datei-/Linknamen gelesen werden, weil die Namens-
   konvention `<familie>-<form>-<nn>_<slug>` diese Angaben TRÄGT (das ist ihre gepflegte Quelle).
 - Wenn eine Information nicht sicher vorliegt: "" (String), [] (Array) oder null (Zahlen).
+  year und karten_nummer sind Zahlen: fehlt der Wert, null — nie "".
+- Die Antwort enthält GENAU die Schlüssel des Antwortschemas: keine zusätzlichen Schlüssel
+  (auch keine Varianten wie audio_embed_url), keine fehlenden.
 - Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Keine Kommentare, kein Markdown.
 
 Feld-Hinweise:
 - frage: Die Rückseite trägt oben eine Leitfrage — wörtlich übernehmen, inkl. Fragezeichen.
 - haupttext: GENAU der Absatz direkt unter der Leitfrage — vollständig, wörtlich, ohne die
   danach folgenden Aufzählungen/Beispiele. Kein Umformulieren.
-- beispiele: das Kleingedruckte UNTER dem Haupttext (z. B. „In Solidarischen Landwirtschaften …",
-  „Wenn sich Mitglieder … treffen …"), wörtlich, Absätze durch Leerzeile getrennt. Die Zahlen am
-  Seitenende (Kartennummer, Anschlusskarten-Symbole) gehören NICHT dazu.
+- beispiele_md: das Kleingedruckte UNTER dem Haupttext (z. B. „In Solidarischen Landwirtschaften …",
+  „Wenn sich Mitglieder … treffen …"), wörtlich, Absätze durch Leerzeile getrennt. Die Zahlen und
+  Symbole am Seitenende (Kartennummer, Anschlusskarten-Symbole wie „▲ ▲ ▲") gehören NICHT dazu.
+- beispiele: dieselben Absätze als Array, ein Absatz je Eintrag, gleiche Reihenfolge wie
+  beispiele_md. Leer ([]), wenn beispiele_md leer ist.
 - verwandte_musterkarten_md: aus verwandte_musterkarten eine Markdown-Liste bauen, je Zeile
   `- [Lesbarer Name](?doc=<slug>)`, Lesbarer Name = Slug mit Leerzeichen statt Bindestrichen und
   großem Anfangsbuchstaben (z. B. `- [Sich in vielfalt gemeinsam ausrichten](?doc=sich-in-vielfalt-gemeinsam-ausrichten)`).
@@ -81,7 +87,8 @@ Feld-Hinweise:
 - prozessschritte: NUR Werte aus dem kontrollierten Vokabular (siehe Frontmatter-Anweisung);
   Quelle ist die gepflegte `prozessschritte:`-Zeile. Nichts erraten.
 - bearbeitungsstatus: aus `status:`-Zeile; fehlt sie, "fertig".
-- audio_embed_src: nur übernehmen, wenn eine URL wörtlich im Material steht (`audio:`-Zeile).
+- audio_url und audio_embed_src: nur übernehmen, wenn eine URL wörtlich im Material steht
+  (`audio:`-Zeile); beide tragen dieselbe URL.
 - Bilder: coverImageUrl/bild_vorschau = Dateiname aus der `preview:`-Zeile, bild_vorderseite/
   bild_rueckseite = Dateinamen aus `png-de-front:`/`png-de-rear:` — NUR der Dateiname (kein Pfad,
   keine URL), und nur, wenn er in „Verfügbare Medien" vorkommt.
@@ -89,6 +96,10 @@ Feld-Hinweise:
   Ingest-Pipeline gesetzt, nie vom Modell.
 
 Normalisierung:
+- HTML-Entities aus dem OCR-Transkript in ALLEN Textfeldern als Zeichen schreiben:
+  &amp; → &, &lt; → <, &gt; → >, &quot; → ", &#39; → '. Keine Entities in der Ausgabe.
+- Silbentrennung aus Zeilenumbrüchen des OCR zusammenziehen („Wissens-weitergabe" → „Wissensweitergabe");
+  echte Bindestrich-Komposita („Open-Source-Ecology") bleiben.
 - slug/Slugs: ASCII, lowercase, kebab-case, max 80; ä→ae, ö→oe, ü→ue, ß→ss.
 - tags: lowercase, ASCII, kebab-case, dedupliziert; keine Synonyme erfinden.
 - shortTitle: ≤40 Zeichen, ohne abschließende Satzzeichen.
@@ -112,7 +123,8 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "karten_nummer": number | null,
   "frage": string,
   "haupttext": string,
-  "beispiele": string,
+  "beispiele_md": string,
+  "beispiele": string[],
   "prozessschritte": string[],
   "lernfeld": "selbstbildung" | "organisationsbildung" | "lernen-zwischen-organisationen" | "",
   "aeced_code": string,
@@ -121,9 +133,9 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "verwandte_musterkarten_md": string,
   "audio_url": string,
   "audio_embed_src": string,
-  "attachments_url": string[],
   "audio_beschreibung": string,
   "audio_stream_url": "",
+  "attachments_url": string[],
   "coverImageUrl": string,
   "bild_vorschau": string,
   "bild_vorderseite": string,

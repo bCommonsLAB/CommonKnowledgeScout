@@ -1,27 +1,27 @@
 ---
 detailViewType: book
 docType: commoning_methode
-title: {{title|Voller Methodenname (extraktiv, deutsche Schreibweise, ohne Kapitelnummer wie "2.2", z. B. "Auftragsklärung für den Prozess hin zu einer Commoning Organisation")}}
+title: {{title|Voller Methodenname (extraktiv, deutsche Schreibweise, ohne Kapitelnummer wie "2.2" und ohne Klammerzusatz am Ende wie "(POC)", z. B. "Auftragsklärung für den Prozess hin zu einer Commoning Organisation")}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
 slug: {{slug|ASCII, lowercase, kebab-case; Umlaute normalisieren (ä→ae, ö→oe, ü→ue, ß→ss); max 80}}
 summary: {{summary|≤1000 Zeichen, extraktiv: was ist die Methode, wofür, wie läuft sie ab?}}
 teaser: {{teaser|2–3 Sätze, nicht identisch zu summary, extraktiv}}
 authors: {{authors|Array; Autor:innen/Urheber der Methode, nur wenn im Dokument genannt; sonst []}}
 date: {{date|Stand-/Erscheinungsdatum YYYY-MM-DD, nur wenn im Dokument explizit; sonst ""}}
-year: {{year|YYYY oder null, nur wenn im Dokument explizit}}
+year: {{year|YYYY als Zahl oder null, nur wenn im Dokument explizit — NIE ein leerer String}}
 language: {{language|Dokumentsprache, z. B. "de"}}
 targetLanguage: {{targetLanguage|Zielsprache der Ausgabe, i.d.R. gleich language (de)}}
-source: {{source|Herausgeber/Projekt/Organisation (z. B. Reihe "CommNpractice"), nur wenn explizit}}
+source: {{source|Herausgeber/Projekt/Organisation (z. B. Reihe "CommNpractice"), nur wenn explizit; sonst ""}}
 tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, HOECHSTENS 6; streng extraktiv}}
 methoden_nummer: {{methoden_nummer|Laufende Methodennummer als Zahl (aus Material/Dateiname `<N>_<Name>.pdf`); wenn nicht bestimmbar: null}}
-kurzbeschreibung: {{kurzbeschreibung|Text der Zeile "Kurzbeschreibung:" wörtlich (extraktiv; sonst "")}}
-ziel: {{ziel|Ziel: Was soll mit der Methode geübt/erreicht werden? (extraktiv aus "Ziel:"; sonst "")}}
-situation: {{situation|Situation/Problemstellung: Kontext der Methode (extraktiv; sonst "")}}
-raum: {{raum|Raumbedarf/Ort (extraktiv aus "Raum:"/"Räumlichkeiten:"/"Ort:"; sonst "")}}
-zeitempfehlung: {{zeitempfehlung|Zeitempfehlung/Dauer (extraktiv aus "Zeit:"/"Zeitempfehlung:"; sonst "")}}
-material: {{material|Benötigtes Material (extraktiv; sonst "")}}
+kurzbeschreibung: {{kurzbeschreibung|Text der Zeile "Kurzbeschreibung:" wörtlich, ohne das Label (extraktiv; sonst "")}}
+ziel: {{ziel|Ziel: Was soll mit der Methode geübt/erreicht werden? (extraktiv aus "Ziel:", ohne das Label; sonst "")}}
+situation: {{situation|Situation/Problemstellung: Kontext der Methode (extraktiv, ohne das Label; sonst "")}}
+raum: {{raum|Raumbedarf/Ort (extraktiv aus "Raum:"/"Räumlichkeiten:"/"Ort:", ohne das Label; sonst "")}}
+zeitempfehlung: {{zeitempfehlung|Zeitempfehlung/Dauer, wörtlich ohne das Label "Zeit:"/"Zeitempfehlung:"; innere Angaben wie "Durchführung: 60 min" bleiben; sonst ""}}
+material: {{material|Benötigtes Material (extraktiv aus "Material:", ohne das Label; sonst "")}}
 durchfuehrung: {{durchfuehrung|Ablauf in Kurzform: Phasen und Schritte (extraktiv; max 800 Zeichen; sonst "")}}
-durchfuehrung_md: {{durchfuehrung_md|VOLLSTÄNDIGER Text des Abschnitts "Gemeinsame Durchführung" bis vor "Bezug zur Mustersprache" als Markdown: Unterabschnitte (Mitgestaltung & Vorbereitung, Durchführung, Phase 1, Phase 2 …) als "### "-Überschriften, Absätze und Aufzählungen wörtlich übernehmen, Bild-Zeilen (![…](…)) und Abbildungs-Beschriftungen weglassen; keine Kürzung; sonst ""}}
+durchfuehrung_md: {{durchfuehrung_md|VOLLSTÄNDIGER Text des Abschnitts "Gemeinsame Durchführung" bis vor "Bezug zur Mustersprache" als Markdown: Unterabschnitte (Mitgestaltung & Vorbereitung, Durchführung, Phase 1, Phase 2 …) als "### "-Überschriften OHNE abschließenden Doppelpunkt ("## Durchführung:" → "### Durchführung"), Absätze und Aufzählungen wörtlich übernehmen, Bild-Zeilen (![…](…)), Tabellen und Abbildungs-Beschriftungen weglassen; keine Kürzung; sonst ""}}
 bezug_mustersprache: {{bezug_mustersprache|Prosa-Absatz unter "Bezug zur Mustersprache (und Anwendung)" (extraktiv; sonst "")}}
 anwendung_musterkartenset_md: {{anwendung_musterkartenset_md|Aufzählung unter "Anwendung des Musterkartensets" als Markdown-Liste ("- …" je Punkt, wörtlich); sonst ""}}
 passende_musterkarten: {{passende_musterkarten|Array von SLUGS der Musterkarten, zu denen diese Methode passt — nur aus expliziten Kartennennungen/[[Wikilinks]]; Slug = kebab-case des Kartentitels bzw. Namensteil nach dem ersten "_"; dedupliziert; sonst []}}
@@ -83,13 +83,18 @@ Strenge Regeln:
   erlaubt): methoden_nummer darf aus dem Dateinamensmuster `<N>_<Name>.pdf` gelesen werden,
   weil die Namenskonvention die Nummer TRÄGT.
 - Wenn eine Information nicht sicher vorliegt: "" (String), [] (Array) oder null (Zahlen).
+  year und methoden_nummer sind Zahlen: fehlt der Wert, null — nie "".
+- Die Antwort enthält GENAU die Schlüssel des Antwortschemas: keine zusätzlichen Schlüssel
+  (auch keine Varianten wie video_embed_src), keine fehlenden.
 - Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Keine Kommentare, kein Markdown.
 
 Erkennungs-Hinweise (Methodensteckbrief):
 - "Kurzbeschreibung:" → kurzbeschreibung · "Ziel:" → ziel · "Situation/Problemstellung:" → situation
 - "Raum:"/"Räumlichkeiten:"/"Ort:" → raum · "Zeit:"/"Zeitempfehlung:" → zeitempfehlung · "Material:" → material
+- Die Steckbrief-Felder tragen NUR den Wert hinter dem Label, nie das Label selbst
+  ("Zeit: Durchführung: 60 min" → zeitempfehlung "Durchführung: 60 min").
 - "Gemeinsame Durchführung" mit Unterabschnitten und Phasen → durchfuehrung (Kurzform, max 800 Zeichen)
-  UND durchfuehrung_md (vollständig, als Markdown mit "### "-Überschriften, ohne Bilder und Abbildungs-Beschriftungen).
+  UND durchfuehrung_md (vollständig, als Markdown mit "### "-Überschriften, ohne Bilder, Tabellen und Abbildungs-Beschriftungen).
 - "Bezug zur Mustersprache (und Anwendung)" → bezug_mustersprache (Prosa) · "Anwendung des Musterkartensets" → anwendung_musterkartenset_md (Liste).
 - Nur wenn dort konkrete Musterkarten GENANNT sind: passende_musterkarten (Slugs) und passende_musterkarten_md (Links).
 - Fehlen die Marker: entsprechende Felder "" lassen.
@@ -115,7 +120,13 @@ Bild-Regel:
 Normalisierung:
 - HTML-Entities aus dem OCR-Transkript in ALLEN Textfeldern als Zeichen schreiben:
   &amp; → &, &lt; → <, &gt; → >, &quot; → ", &#39; → '. Keine Entities in der Ausgabe.
-- Überschriften in durchfuehrung_md ohne abschließenden Doppelpunkt ("### Mitgestaltung & Vorbereitung").
+- Silbentrennung aus Zeilenumbrüchen des OCR zusammenziehen: „Organisations-entwicklungsprozesses"
+  → „Organisationsentwicklungsprozesses". Echte Bindestrich-Komposita („Ursache-Wirkungs-Tabelle",
+  „Aufwand-Wirksamkeit-Matrix") bleiben.
+- Überschriften in durchfuehrung_md IMMER ohne abschließenden Doppelpunkt — jede "### "-Zeile
+  prüfen: "### Mitgestaltung & Vorbereitung:" → "### Mitgestaltung & Vorbereitung",
+  "### Durchführung:" → "### Durchführung". Ein Doppelpunkt INNERHALB der Überschrift
+  ("### Phase 1 (30 Min): Sammlung …") bleibt.
 - slug/Slugs: ASCII, lowercase, kebab-case, max 80; ä→ae, ö→oe, ü→ue, ß→ss.
 - tags: lowercase, ASCII, kebab-case, dedupliziert, höchstens 6; keine Synonyme erfinden.
 - shortTitle: ≤40 Zeichen, ohne abschließende Satzzeichen.
