@@ -85,6 +85,14 @@ export type CoverageGapType =
   | 'bericht_zu_lang'
   | 'status_zu_lang'
   | 'bericht_ueberholt'
+  /**
+   * Wunschliste 6, Teil C: `verlauf_fehlt` (der Bericht fuehrt `postfach_bis`,
+   * verweist aber auf keine Datei mit `type: verlauf`) und
+   * `entwicklung_unberichtet` (ein Verlaufseintrag nennt das Vorhaben, sein
+   * Bericht ist aelter und verweist nicht auf den Eintrag).
+   */
+  | 'verlauf_fehlt'
+  | 'entwicklung_unberichtet'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'

@@ -51,6 +51,21 @@ export async function readDoc(
   return { ...toFileEntry(item, path), meta, body }
 }
 
+/**
+ * Liest eine bereits gelistete Datei nach (Wunschliste 6: Begleitdokumente
+ * der Berichte). Dieselbe Kappung wie {@link readDoc}.
+ */
+export async function readDocByEntry(
+  provider: Pick<ArchiveScanProvider, 'getBinary'>,
+  file: ArchiveFileEntry,
+): Promise<ArchiveDocEntry> {
+  const { blob } = await provider.getBinary(file.fileId)
+  const raw = await blob.text()
+  const markdown = raw.length > MAX_DOC_BYTES ? raw.slice(0, MAX_DOC_BYTES) : raw
+  const { meta, body } = parseFrontmatter(markdown)
+  return { ...file, meta, body }
+}
+
 /** Erfasst einen `_`-Twin-Ordner, ohne ihn als Archiv-Ordner zu behandeln. */
 export async function collectTwinFolder(
   provider: ArchiveScanProvider,

@@ -309,3 +309,48 @@ describe('coverage-service — Komposition', () => {
     expect(report.totals.gapsByActor.knowledgescout).toBeGreaterThan(0)
   })
 })
+
+describe('coverage-service — Begleitdokumente (Wunschliste 6, B3 + Teil C)', () => {
+  // Der Bericht nennt die Quelle nicht selbst, verweist aber auf eine Notiz,
+  // die es tut. Ohne Lese-Port bleibt alles wie vor 2.30.0.
+  const BERICHT_MIT_NOTIZ = 'Details stehen in [[Treffen-Notiz]].'
+
+  function mitNotiz(): ArchiveScanResult {
+    const basis = folders({ aufnahmeModifiedAt: '2026-08-16T10:00:00.000Z', berichtBody: BERICHT_MIT_NOTIZ })
+    basis[1].files.push({ fileId: 'notiz-1', name: 'Treffen-Notiz.md', path: '25.01 Pilot/Treffen-Notiz.md', modifiedAt: '2026-08-17T09:00:00.000Z' })
+    return { folders: basis, skippedExcluded: 0 }
+  }
+
+  const basisPorts = () => makePorts({ archive: mitNotiz(), report: syncReport([syncRow({})]), families: [verifiedFamily()] })
+
+  it('ohne readDocs: die Quelle gilt als unerwaehnt', async () => {
+    const report = await runCoverageScan(REQUEST, basisPorts())
+    expect(report.gaps.some((g) => g.type === 'bericht_unvollstaendig')).toBe(true)
+  })
+
+  it('mit readDocs: gelesen wird genau die verlinkte Notiz, und ihre Nennung zaehlt', async () => {
+    const angefragt: string[] = []
+    const report = await runCoverageScan(REQUEST, {
+      ...basisPorts(),
+      readDocs: async (files) => {
+        angefragt.push(...files.map((file) => file.path))
+        return {
+          docs: files.map((file) => ({ ...file, meta: { type: 'notiz' }, body: 'Grundlage: Aufnahme.m4a' })),
+          fehler: [],
+        }
+      },
+    })
+    expect(angefragt).toEqual(['25.01 Pilot/Treffen-Notiz.md'])
+    expect(report.gaps.some((g) => g.type === 'bericht_unvollstaendig')).toBe(false)
+    // C1: die Notiz traegt weder generated_by noch generated_at.
+    expect(report.gaps.find((g) => g.type === 'twin_core_missing' && g.targetName === 'Treffen-Notiz.md')?.actor).toBe('cowork')
+  })
+
+  it('ein Lesefehler wird zum scan_error an der Datei, nicht verschluckt', async () => {
+    const report = await runCoverageScan(REQUEST, {
+      ...basisPorts(),
+      readDocs: async (files) => ({ docs: [], fehler: files.map((file) => ({ file, error: '503' })) }),
+    })
+    expect(report.gaps.find((g) => g.type === 'scan_error' && g.targetName === 'Treffen-Notiz.md')?.detail).toBe('503')
+  })
+})

@@ -194,6 +194,20 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
 
 Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
+- **Wunschliste 6 „Zustand und Verlauf trennen"** (Cowork, 2026-09-18, Owner-Auftrag
+  per Handover; Plan: [`plans/zustand-und-verlauf-repo-bericht.plan.md`](plans/zustand-und-verlauf-repo-bericht.plan.md)).
+  Code **erledigt** (Werkzeugsatz 2.30.0): Befunde `bericht_zu_lang`,
+  `status_zu_lang`, `bericht_ueberholt`, `verlauf_fehlt`,
+  `entwicklung_unberichtet`; Schwellen `agentView.berichtMaxBytes`
+  (`{anwendung, plattform}`), `statusMaxZeilen`, `ueberholtNachTagen`;
+  `berichtBytes` je Vorhaben; `datei_lesen` mit `bereich: gliederung`;
+  Größenhinweis der Schreibwerkzeuge bei `BERICHT.md`;
+  `bericht_unvollstaendig` folgt den Verweisen (Tiefe 1); `type: notiz |
+  verlauf` im Twin-Contract; `repo_stand_commit` (Alt-Name `repo_stand`
+  bleibt lesbar). **Offen:** Live-Messung der Scan-Dauer (der Scan liest jetzt
+  die vom Bericht verlinkten Markdown-Dateien des Vorhabens mit, höchstens 40
+  je Bericht, 4 parallel); Schwellen in den Library-Einstellungen setzen;
+  Skill `repo-bericht` und Archiv-Nachzug (Pakete 2 und 3 des Plans)
 - **Wunschliste 5 „Wissen und Zustand auseinanderhalten"** (Cowork, 2026-09-09,
   im Archiv unter `24.09 KnowledgeScout/2026-09-09 Wunschliste 5 - …md`; Belege am
   Code geprüft). Fünf Punkte, zwei Schnitte:

@@ -110,6 +110,10 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   bericht_zu_lang: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Bericht zu lang' },
   status_zu_lang: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Status zu lang' },
   bericht_ueberholt: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Offener Punkt mit vergangenem Datum' },
+  // Wunschliste 6, Teil C: beide `info` — sie stossen den normalen Lauf an,
+  // sie sperren nichts.
+  verlauf_fehlt: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Korrespondenz ohne Verlaufsdatei' },
+  entwicklung_unberichtet: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Entwicklung steht nicht im Bericht' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

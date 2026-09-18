@@ -133,13 +133,29 @@ keine Dot-Notation, keine verschachtelten Objekte, Obsidian-kompatibel.**
 ### 3.1 Twin-Kern — eigener Feldsatz, bewusst NICHT im A0-Basis-Feld-Contract
 
 ```yaml
-type: transcript          # transcript | transformation | bericht | index | auftrag | template
+type: transcript          # transcript | transformation | bericht | index | auftrag | template | notiz | verlauf
 source_file: 10_GordischerKnoten_2025-20-10_DW.pdf   # nur transcript/transformation
 template: extract_method_from_PDF                     # Pflicht bei transformation, sonst verboten
 language: de                                          # Inhaltssprache; bei Transformation die Zielsprache
 generated_by: knowledgescout/gemini-2.5-pro           # oder claude/fable-5, human:peter, process:aktuell.py
 generated_at: 2026-08-17T10:00:00Z
 ```
+
+**`notiz` und `verlauf` (Wunschliste 6, 2026-09-18).** Ein `BERICHT.md` ist
+*Zustand* und wird überschrieben; das Detail wohnt in Dateien, auf die er
+verweist:
+
+| `type` | Was | Wo | Längenregel |
+|---|---|---|---|
+| `notiz` | Verdichtung zu einem Ereignis oder Arbeitsstand, darf überarbeitet werden | im Ereignisordner | keine |
+| `verlauf` | nur anhängen, jüngster Eintrag oben (Korrespondenz, Entwicklung) | in der Vorhabenswurzel | keine |
+
+Beide sind maschinell erzeugte Synthesen, keine Originale: `generated_by` und
+`generated_at` sind Pflicht (`twin_core_missing`, hier Akteur Cowork).
+`source_file`, `template` und `language` entfallen. Die Agentensicht liest sie
+nur, wenn ein `BERICHT.md` desselben Vorhabens auf sie verweist
+(`begleitdokumente.ts`, Tiefe 1); `verweis_veraltet` feuert auch für sie,
+`bericht_zu_lang` und `status_zu_lang` gelten für sie nicht.
 
 Actor-Schreibweise nach OKF-Konvention: `<producer>/<version>`, `human:<id>`,
 `process:<id>`.
