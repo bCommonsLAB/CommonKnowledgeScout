@@ -52,6 +52,12 @@ export function buildReferenceIndex(targets: readonly InventoryTarget[]): Refere
   const index: ReferenceIndex = new Map()
   for (const target of targets) {
     addKey(index, target.path, target)
+    // Wikilinks in Pfadform nennen die Datei ohne `.md` (Prueflauf 18.09.2026).
+    // Nur Markdown mit Ordneranteil: der blosse Name ohne Endung ist unten
+    // schon Schluessel, und andere Endungen nennt ein Verweis immer mit.
+    if (target.path.includes('/') && target.path.toLowerCase().endsWith('.md')) {
+      addKey(index, stripExtension(target.path), target)
+    }
     addKey(index, target.name, target)
     addKey(index, stripExtension(target.name), target)
   }
@@ -102,6 +108,35 @@ export interface ReferenceAuditArgs {
    * den Bericht und arbeitete gegen die Laengenregel.
    */
   linkedDocs?: readonly ArchiveDocEntry[]
+  /**
+   * Gesetzt bei TEILBAUM-Scans. Obsidian loest `[[Name]]` im ganzen Archiv
+   * auf; der Scan kennt aber nur seinen Teilbaum. Ein nicht aufloesbarer
+   * Verweis ist dort nur dann beweisbar tot, wenn sein Ziel IM Teilbaum liegen
+   * muesste. Alles andere (blosser Name, Pfad nach aussen, `../`) beurteilt
+   * erst der Voll-Scan — sonst bestraft `verweis_tot` genau den Link, den
+   * `entwicklung_unberichtet` verlangt (Prueflauf 18.09.2026).
+   */
+  teilbaum?: { scopePath: string | null }
+}
+
+/**
+ * Wie ein nicht aufgeloester Verweis im Teilbaum-Scan zu lesen ist:
+ * `innen` = Ziel muesste im Teilbaum liegen (ggf. mit scope-relativem Pfad
+ * fuer einen zweiten Aufloesungsversuch), `offen` = nicht beurteilbar.
+ */
+export function teilbaumLage(
+  ref: { target: string; syntax: 'wikilink' | 'markdown-link' },
+  scopePath: string | null,
+): { lage: 'innen'; scopeRelativ: string | null } | { lage: 'offen' } {
+  const target = ref.target.replace(/\\/g, '/')
+  if (target.split('/').includes('..')) return { lage: 'offen' }
+  if (ref.syntax === 'markdown-link') return { lage: 'innen', scopeRelativ: null }
+  if (!target.includes('/')) return { lage: 'offen' }
+  const prefix = scopePath ? `${scopePath.replace(/^\/+|\/+$/g, '')}/` : null
+  if (prefix !== null && target.toLowerCase().startsWith(prefix.toLowerCase())) {
+    return { lage: 'innen', scopeRelativ: target.slice(prefix.length) }
+  }
+  return { lage: 'offen' }
 }
 
 /** Nennt der Text die Quelle — als Verweis-Ziel oder als reine Textnennung? */
@@ -122,7 +157,12 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
   const docTime = doc.modifiedAt === null ? null : Date.parse(doc.modifiedAt)
 
   for (const ref of refs) {
-    const hit = resolveReference(ref.target, doc.path, index)
+    let hit = resolveReference(ref.target, doc.path, index)
+    if (!hit && args.teilbaum) {
+      const lage = teilbaumLage(ref, args.teilbaum.scopePath)
+      if (lage.lage === 'offen') continue
+      if (lage.scopeRelativ !== null) hit = resolveReference(lage.scopeRelativ, doc.path, index)
+    }
     if (!hit) {
       gaps.push(
         createGap({
