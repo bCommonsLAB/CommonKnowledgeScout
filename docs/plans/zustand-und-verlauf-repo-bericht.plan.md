@@ -18,10 +18,10 @@ todos:
     status: pending
   - id: p2-skill
     content: "Skill repo-bericht nach dem Konzept im Archiv bauen (~/.claude/skills/repo-bericht/, Original danach ins Archiv). Schreibt nur in die Verlaufsdatei Entwicklung.md der Plattform und setzt im Plattformbericht repo_stand_am und repo_stand_commit. Erstlauf ab 01.09.2026."
-    status: pending
+    status: completed
   - id: p3-archiv
     content: "Skills und Konventionen im Archiv auf die tatsächlichen Namen aus Paket 1 anpassen (Konventionen, mail-verfassen, Korrespondenz-Methode, archiv-aufraeumen Schritt 6 und Tabelle Befund zu Aktion)."
-    status: pending
+    status: completed
   - id: p4-prueflauf
     content: "Prüflauf in Cowork gegen das Qualitätsmuster (macht der Owner, nicht Claude Code). Erst danach Rollout auf die übrigen Berichte."
     status: pending
