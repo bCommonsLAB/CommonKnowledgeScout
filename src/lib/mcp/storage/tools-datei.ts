@@ -10,21 +10,47 @@ import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider }
 import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
 import { MAX_BYTES_VORGABE, type Bereich, begrenze, schneideBereich } from './bereich'
+import { baueGliederung, type GliederungsEintrag } from './gliederung'
 
 const BEREICH_SCHEMA = z
   .object({
-    art: z.enum(['ganz', 'frontmatter', 'abschnitt', 'zeilen']),
+    art: z.enum(['ganz', 'frontmatter', 'abschnitt', 'zeilen', 'gliederung']),
     ueberschrift: z.string().min(1).optional().describe('Nur bei art="abschnitt"'),
     von: z.number().int().min(1).optional().describe('Nur bei art="zeilen", 1-basiert'),
     bis: z.number().int().min(1).optional().describe('Nur bei art="zeilen", inklusive'),
   })
   .optional()
-  .describe('Ausschnitt statt ganzer Datei — "frontmatter" spart bei einem Feld-Check ~97 % der Uebertragung.')
+  .describe(
+    'Ausschnitt statt ganzer Datei — "frontmatter" spart bei einem Feld-Check ~97 % der Uebertragung. ' +
+    '"gliederung" liefert KEINEN Body, sondern je Ueberschrift Ebene, Wortlaut, Zeilenbereich, Bytes und ' +
+    'die Zahl offener "- [ ]" — der erste Schritt, bevor ein langer Bericht verdichtet wird.',
+  )
 
 type BereichEingabe = z.infer<typeof BEREICH_SCHEMA>
 
+/**
+ * Begrenzt die Gliederung auf `maxBytes` (Q2 gilt auch hier): `offset` zaehlt
+ * bei der Gliederung EINTRAEGE, nicht Bytes — ein halber Eintrag waere wertlos.
+ */
+function begrenzeGliederung(eintraege: readonly GliederungsEintrag[], maxBytes: number, offset: number) {
+  const geliefert: GliederungsEintrag[] = []
+  let bytes = 0
+  for (const eintrag of eintraege.slice(offset)) {
+    bytes += Buffer.from(JSON.stringify(eintrag), 'utf-8').length
+    if (bytes > maxBytes && geliefert.length > 0) break
+    geliefert.push(eintrag)
+  }
+  const naechster = offset + geliefert.length
+  return {
+    gliederung: geliefert,
+    ueberschriftenGesamt: eintraege.length,
+    gekuerzt: naechster < eintraege.length,
+    naechsterOffset: naechster < eintraege.length ? naechster : null,
+  }
+}
+
 /** Uebersetzt die Werkzeug-Eingabe in einen {@link Bereich} — ohne zu raten. */
-function leseBereich(eingabe: BereichEingabe): Bereich {
+function leseBereich(eingabe: Exclude<BereichEingabe, { art: 'gliederung' }>): Bereich {
   if (!eingabe || eingabe.art === 'ganz') return { art: 'ganz' }
   if (eingabe.art === 'frontmatter') return { art: 'frontmatter' }
   if (eingabe.art === 'abschnitt') {
@@ -44,7 +70,8 @@ export function registerStorageLeseTools(server: McpServer): void {
       title: 'Textdatei (ausschnittsweise) lesen',
       description:
         'Liest eine Textdatei. `bereich` holt nur einen Ausschnitt (frontmatter | abschnitt | ' +
-        'zeilen) statt der ganzen Datei. `maxBytes` (Vorgabe 256 kB) und `offset` begrenzen die ' +
+        'zeilen) statt der ganzen Datei; `gliederung` liefert statt `inhalt` die Liste der ' +
+        'Ueberschriften mit Zeilenbereich, Bytes und offenen Punkten (dort zaehlt `offset` Eintraege). `maxBytes` (Vorgabe 256 kB) und `offset` begrenzen die ' +
         'Antwort IMMER; `gekuerzt` und `naechsterOffset` sagen, ob und wo es weitergeht. Die ' +
         'Antwort nennt pfad UND id, dazu version fuer ein spaeteres datei_schreiben. Liest nur.',
       inputSchema: {
@@ -66,20 +93,30 @@ export function registerStorageLeseTools(server: McpServer): void {
         const adresse = await loeseAdresse({ provider, pfad, id, erwartet: 'file' })
         const item = await provider.getItemById(adresse.id)
         const { blob } = await provider.getBinary(adresse.id)
-        const ausschnitt = begrenze(
-          schneideBereich(await blob.text(), leseBereich(bereich)),
-          maxBytes ?? MAX_BYTES_VORGABE,
-          offset ?? 0,
-        )
-
-        return jsonResult({
+        const text = await blob.text()
+        const kopf = {
           pfad: adresse.pfad,
           id: adresse.id,
           version: item.metadata.version ?? null,
           geaendertAm: item.metadata.modifiedAt.toISOString(),
           groesse: item.metadata.size,
-          ...ausschnitt,
-        })
+        }
+
+        if (bereich?.art === 'gliederung') {
+          const gliederung = baueGliederung(text)
+          return jsonResult({
+            ...kopf,
+            zeilenGesamt: gliederung.zeilenGesamt,
+            vorspannBytes: gliederung.vorspannBytes,
+            hinweis:
+              'bytes und offenePunkte je Ueberschrift schliessen die Unterabschnitte ein — dieselbe Grenze wie ' +
+              'bereich "abschnitt" und abschnitt_ersetzen.',
+            ...begrenzeGliederung(gliederung.eintraege, maxBytes ?? MAX_BYTES_VORGABE, offset ?? 0),
+          })
+        }
+
+        const ausschnitt = begrenze(schneideBereich(text, leseBereich(bereich)), maxBytes ?? MAX_BYTES_VORGABE, offset ?? 0)
+        return jsonResult({ ...kopf, ...ausschnitt })
       } catch (error) {
         return storageFehler(error)
       }

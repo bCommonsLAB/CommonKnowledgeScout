@@ -20,6 +20,7 @@ import { BEGRUENDUNG, mitProtokoll } from '../protokoll'
 import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
 import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
+import { berichtHinweis } from './bericht-hinweis'
 import { konfliktAntwort } from './konflikt'
 import { pruefeSchreibschutz } from './schreibschutz'
 
@@ -51,7 +52,7 @@ export function registerStorageSchreibTools(server: McpServer): void {
           { werkzeug: 'datei_schreiben', libraryId, akteur: mcpUserEmail(), begruendung, pfad },
           async () => {
             const userEmail = mcpUserEmail()
-            await requireLibrary(userEmail, libraryId)
+            const library = await requireLibrary(userEmail, libraryId)
             const provider = await requireProvider(userEmail, libraryId)
 
             const adresse = await loeseAdresse({ provider, pfad, id, erwartet: 'file' })
@@ -83,6 +84,11 @@ export function registerStorageSchreibTools(server: McpServer): void {
               id: ergebnis.id,
               version: ergebnis.version,
               geschriebeneBytes: Buffer.byteLength(inhalt, 'utf-8'),
+              // Wunschliste 6, B2: nur bei BERICHT.md — Hinweis, keine Sperre.
+              ...berichtHinweis({
+                pfad: adresse.pfad, inhaltNachher: inhalt,
+                berichtMaxBytes: library.config?.agentView?.berichtMaxBytes,
+              }),
               ...(ergebnis.idChanged ? { idGeaendert: { alt: ergebnis.idChanged.from, neu: ergebnis.idChanged.to } } : {}),
             })
           },

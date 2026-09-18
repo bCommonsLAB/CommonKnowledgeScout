@@ -21,6 +21,7 @@ import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import type { Library } from '@/types/library'
 import { scanArchive } from './archive-scan'
+import { leseBerichtMaxBytes } from './bericht-zustand'
 import { runCoverageScan, type CoverageScanPorts } from './coverage-service'
 import type { RawTwinFamily } from './coverage-inputs'
 import type { TwinArtifactView } from './twin-rules'
@@ -66,10 +67,7 @@ export function readConventions(library: Library): CoverageConventions {
         ? agentView.repoMaxRueckstandTage
         : null,
     // Wunschliste 6, A1–A3: dieselbe Form — fehlt ⇒ null ⇒ Regel inaktiv.
-    berichtMaxBytes: {
-      anwendung: schwelle(agentView?.berichtMaxBytes?.anwendung),
-      plattform: schwelle(agentView?.berichtMaxBytes?.plattform),
-    },
+    berichtMaxBytes: leseBerichtMaxBytes(agentView?.berichtMaxBytes),
     statusMaxZeilen: schwelle(agentView?.statusMaxZeilen),
     ueberholtNachTagen: schwelle(agentView?.ueberholtNachTagen),
     // Wunschliste 5, B3c: `thema_fehlt` lebt vom kuratierten Vokabular (A6).

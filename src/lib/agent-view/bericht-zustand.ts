@@ -30,6 +30,25 @@ export interface RollenSchwelle {
   rolleUnbekannt: boolean
 }
 
+/** Form der Schwelle in der Library-Config (`agentView.berichtMaxBytes`). */
+export interface BerichtMaxBytesConfig {
+  anwendung?: number | null
+  plattform?: number | null
+}
+
+function endlicheZahl(wert: unknown): number | null {
+  return typeof wert === 'number' && Number.isFinite(wert) ? wert : null
+}
+
+/**
+ * Liest die Schwelle aus der Library-Config — EINE Stelle fuer den Scan und
+ * fuer den Groessenhinweis der Schreibwerkzeuge (Wunschliste 6, B2), damit
+ * beide denselben Massstab anlegen. Fehlt/ungueltig ⇒ null ⇒ Regel aus.
+ */
+export function leseBerichtMaxBytes(config: BerichtMaxBytesConfig | undefined): BerichtMaxBytes {
+  return { anwendung: endlicheZahl(config?.anwendung), plattform: endlicheZahl(config?.plattform) }
+}
+
 /** Waehlt die Laengen-Schwelle zur `rolle` des Berichts. */
 export function schwelleFuerRolle(rolle: string | null, max: BerichtMaxBytes): RollenSchwelle {
   if (rolle === 'plattform') return { schwelle: max.plattform, gemessenAls: 'plattform', rolleUnbekannt: false }
