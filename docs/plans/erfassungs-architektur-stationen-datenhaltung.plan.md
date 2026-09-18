@@ -1,6 +1,7 @@
 ---
 name: erfassungs-architektur-stationen-datenhaltung
 overview: "Was die dreizehn Stationen S0–S11 mit dem Wizard zu tun haben, welche davon Konfiguration, Erweiterung oder Neubau sind, und wo die Ergebnisse jeder Station liegen (MongoDB, Storage mit flachem Frontmatter, Blob). Antwort auf die Owner-Frage vom 11.09. abends, vier Entscheidungen dazu vom Owner; Grundlage für den Implementierungsplan zu Vorhaben 3."
+vorhaben: [26.05 SHF Nachhaltigkeit, 24.09 KnowledgeScout]
 status: konzept
 ---
 
