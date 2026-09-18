@@ -50,7 +50,7 @@ function ctx(postfachMaxRueckstandWochen: number | null): ArchiveRuleContext {
       indexRequiredMaxDepth: null,
       berichtFreshness: true,
       postfachMaxRueckstandWochen,
-      repoMaxRueckstandTage: null,
+      repoMaxRueckstandTage: null, berichtMaxBytes: { anwendung: null, plattform: null }, statusMaxZeilen: null, ueberholtNachTagen: null,
     },
     vorhabenPattern: null,
     newestChangeInSubtree: null,

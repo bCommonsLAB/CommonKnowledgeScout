@@ -21,6 +21,13 @@ export interface ArchiveFileEntry {
   path: string
   /** ISO-Zeitstempel der letzten Aenderung; null = unbekannt. */
   modifiedAt: string | null
+  /**
+   * Groesse in Bytes aus dem Ordner-Listing (Wunschliste 6, A1 — das Listing
+   * fuehrt sie ohnehin mit, kein zusaetzlicher Aufruf). Der Scan setzt das
+   * Feld IMMER; null = der Provider nennt keine brauchbare Groesse. Optional
+   * nur, damit handgebaute Eintraege (Tests, Alt-Aufrufer) gueltig bleiben.
+   */
+  sizeBytes?: number | null
 }
 
 /** Eine gelesene Contract-Datei (`_INDEX.md` / `BERICHT.md`). */

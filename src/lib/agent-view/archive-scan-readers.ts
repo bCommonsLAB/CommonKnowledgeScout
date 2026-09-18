@@ -29,7 +29,14 @@ export function toIso(value: Date | undefined): string | null {
 }
 
 export function toFileEntry(item: StorageItem, path: string): ArchiveFileEntry {
-  return { fileId: item.id, name: item.metadata.name, path, modifiedAt: toIso(item.metadata.modifiedAt) }
+  const size = item.metadata.size
+  return {
+    fileId: item.id,
+    name: item.metadata.name,
+    path,
+    modifiedAt: toIso(item.metadata.modifiedAt),
+    sizeBytes: typeof size === 'number' && Number.isFinite(size) && size >= 0 ? size : null,
+  }
 }
 
 export async function readDoc(

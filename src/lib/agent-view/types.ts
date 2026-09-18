@@ -76,6 +76,15 @@ export type CoverageGapType =
    * Themenregister nicht auffindbar.
    */
   | 'thema_fehlt'
+  /**
+   * Wunschliste 6, Teil A — „Bericht ist Zustand, Notizen sind Verlauf":
+   * `bericht_zu_lang` (Bytes gegen die Schwelle der Rolle), `status_zu_lang`
+   * (Zeilen unter „## Status"), `bericht_ueberholt` (offener Punkt bzw.
+   * `naechster_termin` mit vergangenem Datum).
+   */
+  | 'bericht_zu_lang'
+  | 'status_zu_lang'
+  | 'bericht_ueberholt'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'
@@ -253,6 +262,13 @@ export interface VorhabenCard {
    */
   postfachAb?: string | null
   postfachBis?: string | null
+  /**
+   * Wunschliste 6, A1: Groesse des `BERICHT.md` in Bytes (aus dem Ordner-
+   * Listing, kein zusaetzlicher Aufruf) — `abdeckung_lesen` zeigt damit, wo
+   * verdichtet werden muss, ohne einen Bericht zu oeffnen. null = kein
+   * Bericht bzw. der Provider nennt keine Groesse; fehlt in Reports vor 2.30.0.
+   */
+  berichtBytes?: number | null
 }
 
 /**
@@ -312,6 +328,12 @@ export interface TwinFamilySummary {
   zusammenfassung?: LeadingArtifactSummary | null
 }
 
+/** Laengen-Schwelle je Bericht-Rolle (Wunschliste 6, A1); null = fuer diese Rolle aus. */
+export interface BerichtMaxBytes {
+  anwendung: number | null
+  plattform: number | null
+}
+
 /** Konventionen, unter denen der Scan lief (sichtbar statt hartkodiert). */
 export interface CoverageConventions {
   /** Standard-Template der Library (fuehrendes Artefakt, Contract §2b). */
@@ -334,6 +356,20 @@ export interface CoverageConventions {
    * Postfach-Schwelle) — Libraries ohne Repo-Bezug merken nichts.
    */
   repoMaxRueckstandTage: number | null
+  /**
+   * Wunschliste 6, A1: Ab wie vielen Bytes ist ein `BERICHT.md` zu lang? Die
+   * Schwelle haengt an der `rolle` des Berichts — ein Plattformbericht mit
+   * langer Entwicklungsgeschichte ist legitim laenger. null je Rolle = Regel
+   * fuer diese Rolle aus.
+   */
+  berichtMaxBytes: BerichtMaxBytes
+  /** Wunschliste 6, A2: Hoechstzahl Zeilen unter „## Status"; null = Regel aus. */
+  statusMaxZeilen: number | null
+  /**
+   * Wunschliste 6, A3: Nach wie vielen Tagen gilt ein offener Punkt mit Datum
+   * bzw. `naechster_termin` als ueberholt? null = Regel aus.
+   */
+  ueberholtNachTagen: number | null
   /**
    * Wunschliste 5, B3c: Fuehrt die Library ein Themen-Vokabular
    * (`agentView.themen`)? Ohne eines ist `thema_fehlt` inaktiv — dieselbe

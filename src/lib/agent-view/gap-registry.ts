@@ -102,6 +102,14 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // (die Ordnernamen sind Ereignisnamen und verraten das Thema nicht);
   // Schritt 3, weil das Thema mit dem Bericht entsteht — dieselbe Lesearbeit.
   thema_fehlt: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Kein Thema' },
+  // Wunschliste 6, Teil A: Der Bericht ist ZUSTAND und wird ueberschrieben;
+  // der Verlauf wohnt in Notizen und Verlaufsdateien. Alle drei bei Cowork,
+  // Schritt 3 — die Aufloesung ist Verdichten bzw. Abraeumen im Bericht.
+  // `bericht_zu_lang` als `warning` (der Bericht verliert seinen Zweck), die
+  // beiden anderen als `info` (Wunschliste: A3 ausdruecklich `info`).
+  bericht_zu_lang: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Bericht zu lang' },
+  status_zu_lang: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Status zu lang' },
+  bericht_ueberholt: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Offener Punkt mit vergangenem Datum' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

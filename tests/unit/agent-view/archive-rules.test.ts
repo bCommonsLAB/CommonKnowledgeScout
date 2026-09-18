@@ -32,10 +32,15 @@ function folder(overrides: Partial<ArchiveFolderNode> = {}): ArchiveFolderNode {
 }
 
 const CTX = {
-  conventions: { vorhabenFolderPattern: null, indexRequiredMaxDepth: null, berichtFreshness: true },
+  conventions: {
+    vorhabenFolderPattern: null, indexRequiredMaxDepth: null, berichtFreshness: true,
+    postfachMaxRueckstandWochen: null, repoMaxRueckstandTage: null,
+    berichtMaxBytes: { anwendung: null, plattform: null }, statusMaxZeilen: null, ueberholtNachTagen: null,
+  },
   vorhabenPattern: null,
   newestChangeInSubtree: null,
   isLibraryRoot: false,
+  now: '2026-09-18T10:00:00.000Z',
 }
 
 describe('archive-rules — Vorhaben-Erkennung', () => {

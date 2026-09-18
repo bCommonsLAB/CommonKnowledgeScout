@@ -30,6 +30,16 @@ function Zeile({ label, wert, title }: { label: string; wert: string | number; t
   )
 }
 
+/** Wunschliste 6, A1: Schwelle je Rolle; ein Report vor dem Feld traegt `undefined` — benannt statt geraten. */
+function berichtLaengeText(max: CoverageReport['conventions']['berichtMaxBytes'] | undefined): string {
+  if (!max) return 'unbekannt (alter Scan)'
+  const teile = [
+    typeof max.anwendung === 'number' ? `Anwendung ab ${String(max.anwendung)} Byte` : null,
+    typeof max.plattform === 'number' ? `Plattform ab ${String(max.plattform)} Byte` : null,
+  ].filter((teil): teil is string => teil !== null)
+  return teile.length > 0 ? teile.join(', ') : 'aus'
+}
+
 function zaehleNachSchritt(report: CoverageReport): Map<ZyklusSchritt, number> {
   const counts = new Map<ZyklusSchritt, number>()
   for (const gap of report.gaps) counts.set(gap.zyklusSchritt, (counts.get(gap.zyklusSchritt) ?? 0) + 1)
@@ -106,6 +116,21 @@ export function AgentViewScanDetails({ report }: { report: CoverageReport }) {
                 : 'aus'
             }
             title="Ab wann repo_stand_am im BERICHT.md als veraltet gilt (Wunschliste 5, C1) — aus = die Library prueft Berichte nicht gegen Repos."
+          />
+          <Zeile
+            label="Bericht-Laenge"
+            wert={berichtLaengeText(conventions.berichtMaxBytes)}
+            title="Ab wie vielen Bytes ein BERICHT.md als zu lang gilt, je rolle (Wunschliste 6, A1) — aus = keine Schwelle gesetzt."
+          />
+          <Zeile
+            label="Status-Laenge"
+            wert={typeof conventions.statusMaxZeilen === 'number' ? `bis ${String(conventions.statusMaxZeilen)} Zeilen` : 'aus'}
+            title="Hoechstzahl Zeilen unter „## Status“ (Wunschliste 6, A2)."
+          />
+          <Zeile
+            label="Ueberholte Punkte"
+            wert={typeof conventions.ueberholtNachTagen === 'number' ? `ab ${String(conventions.ueberholtNachTagen)} Tagen` : 'aus'}
+            title="Ab wann ein offener Punkt mit vergangenem Datum gemeldet wird (Wunschliste 6, A3)."
           />
           <Zeile
             label="Themen-Pflicht"

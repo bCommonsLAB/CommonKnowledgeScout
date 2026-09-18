@@ -208,6 +208,16 @@ export interface StorageConfig {
      */
     repoMaxRueckstandTage?: number;
     /**
+     * Wunschliste 6, A1: Ab wie vielen Bytes meldet der Scan `bericht_zu_lang`?
+     * Je `rolle` des Berichts; `null`/fehlt = Regel fuer diese Rolle aus (ein
+     * Plattformbericht ist legitim laenger). Kein Secret.
+     */
+    berichtMaxBytes?: { anwendung?: number | null; plattform?: number | null };
+    /** Wunschliste 6, A2: Hoechstzahl Zeilen unter „## Status" (`status_zu_lang`); fehlt = Regel aus. */
+    statusMaxZeilen?: number;
+    /** Wunschliste 6, A3: ab wie vielen Tagen gilt ein offener Punkt mit Datum als ueberholt (`bericht_ueberholt`); fehlt = Regel aus. */
+    ueberholtNachTagen?: number;
+    /**
      * Lokaler Wurzelpfad des Archivs (F3): rendert im Auftrags-Generator
      * absolute Pfade fuer die Cowork-Session. Leer = archiv-relative Pfade.
      * KS kennt nur Provider-Pfade — dieser Wert ist reine Anzeige-Hilfe.

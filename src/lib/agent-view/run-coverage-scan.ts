@@ -38,6 +38,11 @@ const FRONTMATTER_HEAD_CHARS = 8192
  */
 export const COVERAGE_SCAN_CONCURRENCY = 8
 
+/** Schwelle aus der Library-Config: nur endliche Zahlen zaehlen, alles andere = Regel aus. */
+function schwelle(wert: unknown): number | null {
+  return typeof wert === 'number' && Number.isFinite(wert) ? wert : null
+}
+
 /** Liest die Konventionen der Library — sichtbar im Report, nie hartkodiert. */
 export function readConventions(library: Library): CoverageConventions {
   const agentView = library.config?.agentView
@@ -60,6 +65,13 @@ export function readConventions(library: Library): CoverageConventions {
       typeof agentView?.repoMaxRueckstandTage === 'number' && Number.isFinite(agentView.repoMaxRueckstandTage)
         ? agentView.repoMaxRueckstandTage
         : null,
+    // Wunschliste 6, A1–A3: dieselbe Form — fehlt ⇒ null ⇒ Regel inaktiv.
+    berichtMaxBytes: {
+      anwendung: schwelle(agentView?.berichtMaxBytes?.anwendung),
+      plattform: schwelle(agentView?.berichtMaxBytes?.plattform),
+    },
+    statusMaxZeilen: schwelle(agentView?.statusMaxZeilen),
+    ueberholtNachTagen: schwelle(agentView?.ueberholtNachTagen),
     // Wunschliste 5, B3c: `thema_fehlt` lebt vom kuratierten Vokabular (A6).
     // Kein Vokabular = die Library fuehrt keine Themen = Regel inaktiv.
     themenVokabularGepflegt: Array.isArray(agentView?.themen) && agentView.themen.length > 0,

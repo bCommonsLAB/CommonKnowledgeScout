@@ -132,6 +132,9 @@ describe('mergeTeilbaumReport — benannte Fallbacks', () => {
   it.each([
     ['postfachMaxRueckstandWochen', { postfachMaxRueckstandWochen: 2 }],
     ['repoMaxRueckstandTage', { repoMaxRueckstandTage: 14 }],
+    ['berichtMaxBytes', { berichtMaxBytes: { anwendung: 20000, plattform: null } }],
+    ['statusMaxZeilen', { statusMaxZeilen: 12 }],
+    ['ueberholtNachTagen', { ueberholtNachTagen: 2 }],
     ['themenVokabularGepflegt', { themenVokabularGepflegt: true }],
     ['scanExcludeGlobs', { scanExcludeGlobs: ['**/temp/**'] }],
     ['standardTemplate', { standardTemplate: 'standard-meeting' }],

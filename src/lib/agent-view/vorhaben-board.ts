@@ -35,7 +35,7 @@ type BerichtFelder = Pick<
   | 'berichtTitel' | 'berichtFileId' | 'berichtModifiedAt' | 'berichtStatus' | 'themen'
   | 'berichtRolle' | 'berichtLetzteAktivitaet' | 'berichtNaechsterTermin'
   | 'berichtTerminFixiert' | 'berichtOffenePunkte' | 'berichtOffeneAnzahl'
-  | 'postfachAb' | 'postfachBis'
+  | 'postfachAb' | 'postfachBis' | 'berichtBytes'
 >
 
 /** Wie viele offene Punkte die Karte traegt — `AKTUELL.md` zeigt dieselben zwei. */
@@ -69,6 +69,7 @@ function berichtFelder(folder: ArchiveFolderNode): BerichtFelder {
       berichtModifiedAt: null,
       berichtStatus: null,
       themen: asList(folder.index?.meta.themen),
+      berichtBytes: null,
       ...ohneAktuellFelder(),
     }
   }
@@ -94,6 +95,8 @@ function berichtFelder(folder: ArchiveFolderNode): BerichtFelder {
     // des Betrachters, nicht der Scan.
     postfachAb: asString(bericht.meta.postfach_ab),
     postfachBis: asString(bericht.meta.postfach_bis),
+    // Wunschliste 6, A1: aus dem Listing, null = Provider nennt keine Groesse.
+    berichtBytes: bericht.sizeBytes ?? null,
   }
 }
 

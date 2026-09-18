@@ -23,7 +23,8 @@ import { BERICHT_FILE_NAME, INDEX_FILE_NAME } from './archive-scan'
 import { createGap } from './gap-registry'
 import { checkPostfachVeraltet } from './postfach-regel'
 import { checkRepoVeraltet } from './repo-regel'
-import type { CoverageGap } from './types'
+import { checkBerichtUeberholt, checkBerichtZuLang, checkStatusZuLang } from './bericht-zustand-regel'
+import type { BerichtMaxBytes, CoverageGap } from './types'
 
 export interface ArchiveRuleConventions {
   /** Regex-Quelle fuer Vorhabensordner; null = nur Selbstdeklaration. */
@@ -42,6 +43,10 @@ export interface ArchiveRuleConventions {
    * null = die Library prueft ihre Berichte nicht gegen Repos, Regel inaktiv.
    */
   repoMaxRueckstandTage: number | null
+  /** Wunschliste 6, A1–A3: Schwellen des Berichts als ZUSTAND; null = Regel aus. */
+  berichtMaxBytes: BerichtMaxBytes
+  statusMaxZeilen: number | null
+  ueberholtNachTagen: number | null
 }
 
 export interface ArchiveRuleContext {
@@ -199,6 +204,9 @@ export function evaluateArchiveRules(folder: ArchiveFolderNode, ctx: ArchiveRule
     checkBerichtVeraltet(folder, ctx),
     checkPostfachVeraltet(folder, ctx),
     checkRepoVeraltet(folder, ctx),
+    checkBerichtZuLang(folder, ctx),
+    checkStatusZuLang(folder, ctx),
+    checkBerichtUeberholt(folder, ctx),
   ]
   return gaps.filter((gap): gap is CoverageGap => gap !== null)
 }
