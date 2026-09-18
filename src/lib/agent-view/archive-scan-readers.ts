@@ -29,7 +29,14 @@ export function toIso(value: Date | undefined): string | null {
 }
 
 export function toFileEntry(item: StorageItem, path: string): ArchiveFileEntry {
-  return { fileId: item.id, name: item.metadata.name, path, modifiedAt: toIso(item.metadata.modifiedAt) }
+  const size = item.metadata.size
+  return {
+    fileId: item.id,
+    name: item.metadata.name,
+    path,
+    modifiedAt: toIso(item.metadata.modifiedAt),
+    sizeBytes: typeof size === 'number' && Number.isFinite(size) && size >= 0 ? size : null,
+  }
 }
 
 export async function readDoc(
@@ -42,6 +49,21 @@ export async function readDoc(
   const markdown = raw.length > MAX_DOC_BYTES ? raw.slice(0, MAX_DOC_BYTES) : raw
   const { meta, body } = parseFrontmatter(markdown)
   return { ...toFileEntry(item, path), meta, body }
+}
+
+/**
+ * Liest eine bereits gelistete Datei nach (Wunschliste 6: Begleitdokumente
+ * der Berichte). Dieselbe Kappung wie {@link readDoc}.
+ */
+export async function readDocByEntry(
+  provider: Pick<ArchiveScanProvider, 'getBinary'>,
+  file: ArchiveFileEntry,
+): Promise<ArchiveDocEntry> {
+  const { blob } = await provider.getBinary(file.fileId)
+  const raw = await blob.text()
+  const markdown = raw.length > MAX_DOC_BYTES ? raw.slice(0, MAX_DOC_BYTES) : raw
+  const { meta, body } = parseFrontmatter(markdown)
+  return { ...file, meta, body }
 }
 
 /** Erfasst einen `_`-Twin-Ordner, ohne ihn als Archiv-Ordner zu behandeln. */

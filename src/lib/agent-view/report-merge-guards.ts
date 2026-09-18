@@ -55,6 +55,12 @@ const KONVENTIONEN_VERGLEICH: {
   berichtFreshness: (a, b) => a === b,
   postfachMaxRueckstandWochen: (a, b) => a === b,
   repoMaxRueckstandTage: (a, b) => a === b,
+  // Wunschliste 6, A1: Objekt je Rolle. Ein Report von VOR dem Feld traegt
+  // `undefined` — ungleich, also lauter Rueckfall statt geratener Schwelle.
+  berichtMaxBytes: (a, b) =>
+    Boolean(a) && Boolean(b) && a.anwendung === b.anwendung && a.plattform === b.plattform,
+  statusMaxZeilen: (a, b) => a === b,
+  ueberholtNachTagen: (a, b) => a === b,
   themenVokabularGepflegt: (a, b) => a === b,
   scanExcludeGlobs: (a, b) => a.length === b.length && a.every((glob, idx) => glob === b[idx]),
 }

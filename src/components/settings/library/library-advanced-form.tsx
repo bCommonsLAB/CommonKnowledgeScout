@@ -39,6 +39,7 @@ import { LanguageCleanupSection } from "./language-cleanup-section"
 import { ImportExportSection } from "./import-export-section"
 import { CaptureWizardsEditor } from "./capture-wizards-editor"
 import { AgentViewConfigSection } from "./agent-view-config-section"
+import { AgentViewBerichtSection } from "./agent-view-bericht-section"
 
 export function LibraryAdvancedForm() {
   const {
@@ -201,6 +202,7 @@ export function LibraryAdvancedForm() {
 
         {/* Agentensicht-Konventionen (Welle 1/3) */}
         <AgentViewConfigSection form={form} />
+        <AgentViewBerichtSection form={form} />
 
         {/* DIVA & Auto-Klassifikation */}
         <Card>

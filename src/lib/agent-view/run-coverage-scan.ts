@@ -21,6 +21,9 @@ import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import type { Library } from '@/types/library'
 import { scanArchive } from './archive-scan'
+import { readDocByEntry } from './archive-scan-readers'
+import type { ArchiveDocEntry, ArchiveFileEntry } from './archive-types'
+import { leseBerichtMaxBytes } from './bericht-zustand'
 import { runCoverageScan, type CoverageScanPorts } from './coverage-service'
 import type { RawTwinFamily } from './coverage-inputs'
 import type { TwinArtifactView } from './twin-rules'
@@ -37,6 +40,14 @@ const FRONTMATTER_HEAD_CHARS = 8192
  * bevor irgendeine Regel laeuft.
  */
 export const COVERAGE_SCAN_CONCURRENCY = 8
+
+/** Parallele Datei-Lesungen der Begleitdokumente (Provider-Grenze: 4 gleichzeitige Anfragen). */
+const BEGLEIT_LESE_PARALLEL = 4
+
+/** Schwelle aus der Library-Config: nur endliche Zahlen zaehlen, alles andere = Regel aus. */
+function schwelle(wert: unknown): number | null {
+  return typeof wert === 'number' && Number.isFinite(wert) ? wert : null
+}
 
 /** Liest die Konventionen der Library — sichtbar im Report, nie hartkodiert. */
 export function readConventions(library: Library): CoverageConventions {
@@ -60,6 +71,10 @@ export function readConventions(library: Library): CoverageConventions {
       typeof agentView?.repoMaxRueckstandTage === 'number' && Number.isFinite(agentView.repoMaxRueckstandTage)
         ? agentView.repoMaxRueckstandTage
         : null,
+    // Wunschliste 6, A1–A3: dieselbe Form — fehlt ⇒ null ⇒ Regel inaktiv.
+    berichtMaxBytes: leseBerichtMaxBytes(agentView?.berichtMaxBytes),
+    statusMaxZeilen: schwelle(agentView?.statusMaxZeilen),
+    ueberholtNachTagen: schwelle(agentView?.ueberholtNachTagen),
     // Wunschliste 5, B3c: `thema_fehlt` lebt vom kuratierten Vokabular (A6).
     // Kein Vokabular = die Library fuehrt keine Themen = Regel inaktiv.
     themenVokabularGepflegt: Array.isArray(agentView?.themen) && agentView.themen.length > 0,
@@ -147,6 +162,25 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
       let next = await generator.next()
       while (!next.done) next = await generator.next()
       return next.value.documents
+    },
+    // Wunschliste 6: Begleitdokumente der Berichte. Hoechstens
+    // BEGLEIT_LESE_PARALLEL gleichzeitig — der Provider vertraegt nicht mehr;
+    // ein Lesefehler trifft EINE Datei, nie den Scan.
+    readDocs: async (files) => {
+      const docs: ArchiveDocEntry[] = []
+      const fehler: Array<{ file: ArchiveFileEntry; error: string }> = []
+      for (let start = 0; start < files.length; start += BEGLEIT_LESE_PARALLEL) {
+        await Promise.all(
+          files.slice(start, start + BEGLEIT_LESE_PARALLEL).map(async (file) => {
+            try {
+              docs.push(await readDocByEntry(provider, file))
+            } catch (error) {
+              fehler.push({ file, error: error instanceof Error ? error.message : String(error) })
+            }
+          }),
+        )
+      }
+      return { docs, fehler }
     },
     now: args.now ?? (() => new Date().toISOString()),
   }

@@ -41,6 +41,16 @@ function toLibraryFormStorageType(
   return type;
 }
 
+/** Optionale Schwelle als Formular-String: leer = Regel aus, sonst ganze Zahl >= 1 mit hoechstens `stellen` Ziffern. */
+function schwellenFeld(stellen: number) {
+  return z
+    .string()
+    .refine((wert) => wert.trim() === "" || (/^[1-9][0-9]*$/.test(wert.trim()) && wert.trim().length <= stellen), {
+      message: "Ganze Zahl ab 1 oder leer (Regel aus)",
+    })
+    .default("")
+}
+
 // Formular-Schema (identisch mit dem in library-form.tsx)
 export const libraryFormSchema = z.object({
   label: z
@@ -98,6 +108,11 @@ export const libraryFormSchema = z.object({
       { message: "Ganze Zahl 0–365 oder leer (Regel aus)" },
     )
     .default(""),
+  // Wunschliste 6, A1–A3: leer = Regel aus; Zahlen als String (wie die Postfach-Wochen).
+  agentViewBerichtMaxBytesAnwendung: schwellenFeld(7),
+  agentViewBerichtMaxBytesPlattform: schwellenFeld(7),
+  agentViewStatusMaxZeilen: schwellenFeld(3),
+  agentViewUeberholtNachTagen: schwellenFeld(3),
   agentViewLocalRootPath: z.string().default(""),
   // A6: Themen-Vokabular — eine Zeile pro Thema (Persistenz als Array,
   // Muster scanExcludeGlobs). Kommas/Klammern trennen die _INDEX-Liste.
@@ -152,15 +167,21 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
   agentViewBerichtFreshness: boolean;
   agentViewPostfachMaxWochen: string;
   agentViewRepoMaxTage: string;
+  agentViewBerichtMaxBytesAnwendung: string;
+  agentViewBerichtMaxBytesPlattform: string;
+  agentViewStatusMaxZeilen: string;
+  agentViewUeberholtNachTagen: string;
   agentViewLocalRootPath: string;
   agentViewThemen: string;
 } {
   const agentView = (config?.agentView ?? null) as
-    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; postfachMaxRueckstandWochen?: unknown; repoMaxRueckstandTage?: unknown; localRootPath?: unknown; themen?: unknown }
+    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; postfachMaxRueckstandWochen?: unknown; repoMaxRueckstandTage?: unknown; berichtMaxBytes?: unknown; statusMaxZeilen?: unknown; ueberholtNachTagen?: unknown; localRootPath?: unknown; themen?: unknown }
     | null;
   const depth = agentView?.indexRequiredMaxDepth;
   const postfachWochen = agentView?.postfachMaxRueckstandWochen;
   const repoTage = agentView?.repoMaxRueckstandTage;
+  const zahlText = (wert: unknown): string => (typeof wert === "number" && Number.isFinite(wert) ? String(wert) : "");
+  const maxBytes = (agentView?.berichtMaxBytes ?? null) as { anwendung?: unknown; plattform?: unknown } | null;
   return {
     // Default AUS: Agentensicht ist ein Opt-in pro Library (Pilot-Entscheid 2026-08-21).
     agentViewEnabled: agentView?.enabled === true,
@@ -170,6 +191,10 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
     agentViewPostfachMaxWochen:
       typeof postfachWochen === "number" && Number.isFinite(postfachWochen) ? String(postfachWochen) : "",
     agentViewRepoMaxTage: typeof repoTage === "number" && Number.isFinite(repoTage) ? String(repoTage) : "",
+    agentViewBerichtMaxBytesAnwendung: zahlText(maxBytes?.anwendung),
+    agentViewBerichtMaxBytesPlattform: zahlText(maxBytes?.plattform),
+    agentViewStatusMaxZeilen: zahlText(agentView?.statusMaxZeilen),
+    agentViewUeberholtNachTagen: zahlText(agentView?.ueberholtNachTagen),
     agentViewLocalRootPath: typeof agentView?.localRootPath === "string" ? agentView.localRootPath : "",
     agentViewThemen: Array.isArray(agentView?.themen)
       ? agentView.themen.filter((thema): thema is string => typeof thema === "string").join("\n")
@@ -281,6 +306,10 @@ export function useLibraryForm(createNew: boolean) {
       agentViewBerichtFreshness: true,
       agentViewPostfachMaxWochen: "",
       agentViewRepoMaxTage: "",
+      agentViewBerichtMaxBytesAnwendung: "",
+      agentViewBerichtMaxBytesPlattform: "",
+      agentViewStatusMaxZeilen: "",
+      agentViewUeberholtNachTagen: "",
       agentViewLocalRootPath: "",
       agentViewThemen: "",
       captureWizards: undefined,
@@ -524,6 +553,17 @@ export function useLibraryForm(createNew: boolean) {
                 : {}),
               ...(data.agentViewRepoMaxTage.trim() !== ""
                 ? { repoMaxRueckstandTage: Number(data.agentViewRepoMaxTage.trim()) }
+                : {}),
+              // Wunschliste 6, A1: je Rolle; leer = null = Regel fuer diese Rolle aus.
+              berichtMaxBytes: {
+                anwendung: data.agentViewBerichtMaxBytesAnwendung.trim() !== "" ? Number(data.agentViewBerichtMaxBytesAnwendung.trim()) : null,
+                plattform: data.agentViewBerichtMaxBytesPlattform.trim() !== "" ? Number(data.agentViewBerichtMaxBytesPlattform.trim()) : null,
+              },
+              ...(data.agentViewStatusMaxZeilen.trim() !== ""
+                ? { statusMaxZeilen: Number(data.agentViewStatusMaxZeilen.trim()) }
+                : {}),
+              ...(data.agentViewUeberholtNachTagen.trim() !== ""
+                ? { ueberholtNachTagen: Number(data.agentViewUeberholtNachTagen.trim()) }
                 : {}),
               ...(data.agentViewLocalRootPath.trim() !== ""
                 ? { localRootPath: data.agentViewLocalRootPath.trim() }

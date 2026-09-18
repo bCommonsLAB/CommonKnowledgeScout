@@ -95,6 +95,23 @@ export interface ReferenceAuditArgs {
    * Bericht, entsteht `bericht_unvollstaendig` (informativ).
    */
   expectedSources?: ReadonlyArray<{ name: string; path: string }>
+  /**
+   * Wunschliste 6, B3: Dateien, auf die das Dokument verweist (Tiefe 1, vom
+   * Scan mitgelesen). Eine Quelle gilt auch dann als erwaehnt, wenn sie DORT
+   * steht — sonst schoebe `bericht_unvollstaendig` die Dateiliste wieder in
+   * den Bericht und arbeitete gegen die Laengenregel.
+   */
+  linkedDocs?: readonly ArchiveDocEntry[]
+}
+
+/** Nennt der Text die Quelle — als Verweis-Ziel oder als reine Textnennung? */
+function erwaehnt(body: string, source: { name: string; path: string }): boolean {
+  const name = source.name.toLowerCase()
+  const ziele = new Set(uniqueReferences(parseReferences(body)).map((ref) => ref.target.toLowerCase()))
+  if (ziele.has(name) || ziele.has(stripExtension(name)) || ziele.has(source.path.toLowerCase())) return true
+  // Auch reine Textnennung zaehlt als „erwaehnt" — der Befund ist informativ.
+  const bodyLower = body.toLowerCase()
+  return bodyLower.includes(name) || bodyLower.includes(stripExtension(name))
 }
 
 /** Fuehrt das Verweis-Audit fuer EIN Dokument aus. */
@@ -140,13 +157,13 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
 
   const expected = args.expectedSources ?? []
   if (expected.length > 0) {
-    const mentioned = new Set(refs.map((ref) => ref.target.toLowerCase()))
-    const bodyLower = doc.body.toLowerCase()
+    const linkedDocs = args.linkedDocs ?? []
+    const ueberVerweis: string[] = []
     const missing = expected.filter((source) => {
-      const name = source.name.toLowerCase()
-      if (mentioned.has(name) || mentioned.has(stripExtension(name)) || mentioned.has(source.path.toLowerCase())) return false
-      // Auch reine Textnennung zaehlt als „erwaehnt" — der Befund ist informativ.
-      return !bodyLower.includes(name) && !bodyLower.includes(stripExtension(name))
+      if (erwaehnt(doc.body, source)) return false
+      const traeger = linkedDocs.find((linked) => erwaehnt(linked.body, source))
+      if (traeger) ueberVerweis.push(`${source.name} (in ${traeger.name})`)
+      return traeger === undefined
     })
     if (missing.length > 0) {
       gaps.push(
@@ -158,10 +175,15 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
           folderId,
           path: doc.path,
           message: `${missing.length} ausgewertete Datei(en) kommen im Text nicht vor`,
-          detail: missing
-            .map((source) => source.name)
-            .sort((a, b) => a.localeCompare(b))
-            .join(', '),
+          detail:
+            missing
+              .map((source) => source.name)
+              .sort((a, b) => a.localeCompare(b))
+              .join(', ') +
+            // B3: sichtbar machen, was NICHT fehlt, weil ein Verweis es traegt.
+            (ueberVerweis.length > 0
+              ? ` — ueber Verweise erwaehnt: ${[...ueberVerweis].sort((a, b) => a.localeCompare(b)).join(', ')}`
+              : ''),
         }),
       )
     }

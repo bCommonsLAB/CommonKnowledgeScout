@@ -13,9 +13,9 @@
  */
 
 import { isVorhaben } from './archive-rules'
-import type { ArchiveFolderNode } from './archive-types'
+import type { ArchiveDocEntry, ArchiveFolderNode } from './archive-types'
 import { buildInventoryTargets, type FileLocation } from './coverage-inputs'
-import { auditReferences, buildReferenceIndex } from './reference-audit'
+import { auditReferences, buildReferenceIndex, type ReferenceIndex } from './reference-audit'
 import type { TwinFamilyView } from './twin-rules'
 import type { CoverageGap } from './types'
 
@@ -25,8 +25,12 @@ export function auditAllDocuments(args: {
   families: readonly TwinFamilyView[]
   fileIndex: ReadonlyMap<string, FileLocation>
   vorhabenPattern: RegExp | null
+  /** Wunschliste 6, B3: mitgelesene Begleitdokumente je Ordner-Id (fehlt = keine gelesen). */
+  begleit?: ReadonlyMap<string, readonly ArchiveDocEntry[]>
+  /** Fertiger Index, wenn der Aufrufer ihn schon gebaut hat (spart den zweiten Aufbau). */
+  index?: ReferenceIndex
 }): CoverageGap[] {
-  const index = buildReferenceIndex(buildInventoryTargets({ folders: args.folders, families: args.families, fileIndex: args.fileIndex }))
+  const index = args.index ?? buildReferenceIndex(buildInventoryTargets({ folders: args.folders, families: args.families, fileIndex: args.fileIndex }))
   const sourcesByFolder = new Map<string, Array<{ name: string; path: string }>>()
   for (const family of args.families) {
     if (family.artifacts.length === 0) continue
@@ -47,6 +51,7 @@ export function auditAllDocuments(args: {
         // `bericht_unvollstaendig` nur fuer Vorhaben — Strukturordner sollen
         // nicht jede Datei ihres Teilbaums aufzaehlen muessen.
         expectedSources: isVorhaben(folder, args.vorhabenPattern) ? sourcesByFolder.get(folder.folderId) ?? [] : [],
+        linkedDocs: args.begleit?.get(folder.folderId) ?? [],
       }),
     )
   }

@@ -13,6 +13,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { BEGRUENDUNG, mitProtokoll } from '../protokoll'
 import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { berichtHinweis } from './bericht-hinweis'
 import { storageFehler } from './fehler'
 import { normalisiere } from './adressierung'
 import { ordnerSicherstellen, trenne } from './pfad-helfer'
@@ -46,7 +47,7 @@ export function registerStorageAnlegenTools(server: McpServer): void {
           { werkzeug: 'datei_anlegen', libraryId, akteur: mcpUserEmail(), begruendung, pfad },
           async () => {
             const userEmail = mcpUserEmail()
-            await requireLibrary(userEmail, libraryId)
+            const library = await requireLibrary(userEmail, libraryId)
             const provider = await requireProvider(userEmail, libraryId)
             pruefeSchreibschutz(pfad, 'anlegen')
 
@@ -70,6 +71,11 @@ export function registerStorageAnlegenTools(server: McpServer): void {
               pfad: normalisiere(pfad), id: angelegt.id,
               version: angelegt.metadata.version ?? null,
               ueberschrieben: Boolean(vorhanden),
+              // Wunschliste 6, B2: nur bei BERICHT.md — Hinweis, keine Sperre.
+              ...berichtHinweis({
+                pfad, inhaltNachher: inhalt,
+                berichtMaxBytes: library.config?.agentView?.berichtMaxBytes,
+              }),
             })
           },
         )

@@ -26,8 +26,9 @@ import type { LibrarySyncReport } from '@/lib/shadow-twin/sync-engine/report-typ
 import { compileVorhabenPattern, evaluateArchiveRules } from './archive-rules'
 import { checkSichtVeraltet } from './sicht-regel'
 import { checkThemaFehlt } from './thema-regel'
-import type { ArchiveScanResult } from './archive-types'
-import { buildFileIndex, buildNewestChangeBySubtree, buildOwnChangeByFolder, locateFamilies, type RawTwinFamily } from './coverage-inputs'
+import type { ArchiveDocEntry, ArchiveFileEntry, ArchiveScanResult } from './archive-types'
+import { begleitLeseBefunde, ordneBegleitdokumente, waehleBegleitdateien } from './begleitdokumente'
+import { buildFileIndex, buildInventoryTargets, buildNewestChangeBySubtree, buildOwnChangeByFolder, locateFamilies, type RawTwinFamily } from './coverage-inputs'
 import { auditAllDocuments } from './document-audit'
 import { gapsFromSyncReport, type SourceLocation } from './engine-gaps'
 import { gapsFromFieldVerification } from './field-gaps'
@@ -35,12 +36,14 @@ import { applyGapBudget } from './gap-budget'
 import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders, quellenVerschwunden } from './inventory-gaps'
+import { buildReferenceIndex } from './reference-audit'
 import { filesWithoutExtension, sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
 import { buildTree } from './tree-builder'
 import { evaluateTwinRules, type TwinFamilyView } from './twin-rules'
 import { buildTotals } from './coverage-totals'
 import type { CoverageConventions, CoverageGap, CoverageGapType, CoverageReport } from './types'
+import { checkBegleitKern, checkEntwicklungUnberichtet, checkVerlaufFehlt } from './verlauf-regel'
 import { buildVorhabenCards } from './vorhaben-board'
 
 /** Aussenzugriffe des Scans — in Tests vollstaendig ersetzbar. */
@@ -54,6 +57,18 @@ export interface CoverageScanPorts {
    * `missing-base-field` (F2: `core_fields_missing`).
    */
   runFieldVerification(): Promise<DocumentVerificationResult[]>
+  /**
+   * Wunschliste 6, B3 + Teil C: liest die Begleitdokumente der Berichte
+   * (Notizen, Verlaufsdateien — siehe `begleitdokumente.ts`). Lesefehler
+   * einzelner Dateien kommen als `fehler` zurueck und werden zu `scan_error`,
+   * nie verschluckt. OPTIONAL: ohne den Port laeuft der Scan wie vor 2.30.0
+   * (kein Folgen der Verweise, Teil-C-Regeln stumm) — nur fuer Aufrufer, die
+   * bewusst keinen Storage haben (Tests).
+   */
+  readDocs?(files: readonly ArchiveFileEntry[]): Promise<{
+    docs: ArchiveDocEntry[]
+    fehler: Array<{ file: ArchiveFileEntry; error: string }>
+  }>
   /** Zeitquelle (injiziert, damit Reports reproduzierbar testbar sind). */
   now(): string
 }
@@ -116,6 +131,18 @@ export async function runCoverageScan(
       : rawFamilies.filter((family) => fileIndex.has(family.sourceId) || folderIds.has(family.parentId))
   const families = locateFamilies({ families: familiesForScope, fileIndex, folderIds, rootFolderId: request.rootFolderId })
   const newestChange = buildNewestChangeBySubtree({ folders, families })
+
+  // Wunschliste 6, B3 + Teil C: die Dateien mitlesen, auf die die Berichte
+  // verweisen (Tiefe 1, nur im eigenen Vorhaben). EIN Index fuer Auswahl und
+  // Verweis-Audit.
+  const referenceIndex = buildReferenceIndex(buildInventoryTargets({ folders, families, fileIndex }))
+  const begleitAuswahl = waehleBegleitdateien({ folders, index: referenceIndex })
+  const zuLesen = new Map<string, ArchiveFileEntry>()
+  for (const files of begleitAuswahl.jeOrdner.values()) for (const file of files) zuLesen.set(file.fileId, file)
+  const gelesen = ports.readDocs && zuLesen.size > 0
+    ? await ports.readDocs([...zuLesen.values()].sort((a, b) => a.path.localeCompare(b.path)))
+    : { docs: [], fehler: [] }
+  const begleit = ordneBegleitdokumente(begleitAuswahl, gelesen.docs)
 
   const locations = new Map<string, SourceLocation>(
     [...fileIndex.entries()].map(([fileId, location]) => [fileId, { folderId: location.folderId, path: location.path }]),
@@ -183,7 +210,16 @@ export async function runCoverageScan(
         now: generatedAt,
       }),
     ),
-    ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern }),
+    ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex }),
+    // Wunschliste 6, Teil C: Notizen/Verlaufsdateien — Pflichtfelder,
+    // Korrespondenz ohne Verlauf, Programmierung, die im Bericht fehlt.
+    ...folders.flatMap((folder) => {
+      const docs = begleit.get(folder.folderId) ?? []
+      const verlaufFehlt = ports.readDocs ? checkVerlaufFehlt(folder, docs) : null
+      return [...checkBegleitKern(folder, docs), ...(verlaufFehlt ? [verlaufFehlt] : [])]
+    }),
+    ...checkEntwicklungUnberichtet({ folders, begleit }),
+    ...begleitLeseBefunde({ folders, gekappt: begleitAuswahl.gekappt, fehler: gelesen.fehler, fileIndex }),
     // Wunschliste 5, B1: erzeugte Sichten gegen den juengsten Bericht — nur im
     // Library-weiten Scan, im Teilbaum liegt der juengste Bericht womoeglich ausserhalb.
     ...checkSichtVeraltet({ folders, scopeFolderId: request.scopeFolderId, berichtFreshness: conventions.berichtFreshness }),

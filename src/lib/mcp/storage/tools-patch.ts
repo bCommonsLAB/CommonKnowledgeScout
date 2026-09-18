@@ -11,6 +11,7 @@ import { BEGRUENDUNG, mitProtokoll } from '../protokoll'
 import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
 import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
+import { berichtHinweis } from './bericht-hinweis'
 import { konfliktAntwort } from './konflikt'
 import { wendePatchesAn } from './patch'
 import { MODUS_SCHEMA, aktionZuModus, leseModus } from './patch-schema'
@@ -33,7 +34,9 @@ export function registerStoragePatchTool(server: McpServer): void {
         'Aufruf an — alles oder nichts, jeder Schritt sieht das Ergebnis des vorigen; scheitert ' +
         'einer, wird NICHTS geschrieben. Entweder `modus` ODER `modi`. `ifVersion` ist Pflicht; ' +
         'bei Konflikt kommt der aktuelle Inhalt mit zurueck. _INDEX.md und "_"-Twin-Ordner sind ' +
-        'gesperrt — dafuer die Fachwerkzeuge. Nur nach Bestaetigung durch den Menschen.',
+        'gesperrt — dafuer die Fachwerkzeuge. Bei einer BERICHT.md nennt die Antwort zusaetzlich ' +
+        'groesseNachher, schwelle und schwelleUeberschritten (Hinweis, keine Sperre). Nur nach ' +
+        'Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         pfad: ADRESSE_PFAD,
@@ -52,7 +55,7 @@ export function registerStoragePatchTool(server: McpServer): void {
           { werkzeug: 'datei_patchen', libraryId, akteur: mcpUserEmail(), begruendung, pfad },
           async () => {
             const userEmail = mcpUserEmail()
-            await requireLibrary(userEmail, libraryId)
+            const library = await requireLibrary(userEmail, libraryId)
             const provider = await requireProvider(userEmail, libraryId)
 
             if ((modus && modi) || (!modus && !modi)) {
@@ -112,6 +115,11 @@ export function registerStoragePatchTool(server: McpServer): void {
               beschreibung,
               bytesVorher: Buffer.byteLength(vorher, 'utf-8'),
               bytesNachher: Buffer.byteLength(inhalt, 'utf-8'),
+              // Wunschliste 6, B2: nur bei BERICHT.md — Hinweis, keine Sperre.
+              ...berichtHinweis({
+                pfad: adresse.pfad, inhaltNachher: inhalt, modi: geleseneModi,
+                berichtMaxBytes: library.config?.agentView?.berichtMaxBytes,
+              }),
               ...(ergebnis.idChanged ? { idGeaendert: { alt: ergebnis.idChanged.from, neu: ergebnis.idChanged.to } } : {}),
             })
           },

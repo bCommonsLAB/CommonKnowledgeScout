@@ -63,6 +63,27 @@ export function collectVorhabenThemen(
     }))
 }
 
+/**
+ * Wunschliste 6, A1: Groesse der Berichte im Pfad-Scope, groesster zuerst —
+ * zeigt, wo verdichtet werden muss, ohne einen Bericht zu oeffnen.
+ * `berichtBytes: null` = Groesse unbekannt (Provider nennt keine, oder der
+ * Report stammt aus einem Scan vor 2.30.0) — benannt statt als 0 behauptet.
+ */
+export function collectBerichtGroessen(
+  vorhaben: readonly VorhabenCard[],
+  prefix: string,
+): Array<{ path: string; folderId: string; rolle: string | null; berichtBytes: number | null }> {
+  return vorhaben
+    .filter((karte) => karte.hasBericht && (prefix === '' || isInSubtree(karte.path, prefix)))
+    .map((karte) => ({
+      path: karte.path,
+      folderId: karte.folderId,
+      rolle: karte.berichtRolle ?? null,
+      berichtBytes: karte.berichtBytes ?? null,
+    }))
+    .sort((a, b) => (b.berichtBytes ?? -1) - (a.berichtBytes ?? -1) || a.path.localeCompare(b.path))
+}
+
 export function compactGap(gap: CoverageGap) {
   return {
     type: gap.type,

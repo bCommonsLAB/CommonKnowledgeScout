@@ -31,7 +31,17 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
   postfach_veraltet: (gap, pfad) =>
     `Werte die Korrespondenz zu ${pfad} nach: ${gap.message}${detail(gap)}. Vorgehen nach Organisation/Aufraeumen/Korrespondenz-Methode.md — vom Vorhaben aus suchen (Gegenstellen + Zeitfenster), nach Betreff aussortieren, nur Entscheidungen/Zahlen/Zusagen/Auflagen oeffnen. Ertrag sind Chronologie-Zeilen (Quellenspalte Mail) und Randbedingungen im BERICHT.md; danach postfach_bis auf die ausgewertete Kalenderwoche setzen.`,
   repo_veraltet: (gap, pfad) =>
-    `Pruefe die Aussagen in ${pfad} gegen den aktuellen Stand des Repos: ${gap.message}${detail(gap)}. Was sich geaendert hat, nachziehen; danach repo_stand_am auf den Prueftag und repo_stand auf den Commit setzen.`,
+    `Pruefe die Aussagen in ${pfad} gegen den aktuellen Stand des Repos: ${gap.message}${detail(gap)}. Was sich geaendert hat, nachziehen; danach repo_stand_am auf den Prueftag und repo_stand_commit auf den Commit setzen.`,
+  bericht_zu_lang: (gap, pfad) =>
+    `Verdichte ${pfad}: ${gap.message}${detail(gap)}. Der Bericht ist ZUSTAND und wird ueberschrieben, nicht fortgeschrieben. Erst die Gliederung lesen (datei_lesen mit bereich gliederung), dann je Abschnitt entscheiden: Verlauf (Besprechungen, Fassungen, Korrespondenz je Kalenderwoche) wandert in eine Notiz im Ereignisordner (type: notiz) bzw. in eine Verlaufsdatei der Vorhabenswurzel (type: verlauf); im Bericht bleibt eine Zeile mit echtem Link. Nichts weglassen — jede Aussage steht danach im Bericht oder hoechstens einen Link entfernt.`,
+  status_zu_lang: (gap, pfad) =>
+    `Schreibe den Abschnitt „## Status" in ${pfad} neu: ${gap.message}${detail(gap)}. Er nennt nur, was JETZT gilt; die Geschichte dahin gehoert in die Chronologie bzw. in eine verlinkte Notiz.`,
+  bericht_ueberholt: (gap, pfad) =>
+    `Raeume in ${pfad} ab, was vorbei ist: ${gap.message}${detail(gap)}. Erledigtes abhaken oder entfernen, Verschobenes neu datieren, naechster_termin auf den naechsten echten Termin setzen (oder das Feld entfernen).`,
+  verlauf_fehlt: (gap, pfad) =>
+    `Lege fuer ${pfad} eine Verlaufsdatei der Korrespondenz an: ${gap.message}${detail(gap)}. Korrespondenz.md in der Vorhabenswurzel (type: verlauf, generated_by, generated_at; juengste Kalenderwoche oben), die KW-Abschnitte aus dem Bericht dorthin verschieben und im Bericht mit [[Korrespondenz]] darauf verweisen.`,
+  entwicklung_unberichtet: (gap, pfad) =>
+    `Ziehe in ${pfad} die Programmierung nach: ${gap.message}${detail(gap)}. Je Eintrag EINE Chronologiezeile mit Link auf das Sprungziel des Eintrags; offene Fragen, die der Eintrag erledigt, abraeumen. Den Inhalt NICHT kopieren — er steht in der Verlaufsdatei, das Detail im Repo.`,
   sicht_veraltet: (gap, pfad) =>
     `Erzeuge die Sichten neu (sichten_regenerieren): ${pfad} ist aelter als der juengste Bericht der Library${detail(gap)}.`,
   thema_fehlt: (gap, pfad) =>

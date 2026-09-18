@@ -1,6 +1,7 @@
 ---
 name: erfassungs-composer-s4-s5
 overview: "Detailkonzept für den Composer (Stationen S4 Beitragen und S5 Prüfen & Abgeben): Beitrag mit mehreren Anlagen und Zustand je Anlage, Composer als Paket @ks/capture, Abgeben sobald eine Anlage fertig ist, mobiler Pfad mit Kamera, Mikrofon und Wiederaufnahme, creation-wizard.tsx auf einen Orchestrator geschrumpft. Handover Teil 3 vom 11.09.2026, Vorhaben 3 (SHF). Owner-Entscheidungen 11.09.: nur Clerk, kein kontoloser Pfad, Zielbild eine Library je Organisation."
+vorhaben: [26.05 SHF Nachhaltigkeit, 24.09 KnowledgeScout]
 status: konzept
 todos:
   - id: c0-freeze

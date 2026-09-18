@@ -93,6 +93,16 @@ export interface ClientLibrary {
       postfachMaxRueckstandWochen?: number;
       /** Wunschliste 5, C1: Schwelle in Tagen fuer `repo_veraltet`; fehlt = Regel aus. */
       repoMaxRueckstandTage?: number;
+      /**
+       * Wunschliste 6, A1: Ab wie vielen Bytes meldet der Scan `bericht_zu_lang`?
+       * Je `rolle` des Berichts; `null`/fehlt = Regel fuer diese Rolle aus (ein
+       * Plattformbericht ist legitim laenger). Kein Secret.
+       */
+      berichtMaxBytes?: { anwendung?: number | null; plattform?: number | null };
+      /** Wunschliste 6, A2: Hoechstzahl Zeilen unter „## Status" (`status_zu_lang`); fehlt = Regel aus. */
+      statusMaxZeilen?: number;
+      /** Wunschliste 6, A3: ab wie vielen Tagen gilt ein offener Punkt mit Datum als ueberholt (`bericht_ueberholt`); fehlt = Regel aus. */
+      ueberholtNachTagen?: number;
       localRootPath?: string;
       /** A6: kuratiertes Themen-Vokabular (Dropdown des Themen-Editors). */
       themen?: string[];

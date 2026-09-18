@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.29.0'
+export const TOOLSET_VERSION = '2.30.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -66,6 +66,19 @@ export const TOOL_NAMES = [
   'bruecke_info',
 ] as const
 
+/**
+ * Was sich mit dieser Version an BESTEHENDEN Werkzeugen geaendert hat. Die
+ * Soll-Toolliste zeigt nur neue Namen; ein neuer Parameter oder ein neues
+ * Antwortfeld bliebe sonst unsichtbar (Wunschliste 6 brachte kein neues
+ * Werkzeug, aber vier Schema-Aenderungen).
+ */
+export const NEU_IN_VERSION: readonly string[] = [
+  'datei_lesen: bereich {art: "gliederung"} — Ueberschriften mit Zeilenbereich, Bytes, offenen Punkten; kein Body',
+  'datei_patchen/datei_schreiben/datei_anlegen: bei BERICHT.md groesseNachher, schwelle, schwelleUeberschritten (+ hinweis bei neuem ##-Abschnitt)',
+  'abdeckung_lesen: Block "berichte" (berichtBytes je Vorhaben); conventions um berichtMaxBytes, statusMaxZeilen, ueberholtNachTagen',
+  'neue Befunde: bericht_zu_lang, status_zu_lang, bericht_ueberholt, verlauf_fehlt, entwicklung_unberichtet',
+]
+
 /** Registriert `bruecke_info` (siehe Datei-Kommentar). */
 export function registerInfoTool(server: McpServer): void {
   server.registerTool(
@@ -83,6 +96,7 @@ export function registerInfoTool(server: McpServer): void {
       return jsonResult({
         toolsetVersion: TOOLSET_VERSION,
         werkzeuge: TOOL_NAMES,
+        neuInDieserVersion: NEU_IN_VERSION,
         hinweis:
           'Fehlt hier gelistetes Werkzeug in deiner Sicht: Toolliste der Desktop-App ist veraltet — ' +
           'Erweiterung aus-/einschalten (Einstellungen → Erweiterungen).',

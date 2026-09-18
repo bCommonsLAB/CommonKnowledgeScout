@@ -10,7 +10,7 @@
  * Plattform-Wissen); Vorhaben ohne `repo:` merken nichts.
  *
  * Aufloesung: die Aussagen gegen den aktuellen Stand pruefen und
- * `repo_stand_am` (und `repo_stand`) nachziehen.
+ * `repo_stand_am` (und `repo_stand_commit`) nachziehen.
  *
  * @module agent-view
  */
@@ -33,7 +33,9 @@ export function checkRepoVeraltet(folder: ArchiveFolderNode, ctx: ArchiveRuleCon
     {
       repo: asList(bericht.meta.repo),
       repoStandAm: asString(bericht.meta.repo_stand_am),
-      repoStand: asString(bericht.meta.repo_stand),
+      // Wunschliste 6, C3: `repo_stand_commit` ist der fuehrende Name (Startpunkt
+      // des naechsten `git log`); `repo_stand` aus Wunschliste 5 bleibt lesbar.
+      repoStand: asString(bericht.meta.repo_stand_commit) ?? asString(bericht.meta.repo_stand),
     },
     new Date(ctx.now),
   )

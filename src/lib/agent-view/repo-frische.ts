@@ -13,7 +13,8 @@
  * ```yaml
  * repo: [CommonKnowledgeScout]
  * repo_stand_am: 2026-09-09     # Tag, an dem die Aussagen zuletzt gegen das Repo geprueft wurden
- * repo_stand: 66ef1f3e           # optional: der Commit dazu, fuer Menschen
+ * repo_stand_commit: 66ef1f3e    # optional: der Commit dazu — Startpunkt des naechsten
+ *                                # `git log` (Wunschliste 6, C3; Alt-Name `repo_stand` bleibt lesbar)
  * ```
  *
  * Gemessen wird das ALTER des Pruefstands (Tage), nicht der Commit-Rueckstand:
