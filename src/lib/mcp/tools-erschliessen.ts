@@ -12,7 +12,8 @@
  *   Pipeline-Route (upload-frei, der Worker laedt das Binary selbst).
  * - `transformation_starten`: Standard-Template auf eine Familie MIT
  *   Transkript — Text kommt aus MongoDB (Wahrheit), der Job haengt an der
- *   Quelle, dort landet die Transformation.
+ *   Quelle, dort landet die Transformation. Markdown/Sammeldateien laufen
+ *   ohne Transkript ueber `transformation-markdown.ts`.
  * - Beide nehmen auch `sourceIds` als Stapel (Pilot-Wunschliste C3): eine
  *   Job-Zeile je Quelle, Fehler einzeln statt Stapel-Abbruch.
  * - Job-Beobachtung (`job_status`/`job_liste`): eigene Datei `tools-jobs.ts`.
@@ -30,6 +31,7 @@ import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/exte
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
+import { istMarkdownQuelle, starteMarkdownTransformation } from './transformation-markdown'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 
 const SOURCE_INPUTS = {
@@ -117,7 +119,7 @@ export function registerErschliessenTools(server: McpServer): void {
               }
               throw new Error(
                 `"${source.name}" ist ${kind} — quelle_erschliessen kann Audio/Video/PDF/DOCX/XLSX/PPTX; ` +
-                  'Markdown-Familien laufen ueber transformation_starten',
+                  'Markdown und Sammeldateien sind schon Text: direkt transformation_starten (braucht kein Transkript)',
               )
             },
           })
@@ -148,8 +150,12 @@ export function registerErschliessenTools(server: McpServer): void {
       title: 'Transformation starten (SCHREIBT, langlaufend)',
       description:
         'Wendet das Standard-Template (oder ein angegebenes) auf Familien MIT Transkript an ' +
-        '(Befund transformation_missing/transformation_stale). Das Transkript kommt aus MongoDB; ' +
-        'die Transformation landet an der Quelle. Antwortet SOFORT mit jobId(s) — Status mit ' +
+        '(Befund transformation_missing/transformation_stale) — das Transkript kommt aus MongoDB. ' +
+        'Markdown-Quellen (.md/.mdx/.txt) brauchen KEIN Transkript: die Datei selbst ist der Text. ' +
+        'Sammeldateien (kind: composite-transcript) werden wie im KS-UI aus den Twins ihrer ' +
+        '_source_files aufgeloest; fehlt dort ein Transkript, kommt der Fehler mit den Dateinamen ' +
+        'VOR dem Job-Start (dann genau diese Dateien mit quelle_erschliessen erschliessen). ' +
+        'Die Transformation landet an der Quelle. Antwortet SOFORT mit jobId(s) — Status mit ' +
         'job_status/job_liste. Stapel via sourceIds. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -172,6 +178,14 @@ export function registerErschliessenTools(server: McpServer): void {
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
+              // Markdown/Sammeldatei: die Quelle IST der Text (transformation-markdown.ts).
+              if (istMarkdownQuelle(source.name)) {
+                const { jobId } = await starteMarkdownTransformation({
+                  libraryId, userEmail, provider, source,
+                  template: effectiveTemplate, llmModel: effectiveModell, zielsprache,
+                })
+                return jobId
+              }
               const service = new ShadowTwinService({
                 library, userEmail, sourceId: source.itemId, sourceName: source.name, parentId: source.parentId, provider,
               })
