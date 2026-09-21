@@ -33,6 +33,31 @@ function feldBeschreibung(vorlage: TemplateDocument, key: string): string | null
   return beschreibung ? beschreibung : null
 }
 
+/** `updatedAt` als ISO-Text — die Vorlage traegt ihn als Date oder schon als Text. */
+function aktualisiertAmIso(vorlage: TemplateDocument): string | undefined {
+  const wert: unknown = vorlage.updatedAt
+  if (wert instanceof Date) return wert.toISOString()
+  return typeof wert === 'string' && wert.trim() !== '' ? wert : undefined
+}
+
+/**
+ * Wann wurde die benannte Vorlage zuletzt geaendert? Fuer die Frage, ob eine
+ * vorhandene Transformation ueberholt ist (`transformation-erzwingen.ts`).
+ * `undefined` = in MongoDB nicht gefunden. Das ist KEIN Fehler: Der Worker kennt
+ * auch eingebaute Vorlagen (`template-files.ts`); ob der Name gilt, entscheidet
+ * er. Der Aufrufer nennt den unbekannten Zeitpunkt in seiner Meldung beim Namen.
+ * Namensvergleich ohne Gross/Klein — wie der Worker.
+ */
+export async function vorlageAktualisiertAm(
+  libraryId: string,
+  userEmail: string,
+  template: string,
+): Promise<string | undefined> {
+  const vorlagen = await listTemplatesFromMongoDB(libraryId, userEmail)
+  const vorlage = vorlagen.find((eintrag) => eintrag.name.toLowerCase() === template.toLowerCase())
+  return vorlage ? aktualisiertAmIso(vorlage) : undefined
+}
+
 /** Registriert `vorlagen_auflisten`. */
 export function registerVorlagenTool(server: McpServer): void {
   server.registerTool(

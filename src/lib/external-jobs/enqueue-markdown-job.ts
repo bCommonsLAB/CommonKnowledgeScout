@@ -34,6 +34,12 @@ export function buildSourceMarkdownJob(args: {
   /** LLM-Modell fuer die Template-Transformation (siehe enqueue-document-job). */
   llmModel?: string
   targetLanguage?: string
+  /**
+   * Template-Gate uebergehen (`policies.metadata: 'force'`): Haengt am Twin
+   * schon eine Transformation, ueberspringt der Worker die Template-Phase sonst
+   * und meldet trotzdem `completed` (Befund 21.09.2026).
+   */
+  erzwingen?: boolean
 }): MarkdownJob {
   const template = args.template.trim()
   if (!template) throw new Error('template ist Pflicht fuer Markdown-Transformationen')
@@ -73,7 +79,7 @@ export function buildSourceMarkdownJob(args: {
       // Welle ST8: ohne dieses Feld nimmt der Secretary seinen eigenen Default.
       ...(llmModel ? { llmModel } : {}),
       phases: { extract: false, template: true, ingest: true },
-      policies: { extract: 'ignore', metadata: 'do', ingest: 'do' },
+      policies: { extract: 'ignore', metadata: args.erzwingen === true ? 'force' : 'do', ingest: 'do' },
     },
   }
 }
@@ -86,6 +92,7 @@ export async function enqueueSourceMarkdownJob(args: {
   template: string
   llmModel?: string
   targetLanguage?: string
+  erzwingen?: boolean
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()

@@ -12,8 +12,8 @@
  *   Pipeline-Route (upload-frei, der Worker laedt das Binary selbst).
  * - `transformation_starten`: Standard-Template auf eine Familie MIT
  *   Transkript — Text kommt aus MongoDB (Wahrheit), der Job haengt an der
- *   Quelle, dort landet die Transformation. Markdown/Sammeldateien laufen
- *   ohne Transkript ueber `transformation-markdown.ts`.
+ *   Quelle, dort landet die Transformation. Je Quelle: `transformation-start.ts`
+ *   (Markdown/Sammeldateien ohne Transkript, Gate-Entscheidung `erzwingen`).
  * - Beide nehmen auch `sourceIds` als Stapel (Pilot-Wunschliste C3): eine
  *   Job-Zeile je Quelle, Fehler einzeln statt Stapel-Abbruch.
  * - Job-Beobachtung (`job_status`/`job_liste`): eigene Datei `tools-jobs.ts`.
@@ -27,11 +27,11 @@ import { entscheideErzwingen } from './alt-format-erkennung'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
-import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
+import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
-import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
-import { istMarkdownQuelle, starteMarkdownTransformation } from './transformation-markdown'
+import { starteTransformation } from './transformation-start'
+import { vorlageAktualisiertAm } from './tools-vorlagen'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 
 const SOURCE_INPUTS = {
@@ -155,6 +155,8 @@ export function registerErschliessenTools(server: McpServer): void {
         'Sammeldateien (kind: composite-transcript) werden wie im KS-UI aus den Twins ihrer ' +
         '_source_files aufgeloest; fehlt dort ein Transkript, kommt der Fehler mit den Dateinamen ' +
         'VOR dem Job-Start (dann genau diese Dateien mit quelle_erschliessen erschliessen). ' +
+        'Haengt schon eine Transformation am Twin, entscheidet der Server ueber erzwingen (siehe dort) — ' +
+        'eine aktuelle Transformation wird mit Begruendung abgesagt statt still uebersprungen. ' +
         'Die Transformation landet an der Quelle. Antwortet SOFORT mit jobId(s) — Status mit ' +
         'job_status/job_liste. Stapel via sourceIds. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
@@ -162,11 +164,17 @@ export function registerErschliessenTools(server: McpServer): void {
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Template; weglassen = Standard-Template der Library'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
+        erzwingen: z.boolean().optional().describe(
+          'WEGLASSEN ist der Normalfall: Der Server erzwingt von sich aus, wenn die Vorlage oder das ' +
+          'Transkript juenger ist als die vorhandene Transformation oder nur eine ANDERE Vorlage ' +
+          'transformiert wurde (jobs[].erzwungen nennt den Grund). Ist die Transformation aktuell, ' +
+          'gibt es eine Absage OHNE Job. true = trotzdem neu erzeugen (z.B. Quelldatei geaendert); ' +
+          'false = nie erzwingen — der Worker ueberspringt dann eine vorhandene Transformation.'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'transformation_starten', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -175,33 +183,14 @@ export function registerErschliessenTools(server: McpServer): void {
           const effectiveTemplate = template ?? standardTemplate(library)
           // Modell nur aus der Library-Konfiguration — siehe quelle_erschliessen.
           const effectiveModell = standardLlmModell(library)
+          // Einmal je Aufruf, nicht je Quelle: Massstab fuer „Transformation ueberholt".
+          const vorlageStand = await vorlageAktualisiertAm(libraryId, userEmail, effectiveTemplate)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
-            start: async (source) => {
-              // Markdown/Sammeldatei: die Quelle IST der Text (transformation-markdown.ts).
-              if (istMarkdownQuelle(source.name)) {
-                const { jobId } = await starteMarkdownTransformation({
-                  libraryId, userEmail, provider, source,
-                  template: effectiveTemplate, llmModel: effectiveModell, zielsprache,
-                })
-                return jobId
-              }
-              const service = new ShadowTwinService({
-                library, userEmail, sourceId: source.itemId, sourceName: source.name, parentId: source.parentId, provider,
-              })
-              const transcript = await service.getMarkdown({ kind: 'transcript', targetLanguage: '' })
-              if (!transcript?.markdown?.trim()) {
-                throw new Error(
-                  `Kein Transkript fuer "${source.name}" — zuerst quelle_erschliessen (oder Pipeline im KS-UI)`,
-                )
-              }
-              const { jobId } = await enqueueTemplateOnTextJob({
-                libraryId, userEmail, source,
-                template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
-                extractedText: transcript.markdown,
-              })
-              return jobId
-            },
+            start: (source) => starteTransformation({
+              library, libraryId, userEmail, provider, source,
+              template: effectiveTemplate, llmModel: effectiveModell, zielsprache, erzwingen, vorlageAktualisiertAm: vorlageStand,
+            }),
           })
           return jsonResult({
             ok: batch.gescheitert === 0,
