@@ -121,6 +121,14 @@ export interface CompositeResolveOptions {
    * als Binaerfragmente an ihren Twin gehaengt (composite-media-files.ts).
    */
   compositeSourceId?: string
+  /**
+   * Nur pruefen, ob alle `_source_files` aufloesbar sind — ohne Medien zu
+   * registrieren (Blob-Upload) und ohne die geflachte Fassung zu bauen.
+   * Fuer die Vorab-Pruefung der MCP-Bruecke (`transformation_starten`): dieselbe
+   * Entscheidung je Quelle wie im Worker, aber ohne dessen Schreibarbeit.
+   * `markdown` im Ergebnis ist dann leer; `_media_files` prueft erst der Worker.
+   */
+  nurQuellenPruefen?: boolean
 }
 
 /** Ergebnis von resolveCompositeTranscript */
@@ -418,6 +426,10 @@ export async function resolveCompositeTranscript(
     }
 
     resolvedSources.push({ name, index: i + 1, markdown, mimeType })
+  }
+
+  if (options.nurQuellenPruefen === true) {
+    return { markdown: '', unresolvedSources }
   }
 
   // Bilder aus `_media_files` (Pfade wie bei `_source_files`) als Fragmente am

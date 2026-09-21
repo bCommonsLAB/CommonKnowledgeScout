@@ -59,6 +59,7 @@ import {
   getShadowTwinArtifact,
 } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { buildAggregatedMediaForSources } from '@/lib/media/aggregated-media-service'
 
 const mockGetMany = getShadowTwinsBySourceIds as unknown as ReturnType<typeof vi.fn>
 const mockGetOne = getShadowTwinArtifact as unknown as ReturnType<typeof vi.fn>
@@ -329,5 +330,39 @@ describe('resolveCompositeTranscript mit Suffix', () => {
     const lastCall = mockGetOne.mock.calls[0]?.[0]
     expect(lastCall?.artifactKey?.kind).toBe('transcript')
     expect(r.markdown).toContain('Transcript Markdown')
+  })
+
+  it('nurQuellenPruefen: meldet fehlendes Transkript, fasst aber keine Medien an', async () => {
+    // Vorab-Pruefung der MCP-Bruecke: `_media_files` OHNE compositeSourceId wuerde
+    // im vollen Lauf werfen — hier darf der Medien-Teil gar nicht erreicht werden.
+    mockProvider.mockResolvedValue({
+      listItemsById: vi.fn().mockResolvedValue([
+        { id: 's1', type: 'file', metadata: { name: 'a.pdf' } },
+      ]),
+      getBinary: vi.fn(),
+    })
+    mockGetOne.mockResolvedValue(null)
+
+    const md = [
+      '---',
+      '_source_files: ["a.pdf"]',
+      '_media_files: ["bilder/k1.png"]',
+      'kind: composite-transcript',
+      '---',
+      '',
+    ].join('\n')
+
+    const r = await resolveCompositeTranscript({
+      libraryId: 'lib-1',
+      userEmail: 'u@e.com',
+      targetLanguage: 'de',
+      compositeMarkdown: md,
+      parentId: 'p',
+      nurQuellenPruefen: true,
+    })
+
+    expect(r.unresolvedSources).toEqual(['a.pdf'])
+    expect(r.markdown).toBe('')
+    expect(buildAggregatedMediaForSources).not.toHaveBeenCalled()
   })
 })
