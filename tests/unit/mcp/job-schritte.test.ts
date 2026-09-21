@@ -60,3 +60,30 @@ describe('uebersprungenHinweis', () => {
     expect(uebersprungenHinweis({ status: 'completed', steps: undefined })).toBeUndefined()
   })
 })
+
+describe('uebersprungenHinweis — Transformation uebersprungen, Ingest lief (Befund 21.09.2026)', () => {
+  const TEMPLATE_SKIP: ExternalJobStep = {
+    name: 'transform_template', status: 'completed',
+    details: { skipped: true, reason: 'preprocess_frontmatter_valid' },
+  }
+  const INGEST: ExternalJobStep = { name: 'ingest_rag', status: 'completed', durationMs: 4000 }
+
+  it('sagt laut, dass der Twin unveraendert ist, und nennt erzwingen', () => {
+    const hinweis = uebersprungenHinweis({ status: 'completed', steps: [UEBERSPRUNGEN, TEMPLATE_SKIP, INGEST] })
+    expect(hinweis).toContain('TRANSFORMATION wurde uebersprungen')
+    expect(hinweis).toContain('preprocess_frontmatter_valid')
+    expect(hinweis).toContain('erzwingen=true')
+  })
+
+  it('schweigt bei bewusst abgeschalteter Template-Phase (nur_transkript)', () => {
+    const aus: ExternalJobStep = {
+      name: 'transform_template', status: 'completed', details: { skipped: true, reason: 'phase_disabled' },
+    }
+    expect(uebersprungenHinweis({ status: 'completed', steps: [GEARBEITET, aus] })).toBeUndefined()
+  })
+
+  it('schweigt, wenn die Transformation gelaufen ist', () => {
+    const lief: ExternalJobStep = { name: 'transform_template', status: 'completed', durationMs: 9000 }
+    expect(uebersprungenHinweis({ status: 'completed', steps: [UEBERSPRUNGEN, lief, INGEST] })).toBeUndefined()
+  })
+})

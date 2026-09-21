@@ -129,6 +129,8 @@ export function buildTemplateOnTextJob(args: {
   /** LLM-Modell fuer die Template-Transformation (siehe parameters unten). */
   llmModel?: string
   targetLanguage?: string
+  /** Template-Gate uebergehen (`policies.metadata: 'force'`) — siehe enqueue-markdown-job. */
+  erzwingen?: boolean
 }): EnqueueJob {
   const template = args.template.trim()
   const llmModel = args.llmModel?.trim() || undefined
@@ -160,7 +162,7 @@ export function buildTemplateOnTextJob(args: {
       // der Secretary auf seinen eigenen Default zurueck, und der war am
       // 28.08.2026 eine ungueltige Modell-Id.
       ...(llmModel ? { llmModel } : {}),
-      policies: { extract: 'ignore', metadata: 'do', ingest: 'do' },
+      policies: { extract: 'ignore', metadata: args.erzwingen === true ? 'force' : 'do', ingest: 'do' },
       phases: { extract: false, template: true, ingest: true, images: false },
     },
   }
@@ -251,6 +253,7 @@ export async function enqueueTemplateOnTextJob(args: {
   template: string
   llmModel?: string
   targetLanguage?: string
+  erzwingen?: boolean
   extractedText: string
 }): Promise<{ jobId: string }> {
   if (!args.extractedText.trim()) throw new Error('extractedText ist leer — nichts zu transformieren')

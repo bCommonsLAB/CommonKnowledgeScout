@@ -48,8 +48,9 @@ function providerMit(markdown: string): StorageProvider {
   } as unknown as StorageProvider
 }
 
-function start(markdown: string) {
+function start(markdown: string, erzwingen?: boolean) {
   return starteMarkdownTransformation({
+    erzwingen,
     libraryId: 'lib-1', userEmail: 'peter@example.com', provider: providerMit(markdown),
     source: SOURCE, template: 'commoning-methode-de', llmModel: 'modell-x',
   })
@@ -111,6 +112,12 @@ describe('starteMarkdownTransformation', () => {
     mocks.resolve.mockResolvedValue({ markdown: '', unresolvedSources: ['pdfs/a.pdf'] })
     await expect(start(COMPOSITE)).rejects.toThrow(/pdfs\/a\.pdf.*quelle_erschliessen.*Kein Job/s)
     expect(mocks.create).not.toHaveBeenCalled()
+  })
+
+  it('erzwingen: policies.metadata wird force — sonst ueberspringt der Worker eine vorhandene Transformation', async () => {
+    await start('Ein Absatz Text.', true)
+    const job = mocks.create.mock.calls[0][0]
+    expect(job.parameters).toMatchObject({ policies: { extract: 'ignore', metadata: 'force', ingest: 'do' } })
   })
 
   it('leere Markdown-Quelle (nur Frontmatter): Fehler statt leerem Job', async () => {

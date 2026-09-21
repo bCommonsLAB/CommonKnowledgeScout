@@ -59,7 +59,21 @@ export function uebersprungenHinweis(args: {
   if (args.status !== 'completed') return undefined
   const steps = args.steps ?? []
   if (steps.length === 0) return undefined
-  if (!steps.every(istUebersprungen)) return undefined
+  if (!steps.every(istUebersprungen)) {
+    // Befund 21.09.2026: `ingest_rag` lief, `transform_template` nicht — der
+    // Komplett-Skip-Hinweis griff nicht, der Twin blieb trotzdem unveraendert.
+    const template = steps.find((step) => step.name === 'transform_template')
+    if (!template || !istUebersprungen(template)) return undefined
+    // Bewusst abgeschaltete Phase (z. B. "nur_transkript") ist kein Befund.
+    if (skipGrund(template) === 'phase_disabled') return undefined
+    return (
+      'Die TRANSFORMATION wurde uebersprungen' +
+      (skipGrund(template) ? ` (${skipGrund(template)})` : '') +
+      ': Am Twin haengt schon eine, das Gate hielt sie fuer gueltig — der Twin ist UNVERAENDERT, ' +
+      'auch wenn andere Schritte liefen. Sollte sie neu entstehen (geaenderte Vorlage oder Quelle): ' +
+      'transformation_starten mit erzwingen=true.'
+    )
+  }
   return (
     'Dieser Job hat NICHTS geschrieben: alle Schritte wurden uebersprungen, weil vorhandene ' +
     'Artefakte die Arbeit ueberfluessig erscheinen liessen (Gate). Fehlt trotzdem ein Artefakt ' +
