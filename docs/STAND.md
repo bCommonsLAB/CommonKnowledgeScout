@@ -160,8 +160,12 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   während des Ernte-Fensters in der Inbox und werden beim Schließen Dateien
   im Storage; die Synthese läuft über das bestehende Sammeltranskript. Der 05.10. ist kein Schnittkriterium mehr.
   Landkarte in Figma (intern): „KnowledgeScout — Modul-Landkarte“.
-  **Nächster Schritt:** G0 (ADR 0011); vor G5 die zwei offenen Punkte
-  (Name in der Beitragsdatei, Pfadvorlage).
+  **Owner 23.09.: erst Detailkonzepte, dann Code.** Grundlage:
+  [`plans/beteiligung-objektmodell-original-und-kopie.plan.md`](plans/beteiligung-objektmodell-original-und-kopie.plan.md)
+  (D0: fünf Klassen Planung · Verfahren · Beitrag · Ergebnis · abgeleitet,
+  wo das Original liegt, stabile Kennungen, Verzeichnisstruktur mit
+  Organisationsordnern, Liste D1–D11). **Nächster Schritt:** Entscheidungen
+  E1–E6 dort, dann die Detailkonzepte D1, D2, D5, D8.
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.

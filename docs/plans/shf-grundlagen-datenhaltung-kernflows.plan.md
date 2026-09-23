@@ -37,6 +37,14 @@ Danach die User Stories.
   in die eigene Datenbank statt ins Storage des Kunden) mit der
   Wiederverwendung der Datei-Logik.
 
+**Owner 23.09., später am Tag:** Vor jeder G-Scheibe kommt ein
+Detailkonzept. Die Grundlage aller Detailkonzepte (Objektmodell, Original
+und Kopie, Verzeichnisstruktur, D0–D11) steht in
+[`beteiligung-objektmodell-original-und-kopie.plan.md`](beteiligung-objektmodell-original-und-kopie.plan.md).
+Dessen Objektmodell präzisiert Abschnitt 2.4 unten. Neu sind die
+Planungsobjekte `series`, `text_passages` und `organisations` als
+freigegebene Kopien der Steckbrief-Dateien.
+
 **Visuell:** Figma „KnowledgeScout — Modul-Landkarte“
 (https://www.figma.com/design/lq5lUzASBUkhDfjd7XeTqt, intern). Sieben
 Domänen × vier Schichten, je Karte *vorhanden · fertigstellen · neu*,
