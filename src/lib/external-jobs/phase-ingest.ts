@@ -19,6 +19,7 @@ import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
 import { resolveJobProvider } from '@/lib/external-jobs/provider'
 import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
+import { pruefeJobNichtAbgebrochen } from '@/lib/external-jobs/job-abbruch-waechter'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { INGEST_META_SOURCE_FILE_NAME_KEY } from '@/lib/ingestion/ingest-meta-keys'
 
@@ -315,6 +316,18 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
 
   // Parent-Ordner der Quelldatei: damit Stufe 2 (Blob-Promote) Sibling-Dateien (Bilder) finden kann
   const sourceParentId = (job.correlation?.source?.parentId as string | undefined) || undefined
+
+  // Abbruch-Waechter (Befund 23.09.2026): kein Schaufenster-Eintrag fuer einen
+  // Job, den jemand beendet hat.
+  const abbruch = await pruefeJobNichtAbgebrochen(repo, jobId, 'ingest_rag')
+  if (abbruch.abgebrochen) {
+    try {
+      await repo.updateStep(jobId, 'ingest_rag', {
+        status: 'failed', endedAt: new Date(), error: { message: `Nicht ingestiert: ${abbruch.grund}` },
+      })
+    } catch {}
+    return { completed: false, skipped: false, error: abbruch.grund }
+  }
 
   let res
   try {

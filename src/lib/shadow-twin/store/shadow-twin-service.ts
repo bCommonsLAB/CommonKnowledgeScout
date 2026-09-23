@@ -513,7 +513,10 @@ export class ShadowTwinService {
           this.options.sourceId,
           hash,
           extension,
-          buffer
+          buffer,
+          // Content-Type aus dem uebergebenen MIME-Typ — PDFs bekamen sonst
+          // das Bild-Etikett der Endungs-Tabelle (Befund 23.09.2026).
+          mimeType
         )
         FileLogger.info('shadow-twin-service', 'Binary-Fragment nach Azure hochgeladen', {
           fileName,

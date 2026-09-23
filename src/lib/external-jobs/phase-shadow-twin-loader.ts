@@ -506,12 +506,46 @@ export async function loadShadowTwinMarkdown(
     // =========================================================================
     //
     // Prioritäten:
+    // 0. Transformation mit der Vorlage DIESES Jobs (Mongo, exakt) — siehe unten
     // 1. shadowTwinState.transformed.id (direkt aus Job-State)
     // 2. ShadowTwinService.getMarkdown({ kind: 'transformation' })
     // 3. resolveArtifact mit preferredKind: 'transformation'
     // 4. Fallback: Transkript (falls keine Transformation existiert)
     //
     // =========================================================================
+
+    // Priorität 0 (Befund 23.09.2026): die Vorlage DIESES Jobs, exakt aus Mongo.
+    // `shadowTwinState.transformed` (Prio 1) ist der Stand VOR der Template-Phase
+    // und zeigt auf die juengste Transformation IRGENDEINER Vorlage. Nach einem
+    // abgebrochenen Lauf mit anderer Vorlage veroeffentlichte der Ingest deren
+    // Ergebnis statt des eigenen — Schaufenster und Twin gingen auseinander.
+    let libraryForLoader: Library | null = null
+    if (templateName) {
+      try {
+        libraryForLoader = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+        if (libraryForLoader) {
+          const service = new ShadowTwinService({
+            library: libraryForLoader, userEmail: job.userEmail, sourceId: sourceItemId,
+            sourceName: originalName, parentId, provider,
+          })
+          const exact = await service.getMarkdown({ kind: 'transformation', targetLanguage: lang, templateName })
+          if (exact) {
+            FileLogger.info('phase-shadow-twin-loader', 'Transformation der Job-Vorlage geladen (Prio 0)', {
+              jobId, purpose, templateName, fileId: exact.id, fileName: exact.name,
+            })
+            const parsed = parseSecretaryMarkdownStrict(exact.markdown)
+            const meta = (parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta))
+              ? (parsed.meta as Record<string, unknown>)
+              : {}
+            return { markdown: exact.markdown, meta, fileId: exact.id, fileName: exact.name, loadedArtifactKind: 'transformation' }
+          }
+        }
+      } catch (error) {
+        FileLogger.warn('phase-shadow-twin-loader', 'Prio 0 (Job-Vorlage) fehlgeschlagen, weiter mit Prio 1', {
+          jobId, purpose, templateName, error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
 
     // Priorität 1: shadowTwinState.transformed.id
     if (job.shadowTwinState?.transformed?.id) {
@@ -536,9 +570,8 @@ export async function loadShadowTwinMarkdown(
 
     // Priorität 2: ShadowTwinService (Mongo-Store)
     // Library hier laden (wird für primaryStore-Prüfung in Priorität 3 wiederverwendet)
-    let libraryForLoader: Library | null = null
     try {
-      libraryForLoader = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      libraryForLoader = libraryForLoader ?? await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
       if (libraryForLoader) {
         const service = new ShadowTwinService({
           library: libraryForLoader,
