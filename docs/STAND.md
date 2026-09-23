@@ -155,11 +155,13 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   `table_participations`, `measurements`, `assessments`, `syntheses`;
   Submission mit Anlagen und Kontext), Kernflüsse K1–K4 (Erfassen,
   Verdichten mit Belegspur über den Secretary, Messen, Veröffentlichen),
-  Modul `@ks/module-deliberation`, Bau-Reihenfolge G0–G8 plus Nebenstrang W
-  „Wizard fertigstellen“. Der 05.10. ist kein Schnittkriterium mehr.
+  Modul `@ks/module-deliberation`, Bau-Reihenfolge G0–G9 plus Nebenstrang W
+  „Wizard fertigstellen“. **Speicherweg B** (Owner 23.09.): Beiträge liegen
+  während des Ernte-Fensters in der Inbox und werden beim Schließen Dateien
+  im Storage; die Synthese läuft über das bestehende Sammeltranskript. Der 05.10. ist kein Schnittkriterium mehr.
   Landkarte in Figma (intern): „KnowledgeScout — Modul-Landkarte“.
-  **Nächster Schritt:** die fünf Entscheidungen vor G0 (Plan, Abschnitt 6),
-  dann G0 (ADR 0011).
+  **Nächster Schritt:** G0 (ADR 0011); vor G5 die zwei offenen Punkte
+  (Name in der Beitragsdatei, Pfadvorlage).
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
