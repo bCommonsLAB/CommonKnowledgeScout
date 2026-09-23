@@ -140,6 +140,17 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Nächster Schritt im Repo: **Kostenprüfung der Haltungsänderung am Code**
   (Architektur-Konzept, Abschnitt 7, Punkt 1; Pflicht vor E0), danach Welle
   E0 (Regelsatz) und D0 (Dialogfall auf dem Testimonial-Bestand).
+- **Stand 23.09.: Umsetzungsplan in drei Wellen** —
+  [`plans/shf-umsetzung-wellen.plan.md`](plans/shf-umsetzung-wellen.plan.md)
+  (Designstudie 19.–21.09., vier Rollen, Zuordnung zur Laufzeit; am Code
+  geprüft gegen v1.2.262). Welle 1 (Zugang 05.10.: Weg der Teilnehmenden
+  live, Moderation bis 09.10.), Welle 2 (Einwandverfahren A mit Messung als
+  Objekt, Synthese, Tisch-Abschluss, Vertretung), Welle 3 (Redaktion,
+  Vision, Folgegruppen, Nachschlagen). Löst die Reihenfolge E0–E7 und C0–C10
+  der beiden Konzepte für das SHF ab. **Nächster Schritt:** die
+  Welle-1-Entscheidungen W1-E1 bis W1-E6 (Plan, Abschnitt 6), dann PR W1-1
+  (Tisch-Laufzeit). Dringend offen: W2-E1, der Freeze am 09.10. trägt
+  Welle 2 nicht.
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
