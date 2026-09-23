@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.30.4'
+export const TOOLSET_VERSION = '2.30.5'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -73,6 +73,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.30.5: familie_umziehen/quelle_verwerfen: result.newSourceId, sourceIdChanged, vectorsRekeyed — auf pfadbasierten Providern (Nextcloud) aendert Umbenennen/Verschieben die Storage-Id; Twin-Dokument wird umgeschluesselt, der Schaufenster-Eintrag (docs/doc-meta) auf die neue Id umgeschrieben, Export laeuft mit der neuen Id. Bei Id-Wechsel steht die neue Id im hinweis',
   '2.30.4: transformation_starten: jobs[].hinweis, wenn am Twin schon eine ANDERE Vorlage haengt als die gestartete (ohne template gilt die Library-Vorgabe, nicht die Vorlage des Twins). job_abbrechen wirkt jetzt: ein beendeter Job schreibt weder Transformation noch Schaufenster-Eintrag und wird nicht mehr completed',
   '2.30.3: transformation_starten kennt erzwingen — automatisch bei juengerer Vorlage, juengerem Transkript oder nur anderer Vorlage am Twin (jobs[].erzwungen nennt den Grund); eine AKTUELLE Transformation wird ohne Job abgesagt statt still uebersprungen. job_status: Hinweis, wenn transform_template uebersprungen wurde, obwohl andere Schritte liefen',
   '2.30.2: transformation_starten nimmt Markdown-Quellen und Sammeldateien (kind: composite-transcript) OHNE Transkript — Job-Form wie im KS-UI; nicht aufloesbare _source_files kommen als Fehler mit Dateinamen vor dem Job-Start',
