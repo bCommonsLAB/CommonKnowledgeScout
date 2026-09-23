@@ -21,6 +21,9 @@ import type { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { FileLogger } from '@/lib/debug/logger'
 
+/** Fehlercode, den `job_abbrechen` setzt — Quelle fuer alle, die ihn erkennen muessen. */
+export const ABBRUCH_VON_HAND_CODE = 'von_hand_abgebrochen'
+
 export type AbbruchPruefung =
   | { abgebrochen: false }
   | { abgebrochen: true; grund: string }
@@ -52,4 +55,15 @@ export async function pruefeJobNichtAbgebrochen(
     jobId, schritt, code: job.error?.code ?? null,
   })
   return { abgebrochen: true, grund }
+}
+
+/**
+ * True, wenn der Job von Hand beendet wurde. Dann darf KEIN Fehlerbehandler
+ * den Abbruchgrund durch seinen eigenen Fehler ersetzen — sonst steht am Job
+ * `start_error: Abschluss verweigert …` statt des Grundes, den der Mensch
+ * angegeben hat.
+ */
+export async function istVonHandAbgebrochen(repo: AbbruchRepo, jobId: string): Promise<boolean> {
+  const job = await repo.get(jobId)
+  return job?.status === 'failed' && job.error?.code === ABBRUCH_VON_HAND_CODE
 }

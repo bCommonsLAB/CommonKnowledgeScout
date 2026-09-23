@@ -28,6 +28,7 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { ABBRUCH_VON_HAND_CODE } from '@/lib/external-jobs/job-abbruch-waechter'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
@@ -85,7 +86,7 @@ export function registerJobAbbrechenTool(server: McpServer): void {
             const vorherigerStatus = job.status
             const erfolg = await repo.setStatusIf(jobId, vorherigerStatus, 'failed', {
               error: {
-                code: 'von_hand_abgebrochen',
+                code: ABBRUCH_VON_HAND_CODE,
                 message:
                   `Von Hand abgebrochen ueber die MCP-Bruecke (${userEmail}): ${begruendung}`,
                 details: { vorherigerStatus, werkzeug: 'job_abbrechen' },
