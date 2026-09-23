@@ -147,10 +147,19 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   live, Moderation bis 09.10.), Welle 2 (Einwandverfahren A mit Messung als
   Objekt, Synthese, Tisch-Abschluss, Vertretung), Welle 3 (Redaktion,
   Vision, Folgegruppen, Nachschlagen). Löst die Reihenfolge E0–E7 und C0–C10
-  der beiden Konzepte für das SHF ab. **Nächster Schritt:** die
-  Welle-1-Entscheidungen W1-E1 bis W1-E6 (Plan, Abschnitt 6), dann PR W1-1
-  (Tisch-Laufzeit). Dringend offen: W2-E1, der Freeze am 09.10. trägt
-  Welle 2 nicht.
+  der beiden Konzepte für das SHF ab.
+- **Owner 23.09.: erst Grundlagen, dann Oberflächen** —
+  [`plans/shf-grundlagen-datenhaltung-kernflows.plan.md`](plans/shf-grundlagen-datenhaltung-kernflows.plan.md):
+  Wizard-Stand und -Editor (was das SHF davon braucht: nur die Flow-Naht),
+  Datenmodell der Beteiligungs-Domäne (`meetings`, `meeting_tables`,
+  `table_participations`, `measurements`, `assessments`, `syntheses`;
+  Submission mit Anlagen und Kontext), Kernflüsse K1–K4 (Erfassen,
+  Verdichten mit Belegspur über den Secretary, Messen, Veröffentlichen),
+  Modul `@ks/module-deliberation`, Bau-Reihenfolge G0–G8 plus Nebenstrang W
+  „Wizard fertigstellen“. Der 05.10. ist kein Schnittkriterium mehr.
+  Landkarte in Figma (intern): „KnowledgeScout — Modul-Landkarte“.
+  **Nächster Schritt:** die fünf Entscheidungen vor G0 (Plan, Abschnitt 6),
+  dann G0 (ADR 0011).
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.

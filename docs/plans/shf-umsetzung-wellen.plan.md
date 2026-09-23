@@ -7,6 +7,15 @@ status: konzept
 
 # SHF-Umsetzung in drei Wellen
 
+> **Nachtrag 23.09. (Owner):** Die Reihenfolge dieses Plans gilt nicht mehr.
+> Gebaut wird zuerst die Grundlage, also Datenhaltung und Kernflüsse
+> (G0–G8 in
+> [`shf-grundlagen-datenhaltung-kernflows.plan.md`](shf-grundlagen-datenhaltung-kernflows.plan.md)),
+> danach die Oberflächen. Der 05.10. ist kein Schnittkriterium; zur Not wird
+> dort das Klickmodell gezeigt. Dieser Plan bleibt gültig als Liste der
+> Screens, ihrer Einstufung und der Abnahme an Figma (Abschnitte 1, 3–5)
+> und für die offenen Punkte mit Varianten (Abschnitt 4).
+
 **Stand:** 2026-09-23, geprüft gegen `master` 579f2d7 (v1.2.262).
 **Auftrag:** Handover von Cowork vom 23.09. (Archiv, `24.09 KnowledgeScout`).
 Die Spezifikation ist „Anwendungsflows SHF – Screens erklärt“ (21.09.), die
