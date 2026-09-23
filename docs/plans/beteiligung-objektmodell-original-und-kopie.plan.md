@@ -210,11 +210,11 @@ Detailkonzept wird abgenommen, bevor seine G-Scheibe gebaut wird.
 | # | Frage | Empfehlung |
 |---|---|---|
 | E1 | **Entschieden (Owner 23.09.): „Datei zuerst“.** Wo wird die Planung gepflegt? Variante „Datei zuerst“: Steckbriefe und Textstellen im Storage (von Hand, in Obsidian oder durch Cowork über die Brücke), die App liest sie beim Freigeben ein. Variante „App zuerst“: Die Redaktion pflegt in der App, die Dateien sind nur exportierte Kopien | **Datei zuerst.** Das passt zur Regel R1 und zur heutigen Arbeitsweise (Archiv, Cowork) und braucht bis zur Redaktions-Oberfläche kein eigenes Werkzeug. Die spätere Redaktions-Oberfläche schreibt dieselben Dateien und liest sie wieder ein; es bleibt **ein** Original |
-| E2 | Ändert ein Datei-Edit ein laufendes Treffen? | Nein. Nur ein ausdrückliches „neu einlesen“ mit Abweichungsbericht, und das nur, solange das Treffen nicht läuft |
-| E3 | Stabile Kennungen im Frontmatter (`*_id`) statt `fileId` als Verweis | ja |
-| E4 | Facette `organisation` (und `gruppe`, `thema`) vor dem ersten Ingest konfigurieren | ja; in D8 festhalten |
-| E5 | Quellenverweis im Chat: `DocReference` um `organisation` erweitern oder in der Oberfläche auflösen | in D8/D9 entscheiden; Erweiterung ist ein Contract-Eingriff in `@ks/contracts` |
-| E6 | Wer darf in `Organisationen/{Org}/Dokumente/` ablegen? | vorerst die Redaktion für die Organisation; eigene Konten je Organisation mit ADR 0005 |
+| E2 | **Entschieden (Owner 23.09.).** Ändert ein Datei-Edit ein laufendes Treffen? | Nein. Nur ein ausdrückliches „neu einlesen“ mit Abweichungsbericht, und das nur, solange das Treffen nicht läuft |
+| E3 | **Entschieden (Owner 23.09.).** Stabile Kennungen im Frontmatter (`*_id`) statt `fileId` als Verweis | ja |
+| E4 | **Entschieden (Owner 23.09.).** Facette `organisation` (und `gruppe`, `thema`) vor dem ersten Ingest konfigurieren | ja; in D8 festhalten |
+| E5 | **Entschieden (Owner 23.09.): in D8/D9 zu klären.** Quellenverweis im Chat: `DocReference` um `organisation` erweitern oder in der Oberfläche auflösen | in D8/D9 entscheiden; Erweiterung ist ein Contract-Eingriff in `@ks/contracts` |
+| E6 | **Entschieden (Owner 23.09.).** Wer darf in `Organisationen/{Org}/Dokumente/` ablegen? | vorerst die Redaktion für die Organisation; eigene Konten je Organisation mit ADR 0005 |
 
 ## Verweise
 
