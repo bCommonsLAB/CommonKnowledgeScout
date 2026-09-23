@@ -31,6 +31,14 @@ voraus. Dort bleiben Kernflüsse, Speicherweg B und die Reihenfolge gültig.
 Die Collection-Liste dort (Abschnitt 2.4) wird durch Abschnitt 3 dieses
 Dokuments präzisiert.
 
+**Visuell:** Figma „KnowledgeScout — Modul-Landkarte“, Seite
+„2 · Objektmodell“ (https://www.figma.com/design/lq5lUzASBUkhDfjd7XeTqt):
+- drei Speicherorte als Spalten (Storage, Inbox, Datenbank);
+- die fünf Klassen als Farben;
+- die Übergänge ① Freigabe, ② Fensterschluss und ③ Tisch-Abschluss als
+  Pfeile;
+- gestrichelt: Synthese und Ingest als abgeleitete Wege.
+
 ## 1. Was der Bestand schon regelt
 
 Der Code folgt heute acht Regeln (Belege aus der Prüfung vom 23.09.). Die
@@ -201,7 +209,7 @@ Detailkonzept wird abgenommen, bevor seine G-Scheibe gebaut wird.
 
 | # | Frage | Empfehlung |
 |---|---|---|
-| E1 | **Wo wird die Planung gepflegt?** Variante „Datei zuerst“: Steckbriefe und Textstellen im Storage (von Hand, in Obsidian oder durch Cowork über die Brücke), die App liest sie beim Freigeben ein. Variante „App zuerst“: Die Redaktion pflegt in der App, die Dateien sind nur exportierte Kopien | **Datei zuerst.** Das passt zur Regel R1 und zur heutigen Arbeitsweise (Archiv, Cowork) und braucht bis zur Redaktions-Oberfläche kein eigenes Werkzeug. Die spätere Redaktions-Oberfläche schreibt dieselben Dateien und liest sie wieder ein; es bleibt **ein** Original |
+| E1 | **Entschieden (Owner 23.09.): „Datei zuerst“.** Wo wird die Planung gepflegt? Variante „Datei zuerst“: Steckbriefe und Textstellen im Storage (von Hand, in Obsidian oder durch Cowork über die Brücke), die App liest sie beim Freigeben ein. Variante „App zuerst“: Die Redaktion pflegt in der App, die Dateien sind nur exportierte Kopien | **Datei zuerst.** Das passt zur Regel R1 und zur heutigen Arbeitsweise (Archiv, Cowork) und braucht bis zur Redaktions-Oberfläche kein eigenes Werkzeug. Die spätere Redaktions-Oberfläche schreibt dieselben Dateien und liest sie wieder ein; es bleibt **ein** Original |
 | E2 | Ändert ein Datei-Edit ein laufendes Treffen? | Nein. Nur ein ausdrückliches „neu einlesen“ mit Abweichungsbericht, und das nur, solange das Treffen nicht läuft |
 | E3 | Stabile Kennungen im Frontmatter (`*_id`) statt `fileId` als Verweis | ja |
 | E4 | Facette `organisation` (und `gruppe`, `thema`) vor dem ersten Ingest konfigurieren | ja; in D8 festhalten |
