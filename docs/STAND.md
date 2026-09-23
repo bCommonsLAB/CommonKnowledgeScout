@@ -164,9 +164,14 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   [`plans/beteiligung-objektmodell-original-und-kopie.plan.md`](plans/beteiligung-objektmodell-original-und-kopie.plan.md)
   (D0: fünf Klassen Planung · Verfahren · Beitrag · Ergebnis · abgeleitet,
   wo das Original liegt, stabile Kennungen, Verzeichnisstruktur mit
-  Organisationsordnern, Liste D1–D11). E1 entschieden: Planung „Datei
-  zuerst“. **Nächster Schritt:** E2–E6, dann die Detailkonzepte D1, D2,
-  D5, D8.
+  Organisationsordnern, Liste D1–D11). E1–E6 entschieden (Planung „Datei
+  zuerst“). **Detailkonzepte D1–D11 geschrieben** (23.09.):
+  [`plans/beteiligung/README.md`](plans/beteiligung/README.md) mit
+  Eingriffen in den Bestand, offenen Entscheidungen O1–O9 und
+  Bau-Reihenfolge (35–43,5 PT Fundament, Oberflächen zusätzlich).
+  **Nächster Schritt:** Abnahme der Detailkonzepte durch den Owner, vor
+  allem O1 (Vertrauensraum) und O2 (Selbstbeitritt per Tisch-QR); dann
+  Stufe 1 (D11-Kern, D1).
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.

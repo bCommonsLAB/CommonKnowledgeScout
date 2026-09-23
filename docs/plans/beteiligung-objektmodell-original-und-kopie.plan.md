@@ -185,20 +185,23 @@ Jedes Detailkonzept hat dieselbe Gliederung:
 7. Tests.
 8. Offene Fragen.
 
+**Stand 23.09.:** D1–D11 sind geschrieben, siehe [`beteiligung/README.md`](beteiligung/README.md)
+(Übersicht, Eingriffe in den Bestand, offene Entscheidungen, Bau-Reihenfolge).
+
 | # | Detailkonzept | Kern | Wichtigste Bestandsschnittstellen |
 |---|---|---|---|
 | **D0** | Objektmodell, Original und Kopie (dieses Dokument) | Klassen, Kennungen, Struktur | alle |
-| **D1** | Veranstaltung aufsetzen (Designzeit) | Steckbriefe `_reihe.md`, `_treffen.md`, Textstellen; Zerlegung des Grundsatzdokuments; „Treffen freigeben“ = Import mit Plan und Abweichungsbericht | Sync-Engine (`sync-plan/*`, Import-Preset), Agentensicht-Scan, `transformation_starten`, MCP-Brücke für die Pflege durch Cowork |
-| **D2** | Organisationen und Personen | `_organisation.md`, Interessengruppen, Rollen und Einladungen je Tisch, Beitritt per Tisch-QR, Profil der Teilnahme | `library_members`, Einladungen, `member-invites/[token]/accept`, Middleware, Clerk |
-| **D3** | Beitragen | Composer, Anlagen, Job je Anlage, Foto → Text, Entwurf und Abgabe | `wizard_submissions`, `submission-analysis-job.ts`, `image-analyzer.ts`, `LiveDictationTextarea`, Flow-Entität (`resolveWizardFlow`) |
-| **D4** | Tisch-Laufzeit | Lauf, Agenda, Timer, Fenster, Stille Runde, Anhalten | Polling über TanStack Query, `api-route-conventions.md` |
-| **D5** | Fensterschluss: Beiträge werden Dateien | Promotion in den Organisationsordner, Frontmatter, Anlagen, Wiederholung bei Storage-Fehlern, Widerruf und Herausnehmen | `promoteSubmission`, `copyOriginalsToTarget`, `mirrorInboxAssetsToTarget`, `publish-frontmatter.ts`, Serializer |
-| **D6** | Verdichten | Sammelreferenz, Vorlage, Transformation, Belegprüfung, Fassungskette | `buildCompositeReference`, `resolveCompositeTranscript`, Text-Job, `callTemplateTransform`, Muster Overlap-Bericht |
-| **D7** | Messen | Messung mit Passivlösung, Stellungnahmen, Auswertung, Beamer | — (neu), Konzept 13.09. |
-| **D8** | Ergebnis veröffentlichen und Ingest mit Quellenangabe | Tisch-Abschluss, Redaktions-Freigabe, Ergebnis-Datei, Facetten, Quellenverweis | Promotion, `IngestionService`, `config.chat.gallery.facets`, `DocReference` |
-| **D9** | Beauskunften | Chat für Teilnehmende und Moderation, was im Index ist und was nicht | Chat-Stream, `loader.ts`, Retriever, `publication-filter.ts` |
-| **D10** | Nächstes Treffen und Historie je Gruppe | gültige Fassung je Textstelle, Folgegruppen (passt · passt nicht · ergänzen), Druck | `text_passages.validVersion`, Ergebnis-Dateien |
-| **D11** | Rechte und Sichtbarkeit | wer sieht was wann (V1–V3), Rolle je Tisch und Organisation | Mitglieder-Rollen, Chat-Loader, Middleware |
+| **[D1](beteiligung/d01-veranstaltung-aufsetzen.plan.md)** | Veranstaltung aufsetzen (Designzeit) | Steckbriefe `_reihe.md`, `_treffen.md`, Textstellen; Zerlegung des Grundsatzdokuments; „Treffen freigeben“ = Import mit Plan und Abweichungsbericht | Sync-Engine (`sync-plan/*`, Import-Preset), Agentensicht-Scan, `transformation_starten`, MCP-Brücke für die Pflege durch Cowork |
+| **[D2](beteiligung/d02-organisationen-und-personen.plan.md)** | Organisationen und Personen | `_organisation.md`, Interessengruppen, Rollen und Einladungen je Tisch, Beitritt per Tisch-QR, Profil der Teilnahme | `library_members`, Einladungen, `member-invites/[token]/accept`, Middleware, Clerk |
+| **[D3](beteiligung/d03-beitragen.plan.md)** | Beitragen | Composer, Anlagen, Job je Anlage, Foto → Text, Entwurf und Abgabe | `wizard_submissions`, `submission-analysis-job.ts`, `image-analyzer.ts`, `LiveDictationTextarea`, Flow-Entität (`resolveWizardFlow`) |
+| **[D4](beteiligung/d04-tisch-laufzeit.plan.md)** | Tisch-Laufzeit | Lauf, Agenda, Timer, Fenster, Stille Runde, Anhalten | Polling über TanStack Query, `api-route-conventions.md` |
+| **[D5](beteiligung/d05-fensterschluss-beitraege-werden-dateien.plan.md)** | Fensterschluss: Beiträge werden Dateien | Promotion in den Organisationsordner, Frontmatter, Anlagen, Wiederholung bei Storage-Fehlern, Widerruf und Herausnehmen | `promoteSubmission`, `copyOriginalsToTarget`, `mirrorInboxAssetsToTarget`, `publish-frontmatter.ts`, Serializer |
+| **[D6](beteiligung/d06-verdichten.plan.md)** | Verdichten | Sammelreferenz, Vorlage, Transformation, Belegprüfung, Fassungskette | `buildCompositeReference`, `resolveCompositeTranscript`, Text-Job, `callTemplateTransform`, Muster Overlap-Bericht |
+| **[D7](beteiligung/d07-messen.plan.md)** | Messen | Messung mit Passivlösung, Stellungnahmen, Auswertung, Beamer | — (neu), Konzept 13.09. |
+| **[D8](beteiligung/d08-ergebnis-und-ingest.plan.md)** | Ergebnis veröffentlichen und Ingest mit Quellenangabe | Tisch-Abschluss, Redaktions-Freigabe, Ergebnis-Datei, Facetten, Quellenverweis | Promotion, `IngestionService`, `config.chat.gallery.facets`, `DocReference` |
+| **[D9](beteiligung/d09-beauskunften.plan.md)** | Beauskunften | Chat für Teilnehmende und Moderation, was im Index ist und was nicht | Chat-Stream, `loader.ts`, Retriever, `publication-filter.ts` |
+| **[D10](beteiligung/d10-naechstes-treffen-und-historie.plan.md)** | Nächstes Treffen und Historie je Gruppe | gültige Fassung je Textstelle, Folgegruppen (passt · passt nicht · ergänzen), Druck | `text_passages.validVersion`, Ergebnis-Dateien |
+| **[D11](beteiligung/d11-rechte-und-sichtbarkeit.plan.md)** | Rechte und Sichtbarkeit | wer sieht was wann (V1–V3), Rolle je Tisch und Organisation | Mitglieder-Rollen, Chat-Loader, Middleware |
 
 **Reihenfolge:** Zuerst **D1, D2, D5, D8**. Diese vier legen die Grenzen
 zwischen Original und Kopie fest: Planung → Datenbank, Beitrag → Datei,
