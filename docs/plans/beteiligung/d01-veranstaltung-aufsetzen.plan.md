@@ -59,6 +59,10 @@ beim **Freigeben** als Snapshot.
      als **String** zurück (`src/lib/secretary/response-parser.ts:50-93`).
      Block-Listen (`- a`) kommen als `""` zurück.
    - Ein Datum ist ein ISO-String (`2026-11-13`), eine Uhrzeit `HH:MM`.
+   - **Keine Kommentare im Frontmatter.** Der Parser liest zeilenweise
+     `key: value`. `modus: praesenz  # …` käme als Wert `praesenz  # …`
+     zurück. Erlaubte Werte stehen deshalb in diesem Konzept, nicht in der
+     Datei.
 2. **Mehrzeilige Strukturen stehen im Body** als Markdown-Tabellen unter
    festen Überschriften (Handlungsfelder, Interessengruppen, Agenda,
    Rollen). Die Tischvereinbarung steht als nummerierte Liste da. So
@@ -82,6 +86,20 @@ beim **Freigeben** als Snapshot.
    übernommen. **Fehlende Pflichtfelder** sind Fehler (keine stillen
    Standards, `no-silent-fallbacks`).
 
+**Erlaubte Werte:**
+- `abschnitt_art`: `vision | vortext | ziel | indikator`
+- `verfahren`: `A | B`
+- `modus`: `praesenz | online | zwischenraum`
+- `kuratierung`: `notbremse | keine`
+- `widerruf_bis`: `tisch_abschluss`
+- `gehoert_zu`: optional; ein Indikator gehört zu einem Ziel, ein Ziel zum
+  Vortext.
+- `gueltige_fassung`: leer heißt Ausgangstext, sonst ein Wiki-Link auf ein
+  Ergebnis (D10).
+- `gruppe`: 1 ist die erste Gruppe eines Handlungsfelds, sie zeichnet die
+  Vision.
+- `baut_auf`: die `tisch_id` der Vorgruppe, leer bei Gruppe 1.
+
 ### 3.2 Textstelle — `Veranstaltungen/{Reihe}/Textstellen/{Kürzel} {Titel}.md`
 
 ```markdown
@@ -90,14 +108,14 @@ typ: textstelle
 textstelle_id: hf1-ziel-03
 reihe_id: shf-2026
 handlungsfeld_id: hf1
-abschnitt_art: ziel            # vision | vortext | ziel | indikator
+abschnitt_art: ziel
 kapitel: "3.2"
 reihenfolge: 30
 titel: Flächenverbrauch senken
-gehoert_zu: hf1-vortext        # optional: Indikator → Ziel, Ziel → Vortext
-verfahren: A                   # A | B; Vorgabe je Textstelle
+gehoert_zu: hf1-vortext
+verfahren: A
 leitfrage: Was muss in diesem Ziel stehen, damit Sie es mittragen können?
-gueltige_fassung: ""           # leer = Ausgangstext; sonst Wiki-Link auf ein Ergebnis (D10)
+gueltige_fassung: ""
 ---
 
 (Der Wortlaut der Textstelle aus dem Grundsatzdokument, unverändert.)
@@ -148,9 +166,9 @@ nummer: 1
 datum: 2026-11-13
 beginn: "14:00"
 ende: "17:30"
-modus: praesenz                # praesenz | online | zwischenraum
+modus: praesenz
 ort: Messe, Saal 2
-kuratierung: notbremse         # notbremse | keine
+kuratierung: notbremse
 widerruf_bis: tisch_abschluss
 ---
 
@@ -176,8 +194,8 @@ tisch_id: shf-2026-t1-tisch2
 treffen_id: shf-2026-t1
 nummer: 2
 handlungsfeld_id: hf2
-gruppe: 1                      # 1 = erste Gruppe dieses Handlungsfelds (zeichnet die Vision)
-baut_auf: ""                   # tisch_id der Vorgruppe; leer bei Gruppe 1
+gruppe: 1
+baut_auf: ""
 ---
 
 ## Agenda
