@@ -121,7 +121,12 @@ export function registerUmzugTools(server: McpServer): void {
           return jsonResult({
             ok: true,
             result,
-            hinweis: 'Danach abdeckung_scannen (Teilbaum), damit der Report den neuen Stand zeigt.',
+            hinweis:
+              (result.sourceIdChanged
+                ? `Die Storage-Id hat sich geaendert (pfadbasierter Provider): ab jetzt ${result.newSourceId} verwenden, ` +
+                  `nicht mehr ${resolvedSourceId}. Twin-Dokument und Schaufenster sind umgeschrieben. `
+                : '') +
+              'Danach abdeckung_scannen (Teilbaum), damit der Report den neuen Stand zeigt.',
           })
         })
       } catch (error) {

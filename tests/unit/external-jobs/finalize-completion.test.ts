@@ -33,10 +33,12 @@ vi.mock('@/lib/events/job-event-bus', () => ({ getJobEventBus: () => ({ emitUpda
 import { finalizeJobCompletion } from '@/lib/external-jobs/finalize-completion'
 
 /** Minimaler Fake-Repo mit den von finalize genutzten Methoden. */
-function fakeRepo() {
+function fakeRepo(status: string = 'running') {
   return {
     setResult: vi.fn(async () => {}),
     setStatus: vi.fn(async () => {}),
+    // Abbruch-Waechter liest den Status vor dem Abschluss.
+    get: vi.fn(async () => ({ jobId: 'job-1', status, error: status === 'failed' ? { code: 'von_hand_abgebrochen', message: 'Falsche Vorlage' } : undefined })),
   }
 }
 
@@ -116,6 +118,24 @@ describe('finalizeJobCompletion', () => {
     ).rejects.toThrow(/ohne Artefakt/)
 
     expect(mocks.applyAnalysisResult).not.toHaveBeenCalled()
+    expect(repo.setStatus).not.toHaveBeenCalled()
+  })
+
+  it('von Hand beendeter Job (Befund 23.09.2026): kein completed, kein Result, Abbruchgrund bleibt', async () => {
+    const repo = fakeRepo('failed')
+
+    await expect(
+      finalizeJobCompletion({
+        repo: repo as never,
+        jobId: 'job-1',
+        job: job(),
+        savedItemId: 'art-1',
+        payload: {},
+        resultRefs: { savedItemId: 'art-1' },
+      }),
+    ).rejects.toThrow(/Abschluss verweigert.*von_hand_abgebrochen/)
+
+    expect(repo.setResult).not.toHaveBeenCalled()
     expect(repo.setStatus).not.toHaveBeenCalled()
   })
 })

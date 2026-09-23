@@ -43,11 +43,18 @@ function makeProvider(siblings: StorageItem[], byId: Record<string, StorageItem>
     neu: item('neu', 'Neuordner', 'folder', 'root'),
     ...byId,
   }
+  // Stabile Ids (OneDrive-artig): Umbenennen/Verschieben aendern die Id nicht.
+  // Nach dem Verschieben sucht moveFamily die Quelle im Zielordner ueber ihren Namen.
+  const names: Record<string, string> = {}
+  const moved: Record<string, string> = {}
   return {
     getItemById: vi.fn(async (id: string) => items[id] ?? item(id, `Ordner-${id}`, 'folder', 'root')),
-    listItemsById: vi.fn(async () => siblings),
-    renameItem: vi.fn(async (id: string, n: string) => { calls.push(`rename:${id}:${n}`); return item(id, n) }),
-    moveItem: vi.fn(async (id: string, p: string) => { calls.push(`move:${id}:${p}`) }),
+    listItemsById: vi.fn(async (parentId: string) =>
+      Object.entries(moved).filter(([, p]) => p === parentId).length > 0
+        ? Object.entries(moved).filter(([, p]) => p === parentId).map(([id, p]) => item(id, names[id] ?? items[id]?.metadata.name ?? id, 'file', p))
+        : siblings),
+    renameItem: vi.fn(async (id: string, n: string) => { calls.push(`rename:${id}:${n}`); names[id] = n; return item(id, n) }),
+    moveItem: vi.fn(async (id: string, p: string) => { calls.push(`move:${id}:${p}`); moved[id] = p }),
     deleteItem: vi.fn(async (id: string) => { calls.push(`delete:${id}`) }),
   } as unknown as StorageProvider
 }
@@ -88,6 +95,8 @@ describe('moveFamily — mit Twin-Familie', () => {
       imported: true, renamedSource: true, movedSource: true,
       mongoUpdated: true, oldTwinFolderDeleted: true, exported: true,
       renamedSiblings: ['Team-Besprechung.de.md'],
+      // Stabile Ids: nichts umzuschluesseln, Schaufenster unberuehrt.
+      newSourceId: 'src-1', sourceIdChanged: false, vectorsRekeyed: 0,
     })
     expect(locationMocks.updateShadowTwinSourceLocation).toHaveBeenCalledWith({
       libraryId: 'lib-1', sourceId: 'src-1', sourceName: 'Team-Besprechung.m4a', parentId: 'neu',

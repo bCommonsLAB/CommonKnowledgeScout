@@ -101,6 +101,8 @@ export interface BatchRow {
    * ist — eine stille Korrektur waere derselbe Fehler in gruen.
    */
   erzwungen?: string
+  /** Auskunft, die den Start nicht verhindert, aber der Aufrufer wissen sollte. */
+  hinweis?: string
 }
 
 /**
@@ -113,7 +115,7 @@ export async function runForSources(args: {
   quellPfad?: string
   sourceIds?: string[]
   /** Liefert die jobId — oder sie plus Zusatzangaben fuer die Ergebniszeile. */
-  start: (source: ResolvedSource) => Promise<string | { jobId: string; erzwungen?: string }>
+  start: (source: ResolvedSource) => Promise<string | { jobId: string; erzwungen?: string; hinweis?: string }>
 }): Promise<{ zeilen: BatchRow[]; gestartet: number; gescheitert: number }> {
   const { provider, sourceId, quellPfad, sourceIds, start } = args
   const hasSingle = Boolean(sourceId) || Boolean(quellPfad)

@@ -8,10 +8,13 @@
  *
  * 1. IMPORT  — Handkorrekturen aus dem Spiegel nach Mongo holen (nie verlieren).
  * 2. SIBLINGS — Legacy-Artefakte neben der Quelle mit umziehen/umbenennen.
- * 3. QUELLE  — renameItem/moveItem (Provider-IDs sind auf OneDrive stabil).
- * 4. MONGO   — sourceName/parentId im Twin-Dokument nachziehen.
+ * 3. QUELLE  — renameItem/moveItem. Die Id kann sich dabei AENDERN: OneDrive
+ *              haelt sie stabil, Nextcloud/Filesystem kodieren den Pfad (Befund
+ *              23.09.2026). Ab hier gilt die von Provider/Listing gelieferte Id.
+ * 4. MONGO   — sourceName/parentId nachziehen, bei Id-Wechsel umschluesseln.
  * 5. SPIEGEL — alten `_`-Ordner loeschen (Inhalt ist seit Schritt 1 in Mongo).
- * 6. EXPORT  — Spiegel am neuen Ort mit neuem Namen regenerieren.
+ * 6. SCHAUFENSTER — Vektor-Eintrag (docs/doc-meta) auf die neue Id umschreiben.
+ * 7. EXPORT  — Spiegel am neuen Ort mit neuem Namen regenerieren.
  *
  * Fehler brechen ab und werden gemeldet (kein stiller Teilerfolg); bereits
  * gelaufene Schritte stehen im Ergebnis, damit der Aufrufer den Zustand kennt.
@@ -28,6 +31,7 @@ import { updateShadowTwinSourceLocation } from '@/lib/repositories/shadow-twin-l
 import { selectSiblingArtifactFiles } from '@/lib/shadow-twin/shadow-twin-migration-writer'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { FileLogger } from '@/lib/debug/logger'
+import { findeIdNachVerschieben, zieheSchaufensterNach } from '@/lib/shadow-twin/move-family-identity'
 import path from 'path'
 
 export interface MoveFamilyArgs {
@@ -50,6 +54,11 @@ export interface MoveFamilyResult {
   mongoUpdated: boolean
   oldTwinFolderDeleted: boolean
   exported: boolean
+  /** Storage-Id der Quelle NACH dem Umzug — auf pfadbasierten Providern eine andere. */
+  newSourceId: string
+  sourceIdChanged: boolean
+  /** Umgeschriebene Schaufenster-Dokumente; null = keine Vektor-Sammlung konfiguriert. */
+  vectorsRekeyed: number | null
 }
 
 /** Fuehrt den Familien-Umzug EINER Quelle aus (wirft bei Fehler). */
@@ -97,6 +106,7 @@ export async function moveFamily(args: MoveFamilyArgs): Promise<MoveFamilyResult
   const result: MoveFamilyResult = {
     imported: false, renamedSiblings: [], movedSource: false, renamedSource: false,
     mongoUpdated: false, oldTwinFolderDeleted: false, exported: false,
+    newSourceId: sourceId, sourceIdChanged: false, vectorsRekeyed: 0,
   }
 
   const twinFolder = await findShadowTwinFolder(oldParentId, oldName, provider)
@@ -114,33 +124,41 @@ export async function moveFamily(args: MoveFamilyArgs): Promise<MoveFamilyResult
   const siblings = selectSiblingArtifactFiles(sourceItem, await provider.listItemsById(oldParentId))
   for (const sibling of siblings) {
     const siblingName = sibling.metadata.name
+    let siblingId = sibling.id
     if (newName && newStem !== oldStem) {
       const renamed = newStem + siblingName.slice(oldStem.length)
-      await provider.renameItem(sibling.id, renamed)
+      siblingId = (await provider.renameItem(sibling.id, renamed)).id
       result.renamedSiblings.push(renamed)
     }
     if (newParentId && newParentId !== oldParentId) {
-      await provider.moveItem(sibling.id, newParentId)
+      await provider.moveItem(siblingId, newParentId)
     }
   }
 
-  // 3) QUELLE bewegen.
+  // 3) QUELLE bewegen — die Id von hier an nur noch aus Provider/Listing.
+  const finalName = newName ?? oldName
+  const finalParentId = newParentId ?? oldParentId
+  let currentId = sourceId
   if (newName && newName !== oldName) {
-    await provider.renameItem(sourceId, newName)
+    currentId = (await provider.renameItem(currentId, newName)).id
     result.renamedSource = true
   }
   if (newParentId && newParentId !== oldParentId) {
-    await provider.moveItem(sourceId, newParentId)
+    await provider.moveItem(currentId, newParentId)
+    currentId = await findeIdNachVerschieben(provider, newParentId, finalName)
     result.movedSource = true
   }
+  result.newSourceId = currentId
+  result.sourceIdChanged = currentId !== sourceId
 
-  // 4) MONGO: Ort/Name des Twin-Dokuments nachziehen (nach Import ggf. neu entstanden).
+  // 4) MONGO: Ort/Name des Twin-Dokuments nachziehen (nach Import ggf. neu
+  //    entstanden), bei Id-Wechsel umschluesseln — sonst zeigt der Schluessel
+  //    auf eine Datei, die es nicht mehr gibt.
   const hasDoc = hadDoc || (await getShadowTwinsBySourceIds({ libraryId, sourceIds: [sourceId] })).has(sourceId)
   if (hasDoc) {
     await updateShadowTwinSourceLocation({
-      libraryId, sourceId,
-      sourceName: newName ?? oldName,
-      parentId: newParentId ?? oldParentId,
+      libraryId, sourceId, sourceName: finalName, parentId: finalParentId,
+      ...(result.sourceIdChanged ? { newSourceId: currentId } : {}),
     })
     result.mongoUpdated = true
   }
@@ -151,14 +169,22 @@ export async function moveFamily(args: MoveFamilyArgs): Promise<MoveFamilyResult
     result.oldTwinFolderDeleted = true
   }
 
-  // 6) EXPORT: Spiegel am neuen Ort, korrekt benannt, regenerieren.
+  // 6) SCHAUFENSTER: docs/doc-meta haengen an der fileId — nachziehen, sonst
+  //    steht der alte Eintrag stehen und die naechste Transformation legt einen
+  //    zweiten daneben.
+  if (result.sourceIdChanged) {
+    result.vectorsRekeyed = (await zieheSchaufensterNach({ library: args.library, alteSourceId: sourceId, neueSourceId: currentId })).umgeschrieben
+  }
+
+  // 7) EXPORT: Spiegel am neuen Ort, korrekt benannt, regenerieren — mit der Id, die jetzt gilt.
   if (hasDoc) {
-    await runLibrarySync({ libraryId, userEmail, mode: 'repair', preset: 'export', scope: { sourceIds: [sourceId] } })
+    await runLibrarySync({ libraryId, userEmail, mode: 'repair', preset: 'export', scope: { sourceIds: [currentId] } })
     result.exported = true
   }
 
   FileLogger.info('shadow-twin/move-family', 'Familien-Umzug abgeschlossen', {
     libraryId, sourceId, oldName, newName: newName ?? null, newParentId: newParentId ?? null, ...result,
+    newSourceId: result.newSourceId,
     renamedSiblings: result.renamedSiblings.length,
   })
   return result

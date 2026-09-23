@@ -14,6 +14,7 @@ import type { ExternalJob } from '@/types/external-job'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
+import { pruefeJobNichtAbgebrochen } from '@/lib/external-jobs/job-abbruch-waechter'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-transform-template'
 import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
@@ -1862,6 +1863,19 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
     }
     
+    // Abbruch-Waechter (Befund 23.09.2026): Ein von Hand beendeter Job darf
+    // sein Ergebnis nicht mehr nach Mongo schreiben — sonst veroeffentlicht der
+    // naechste Job mit anderer Vorlage dieses Ergebnis als seines.
+    const abbruch = await pruefeJobNichtAbgebrochen(repo, jobId, 'transform_template')
+    if (abbruch.abgebrochen) {
+      try {
+        await repo.updateStep(jobId, 'transform_template', {
+          status: 'failed', endedAt: new Date(), error: { message: `Nicht gespeichert: ${abbruch.grund}` },
+        })
+      } catch {}
+      return { metadata: mergedMeta, status: 'failed', skipped: false, errorMessage: abbruch.grund }
+    }
+
     // Speichern via Modul
     // WICHTIG: Wir speichern die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md)
     // Diese Datei enthält Frontmatter und wird im Shadow-Twin-Verzeichnis gespeichert

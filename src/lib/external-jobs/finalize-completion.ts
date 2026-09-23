@@ -13,7 +13,8 @@
  *     `catch`: schlägt der Rückfluss fehl, darf der Job NICHT `completed` melden
  *     (Retry statt stillem Teilzustand).
  *  2. `setResult` (erst Result, dann Status → kein Polling-Race).
- *  3. `setStatus('completed')`.
+ *  3. `setStatus('completed')` — nur, wenn der Job nicht inzwischen von Hand
+ *     beendet wurde (`job-abbruch-waechter.ts`).
  *  4. Logs drainen + Watchdog stoppen.
  *  5. SSE-Event für die UI.
  *
@@ -28,6 +29,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer'
 import { applyAnalysisResult, extractSubmissionIdFromJob } from '@/lib/submissions/submission-analysis'
 import { clearWatchdog } from '@/lib/external-jobs-watchdog'
+import { pruefeJobNichtAbgebrochen } from '@/lib/external-jobs/job-abbruch-waechter'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 
@@ -84,6 +86,12 @@ export async function finalizeJobCompletion(args: FinalizeJobCompletionArgs): Pr
   }
 
   // 2) + 3) Erst Result persistieren, dann Status auf completed (kein Race).
+  // Abbruch-Waechter (Befund 23.09.2026): Ein von Hand beendeter Job wird nicht
+  // nachtraeglich `completed` — der Abbruchgrund bleibt stehen.
+  const abbruch = await pruefeJobNichtAbgebrochen(repo, jobId, 'abschluss')
+  if (abbruch.abgebrochen) {
+    throw new Error(`Abschluss verweigert: ${abbruch.grund}`)
+  }
   await repo.setResult(jobId, payload, resultRefs)
   await repo.setStatus(jobId, 'completed')
 

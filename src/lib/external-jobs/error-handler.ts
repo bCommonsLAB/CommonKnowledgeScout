@@ -11,6 +11,7 @@
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { FileLogger } from '@/lib/debug/logger'
+import { istVonHandAbgebrochen } from '@/lib/external-jobs/job-abbruch-waechter'
 
 export interface JobErrorContext {
   jobId: string
@@ -48,12 +49,18 @@ export async function handleJobError(
   })
 
   try {
-    await repo.setStatus(jobId, 'failed', {
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-    })
+    // Abbruch von Hand (job_abbrechen) bleibt stehen — der Folgefehler
+    // („Abschluss verweigert") ist nur seine Wirkung, nicht die Ursache.
+    if (await istVonHandAbgebrochen(repo, jobId)) {
+      FileLogger.info('error-handler', 'Job war von Hand beendet — Abbruchgrund bleibt', { jobId, errorCode })
+    } else {
+      await repo.setStatus(jobId, 'failed', {
+        error: {
+          code: errorCode,
+          message: errorMessage,
+        },
+      })
+    }
   } catch (statusError) {
     FileLogger.error('error-handler', 'Fehler beim Setzen des Status', {
       jobId,
@@ -123,13 +130,17 @@ export async function handleJobErrorWithDetails(
   })
 
   try {
-    await repo.setStatus(jobId, 'failed', {
-      error: {
-        code: errorCode,
-        message: errorMessage,
-        details,
-      },
-    })
+    if (await istVonHandAbgebrochen(repo, jobId)) {
+      FileLogger.info('error-handler', 'Job war von Hand beendet — Abbruchgrund bleibt', { jobId, errorCode })
+    } else {
+      await repo.setStatus(jobId, 'failed', {
+        error: {
+          code: errorCode,
+          message: errorMessage,
+          details,
+        },
+      })
+    }
   } catch (statusError) {
     FileLogger.error('error-handler', 'Fehler beim Setzen des Status', {
       jobId,

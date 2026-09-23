@@ -36,6 +36,39 @@ export function calculateImageHash(buffer: Buffer): string {
  * Azure Storage Service für Bild-Uploads
  * Unterstützt Hash-basierte Deduplizierung und Library-spezifische Unterordner
  */
+/**
+ * Content-Type fuer einen Blob. Ein bekannter MIME-Typ gewinnt; sonst die
+ * Endung. Unbekannte Endungen werden NICHT als Bild etikettiert: Bis zum
+ * 23.09.2026 lieferte diese Tabelle fuer alles Unbekannte `image/jpeg` —
+ * PDF-Anhaenge lagen so mit Bild-Etikett im Blob-Speicher, und Browser
+ * zeigten sie nicht als PDF an (Befund commoning-methods, Library AECED).
+ */
+export function blobContentType(extension: string, mimeType?: string): string {
+  const mime = mimeType?.trim().toLowerCase()
+  if (mime && mime.includes('/') && mime !== 'application/octet-stream') return mime
+  const ext = extension.replace(/^\./, '').toLowerCase()
+  const contentTypes: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    avif: 'image/avif',
+    pdf: 'application/pdf',
+    mp3: 'audio/mpeg',
+    m4a: 'audio/mp4',
+    wav: 'audio/wav',
+    ogg: 'audio/ogg',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    md: 'text/markdown',
+    txt: 'text/plain',
+    json: 'application/json',
+  }
+  return contentTypes[ext] ?? 'application/octet-stream'
+}
+
 export class AzureStorageService {
   private blobServiceClient: BlobServiceClient | null = null
   private config: ReturnType<typeof resolveAzureStorageConfig> = null
@@ -321,7 +354,9 @@ export class AzureStorageService {
     ownerId: string,
     hash: string,
     extension: string,
-    buffer: Buffer
+    buffer: Buffer,
+    /** Bekannter MIME-Typ der Datei — gewinnt gegen die Endungs-Tabelle. */
+    mimeType?: string
   ): Promise<string> {
     if (!this.isConfigured()) {
       throw new Error('Azure Storage nicht konfiguriert')
@@ -336,8 +371,7 @@ export class AzureStorageService {
       const blobPath = this.getBlobPathWithScope(libraryId, scope, ownerId, hash, extension)
       const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
 
-      // MIME-Type basierend auf Extension bestimmen
-      const contentType = this.getContentType(extension)
+      const contentType = this.getContentType(extension, mimeType)
 
       await blockBlobClient.uploadData(buffer, {
         blobHTTPHeaders: {
@@ -622,17 +656,8 @@ export class AzureStorageService {
   /**
    * Bestimmt Content-Type basierend auf Dateiendung
    */
-  private getContentType(extension: string): string {
-    const ext = extension.toLowerCase()
-    const contentTypes: Record<string, string> = {
-      jpg: 'image/jpeg',
-      jpeg: 'image/jpeg',
-      png: 'image/png',
-      gif: 'image/gif',
-      webp: 'image/webp',
-      svg: 'image/svg+xml',
-    }
-    return contentTypes[ext] || 'image/jpeg'
+  private getContentType(extension: string, mimeType?: string): string {
+    return blobContentType(extension, mimeType)
   }
 }
 
