@@ -24,7 +24,7 @@
   "tools": [
     {
       "name": "bibliotheken_auflisten",
-      "description": "Listet die KnowledgeScout-Libraries des Users (Id + Name). Liest nur."
+      "description": "Listet die KnowledgeScout-Libraries des Users (Id + Name + archivpflege). Liest nur."
     },
     {
       "name": "abdeckung_lesen",

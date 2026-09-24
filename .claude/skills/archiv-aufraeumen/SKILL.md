@@ -8,6 +8,36 @@ description: Einen Vorhabensordner im Wissensarchiv über die KnowledgeScout-MCP
 Wie die KnowledgeScout-Brücke bedient wird. **Was** dabei entstehen soll,
 steht nicht hier, sondern im Archiv — siehe „Zuerst lesen".
 
+## Vorab — Library wählen und Archivpflege prüfen (VOR allem anderen)
+
+Die Brücke erreicht **alle** Libraries des Kontos, nicht nur das
+Wissensarchiv. Dieser Skill setzt aber dessen Struktur voraus (`_INDEX.md`,
+`BERICHT.md`, Sichten unter `Organisation/`). Deshalb zuerst:
+
+```
+bibliotheken_auflisten
+```
+
+1. **Library eindeutig bestimmen.** Id aus der Liste nehmen, nicht raten.
+   Nennt der Auftrag keine Library und kommen mehrere in Frage: nachfragen.
+2. **`archivpflege` der gewählten Library prüfen.**
+   - `true` → weiter mit „Zuerst lesen".
+   - `false` → **abbrechen** und dem Menschen sagen: „Die Library *X* führt
+     keine Archiv-Konventionen; dieser Skill ist dort nicht anwendbar." Nicht
+     trotzdem aufräumen, keine `_INDEX.md`/`BERICHT.md` anlegen, nicht auf
+     eine andere Library ausweichen. Freigabe ist Sache des Owners
+     (Library-Einstellungen → Agentensicht aktivieren).
+3. **Fehlt das Feld `archivpflege`** in der Antwort, ist der Werkzeugsatz
+   älter als 2.31.0 → Erweiterung aus- und einschalten (`bruecke_info`).
+
+Die Brücke setzt dasselbe serverseitig durch: `stand_setzen`,
+`themen_setzen`, `erschliessung_block_schreiben` und `sichten_regenerieren`
+antworten bei `archivpflege: false` mit einem Fehler „… gesperrt". Diesen
+Fehler nie umgehen (etwa per `datei_schreiben` auf `_INDEX.md`) — er ist die
+Grenze, nicht ein Hindernis. Generische Werkzeuge (Storage, Erschließen,
+Twins, Jobs) bleiben in jeder Library nutzbar, gehören dann aber nicht zu
+diesem Skill.
+
 ## Zuerst lesen
 
 Diese drei Dateien liegen in Peters Vault und sind die Wahrheit über

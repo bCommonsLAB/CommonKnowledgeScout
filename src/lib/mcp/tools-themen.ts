@@ -36,6 +36,7 @@ import { setzeThemen } from '@/lib/agent-view/themen-schreiben'
 import { ThemaUnbekanntError, pruefeGegenVokabular } from '@/lib/agent-view/themen-vokabular'
 import { MAX_THEMEN_ORDNER, fuehreStapelThemenAus, sammleOrdnerIds } from './themen-stapel'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+import { ARCHIVPFLEGE_HINWEIS, pruefeArchivpflege } from './archivpflege'
 
 const HINWEIS_SCAN =
   'Der gespeicherte Report zeigt die alten Themen, bis erneut gescannt wird — ' +
@@ -47,6 +48,7 @@ export function registerThemenTool(server: McpServer): void {
     {
       title: 'Gepflegte Themen eines Ordners setzen (SCHREIBT)',
       description:
+        ARCHIVPFLEGE_HINWEIS +
         'Setzt die von Hand gepflegte Themenliste (`themen:` im _INDEX.md) — ueber denselben ' +
         'geschuetzten Weg wie der Themen-Editor der Werkbank: zeilen-chirurgisch, mit ' +
         'Ruecklese-Pruefung, Body und fremde Frontmatter-Felder bleiben Byte fuer Byte stehen. ' +
@@ -90,6 +92,7 @@ export function registerThemenTool(server: McpServer): void {
           const ordnerIds = sammleOrdnerIds({ folderId, folderIds })
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
+          pruefeArchivpflege(library, 'themen_setzen')
           const vokabular = library.config?.agentView?.themen ?? null
           // Pruefung VOR dem Storage-Zugriff: ein abgewiesener Name kostet kein Listing.
           const konfiguriert = Array.isArray(vokabular) && vokabular.length > 0

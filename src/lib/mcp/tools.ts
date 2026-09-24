@@ -18,6 +18,7 @@ import { registerProtokollTool } from './tools-protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { scanneUndSpeichere } from '@/lib/agent-view/scan-speichern'
 import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
+import { archivpflegeAktiv } from './archivpflege'
 import { LibraryService } from '@/lib/services/library-service'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { findeKnoten } from '@/lib/agent-view/teilbaum'
@@ -70,13 +71,20 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     'bibliotheken_auflisten',
     {
       title: 'Bibliotheken auflisten',
-      description: 'Listet die KnowledgeScout-Libraries des Users (Id + Name). Liest nur.',
+      description:
+        'Listet die KnowledgeScout-Libraries des Users (Id + Name + archivpflege). archivpflege=false: ' +
+        'die Library fuehrt keine Archiv-Konventionen — stand_setzen, themen_setzen, ' +
+        'erschliessung_block_schreiben und sichten_regenerieren sind dort gesperrt. Liest nur.',
       annotations: { readOnlyHint: true },
     },
     async () => {
       try {
         const libraries = await LibraryService.getInstance().getUserLibraries(mcpUserEmail())
-        return jsonResult(libraries.map((library) => ({ id: library.id, name: library.label })))
+        return jsonResult(libraries.map((library) => ({
+          id: library.id,
+          name: library.label,
+          archivpflege: archivpflegeAktiv(library),
+        })))
       } catch (error) {
         return errorResult(error)
       }

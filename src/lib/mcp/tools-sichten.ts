@@ -17,6 +17,7 @@ import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { regenerateSichten } from '@/lib/agent-view/sichten/regenerate-sichten'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+import { ARCHIVPFLEGE_HINWEIS, pruefeArchivpflege } from './archivpflege'
 
 /** Registriert `sichten_regenerieren` (siehe Datei-Kommentar). */
 export function registerSichtenTools(server: McpServer): void {
@@ -25,6 +26,7 @@ export function registerSichtenTools(server: McpServer): void {
     {
       title: 'AKTUELL.md + PROJEKTE.md erzeugen (SCHREIBT)',
       description:
+        ARCHIVPFLEGE_HINWEIS +
         'Erzeugt die Sichten AKTUELL.md (woran arbeite ich gerade) und PROJEKTE.md (Katalog + ' +
         'Themenregister) aus allen BERICHT.md der Library und schreibt sie nach Organisation/ — ' +
         'Abloesung der Skripte aktuell.py/projekte.py. Liest Berichte bis Tiefe 3 frisch ' +
@@ -46,6 +48,7 @@ export function registerSichtenTools(server: McpServer): void {
         }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
+          pruefeArchivpflege(library, 'sichten_regenerieren')
           const provider = await requireProvider(userEmail, libraryId)
           const started = Date.now()
           const ergebnis = await regenerateSichten({ library, provider, nurVorschau: nurVorschau === true })

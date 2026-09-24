@@ -28,6 +28,7 @@ import type { Library } from '@/types/library'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ersetzeTextDatei } from '@/lib/storage/update-text-file'
 import { FOLDER_ID, LIBRARY_ID, SCOPE_PFAD, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
+import { ARCHIVPFLEGE_HINWEIS, pruefeArchivpflege } from './archivpflege'
 
 const SCAN_CONCURRENCY = 10
 
@@ -88,6 +89,7 @@ export function registerAenderungenTools(server: McpServer): void {
     {
       title: 'Erschliessungs-Block in _INDEX.md (SCHREIBT)',
       description:
+        ARCHIVPFLEGE_HINWEIS +
         'Abloesung von erschliessung.py: schreibt je _INDEX.md im Scope den Block zwischen ' +
         '<!-- erschliessung:start/end --> neu (Quellen: erschlossen/teil/offen aus den Twin-Familien ' +
         'in MongoDB); der Rest der Datei bleibt unberuehrt. nurVorschau=true zeigt die Bloecke ohne ' +
@@ -104,6 +106,7 @@ export function registerAenderungenTools(server: McpServer): void {
         return await mitProtokoll({ werkzeug: 'erschliessung_block_schreiben', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
+          pruefeArchivpflege(library, 'erschliessung_block_schreiben')
           const provider = await requireProvider(userEmail, libraryId)
           const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
           const { scan, families, dauerMs } = await scanScope(library, provider, scope, 'alle')

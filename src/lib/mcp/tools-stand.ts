@@ -25,6 +25,7 @@ import { parseStandRequest } from '@/lib/agent-view/stand-plan'
 import { BEARBEITUNGSSTAND_VALUES } from '@/lib/agent-view/types'
 import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 import { FOLDER_ID, LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+import { ARCHIVPFLEGE_HINWEIS, pruefeArchivpflege } from './archivpflege'
 
 /** Ueber die Bruecke setzbare Staende — `abgenommen` bleibt dem Menschen. */
 export const STAND_WERTE_BRUECKE = BEARBEITUNGSSTAND_VALUES.filter((wert) => wert !== 'abgenommen')
@@ -35,6 +36,7 @@ export function registerStandTool(server: McpServer): void {
     {
       title: 'Erklaerten Bearbeitungsstand setzen (SCHREIBT)',
       description:
+        ARCHIVPFLEGE_HINWEIS +
         'Setzt `bearbeitungsstand` + `bearbeitungsstand_seit` im _INDEX.md eines Vorhabens — ueber ' +
         'denselben geschuetzten Weg wie die Agentensicht, NICHT ueber die Datei-Bridge. Vier ' +
         'Schutzstufen: kein _INDEX.md (wird nie angelegt) · Stand im Storage weicht von ' +
@@ -60,7 +62,8 @@ export function registerStandTool(server: McpServer): void {
       try {
         return await mitProtokoll({ werkzeug: 'stand_setzen', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
           const userEmail = mcpUserEmail()
-          await requireLibrary(userEmail, libraryId)
+          const library = await requireLibrary(userEmail, libraryId)
+          pruefeArchivpflege(library, 'stand_setzen')
           const provider = await requireProvider(userEmail, libraryId)
           const gespeichert = await getCoverageReport(libraryId)
           if (gespeichert === null) {
