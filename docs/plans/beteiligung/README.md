@@ -108,8 +108,13 @@ stehen die Entscheidungen O10–O16, die Überarbeitung nach Prüfbericht
 Spikes (§6.3). Die Aufwandszahlen unten und in den Konzepten gelten bis
 dahin nicht.
 
-Jede Stufe ist eine PR-Folge mit Tests. Gebaut wird erst, wenn das
-Detailkonzept abgenommen ist:
+**Owner 24.09.: parallel bauen.** Die Stufen unten sind durch den
+[Parallelisierungsplan](parallelisierung.plan.md) abgelöst: Welle 0 legt
+die Verträge fest (Feldkatalog, Typen, Repository-Schnittstellen,
+Routen-Verträge, Laufzeit-Aktionen, Fixtures, Spikes), danach bauen bis
+zu sechs Sessions gleichzeitig je ein Modul in eigenen Verzeichnissen,
+zuletzt eine Verdrahtungs-Session. Start-Prompts stehen dort. Die Stufen
+bleiben nur als Abhängigkeitsordnung stehen:
 
 1. **D11-Kern** (`resolveDeliberationRole`, Protokoll-Kanal) und
    **D1** (Planung, Freigabe). Ergebnis: Ein Probe-Treffen aus Dateien

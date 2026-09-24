@@ -180,9 +180,17 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Korrekturen sind eingearbeitet; die Aufwandszahlen gelten bis zur
   Überarbeitung nicht. Lesefassung für den Owner: Word/PDF „Konzepte in
   einfachen Worten“ (Archiv, Ordner der Nachhaltigkeits-Reihe).
-  **Nächster Schritt:** Entscheidungen O1, O2 und O10–O16 durch den
-  Owner; dann Überarbeitung nach Prüfbericht §6.2 (Feldkatalog, D1,
-  D3/D5/D6), zwei Spikes (§6.3), neue Schätzung; erst dann Stufe 1.
+  Owner-Einwände aus dem Lesedurchgang 24.09. eingearbeitet (D1: Prüfen
+  entfällt; O17–O20 offen). **Bauweise (Owner 24.09.): parallel nach
+  [`plans/beteiligung/parallelisierung.plan.md`](plans/beteiligung/parallelisierung.plan.md)**:
+  Welle 0 Verträge (Feldkatalog, Paket `deliberation-contracts`, Fixtures,
+  Spikes, Überarbeitung), dann Welle 1 mit sechs und Welle 2 mit vier
+  Sessions gleichzeitig, zuletzt Verdrahtung; Start-Prompt je Session im
+  Plan. Cloud-Sessions können seit dem SessionStart-Hook Tests, Lint und
+  tsc selbst laufen lassen.
+  **Nächster Schritt:** Entscheidungen O1, O2 und O10–O20 durch den
+  Owner (README); dann Welle 0 mit dem Start-Prompt aus dem
+  Parallelisierungsplan.
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
