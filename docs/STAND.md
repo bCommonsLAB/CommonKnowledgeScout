@@ -140,6 +140,49 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Nächster Schritt im Repo: **Kostenprüfung der Haltungsänderung am Code**
   (Architektur-Konzept, Abschnitt 7, Punkt 1; Pflicht vor E0), danach Welle
   E0 (Regelsatz) und D0 (Dialogfall auf dem Testimonial-Bestand).
+- **Stand 23.09.: Umsetzungsplan in drei Wellen** —
+  [`plans/shf-umsetzung-wellen.plan.md`](plans/shf-umsetzung-wellen.plan.md)
+  (Designstudie 19.–21.09., vier Rollen, Zuordnung zur Laufzeit; am Code
+  geprüft gegen v1.2.262). Welle 1 (Zugang 05.10.: Weg der Teilnehmenden
+  live, Moderation bis 09.10.), Welle 2 (Einwandverfahren A mit Messung als
+  Objekt, Synthese, Tisch-Abschluss, Vertretung), Welle 3 (Redaktion,
+  Vision, Folgegruppen, Nachschlagen). Löst die Reihenfolge E0–E7 und C0–C10
+  der beiden Konzepte für das SHF ab.
+- **Owner 23.09.: erst Grundlagen, dann Oberflächen** —
+  [`plans/shf-grundlagen-datenhaltung-kernflows.plan.md`](plans/shf-grundlagen-datenhaltung-kernflows.plan.md):
+  Wizard-Stand und -Editor (was das SHF davon braucht: nur die Flow-Naht),
+  Datenmodell der Beteiligungs-Domäne (`meetings`, `meeting_tables`,
+  `table_participations`, `measurements`, `assessments`, `syntheses`;
+  Submission mit Anlagen und Kontext), Kernflüsse K1–K4 (Erfassen,
+  Verdichten mit Belegspur über den Secretary, Messen, Veröffentlichen),
+  Modul `@ks/module-deliberation`, Bau-Reihenfolge G0–G9 plus Nebenstrang W
+  „Wizard fertigstellen“. **Speicherweg B** (Owner 23.09.): Beiträge liegen
+  während des Ernte-Fensters in der Inbox und werden beim Schließen Dateien
+  im Storage; die Synthese läuft über das bestehende Sammeltranskript. Der 05.10. ist kein Schnittkriterium mehr.
+  Landkarte in Figma (intern): „KnowledgeScout — Modul-Landkarte“.
+  **Owner 23.09.: erst Detailkonzepte, dann Code.** Grundlage:
+  [`plans/beteiligung-objektmodell-original-und-kopie.plan.md`](plans/beteiligung-objektmodell-original-und-kopie.plan.md)
+  (D0: fünf Klassen Planung · Verfahren · Beitrag · Ergebnis · abgeleitet,
+  wo das Original liegt, stabile Kennungen, Verzeichnisstruktur mit
+  Organisationsordnern, Liste D1–D11). E1–E6 entschieden (Planung „Datei
+  zuerst“). **Detailkonzepte D1–D11 geschrieben** (23.09.):
+  [`plans/beteiligung/README.md`](plans/beteiligung/README.md) mit
+  Eingriffen in den Bestand, offenen Entscheidungen O1–O9 und
+  Bau-Reihenfolge (35–43,5 PT Fundament, Oberflächen zusätzlich).
+  **Prüfung 24.09.** ([`plans/beteiligung/pruefbericht-2026-09-24.md`](plans/beteiligung/pruefbericht-2026-09-24.md)):
+  Code-Belege, Nahtstellen und Anforderungen unabhängig geprüft. Befund am
+  Bestand: `getLibrary` lässt jedes aktive Mitglied durch, sechs Helfer
+  nutzen es als Owner-Prüfung (O10, sicherheitsrelevant). Neun
+  Anforderungen aus den Primärquellen fehlen (u. a. Vorschlag wird
+  eingesprochen, 13 Konfigurationsschalter, Verwaltungsbegleitung,
+  Dissens als Ergebnis), dreizehn Widersprüche an den Nähten (u. a.
+  Promotion-Zeitpunkt, Identitätsmodell, Feldkatalog). Sachliche
+  Korrekturen sind eingearbeitet; die Aufwandszahlen gelten bis zur
+  Überarbeitung nicht. Lesefassung für den Owner: Word/PDF „Konzepte in
+  einfachen Worten“ (Archiv, Ordner der Nachhaltigkeits-Reihe).
+  **Nächster Schritt:** Entscheidungen O1, O2 und O10–O16 durch den
+  Owner; dann Überarbeitung nach Prüfbericht §6.2 (Feldkatalog, D1,
+  D3/D5/D6), zwei Spikes (§6.3), neue Schätzung; erst dann Stufe 1.
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
