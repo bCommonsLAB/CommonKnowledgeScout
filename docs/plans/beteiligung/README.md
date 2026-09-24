@@ -95,7 +95,7 @@ und ohne die neue Option bleibt das heutige Verhalten.
 | O17 | **Fortbestehender Einwand nach Runde 2** | D7 9.3 | Moderation wählt: Runde 3, vertagen oder Dissens festhalten (A5) |
 | O18 | **Eingrenzung des Chats auf das Handlungsfeld** starr oder umschaltbar | D9 9 | Voreinstellung mit sichtbarem Umschalter |
 | O19 | **„Passt nicht“ bei Folgegruppen** | D10 9 | Begründung Pflicht, Einwand-Beitrag, dann normaler Lauf |
-| O20 | Grenze zwischen redaktioneller und inhaltlicher Änderung vor der Freigabe (D8) | Prüfbericht §7 | redaktionell = Rechtschreibung, Form, Verweise; jede Sinnänderung ist eine neue Fassung mit Tisch-Bestätigung. Vom Owner noch nicht bestätigt |
+| O20 | Grenze zwischen redaktioneller und inhaltlicher Änderung vor der Freigabe (D8) | Prüfbericht §7 | redaktionell = Rechtschreibung, Form, Verweise; jede Sinnänderung ist eine neue Fassung mit Tisch-Bestätigung (D8 9.3). Als Einwand bestätigt (Owner 24.09.), Entscheidung offen |
 
 ## Bau-Reihenfolge
 

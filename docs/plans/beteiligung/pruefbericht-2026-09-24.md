@@ -227,7 +227,7 @@ Die bisherigen O1–O9 in README bleiben. Neu, aus dieser Prüfung:
 ## 7. Einwände des Owners aus dem Lesedurchgang (24.09.)
 
 Der Owner hat die Lesefassung „Konzepte in einfachen Worten“ durchgesehen
-und sechs Punkte festgehalten, ein siebter kam als Vorschlag dazu.
+und sieben Punkte festgehalten.
 
 | Kapitel | Einwand | Folge |
 |---|---|---|
@@ -237,7 +237,7 @@ und sechs Punkte festgehalten, ein siebter kam als Vorschlag dazu.
 | 11 (D10) | Für „passt nicht“ fehlt der weitere Ablauf | **O19.** Vorschlag in D10 §9: Begründung Pflicht, Einwand-Beitrag, dann normaler Lauf mit neuer Fassung |
 | 12 (D11) | Rechte der Redaktion an namentlichen Beiträgen hängen am Vertrauensraum; muss vor der Umsetzung feststehen, betrifft auch die Zusage an die Teilnehmenden | **O1** bleibt offen, Reihenfolge festgehalten: erst O1, dann D11 bauen |
 | 15 | Vertrauensraum V1–V3 nicht vorwegnehmen, aber vor dem ersten realen Einsatz entscheiden | wie O1 |
-| 9 (D8), Vorschlag | Grenze zwischen redaktioneller Bearbeitung und inhaltlicher Änderung der vom Tisch bestätigten Fassung | **O20**, vom Owner noch nicht bestätigt. Vorschlag: redaktionell sind Rechtschreibung, Form, Verweise und Frontmatter; jede Änderung am Sinn ist eine neue Fassung, die der Tisch (oder beim nächsten Treffen die Folgegruppe) bestätigt; D8 hält `redigiert_von` und einen Diff-Hinweis fest |
+| 9 (D8), Vorschlag | Grenze zwischen redaktioneller Bearbeitung und inhaltlicher Änderung der vom Tisch bestätigten Fassung | **O20**, vom Owner am 24.09. als Einwand bestätigt; Entscheidung offen. Vorschlag in D8 §9.3: redaktionell sind Rechtschreibung, Form, Verweise und Frontmatter; jede Änderung am Sinn ist eine neue Fassung, die der Tisch (oder beim nächsten Treffen die Folgegruppe) bestätigt; D8 hält `redigiert_von` und einen Diff-Hinweis fest |
 
 Nicht aufgenommen wurden Punkte, die im Gespräch nicht ausdrücklich als
 festzuhalten markiert waren.

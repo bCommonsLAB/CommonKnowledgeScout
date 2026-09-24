@@ -201,6 +201,16 @@ nicht im reinen Chat. Deshalb der Vorschlag mit dem Contract-Feld.
    anonymisierte öffentliche Sicht aus dem Angebot (Embed, ADR 0008) zeigt
    nur `ergebnis_stand: freigegeben`. Das ist ein eigenes späteres
    Vorhaben.
+3. **Grenze redaktionell / inhaltlich (Owner 24.09., O20):** Wie weit
+   darf die Redaktion eine vom Tisch bestätigte Fassung vor der Freigabe
+   verändern? „Leicht redigieren“ ist keine Grenze. Vorschlag: Redaktionell
+   sind Rechtschreibung, Zeichensetzung, Form, Verweise und Frontmatter;
+   sie ändern den Sinn nicht. Jede Änderung am Sinn (Aussage, Reichweite,
+   Zahl, Zuschreibung) ist eine **neue Fassung**, die der Tisch bestätigt,
+   zur Not beim nächsten Treffen durch die Folgegruppe (D10). Die
+   freigegebene Datei trägt `redigiert_von` und einen Hinweis, ob und wo
+   der Text gegenüber der bestätigten Fassung abweicht; die bestätigte
+   Entwurfsdatei bleibt unverändert liegen, damit der Vergleich möglich ist.
 
 ## 10. Aufwand
 
