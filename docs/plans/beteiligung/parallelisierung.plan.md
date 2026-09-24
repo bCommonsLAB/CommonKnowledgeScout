@@ -36,9 +36,13 @@ verbunden werden (Welle 3) und mit welchem Prompt jede Session startet.
 2. **Ein Modul, ein Verzeichnis, eine Session.** Jede Bau-Session bekommt im
    Prompt ihre Verzeichnisse und das Verbot, außerhalb zu schreiben. Ein
    PR-Diff außerhalb der genannten Pfade ist ein Befund, kein Versehen.
-3. **Tests ohne Mongo.** Module testen gegen die In-Memory-Doubles aus dem
-   Vertragspaket und gegen die gemeinsamen Fixtures. Mongo-Repos werden in
-   Welle 3 gegen dieselben Schnittstellen-Tests geprüft.
+3. **Zwei Testschichten in derselben Session (Owner 24.09.).** Schnell:
+   Unit-Tests gegen die In-Memory-Doubles und die Fixtures, ohne Netz.
+   Echt: eine **Flow-Simulation** gegen eine Test-Mongo und echte Dateien
+   in der Cloud-Session selbst (§8), damit jede Session Ursache und Wirkung
+   am laufenden System prüft, nicht nur an Attrappen. Die endgültige
+   Prüfung eines Flusses bleibt die lokale Offline-Session mit Secretary
+   und dem echten Archiv.
 4. **Merge-Reihenfolge nur zwischen Wellen.** Welle 0 ist auf `master`, bevor
    Welle 1 startet. Innerhalb einer Welle ist die Reihenfolge egal.
 5. **AGENTS.md gilt.** Eine PR je Session, Diff-Limits, Hand-off-Block,
@@ -67,6 +71,7 @@ festgeschrieben werden.
 | `packages/deliberation-contracts/fixtures/probe-treffen/**` | Ein vollständiges Probe-Treffen als Dateien (`_reihe.md`, Textstellen, `_treffen.md`, zwei `_tisch.md`, zwei `_organisation.md`) und der dazu erwartete Snapshot als JSON | — |
 | D0, D1, D3, D5, D6, D7, D8, D11 | überarbeitet nach Prüfbericht §6.2 und Owner-Entscheidungen; die Konzepte verweisen auf die Vertragsdateien statt eigene Feldnamen zu führen | alle |
 | `docs/plans/beteiligung/spikes/2026-*.md` | Ergebnis der zwei Spikes (Promotion als Job am Tisch-Abschluss; Bildweg mit Inbox-Library), je eine Seite: was geprüft, was gemessen, was daraus im Vertrag steht | — |
+| `scripts/beteiligung-probe-treffen.ts` | Test-Library in der Test-Mongo anlegen, Fixtures in den Dateispeicher legen, alles wieder entfernen (§8.4) | — |
 | `README.md` | Aufwand neu geschätzt, je Session | — |
 
 ### 2.2 Abnahme
@@ -316,9 +321,12 @@ Redaktion an einem echten Probe-Treffen.
 - **Basis:** jede Session startet von `origin/master`, nie von einem
   anderen Arbeitszweig. Ein Konflikt mit einem offenen Branch ist ein
   Stopp nach AGENTS.md.
-- **Tests:** Unit-Tests je Modul gegen Doubles und Fixtures; Mongo nur in
-  Welle 3. Die Cloud-Session kann `pnpm test`, `pnpm lint` und tsc laufen
-  lassen (Hook); Integrationstests mit Secretary bleiben lokal.
+- **Tests:** Unit-Tests je Modul gegen Doubles und Fixtures, dazu je
+  Session eine Flow-Simulation nach §8 gegen die Test-Mongo und den
+  Dateispeicher der Session; das Ergebnis (welche Dokumente und Dateien
+  entstanden sind) steht im Hand-off. Die Cloud-Session kann `pnpm test`,
+  `pnpm lint`, tsc und `pnpm dev` laufen lassen; Transformationen über den
+  Secretary und die Generalprobe bleiben lokal.
 - **Oberflächen** laufen als eigene Sessions gegen die Routen-Verträge;
   sie dürfen `src/components/deliberation/**` und `src/app/(deliberation)/**`
   anlegen, sonst nichts.
@@ -336,3 +344,75 @@ Die Zahlen sind Größenordnungen; belastbar wird es mit dem Hand-off von
 Welle 0. Das Hauptrisiko liegt in Welle 0: Ein falscher Vertrag ändert
 sich in sechs Sessions gleichzeitig. Darum die Spikes in Welle 0, die
 Abnahme durch den Owner und das Verbot, Verträge nebenbei zu ändern.
+
+## 8. Cloud-Umgebung für Flow-Simulationen
+
+Ziel: Eine Cloud-Session startet die App (`pnpm dev`) gegen eine
+**Test-Mongo** und einen **echten Dateispeicher**, spielt einen Fluss durch
+(Freigeben, Beitreten, Fenster öffnen, Beitragen, Schließen, Ablage) und
+prüft die Wirkung direkt in Mongo und im Speicher. Das ist eine
+Einstellung der Cloud-Umgebung (Titelleiste der Session → Cloud-Umgebung
+→ Bearbeiten), keine Repo-Änderung. Werte gehören nie in den Chat.
+
+### 8.1 Umgebungsvariablen (Namen, die die App liest)
+
+| Variable | Wofür | Pflicht für |
+|---|---|---|
+| `MONGODB_URI` | Test-Cluster (eigene Datenbank, nie die Produktion) | alles |
+| `MONGODB_DATABASE_NAME` | z. B. `ks-test-beteiligung` | alles |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Clerk-Entwicklungsinstanz; die Middleware läuft sonst nicht | `pnpm dev` |
+| `INTERNAL_TEST_TOKEN` | interne Routen (`/api/integration-tests/*`, Job-Callbacks) ohne Browser-Login; wird von `scripts/run-integration-tests.mjs` mitgeschickt | Flow-Simulation über Routen |
+| `INTEGRATION_TEST_USER_EMAIL` | der Test-Owner, dem die Test-Library gehört | Flow-Simulation |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` in der Session | Flow-Simulation |
+| `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME` | Inbox-Blob für Anlagen (D3); Test-Container | D3, D5 |
+| `SECRETARY_SERVICE_URL`, `SECRETARY_SERVICE_API_KEY` | nur, wenn Transformationen in der Cloud laufen sollen; sonst weglassen und die Synthese über den eingesprochenen Vorschlag simulieren | D6 optional |
+
+### 8.2 Netzwerk
+
+Die Netzwerkrichtlinie der Umgebung muss die Hosts erlauben: den
+Mongo-Cluster (`*.mongodb.net`), Clerk (`*.clerk.accounts.dev`,
+`api.clerk.com`), bei OneDrive `graph.microsoft.com` und
+`login.microsoftonline.com`, bei Azure Blob `*.blob.core.windows.net`, bei
+Secretary dessen Host. Ein verweigerter Host zeigt sich als
+Verbindungsfehler in `pnpm dev`; dann diesen Host in den erlaubten
+Domänen ergänzen.
+
+### 8.3 Dateispeicher: drei Stufen
+
+1. **Filesystem-Provider im Container** (Library-Typ `local`, Basisordner
+   z. B. `/tmp/ks-storage/<library>`): schnellste Stufe, deterministisch,
+   kein Netz. Die Session legt das Probe-Treffen aus den Fixtures dort ab
+   und liest die Ergebnisse mit `ls` und `cat`. Reicht für Welle 1 und 2.
+2. **OneDrive über die App**: Die Test-Library ist in der Test-Mongo als
+   OneDrive-Library angelegt, die Tokens liegen in der Token-Sammlung der
+   Datenbank (`src/lib/storage/onedrive/token-db.ts`); die Anmeldung
+   macht der Owner einmal lokal über die App gegen dieselbe Test-Mongo.
+   Damit läuft in der Cloud der echte OneDrive-Provider. Stufe für Welle 3.
+3. **Microsoft-365-Konnektor der Session**: Der Agent liest und schreibt
+   denselben OneDrive-Ordner direkt, unabhängig von der App. Er spielt die
+   Redaktion (legt `_treffen.md` an, ändert eine Textstelle) und prüft
+   nach der Ablage, welche Dateien die App geschrieben hat. Der Konnektor
+   wird unter https://claude.ai/customize/connectors verbunden und beim
+   Sessionstart gelesen; in dieser Session ist er verbunden. Er ersetzt
+   nicht die Storage-Anbindung der App (Stufe 2), er prüft sie.
+
+### 8.4 Ablauf einer Flow-Simulation in der Session
+
+1. `pnpm dev` im Hintergrund starten, warten auf „Ready“.
+2. Test-Library und Probe-Treffen anlegen (Fixtures → Dateispeicher;
+   Library-Dokument in der Test-Mongo per Skript unter `scripts/`, nie per
+   Hand).
+3. Den Fluss über die Routen der Verträge ausführen, mit
+   `INTERNAL_TEST_TOKEN` bzw. dem Test-Owner.
+4. Wirkung prüfen: Mongo read-only (Muster aus
+   `docs/guides/verification-playbook.md`), Dateispeicher per `ls`/`cat`
+   oder Konnektor, Job-Verlauf in Mongo (Worker loggt nicht nach stdout).
+5. Ergebnis als Tabelle „Aktion → erwartete Wirkung → beobachtet“ in den
+   Hand-off. Abweichungen sind Befunde, keine Anpassungen am Vertrag.
+6. Aufräumen: Test-Datenbank-Collections der Library und den
+   Speicherordner löschen; nichts in der Test-Mongo liegen lassen, was
+   die nächste Session verwirrt.
+
+Welle 0 liefert dafür das Skript `scripts/beteiligung-probe-treffen.ts`
+(Library anlegen, Fixtures ablegen, wieder entfernen), damit jede Session
+dieselbe Ausgangslage hat.
