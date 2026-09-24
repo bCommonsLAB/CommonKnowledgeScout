@@ -371,9 +371,8 @@ Einstellung der Cloud-Umgebung (Titelleiste der Session → Cloud-Umgebung
 
 Die Netzwerkrichtlinie der Umgebung muss die Hosts erlauben: den
 Mongo-Cluster (`*.mongodb.net`), Clerk (`*.clerk.accounts.dev`,
-`api.clerk.com`), bei OneDrive `graph.microsoft.com` und
-`login.microsoftonline.com`, bei Azure Blob `*.blob.core.windows.net`, bei
-Secretary dessen Host. Ein verweigerter Host zeigt sich als
+`api.clerk.com`), den Nextcloud-Host der Test-Library (WebDAV), bei Azure
+Blob `*.blob.core.windows.net`, bei Secretary dessen Host. Ein verweigerter Host zeigt sich als
 Verbindungsfehler in `pnpm dev`; dann diesen Host in den erlaubten
 Domänen ergänzen.
 
@@ -383,18 +382,21 @@ Domänen ergänzen.
    z. B. `/tmp/ks-storage/<library>`): schnellste Stufe, deterministisch,
    kein Netz. Die Session legt das Probe-Treffen aus den Fixtures dort ab
    und liest die Ergebnisse mit `ls` und `cat`. Reicht für Welle 1 und 2.
-2. **OneDrive über die App**: Die Test-Library ist in der Test-Mongo als
-   OneDrive-Library angelegt, die Tokens liegen in der Token-Sammlung der
-   Datenbank (`src/lib/storage/onedrive/token-db.ts`); die Anmeldung
-   macht der Owner einmal lokal über die App gegen dieselbe Test-Mongo.
-   Damit läuft in der Cloud der echte OneDrive-Provider. Stufe für Welle 3.
-3. **Microsoft-365-Konnektor der Session**: Der Agent liest und schreibt
-   denselben OneDrive-Ordner direkt, unabhängig von der App. Er spielt die
-   Redaktion (legt `_treffen.md` an, ändert eine Textstelle) und prüft
-   nach der Ablage, welche Dateien die App geschrieben hat. Der Konnektor
-   wird unter https://claude.ai/customize/connectors verbunden und beim
-   Sessionstart gelesen; in dieser Session ist er verbunden. Er ersetzt
-   nicht die Storage-Anbindung der App (Stufe 2), er prüft sie.
+2. **Nextcloud über die App (Owner 24.09.)**: Die Test-Library ist in der
+   Test-Mongo als Nextcloud-Library angelegt; WebDAV-URL, Benutzer und
+   App-Passwort stehen in der Library-Konfiguration (`library.nextcloud`,
+   `src/types/library.ts:89`) und werden vom Owner in den
+   Library-Einstellungen gepflegt, nie in der Umgebung oder im Chat.
+   Damit läuft in der Cloud der echte `NextcloudProvider`
+   (`src/lib/storage/nextcloud-provider.ts`). Netzwerk: der
+   Nextcloud-Host muss freigegeben sein. Stufe für Welle 3.
+3. **Prüfen von außen**: Der Agent prüft den Nextcloud-Ordner nicht mit
+   einem Konnektor, sondern über die KnowledgeScout-Brücke
+   (`ordner_listen`, `datei_lesen`, `stat` gehen auch auf
+   Nextcloud-Mounts) oder, wenn die Brücke die Test-Library nicht kennt,
+   über die Storage-Routen der laufenden App mit dem Test-Owner. Beides
+   nutzt dieselben Zugangsdaten wie die App. OneDrive und der
+   Microsoft-365-Konnektor spielen für die Beteiligung keine Rolle.
 
 ### 8.4 Ablauf einer Flow-Simulation in der Session
 
@@ -406,7 +408,7 @@ Domänen ergänzen.
    `INTERNAL_TEST_TOKEN` bzw. dem Test-Owner.
 4. Wirkung prüfen: Mongo read-only (Muster aus
    `docs/guides/verification-playbook.md`), Dateispeicher per `ls`/`cat`
-   oder Konnektor, Job-Verlauf in Mongo (Worker loggt nicht nach stdout).
+   oder Brücke, Job-Verlauf in Mongo (Worker loggt nicht nach stdout).
 5. Ergebnis als Tabelle „Aktion → erwartete Wirkung → beobachtet“ in den
    Hand-off. Abweichungen sind Befunde, keine Anpassungen am Vertrag.
 6. Aufräumen: Test-Datenbank-Collections der Library und den
