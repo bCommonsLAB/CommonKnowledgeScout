@@ -150,7 +150,7 @@ Treffen (D1).
 
 | Zweck | Bestand |
 |---|---|
-| Stimme je Person und Objekt, Muster für das Repo | `source-user-states-repo.ts` (eindeutiger Index `:48-51`, Upsert mit `$setOnInsert` `:157`, normalisierte E-Mail `:174-181`) — Achtung: dort globale Collection und Index-Anlage bei jedem Aufruf; die neue folgt `mongodb-repository-pattern.md` |
+| Stimme je Person und Objekt, Muster für das Repo | `source-user-states-repo.ts` (eindeutiger Index `:48-51`, Upsert mit `$setOnInsert` `:174-182`, normalisierte E-Mail `:151`) — Achtung: dort globale Collection und Index-Anlage bei jedem Aufruf; die neue folgt `mongodb-repository-pattern.md` |
 | Aggregation | `vector-repo-sums.ts:60-76` |
 | Fenster, Stille Runde, Revision | D4 |
 | Vorschlag | `syntheses` (D6) |

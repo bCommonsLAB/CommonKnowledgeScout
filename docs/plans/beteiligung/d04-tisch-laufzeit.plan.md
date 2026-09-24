@@ -149,7 +149,7 @@ Alle Aktionen gehen über `POST …/tables/[tableId]/actions` mit
 | Route-Gerüst | `docs/architecture/api-route-conventions.md` (Params awaiten, `auth()` → `currentUser()`, Fehler als `{error}`, `FileLogger` im catch); Vorlage `src/app/api/library/[libraryId]/source-user-states/route.ts` |
 | Repo-Gerüst | `docs/architecture/mongodb-repository-pattern.md` (`getCollection`, Index-Cache, `ensure…Indexes`); Vorlage `src/lib/repositories/archive-item-properties-repo.ts` |
 | Polling | QueryClient `packages/shell/src/providers/query-provider.tsx`; Hook-Muster `packages/api-client/src/llm-models.ts:30-35` |
-| Zeitformat | `formatDuration` (`src/components/shared/live-status-line.tsx:21`) |
+| Zeitformat | `formatDuration` (`src/components/shared/live-status-line.tsx:21`, nicht exportiert; vorher in ein Shared-Modul herauslösen) |
 | Rechte | D11 `resolveDeliberationRole` |
 
 ### 7.2 Neu

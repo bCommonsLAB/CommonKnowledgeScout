@@ -17,10 +17,21 @@ status: konzept
 | Library-Rolle | Darf heute | Darf heute nicht |
 |---|---|---|
 | owner | alles, Mitglieder verwalten (`members/route.ts:101`) | — |
-| moderator | Entwürfe sehen, Dokumente veröffentlichen und löschen, Lesezugänge verwalten (`isModeratorOrOwner`, `library-members-repo.ts:373`) | **kein Storage-Provider** (`server-provider.ts:78`), **nicht erfassen** (`resolveCaptureRole`, `capture-access.ts:24`), Submissions nicht prüfen |
+| moderator | Entwürfe sehen, Dokumente veröffentlichen und löschen, Lesezugänge verwalten (`isModeratorOrOwner`, `library-members-repo.ts:388`) | *beabsichtigt:* kein Storage-Provider (`server-provider.ts:76`), nicht erfassen (`resolveCreatorRole`, `submission-capture.ts:34-42`). *Wirksam:* beides geht, siehe Hinweis unten |
 | co-creator | Storage, Chat der geteilten Library, Submissions prüfen und promoten (`isCoCreatorOrOwner`, `:490`), erfassen | Entwürfe im Chat sehen, `/docs/publish` |
-| contributor | erfassen, eigene Submissions sehen | **kein Chat** (`loader.ts:296-315`), sonst nichts |
+| contributor | erfassen, eigene Submissions sehen | *beabsichtigt:* kein Chat (`loader.ts:296-315`), keine Entwürfe. *Wirksam:* beides geht, siehe Hinweis unten |
 | (Lesezugang) | Chat/Galerie einer öffentlichen Library mit `requiresAuth` | — |
+
+**Hinweis (Prüfung 24.09., `pruefbericht-2026-09-24.md` §1):** Die
+Tabelle nennt die *beabsichtigten* Rechte. Wirksam ist heute weniger
+streng: `LibraryService.getLibrary` (`library-service.ts:193-213`) liefert
+die Library jedem aktiven Mitglied jeder Rolle, und `isModeratorOrOwner`,
+`isCoCreatorOrOwner`, `resolveCaptureRole`, der Provider-Fallback in
+`server-provider.ts:76`, `canSeeDrafts` und der Chat-Loader nutzen
+`getLibrary(...) !== null` als Owner-Prüfung. Damit hat ein Moderator
+heute Storage und Erfassung, ein Contributor Chat und Entwürfe. Das ist
+Entscheidung O10 (README); die Änderungen in §4 setzen voraus, dass die
+Helfer vorher strikt je Rolle prüfen.
 
 Es gibt keine Rechte je Ordner (ADR 0005 zurückgestellt; Rechte je
 Verzeichnis liegen beim Storage-Anbieter, nicht in KnowledgeScout).

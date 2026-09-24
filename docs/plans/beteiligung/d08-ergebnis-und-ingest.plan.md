@@ -81,7 +81,7 @@ tags: ["hf2", "ziel"]
   JSON-Schreiben und -Lesen von Listen trägt (`compose.ts:14`,
   `frontmatter.ts:127`).
 - **Pflicht-Grundfelder** des Suchindex sind `title`, `date`, `authors`,
-  `language` und `source` (`base-fields.ts:31-46`). Sie werden gesetzt,
+  `language`, `source` und `tags` (`BASE_REQUIRED_FIELDS`, `base-fields.ts:31-38`). Sie werden gesetzt,
   keine stillen Lücken. `authors` ist **die Gruppe**, nicht eine Person
   (Zuschreibung auf Gruppenebene).
 - **Belege** stehen als Fußnoten mit Kurz-Id und Organisation. Die

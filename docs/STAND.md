@@ -169,9 +169,20 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   [`plans/beteiligung/README.md`](plans/beteiligung/README.md) mit
   Eingriffen in den Bestand, offenen Entscheidungen O1–O9 und
   Bau-Reihenfolge (35–43,5 PT Fundament, Oberflächen zusätzlich).
-  **Nächster Schritt:** Abnahme der Detailkonzepte durch den Owner, vor
-  allem O1 (Vertrauensraum) und O2 (Selbstbeitritt per Tisch-QR); dann
-  Stufe 1 (D11-Kern, D1).
+  **Prüfung 24.09.** ([`plans/beteiligung/pruefbericht-2026-09-24.md`](plans/beteiligung/pruefbericht-2026-09-24.md)):
+  Code-Belege, Nahtstellen und Anforderungen unabhängig geprüft. Befund am
+  Bestand: `getLibrary` lässt jedes aktive Mitglied durch, sechs Helfer
+  nutzen es als Owner-Prüfung (O10, sicherheitsrelevant). Neun
+  Anforderungen aus den Primärquellen fehlen (u. a. Vorschlag wird
+  eingesprochen, 13 Konfigurationsschalter, Verwaltungsbegleitung,
+  Dissens als Ergebnis), dreizehn Widersprüche an den Nähten (u. a.
+  Promotion-Zeitpunkt, Identitätsmodell, Feldkatalog). Sachliche
+  Korrekturen sind eingearbeitet; die Aufwandszahlen gelten bis zur
+  Überarbeitung nicht. Lesefassung für den Owner: Word/PDF „Konzepte in
+  einfachen Worten“ (Archiv, Ordner der Nachhaltigkeits-Reihe).
+  **Nächster Schritt:** Entscheidungen O1, O2 und O10–O16 durch den
+  Owner; dann Überarbeitung nach Prüfbericht §6.2 (Feldkatalog, D1,
+  D3/D5/D6), zwei Spikes (§6.3), neue Schätzung; erst dann Stufe 1.
 - **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.

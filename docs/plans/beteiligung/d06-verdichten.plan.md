@@ -50,7 +50,7 @@ erscheint bei der Moderation (Konzept 13.09., Abschnitt 3.3).
    mit der Vorlage `shf-synthese-de`, gestartet über
    `enqueueSourceMarkdownJob({libraryId, userEmail, source, template,
    targetLanguage, erzwingen})` (`src/lib/external-jobs/enqueue-markdown-job.ts:89`).
-   - Dieser Weg schaltet heute **Ingest immer ein** (`:78-79`,
+   - Dieser Weg schaltet heute **Ingest immer ein** (`:81-82`,
      `phases.ingest: true`). Der Synthese-Vorschlag gehört nicht in den
      Suchindex. Neu ist deshalb die Option `ingest: false`
      (`policies.ingest: 'ignore'`).

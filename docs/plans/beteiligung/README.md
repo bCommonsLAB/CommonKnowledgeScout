@@ -57,11 +57,12 @@ und ohne die neue Option bleibt das heutige Verhalten.
 |---|---|---|---|
 | `promoteSubmission(… , { ingest: false })` | `src/lib/submissions/promotion.ts:122` | D5 | ADR 0004 |
 | `enqueueSourceMarkdownJob({… , ingest: false})` | `src/lib/external-jobs/enqueue-markdown-job.ts:89` | D6 | `contracts-story-pipeline` |
-| Bildweg im Job-Start nutzt `resolveJobLibrary` wie der PDF-Weg | `src/app/api/external/jobs/[jobId]/start/route.ts:1343`, `:1650` | D3 | `contracts-pipeline` |
+| Bildweg (und PDF-Weg) der Start-Route nutzen `resolveJobLibrary` wie die Callback-Route | `src/app/api/external/jobs/[jobId]/start/route.ts:1343`, `:1651`, `:552`, `:755` | D3 | `contracts-pipeline` |
 | Job je Anlage (`attachmentId`), Rückfluss nur in die Anlage | `submission-analysis-job.ts`, `finalize-completion.ts:59` | D3 | `contracts-pipeline` |
 | Versionsschutz beim Aktualisieren von Submissions | `wizard-submissions-repo.ts:102`, `:133` | D3 | — |
 | Namensbildung der Anlagen-Kopie (Kurz-Id gegen Kollision) | `promotion-transcript.ts:46` | D5 | `media-lifecycle` |
-| Erfassen für `moderator` im Kontext der Beteiligung | `capture-access.ts:24` | D11 | — |
+| Strikte Rollenprüfung in `isModeratorOrOwner`, `isCoCreatorOrOwner`, `resolveCaptureRole`, Provider-Fallback, `canSeeDrafts`, Chat-Loader (heute lässt `getLibrary` jedes Mitglied durch) | `library-service.ts:193-248` und Aufrufer | Prüfbericht §1 | **sicherheitsrelevant, Owner-Freigabe (O10)** |
+| Erfassen für `moderator` im Kontext der Beteiligung | `submission-capture.ts:34-42` | D11 | — |
 | Chat für Mitglieder mit `chat.allowMemberRoles` | `src/lib/chat/loader.ts:262` | D9 | `contracts-ingestion-chat` |
 | `DocReference.sourceLabel?`, Einstellung `chat.referenceLabelKeys` | `packages/contracts/src/doc-reference.ts:28`, `orchestrator.ts:477-510` | D8 | `library-config-field` |
 | Ausschluss-Filter `not_<metaKey>` (nur bei V2/V3) | `src/lib/chat/common/filters.ts:105` | D9 | `contracts-ingestion-chat` |
@@ -84,8 +85,22 @@ und ohne die neue Option bleibt das heutige Verhalten.
 | O7 | Mehrsprachigkeit DE/IT der Textstellen | D1 10 | offen, Entscheidung des Auftraggebers |
 | O8 | Ergebnis vor der Freigabe im Storage redigieren | D8 9 | ja, an der Entwurfsdatei (Datei zuerst) |
 | O9 | Redaktion als eigene Library-Rolle | D11 8 | nein; `co-creator` + `series.editors` |
+| O10 | **`getLibrary` lässt jedes Mitglied durch; sechs Helfer nutzen es als Owner-Prüfung** | Prüfbericht §1 | beheben, eigener PR mit Test, vor Stufe 1 |
+| O11 | **Sichtbarkeit am Tisch:** Stille Runde fest oder Schalter je Treffen | Prüfbericht A3 | Schalter, Voreinstellung still; Konfiguration ins Ergebnis |
+| O12 | **Promotion-Zeitpunkt:** Fensterschluss oder Tisch-Abschluss | Prüfbericht W3/W4, O12 | Tisch-Abschluss; Weg B bleibt |
+| O13 | Vorschlag einsprechen als Hauptweg, KI-Synthese als Zweitweg | Prüfbericht A1 | ja |
+| O14 | Rolle Verwaltungsbegleitung, Sichtbarkeit je Planungsdokument | Prüfbericht A4 | ja |
+| O15 | Fensterschluss mit Owner-Credentials | Prüfbericht W12 | nein, eigene Rolle nach O10 |
+| O16 | Identitätsmodell `attribution.kind`, Proxy mit E-Mail, Moderations-Anhebung | Prüfbericht W1/W2/W11 | wie vorgeschlagen |
 
 ## Bau-Reihenfolge
+
+**Stand 24.09.:** Die Konzepte wurden geprüft
+([`pruefbericht-2026-09-24.md`](pruefbericht-2026-09-24.md)). Vor Stufe 1
+stehen die Entscheidungen O10–O16, die Überarbeitung nach Prüfbericht
+§6.2 (zuerst der Feldkatalog, dann D1, dann D3/D5/D6 gemeinsam) und zwei
+Spikes (§6.3). Die Aufwandszahlen unten und in den Konzepten gelten bis
+dahin nicht.
 
 Jede Stufe ist eine PR-Folge mit Tests. Gebaut wird erst, wenn das
 Detailkonzept abgenommen ist:

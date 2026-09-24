@@ -37,10 +37,14 @@ Rollen sichtbar. Das braucht einen Filter nach `docType` mit Ausschluss
 
 ## 3. Zugang
 
-Heute darf eine Contributorin nicht chatten: Der Loader lässt eigene
-Libraries zu, dann Co-Creator (`isCoCreatorOrOwner`, `loader.ts:296-302`),
-sonst nur öffentliche Libraries (`:306-315`). Bei `requiresAuth` kommen
-Moderator/Owner oder ein genehmigter Lesezugang dazu (`:320-330`).
+Beabsichtigt darf eine Contributorin heute nicht chatten: Der Loader
+lässt eigene Libraries zu, dann Co-Creator (`isCoCreatorOrOwner`,
+`loader.ts:296-302`), sonst nur öffentliche Libraries (`:306-315`). Der
+Zweig für `requiresAuth` (`:320-330`) läuft nur für eigene Libraries.
+**Wirksam** kommt sie heute durch, weil `isCoCreatorOrOwner` über
+`getLibrary` jedes aktive Mitglied durchlässt (Prüfbericht 24.09. §1,
+O10). Die Öffnung unten ist deshalb kein neues Recht, sondern macht ein
+unbeabsichtigtes explizit und konfigurierbar.
 
 **Änderung:** `loadLibraryChatContext` lässt aktive Mitglieder jeder
 Rolle zu. Dazu gehört `contributor`, **wenn die Library eine Einstellung
@@ -48,9 +52,10 @@ Rolle zu. Dazu gehört `contributor`, **wenn die Library eine Einstellung
 `['moderator', 'contributor']`). Ohne Einstellung bleibt es wie heute.
 Das ist eine bewusste, konfigurierte Öffnung, kein stiller Standard.
 
-- Die Entwurfsregel bleibt: Contributors sehen keine Entwürfe
-  (`publication-filter.ts:57-63`).
-- Das Kontext-Cache von 10 s (`loader.ts:54`) bleibt.
+- Die Entwurfsregel gilt beabsichtigt: Contributors sehen keine Entwürfe
+  (`publication-filter.ts:57-63`); wirksam heute wie oben (O10).
+- Das Kontext-Cache von 5 min (`CACHE_TTL_MS`, `loader.ts:49`) bleibt;
+  Rechteänderungen wirken also verzögert.
 - Es gilt der Contract `contracts-ingestion-chat`.
 
 ## 4. Eingrenzung auf das Thema

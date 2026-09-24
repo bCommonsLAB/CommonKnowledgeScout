@@ -76,7 +76,7 @@ beim **Freigeben** als Snapshot.
      Ein `_`-Ordner gilt als Twin-Ordner: Er wird versteckt, nicht
      gescannt, und die MCP-Brücke sperrt ihn
      (`packages/util/src/shadow-twin-folder-name.ts:16-18`,
-     `schreibschutz.ts:57-75`, `tools-ordner.ts:22-29`).
+     `schreibschutz.ts:57-75`, `src/lib/mcp/tools-ordner.ts:22-29`).
    - Keine Planungsdatei `X.md` neben einer Datei `X.pdf`. Sie würde als
      Transkript-Artefakt der PDF gelesen
      (`resolve-sources.ts:52-61`, `artifact-naming.ts:156-163`).
@@ -320,9 +320,11 @@ Text, der bei der Freigabe galt. Ändert die Redaktion später die
 Textstelle, bleibt das laufende Treffen unberührt (E2), und die Historie
 bleibt nachvollziehbar (`textHash`).
 
-**Atomar:** Die Freigabe schreibt alle Dokumente eines Treffens in **einer
-MongoDB-Transaktion**, oder als neue `release.version` mit Umschalten am
-Ende. Ein halber Snapshot darf nie entstehen. Scheitert das Lesen einer
+**Atomar:** Die Freigabe schreibt alle Dokumente eines Treffens als neue
+`release.version` und schaltet am Ende um. MongoDB-Transaktionen nutzt
+der Bestand nirgends (sie bräuchten ein Replica Set); sie kommen hier
+nicht neu dazu (Prüfbericht 24.09. §1). Ein halber Snapshot darf nie
+entstehen. Scheitert das Lesen einer
 Datei, wird nichts geschrieben.
 
 ## 6. Schnittstellen
@@ -331,7 +333,7 @@ Datei, wird nichts geschrieben.
 
 | Zweck | Bestand |
 |---|---|
-| Provider auf dem Server, auch für Co-Creator | `getServerProvider(userEmail, libraryId)` mit Fallback `isCoCreatorOrOwner` (`src/lib/storage/server-provider.ts:57-78`). **Nicht** `runLibrarySync`: Das geht über `getLibrary(userEmail)` und damit nur für Owner (`run-library-sync.ts:66`) |
+| Provider auf dem Server, auch für Co-Creator | `getServerProvider(userEmail, libraryId)` mit Fallback `isCoCreatorOrOwner` (`src/lib/storage/server-provider.ts:57-78`). **Nicht** `runLibrarySync` (`run-library-sync.ts:66`): Das ist ein Sync-Lauf mit Twin-Anlage, kein Lese-Werkzeug (die frühere Begründung „nur für Owner“ war falsch, Prüfbericht 24.09. §4) |
 | Pfad → Ordner/Datei | `resolveItemByPath`, `resolveFolderIdByPath` (`src/lib/mcp/resolve-folder.ts:77`, `:126`) |
 | Ordner rekursiv lesen | `listeOrdner` (`listen.ts:103`) bzw. `scanArchive` (`archive-scan.ts:49`); Änderungserkennung wie `berechneFingerabdruck` (`check-stand.ts:81-97`) |
 | Frontmatter lesen | `parseFrontmatter` (`src/lib/markdown/frontmatter.ts:12`), `leseFlowListe` |
@@ -427,7 +429,7 @@ Redaktions-Oberfläche (R-S0.2) und kein Teil des Fundaments.
 | Teil | PT |
 |---|---|
 | Tabellen-Parser, Planungsdatei-Parser, Prüfregeln (rein, mit Tests) | 1,5–2 |
-| Ordner lesen, Übernahmeplan, Freigabe mit Transaktion, Repos `series`, `text_passages`, `meetings`, `meeting_tables` | 1,5–2 |
+| Ordner lesen, Übernahmeplan, Freigabe mit Versionsumschaltung, Repos `series`, `text_passages`, `meetings`, `meeting_tables` | 1,5–2 |
 | Routen, MCP-Werkzeuge, Protokoll | 1 |
 | **Summe D1** | **4–5** |
 

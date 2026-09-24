@@ -133,12 +133,16 @@ interface SubmissionAttachment {
    `state`, nie `markdownBody`. Ohne `attachmentId` bleibt das heutige
    Verhalten.
 4. **Foto → Text:** Der Bildweg im Job-Start (`start/route.ts:1343`) lädt
-   die Library über `LibraryService.getLibrary(job.userEmail, …)` (`:1650`).
-   Das gelingt nur für Owner, eine Teilnehmerin bekäme
-   `library_not_found`. Außerdem reicht er die Library an den Shadow-Twin-
-   Service weiter, der für den Inbox-Bereich `null` erwartet.
+   die Library über `LibraryService.getLibrary(job.userEmail, …)` (`:1651`).
+   Das gelingt für jedes aktive Mitglied (Prüfbericht 24.09. §1);
+   `library_not_found` trifft nur Nicht-Mitglieder oder wartende
+   Einladungen. Das echte Problem: Er reicht die Library an den
+   Shadow-Twin-Service weiter, der für den Inbox-Bereich `null` erwartet.
    - **Anpassung:** Der Bildweg nutzt `resolveJobLibrary` und
-     `resolveShadowTwinLibrary` wie der PDF-Weg (`external-jobs/provider.ts:61`, `:76`).
+     `resolveShadowTwinLibrary` (`external-jobs/provider.ts:58`, `:75`),
+     wie heute nur die Callback-Route (`[jobId]/route.ts:543`); der
+     PDF-Weg der Start-Route (`:552`, `:755`) nutzt sie ebenfalls nicht
+     und wird im selben Zug umgestellt (Spike 2, Prüfbericht §6.3).
    - Die Vorlage für Fotos ist eine schlanke Bildbeschreibung mit OCR über
      `callImageAnalyzerTemplate` (`image-analyzer.ts:114`), eine neue
      Vorlage `beitrag-foto-text-de`.
@@ -259,8 +263,8 @@ Flow-Entität, damit ADR 0003 die Naht bleibt:
   - Stille Runde: Die Moderation sieht bei offenem Fenster keinen Text.
 - Rückfluss mit `attachmentId` schreibt nur in die Anlage; ohne
   `attachmentId` bleibt das Verhalten wie heute (Freeze-Test vorher).
-- Bildweg: Eine Contributor-Submission im Inbox-Bereich läuft ohne
-  `library_not_found` durch.
+- Bildweg: Eine Contributor-Submission im Inbox-Bereich läuft mit
+  Shadow-Twin-Library `null` durch (kein Twin im Inbox-Bereich).
 
 ## 11. Offene Fragen
 

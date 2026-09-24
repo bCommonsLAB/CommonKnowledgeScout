@@ -131,12 +131,14 @@ immer mit Ingest (`:97`; einen Schalter gibt es nicht). Neu ist:
      Folge von `close_window` (`kuratierung: notbremse`, Owner 12.09.).
      Der `actor` ist die Moderation, die geschlossen hat.
    - `promoteSubmission(…, { ingest: false })`.
-3. **Rechte:** Die Moderation hat heute keinen Storage-Zugang
-   (`server-provider.ts:78` prüft Co-Creator). Der Stapel läuft deshalb
-   mit einem **Server-Provider der Library im Namen der Redaktion bzw.
-   des Owners** (`getServerProvider(ownerEmail, libraryId)`). Das Recht
-   dazu leitet sich aus der Rolle „Moderation dieses Tisches“ ab (D11).
-   Im Protokoll steht die Moderation.
+3. **Rechte:** Beabsichtigt hat die Moderation keinen Storage-Zugang
+   (`server-provider.ts:76` prüft Co-Creator); wirksam heute doch, weil
+   `isCoCreatorOrOwner` über `getLibrary` jedes Mitglied durchlässt
+   (Prüfbericht 24.09. §1, O10). Der Stapel darf **nicht** mit
+   Owner-Credentials laufen (Prüfbericht W12, O15). Er läuft mit dem
+   Server-Provider der Moderation über ihre eigene Rolle, sobald O10
+   behoben ist; bis dahin wird D5 nicht gebaut. Im Protokoll steht die
+   Moderation.
 4. **Ablauf in Stufen, jede für sich wiederholbar:**
    - (a) Ordner sicherstellen;
    - (b) je Beitrag Originale kopieren, dann die `.md` schreiben;
@@ -145,7 +147,8 @@ immer mit Ingest (`:97`; einen Schalter gibt es nicht). Neu ist:
 
    Scheitert (b) an einem Beitrag, bleiben die übrigen gültig. Der
    gescheiterte geht zurück auf `ready` (Bestand: `revertToReady`,
-   `promotion-errors.ts:43`) und wird erneut versucht.
+   `promote-actions.ts:43`, nicht exportiert, muss herausgelöst werden)
+   und wird erneut versucht.
 5. **Wiederholung:** Das Fenster trägt `promotion {state: ausstehend |
    laeuft | fertig | teilweise, attempts, lastError}`. Bei `teilweise`
    zeigt die Moderation „Übertragung ins Archiv ausstehend (3 von 11)“ mit
@@ -193,7 +196,7 @@ gepatcht.
 | Einzel-Promotion | `promoteSubmission(args): PromotionResult` (`promotion.ts:122`), Args `promotion-types.ts:91` |
 | Originale kopieren | `copyOriginalsToTarget` (`promotion-transcript.ts:46`); `loadOriginal` über `getBinary(ref.itemId)` (`promote-injections.ts:55`) |
 | Frontmatter | `buildPublishFrontmatter` (`publish-frontmatter.ts:38`), `createMarkdownWithFrontmatter` (`compose.ts:3`) |
-| Fehler und Rücksetzen | `classifyPromotionError`, `revertToReady` (`promotion-errors.ts:63`, `:43`) |
+| Fehler und Rücksetzen | `classifyPromotionError` (`promotion-errors.ts:63`), `revertToReady` (`promote-actions.ts:43`, privat) |
 | Statusmaschine | `transitionSubmission` (`submission-status.ts:143`) |
 | Ordner finden oder anlegen | heute viermal lokal kopiert (`ensureChildFolderId`, z. B. `api/public/testimonials/route.ts:26`) bzw. `ordnerSicherstellen` (`src/lib/mcp/storage/pfad-helfer.ts:17`) |
 | Transkript an eine kopierte Datei | `ShadowTwinService.upsertMarkdown`, Muster `promoteTranscriptOnly` |
