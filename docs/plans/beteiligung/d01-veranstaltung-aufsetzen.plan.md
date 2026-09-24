@@ -228,6 +228,17 @@ baut_auf: ""
 
 ## 4. Treffen prüfen und freigeben
 
+> **Owner 24.09. (Lesedurchgang):** Der eigene Schritt „Prüfen“ mit
+> Prüfbericht **entfällt**. Es gibt keine separate Prüffunktion, keine
+> Route `check`, kein Werkzeug `treffen_pruefen` und keinen `berichtHash`.
+> **Freigeben** bleibt: Es liest die Dateien, übernimmt den Stand als
+> Snapshot und scheitert laut, wenn eine Datei nicht lesbar ist oder ein
+> Pflichtfeld fehlt (no-silent-fallbacks). Die Regeln in 4.3 gelten damit
+> nur noch als Vorbedingungen der Freigabe, nicht als eigener Bericht; was
+> davon wirklich hart sein muss, wird in der Überarbeitung nach dem
+> Prüfbericht (§6.2) entschieden. Die Abschnitte 4.1–4.4, 6.2 und 8
+> beschreiben unten noch den alten Stand.
+
 ### 4.1 Zustände eines Treffens
 
 ```

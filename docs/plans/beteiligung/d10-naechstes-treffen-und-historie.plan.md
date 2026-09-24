@@ -152,6 +152,16 @@ Originalen gerechnet.
    Redaktionsaufgabe (Datei zuerst); das Modell hält beide.
 2. Soll der Druck je Gruppe auch die Einzelstimmen zeigen? Bei V1 nein.
 
+**„Passt nicht“ ohne Fortsetzung (Owner 24.09., O19):** Für „passt
+nicht“ ist nicht beschrieben, was folgt. Vorschlag: Begründung ist
+Pflicht; die Antwort wird ein Beitrag mit `kind: einwand` auf die
+gültige Fassung und geht in die Historie dieser Gruppe ein. Überwiegt
+„passt nicht“ oder gibt es Ergänzungen, läuft der Punkt wie eine
+normale Textstelle: Ernte, Verdichtung (D6), Messung (D7) und eine neue
+Fassung der Folgegruppe; die Fassung der Vorgruppe bleibt in der
+Historie sichtbar. Die Schwelle für „überwiegend“ ist festzulegen
+(Prüfbericht §3, stille Fallbacks).
+
 ## 10. Aufwand
 
 | Teil | PT |
