@@ -57,6 +57,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   h.registriert.clear()
   registerStandTool(server)
+  h.requireLibrary.mockResolvedValue({ label: 'Archiv', config: { agentView: { enabled: true } } })
   h.requireProvider.mockResolvedValue({ marke: 'provider' })
   h.getReport.mockResolvedValue({ generatedAt: 'T1' })
   h.ausfuehren.mockResolvedValue({ bearbeitungsstand: 'erschlossen', bearbeitungsstandSeit: '2026-08-24T23:59:59.999Z' })
@@ -98,5 +99,18 @@ describe('stand_setzen', () => {
 
     expect(h.ausfuehren).not.toHaveBeenCalled()
     expect(antwort).toMatchObject({ ok: false })
+  })
+})
+
+describe('stand_setzen: Archivpflege-Sperre', () => {
+  it('Library ohne Agentensicht: Fehler, kein Report-Lesen, kein Schreiben', async () => {
+    h.requireLibrary.mockResolvedValue({ label: 'Fremd', config: { agentView: { enabled: false } } })
+
+    const antwort = await aufrufen({ libraryId: 'L', folderId: 'F', stand: 'erschlossen', erwarteterStand: null })
+
+    expect(h.getReport).not.toHaveBeenCalled()
+    expect(h.ausfuehren).not.toHaveBeenCalled()
+    expect(antwort).toMatchObject({ ok: false })
+    expect((antwort as { fehler: string }).fehler).toContain('gesperrt')
   })
 })

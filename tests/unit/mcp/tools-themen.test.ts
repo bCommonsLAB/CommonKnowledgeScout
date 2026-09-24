@@ -51,7 +51,7 @@ function aufrufen(args: Record<string, unknown>) {
 }
 
 function libraryMit(themen: string[] | undefined) {
-  h.requireLibrary.mockResolvedValue({ config: { agentView: themen ? { themen } : {} } })
+  h.requireLibrary.mockResolvedValue({ label: 'Archiv', config: { agentView: themen ? { enabled: true, themen } : { enabled: true } } })
 }
 
 beforeEach(() => {
@@ -159,5 +159,16 @@ describe('themen_setzen: Ordner unterhalb des Vorhabens (Wunschliste 5, B3)', ()
     h.setzeThemen.mockRejectedValue(Object.assign(new Error('kein Index'), { code: 'kein_index' }))
     const antwort = await aufrufen({ themen: ['ACT-Klima'] })
     expect(antwort).toMatchObject({ ok: false, code: 'kein_index' })
+  })
+})
+
+describe('themen_setzen: Archivpflege-Sperre', () => {
+  it('Library ohne Agentensicht wird abgewiesen, bevor irgendetwas geschrieben wird', async () => {
+    h.requireLibrary.mockResolvedValue({ label: 'Fremd', config: {} })
+    const antwort = await aufrufen({ themen: ['KS-Plattform'] })
+    expect(h.setzeThemen).not.toHaveBeenCalled()
+    expect(h.requireProvider).not.toHaveBeenCalled()
+    expect(antwort).toMatchObject({ ok: false })
+    expect((antwort as { fehler: string }).fehler).toContain('gesperrt')
   })
 })
