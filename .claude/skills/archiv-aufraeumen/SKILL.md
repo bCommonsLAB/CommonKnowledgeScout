@@ -1,42 +1,51 @@
 ---
 name: archiv-aufraeumen
-description: Einen Vorhabensordner im Wissensarchiv über die KnowledgeScout-MCP-Brücke aufräumen — Abdeckung prüfen, Quellen erschließen, Transformationen nachziehen, Dateien und Ordner sauber benennen, Bericht als Zustand neu schreiben, Stand setzen. Diesen Skill verwenden, sobald von Aufräumen, Abdeckung, Coverage, Befunden, Twins, Shadow Twins, KnowledgeScout, Erschließen, Transkribieren oder davon die Rede ist, einen Archivordner in Ordnung zu bringen oder die Arbeit von KnowledgeScout gegenzuprüfen.
+description: Einen Vorhabensordner im Wissensarchiv über die KnowledgeScout-MCP-Brücke aufräumen — Abdeckung prüfen, Quellen erschließen, Transformationen nachziehen, Dateien und Ordner sauber benennen, Bericht fortschreiben, Stand setzen. Diesen Skill verwenden, sobald von Aufräumen, Abdeckung, Coverage, Befunden, Twins, Shadow Twins, KnowledgeScout, Erschließen, Transkribieren oder davon die Rede ist, einen Archivordner in Ordnung zu bringen oder die Arbeit von KnowledgeScout gegenzuprüfen.
 ---
 
-# Archivordner aufräumen
+# Archivordner aufräumen (version 2)
 
 Wie die KnowledgeScout-Brücke bedient wird. **Was** dabei entstehen soll,
 steht nicht hier, sondern im Archiv — siehe „Zuerst lesen".
 
-## Vorab — Library wählen und Archivpflege prüfen (VOR allem anderen)
+## Kostenfragen
+Will beim Archiv-Aufräumen keine Rückfragen, ob eine Aktion etwas kostet — Nachfragen kosten am meisten Zeit und Geld 
+Ziel beim Archiv: so schnell wie möglich aufräumen; entscheiden statt fragen, wenn eine vernünftige Wahl erkennbar ist
 
-Die Brücke erreicht **alle** Libraries des Kontos, nicht nur das
-Wissensarchiv. Dieser Skill setzt aber dessen Struktur voraus (`_INDEX.md`,
-`BERICHT.md`, Sichten unter `Organisation/`). Deshalb zuerst:
+## Schritt null: Welche Bibliothek?
 
-```
-bibliotheken_auflisten
-```
+**Nie raten, welche Library das Archiv ist — immer von Peter bestätigen
+lassen.** `bibliotheken_auflisten` liefert über ein Dutzend Einträge, und die
+Namen führen in die Irre: Der Vault `Archiv Peter` hängt an der Library, die
+**„Onedrive Test"** heißt. Wer den Namen für ein Testsystem hält, irrt sich in
+beide Richtungen — dort liegen die echten Verträge, und was dort geschrieben
+wird, ist echt geschrieben.
 
-1. **Library eindeutig bestimmen.** Id aus der Liste nehmen, nicht raten.
-   Nennt der Auftrag keine Library und kommen mehrere in Frage: nachfragen.
-2. **`archivpflege` der gewählten Library prüfen.**
-   - `true` → weiter mit „Zuerst lesen".
-   - `false` → **abbrechen** und dem Menschen sagen: „Die Library *X* führt
-     keine Archiv-Konventionen; dieser Skill ist dort nicht anwendbar." Nicht
-     trotzdem aufräumen, keine `_INDEX.md`/`BERICHT.md` anlegen, nicht auf
-     eine andere Library ausweichen. Freigabe ist Sache des Owners
-     (Library-Einstellungen → Agentensicht aktivieren).
-3. **Fehlt das Feld `archivpflege`** in der Antwort, ist der Werkzeugsatz
-   älter als 2.31.0 → Erweiterung aus- und einschalten (`bruecke_info`).
+Sich die Bibliothek durch Probieren zusammenzusuchen („in welcher gibt es einen
+Ordner `Organisation`?") führt zu einer plausiblen, aber **unbestätigten**
+Annahme — auf deren Grundlage dann kostenpflichtige Jobs starten. So geschehen
+am 28.08.2026. Ein Satz genügt: „Ich sehe die Library X mit dem Vorhaben Y —
+richtig?" Erst danach beginnt der Ablauf unten.
 
-Die Brücke setzt dasselbe serverseitig durch: `stand_setzen`,
-`themen_setzen`, `erschliessung_block_schreiben` und `sichten_regenerieren`
-antworten bei `archivpflege: false` mit einem Fehler „… gesperrt". Diesen
-Fehler nie umgehen (etwa per `datei_schreiben` auf `_INDEX.md`) — er ist die
-Grenze, nicht ein Hindernis. Generische Werkzeuge (Storage, Erschließen,
-Twins, Jobs) bleiben in jeder Library nutzbar, gehören dann aber nicht zu
-diesem Skill.
+**Dann `archivpflege` prüfen (ab Werkzeugsatz 2.31.0).** `bibliotheken_auflisten`
+nennt je Library `archivpflege: true/false`. Nur bei `true` führt die Library
+die Archiv-Konventionen (`_INDEX.md`, `BERICHT.md`, `Organisation/`).
+
+- `false` → **abbrechen** und sagen: „Die Library *X* führt keine
+  Archiv-Konventionen; dieser Skill ist dort nicht anwendbar." Nicht trotzdem
+  aufräumen, keine `_INDEX.md`/`BERICHT.md` anlegen, nicht auf eine andere
+  Library ausweichen. Freigabe: Library-Einstellungen → Agentensicht
+  aktivieren — das entscheidet Peter.
+- Fehlt das Feld, läuft der Server noch mit einem Werkzeugsatz vor 2.31.0
+  (`bruecke_info` zeigt die Version): Dort gibt es die Sperre noch nicht —
+  nach Peters Bestätigung der Library wie bisher weiter.
+
+Die Brücke setzt das serverseitig durch: `stand_setzen`, `themen_setzen`,
+`erschliessung_block_schreiben` und `sichten_regenerieren` antworten bei
+`archivpflege: false` mit „… gesperrt". Diesen Fehler nie umgehen (etwa per
+`datei_schreiben` auf `_INDEX.md`) — er ist die Grenze, nicht ein Hindernis.
+Generische Werkzeuge (Storage, Erschließen, Twins, Jobs) bleiben in jeder
+Library nutzbar, gehören dann aber nicht zu diesem Skill.
 
 ## Zuerst lesen
 
@@ -49,16 +58,24 @@ Struktur, Benennung und Berichtsform. Vor jeder Archivarbeit lesen:
 | `Organisation/Aufraeumen/Konventionen.md` | **Das wichtigste.** Ordnernamen, Vorlagen für `_INDEX.md` und `BERICHT.md`, Frontmatter-Felder, Twin-Contract, Lese- und Korrektur-Ordnung, Vier-Schritte-Takt |
 | `Organisation/Aufraeumen/HANDOVER.md` | Stand der Aufräumarbeit, offene Punkte, Eigenheiten der Mounts |
 
-Sie werden über die Datei-Bridge gelesen (`device_stage_files`, dann `Read`).
+Gelesen werden sie mit `datei_lesen(libraryId, pfad)` — ein Aufruf je Datei,
+unabhängig davon, ob ein Rechner verbunden ist (siehe 1a). Läuft die Session in
+der Cloud ohne verbundenen Rechner, gibt es die `device_*`-Werkzeuge gar nicht;
+das ist kein Ausfall und wartet sich nicht weg.
+
 **Nichts davon in diesem Skill wiederholen** — bei Widerspruch gelten die
 Dokumente im Archiv, und Abweichungen gehören dorthin gemeldet, nicht hierher
 kopiert.
 
 Aus `Konventionen.md` besonders beachten: der **Vier-Schritte-Takt**
 (Strukturieren → Erschließen → Berichten → Abnehmen), die **Familien-Regel**
-(Quelle und `_`-Ordner ziehen gemeinsam um), die **Korrektur-Ordnung**
-(Wortlautfehler ins Transkript, nie in den Transformations-Body) und dass
-**alle Umbenennungen vor die Erschließung gehören**.
+(Quelle und `_`-Ordner ziehen gemeinsam um) und die **Korrektur-Ordnung**
+(Wortlautfehler ins Transkript, nie in den Transformations-Body).
+
+**Die frühere Regel „alle Umbenennungen vor die Erschließung" gilt seit dem
+29.08.2026 nicht mehr in dieser Schärfe** — siehe 2d. Die Grobstruktur kommt
+weiter zuerst; der endgültige Name kommt aus dem Inhalt und darf danach
+fallen.
 
 **Was in einem Vorhabensordner liegt (Stand 27.08.2026):**
 
@@ -77,16 +94,91 @@ dieser Art werden beim nächsten Anfassen aufgelöst, nicht fortgeschrieben.
 **1. Nie Dateien direkt im Dateisystem anfassen.** Umbenennen, Verschieben und
 Verwerfen laufen ausschließlich über `familie_umziehen`, `ordner_umbenennen`,
 `ordner_erstellen` und `quelle_verwerfen`. Sonst zeigen die Mongo-Dokumente ins
-Leere. Der `bearbeitungsstand` läuft über `stand_setzen` — nie über die
-Datei-Bridge, sonst greifen die Schutzstufen nicht. Die Datei-Bridge
-(`device_*`) ist zum **Lesen und Gegenprüfen** da — und zum Schreiben von
-Berichten und Notizen, die keine KnowledgeScout-Quellen sind.
+Leere. Der `bearbeitungsstand` läuft über `stand_setzen` — nie über eine
+Schreiboperation auf der Datei, sonst greifen die Schutzstufen nicht.
 
-**1a-ii. Der Rückkanal von Peter läuft über `korrekturen_lesen`.** Was er an
-einzelnen Dateien korrigiert haben will, diktiert er in der Werkbank; es landet
-im Frontmatter des Twins und ist über dieses Werkzeug abrufbar — ohne Scan.
-Siehe Schritt 0 des Ablaufs. Das ist der einzige Weg, auf dem er dir direkt
-etwas aufträgt.
+**1a. Seit Werkzeugsatz 2.9.0 gibt es dafür keinen Grund mehr.** KnowledgeScout
+bringt die Speicherschicht selbst mit: `ordner_listen`, `pfad_aufloesen`,
+`stat`, `datei_lesen`, `datei_anlegen`, `datei_schreiben`, `datei_patchen`,
+`ordner_anlegen`, `verschieben`, `loeschen`, `speicher_info`. Damit ist
+`device_*` für Archivarbeit **nicht mehr nötig** — weder zum Lesen noch zum
+Schreiben. Nimm die KS-Werkzeuge, dann steht jede Aktion mit Begründung im
+Protokoll.
+
+Drei Regeln dazu, die Arbeit sparen:
+
+- **`stat` statt lesen.** Für Zeitstempel-Vergleiche (`bericht_veraltet`,
+  `verweis_veraltet`) reicht `stat`; eine Datei dafür zu lesen ist
+  Verschwendung. `datei_lesen` mit `bereich: {art: "frontmatter"}` spart bei
+  einem Feld-Check rund 97 % der Übertragung.
+- **`ordner_listen` mit `zusammenfassung: true` ist der erste Griff** (ab
+  Werkzeugsatz 2.19.0) bei einem unbekannten Ordner: je direktem Unterordner
+  nur Anzahl, Gesamtgröße und jüngstes Datum statt der ganzen Namensliste.
+  Erst der Überblick, dann gezielt hineinlisten. Eine Zeile mit lauter Nullen
+  heißt „nicht hineingeschaut", nicht „leer" — Zahlen kommen erst mit
+  `tiefe: 1`. Dazu begrenzt `maxBytes` (Vorgabe 64 kB) die **Größe** der
+  Antwort, wo `limit` nur ihre Zahl begrenzte; eine Kürzung steht in
+  `gekuerzt`, weiter geht es mit `naechsterCursor`. Damit ist auch der
+  größte Vorhabensordner (78.634 Zeichen bei `tiefe: 2`) zugänglich.
+- **`datei_patchen` statt `datei_schreiben`.** Sechs Modi: `ersetze` (der
+  `altText` muss GENAU EINMAL vorkommen — die Eindeutigkeit ist der Schutz),
+  `abschnitt_ersetzen` (Markdown-Abschnitt bis zur nächsten gleichrangigen
+  Überschrift), `frontmatter_setzen` (nur die genannten Felder, Skalare; Body
+  bleibt Byte für Byte stehen) und seit 2.21/2.22 zusätzlich
+  `abschnitt_einfuegen` (Block vor oder nach einem Abschnitt — dafür nicht
+  mehr `ersetze` auf die Überschrift missbrauchen), `tabelle_zeile_einfuegen`
+  (eine Zeile, ohne die Tabelle neu zu schreiben) und `frontmatter_ergaenzen`
+  (Listenfelder wie `korrespondenz:` ergänzen, ohne den Zeilenwortlaut zu
+  rekonstruieren).
+- **Ein Stapel statt drei Aufrufe.** `modi: [ …, …, … ]` wendet bis zu 20
+  Teiländerungen in EINEM Aufruf an — alles oder nichts, jeder Schritt sieht
+  das Ergebnis des vorigen, die Reihenfolge zählt. Scheitert Schritt 3, wird
+  auch Schritt 1 nicht geschrieben; der Fehler nennt die Nummer.
+- **Was die neuen Modi wissen müssen.** `position: "nach"` heißt hinter dem
+  GANZEN Abschnitt, nicht hinter der Überschriftszeile — wer einen Abschnitt
+  einfügt, meint keinen Unterabschnitt. `tabelle_zeile_einfuegen` rät nicht:
+  mehrere Tabellen im Suchbereich → Fehler mit Anzahl und Fundstellen, dann
+  mit `ueberschrift` eingrenzen; `position: "anfang"` setzt hinter Kopf *und*
+  Trennzeile. `frontmatter_ergaenzen` entdoppelt normalisiert (Rand,
+  Mehrfach-Leerzeichen, Anführungszeichen, Groß-/Kleinschreibung), auch
+  innerhalb eines Aufrufs, und schreibt die Schreibweise, die schon dasteht.
+- **`frontmatter_ergaenzen` kann nur die Flow-Form** `feld: [a, b]`. Steht ein
+  Feld in YAML-Blockform (`feld:` und darunter `  - a`), wird es **nicht
+  angefasst, sondern gemeldet** — diese Form liest der Parser als *leeren*
+  Wert zurück, die Einträge wären für KnowledgeScout weg. Solche Felder erst
+  umstellen, dann ergänzen.
+- **Und kein Wert darf `[`, `]`, ein Komma oder einen Zeilenumbruch enthalten**
+  — die Flow-Form kennt dafür kein Escaping, der Aufruf wird abgelehnt (geprüft
+  am 03.09.2026 an `Vorname Nachname (fachliche Ausarbeitung, Land)`). Der Stapel
+  schreibt dann korrekt gar nichts. Namenszusätze in `korrespondenz:` also ohne
+  Komma formulieren; wer den Komma-Wert wirklich braucht, nimmt
+  `datei_schreiben`.
+- **`ifVersion` ist Pflicht, und der Konflikt ist kein Fehler.** Er liefert
+  `aktuelleVersion` UND `aktuellerInhalt` mit — zusammenführen und mit der
+  aktuellen Version erneut schreiben, ohne noch einmal zu lesen.
+
+**`_INDEX.md` und `_`-Twin-Ordner gehören den Fachwerkzeugen** —
+`stand_setzen`, `themen_setzen`, `erschliessung_block_schreiben` und die
+Twin-Werkzeuge. Das ist die Regel; sie ist inhaltlich richtig, weil die
+Schutzstufen (erwarteter Stand, Report-Alter, Rücklese-Prüfung) nur auf
+diesem Weg greifen.
+
+**Sie ist aber nicht technisch erzwungen — geprüft am 29.08.2026.**
+`datei_patchen` schreibt anstandslos in eine bestehende `_INDEX.md`, sowohl
+über `id` als auch über `pfad`; auch `verschieben` prüft nichts. Wer also
+liest, an die Gliederungstabelle im Body komme kein Werkzeug: **das stimmt
+nicht.**
+
+Daraus folgt eine praktische und eine unpraktische Hälfte:
+
+- **Den Body darfst du pflegen.** Die Gliederungstabelle nach einem Umzug
+  nachzuziehen ist genau das, was sonst als Handarbeit liegenbleibt — mit
+  `abschnitt_ersetzen` auf `## Gliederung` ist es ein Aufruf.
+- **Das Frontmatter nicht.** `bearbeitungsstand`, `bearbeitungsstand_seit`,
+  `themen` und den Erschließungsblock schreibst du weiter ausschließlich
+  über die Fachwerkzeuge, auch wenn `datei_patchen` dich liesse. Dort sitzen
+  die Riegel gegen konkurrierende Schreiber, und die umgeht man nicht, nur
+  weil es geht.
 
 **1b. Jede schreibende Aktion braucht eine `begruendung`.** Pflichtfeld ab
 Werkzeugsatz 2.6.0 — ein Satz, WARUM die Aktion nötig ist („Transkript nach
@@ -102,178 +194,75 @@ Werkzeuge). Was in einem vorhandenen `ORDNUNGSZUSTAND.md` an Begründungen
 steht, gehört beim nächsten Anfassen in die `begruendung` der jeweiligen
 Aktion — nicht in eine neue Zeile der Datei.
 
-**1b-ii. Strukturieren im Stapel (seit 2.15.0).** `familie_umziehen` nimmt
-`sourceIds` (bis 30) — mehrere Quellen ziehen in EINEN Ziel-Ordner, ein
-Aufruf statt einem je Datei. Beim Zerlegen eines Sammelordners also je
-Ziel-Ereignisordner EIN Aufruf mit allen zugehörigen Dateien. Umbenennen
-bleibt Einzeloperation. Danach EIN `abdeckung_scannen` über den betroffenen
-Teilbaum — nicht je Datei.
+**1c. Umziehen geht im Stapel (ab Werkzeugsatz 2.15.0).** `familie_umziehen`
+nimmt neben `sourceId` auch **`sourceIds`** — bis zu 30 Quellen in **einen**
+Zielordner, je Quelle mit ihrer Twin-Familie. Ein Fehlschlag bricht den Stapel
+nicht ab; jede Zeile der Antwort trägt ihr eigenes Ergebnis. Dasselbe Muster
+wie bei den Jobs.
 
-**1b-iii. Eine leere Job-Liste ist kein Erfolg.** `job_liste` ohne Filter
-nennt seit 2.15.0 zusätzlich `gescheitertKuerzlich` — die Fehlschläge der
-letzten Stunde samt jobIds. Steht dort etwas, zuerst `job_status` auf diese
-Jobs (liefert `fehlerDetails`), bevor irgendetwas nachgestartet wird.
+Daraus folgt die Reihenfolge beim Zerlegen eines Sammelordners: **erst die
+Ereignisordner anlegen, dann je Zielordner EIN Aufruf** mit allen Dateien, die
+dorthin gehören. Nicht ein Aufruf je Datei — am 29.08.2026 waren das für
+`besprechungen/` 26 Aufrufe statt neun.
 
-**1b-iv. `completed` heißt nicht „hat geschrieben".** Die Pipeline überspringt
-Schritte, wenn vorhandene Artefakte die Arbeit überflüssig erscheinen lassen
-(Gate) — der Job wird trotzdem `completed`. Seit 2.16.0 zeigt `job_status`
-das ehrlich: übersprungene Schritte tragen `uebersprungen: true` mit `grund`,
-und hat ein Job ALLE Schritte übersprungen, steht `nichtsGeschrieben` mit
-Klartext in der Antwort. **Nach jedem Stapel deshalb nicht nur den Status
-lesen, sondern prüfen, ob die erwarteten Artefakte entstanden sind**
-(Schritt 4, Gegenprüfen).
+**Umbenennen bleibt Einzeloperation.** `neuerName` gilt für genau eine Datei —
+ein gemeinsamer neuer Name ergibt für mehrere Quellen keinen Sinn. Der Stapel
+ist fürs Verschieben da, nicht fürs Benennen.
 
-Der wichtigste Fall (Befund 29.08.2026): **Alt-Familien mit Transformation,
-aber ohne Transkript** — etwa nach einer Alt-Format-Migration mit
-`twins_synchronisieren`. Das Gate liest die vorhandene Zusammenfassung als
-Beweis fürs Transkript und überspringt die Transkription. Für solche Familien
-`quelle_erschliessen` mit `erzwingen: true` aufrufen (ab 2.16.0) — das
-übergeht das Gate und transkribiert wirklich. `erzwingen` ist die Ausnahme,
-nicht der Default: Ohne konkreten Grund kostet es nur doppelt.
+**1d. `completed` heißt nicht „hat geschrieben" (ab Werkzeugsatz 2.16.0).**
+Ein Job kann alle Schritte als erledigt melden und trotzdem nichts getan
+haben — weil das **Extract-Gate** ihn übersprungen hat. Das Gate arbeitet mit
+der Annahme *Transformation impliziert Transkript*; in der Pipeline stimmt sie
+immer, weil eine Transformation dort AUS einem Transkript entsteht. Migrierte
+Alt-Format-Familien verletzen sie: Zusammenfassung da, Transkript nie
+dagewesen. Das Gate liest die Zusammenfassung als Beweis und überspringt die
+Transkription — der Job ist danach ehrlich `completed`, mit Verweis auf das
+Artefakt, das schon vorher da war.
 
-**1b-v. Steht die Warteschlange, liegt es selten an dir.** Die
-Nebenläufigkeit gilt für den **ganzen Worker-Pool** — alle Bibliotheken, alle
-Nutzer —, deine Job-Liste dagegen nur für eine Bibliothek. Deshalb trägt
-`job_liste` seit 2.17.0 einen `pool`-Block: `slots`, `laufend`, `freieSlots`,
-`steckengeblieben` und dazu einen Klartext-`hinweis`. Ihn lesen, bevor du auf
-etwas wartest:
+Zwei Dinge folgen daraus:
 
-- **Alle Slots belegt, `steckengeblieben: 0`** — es wird wirklich gearbeitet.
-  Warten ist richtig. Nichts aufräumen.
-- **Alle Slots belegt, `steckengeblieben > 0`** — Karteileichen halten die
-  Plätze: Jobs, die auf `running` stehen, aber seit
-  `stillstandSchwelleMinuten` kein Lebenszeichen mehr geben (Prozess-Neustart
-  killt den In-Memory-Watchdog). Sie werden **nie** fertig. Der eingebaute
-  Reaper räumt sie von selbst weg, aber erst nach seiner Schwelle — im Befund
-  vom 29.08.2026 standen dahinter dreißig Minuten lang neunzehn Jobs still.
+- **`job_status` sagt jetzt, was NICHT getan wurde.** Übersprungene Schritte
+  tragen `uebersprungen: true` und `grund` (z. B. `shadow_twin_exists`); hat
+  ein completed-Job alle Schritte übersprungen, steht `nichtsGeschrieben` im
+  Klartext in der Antwort. **Nach einem Stapel auf einer schon erschlossenen
+  Familie also nicht die Zahl der `completed` zählen, sondern `job_status`
+  fragen** — und danach mit `ordner_listen` nachsehen, ob die Datei wirklich
+  im `_`-Ordner liegt. Verräterzeichen bleibt eine Laufzeit unter zehn
+  Sekunden.
+- **`erzwingen` weglassen ist ab Werkzeugsatz 2.20.0 der Normalfall.** Der
+  Server erkennt die Alt-Format-Konstellation (Transformation ohne Transkript)
+  selbst und übergeht das Gate von sich aus. Die Antwort weist es je Quelle
+  aus — `erzwungen: "alt_format_erkannt" | "angefordert" | "abgelehnt" |
+  "nicht_noetig"`, dazu `erzwungenAutomatisch` als Zähler. `erzwingen: true`
+  heißt weiterhin „immer übergehen", `erzwingen: false` ausdrücklich „nie" —
+  die menschliche Ansage gewinnt in beide Richtungen. Bei einer Familie, der
+  nur das Transkript fehlt, gehört `template: "nur_transkript"` dazu; ein
+  Template-Lauf wäre doppelt bezahlt, die Transformation gibt es ja schon.
 
-`jobs_aufraeumen` (2.17.0) ist der Handgriff an denselben Hebel: Es setzt
-**eigene** Jobs **dieser** Bibliothek, die länger als
-`mindestStillstandMinuten` stillstehen, auf `failed` und gibt die Slots frei.
-Drei Regeln dazu:
+**Und der Umkehrschluss gilt nicht:** `legacy_twin_name` ist ein
+**Namens**-Befund, kein Beleg für ein fehlendes Transkript. Was einer Familie
+fehlt, steht je Familie im Abdeckungs-Report — das wird gelesen, nicht aus
+einer Befundzahl hochgerechnet. Am 29.08.2026 ist genau dieser Fehlschluss
+passiert (aus 236 Namensbefunden wurden 236 vermeintlich kaputte Familien);
+belegt waren zwölf.
 
-1. **Erst `job_liste` lesen, dann räumen.** Ein Job, der arbeitet, meldet
-   minutenlang nichts — Transkription und LLM-Transformation laufen ohne
-   Zwischenstand. Ohne `steckengeblieben > 0` tötest du Arbeit und zahlst sie
-   noch einmal.
-2. **Aufgeräumt heißt gescheitert, nicht erledigt.** Was gebraucht wird, mit
-   `quelle_erschliessen`/`transformation_starten` neu starten.
-3. **Liegen die Leichen woanders**, meldet die Antwort `aufgeraeumt: 0` bei
-   weiter vollem Pool — dann in der betreffenden Bibliothek aufrufen
-   (`bibliotheken_auflisten` + `job_liste`). Fremde Jobs räumt die Brücke
-   nicht weg; dort bleibt nur der Reaper.
+**2. Nicht nach Kosten fragen — entscheiden und berichten.** Ausdrückliche
+Ansage von Peter am 29.08.2026: „Ich weiß nicht, warum wir dauernd fragen, ob
+etwas was kostet. Das geht mir auf die Nerven. Ich möchte mein Archiv
+aufräumen, so schnell wie möglich. Diese Nachfragen kosten am meisten Zeit und
+Geld."
 
-**1c. Für alles Übrige gibt es seit Werkzeugsatz 2.9.0 die Storage-Schicht.**
-`ordner_listen`, `datei_lesen`, `stat`, `pfad_aufloesen`, `datei_patchen`,
-`datei_schreiben`, `datei_anlegen`, `ordner_anlegen`, `verschieben`,
-`loeschen`, `speicher_info` — dieselben Werkzeuge für **alle** Bibliotheken,
-auch die Nextcloud-Mounts, und ohne laufenden Desktop. Drei Gewohnheiten
-lohnen sich sofort:
+Daraus folgt für `quelle_erschliessen` und `transformation_starten`: **starten,
+nicht anfragen.** Auch bei Format-Zwillingen, auch bei großen Aufnahmen. Was
+gelaufen ist, steht hinterher im Ergebnis — was und wie viel, in einem Satz.
+Die frühere Regel „vor jedem Schreibvorgang fragen" ist damit aufgehoben.
 
-- **`datei_patchen` statt neu schreiben.** Für eine geänderte Zahl im
-  `BERICHT.md` reicht `modus: {art: "ersetze", altText, neuText}` — `altText`
-  muss genau einmal vorkommen. Ein Abschnitt geht über
-  `abschnitt_ersetzen`, ein Frontmatter-Feld über `frontmatter_setzen`
-  (Body und fremde Zeilen bleiben unangetastet).
-- **`ifVersion` kommt aus `datei_lesen`/`stat`** und ist bei jedem
-  Schreibvorgang Pflicht. Kommt ein `konflikt` zurück, liegt der aktuelle
-  Inhalt in der Antwort — mergen und mit `aktuelleVersion` erneut schreiben,
-  nicht neu lesen.
-- **`bereich: {art: "frontmatter"}`** liest ~300 Bytes statt der ganzen
-  Datei, wenn nur ein Feld zu prüfen ist.
-
-Fehler tragen jetzt einen Code (`nicht_gefunden`, `konflikt`, `pfad_zu_lang`,
-`kein_zugriff`, `existiert_bereits`, `nicht_eindeutig`, …) und ein
-`wiederholbar`-Feld — daran ablesen, ob ein
-zweiter Versuch Sinn hat, statt zu raten.
-
-**Was die Schicht NICHT tut (Stand 2.10.0):** Bei der `_INDEX.md` ist der
-**Feldkern** gesperrt, nicht die ganze Datei — Frontmatter setzen, sie ganz
-ersetzen, löschen oder etwas an ihre Stelle verschieben geht nicht; dafür
-bleiben `stand_setzen` und `themen_setzen` zuständig. **Fließtext ändern
-(`datei_patchen` mit `ersetze`/`abschnitt_ersetzen`) und eine fehlende
-`_INDEX.md` anlegen (`datei_anlegen`) sind erlaubt** — sonst bekäme ein neuer
-Ordner nie seinen Contract. Artefakte unter `_`-Ordnern bleiben vollständig
-gesperrt (`twins_synchronisieren`).
-
-`verschieben` prüft dieselbe Sperre auf Ziel **und** Quelle — der Umweg über
-zwei Schritte ist geschlossen. Twin-Familien zieht es weiterhin nicht mit;
-das bleibt `familie_umziehen`. Und `loeschen` verweigert den Dienst, wenn der
-Speicher keinen Papierkorb hat (Filesystem-Mounts) — für Archiv-Quellen gilt
-weiter `quelle_verwerfen`.
-
-**Vor Umlaut- oder Pfadlängen-kritischen Aktionen `speicher_info` lesen.**
-Es sagt Groß-/Kleinschreibung, Pfadlimit, Papierkorb und
-Unicode-Normalisierung je Bibliothek — und `null` heißt dort ausdrücklich
-„nicht sicher bekannt", nicht „egal".
-
-**1d. Vor einem Transformations-Stapel die Vorlage prüfen.**
-`vorlagen_auflisten` (ab 2.11.0) nennt die Vorlagen der Library mit `docType`
-und Beschreibung, dazu das Standard-Template. **Das Standard-Template passt
-nicht überall:** Am 28.08.2026 liefen fünfzehn Vertrags- und
-Vergabeunterlagen gegen `standard-meeting` — vierzehn Template-Schritte
-scheiterten, und bezahlt waren sie trotzdem. Verträge, AGB und Anlagen sind
-keine Besprechungen.
-
-**Die Vorlage folgt aus dem INHALT, nicht aus dem Dateinamen.**
-„Anlage A1 de.pdf" oder „Copia con segnatura.pdf" sagen nichts darüber, was
-drinsteht. Bei unbekanntem Material geht die Erschließung deshalb in zwei
-Schritten:
-
-1. **Erst nur transkribieren** — `quelle_erschliessen` mit
-   `template: "nur_transkript"`. Das ist der billige Schritt und er kann
-   nicht am Template scheitern.
-2. **Dann das Transkript lesen** (`datei_lesen`, notfalls nur
-   `bereich: {art: "zeilen", von: 1, bis: 60}` — der Anfang verrät die
-   Dokumentart fast immer) und **daraus** die Vorlage ableiten. Erst jetzt
-   `transformation_starten` mit dem passenden `template`.
-
-Bei einem Stapel reicht **eine Probe**: eine Datei transkribieren, lesen,
-Vorlage bestimmen, und wenn die Transformation dieser einen Datei durchläuft,
-den Rest hinterherwerfen. Das ist dieselbe Regel wie bei jeder neuen Job-Art
-(Schritt 3) — sie gilt für Vorlagen genauso.
-
-Passt keine Vorlage zum Inhalt, ist `template: "nur_transkript"` der
-ehrliche Weg — dann bleibt es beim Transkript, und der Befund
-`transformation_missing` bleibt offen, statt Geld in einen sicheren
-Fehlschlag zu stecken. Das ist eine Entscheidung für Peter, keine eigene.
-
-**Bei `template_failed` zuerst an das Modell denken.** Der Secretary nimmt
-ohne Angabe SEINEN Default — der ist von hier aus nicht einsehbar und stand
-am 28.08.2026 tagelang auf einer Modell-Id, die es beim Anbieter nicht gibt.
-Jede Transformation starb nach ~100 ms mit HTTP 400, ohne ein einziges
-Token. Kennzeichen: Fehlschlag in **unter einer Sekunde** — ein echter
-LLM-Lauf über 14.000 Zeichen braucht rund zwölf.
-
-Seit 2.14.0 nimmt die Brücke **immer** das Standard-Modell der Library
-(Einstellungen → Secretary), genau wie die Werkbank. **Eine Modellwahl im
-Aufruf gibt es bewusst nicht**: Deine Entscheidung ist die *Vorlage* — welche
-Transformation zum Dokument passt. Welches Modell sie ausführt, gehört dem
-Betreiber der Library, nicht dir. Die Antwort von
-`quelle_erschliessen`/`transformation_starten` nennt in `modellHerkunft` das
-konfigurierte Modell. Steht dort „KEIN LLM-Modell in der Library
-konfiguriert", entscheidet der Secretary allein — das ist die Lage, in der es
-zuletzt tagelang scheiterte. Dann **Peter melden**, damit er in den
-Einstellungen ein Modell hinterlegt; selbst beheben kannst du das nicht, und
-Vorlagen durchzuprobieren hilft nicht.
-
-**Scheitert eine Transformation trotzdem, nicht raten:** `job_status` liefert
-seit 2.12.0 bei gescheiterten Jobs `fehlerDetails` aus dem Job-Trace —
-welcher Schritt, welcher Code, die Meldung des Dienstes, HTTP-Status und ein
-Auszug der Antwort. Das ist die Auskunft, für die früher jemand in die
-Datenbank sehen musste. Erst lesen, dann entscheiden, ob es an der Vorlage,
-am Dokument oder am Dienst lag.
-
-**Format-Zwillinge:** Liegt dasselbe Dokument als `.docx` **und** `.pdf`
-(**und** `_signed.pdf`) vor, zahlt jede Erschließung denselben Inhalt
-mehrfach. Nach Zielbild §7 sind das Ableitungen. Einen „Beleg"-Schalter, der
-sie aus der Abdeckung nimmt, gibt es nicht — also vorher fragen, nicht
-hinterher berichten.
-
-**2. Vor jedem Schreibvorgang fragen.** Besonders vor `quelle_erschliessen`
-und `transformation_starten` — das sind kostenpflichtige Jobs. Bei größeren
-Mengen einmal pro Gruppe fragen, nicht pro Datei; aber immer sagen, was und
-wie viel.
+Was trotzdem gefragt wird, ist die kurze Liste der **unumkehrbaren oder
+inhaltlich strittigen** Entscheidungen unter „Was Peter entscheidet" — dort
+geht es nie um Geld, sondern um Bedeutung. Und im Zweifel gilt: eine
+vernünftige Wahl treffen, sie im Ergebnis benennen, weiterarbeiten. Eine
+Rückfrage, die sich aus dem Archiv selbst beantworten lässt, ist keine
+Rückfrage, sondern ein ungelesenes Dokument.
 
 **3. Zuerst lesen, dann rechnen.** `abdeckung_lesen` antwortet aus dem Cache in
 Sekunden. `abdeckung_scannen` läuft live gegen den Storage und gehört ans Ende
@@ -313,59 +302,36 @@ Die Form (Frontmatter-Feld für die Projekt-URL, Aufbau des Berichts) steht in
 
 ## Der Ablauf
 
-### 0 — Peters Korrekturaufträge holen (VOR allem anderen)
-
-```
-korrekturen_lesen(libraryId, ordner: "<folderId des Vorhabens>")
-```
-
-Peter geht die Werkbank am Smartphone durch und **diktiert**, was mit einzelnen
-Dateien geschehen soll — Kontext, den eine isolierte Audiodatei nicht hergibt
-(„gesprochen hat Maria S., gehört unter 26.02"). Diese Aufträge sind
-**deine** Arbeit, nicht seine.
-
-**Warum ganz vorne:** Ein Auftrag löst fast immer Umbenennen oder Verschieben
-aus, und laut `Konventionen.md` gehören alle Umbenennungen **vor** die
-Erschließung. Wer die Aufträge erst nach Schritt 2 liest, arbeitet zweimal.
-
-Der Aufruf **braucht keinen Scan** — die Aufträge stehen im Frontmatter der
-Twins, also in MongoDB. Mit `ordner` bekommst du ausschließlich die Aufträge
-dieses Teilbaums; du fängst dir nichts aus anderen Vorhaben ein.
-
-**Abarbeiten:** erst einordnen/umbenennen (`familie_umziehen`), dann bei Bedarf
-neu erschließen. **Den Korrekturhinweis für die Transformation formulierst du
-selbst** aus dem Auftrag — der Auftragstext gehört *nicht* roh in einen Prompt,
-er enthält Sätze über Ort und Namen, die dort nur schaden. Danach je Auftrag
-`korrektur_melden`.
-
-**Zog eine Familie über eine Vorhabensgrenze**, gehören anschließend **beide**
-Ordner in den `abdeckung_scannen`-Aufruf: der Quellordner, weil sein Bericht
-jetzt ins Leere zeigt (`verweis_tot`), und der Zielordner, weil seiner die neue
-Quelle noch nicht kennt (`bericht_unvollstaendig`). Der Bericht-Nachzug braucht
-also keine eigene Regel — er fällt in Schritt 3 als gewöhnlicher Cowork-Befund
-an. Nach einer Korrektur-Runde diese Befunde **abarbeiten, nicht liegenlassen**:
-`bericht_veraltet` ist nur `warning` und `bericht_unvollstaendig` sogar `info`,
-sie sperren also nichts — der Bericht erzählt sonst weiter die alte, falsche
-Geschichte.
-
-**Der Auftrag verschwindet nicht durch deine Arbeit.** `korrektur_melden` setzt
-`korrektur_erledigt_at`; der Auftragstext bleibt als Beleg stehen, und Peter
-sieht in der Werkbank „repariert, bitte ansehen". Aufgelöst wird die Sache erst
-durch sein Verifizieren — die Abnahme bleibt menschlich (ADR 0006).
-
-**Die Korrektur-Runde** ist der andere Einstieg: Hat Peter gestern Abend zwanzig
-Sachen diktiert, ruf `korrekturen_lesen(libraryId)` **ohne** `ordner` auf. Das
-liefert je Ordner eine Zeile (Anzahl, ältester Auftrag, Auszug) — verdichtet,
-damit du entscheiden kannst, wo du anfängst, ohne in jedes Verzeichnis zu
-schauen. Dann Ordner für Ordner nach dem Ablauf oben.
-
 ### 1 — Lage feststellen
 
 ```
-bruecke_info                    # Werkzeugsatz prüfen, wenn etwas fehlt
+bruecke_info                                  # 2.26.0, 38 Werkzeuge?
 bibliotheken_auflisten
+korrekturen_lesen(libraryId)                  # Übersicht: wo liegen Aufträge?
+korrekturen_lesen(libraryId, pfad)            # Arbeitsliste dieses Teilbaums
+ordner_listen(libraryId, pfad, zusammenfassung: true, tiefe: 1)
 abdeckung_lesen(libraryId, akteur: "knowledgescout", zyklusSchritt: 1)
 ```
+
+**Die Korrekturaufträge kommen zuerst** (Werkzeugsatz 2.26.0). Was Peter an
+einzelnen Dateien korrigiert haben will, diktiert er in der Werkbank; es steht
+im Frontmatter des Twins und in MongoDB, braucht also keinen Scan.
+`korrekturen_lesen` hat zwei Betriebsarten: **ohne** `ordner`/`pfad` eine
+verdichtete Übersicht je Ordner (Anzahl, ältester Auftrag, Auszug) — damit
+entscheidest du, wo du anfängst; **mit** `ordner`/`pfad` die Arbeitsliste des
+Teilbaums im Volltext, mit `sourceId` und Artefakt-Referenz. Beim Aufräumen
+eines Ordners ist die zweite Form der **erste** Schritt: Ein Auftrag löst meist
+Umbenennen oder Verschieben aus, und die gehören vor die Erschließung.
+
+**Vollzug meldet `korrektur_melden` — erst NACH getaner Arbeit.** Es setzt
+`korrektur_erledigt_at` über denselben geschützten Kurations-Weg wie die
+Werkbank. Der Auftragstext **bleibt stehen**; er ist der Beleg, an dem Peter
+prüft. Der Befund `korrektur_offen` erlischt, die Werkbank zeigt „repariert,
+bitte ansehen" — aufgelöst ist die Sache erst durch Peters Verifizieren
+(ADR 0006, die Abnahme bleibt menschlich). Die Artefakt-Referenz exakt aus
+`korrekturen_lesen` übernehmen: `kind`, bei `transformation` zusätzlich
+`templateName` und `zielsprache`, beim Transkript beide verboten. Ohne offenen
+Auftrag wird die Meldung abgelehnt, nicht still angenommen.
 
 Der ungefilterte Report eines Vorhabens ist schnell über 100.000 Zeichen groß.
 **Immer filtern.** `akteur` beantwortet „wessen Arbeit ist das?",
@@ -389,19 +355,12 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `orphan_twin` | KS · warning | Twin ohne Quelle — Ursache prüfen, meist `familie_umziehen` oder `repair` |
 | `twin_stale` | KS · warning | Quelle jünger als ihr Twin → `transformation_starten` |
 | `conflict` | KS · error | Spiegel und Datenbank divergieren → `twins_synchronisieren` |
-| `core_fields_missing` | KS · error | Frontmatter der genannten Datei — Ursache prüfen, nicht blind füllen. Seit 06.09.2026 nur noch, wenn **mehr als `date`** fehlt |
-| `datum_ableitbar` | KS · **info** | Nur `date` fehlt, aber die Maschine kann es ableiten — das `detail` nennt den Beleg (Pfadsegment oder „Ton/Video: Dateizeitstempel"). **Blockiert die Abnahme nicht.** Kein Einzelauftrag: solche Befunde sammeln und gemeinsam neu transformieren |
-| `datum_fehlt` | KS · warning | Nur `date` fehlt und ist **nicht** ableitbar — weder im Pfad noch aus dem Zeitstempel dieses Typs (bei PDF liegt er im Median 148 Tage daneben). Aus dem Inhalt belegen oder den Ordner datieren, **nicht raten** |
-| `datum_unplausibel` | Cowork · warning | `date` ist gesetzt, aber falsch: in der Zukunft, oder identisch mit `generated_at` **ohne** `date_quelle` — dann steht dort das Verarbeitungs- statt des Inhaltsdatums. Aus dem Inhalt belegen und korrigieren, sonst das Feld leeren. Ein falsches Datum ist schlechter als ein leeres, weil der Report es nicht mehr als Lücke zeigt |
+| `core_fields_missing` | KS · error | Frontmatter der genannten Datei — Ursache prüfen, nicht blind füllen |
 | `datei_ohne_endung` | Mensch · warning | Inhalt prüfen, dann `familie_umziehen` |
 | `path_too_long` | Cowork · warning | Pfad kürzen (`ordner_umbenennen`) |
 | `index_missing` | Cowork · warning | `_INDEX.md` nach Vorlage anlegen |
 | `report_missing` | Cowork · warning | `BERICHT.md` nach Vorlage anlegen |
 | `bericht_veraltet` | Cowork · warning | Bericht nachziehen (siehe Stolpersteine) |
-| `sicht_veraltet` | Cowork · warning | `AKTUELL.md`/`PROJEKTE.md` in `Organisation/` ist älter als der jüngste Bericht der Library (Wunschliste 5, B1). Auflösung immer dieselbe: `sichten_regenerieren`. Kommt nur beim Library-weiten Scan, nie im Teilbaum |
-| `repo_veraltet` | Cowork · warning | Der Bericht nennt ein `repo:`, aber `repo_stand_am` fehlt, ist unlesbar oder älter als die Library-Schwelle (Wunschliste 5, C1). Aussagen gegen den aktuellen Stand prüfen, dann `repo_stand_am` (Prüftag, `JJJJ-MM-TT`) und optional `repo_stand` (Commit) im Frontmatter nachziehen. Inaktiv, wenn die Library keine Schwelle setzt |
-| `thema_fehlt` | Cowork · warning | Ein Ereignisordner **unterhalb** des Vorhabens trägt ab `bearbeitungsstand: erschlossen` kein `themen:` (Wunschliste 5, B3). `themen_setzen` auf **diesen** Ordner, nicht auf das Vorhaben; mehrere in einem Aufruf über `folderIds`. Greift nur, wenn die Library ein Themen-Vokabular führt, und nur, wo eine `_INDEX.md` einen Stand erklärt — fehlt sie, ist `index_missing` zuständig und `indexAnlegen: true` erledigt beides |
-> Auch hier zaehlt seit 27.08.2026 nur eine **Inhalts**-Aenderung: Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht mehr. Frueher liess jeder Pruef-Klick `bericht_veraltet` und damit `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten nicht schliessen liess.
 | `verweis_veraltet` | Cowork · warning | verwiesenes Ziel ist jünger — Verweis prüfen, dann Bericht neu speichern |
 | `verweis_tot` | Cowork · error | Verweis zeigt ins Leere — Ziel suchen oder Verweis entfernen |
 | `bericht_unvollstaendig` | Cowork · **info** | Bericht lässt Quellen unerwähnt — seit 2.30.0 zählt auch die Nennung in einer Notiz oder Verlaufsdatei, auf die der Bericht verlinkt (eine Ebene tief; das Detail sagt „über Verweise erwähnt: X (in Notiz.md)"). Die fehlende Quelle deshalb **in der passenden Notiz** nennen, NICHT als Dateiliste in den Bericht schieben |
@@ -413,43 +372,244 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `teilbaum_ungesichtet` | KS · **info** | Sammel-Befund unter ungesichtetem Ordner — erst strukturieren |
 | `scan_error` | KS · error | Teilbaum nicht lesbar — Ursache melden, nie übergehen |
 | `twin_flagged` | Mensch · error | Peter hat das Artefakt als **fehlerhaft markiert** — Notiz in `flagged_note` lesen, reparieren; die Abnahme bleibt gesperrt, bis Peter danach verifiziert |
-| `korrektur_offen` | **Cowork** · error | Peter hat **diktiert, was mit der Datei geschehen soll** (`korrektur_auftrag`, im `detail` des Befunds). **Das ist deine Aufgabe, nicht seine** — der einzige Befund, bei dem er dir direkt etwas aufträgt. Reihenfolge: erst einordnen/umbenennen (`familie_umziehen`), dann bei Bedarf neu erschließen. **Den Korrekturhinweis für die Transformation formulierst du selbst** aus dem Auftrag — der Auftragstext gehört nicht roh in einen Prompt, er enthält Sätze über Ort und Namen, die dort nur schaden. Zog die Familie über eine Vorhabensgrenze: danach **beide** Ordner scannen (Quell- und Zielordner), sonst fallen `verweis_tot` im alten und `bericht_unvollstaendig` im neuen Ordner nicht auf. Der Befund verschwindet erst, wenn Peter verifiziert — du meldest nur Vollzug |
 | `twin_unverified` | *(Alt-Bestand)* | **ignorieren** — seit ADR 0006 abgeschafft. Steht noch in Reports vor dem 27.08.2026 und verschwindet beim nächsten Scan. Nicht auflisten, nicht beauftragen |
 | `self_verified` | Mensch · error | **nichts tun** — Erzeuger und Prüfer sind derselbe |
 | `stand_widerspruch` | **wandernd** · error | erklärter Stand ist widerlegt — Peter melden, nicht selbst zurückstufen. Der Akteur ist **absichtlich nicht fest**: Der Befund wird auf den Akteur des *frühesten* auslösenden Befunds geroutet (`routeStandWiderspruch`), zeigt also auf den, der zuerst handeln muss. Derselbe Befund kann darum mal `cowork`, mal `knowledgescout`, mal `mensch` sein |
+| `quelle_verschwunden` | Mensch · error | Datenbank kennt die Quelle, im Speicher liegt sie nicht mehr, und ihr Ordner *wurde* gelesen — **kein Job behebt das.** Nicht erneut erschließen, sondern die Datei zurückholen oder die Familie mit `quelle_verwerfen` auflösen. Gilt seit 2.26.0 auch bei Teilbaum-Scans; genau dort fehlte er (15 Fälle als „behebbar" gemeldet, zwölf Jobs gekostet) |
+
+> Bei `bericht_veraltet` zählt seit 27.08.2026 nur eine **Inhalts**-Änderung:
+> Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht
+> mehr. Früher liess jeder Prüf-Klick `bericht_veraltet` und damit
+> `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten
+> nicht schliessen liess. (Diese Zeile stand bis 03.09.2026 mitten in der
+> Tabelle und zerriss sie in zwei — `tabelle_zeile_einfuegen` scheiterte
+> daran mit „2 Tabellen im Abschnitt".)
 
 Die Schwere zählt: Der Abnahme-Precheck blockiert nur bei `error` und
 `warning`. `info`-Befunde sind Orientierung — sie müssen nicht weg, bevor
 Peter abnehmen kann.
 
-**Woher `date` kommt (Stand 06.09.2026).** Die Pipeline sucht das Feld in
-dieser Reihenfolge: **Inhalt** (Transkript, Dokumenttext) → gilt als Beleg,
-keine Marke. **Pfad** (`2025-07-16 Besprechung`, auch `21.05.2024`,
-`8.10.2024` und monatsscharf `2025-07`) → `date_quelle: pfad`.
-**Dateizeitstempel, nur bei Ton und Video** → `date_quelle: datei`. Sonst
-bleibt das Feld leer. Zusätzlich sagt `date_genauigkeit` (`tag`/`monat`), wie
-genau der Wert ist — ein aus `JJJJ-MM` abgeleitetes Datum trägt den
-Monatsersten und ist **kein** Tagesdatum. Vorhabensnummern (`24.09`) und die
-dreiteilige Form mit zweistelligem Jahr (`25.06.11`) werden **nicht** als
-Datum gelesen: nicht auflösbar, und ein falsches Datum wäre schlechter als
-ein leeres Feld.
+### 2b — Format-Zwillinge zusammenfassen, bevor der Stapel startet
+
+Der Scan zählt **Dateien**, nicht Dokumente. Ein Vertragsordner hat schnell
+fünfzehn Quellen und acht Dokumente: dasselbe Angebot als `.docx`, als `.pdf`
+und noch einmal als `_signed.pdf`. Wer den Stapel blind startet, zahlt
+denselben Inhalt bis zu dreimal.
+
+**Also vor dem Start gruppieren** — nach Basisnamen, quer über die Endungen,
+und `_signed`/`(1)`/`(2)`-Varianten dazu. Dann Peter die Rechnung vorlegen: so
+viele Dateien, so viele Dokumente, und die Folge beider Wege ehrlich dazu. Denn
+hier gibt es keine gute Antwort, nur eine Wahl:
+
+- **Alle erschließen** — der Ordner wird sauber und abnahmebereit, kostet aber
+  doppelt und dreifach.
+- **Nur die führende Fassung** (die signierte, sonst das PDF) — die übrigen
+  bleiben als `source_without_twin` mit Schwere `error` stehen und **sperren
+  damit die Abnahme**. Zielbild §7 nennt Mehrfach-Exporte zwar „Ableitung",
+  aber es gibt **kein Werkzeug, das eine Quelle als Beleg oder Ableitung
+  markiert** — der Scan zählt sie trotzdem. Das gehört auf die Wunschliste.
+
+**Entscheiden, nicht fragen** (seit 29.08.2026): Im Zweifel alle erschließen,
+die Rechnung — so viele Dateien, so viele Dokumente — kommt ins Ergebnis. Nur
+wenn ein Ordner erkennbar aus Dutzenden Exporten derselben Fassung besteht,
+lohnt der Blick, welche Fassungen wirklich eigenständig sind.
+
+### 2c — Die Vorlage aus dem Inhalt ableiten, nicht aus dem Dateinamen
+
+**Der Fehlschlag vom 28.08.2026:** fünfzehn Vertrags- und Vergabedokumente mit
+dem Standard-Template `standard-meeting` gestartet — vierzehnmal
+`transform_template` gescheitert, `ingest_rag` lief nie, nichts landete im
+Index. Verträge sind keine Besprechungen; das Template fand die Felder nicht,
+die es erwartet.
+
+Der Dateiname sagt nicht, was ein Dokument ist. `Anlage A1 de.pdf`,
+`Copia con segnatura Prot.N.….pdf`, `OffEcon_…_1_….pdf` — daraus
+lässt sich keine Vorlage ableiten, und Raten ist teuer. Deshalb in zwei
+Schritten:
+
+1. **Erst nur transkribieren:** `quelle_erschliessen(template: "nur_transkript")`.
+   Das kann an keinem Template scheitern und ist der billige Teil.
+2. **Dann das Transkript lesen** — die ersten sechzig Zeilen genügen fast
+   immer, `datei_lesen` mit `bereich: {art: "zeilen", von: 1, bis: 60}` — und
+   daraus die passende Vorlage bestimmen. Danach
+   `transformation_starten(template: …)`.
+
+Bei einem Stapel gilt die Probenregel doppelt: **eine** Datei durch beide
+Schritte, und erst wenn die Transformation steht, die übrigen hinterher.
+
+Welche Vorlagen es gibt, sagt `vorlagen_auflisten` (ab Werkzeugsatz 2.12.0).
+Fehlt das Werkzeug, läuft eine ältere Fassung — dann die Vorlage nach bestem
+Wissen wählen, statt zu fragen.
+
+**Korrektur vom 29.08.2026 — wichtiger als alles darüber.** Die Diagnose
+„`standard-meeting` passt nicht für Vertragsdokumente" war **falsch**. Im
+Ordner eines Projekts liefen damit 27 Angebote, Broschueren, Handbücher und
+technische Spezifikationen sauber durch — `docType: other`,
+`meetingType: other`, brauchbare Felder bis hin zur Angebotssumme. Der
+Fehlschlag vom 28.08. war derselbe sporadische Transformer-Ausfall, der auch
+am 29.08. vier von 32 Jobs traf und bei **unveränderter Wiederholung dreimal
+durchlief**.
+
+Daraus zwei Regeln:
+
+1. **Bei einem Fehlschlag zuerst einmal wiederholen**, bevor die Vorlage
+   verdächtigt wird. Das Erkennungszeichen des sporadischen Ausfalls:
+   `Transformer lieferte kein gültiges structured_data`, HTTP 200,
+   `requests_count: 0` — die LLM-Anfrage kam gar nicht zustande. Ein echter
+   Vorlagen- oder Inhaltsfehler sieht anders aus, z. B.
+   `textSource ist leer oder zu kurz (0 Zeichen)`.
+2. **Den Zwei-Schritte-Weg nur nehmen, wenn wirklich keine Vorlage passt.**
+   Am 29.08. wurden 27 Dokumente erst als `nur_transkript` extrahiert und
+   danach einzeln transformiert — das war ein kompletter zweiter Durchlauf,
+   den ein direkter Start mit `standard-meeting` gespart hätte. `nur_transkript`
+   ist die ehrliche Antwort bei echter Unklarheit, nicht die vorsichtige
+   Standardwahl.
+
+Eigene Vorlagen für Verträge (Auftraggeber, Summe, Laufzeit, Zahlungsziel)
+wären trotzdem besser — das steht als G5 auf der Wunschliste.
+
+### 2d — Namen kommen aus dem Inhalt, nicht aus dem Dateinamen
+
+**Ein Name, den man nicht belegen kann, ist geraten.** Dateinamen und
+Zeitstempel sind Indizien, keine Belege: Der Zeitstempel einer Aufnahme ist
+der Moment des Speicherns, nicht der des Termins, und in Dateinamen stecken
+Tippfehler, die sich über Jahre halten. Am 29.08.2026 trug eine
+Aufnahme `240331` im Namen — der Termin war der **31.03.2025**.
+
+Die Belegkette, in dieser Reihenfolge:
+
+1. **Protokoll oder Transkript neben der Quelle.** Viele Aufnahmen haben eine
+   `.md` daneben, oft mit Frontmatter `Datum:`/`Wann:` und Teilnehmenden. Das
+   ist der billigste Beleg — `datei_lesen` mit `bereich: {art: "zeilen"}`.
+2. **Das erschlossene Transkript.** Fehlt ein Protokoll, ist
+   `quelle_erschliessen(template: "nur_transkript")` der Weg: Ein Diktat sagt
+   im ersten Satz, worum es ging („Jetzt waren wir da bei dem Verband,
+   Präsentation des Prototyps").
+3. **Der Außenblick.** Kalender und Postfach entscheiden, was im Ordner nicht
+   steht. Der 240331-Fall wurde vom Kalendereintrag gelöst: „Vorstellung
+   Prototyp", 31.03.2025, 16:00, beim Partnerverband.
+
+**Daraus folgt eine Korrektur am Vier-Schritte-Takt.** Die Konventionen sagen
+„Alle Umbenennungen passieren in Schritt 1 — vor der Erschließung". Die Sorge
+dahinter ist berechtigt, zielt aber auf das Dateisystem: Wer an der Brücke
+vorbei umbenennt, zerreißt die Familie. Über `familie_umziehen` passiert das
+nicht — das Werkzeug ist genau dafür gebaut und zieht Quelle, Twins und die
+Mongo-Dokumente gemeinsam um, migriert dabei sogar Alt-Format-Twins in den
+`_`-Schattenordner. Belegt am 29.08.2026: Umbenennung einer erschlossenen
+Quelle mit `imported`, `mongoUpdated`, `oldTwinFolderDeleted`, `exported`.
+
+Also gilt: **Grobstruktur zuerst** — Vorhabensordner, Ereignisordner,
+Sammelordner auflösen, offensichtlich überlange Namen kürzen. **Die genaue
+Benennung darf hinter die Erschließung**, wenn erst das Transkript sagt, was
+in der Datei steckt. Zweimal anfassen ist billiger als ein falscher Name, der
+stehen bleibt.
+
+Was dabei auffällt, gehört gemeldet: `quelle_erschliessen` meldet
+`completed` mit drei grünen Schritten auch dann, wenn es nichts getan hat,
+weil neben der Quelle schon ein Alt-Format-Twin liegt und die Familie als
+erschlossen gilt. Zwei Sekunden Laufzeit und ein leerer `_`-Ordner sind das
+Verräterzeichen.
+
+**Der Preis dieser Reihenfolge ist bezifferbar** (29.08.2026, SHF
+Nachhaltigkeit): Wer eine bereits erschlossene Quelle umbenennt, bekommt
+`twin_stale` — die Quelldatei ist danach jünger als ihre Artefakte, und der
+Scan verlangt einen Pipeline-Neulauf. Drei umbenannte Angebotsdateien kosteten
+drei zusätzliche Jobs.
+
+Daraus die Faustregel: **Was sich schon aus Dateiname, Ordner oder
+Nachbardatei sicher benennen lässt, wird VOR der Erschließung benannt** — vor
+allem, wenn ohnehin gekürzt werden muss. Erst wenn der Name wirklich nur aus
+dem Inhalt kommen kann, lohnt der zweite Griff.
+
+**Seit 2.26.0 verschiebt sich das Gewicht wieder auf „vorher".** Die Regel
+steht jetzt an `familie_umziehen` selbst und wirkt damit für alle Clients:
+erst umbenennen, *dann* erschließen. Die Gegenprobe ist beziffert — nachher
+umbenannt ergab 23 Familien `twin_stale`, vorher umbenannt 28 Umzüge und null.
+Der Weg über den Inhalt bleibt richtig, wo der Name wirklich nur aus dem
+Transkript kommen kann; er ist die Ausnahme, nicht der Regelfall.
+
+**`date_quelle: pfad` im Frontmatter ist ein Indiz, kein Beleg.** Fällt `date`
+aus, leitet die Pipeline es aus dem Ordnernamen ab
+(`2025-07-16 Besprechung mit Projektpartner`) und weist die Herkunft mit dieser Marke
+aus. Ein so entstandenes Datum ist *abgeleitet*, nicht geprüft — es zählt wie
+ein Dateiname, nicht wie ein Protokoll. Vorhabensnummern wie `24.09` oder
+`26.01` werden bewusst **nicht** als Datum gelesen.
+
+**Und die Pfadgrenze vorher rechnen.** Windows kappt bei 260 Zeichen, und die
+Twin-Familie hängt zweimal daran: `_<Dateiname>/<Dateiname>.<template>.de.md`.
+Ein 63 Zeichen langer Dateiname unter einem 50 Zeichen langen Vorhabenspfad
+lässt **keinen Ereignisordner mehr zu** — am 29.08.2026 bei den
+SHF-Angeboten aufgetreten. Dann erst kürzen, dann den Ordner anlegen, dann
+umziehen.
 
 ### 3 — Lange Jobs zuerst, dann parallel arbeiten
 
-**Der größte Zeithebel.** Der Worker fährt mehrere Jobs gleichzeitig, aber die
-Zahl der Slots ist begrenzt und gilt pool-weit (1b-v) — die Warteschlange soll
+**Der größte Zeithebel.** Der Worker arbeitet seriell — die Warteschlange soll
 nie leer stehen, und der Agent nie nur warten.
 
+0. **Vor der ersten Erschließung `twins_synchronisieren`** (import → repair →
+   export). Es adoptiert Quellen, deren Auswertung schon existiert, aber noch
+   nicht verbucht ist — in einem gemessenen Lauf rund 90 Stück, die sonst ein
+   zweites Mal transkribiert worden wären. Steht seit 2.26.0 auch in der
+   Werkzeugbeschreibung selbst, gilt also für alle Clients.
 1. **Den längsten Job zuerst starten.** Eine 135-MB-Aufnahme braucht
    dreieinhalb Minuten, ein Textjob vierzig Sekunden.
 2. **Danach alles Stapelbare hinterherwerfen** — `sourceIds` nimmt bis zu 30.
 3. **Währenddessen serverfreie Arbeit erledigen:** Ordner listen, Mails
    auswerten, `_INDEX.md` prüfen, den Berichtsentwurf schreiben. Nicht schlafen.
 4. **Dann `job_liste` abfragen** statt fester Wartezeiten. Ohne Filter zeigt
-   sie `queued` und `running` — ist sie leer, ist alles durch. Mit
-   `status: "failed"` prüfen, ob etwas gescheitert ist. Bewegt sich die
-   Schlange gar nicht, den `pool`-Block lesen (1b-v): Slots sind pool-weit,
-   und steckengebliebene Jobs halten sie fest, bis jemand sie wegräumt.
+   sie `queued` und `running` — und ab Werkzeugsatz 2.15.0 zusätzlich
+   **`gescheitertKuerzlich`**: Zahl und `jobIds` der Fehlschläge der letzten
+   Stunde, direkt verwendbar für `job_status` mit seinen `fehlerDetails`.
+
+**Eine leere Liste heißt „durch", nicht „gelungen".** `status: "failed"` ist
+kein Nachtrag, sondern Pflicht nach jedem Lauf — am 28.08.2026 meldete die
+offene Liste Ruhe, während vierzehn von fünfzehn Jobs gescheitert waren.
+
+Genau dieser Fall ist seit 2.15.0 entschärft: Die ungefilterte Liste nennt die
+Fehlschläge der letzten Stunde von sich aus. **Steht dort eine Zahl größer
+null, ist der Lauf nicht durch** — dann `job_status` je genannter `jobId`
+fragen, bevor irgendetwas als erledigt gemeldet wird. Meldet die Antwort das
+Feld gar nicht, läuft eine Fassung vor 2.15.0; dann gilt weiter der
+Nachtrag-Aufruf mit `status: "failed"`. Nur Fehlschläge mit lesbarem
+Zeitstempel zählen mit — die Zahl ist eine Untergrenze, kein Beweis für
+Stille.
+
+**Und ein `running` ist nicht immer ein laufender Job.** Schlägt ein früher
+Schritt fehl, kann der Job auf `running` stehenbleiben, ohne sich je wieder zu
+rühren. Der Verräter ist `aktualisiert`: Liegt der Zeitstempel weit hinter dem
+der anderen Jobs desselben Stapels, hängt er — dann `job_status` fragen und
+sich die `schritte` ansehen, statt weiter zu warten.
+
+**Wegräumen geht seit Werkzeugsatz 2.23.0 selbst.** Zwei Griffe, die nicht zu
+verwechseln sind: `jobs_aufraeumen` beantwortet „steht etwas still?" — mehrere
+Jobs, Stillstand nötig. `job_abbrechen` beantwortet „diesen einen will ich
+nicht mehr" — genau einer, ohne Schwelle, unabhängig von Lebenszeichen (falsche
+Vorlage, Job aus einer alten Sitzung). Abgebrochen heißt **gescheitert**, nicht
+erledigt; was gebraucht wird, neu starten.
+
+**Und `job_liste` widerspricht jetzt dem „nichts zu tun außer warten".** Sind
+alle laufenden Jobs innerhalb von zwei Minuten verstummt und schweigen seit
+mindestens fünf, steht ein **`neustartVerdacht`** im `pool`-Block, und sein
+Hinweis kommt *vor* dem Regelhinweis. Das ist das Muster eines
+Prozess-Neustarts: dann nicht warten, sondern `jobs_aufraeumen` mit kurzer
+`mindestStillstandMinuten`. Der Verdacht kommt aus dem Zeitmuster, ist kein
+Beweis — und steht so auch in der Antwort.
+
+Bei einem Fehlschlag liefert `job_status` ab Werkzeugsatz 2.12.0
+**`fehlerDetails`** ungefragt mit — Schritt, Fehlercode, die eigentliche
+Meldung des Dienstes, HTTP-Status und ein Auszug der Antwort. Kommt nur
+`fehler: "Template-Transformation fehlgeschlagen"` ohne Details, läuft eine
+ältere Fassung: Dann steht die Ursache im Job-Trace, an den die Brücke nicht
+herankommt — melden, statt zu raten.
+
+**Seit 2.24.0 kommt bei bekannten Lagen zusätzlich `fehlerDeutung`** — Klartext
+plus `wiederholenSinnvoll`. Erster Fall: `quelle_ohne_ton`.
+**`wiederholenSinnvoll: false` heißt: nicht neu starten** — die Wiederholung
+kostet und ändert nichts. Und bei `quelle_ohne_ton` gilt zusätzlich: Hat diese
+Quelle bereits ein Transkript, ist es **verdächtig**. Eine Transkription ohne
+Tonquelle liefert erfundenen Text, der für jeden Scan gültig aussieht — vor
+dem Weiterverwenden ansehen.
 
 Bei einer neuen Job-Art **erst eine kleine Probe**, dann der Stapel. Ein PDF vor
 sechzehn PDFs, die kleine Aufnahme vor der großen. Das hat im Pilot einen
@@ -457,10 +617,14 @@ Fehlschlag auf eine Datei begrenzt statt auf sechzehn.
 
 ### 4 — Gegenprüfen
 
-Nach jedem Schritt mit `device_list_dir` nachsehen, ob entstanden ist, was
+Nach jedem Schritt mit `ordner_listen` nachsehen, ob entstanden ist, was
 entstehen sollte, und an der richtigen Stelle. So kamen im Pilot ein
 verschachtelter Twin-Ordner und der leere Rest eines gescheiterten Jobs ans
 Licht.
+
+**Auf die Familienliste schauen, nicht nur auf die Befundzahl.** Steht bei einer
+Familie `leading.kind: "transcript"` statt `"transformation"`, ist die Quelle
+nur teil-erschlossen — auch wenn der Job als gestartet gemeldet wurde.
 
 ### 5 — Themen zuordnen
 
@@ -481,30 +645,38 @@ Dropdown — beim Aufräumen liegt die Übersicht ohnehin hier (Entscheidung
   darauf hinweist. Die Zuordnung verlangt den Blick in den Bericht
   (`BERICHT.md`/`_INDEX.md`), der in Schritt 4 ohnehin offen war.
 - **Schreiben mit `themen_setzen`:** `themen` ersetzt die komplette Liste;
-  `erwarteteThemen` ist Pflicht — exakt die Themen, die gerade am Ordner
-  zu sehen sind, explizit `null`, wenn er keine deklariert. Weicht
+  `erwarteteThemen` ist Pflicht — exakt die Themen, die gerade am Vorhaben
+  zu sehen sind, explizit `null`, wenn der Ordner keine deklariert. Weicht
   der Stand im Storage ab, wird nichts geschrieben (Riegel gegen
   konkurrierende Schreiber). Wie jeder Schreibvorgang: vorher fragen, bei
   mehreren Vorhaben einmal pro Gruppe.
-- **Themen gehören auch unter das Vorhaben (seit 2.29.0).** `themen_setzen`
-  nimmt jeden Ordner, nicht mehr nur das Vorhaben — erst dadurch zeigt das
-  Themenregister in ein Vorhaben *hinein* statt nur bis zu ihm (`24.09
-  KnowledgeScout` führte ein Schlagwort für 53 Ereignisordner). Fehlt dort
-  eine `_INDEX.md`, legt `indexAnlegen: true` eine nach Vorlage an; sie trägt
-  bewusst **keinen** `bearbeitungsstand` — der bleibt `stand_setzen`, und ein
-  geratenes `ungesichtet` würde alle Befunde des Teilbaums zu einem
-  `teilbaum_ungesichtet` zusammenfassen. `folderIds` vergibt dieselbe Liste an
-  bis zu 30 Ordner in EINEM Aufruf; der `erwarteteThemen`-Riegel gilt dann für
-  alle (`null` ist der Regelfall), und ein gescheiterter Ordner steht in seiner
-  Zeile, ohne den Stapel abzubrechen. Verschiedene Listen = mehrere Aufrufe.
-- **Das Vokabular ist eine Regel, keine Bitte (seit 2.28.0).** Namen, die
-  nicht in `abdeckung_lesen → themen.vokabular` stehen, weist
-  `themen_setzen` ab (`thema_unbekannt`) und nennt die nächstliegenden
-  Einträge — ein Tippfehler wie `KS-Datenmodel` wird nicht mehr
-  geschrieben. Ist ein Thema bewusst neu, `neuesThemaErlauben: true`
-  setzen; die Antwort nennt es dann als `neueThemen`, und Peter nimmt es
-  in die Library-Einstellungen auf. Hat die Library kein Vokabular,
-  sagt die Antwort `vokabularPruefung: kein_vokabular_konfiguriert`.
+
+### 5b — Der Außenblick: was der Ordner nicht weiß
+
+Der Ordner enthält, was abgelegt wurde. **Warum** es abgelegt wurde, steht oft
+woanders. Vor dem Berichten deshalb drei Quellen außerhalb des Ordners prüfen —
+im Pilot vom 20.08. hat genau das den Ansprechpartner-Wechsel beim Land und
+zwei am selben Tag verwechselte Treffen zutage gefördert.
+
+| Quelle | Wonach suchen | Was damit geschieht |
+|---|---|---|
+| **Postfach** | Korrespondenz mit den Beteiligten im Zeitraum des Vorhabens | in die Korrespondenz-Tabelle des Berichts; als Datei nur ablegen, wenn ein Beschluss oder ein Dokument dranhängt |
+| **Kalender** | Termine, Teilnehmerlisten, Absagen | Gegenprobe zu Datum und Beteiligten in Chronologie und Transformationen |
+| **Repo** | `git log`, wenn `repo:` im Frontmatter steht | Entwicklungsphasen — Vorgehen im Skill `repo-bericht` |
+
+**Der Außenblick ist eine Gegenprobe, keine Quelle zweiter Ordnung.** Wo er
+einer Transformation widerspricht, gewinnt der Beleg: eine Mail mit Datum
+schlägt ein Datum, das aus einem Ordnernamen geraten wurde. Ohne zweite Quelle
+wird nicht korrigiert, sondern der Widerspruch benannt.
+
+**Was dabei anfällt, gehört ins Frontmatter:** Die Gegenstellen, die im Postfach
+auftauchen, kommen als `korrespondenz:` in den `BERICHT.md` — das ist die
+Grundlage der Personen-Übersicht und später der Weg, Beteiligte über
+Fortschritte zu informieren.
+
+**Grenze:** Aus Mails werden Beschlüsse, Termine und Namen übernommen — keine
+Inhalte, keine Zitate aus privater Korrespondenz, keine Zugangsdaten. Im Zweifel
+protokollieren statt kopieren.
 
 ### 6 — Neu scannen, berichten, Stand setzen
 
@@ -666,25 +838,26 @@ gerade erst erledigt hat.
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
 Einstellungen aus- und wieder einzuschalten. Fehlt `stand_setzen`, ist die
 Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
-Nimmt `themen_setzen` kein `neuesThemaErlauben` an oder schreibt es einen
-Namen außerhalb des Vokabulars ohne Widerspruch, ist die Fassung älter als
-2.28.0 — dann fehlen auch die Befunde `sicht_veraltet` und `repo_veraltet`.
-Nimmt es kein `folderIds` bzw. kein `indexAnlegen`, ist sie älter als 2.29.0 —
-dann fehlt auch der Befund `thema_fehlt`.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0. Fehlt `jobs_aufraeumen` oder trägt `job_liste`
-keinen `pool`-Block, ist sie älter als 2.17.0. Nimmt `quelle_erschliessen` kein
-`erzwingen` oder markiert `job_status` übersprungene Schritte nicht
-(`uebersprungen`/`nichtsGeschrieben`), ist sie älter als 2.16.0. Nimmt `familie_umziehen` keine `sourceIds` oder fehlt
-`gescheitertKuerzlich` in der ungefilterten `job_liste`, ist sie älter als
-2.15.0. Meldet `transformation_starten` keine `modellHerkunft`
-(oder nimmt es noch ein `llmModel` an), ist sie älter als 2.14.0. Liefert `job_status` bei einem gescheiterten Job keine
-`fehlerDetails`, ist sie älter als 2.12.0. Fehlt `vorlagen_auflisten`, ist sie älter als 2.11.0.
-Lässt sich der Fließtext einer `_INDEX.md` nicht patchen oder geht
-`verschieben` an einer gesperrten Stelle durch, ist sie älter als 2.10.0. Fehlen `datei_patchen` und `speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
-über die Datei-Bridge, und Nextcloud-Bibliotheken bleiben unerreichbar.
+`protokoll_lesen`, ist sie älter als 2.6.0. Fehlen `datei_lesen`/`datei_patchen`
+und die übrige Speicherschicht, ist sie älter als 2.9.0. Fehlt
+`vorlagen_auflisten` oder liefert `job_status` bei einem Fehlschlag keine
+`fehlerDetails`, ist sie älter als 2.12.0. Weiter (Stand 03.09.2026):
+
+- Fehlen `korrekturen_lesen`/`korrektur_melden` → älter als **2.26.0**
+- Fehlen `datei_binaer_lesen`/`datei_binaer_anlegen` → älter als **2.25.0**
+- Liefert `job_status` bei einem Fehlschlag keine `fehlerDeutung` → älter als **2.24.0**
+- Fehlt `job_abbrechen` oder trägt `job_liste` keinen `neustartVerdacht` → älter als **2.23.0**
+- Kennt `datei_patchen` kein `frontmatter_ergaenzen` → älter als **2.22.0**
+- Kennt `datei_patchen` kein `abschnitt_einfuegen`/`tabelle_zeile_einfuegen`/`modi` → älter als **2.21.0**
+- Meldet `quelle_erschliessen` kein `erzwungenAutomatisch` → älter als **2.20.0**
+- Nimmt `ordner_listen` kein `zusammenfassung`/`maxBytes` → älter als **2.19.0**
+
+**2.26.0 meldet 38 Werkzeuge.** Sagt `bruecke_info` weniger, greift keine der
+Regeln, die sich auf die neuen Stücke berufen — dann zuerst die Erweiterung
+aus- und wieder einschalten, die Toolliste ist gecacht.
 
 Zweiter Test, wenn die Soll-Liste selbst verdächtig ist: Ein schreibendes
 Werkzeug **ohne** `begruendung` aufrufen. Kommt
@@ -692,14 +865,69 @@ Werkzeug **ohne** `begruendung` aufrufen. Kommt
 mindestens 2.6.0 — auch wenn die Werkzeugbeschreibung das Feld nicht zeigt.
 Dann `begruendung` trotzdem mitgeben; die Brücke reicht sie durch.
 
-**Der Skill hat zwei Orte — Quelle und Verteilweg.** Gepflegt wird er im Repo
-(`.claude/skills/archiv-aufraeumen/SKILL.md`); dorthin gehören Korrekturen.
-Bei Claude Desktop liegt er als **hochgeladenes Paket** — und nur diese Kopie
-liest du. Ein `git pull` aktualisiert die Quelle, nicht deine Fassung: Dafür
-muss jemand ein neues Paket bauen und es in den Einstellungen ersetzen.
+**Stand 29.08.2026 abends — möglicherweise eine zweite gepflegte Fassung.**
+Ein Handover des Plattformteams nennt eine **Repo-Fassung** unter
+`.claude/skills/…/SKILL.md`, in die ein Abschnitt „1b-iv — completed heißt
+nicht ‚hat geschrieben'" eingetragen worden sei. **Diese Datei ist von einer
+Cowork-Session aus nicht einsehbar** — ob es sie gibt, weiß nur, wer auf dem
+Rechner nachsieht; Peter kannte sie nicht.
 
-Deine Zeilenzahl ist die Probe. Nenne sie, wenn eine Regel strittig ist —
-weicht sie vom Repo-Stand ab, arbeitest du mit einer alten Anleitung.
+Inhaltlich ist der Punkt hier erledigt: Er steht seit demselben Tag als
+**Abschnitt 1d** in dieser Archivfassung, aus dem Handover übernommen. Die
+Archivfassung sollte damit nichts vermissen. Falls die Repo-Fassung existiert
+und weiter gepflegt wird, gehört trotzdem festgelegt, welche der beiden
+führt — zwei gepflegte Originale enden immer gleich.
+
+**Das Original dieses Skills liegt im Archiv**, unter
+`Organisation/Skills/archiv-aufraeumen/SKILL.md`. Was in den
+Claude-Einstellungen läuft, ist die Ableitung davon. Geändert wird immer zuerst
+die Datei im Archiv — am besten mit `datei_patchen`, abschnittsweise —, danach
+importiert Peter sie neu. Eine Änderung nur an der importierten Fassung ist beim
+nächsten Import verloren, und niemand kann nachlesen, warum sie drinstand.
+
+**Dieser Absatz ist die Falle, die er beschreibt.** Er steht im Original — und
+wer mit einer älteren importierten Fassung arbeitet, liest ihn nicht und weiß
+deshalb nicht, dass es ein Original gibt. Am 28.08.2026 ist genau das passiert:
+Eine Session hat den Skill aus der importierten 397-Zeilen-Fassung
+fortgeschrieben und vier Abschnitte verloren, die nur im Archiv standen.
+Deshalb gilt: **Wer diesen Skill ändern soll, sieht zuerst unter
+`Organisation/Skills/` nach** — mit `ordner_listen`, das kostet einen Aufruf —
+und arbeitet auf der Datei, die dort liegt, nicht auf der eigenen. Der Verweis
+steht zusätzlich in `HANDOVER.md`, die ohnehin am Anfang jeder Sitzung gelesen
+wird; fehlt er dort, gehört er nachgetragen.
+
+Die Probe ist inhaltlich, nicht die Zeilenzahl: Diese Fassung (03.09.2026)
+kennt Werkzeugsatz **2.26.0**, die **sechs** Modi von `datei_patchen` und
+`erzwingen` als Normalfall-weglassen. Wer in seiner Fassung nur drei Modi
+findet, `erzwingen: true` noch als „den Weg" liest oder die 597-Zeilen-Probe
+vom 28.08.2026 zitiert, arbeitet mit einer überholten — dann nicht darauf
+aufbauen, sondern das Original holen.
+
+**Die Sperre der `_INDEX.md` hat eine Nebenwirkung, die niemand reparieren
+kann.** Die Fachwerkzeuge fassen nur ihre eigenen Teile an: `stand_setzen` und
+`themen_setzen` das Frontmatter, `erschliessung_block_schreiben` den Block
+zwischen den Markern. An die Gliederungstabelle im Body kommt **keins von
+ihnen** — wohl aber `datei_patchen` (siehe oben, geprüft am 29.08.2026).
+
+Also: Nach Umzügen und Umbenennungen die Tabelle **selbst nachziehen**, mit
+`abschnitt_ersetzen` auf `## Gliederung`, und im selben Zug die „Offenen
+Punkte" des Index. Sie stillschweigend veralten zu lassen war nie richtig —
+und seit dem 29.08.2026 gibt es auch keine Ausrede mehr dafür.
+
+**`bericht_unvollstaendig` sucht exakte Dateinamen, keine Prosa.** Ein Absatz,
+der die Unterlagen beschreibt, schließt den Befund nicht — der Prüfer
+vergleicht Zeichenketten. Ihn zu schließen heißt, eine Dateiliste in den
+Bericht zu schreiben, und das steht quer zur Regel „Zahlen und Listen nicht an
+drei Stellen pflegen". Der Befund ist `info` und blockiert nichts: **bewusst
+offen lassen ist eine zulässige Antwort** — dann aber im Ergebnis sagen, dass
+er offen bleibt und warum.
+
+**Das Aktions-Protokoll ist lückenhaft gefiltert.** `protokoll_lesen` mit
+`folderId` zeigte am 28.08.2026 nur `themen_setzen` — vier `familie_umziehen`
+und ein `quelle_erschliessen` im selben Ordner fehlten, vermutlich weil diese
+Einträge keine `folderId` tragen. Wenn das Protokoll die Protokoll-Datei im
+Archiv ersetzen soll, ist das eine Lücke: im Zweifel ohne `folderId` lesen und
+selbst filtern.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem
@@ -718,18 +946,80 @@ Einmal wiederholen.
 **`twins_synchronisieren export`** braucht einen existierenden `_`-Twin-Ordner.
 Für neue Familien stattdessen einen Job laufen lassen, der ihn anlegt.
 
-**`device_bash` kann ausfallen** (lokale VM startet nicht). Dann bleiben Lesen
-über `device_list_dir`/`device_stage_files` und Schreiben über
-`device_commit_files` — Verschieben und Löschen auf der Platte gehen nicht.
-Über KnowledgeScout geht beides weiterhin.
+**`device_bash` kann ausfallen** (lokale VM startet nicht) — oder es gibt gar
+kein Gerät, weil die Session in der Cloud läuft. Beides ist für die Archivarbeit
+seit 2.9.0 folgenlos: Lesen, Schreiben, Verschieben und Anlegen gehen
+vollständig über KnowledgeScout (Regel 1a). Unerreichbar bleiben nur Peters
+lokale Werkzeuge — `git log` in den Repos vor allem; `aktuell.py`/`projekte.py`
+sind durch `sichten_regenerieren` ersetzt. Fehlt `git log`, wird die
+Feature-Chronologie nicht geraten, sondern als offener Punkt benannt.
+
+## Anhänge und Binärdateien
+
+Seit Werkzeugsatz 2.25.0 schreibt die Brücke nicht mehr nur Text.
+
+- **`datei_binaer_anlegen`** — `pfad`, `inhaltBase64` (ohne `data:`-Präfix),
+  optional `mimeType`. Der Weg, ein PDF ins Archiv zu legen, ohne es
+  abzuschreiben. Wie `datei_anlegen` getrennt von „ändern":
+  `nichtUeberschreiben` ist per Vorgabe true, `elternAnlegen` legt fehlende
+  Ordner an.
+- **`datei_binaer_lesen`** — gibt base64 zurück, **ohne Blätterung**: ein
+  halbes PDF ist kein PDF. Sparsam verwenden — base64 bläht um ein Drittel und
+  läuft durch den Kontext.
+- **Grenze 6 MB.** Darüber kommt `zu_gross` mit Zahlen. Eine Upload-URL für
+  große Dateien ist bewusst nicht gebaut — die gehören über die Werkbank oder
+  direkt in den Speicher.
+
+**Was damit noch nicht gelöst ist:** Der Microsoft-365-Connector liefert von
+einem Mailanhang die **Textextraktion**, nicht die Bytes. Ein Anhang kommt also
+nur dann als Datei ins Archiv, wenn seine Bytes auf einem anderen Weg
+erreichbar sind. Wo nicht, gilt weiter: Wortlaut übernehmen, Herkunft nennen,
+und die Datei in der Liste der offenen Anhänge in
+`Organisation/Postfach/DURCHGAENGE.md` stehen lassen.
+
+## Was ausdrücklich NICHT geht
+
+Damit niemand danach sucht oder es sich zusammenbaut (Stand 2.26.0):
+
+- **`bericht_pruefen` gegen `Konventionen.md`** gibt es nicht und ist bewusst
+  nicht gebaut: Welche Sätze dieser Datei maschinell prüfbar sind, ist vom
+  Code aus nicht zu sehen. Wenn die Regeln benannt werden — je Regel: was ist
+  entscheidbar, welcher Befund entsteht bei Bruch —, ist die Umsetzung klein.
+  Das ist die nächste Wunschlisten-Zeile, nicht ein Mangel im Werkzeug.
+- **Keine `ffprobe`-Vorprüfung vor der Transkription.** Sie gehört in den
+  Secretary Service, nicht in KnowledgeScout. Bis dahin gibt es nur die
+  Deutung *nachher* (`fehlerDeutung`, `quelle_ohne_ton`).
+- **Felder in `_`-Twin-Ordnern von Hand nachtragen** bleibt gesperrt — auch
+  die elf leeren `date` in einem Vorhaben. Der Weg führt über
+  `transformation_starten` mit korrigiertem Template und ist oft schon durch
+  die Pfad-Ableitung (`date_quelle: pfad`) erledigt.
 
 ## Was Peter entscheidet
 
-- Jeden kostenpflichtigen Job
-- Jede Umbenennung und jeden Umzug, bei denen die Zuordnung Auslegungssache ist
+Die Liste ist bewusst kurz. Alles, was nicht darauf steht, entscheidet die
+Session selbst — siehe Grundregel 2.
+
+- **Welche Library das Archiv ist** — vor dem ersten Schreibvorgang bestätigen
 - Ob eine Datei verworfen wird — `quelle_verwerfen` verschiebt nach
   `zu klären/`, gelöscht wird nie
+- Umzüge und Umbenennungen, bei denen die **Zuordnung** strittig ist — also
+  wohin etwas inhaltlich gehört, nicht ob der Umzug etwas kostet
+- Ob eine Mail als Datei im Terminordner landet oder nur im Bericht
+  protokolliert wird
 - Die Verifikation der führenden Artefakte, immer
 - Die Abnahme eines Vorhabens, immer
 
-Bei Unklarheit fragen statt raten.
+**Ausdrücklich NICHT mehr auf dieser Liste:**
+
+- *Kostenpflichtige Jobs.* Werden gestartet, nicht angefragt.
+- *Format-Zwillinge.* Im Zweifel **alle** erschließen — nur die führende
+  Fassung zu nehmen lässt die übrigen als `source_without_twin` mit Schwere
+  `error` stehen und sperrt die Abnahme, und genau das kostet Peter später
+  eine zweite Runde. Die Zahlen gehören ins Ergebnis, nicht in eine Frage.
+- *Die Vorlage.* `vorlagen_auflisten` sagt, was es gibt; passt nichts, ist
+  `nur_transkript` die Antwort — nicht die Rückfrage. Am 29.08.2026 gab es
+  für Angebote und Vertragsunterlagen schlicht keine Vorlage; 27 Dokumente
+  liefen darum bewusst als reine Extraktion.
+
+Bei Unklarheit im **Inhalt** fragen. Bei Unklarheit im **Verfahren** die
+Grundlagen im Archiv lesen und entscheiden.
