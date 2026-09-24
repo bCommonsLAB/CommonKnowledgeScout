@@ -197,6 +197,15 @@ Treffen (D1).
    Modell trägt beides; A1 braucht zusätzlich die Eingabe der Optionen
    durch die Moderation.
 2. Die Mindestgruppengröße (Vorschlag 3).
+3. **Fortbestehender Einwand nach Runde 2 (Owner 24.09., O17):** Das
+   Verfahren regelt nur den Abschluss ohne neuen Einwand. Was gilt, wenn
+   nach Runde 2 ein schwerwiegender Einwand bleibt oder neu kommt, ist
+   ungeregelt. Vorschlag: Die Moderation wählt ausdrücklich eine von drei
+   Fortsetzungen, jede protokolliert: (a) Fassung überarbeiten und Runde 3
+   öffnen; (b) vertagen, der Punkt geht mit Stand in D10; (c) Dissens
+   festhalten: Ergebnis mit `ergebnis_art: dissens`, der Einwand geht mit
+   Wortlaut und Begründung als Beleg hinein (Prüfbericht A5). Ohne Wahl
+   kein Tisch-Abschluss zu dieser Textstelle.
 
 ## 10. Aufwand
 

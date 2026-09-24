@@ -224,6 +224,24 @@ Die bisherigen O1–O9 in README bleiben. Neu, aus dieser Prüfung:
 - Offline-Betrieb, Eskalation, Querschnittsthemen (P2) bleiben außerhalb
   von D1–D11, bis der Owner sie holt.
 
+## 7. Einwände des Owners aus dem Lesedurchgang (24.09.)
+
+Der Owner hat die Lesefassung „Konzepte in einfachen Worten“ durchgesehen
+und sieben Punkte festgehalten.
+
+| Kapitel | Einwand | Folge |
+|---|---|---|
+| 2 (D1) | Ein eigener Prüfschritt wird nicht gebraucht; Freigeben bleibt | **Entschieden.** D1 §4: Prüfen, Route `check`, `treffen_pruefen` und `berichtHash` entfallen; Freigeben liest und scheitert laut. Aufwand D1 sinkt |
+| 8 (D7) | Was passiert, wenn nach Runde 2 ein schwerwiegender Einwand bleibt oder neu kommt? Darf nicht ungeregelt bleiben | **O17.** Vorschlag in D7 §9.3: Moderation wählt Runde 3, vertagen oder Dissens festhalten (hängt an A5) |
+| 10 (D9) | Starre Eingrenzung auf das Handlungsfeld kann relevante Quellen ausschließen | **O18.** Vorschlag in D9 §9: Voreinstellung mit sichtbarem Umschalter, Herkunft der Quelle in der Antwort |
+| 11 (D10) | Für „passt nicht“ fehlt der weitere Ablauf | **O19.** Vorschlag in D10 §9: Begründung Pflicht, Einwand-Beitrag, dann normaler Lauf mit neuer Fassung |
+| 12 (D11) | Rechte der Redaktion an namentlichen Beiträgen hängen am Vertrauensraum; muss vor der Umsetzung feststehen, betrifft auch die Zusage an die Teilnehmenden | **O1** bleibt offen, Reihenfolge festgehalten: erst O1, dann D11 bauen |
+| 15 | Vertrauensraum V1–V3 nicht vorwegnehmen, aber vor dem ersten realen Einsatz entscheiden | wie O1 |
+| 9 (D8), Vorschlag | Grenze zwischen redaktioneller Bearbeitung und inhaltlicher Änderung der vom Tisch bestätigten Fassung | **O20**, vom Owner am 24.09. als Einwand bestätigt; Entscheidung offen. Vorschlag in D8 §9.3: redaktionell sind Rechtschreibung, Form, Verweise und Frontmatter; jede Änderung am Sinn ist eine neue Fassung, die der Tisch (oder beim nächsten Treffen die Folgegruppe) bestätigt; D8 hält `redigiert_von` und einen Diff-Hinweis fest |
+
+Nicht aufgenommen wurden Punkte, die im Gespräch nicht ausdrücklich als
+festzuhalten markiert waren.
+
 ## Quellen
 
 - Konzepte: `docs/plans/beteiligung-objektmodell-original-und-kopie.plan.md`

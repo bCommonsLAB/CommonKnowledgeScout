@@ -133,6 +133,15 @@ Textstelle:
 2. Die Library-Wunschliste der Redaktion (eine Library je Organisation) ist
    ein eigenes Vorhaben. D9 deckt die gemeinsame Library ab.
 
+**Eingrenzung nicht starr (Owner 24.09., O18):** Die automatische
+Eingrenzung auf das Handlungsfeld kann Quellen ausschließen, die sachlich
+dazugehören; Zusammenhänge zwischen Handlungsfeldern sind der Normalfall.
+Vorschlag: Die Eingrenzung ist Voreinstellung, nicht Zwang. Die
+Tisch-Ansicht zeigt den aktiven Filter sichtbar an, mit Umschalter „in
+allen Handlungsfeldern suchen“; die Antwort nennt bei erweiterter Suche,
+aus welchem Handlungsfeld eine Quelle stammt (`sourceLabel`, D8). Kein
+stilles Erweitern durch die App.
+
 ## 10. Aufwand
 
 | Teil | PT |

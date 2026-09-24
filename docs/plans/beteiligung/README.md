@@ -76,7 +76,7 @@ und ohne die neue Option bleibt das heutige Verhalten.
 
 | # | Frage | Wo | Vorschlag |
 |---|---|---|---|
-| O1 | **Vertrauensraum V1–V3** | D11 5.3 | V1 bis zur Klärung; vor dem ersten echten Beitrag festlegen |
+| O1 | **Vertrauensraum V1–V3** | D11 5.3 | V1 bis zur Klärung; vor dem ersten echten Beitrag festlegen. Owner 24.09.: bewusst noch offen; muss vor der Umsetzung der Rechte (D11) stehen, weil Tischvereinbarung und Zusage an die Teilnehmenden davon abhängen |
 | O2 | **Selbstbeitritt per Tisch-QR freigeben** | D2 5.2, D11 | ja, mit Ablauf, Erneuern, Protokoll |
 | O3 | Welches A am 13.11. (Text mit 3–5 Formulierungen oder Ernte mit Verdichtung) | D7 9, D6 9 | mit der Redaktion klären; das Modell trägt beides |
 | O4 | Schwelle für lange Anlagen im Beitrag | D5 4 | 12.000 Zeichen |
@@ -92,18 +92,29 @@ und ohne die neue Option bleibt das heutige Verhalten.
 | O14 | Rolle Verwaltungsbegleitung, Sichtbarkeit je Planungsdokument | Prüfbericht A4 | ja |
 | O15 | Fensterschluss mit Owner-Credentials | Prüfbericht W12 | nein, eigene Rolle nach O10 |
 | O16 | Identitätsmodell `attribution.kind`, Proxy mit E-Mail, Moderations-Anhebung | Prüfbericht W1/W2/W11 | wie vorgeschlagen |
+| O17 | **Fortbestehender Einwand nach Runde 2** | D7 9.3 | Moderation wählt: Runde 3, vertagen oder Dissens festhalten (A5) |
+| O18 | **Eingrenzung des Chats auf das Handlungsfeld** starr oder umschaltbar | D9 9 | Voreinstellung mit sichtbarem Umschalter |
+| O19 | **„Passt nicht“ bei Folgegruppen** | D10 9 | Begründung Pflicht, Einwand-Beitrag, dann normaler Lauf |
+| O20 | Grenze zwischen redaktioneller und inhaltlicher Änderung vor der Freigabe (D8) | Prüfbericht §7 | redaktionell = Rechtschreibung, Form, Verweise; jede Sinnänderung ist eine neue Fassung mit Tisch-Bestätigung (D8 9.3). Als Einwand bestätigt (Owner 24.09.), Entscheidung offen |
 
 ## Bau-Reihenfolge
 
-**Stand 24.09.:** Die Konzepte wurden geprüft
+**Stand 24.09.:** Der Owner hat die Lesefassung durchgesehen; seine
+Einwände stehen im Prüfbericht §7 (D1: Prüfen entfällt, entschieden;
+O17–O20 offen). Die Konzepte wurden geprüft
 ([`pruefbericht-2026-09-24.md`](pruefbericht-2026-09-24.md)). Vor Stufe 1
 stehen die Entscheidungen O10–O16, die Überarbeitung nach Prüfbericht
 §6.2 (zuerst der Feldkatalog, dann D1, dann D3/D5/D6 gemeinsam) und zwei
 Spikes (§6.3). Die Aufwandszahlen unten und in den Konzepten gelten bis
 dahin nicht.
 
-Jede Stufe ist eine PR-Folge mit Tests. Gebaut wird erst, wenn das
-Detailkonzept abgenommen ist:
+**Owner 24.09.: parallel bauen.** Die Stufen unten sind durch den
+[Parallelisierungsplan](parallelisierung.plan.md) abgelöst: Welle 0 legt
+die Verträge fest (Feldkatalog, Typen, Repository-Schnittstellen,
+Routen-Verträge, Laufzeit-Aktionen, Fixtures, Spikes), danach bauen bis
+zu sechs Sessions gleichzeitig je ein Modul in eigenen Verzeichnissen,
+zuletzt eine Verdrahtungs-Session. Start-Prompts stehen dort. Die Stufen
+bleiben nur als Abhängigkeitsordnung stehen:
 
 1. **D11-Kern** (`resolveDeliberationRole`, Protokoll-Kanal) und
    **D1** (Planung, Freigabe). Ergebnis: Ein Probe-Treffen aus Dateien
