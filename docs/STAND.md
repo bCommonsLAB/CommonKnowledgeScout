@@ -96,7 +96,11 @@ Bekannte Punkte:
    Archiv; noch nicht festgelegt).
 3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
    Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
-   im Konzept).
+   im Konzept). **Bau-Plan seit 26.09.:**
+   [`plans/website-startseite-sektionen.plan.md`](plans/website-startseite-sektionen.plan.md)
+   (Wellen S0 Inhalt ohne Code, S1 Hero, S2 Kacheln, S3 Dokument-Raster,
+   S4 Ampel-Skala, S5 Fußzeile, S6 Sprache); die Abstimmung mit dem
+   Partner und die Texte liegen im Vorhabensordner des Archivs.
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294
 Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
