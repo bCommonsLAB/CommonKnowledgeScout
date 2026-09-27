@@ -95,7 +95,7 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   es nur die Galerie.
 
 
-## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.32.0)
+## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.33.0)
 
 Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
 Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
