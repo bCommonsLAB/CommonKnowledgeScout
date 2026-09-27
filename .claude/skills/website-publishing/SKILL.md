@@ -5,9 +5,14 @@ description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke a
 
 # Website-Publishing: Inhalte einer öffentlichen Library füllen
 
+Stand 27.09.2026, Werkzeugsatz 2.32.0. Original im Archiv unter
+`Organisation/Skills/website-publishing/SKILL.md`; diese Datei ist die
+Repo-Kopie und wird nach dem Original nachgezogen.
+
 Ziel: Die Felder unter **Einstellungen → Veröffentlichung** (Galerie-Texte,
 Website-Logo-URL, Hintergrundbild-URL, Icon) für eine Library passend zu ihrem
-Inhalt befüllen.
+Inhalt befüllen — und die Website-Seiten der Library anlegen, prüfen und
+publizieren (Abschnitt am Ende).
 
 ## Grundregeln (nicht verhandelbar)
 
@@ -27,10 +32,11 @@ Inhalt befüllen.
 
 ### Schritt 1 — Library identifizieren
 
-- Library-ID, Slug und Owner-Email ermitteln: MongoDB-Collection `libraries`,
-  read-only (`config.publicPublishing.slugName`, `.isPublic`).
-- **DB-Wahl explizit klären:** Prod-DB heißt `common-knowledge-scout-prod` und
-  fehlt ggf. in `.env` — beim User nachfragen, ob Dev oder Prod gemeint ist.
+- In Cowork: `bibliotheken_auflisten` (Id und Name), dann `seite_pruefen`
+  (öffentlich, Slug, siteEnabled, publizierte Seiten).
+- Mit Datenbankzugang: Library-ID, Slug und Owner-Email aus der Collection
+  `libraries`, read-only (`config.publicPublishing.slugName`, `.isPublic`).
+  **DB-Wahl explizit klären:** Prod-DB heißt `common-knowledge-scout-prod`.
 - Für „alle öffentlichen Libraries": alle mit `config.publicPublishing.isPublic: true`
   auflisten und einzeln (mit User-Freigabe pro Library) durchgehen.
 
@@ -93,7 +99,9 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
 
 Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
 Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
-nach Bestätigung durch den Menschen, mit `begruendung`.
+nach Bestätigung durch den Menschen, mit `begruendung`. Vorher `bruecke_info`:
+meldet sie eine Version unter 2.32.0, fehlen die vier Werkzeuge — Erweiterung
+in den Einstellungen aus- und einschalten.
 
 1. **Bestand lesen.** `seite_pruefen` mit der `libraryId`: zeigt, ob die
    Library öffentlich ist, ob `siteEnabled` gesetzt ist, welche Seiten
@@ -111,15 +119,19 @@ nach Bestätigung durch den Menschen, mit `begruendung`.
    Erlaubte `layout`: image-left, image-right, full-image, text-only, video,
    contact-form. Erlaubte `bg`: default, light, dark, brand, linen, mint,
    dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben).
+   Frontmatter flach, snake_case, keine verschachtelten Objekte.
 3. **Publizieren.** `dokument_publizieren` mit `quellPfad` oder `sourceIds`
    (bis 30). Die Antwort nennt je Seite Warnungen (fehlende Felder,
    relative Bilder) und harte Fehler (ungültiger Marker). Warnungen erst
    beheben; nur wenn sie bewusst bleiben sollen, `trotzWarnungen: true`.
    Ein zweiter Aufruf nach einer Textänderung aktualisiert den Eintrag.
+   Der Text bleibt unverändert — kein Sprachmodell (anders als
+   `transformation_starten`).
 4. **Auswahl markieren.** Soll das Banner unter der Seite eine kuratierte
    Auswahl zeigen, `dokument_felder_setzen` mit `sourceIds` der Dokumente
    und `listen: { tags: ["fokus"] }`. Nicht `prioritaets_index` setzen —
-   den rechnet die Pipeline.
+   den rechnet die Pipeline und überschreibt ihn bei jedem Transform-Lauf.
+   Nicht publizierte Quellen meldet die Zeile als `nicht_publiziert`.
 5. **Prüfen.** Erneut `seite_pruefen`: Startseite, Menüreihenfolge,
    Footer-Links, Sektionen je Seite, keine Fehler. Danach die Seite unter
    `/explore/<slug>` ansehen (Site-Modus braucht `siteEnabled`, heute noch
@@ -128,5 +140,5 @@ nach Bestätigung durch den Menschen, mit `begruendung`.
    Datei und Twin bleiben.
 
 Noch nicht über die Brücke: Bilder in den Blob (Skript, Schritt 4 oben) und
-die Veröffentlichungs-Einstellungen (Formular). Beides steht im Plan
+die Veröffentlichungs-Einstellungen (Formular). Beides steht im Repo-Plan
 `docs/plans/mcp-bruecke-website-publizieren.plan.md` (B3, B4).
