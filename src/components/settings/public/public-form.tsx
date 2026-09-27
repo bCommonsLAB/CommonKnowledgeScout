@@ -29,6 +29,8 @@ import {
   AlertTitle,
 } from '@ks/ui'
 import { WebsiteImageField } from "@/components/settings/public/website-image-upload"
+import { SiteThemeField } from "@/components/settings/public/site-theme-field"
+import { validiereSiteTheme } from "@/lib/website/site-theme"
 import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } from "lucide-react"
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { useSafeUser } from "@/hooks/use-safe-user"
@@ -56,6 +58,15 @@ const publicFormSchema = z.object({
   isPublic: z.boolean().default(false),
   requiresAuth: z.boolean().default(false),
   siteEnabled: z.boolean().default(false),
+  // Welle S2: Design-Profil als JSON-Text; leer = Vorlage. Geprueft mit denselben Regeln wie die Bruecke.
+  siteThemeJson: z.string().optional().superRefine((wert, ctx) => {
+    if (!wert?.trim()) return
+    try {
+      validiereSiteTheme(JSON.parse(wert))
+    } catch (error) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: error instanceof Error ? error.message : String(error) })
+    }
+  }),
   // Flag: ob die Library auf der Homepage gelistet wird (fehlend => true)
   showOnHomepage: z.boolean().default(true),
   // Hintergrundbild-URL für die Homepage
@@ -123,6 +134,7 @@ export function PublicForm() {
         isPublic: false,
         requiresAuth: false,
         siteEnabled: false,
+        siteThemeJson: "",
         showOnHomepage: true,
         backgroundImageUrl: "",
         logoUrl: "",
@@ -144,6 +156,9 @@ export function PublicForm() {
       isPublic: activeLibrary.config?.publicPublishing?.isPublic === true || false,
       requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
       siteEnabled: activeLibrary.config?.publicPublishing?.siteEnabled === true || false,
+      siteThemeJson: activeLibrary.config?.publicPublishing?.siteTheme
+        ? JSON.stringify(activeLibrary.config.publicPublishing.siteTheme, null, 2)
+        : "",
       // Backwards-Compatibility: fehlend => true
       showOnHomepage: activeLibrary.config?.publicPublishing?.showOnHomepage !== false,
       backgroundImageUrl: activeLibrary.config?.publicPublishing?.backgroundImageUrl || "",
@@ -231,6 +246,8 @@ export function PublicForm() {
       isPublic: data.isPublic,
       requiresAuth: data.requiresAuth,
       siteEnabled: data.siteEnabled,
+      // S2: leeres Feld = Profil loeschen (null), sonst das geparste Profil (Schema hat es geprueft).
+      siteTheme: data.siteThemeJson?.trim() ? (JSON.parse(data.siteThemeJson) as unknown) : null,
       showOnHomepage: data.showOnHomepage,
       backgroundImageUrl: data.backgroundImageUrl || undefined,
       logoUrl: data.logoUrl || undefined,
@@ -531,6 +548,7 @@ export function PublicForm() {
                 </FormItem>
               )}
             />
+            {siteEnabled && <SiteThemeField control={form.control} />}
             {siteEnabled && (
               <div className="flex flex-wrap gap-2">
                 <Button

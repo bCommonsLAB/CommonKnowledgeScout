@@ -55,3 +55,21 @@ describe('mergePublicPublishing', () => {
     expect(mergeGalleryTexte({ headline: 'H' }, { headline: '' })).toEqual({ headline: '' })
   })
 })
+
+describe('siteTheme (Welle S2)', () => {
+  it('validiert ein Profil mit denselben Regeln wie die Bruecke', () => {
+    expect(validierePublicPublishing({ siteTheme: { accent: 'orange' } })).toMatch(/"accent" ist kein Hex-Farbwert/)
+    expect(validierePublicPublishing({ siteTheme: { fontHeading: 'newsreader' } })).toBeNull()
+    expect(validierePublicPublishing({ siteTheme: null })).toBeNull()
+  })
+
+  it('merge: undefined laesst stehen, null loescht, gueltig ersetzt normalisiert', () => {
+    const mitProfil = { ...ALT, siteTheme: { accent: '#c85a32' } }
+    expect(mergePublicPublishing(mitProfil, {}, 'L').siteTheme).toEqual({ accent: '#c85a32' })
+    expect(mergePublicPublishing(mitProfil, { siteTheme: null }, 'L').siteTheme).toBeUndefined()
+    const neu = mergePublicPublishing(mitProfil, { siteTheme: { fontHeading: 'newsreader', accent: '#C85A32' } }, 'L')
+    expect(neu.siteTheme).toEqual({ fontHeading: 'newsreader', accent: '#c85a32' })
+    expect(geaenderteFelder(mitProfil, neu)).toEqual(['siteTheme'])
+    expect(() => mergePublicPublishing(mitProfil, { siteTheme: { accent: 'rot' } }, 'L')).toThrow(/Hex/)
+  })
+})

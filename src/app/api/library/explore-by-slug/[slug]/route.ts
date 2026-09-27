@@ -58,6 +58,8 @@ export async function GET(
       logoUrl: pub?.logoUrl,
       // Galerie-Texte aus den Public-Settings (oeffentlicher Inhalt, keine Secrets)
       gallery: pub?.gallery,
+      // Welle S2: Design-Profil der Landingpage (Farben/Schriften, kein Secret)
+      siteTheme: pub?.siteTheme,
       exploreContext: 'member' as const,
     }
 

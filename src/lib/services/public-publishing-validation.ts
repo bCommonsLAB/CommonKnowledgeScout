@@ -14,6 +14,8 @@
  */
 
 import type { Library } from '@/types/library'
+import type { SiteTheme } from '@ks/contracts'
+import { validiereSiteTheme } from '@/lib/website/site-theme'
 
 export type PublicPublishing = NonNullable<NonNullable<Library['config']>['publicPublishing']>
 export type GalleryTexte = NonNullable<PublicPublishing['gallery']>
@@ -30,6 +32,8 @@ export interface PublicPublishingEingabe {
   logoUrl?: string
   gallery?: Partial<GalleryTexte>
   siteEnabled?: boolean
+  /** Welle S2: Design-Profil; `undefined` = unveraendert, `null` = loeschen (Vorlage). */
+  siteTheme?: SiteTheme | null
 }
 
 export const SLUG_RE = /^[a-z0-9-]+$/
@@ -45,6 +49,7 @@ export function validierePublicPublishing(p: {
   isPublic?: boolean
   requiresAuth?: boolean
   showOnHomepage?: boolean
+  siteTheme?: SiteTheme | null
 }): string | null {
   if (p.isPublic === true) {
     if (!p.slugName || p.slugName.length < 3) return 'Slug-Name ist erforderlich und muss mindestens 3 Zeichen lang sein'
@@ -54,6 +59,13 @@ export function validierePublicPublishing(p: {
   }
   if (p.requiresAuth === true && p.isPublic !== true) return 'requiresAuth kann nur aktiviert werden, wenn die Library öffentlich ist'
   if (p.showOnHomepage === false && p.isPublic !== true) return 'Show-on-Homepage kann nur gesetzt werden, wenn die Library öffentlich ist'
+  if (p.siteTheme) {
+    try {
+      validiereSiteTheme(p.siteTheme)
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error)
+    }
+  }
   return null
 }
 
@@ -97,6 +109,8 @@ export function mergePublicPublishing(
     gallery: mergeGalleryTexte(alt?.gallery, neu.gallery),
     story: alt?.story,
     siteEnabled: neu.siteEnabled !== undefined ? neu.siteEnabled : alt?.siteEnabled === true,
+    // S2: `null` loescht das Profil (zurueck zur Vorlage); gueltige Profile werden normalisiert.
+    siteTheme: neu.siteTheme === undefined ? alt?.siteTheme : (neu.siteTheme === null ? undefined : validiereSiteTheme(neu.siteTheme)),
   }
 }
 
@@ -104,7 +118,7 @@ export function mergePublicPublishing(
 export function geaenderteFelder(alt: PublicPublishing | undefined, neu: PublicPublishing): string[] {
   const keys: Array<keyof PublicPublishing> = [
     'slugName', 'publicName', 'description', 'icon', 'isPublic', 'showOnHomepage',
-    'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'siteEnabled',
+    'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'siteEnabled', 'siteTheme',
   ]
   return keys.filter((key) => JSON.stringify(alt?.[key] ?? null) !== JSON.stringify(neu[key] ?? null))
 }
