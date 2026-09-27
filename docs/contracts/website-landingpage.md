@@ -58,7 +58,7 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   (`/api/library/<id>/web/...` erfordert Login und ist damit fuer anonyme
   Besucher ungeeignet).
 
-## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.32.0)
+## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.34.0)
 
 - Eine Website-Seite ist eine Markdown-Quelle im Storage (Konvention
   `Webseite/Seiten/`), deren Transformation `website-page` am Twin haengt
@@ -75,6 +75,16 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   Meta-Dokument (`doc-meta-felder.ts` spiegelt die Facetten auf oberster
   Ebene wie `meta-document-builder.ts`). Pipeline-Felder
   (`prioritaets_index`, `bewertung_*`) und Pflichtfelder sind gesperrt.
+- Bilder fuer die Landingpage legt `bild_veroeffentlichen` aus dem
+  Library-Storage (`web/images/`) in den oeffentlichen Blob
+  (`src/lib/services/website-image-blob.ts`, dieselbe Konvention wie das
+  Spiegelskript); die Seiten tragen nur diese anonymen URLs.
+- `publicPublishing` (Slug, `isPublic`, `siteEnabled`, Logo, Galerie-Texte)
+  setzen Formular UND Bruecke (`veroeffentlichung_setzen`) ueber dieselbe
+  Validierung und denselben Merge in
+  `src/lib/services/public-publishing-validation.ts`. Wer eine Regel
+  aendert, aendert sie dort — nie in der Route allein. Der API-Schluessel
+  geht nie ueber die Bruecke.
 - `seite_pruefen` ist die Vorschau ohne Browser und nutzt dieselben Regeln
   wie der Renderer (`site-navigation.ts`, `parse-website-sections.ts`).
 

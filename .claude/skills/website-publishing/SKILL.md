@@ -1,13 +1,18 @@
 ---
 name: website-publishing
-description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke anlegen, prüfen und publizieren (dokument_publizieren, dokument_felder_setzen, seite_pruefen) und die Website-/Galerie-Einstellungen (Galerie-Texte, Logo, Hintergrundbild) sinnvoll füllen. Verwende diesen Skill, wenn der Benutzer eine Website oder Landingpage für eine Library erstellen, Seiten publizieren, Fokus-Tags setzen, Website-Inhalte, Galerie-Texte, Logo oder Hintergrundbild einrichten oder verbessern will — oder alle öffentlichen Libraries auf die Blob-Bild-Konvention umstellen möchte.
+description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke anlegen, prüfen und publizieren (dokument_publizieren, dokument_felder_setzen, bild_veroeffentlichen, veroeffentlichung_setzen, seite_pruefen) und die Website-/Galerie-Einstellungen (Galerie-Texte, Logo, Hintergrundbild) sinnvoll füllen. Verwende diesen Skill, wenn der Benutzer eine Website oder Landingpage für eine Library erstellen, Seiten publizieren, Fokus-Tags setzen, Website-Inhalte, Galerie-Texte, Logo oder Hintergrundbild einrichten oder verbessern will — oder alle öffentlichen Libraries auf die Blob-Bild-Konvention umstellen möchte.
 ---
 
 # Website-Publishing: Inhalte einer öffentlichen Library füllen
 
+Stand 27.09.2026, Werkzeugsatz 2.34.0. Original im Archiv unter
+`Organisation/Skills/website-publishing/SKILL.md`; diese Datei ist die
+Repo-Kopie und wird nach dem Original nachgezogen.
+
 Ziel: Die Felder unter **Einstellungen → Veröffentlichung** (Galerie-Texte,
 Website-Logo-URL, Hintergrundbild-URL, Icon) für eine Library passend zu ihrem
-Inhalt befüllen.
+Inhalt befüllen — und die Website-Seiten der Library anlegen, prüfen und
+publizieren (Abschnitt am Ende).
 
 ## Grundregeln (nicht verhandelbar)
 
@@ -19,18 +24,20 @@ Inhalt befüllen.
 3. **Bild-URLs müssen anonym ladbar sein.** Storage-Links (Nextcloud/OneDrive)
    sind auth-gegated und funktionieren NICHT. Blob-Konvention:
    `https://<account>.blob.core.windows.net/knowledgescout/<library-id>/website/images/<datei>`
-4. **MongoDB nur lesend** für Analyse. Schreiben von Settings läuft über das
-   Settings-Formular des Users (validiert + merged serverseitig via
-   `PUT /api/libraries/[id]/public`, Clerk-Auth erforderlich).
+4. **MongoDB nur lesend** für Analyse. Settings schreibt `veroeffentlichung_setzen`
+   (dieselbe Validierung wie das Formular Einstellungen → Veröffentlichung;
+   nur Owner, nie den API-Schlüssel) oder das Formular selbst.
 
 ## Ablauf
 
 ### Schritt 1 — Library identifizieren
 
-- Library-ID, Slug und Owner-Email ermitteln: MongoDB-Collection `libraries`,
-  read-only (`config.publicPublishing.slugName`, `.isPublic`).
-- **DB-Wahl explizit klären:** Prod-DB heißt `common-knowledge-scout-prod` und
-  fehlt ggf. in `.env` — beim User nachfragen, ob Dev oder Prod gemeint ist.
+- In Cowork: `bibliotheken_auflisten` (Id und Name), dann
+  `veroeffentlichung_lesen` (öffentlich, Slug, siteEnabled, Logo, Galerie-Texte)
+  und `seite_pruefen` (publizierte Seiten mit Befunden).
+- Mit Datenbankzugang: Library-ID, Slug und Owner-Email aus der Collection
+  `libraries`, read-only (`config.publicPublishing.slugName`, `.isPublic`).
+  **DB-Wahl explizit klären:** Prod-DB heißt `common-knowledge-scout-prod`.
 - Für „alle öffentlichen Libraries": alle mit `config.publicPublishing.isPublic: true`
   auflisten und einzeln (mit User-Freigabe pro Library) durchgehen.
 
@@ -55,29 +62,35 @@ Vier Felder, in der Sprache der Library, konkret statt generisch:
 Semantik: **Leeres Feld = eingebaute Standard-Texte.** Nur füllen, was besser
 als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
 
-### Schritt 4 — Bilder in den Blob spiegeln
+### Schritt 4 — Bilder in den Blob legen
 
-1. User legt kuratierte Bilder (Logo, Hintergrund) im Library-Storage unter
-   `web/images/` ab (Ordner ggf. anlegen).
-2. Spiegeln (alle Bilddateien des Ordners, oder via `--files` gezielt):
-
-   ```bash
-   node --import tsx scripts/mirror-website-images-to-blob.ts --user <owner-email> --library <library-id>
-   ```
-
-3. Das Skript druckt die fertigen öffentlichen URLs — diese für Logo-/
-   Hintergrundbild-Feld verwenden. Benötigt `AZURE_STORAGE_CONNECTION_STRING`
-   in `.env`.
+1. User legt kuratierte Bilder (Logo, Hintergrund, Hero, Sektionsbilder) im
+   Library-Storage unter `web/images/` ab (Ordner ggf. anlegen).
+2. Über die Brücke: `bild_veroeffentlichen` mit der `libraryId` (ohne weitere
+   Angabe alle Bilddateien aus `web/images/`; `quellPfad` für eine Datei).
+   Die Antwort nennt je Datei die anonyme URL; Nicht-Bilder (HTML, PDF)
+   werden laut übersprungen, vorhandene Blobs nur mit `ueberschreiben: true`
+   ersetzt. `bilder_auflisten` zeigt, was schon im Blob liegt.
+3. Ohne Brücke (lokal): `node --import tsx scripts/mirror-website-images-to-blob.ts --user <owner-email> --library <library-id>`,
+   braucht `AZURE_STORAGE_CONNECTION_STRING` in `.env`.
+4. Die URLs für Logo-/Hintergrundbild-Feld, `hero_image` und
+   Sektions-Bilder `![alt](url)` verwenden.
 
 ### Schritt 5 — Eintragen und verifizieren
 
-- Freigegebene Werte dem User als Copy-Paste-Block für das Formular
-  **Einstellungen → Veröffentlichung** geben (Felder: Überschrift, Untertitel,
-  Einleitung, Filter-Erklärung, Website-Logo-URL, Hintergrundbild-URL, Icon).
-- Nach dem Speichern verifizieren: `/explore/<slug>` neu laden — Texte über der
-  Galerie, Logo oben links in der Navigation (rendert nur bei gesetzter URL,
-  Explore-Seite und eigene Domain). Bild-URLs zusätzlich in einem privaten/
-  anonymen Kontext prüfen (müssen ohne Login laden).
+- Freigegebene Werte mit `veroeffentlichung_setzen` eintragen: `gallery`
+  (headline, subtitle, description, filterDescription, menuLabel,
+  moreLinkLabel), `logoUrl`, `backgroundImageUrl`, `icon`; für die Website
+  `siteEnabled: true`; zum Veröffentlichen `isPublic: true` mit `slugName`,
+  `publicName` und `description` (Mindestlängen wie im Formular). Nur genannte
+  Felder ändern sich, leere URL-Felder löschen. `isPublic: true` macht die
+  Inhalte anonym lesbar — vorher ausdrücklich bestätigen lassen.
+- Alternativ als Copy-Paste-Block für das Formular **Einstellungen →
+  Veröffentlichung**.
+- Verifizieren: `veroeffentlichung_lesen`, dann `/explore/<slug>` neu laden —
+  Texte über der Galerie, Logo oben links in der Navigation (rendert nur bei
+  gesetzter URL, Explore-Seite und eigene Domain). Bild-URLs zusätzlich in
+  einem privaten/anonymen Kontext prüfen (müssen ohne Login laden).
 
 ## Stolperfallen
 
@@ -89,11 +102,13 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   es nur die Galerie.
 
 
-## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.32.0)
+## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.34.0)
 
 Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
 Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
-nach Bestätigung durch den Menschen, mit `begruendung`.
+nach Bestätigung durch den Menschen, mit `begruendung`. Vorher `bruecke_info`:
+meldet sie eine Version unter 2.34.0, fehlen Werkzeuge — Erweiterung in den
+Einstellungen aus- und einschalten.
 
 1. **Bestand lesen.** `seite_pruefen` mit der `libraryId`: zeigt, ob die
    Library öffentlich ist, ob `siteEnabled` gesetzt ist, welche Seiten
@@ -110,23 +125,27 @@ nach Bestätigung durch den Menschen, mit `begruendung`.
    - Fußzeile: `site_role: "footer-content"`, `menu_area: "hidden"`.
    Erlaubte `layout`: image-left, image-right, full-image, text-only, video,
    contact-form. Erlaubte `bg`: default, light, dark, brand, linen, mint,
-   dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben).
+   dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben):
+   erst `bild_veroeffentlichen` (Schritt 4 oben), dann die URLs eintragen.
+   Frontmatter flach, snake_case, keine verschachtelten Objekte.
 3. **Publizieren.** `dokument_publizieren` mit `quellPfad` oder `sourceIds`
    (bis 30). Die Antwort nennt je Seite Warnungen (fehlende Felder,
    relative Bilder) und harte Fehler (ungültiger Marker). Warnungen erst
    beheben; nur wenn sie bewusst bleiben sollen, `trotzWarnungen: true`.
    Ein zweiter Aufruf nach einer Textänderung aktualisiert den Eintrag.
+   Der Text bleibt unverändert — kein Sprachmodell (anders als
+   `transformation_starten`).
 4. **Auswahl markieren.** Soll das Banner unter der Seite eine kuratierte
    Auswahl zeigen, `dokument_felder_setzen` mit `sourceIds` der Dokumente
    und `listen: { tags: ["fokus"] }`. Nicht `prioritaets_index` setzen —
-   den rechnet die Pipeline.
+   den rechnet die Pipeline und überschreibt ihn bei jedem Transform-Lauf.
+   Nicht publizierte Quellen meldet die Zeile als `nicht_publiziert`.
 5. **Prüfen.** Erneut `seite_pruefen`: Startseite, Menüreihenfolge,
-   Footer-Links, Sektionen je Seite, keine Fehler. Danach die Seite unter
-   `/explore/<slug>` ansehen (Site-Modus braucht `siteEnabled`, heute noch
-   im Formular Einstellungen → Veröffentlichung).
+   Footer-Links, Sektionen je Seite, keine Fehler. `siteEnabled: true` mit
+   `veroeffentlichung_setzen`, dann die Seite unter `/explore/<slug>`
+   ansehen.
 6. **Zurücknehmen.** `dokument_depublizieren` entfernt nur den Eintrag;
    Datei und Twin bleiben.
 
-Noch nicht über die Brücke: Bilder in den Blob (Skript, Schritt 4 oben) und
-die Veröffentlichungs-Einstellungen (Formular). Beides steht im Plan
-`docs/plans/mcp-bruecke-website-publizieren.plan.md` (B3, B4).
+Nicht über die Brücke: die Domain-Zuordnung (`PUBLIC_DOMAIN_LIBRARY_MAP`
+im Deployment, DNS) und der API-Schlüssel der Library.

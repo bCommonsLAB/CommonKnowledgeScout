@@ -2,7 +2,7 @@
 name: mcp-bruecke-website-publizieren
 overview: "Eine Website aus Cowork oder einer Cloud-Session heraus konzipieren UND ausspielen. Heute kann die MCP-Brücke die Markdown-Seiten anlegen, aber nicht publizieren, keine Felder an Galerie-Einträgen setzen, keine Bilder anonym lesbar ablegen und die Veröffentlichungs-Einstellungen nicht lesen oder setzen. Fünf Werkzeuge schließen die Lücke, nach dem Muster der bestehenden Brücke: schreibend nur mit Begründung und Bestätigung, protokolliert, ohne stille Fallbacks. Vorhaben 2 in docs/STAND.md, Nachbar des Plans website-startseite-sektionen."
 vorhaben: [Klimamaßnahmen Südtirol, Vortrag 30.09.]
-status: in-arbeit
+status: gebaut
 todos:
   - id: b1-publizieren
     content: "B1 `dokument_publizieren`: Markdown-Quelle unverändert (ohne Sprachmodell) als Transformation registrieren und als Galerie-Eintrag ingestieren; Wiederholung aktualisiert; `dokument_depublizieren` als Gegenstück. Antwort: fileId, Navigations-Slug, Warnungen (Bild-URLs nicht anonym, Parser-Fehler der Sektionen)."
@@ -12,16 +12,16 @@ todos:
     status: completed
   - id: b3-bilder
     content: "B3 `bild_veroeffentlichen` und `bilder_auflisten`: Bild (base64, 6 MB) in den öffentlichen Blob unter `<libraryId>/website/images/` legen, anonyme URL zurückgeben; vorhandene Bilder listen."
-    status: pending
+    status: completed
   - id: b4-veroeffentlichung
     content: "B4 `veroeffentlichung_lesen` und `veroeffentlichung_setzen`: publicPublishing lesen (Schlüssel maskiert) und mit derselben Validierung wie die PUT-Route setzen (slugName, isPublic, siteEnabled, logoUrl, backgroundImageUrl, gallery-Texte)."
-    status: pending
+    status: completed
   - id: b5-pruefen
     content: "B5 `seite_pruefen`: alle website-Docs einer Library als Menü- und Footer-Struktur, je Doc die geparsten Sektionen, fehlende Pflichtfelder, nicht anonyme Bild-URLs, tote `?site=`-Ziele; liest nur."
     status: completed
   - id: b6-skill
     content: "B6 Skill `website-publishing` auf die neuen Werkzeuge umstellen (kein MongoDB-Lesen, kein Formular-Copy-Paste mehr); Werkzeugsatz-Version hochzählen, `bruecke_info` nennt die neuen Werkzeuge."
-    status: pending
+    status: completed
 ---
 
 # MCP-Brücke: Website aus Cowork konzipieren und publizieren
@@ -31,9 +31,12 @@ todos:
 > (was der Renderer können muss). Dieser Plan: was die Brücke können muss,
 > damit der ganze Weg ohne die App-Oberfläche geht.
 
-> **Stand 27.09.2026:** B1, B2 und B5 sind gebaut (Werkzeugsatz 2.32.0,
-> `src/lib/mcp/tools-website-*.ts`, Tests unter `tests/unit/mcp/website-*`).
-> Offen: B3 Bilder, B4 Veröffentlichung, B6 Skill.
+> **Stand 27.09.2026:** B1 bis B6 sind gebaut (Werkzeugsatz 2.34.0,
+> `src/lib/mcp/tools-website-*.ts`, Tests unter `tests/unit/mcp/website-*` und
+> `tests/unit/services/`). Die Route `PUT /api/libraries/[id]/public` nutzt
+> dieselbe Validierung und denselben Merge wie die Brücke
+> (`public-publishing-validation.ts`). Offen bleibt nur, was außerhalb der
+> Brücke liegt (§5).
 
 ## 1. Der Weg einer Website heute, Station für Station
 
