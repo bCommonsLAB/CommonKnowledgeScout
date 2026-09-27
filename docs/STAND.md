@@ -101,6 +101,11 @@ Bekannte Punkte:
    (Wellen S0 Inhalt ohne Code, S1 Hero, S2 Kacheln, S3 Dokument-Raster,
    S4 Ampel-Skala, S5 Fußzeile, S6 Sprache); die Abstimmung mit dem
    Partner und die Texte liegen im Vorhabensordner des Archivs.
+4. Brücke erweitern, damit eine Website aus Cowork heraus publiziert
+   werden kann (Owner 27.09.):
+   [`plans/mcp-bruecke-website-publizieren.plan.md`](plans/mcp-bruecke-website-publizieren.plan.md)
+   (B1 publizieren, B2 Felder setzen, B3 Bilder in den Blob, B4
+   Veröffentlichung lesen/setzen, B5 Seite prüfen, B6 Skill).
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294
 Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
