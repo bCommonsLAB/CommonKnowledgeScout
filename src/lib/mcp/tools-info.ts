@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.31.0'
+export const TOOLSET_VERSION = '2.32.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -53,6 +53,10 @@ export const TOOL_NAMES = [
   'korrektur_melden',
   'vorlagen_auflisten',
   'transformation_starten',
+  'dokument_publizieren',
+  'dokument_depublizieren',
+  'dokument_felder_setzen',
+  'seite_pruefen',
   'job_status',
   'job_liste',
   'jobs_aufraeumen',
@@ -73,6 +77,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.32.0: Website aus der Bruecke publizieren — dokument_publizieren macht eine Markdown-Quelle UNVERAENDERT (ohne Sprachmodell) zum Galerie-Eintrag (Vorlage website-page bzw. markdown-page am Twin, dann Ingest; Pruefung von detailViewType, Pflichtfeldern, Sektions-Markern, Bild-URLs; Warnungen blockieren bis trotzWarnungen), dokument_depublizieren nimmt den Eintrag zurueck, dokument_felder_setzen setzt flache Felder/Tags an Twin UND Meta-Dokument (bis 30 Quellen; prioritaets_index und Pflichtfelder gesperrt), seite_pruefen liefert Menue, Footer und je Seite Sektionen mit Befunden plus Veroeffentlichungs-Stand',
   '2.31.0: bibliotheken_auflisten liefert je Library archivpflege (= Agentensicht aktiviert). stand_setzen, themen_setzen, erschliessung_block_schreiben und sichten_regenerieren sind bei archivpflege=false GESPERRT (Fehler statt _INDEX.md/BERICHT.md-Struktur in einer fremd gebauten Library); alle uebrigen Werkzeuge bleiben generisch nutzbar',
   '2.30.5: familie_umziehen/quelle_verwerfen: result.newSourceId, sourceIdChanged, vectorsRekeyed — auf pfadbasierten Providern (Nextcloud) aendert Umbenennen/Verschieben die Storage-Id; Twin-Dokument wird umgeschluesselt, der Schaufenster-Eintrag (docs/doc-meta) auf die neue Id umgeschrieben, Export laeuft mit der neuen Id. Bei Id-Wechsel steht die neue Id im hinweis',
   '2.30.4: transformation_starten: jobs[].hinweis, wenn am Twin schon eine ANDERE Vorlage haengt als die gestartete (ohne template gilt die Library-Vorgabe, nicht die Vorlage des Twins). job_abbrechen wirkt jetzt: ein beendeter Job schreibt weder Transformation noch Schaufenster-Eintrag und wird nicht mehr completed',

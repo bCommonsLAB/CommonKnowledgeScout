@@ -49,6 +49,9 @@ import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 import { registerStorageTools } from './storage'
 import { registerVorlagenTool } from './tools-vorlagen'
+import { registerWebsitePublizierenTools } from './tools-website-publizieren'
+import { registerWebsiteFelderTool } from './tools-website-felder'
+import { registerWebsitePruefenTool } from './tools-website-pruefen'
 
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
@@ -58,6 +61,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerErschliessenTools(server)
   registerKorrekturTools(server)
   registerVorlagenTool(server)
+  registerWebsitePublizierenTools(server)
+  registerWebsiteFelderTool(server)
+  registerWebsitePruefenTool(server)
   registerJobTools(server)
   registerJobAufraeumenTool(server)
   registerJobAbbrechenTool(server)
