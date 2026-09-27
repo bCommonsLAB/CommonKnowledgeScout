@@ -3,10 +3,11 @@
 import * as React from "react"
 import { ArrowLeft } from "lucide-react"
 import { parseWebsiteSections } from "@/lib/website/parse-website-sections"
+import type { HeadingCase } from "@/lib/website/types"
 import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
-import { SectionBlock, VideoEmbed } from "@/components/library/website/website-landing-blocks"
+import { SectionBlock, VideoEmbed, renderMarkdownText } from "@/components/library/website/website-landing-blocks"
 import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
-import { cn } from "@/lib/utils"
+import { HeroCover } from "@/components/library/website/hero-cover"
 
 /** Detail-Daten fuer detailViewType `website` (Landingpage als Dokument). */
 export interface WebsiteDetailData {
@@ -30,6 +31,12 @@ export interface WebsiteDetailData {
    * Nur fuer die Aktiv/Inaktiv-Anzeige — der Versand liest sie serverseitig.
    */
   contactEmail?: string
+  /** Welle S1: Banner-Steuerung (Frontmatter `banner_tag`, `banner_title`, `banner_limit`). */
+  bannerTag?: string
+  bannerTitle?: string
+  bannerLimit?: number
+  /** Welle S1: Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
+  headingCase?: HeadingCase
   fileId?: string
   fileName?: string
   upsertedAt?: string
@@ -43,6 +50,18 @@ interface WebsiteDetailProps {
    * `contact-form`-Sektion einen Deaktiviert-Hinweis statt des Formulars.
    */
   contactApiSlug?: string | null
+  /**
+   * Welle S1: das Dokument-Raster, das an der Stelle einer `banner`-Sektion
+   * eingesetzt wird. Fehlt es (z. B. Vorschau im Archiv), zeigt die Sektion
+   * nur ihre Einleitung.
+   */
+  bannerSlot?: React.ReactNode
+}
+
+/** Hat der Body eine `banner`-Sektion? Dann gehoert das Raster dorthin, nicht unter die Seite. */
+export function hatBannerSektion(markdown: string | undefined): boolean {
+  if (!markdown) return false
+  return parseWebsiteSections(markdown).some((s) => s.layout === "banner")
 }
 
 /**
@@ -52,13 +71,14 @@ interface WebsiteDetailProps {
  * Markdown-Body (Sektions-Marker) und ein eingebettetes Video — letzteres nur,
  * wenn die URL eine sichere Embed-URL ist (kein relativer Dateiname im iframe).
  */
-export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null }: WebsiteDetailProps): React.ReactElement {
+export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot }: WebsiteDetailProps): React.ReactElement {
   const sections = React.useMemo(
     () => (data.markdown ? parseWebsiteSections(data.markdown) : []),
     [data.markdown],
   )
   const embeddableVideo =
     data.videoUrl && isSafeVideoIframeSrc(data.videoUrl) ? data.videoUrl : undefined
+  const headingCase = data.headingCase ?? "capitalize"
 
   return (
     <div className="w-full">
@@ -73,50 +93,14 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
       )}
 
       {data.heroLayout === "cover" && data.heroImageUrl ? (
-        /* Cover-Variante (Vorlage „Oldies for Future"): helle Flaeche, grosser
-           gestapelter Titel (wortweise), kleineres, vom Titel ueberlagertes Bild. */
-        <header className="relative overflow-hidden bg-[#ebe4dd] px-6 pt-16 pb-10 md:pt-24 md:pb-16">
-          <div className="relative mx-auto max-w-6xl">
-            {/* Bild DAHINTER (z-0): rechts, vertikal zentriert — wird vom grossen
-               Titel ueberlagert (Vorlage-Optik). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={data.heroImageUrl}
-              alt={data.heroImageAlt ?? ""}
-              className="pointer-events-none absolute right-0 top-1/2 z-0 hidden w-[44%] -translate-y-1/2 rounded-lg object-cover shadow-sm md:block"
-            />
-            {/* Bildschirmfuellender Titel (vw-basiert, ~26vh der Vorlage). Basis-Gewicht
-               normal (400); nur Wort 2 („for") bold, Wort 1 („Oldies") kursiv. */}
-            <h1 className="relative z-10 text-[16vw] font-normal uppercase leading-[0.8] tracking-tight text-[#16ad8c] md:text-[19vw]">
-              {data.title
-                .split(/\s+/)
-                .filter(Boolean)
-                .map((word, i) => (
-                  <span
-                    key={i}
-                    className={cn("block", i === 0 && "italic", i === 1 && "font-bold")}
-                  >
-                    {word}
-                  </span>
-                ))}
-            </h1>
-            {/* Mobile: Bild unter dem Titel (kein Overlap). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={data.heroImageUrl}
-              alt={data.heroImageAlt ?? ""}
-              className="mt-6 w-full rounded-lg object-cover md:hidden"
-            />
-            {data.ctaLabel && data.ctaUrl && (
-              <a
-                href={data.ctaUrl}
-                className="relative z-10 mt-6 inline-block rounded-full bg-emerald-600 px-6 py-3 font-medium text-white hover:bg-emerald-500"
-              >
-                {data.ctaLabel}
-              </a>
-            )}
-          </div>
-        </header>
+        <HeroCover
+          title={data.title}
+          subtitle={data.heroSubtitle}
+          imageUrl={data.heroImageUrl}
+          imageAlt={data.heroImageAlt}
+          ctaLabel={data.ctaLabel}
+          ctaUrl={data.ctaUrl}
+        />
       ) : data.heroImageUrl ? (
         <header className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -145,20 +129,34 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         </header>
       )}
 
-      {sections.map((s, i) =>
-        s.layout === "contact-form" ? (
+      {sections.map((s, i) => {
+        if (s.layout === "contact-form") {
           // C3: Kontakt-Formular-Sektion (Versand ueber die Contact-API).
-          <WebsiteContactFormSection
-            key={i}
-            section={s}
-            librarySlug={contactApiSlug}
-            fileId={data.fileId}
-            contactEmail={data.contactEmail}
-          />
-        ) : (
-          <SectionBlock key={i} section={s} />
-        ),
-      )}
+          return (
+            <WebsiteContactFormSection
+              key={i}
+              section={s}
+              librarySlug={contactApiSlug}
+              fileId={data.fileId}
+              contactEmail={data.contactEmail}
+            />
+          )
+        }
+        if (s.layout === "banner") {
+          // S1: Einleitung der Sektion, darunter das Raster an dieser Stelle.
+          return (
+            <React.Fragment key={i}>
+              {s.markdown && (
+                <section className="px-6 pt-14">
+                  <div className="mx-auto max-w-5xl">{renderMarkdownText(s.markdown, s.bg, headingCase)}</div>
+                </section>
+              )}
+              {bannerSlot}
+            </React.Fragment>
+          )
+        }
+        return <SectionBlock key={i} section={s} headingCase={headingCase} />
+      })}
       {embeddableVideo && <VideoEmbed url={embeddableVideo} />}
     </div>
   )

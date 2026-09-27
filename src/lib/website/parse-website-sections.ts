@@ -24,6 +24,7 @@ const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'text-only',
   'video',
   'contact-form',
+  'banner',
 ]
 const SECTION_BGS: readonly SectionBg[] = [
   'default',

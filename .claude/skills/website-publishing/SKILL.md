@@ -124,7 +124,7 @@ Einstellungen aus- und einschalten.
    - Impressum: `menu_area: "footer"`.
    - Fußzeile: `site_role: "footer-content"`, `menu_area: "hidden"`.
    Erlaubte `layout`: image-left, image-right, full-image, text-only, video,
-   contact-form. Erlaubte `bg`: default, light, dark, brand, linen, mint,
+   contact-form, banner (Raster an dieser Stelle; ab Welle S1). Erlaubte `bg`: default, light, dark, brand, linen, mint,
    dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben):
    erst `bild_veroeffentlichen` (Schritt 4 oben), dann die URLs eintragen.
    Frontmatter flach, snake_case, keine verschachtelten Objekte.
@@ -135,9 +135,12 @@ Einstellungen aus- und einschalten.
    Ein zweiter Aufruf nach einer Textänderung aktualisiert den Eintrag.
    Der Text bleibt unverändert — kein Sprachmodell (anders als
    `transformation_starten`).
-4. **Auswahl markieren.** Soll das Banner unter der Seite eine kuratierte
-   Auswahl zeigen, `dokument_felder_setzen` mit `sourceIds` der Dokumente
-   und `listen: { tags: ["fokus"] }`. Nicht `prioritaets_index` setzen —
+4. **Auswahl markieren.** Soll das Banner eine kuratierte Auswahl zeigen,
+   `dokument_felder_setzen` mit `sourceIds` der Dokumente und
+   `listen: { tags: ["fokus"] }`; am Startseiten-Doc dann `banner_tag: "fokus"`,
+   optional `banner_title` und `banner_limit` (3–12), und die Seite neu
+   publizieren. `heading_case: "none"` schaltet die Großschreibung der
+   Überschriften ab. Nicht `prioritaets_index` setzen —
    den rechnet die Pipeline und überschreibt ihn bei jedem Transform-Lauf.
    Nicht publizierte Quellen meldet die Zeile als `nicht_publiziert`.
 5. **Prüfen.** Erneut `seite_pruefen`: Startseite, Menüreihenfolge,
