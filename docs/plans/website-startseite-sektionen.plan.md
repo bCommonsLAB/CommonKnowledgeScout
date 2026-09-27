@@ -9,7 +9,7 @@ todos:
     status: pending
   - id: s1-banner
     content: "S1 Banner erweitern: Frontmatter `banner_tag`, `banner_title`, `banner_limit` am Startseiten-Doc filtern und betiteln das bestehende Raster; Sektions-Marker `layout=banner` setzt es an eine Stelle im Seitentext; ohne Marker bleibt es unten. Docs-API unverändert (`tags=` ist schon Facette)."
-    status: pending
+    status: completed
   - id: s2-hero
     content: "S2 Hero-Variante `hero_layout: campaign` mit Kennzeile im Bild (`hero_kicker`), Unterzeile, primärem und sekundärem Handlungsaufruf (`cta2_label`, `cta2_url`); Sektions-Attribut `kicker=` für die Versalzeile über der Überschrift."
     status: pending
@@ -25,6 +25,12 @@ todos:
 ---
 
 # Website-Startseite: Banner erweitern, Hero und Kacheln
+
+> **Stand 27.09.2026:** S1 gebaut (`website-banner-grid.tsx`, `hero-cover.tsx`,
+> `src/lib/website/banner.ts`; Frontmatter `banner_tag`, `banner_title`,
+> `banner_limit`, `heading_case`; Marker `layout=banner`). Mitgenommen aus dem
+> ersten Live-Lauf: der Cover-Hero zeigte `hero_subtitle` nie, lange Titel
+> liefen über den Rand, `capitalize` war nicht abschaltbar.
 
 > Vorhaben 2 in [`../STAND.md`](../STAND.md). Vorlage des Musters:
 > die Startseite der Library „Oldies for Future“ (Steckbrief 10). Zielbild:

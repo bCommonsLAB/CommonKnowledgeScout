@@ -15,6 +15,14 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   (Menue sortiert nach `menu_order`).
 - Die Galerie bleibt ueber Tab/Menue erreichbar; der Wechsel nutzt **explizit**
   `?view=gallery` (sonst faellt die leere URL wieder auf den Site-Default).
+- **Banner (Welle S1):** Das Raster „Mehr aus dieser Bibliothek" wird vom
+  Seiten-Doc gesteuert, nicht von Settings: `banner_tag` (Facetten-Filter
+  `tags=`), `banner_title`, `banner_limit` (3–12, Vorgabe 6). Eine Sektion
+  `<!-- section layout=banner -->` setzt es an diese Stelle der Seite; ohne
+  Sektion steht es unter der Seite. Sortierung bleibt `sort=rating`
+  (`prioritaets_index`), anonym lesbar. `heading_case: none` schaltet das
+  `capitalize` der Vorlage ab. Ungueltige Werte werden geloggt, nie still
+  ersetzt (`src/lib/website/banner.ts`, `doc-meta-mappers.ts`).
 
 ## 2. Entferntes Legacy — NICHT wiedereinfuehren
 
