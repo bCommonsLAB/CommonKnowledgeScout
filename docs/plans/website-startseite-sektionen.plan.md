@@ -1,42 +1,40 @@
 ---
 name: website-startseite-sektionen
-overview: "Die Website-Landingpage (detailViewType website) kann heute Text-Bild-Sektionen, Video und Kontaktformular. Eine Kampagnen-Startseite nach dem Muster der Library „Klimamaßnahmen“ (Steckbrief 5) braucht zusätzlich: einen Hero mit Kennzeile und zwei Handlungsaufrufen, Kennzahl-Kacheln, ein Dokument-Raster aus der Library (die wichtigsten Maßnahmen), eine Skala-Grafik (Ampel) und eine mehrspaltige Fußzeile. Alles bleibt dokumentgetrieben: Sektions-Marker im Markdown-Body, flaches Frontmatter, keine neuen Settings. Vorhaben 2 in docs/STAND.md."
+overview: "Die Website-Landingpage (detailViewType website) kann Text-Bild-Sektionen, Video, Kontaktformular und zeigt unter jeder Seite ein festes Raster mit den sechs höchstbewerteten Galerie-Einträgen. Eine Kampagnen-Startseite nach dem Muster der Library „Klimamaßnahmen“ (Steckbrief 5) braucht wenig mehr: das Raster an einer wählbaren Stelle mit einem Fokus-Filter, einen Hero mit Kennzeile und zweitem Handlungsaufruf, gelayoutete Kennzahl-Kacheln mit von Hand gesetzten Zahlen. Owner-Entscheidung 27.09.: das bestehende Banner erweitern statt ein neues Raster bauen; Ampel-Skala und dynamische Kennzahlen kommen später. Vorhaben 2 in docs/STAND.md."
 vorhaben: [Klimamaßnahmen Südtirol, Vortrag 30.09.]
 status: entwurf
 todos:
   - id: s0-inhalt
-    content: "S0 Inhalt ohne Code: Startseite, Kontakt, Impressum und Footer als website-Docs anlegen; siteEnabled setzen; Bilder in den Blob spiegeln; prioritaets_index an den Fokus-Maßnahmen setzen. Ergebnis: eine sichtbare Seite mit den bestehenden Layouts."
+    content: "S0 Inhalt ohne Code: Startseite, Kontakt, Impressum und Footer als website-Docs anlegen; siteEnabled setzen; Bilder in den Blob spiegeln; Tag `fokus` an den Fokus-Maßnahmen setzen. Ergebnis: eine sichtbare Seite mit den bestehenden Layouts und dem Banner unten."
     status: pending
-  - id: s1-hero-kicker
-    content: "S1 Hero-Variante `hero_layout: campaign` (Bild oben, Kennzeile im Bild, gestapelter Titel, Unterzeile, primärer + sekundärer Handlungsaufruf) und Sektions-Attribut `kicker=` für die Kennzeile über der Überschrift."
+  - id: s1-banner
+    content: "S1 Banner erweitern: Frontmatter `banner_tag`, `banner_title`, `banner_limit` am Startseiten-Doc filtern und betiteln das bestehende Raster; Sektions-Marker `layout=banner` setzt es an eine Stelle im Seitentext; ohne Marker bleibt es unten. Docs-API unverändert (`tags=` ist schon Facette)."
     status: pending
-  - id: s2-kacheln-und-zitat
-    content: "S2 Sektions-Layout `stats` (Kennzahl-Kacheln aus einer Markdown-Liste) und Zitatkasten mit Randstreifen (Blockquote-Styling je Hintergrund); Hintergründe `stone`, `petrol`, `forest` als Farbtöne der zweiten Vorlage."
+  - id: s2-hero
+    content: "S2 Hero-Variante `hero_layout: campaign` mit Kennzeile im Bild (`hero_kicker`), Unterzeile, primärem und sekundärem Handlungsaufruf (`cta2_label`, `cta2_url`); Sektions-Attribut `kicker=` für die Versalzeile über der Überschrift."
     status: pending
-  - id: s3-doc-grid
-    content: "S3 Sektions-Layout `doc-grid` mit Attributen `type=`, `sort=`, `limit=`: rendert DocumentCards aus der Docs-API (anonym), Fußzeile mit zwei Links (Galerie-Filter, Galerie gesamt)."
+  - id: s3-kacheln
+    content: "S3 Layout `stats`: eine Markdown-Liste `- **600+** Maßnahmen` wird zu Kennzahl-Kacheln, Zahlen stehen im Markdown; Zitatkasten mit Randstreifen; Hintergründe `stone`, `petrol`, `forest`, `greige`."
     status: pending
-  - id: s4-skala
-    content: "S4 Sektions-Layout `scale`: senkrechte Ampel-Skala mit Zonen und Marker aus einer Markdown-Tabelle; Marker-Wert optional aus der Summen-API (aggregate=sums) der Fokus-Maßnahmen."
+  - id: s4-footer
+    content: "S4 Fußzeile mehrspaltig: `footer_columns: 3` am Footer-Doc legt dessen Sektionen nebeneinander; Link-Zeile für menu_area=footer bleibt."
     status: pending
-  - id: s5-footer
-    content: "S5 Fußzeile mehrspaltig: Footer-Content-Doc mit bis zu drei `text-only`-Sektionen nebeneinander (Attribut `columns=3`), Link-Zeile für menu_area=footer bleibt."
-    status: pending
-  - id: s6-sprache
-    content: "S6 Sprachumschalter DE/IT in der TopNav im Site-Kontext; Übersetzungslauf der website-Docs nach dem bestehenden Pfad (translation guard)."
+  - id: s5-sprache
+    content: "S5 Sprachumschalter DE/IT in der TopNav im Site-Kontext; Übersetzungslauf der website-Docs nach dem bestehenden Pfad."
     status: pending
 ---
 
-# Website-Startseite: Sektionstypen für Kampagnen-Seiten
+# Website-Startseite: Banner erweitern, Hero und Kacheln
 
 > Vorhaben 2 in [`../STAND.md`](../STAND.md). Vorlage des Musters:
-> die Startseite der Library „Oldies for Future“ (Steckbrief 10, Site-Modus
-> mit eigener Domain). Zielbild: die Startseite der Library „Klimamaßnahmen“
-> (Steckbrief 5) nach einer Figma-Vorlage mit sieben Sektionen; die Vorlage,
-> die Texte und die Abstimmung mit dem fachlichen Partner liegen im Archiv,
-> Vorhabensordner `26.01 Klimamassnahmen Südtirol`.
+> die Startseite der Library „Oldies for Future“ (Steckbrief 10). Zielbild:
+> die Startseite der Library „Klimamaßnahmen“ (Steckbrief 5) nach einer
+> Figma-Vorlage mit sieben Sektionen; Vorlage, Texte und Abstimmung mit dem
+> fachlichen Partner liegen im Archiv, Vorhabensordner
+> `26.01 Klimamassnahmen Südtirol`. Nachbar:
+> [`mcp-bruecke-website-publizieren.plan.md`](mcp-bruecke-website-publizieren.plan.md).
 
-## 1. Was heute geht (Bestand, geprüft am 26.09.2026)
+## 1. Was heute geht (Bestand, geprüft am 27.09.2026)
 
 Contract: [`../contracts/website-landingpage.md`](../contracts/website-landingpage.md).
 
@@ -50,160 +48,135 @@ Contract: [`../contracts/website-landingpage.md`](../contracts/website-landingpa
 - Navigation dokumentgetrieben: `menu_order`, `menu_area`
   (`main|footer|hidden`), `site_role` (`page|footer-content`); Deep-Link
   `?site=<slug>` (`src/lib/website/site-navigation.ts`).
-- Unter jeder Seite ein festes Raster „Mehr aus dieser Bibliothek“ mit den
-  sechs höchstbewerteten Nicht-Website-Docs (`sort=rating`, also
-  `prioritaets_index` absteigend) und einem Galerie-Link
-  (`website-landing-live.tsx`, `BANNER_LIMIT`).
-- Fußzeile: Doc mit `site_role: footer-content`, eine Spalte
-  (`website-site-footer.tsx`). Kontaktformular über `contact_email` und die
-  öffentliche Contact-API.
-- Site-Modus: `publicPublishing.siteEnabled`, Domain über
-  `PUBLIC_DOMAIN_LIBRARY_MAP` (`src/lib/root-landing.ts`), Logo und
-  Hintergrund über `publicPublishing.logoUrl` / `backgroundImageUrl`.
-- Für Steckbrief 5: `detailViewType: climateAction` mit `co2_einsparung_kt`,
-  `kosten_eur`, `durchsetzbarkeit`, `lv_bewertung`, `category`; Summen über
-  `aggregate=sums` (`packages/contracts/src/detail-view-type-registry.ts`).
+- **Das Banner.** Unter jeder Seite ein Raster „Mehr aus dieser Bibliothek“
+  (`website-landing-live.tsx`): ein Aufruf der öffentlichen Docs-API mit
+  `sort=rating&limit=11`, Website-Docs werden clientseitig entfernt, sechs
+  Karten bleiben (`BANNER_LIMIT`). Die Karte ist die `DocumentCard` des
+  Explorer-Pakets, die je Typ die passende Karte wählt; für Steckbrief 5
+  die `ClimateActionCard` mit Bild, Handlungsfeld, Titel, Nummer,
+  Prioritäts-Indikator und Sternen. Der Galerie-Link trägt den Text aus
+  `publicPublishing.gallery.moreLinkLabel`. Überschrift und Position sind
+  fest im Code.
+- **Tag-Filter existiert.** `tags` ist eine Pflicht-Facette aller Typen
+  (`src/lib/detail-view-types/base-fields.ts`, Typ `string[]`), und die
+  Docs-API übernimmt jede Facette als Query-Parameter
+  (`buildFilterFromQuery`): `docs?tags=fokus&sort=rating` liefert anonym
+  die markierten Einträge, absteigend nach Prioritäts-Index. Kein
+  Server-Code nötig.
+- `sort=rating` sortiert nach `prioritaets_index`. Für Steckbrief 5 rechnet
+  die Transform-Phase diesen Wert aus CO₂, Kosten und Durchsetzbarkeit
+  (`phase-template.ts`) und überschreibt ihn bei jedem Lauf; er ist die
+  Reihenfolge innerhalb einer Auswahl, nicht die Auswahl.
+- Die Galerie liest heute keine Facetten aus der URL (nur `doc` und den
+  Modus). Ein Link „alle Fokus-Maßnahmen“ mit vorgewähltem Filter ist
+  damit noch nicht möglich; der Link führt in die Galerie ohne Filter.
 
-## 2. Was die Vorlage zusätzlich braucht
+## 2. Was die Vorlage braucht, und was davon jetzt kommt
 
-Sieben Sektionen der Figma-Vorlage gegen den Bestand:
-
-| Sektion der Vorlage | Bestand reicht? | Fehlt |
+| Sektion der Vorlage | Bestand | Entscheidung 27.09. |
 |---|---|---|
-| Hero: Bild mit Kennzeile, gestapelter Titel, Unterzeile, zwei Buttons | teils (`cover` hat einen Button, kein Kennzeilen-Badge) | Hero-Variante `campaign`, zweiter Handlungsaufruf |
-| „Wer wir sind“: Kennzeile, Text, Etiketten der Träger, Bild rechts | fast (`image-right`) | Kennzeile über der Überschrift, Etiketten-Liste als Chips |
-| „Warum machen wir das“: Bild links, Text, Zitatkasten mit Randstreifen | fast (`image-left`, Blockquote) | Zitat-Styling mit Randstreifen |
-| „Was ist die Lösung“: Text, drei Kennzahl-Kacheln, Bild rechts | nein | Layout `stats` |
-| „Maßnahmen im Fokus“: Sortierschalter, Kartenraster aus der Library, zwei Links | nein (Banner ist fest, nicht platzierbar, nicht filterbar) | Layout `doc-grid` mit `type=`, `sort=`, `limit=` |
-| „Wo stehen wir“: Ampel-Skala mit Marker, Kennzahl-Kacheln, Infobox, Quellenzeile | nein | Layout `scale`; `stats` wiederverwendet |
-| „Gemeinsam weiterdenken“: zentrierter Text, Button, Ausblick-Karte, Terminhinweis | fast (`text-only`) | zentrierte Variante `align=center`, Button aus Markdown-Link |
-| Fußzeile: drei Spalten, Copyright-Zeile | nein (eine Spalte) | `columns=3` am Footer-Doc |
-| Kopf: Sprachumschalter DE/IT | nein | TopNav im Site-Kontext |
+| Hero: Bild mit Kennzeile, Titel, Unterzeile, zwei Buttons | `cover` hat einen Button, keine Kennzeile | S2, kleiner Code |
+| „Wer wir sind“, „Warum“, „Lösung“: Text-Bild-Blöcke, Zitat | `image-left/right`, Blockquote | ohne Code; Kennzeile als Attribut in S2 |
+| Kennzahl-Kacheln in „Lösung“ | fehlt | S3, nur Layout; Zahlen stehen im Markdown |
+| „Maßnahmen im Fokus“: Kartenraster aus der Library | Banner, fest unten, ohne Filter | **S1: Banner erweitern** (Filter, Titel, Position) |
+| „Wo stehen wir“: Ampel-Skala, Kachel, Infobox | fehlt | **später**, als Text-Bild-Sektion; Vorrat |
+| „Gemeinsam weiterdenken“: zentrierter Text, Button, Termin | `text-only` | ohne Code |
+| Fußzeile dreispaltig | eine Spalte | S4, nach dem Termin |
+| Sprachumschalter DE/IT | fehlt | S5, nach dem Termin |
 
-Farben der Vorlage (Tiefgrün, Petrol, Stein, warmes Greige, Terrakotta als
-Akzent) sind neue Hintergrund-Werte; die bestehenden Werte bleiben, damit
-Steckbrief 10 unverändert rendert.
+## 3. Regeln
 
-## 3. Regeln, die gelten
-
-- **Dokumentgetrieben, flach.** Alles Neue ist ein Sektions-Attribut im
-  Marker oder ein flaches Frontmatter-Feld. Keine neuen Library-Settings,
-  keine verschachtelten YAML-Objekte (AGENTS.md, Frontmatter-Format).
-- **Kein stiller Fallback.** Unbekannte `layout`-, `bg`-, `sort`- oder
-  `type`-Werte werfen im Parser wie heute einen Fehler
-  (`no-silent-fallbacks.md`).
-- **Anonym lesbar.** `doc-grid` und `scale` lesen nur die öffentliche
-  Docs-API (`/api/chat/<id>/docs`), keine Member-Sortierung (`sort=stars`
-  bleibt Member-only, `sort=rating` ist der öffentliche Weg).
-- **Bilder aus dem Blob.** Absolute, anonym lesbare URLs
-  (Skill `website-publishing`, Contract §5).
-- **Kein Library-Inhalt im Repo.** Texte, Bild-URLs, IDs und die
-  Abstimmung mit dem Partner bleiben im Archiv. Tests arbeiten mit
-  erfundenen Fixtures.
-- Dateien höchstens 200 Zeilen: `website-landing-blocks.tsx` (152) und
-  `website-detail.tsx` (165) werden nicht erweitert, sondern je Layout eine
-  eigene Datei unter `src/components/library/website/sections/`.
+- **Dokumentgetrieben, flach.** Neues sind Frontmatter-Felder oder
+  Marker-Attribute; keine neuen Library-Settings, keine verschachtelten
+  YAML-Objekte (AGENTS.md, Frontmatter-Format).
+- **Kein stiller Fallback.** Unbekannte `layout`-, `bg`- oder
+  `hero_layout`-Werte werfen im Parser wie heute einen Fehler
+  (`no-silent-fallbacks.md`). Ein `banner_tag`, der keine Treffer liefert,
+  zeigt das Banner leer mit Konsolen-Warnung, nicht das ungefilterte Raster.
+- **Anonym lesbar.** Alles läuft über die öffentliche Docs-API; keine
+  Member-Sortierung (`sort=stars` bleibt Member-only).
+- **Bilder aus dem Blob.** Absolute, anonym lesbare URLs (Skill
+  `website-publishing`, Contract §5).
+- **Kein Library-Inhalt im Repo.** Tests mit erfundenen Fixtures.
+- Dateien höchstens 200 Zeilen: `website-landing-live.tsx` hat 219 und
+  wird beim Umbau geteilt (Banner in eine eigene Datei), nicht erweitert.
 
 ## 4. Wellen
 
-Reihenfolge nach Nutzen für den Termin: erst Inhalt sichtbar machen, dann
-die Sektionen, die ohne Code nicht gehen, zuletzt Kür.
+### S0 · Inhalt ohne Code (Owner, Cowork über die Brücke)
 
-### S0 · Inhalt ohne Code (Owner, Cowork über die MCP-Brücke)
+1. Vier website-Docs anlegen: Startseite (`menu_order: 1`), Kontakt
+   (`contact_email`, `layout=contact-form`), Impressum (`menu_area:
+   footer`), Fußzeile (`site_role: footer-content`). Muster: die vier Docs
+   von Steckbrief 10 im Ordner `Webseite/Seiten/`.
+2. Startseite mit den heutigen Layouts füllen. Kennzahlen und „Wo stehen
+   wir“ vorerst als Text.
+3. Tag `fokus` an den Fokus-Maßnahmen setzen (Liste des Partners im Archiv,
+   rund 30 Einträge). Bis Welle S1 zeigt das Banner die sechs nach Index
+   höchstbewerteten Maßnahmen, danach die markierten.
+4. `siteEnabled` setzen, Bilder in den Blob spiegeln, Logo-URL eintragen.
+5. Publizieren (heute: Story-Tab der Datei-Vorschau; künftig
+   `dokument_publizieren` aus dem Brücken-Plan).
 
-1. Vier website-Docs in der Library anlegen: Startseite (`menu_order: 1`),
-   Kontakt (`contact_email`, `layout=contact-form`), Impressum
-   (`menu_area: footer`), Fußzeile (`site_role: footer-content`). Muster: die
-   vier Docs der Library Steckbrief 10.
-2. Startseite mit den heutigen Layouts füllen: Wer wir sind (`image-right`),
-   Warum (`image-left`, Zitat als Blockquote), Lösung (`image-right`),
-   Weiterdenken (`text-only`). Die Kennzahlen und die Ampel vorerst als
-   Text.
-3. Fokus-Maßnahmen markieren (Liste des Partners im Archiv, rund 30
-   Einträge). **Nicht** über `prioritaets_index`: den berechnet die
-   Transform-Phase aus CO₂, Kosten und Durchsetzbarkeit
-   (`phase-template.ts`) und überschreibt ihn bei jedem Lauf. Stattdessen
-   ein Tag `fokus` im Frontmatter der Maßnahmen-Twins (Tags sind Facette
-   und Filter der Docs-API). Das bestehende Banner zeigt weiterhin die
-   sechs nach Index höchstbewerteten Maßnahmen; die Auswahl des Partners
-   wird erst mit `doc-grid` (S3) über `tag=fokus` sichtbar. Bis dahin
-   zeigt `?view=gallery` mit gesetztem Tag-Filter die Auswahl.
-4. `siteEnabled` setzen, Bilder nach `web/images/` und mit
-   `scripts/mirror-website-images-to-blob.ts` spiegeln, Logo-URL eintragen.
-5. Ergebnis: `/explore/<slug>` zeigt die Startseite. Reicht als Rückfallebene
-   für den Vortrag.
+### S1 · Banner erweitern
 
-### S1 · Hero `campaign` und Kennzeile
+Frontmatter am Startseiten-Doc, alle optional:
 
-- Frontmatter: `hero_layout: campaign`, `hero_kicker` (Kennzeile im Bild),
-  `cta2_label`, `cta2_url` (sekundärer Handlungsaufruf).
-- Marker-Attribut `kicker="…"` für jede Sektion; Renderer setzt es als
-  kleine Versalzeile über die H2.
-- Dateien: `sections/hero-campaign.tsx` (neu), `website-detail.tsx` wählt
-  die Variante; Mapper `doc-meta-mappers.ts` und Registry `website`
-  (optionalFields) ergänzen; `parse-website-sections.ts` liest `kicker`.
+| Feld | Wirkung | ohne Feld |
+|---|---|---|
+| `banner_tag` | zusätzlicher Query-Parameter `tags=<wert>` | wie heute, ungefiltert |
+| `banner_title` | Überschrift des Rasters | „Mehr aus dieser Bibliothek“ |
+| `banner_limit` | Kartenzahl, 3 bis 12 | 6 |
+
+Position: ein Marker `<!-- section layout=banner -->` (leer oder mit
+Kennzeile und Unterzeile im Markdown) setzt das Raster an diese Stelle im
+Seitentext. Ohne Marker bleibt es unter der Seite. Mit Marker entfällt das
+untere Raster; eine Seite zeigt es einmal.
+
+Umbau: das Raster aus `website-landing-live.tsx` in
+`website/website-banner-grid.tsx` ziehen (Fetch, Karten, Galerie-Link,
+unverändert); `WebsiteDetail` bekommt das Raster als Element für die
+`banner`-Sektion; `use-website-landing-data.ts` liest die drei Felder;
+Mapper `doc-meta-mappers.ts` und Registry `website` (optionalFields)
+ergänzen; Parser kennt `banner`. Der Galerie-Link bleibt
+`?view=gallery`, bis die Galerie Facetten aus der URL liest (eigener
+kleiner Punkt, Vorrat).
+
+Tests: Parser (`banner` mit und ohne Text), Query-Bau mit und ohne Tag,
+Banner einmal je Seite.
+
+### S2 · Hero `campaign` und Kennzeile
+
+- Frontmatter: `hero_layout: campaign`, `hero_kicker`, `cta2_label`,
+  `cta2_url`. Gestaltung: Bild oben abgerundet mit Kennzeile im Bild,
+  darunter Titel, Unterzeile, rechts zwei Buttons.
+- Marker-Attribut `kicker="…"`: kleine Versalzeile über der H2.
+- Dateien: `website/hero-campaign.tsx` (neu), `website-detail.tsx` wählt
+  die Variante; Mapper und Registry ergänzen; Parser liest `kicker`.
 - Tests: Parser (Attribut mit und ohne Anführungszeichen, Fehler bei
   Unbekanntem), Mapper.
 
-### S2 · Kacheln, Zitat, Farben
+### S3 · Kacheln, Zitat, Farben
 
-- Layout `stats`: Markdown-Liste `- **600+** Maßnahmen` wird zu Kacheln;
-  zwei Spalten mit optionalem Bild wie `image-right`.
-- Blockquote je Hintergrund mit Randstreifen (Akzentfarbe), erster Absatz
-  als Leitsatz bleibt wie heute.
+- Layout `stats`: Markdown-Liste `- **600+** Maßnahmen` wird zu Kacheln,
+  zwei Spalten mit optionalem Bild wie `image-right`. Die Zahlen stehen im
+  Markdown; woher sie kommen, ist Inhaltsarbeit.
+- Blockquote mit Randstreifen in Akzentfarbe je Hintergrund.
 - Neue `bg`-Werte `stone`, `petrol`, `forest`, `greige`; `SECTION_STYLE`
-  in eine eigene Datei `sections/section-style.ts` ausgliedern.
-- Tests: Parser für `stats`, Snapshot der Kachel-Liste.
+  in `website/section-style.ts` ausgliedern. Bestehende Werte bleiben.
+- Tests: Parser für `stats`, Kachel-Liste.
 
-### S3 · `doc-grid` (Kartenraster aus der Library)
+### S4 · Fußzeile mehrspaltig (nach dem Termin)
 
-- Marker: `<!-- section layout=doc-grid type=climateAction tag=fokus sort=rating limit=6 bg=greige -->`
-  mit Überschrift, Unterzeile und zwei Links im Markdown
-  (`[Alle ansehen](?view=gallery&tags=fokus)`,
-  `[Alle durchsuchen](?view=gallery)`).
-- Erlaubte `sort`-Werte: `rating`, `date`; erlaubte `type`-Werte: die
-  Registry-Typen; `tag=` ein einzelner Tag-Wert (Facetten-Filter der
-  Docs-API). Sonst Parser-Fehler.
-- Renderer: Client-Komponente `sections/doc-grid-section.tsx`, holt über
-  `fetchDocs` aus `use-website-landing-data.ts`, zeigt `DocumentCard` aus
-  `@ks/module-explorer` (im Root-Modus mit `?view=gallery&doc=<slug>`, im
-  Site-Modus lokal, wie das heutige Banner).
-- Das feste Banner „Mehr aus dieser Bibliothek“ bleibt für Libraries ohne
-  `doc-grid`; hat die Startseite eine `doc-grid`-Sektion, wird das Banner
-  nicht mehr angehängt (Frontmatter `banner: false` als expliziter
-  Schalter, kein Raten).
-- Sortierschalter „Günstigste pro Tonne“ aus der Vorlage braucht eine
-  Kennzahl Kosten je Tonne, die es noch nicht gibt (Vorrat, siehe §6);
-  in S3 nur `sort=rating`.
-- Tests: Parser, Query-Bau, Karten-Anzahl.
+- `footer_columns: 3` am Footer-Doc legt dessen Sektionen nebeneinander;
+  letzte Sektion über die volle Breite (Copyright, Technik).
+- Raster in `website/footer-columns.tsx`.
 
-### S4 · `scale` (Ampel-Skala)
+### S5 · Sprachumschalter (nach dem Termin)
 
-- Marker `<!-- section layout=scale bg=forest -->` mit einer
-  Markdown-Tabelle `| Zone | Titel | Schwelle | Erläuterung |` und einer
-  Zeile `Marker | <Label> | <Wert> |`. Der Renderer zeichnet die senkrechte
-  Skala mit drei Zonen und setzt den Marker.
-- Optional `marker=sum:co2_einsparung_kt` liest die Summe der Docs aus der
-  gleichen Abfrage wie `doc-grid` (`aggregate=sums`), sonst steht der
-  Wert im Markdown. Welche Richtung „grün“ ist, entscheidet die Tabelle,
-  nicht der Code (die Schwellen sind fachlich noch offen, Archiv).
-- Tests: Tabellen-Parser, Marker-Position bei Unter-, Zwischen- und
-  Überschreitung, Fehler bei fehlender Zone.
-
-### S5 · Fußzeile mehrspaltig
-
-- Footer-Doc mit drei `text-only`-Sektionen; Frontmatter
-  `footer_columns: 3` legt die Sektionen nebeneinander; letzte Zeile
-  (Copyright, Technik) als vierte Sektion über die volle Breite.
-- `website-site-footer.tsx` bleibt unter 200 Zeilen; das Raster in
-  `sections/footer-columns.tsx`.
-
-### S6 · Sprachumschalter (Kür, nach dem Termin)
-
-- TopNav im Site-Kontext (`use-site-menu-items.ts`, `top-nav.tsx`): Umschalter
-  über die Locales aus `library.config.translations`; Übersetzungslauf für
-  website-Docs nach dem bestehenden Pfad (`website-translation-guard.ts`).
-- Nur, wenn die italienische Fassung der Texte vorliegt.
+- TopNav im Site-Kontext (`use-site-menu-items.ts`, `top-nav.tsx`) über die
+  Locales aus `library.config.translations`; Übersetzungslauf nach dem
+  bestehenden Pfad. Nur mit vorliegender italienischer Fassung.
 
 ## 5. Reihenfolge und Aufwand
 
@@ -212,34 +185,29 @@ die Sektionen, die ohne Code nicht gehen, zuletzt Kür.
 | S0 | ein halber Tag Inhaltsarbeit | ja, zuerst |
 | S1 | ein halber Tag | ja |
 | S2 | ein halber Tag | ja |
-| S3 | ein Tag | ja, wenn S0 bis S2 stehen |
-| S4 | ein Tag | wenn die Schwellen fachlich geklärt sind, sonst Text |
-| S5 | ein halber Tag | nein, Vorstellung Ende Oktober |
-| S6 | ein Tag plus Übersetzung | nein |
+| S3 | ein halber Tag | ja, wenn S1 und S2 stehen |
+| S4 | ein halber Tag | nein, Vorstellung Ende Oktober |
+| S5 | ein Tag plus Übersetzung | nein |
 
-S1 bis S3 sind je eine PR (Diff-Limits aus AGENTS.md), S4 und S5 je eine
-PR. Jede PR: `pnpm test`, `pnpm lint`, `npx tsc --noEmit -p tsconfig.json`
-mit Vorher/Nachher-Vergleich; kein `pnpm build` im Cloud-Agent.
+S1 bis S3 je eine PR (Diff-Limits aus AGENTS.md). Jede PR: `pnpm test`,
+`pnpm lint`, `npx tsc --noEmit -p tsconfig.json` mit Vorher/Nachher-
+Vergleich; kein `pnpm build` im Cloud-Agent.
 
 ## 6. Nicht in diesem Plan (Vorrat)
 
-- Kennzahl Kosten je Tonne und Sortierschalter (Summen-Plan Stufe 3d im
-  Vorrat von `STAND.md`; Kosten werden seit 15.09. nicht mehr summiert).
-- Kommentar neben jeder Aussage (Bewertungsmodus-Ausbau, Vorhaben 3 nutzt
-  denselben Composer).
-- „Aus der Praxis“: Best-Praxis-Beispiele als eigene Library (ADR 0009,
-  Föderation, M8).
-- Eigene Maßnahmen-Karte mit Balkenbewertung statt `DocumentCard`: erst
-  wenn die Kennzahlen belastbar sind.
-- OneDrive-Anmeldung stabil neu aufsetzen: eigener Punkt 1 von Vorhaben 2,
-  nicht Teil der Website-Wellen.
+- Ampel-Skala mit Marker aus der Summe der Fokus-Maßnahmen
+  (`aggregate=sums`); bis dahin Text und Bild.
+- Dynamische Kennzahlen (Anzahl Maßnahmen, Handlungsfelder aus den
+  Facetten).
+- Galerie liest Facetten aus der URL (`?view=gallery&tags=fokus`).
+- Kennzahl Kosten je Tonne und Sortierschalter (Summen-Plan Stufe 3d).
+- Kommentar neben jeder Aussage (Bewertungsmodus-Ausbau).
+- „Aus der Praxis“: Best-Praxis-Beispiele als eigene Library (ADR 0009).
+- OneDrive-Anmeldung stabil neu aufsetzen: Punkt 1 von Vorhaben 2.
 
 ## 7. Offene Entscheidungen (Owner)
 
-1. Domain der Site (Eintrag in `PUBLIC_DOMAIN_LIBRARY_MAP`) oder vorerst nur
+1. Domain der Site (`PUBLIC_DOMAIN_LIBRARY_MAP`) oder vorerst nur
    `/explore/<slug>`.
-2. Ob die Fokus-Maßnahmen über ein Tag (`fokus`, anonym filterbar) oder
-   über Favoriten (Member-only, `sort=stars`) markiert werden. Empfehlung:
-   Tag, weil anonym lesbar und ohne Codeänderung setzbar.
-3. Ob das feste Banner unter der Startseite bleibt oder das `doc-grid` es
-   ersetzt (Empfehlung: ersetzen, Schalter `banner: false`).
+2. Banner-Position: mit Marker in der Mitte (wie Figma) oder unten wie bei
+   Steckbrief 10. Beides geht nach S1; der Inhalt entscheidet.

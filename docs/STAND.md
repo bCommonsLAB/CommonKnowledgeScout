@@ -98,9 +98,12 @@ Bekannte Punkte:
    Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
    im Konzept). **Bau-Plan seit 26.09.:**
    [`plans/website-startseite-sektionen.plan.md`](plans/website-startseite-sektionen.plan.md)
-   (Wellen S0 Inhalt ohne Code, S1 Hero, S2 Kacheln, S3 Dokument-Raster,
-   S4 Ampel-Skala, S5 Fußzeile, S6 Sprache); die Abstimmung mit dem
-   Partner und die Texte liegen im Vorhabensordner des Archivs.
+   (Owner 27.09.: das bestehende Banner um Fokus-Filter, Titel und
+   Position erweitern statt ein neues Raster bauen; Wellen S0 Inhalt ohne
+   Code, S1 Banner, S2 Hero, S3 Kacheln nur gelayoutet, S4 Fußzeile, S5
+   Sprache; Ampel-Skala und dynamische Kennzahlen im Vorrat); die
+   Abstimmung mit dem Partner und die Texte liegen im Vorhabensordner des
+   Archivs.
 4. Brücke erweitern, damit eine Website aus Cowork heraus publiziert
    werden kann (Owner 27.09.):
    [`plans/mcp-bruecke-website-publizieren.plan.md`](plans/mcp-bruecke-website-publizieren.plan.md)
