@@ -8,11 +8,15 @@
  * 27.09.2026 behoben: der Untertitel (`hero_subtitle`) wurde in dieser
  * Variante nie gerendert, und ein langes einzelnes Wort lief bei 16–19 vw
  * ueber den Rand — die Groesse haengt jetzt am laengsten Wort.
+ * Welle S2: Flaeche und Farben aus dem Profil (Flaeche `linen`: Hintergrund,
+ * Titel = Ueberschriftfarbe, Untertitel = Textfarbe), Button ueber Akzent.
  */
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { coverTitelGroesseVw } from "@/lib/website/banner"
+import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
+import { BUTTON_PRIMARY, HEADING_FONT, surfaceStyle } from "@/lib/website/surface-style"
 
 interface HeroCoverProps {
   title: string
@@ -21,14 +25,16 @@ interface HeroCoverProps {
   imageAlt?: string
   ctaLabel?: string
   ctaUrl?: string
+  theme?: SiteThemeResolved
 }
 
-export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUrl }: HeroCoverProps): React.ReactElement {
+export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUrl, theme = OLDIES_THEME }: HeroCoverProps): React.ReactElement {
   const woerter = title.split(/\s+/).filter(Boolean)
   const groesseVw = coverTitelGroesseVw(title)
+  const flaeche = surfaceStyle("linen", theme)
 
   return (
-    <header className="relative overflow-hidden bg-[#ebe4dd] px-6 pt-16 pb-10 md:pt-24 md:pb-16">
+    <header className={cn("relative overflow-hidden px-6 pt-16 pb-10 md:pt-24 md:pb-16", flaeche.className)} style={flaeche.style}>
       <div className="relative mx-auto max-w-6xl">
         {/* Bild DAHINTER (z-0): rechts, vertikal zentriert — wird vom grossen Titel ueberlagert. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -40,7 +46,7 @@ export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUr
         {/* Gestapelter Titel: Basis-Gewicht normal, Wort 1 kursiv, Wort 2 fett (Vorlage-Optik).
             Groesse in vw, begrenzt durch das laengste Wort — `break-words` als zweite Sicherung. */}
         <h1
-          className="relative z-10 break-words font-normal uppercase leading-[0.8] tracking-tight text-[#16ad8c]"
+          className={cn("relative z-10 break-words font-normal uppercase leading-[0.8] tracking-tight text-[color:var(--site-heading)]", HEADING_FONT)}
           style={{ fontSize: `${Math.min(groesseVw, 16)}vw` }}
         >
           {woerter.map((wort, i) => (
@@ -50,13 +56,13 @@ export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUr
           ))}
         </h1>
         {subtitle && (
-          <p className="relative z-10 mt-6 max-w-2xl text-lg leading-relaxed text-[#202020] md:text-xl">{subtitle}</p>
+          <p className="relative z-10 mt-6 max-w-2xl text-lg leading-relaxed md:text-xl">{subtitle}</p>
         )}
         {/* Mobile: Bild unter dem Titel (kein Overlap). */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={imageUrl} alt={imageAlt ?? ""} className="mt-6 w-full rounded-lg object-cover md:hidden" />
         {ctaLabel && ctaUrl && (
-          <a href={ctaUrl} className="relative z-10 mt-6 inline-block rounded-full bg-emerald-600 px-6 py-3 font-medium text-white hover:bg-emerald-500">
+          <a href={ctaUrl} className={cn(BUTTON_PRIMARY, "relative z-10 mt-6")}>
             {ctaLabel}
           </a>
         )}

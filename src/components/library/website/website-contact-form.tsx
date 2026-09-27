@@ -17,6 +17,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { renderMarkdownText } from "@/components/library/website/website-landing-blocks"
 import type { WebsiteSection } from "@/lib/website/types"
+import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
+import { BUTTON_STRONG, surfaceStyle } from "@/lib/website/surface-style"
+import { cn } from "@/lib/utils"
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Bitte geben Sie Ihren Namen ein."),
@@ -41,6 +44,8 @@ interface WebsiteContactFormSectionProps {
   fileId?: string
   /** `contact_email` aus dem Frontmatter (nur fuer die Aktiv/Inaktiv-Anzeige). */
   contactEmail?: string
+  /** Welle S2: Flaeche `mint` und Button aus dem Profil. */
+  theme?: SiteThemeResolved
 }
 
 const INPUT_CLASS =
@@ -51,6 +56,7 @@ export function WebsiteContactFormSection({
   librarySlug,
   fileId,
   contactEmail,
+  theme = OLDIES_THEME,
 }: WebsiteContactFormSectionProps): React.ReactElement {
   const [status, setStatus] = React.useState<"idle" | "sending" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -88,12 +94,13 @@ export function WebsiteContactFormSection({
   }
 
   const { errors } = form.formState
+  const flaeche = surfaceStyle("mint", theme)
 
   return (
-    <section className="bg-[#6fc5ae] px-6 py-14 text-[#0b3a30]">
+    <section className={cn("px-6 py-14", flaeche.className)} style={flaeche.style}>
       <div className="mx-auto max-w-2xl">
         {section.markdown && (
-          <div className="mb-8">{renderMarkdownText(section.markdown, "mint")}</div>
+          <div className="mb-8">{renderMarkdownText(section.markdown, "mint", undefined, theme)}</div>
         )}
 
         {!isConfigured ? (
@@ -145,7 +152,7 @@ export function WebsiteContactFormSection({
             <button
               type="submit"
               disabled={status === "sending"}
-              className="rounded-full bg-emerald-700 px-8 py-3 font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
+              className={cn(BUTTON_STRONG, "px-8 text-base disabled:opacity-60")}
             >
               {status === "sending" ? "wird gesendet …" : "senden"}
             </button>

@@ -8,6 +8,10 @@ import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
 import { SectionBlock, VideoEmbed, renderMarkdownText } from "@/components/library/website/website-landing-blocks"
 import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
 import { HeroCover } from "@/components/library/website/hero-cover"
+import { HeroCampaign } from "@/components/library/website/hero-campaign"
+import { OLDIES_THEME, siteThemeCssVars, type SiteThemeResolved } from "@/lib/website/site-theme"
+import { BUTTON_PRIMARY } from "@/lib/website/surface-style"
+import { cn } from "@/lib/utils"
 
 /** Detail-Daten fuer detailViewType `website` (Landingpage als Dokument). */
 export interface WebsiteDetailData {
@@ -19,11 +23,17 @@ export interface WebsiteDetailData {
    * Hero-Variante (Frontmatter `hero_layout`):
    * - `overlay` (Default): Bild full-bleed mit dunklem Overlay + zentriertem Text.
    * - `cover`: helle Flaeche, grosser gestapelter Titel, kleineres ueberlagertes Bild.
+   * - `campaign` (S2): Bild oben mit Kennzeile, darunter Titel, Zweitzeile, zwei Buttons.
    */
   heroLayout?: string
   videoUrl?: string
   ctaLabel?: string
   ctaUrl?: string
+  /** Welle S2, Hero `campaign`: `hero_kicker`, `hero_title2`, `cta2_label`, `cta2_url`. */
+  heroKicker?: string
+  heroTitle2?: string
+  cta2Label?: string
+  cta2Url?: string
   /** Markdown-Body mit Sektions-Markern (siehe parse-website-sections). */
   markdown?: string
   /**
@@ -56,6 +66,8 @@ interface WebsiteDetailProps {
    * nur ihre Einleitung.
    */
   bannerSlot?: React.ReactNode
+  /** Welle S2: aufgeloestes Design-Profil; fehlt = Vorlage (Archiv-Vorschau). */
+  theme?: SiteThemeResolved
 }
 
 /** Hat der Body eine `banner`-Sektion? Dann gehoert das Raster dorthin, nicht unter die Seite. */
@@ -71,7 +83,7 @@ export function hatBannerSektion(markdown: string | undefined): boolean {
  * Markdown-Body (Sektions-Marker) und ein eingebettetes Video — letzteres nur,
  * wenn die URL eine sichere Embed-URL ist (kein relativer Dateiname im iframe).
  */
-export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot }: WebsiteDetailProps): React.ReactElement {
+export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
   const sections = React.useMemo(
     () => (data.markdown ? parseWebsiteSections(data.markdown) : []),
     [data.markdown],
@@ -79,9 +91,11 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
   const embeddableVideo =
     data.videoUrl && isSafeVideoIframeSrc(data.videoUrl) ? data.videoUrl : undefined
   const headingCase = data.headingCase ?? "capitalize"
+  // S2: Akzent/Radius als Variablen auch ohne den Wrapper der Live-Seite (Archiv-Vorschau).
+  const themeVars = React.useMemo(() => siteThemeCssVars(theme) as React.CSSProperties, [theme])
 
   return (
-    <div className="w-full">
+    <div className="w-full" style={themeVars}>
       {showBackLink && (
         <button
           type="button"
@@ -92,7 +106,21 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         </button>
       )}
 
-      {data.heroLayout === "cover" && data.heroImageUrl ? (
+      {data.heroLayout === "campaign" && data.heroImageUrl ? (
+        <HeroCampaign
+          title={data.title}
+          title2={data.heroTitle2}
+          subtitle={data.heroSubtitle}
+          kicker={data.heroKicker}
+          imageUrl={data.heroImageUrl}
+          imageAlt={data.heroImageAlt}
+          ctaLabel={data.ctaLabel}
+          ctaUrl={data.ctaUrl}
+          cta2Label={data.cta2Label}
+          cta2Url={data.cta2Url}
+          theme={theme}
+        />
+      ) : data.heroLayout === "cover" && data.heroImageUrl ? (
         <HeroCover
           title={data.title}
           subtitle={data.heroSubtitle}
@@ -100,6 +128,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
           imageAlt={data.heroImageAlt}
           ctaLabel={data.ctaLabel}
           ctaUrl={data.ctaUrl}
+          theme={theme}
         />
       ) : data.heroImageUrl ? (
         <header className="relative">
@@ -113,10 +142,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             <h1 className="text-4xl font-bold md:text-5xl">{data.title}</h1>
             {data.heroSubtitle && <p className="mt-4 max-w-2xl text-lg">{data.heroSubtitle}</p>}
             {data.ctaLabel && data.ctaUrl && (
-              <a
-                href={data.ctaUrl}
-                className="mt-6 inline-block rounded-full bg-emerald-600 px-6 py-3 font-medium hover:bg-emerald-500"
-              >
+              <a href={data.ctaUrl} className={cn(BUTTON_PRIMARY, "mt-6")}>
                 {data.ctaLabel}
               </a>
             )}
@@ -139,6 +165,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
               librarySlug={contactApiSlug}
               fileId={data.fileId}
               contactEmail={data.contactEmail}
+              theme={theme}
             />
           )
         }
@@ -148,14 +175,14 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             <React.Fragment key={i}>
               {s.markdown && (
                 <section className="px-6 pt-14">
-                  <div className="mx-auto max-w-5xl">{renderMarkdownText(s.markdown, s.bg, headingCase)}</div>
+                  <div className="mx-auto max-w-5xl">{renderMarkdownText(s.markdown, s.bg, headingCase, theme)}</div>
                 </section>
               )}
               {bannerSlot}
             </React.Fragment>
           )
         }
-        return <SectionBlock key={i} section={s} headingCase={headingCase} />
+        return <SectionBlock key={i} section={s} headingCase={headingCase} theme={theme} />
       })}
       {embeddableVideo && <VideoEmbed url={embeddableVideo} />}
     </div>
