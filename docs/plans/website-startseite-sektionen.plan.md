@@ -119,10 +119,15 @@ die Sektionen, die ohne Code nicht gehen, zuletzt Kür.
    Warum (`image-left`, Zitat als Blockquote), Lösung (`image-right`),
    Weiterdenken (`text-only`). Die Kennzahlen und die Ampel vorerst als
    Text.
-3. `prioritaets_index` an den Fokus-Maßnahmen setzen (Liste des Partners im
-   Archiv, rund 30 Einträge). Damit zeigt das bestehende Banner „Mehr aus
-   dieser Bibliothek“ schon die sechs wichtigsten Maßnahmen, und
-   `?view=gallery&sort=rating` die ganze Reihung.
+3. Fokus-Maßnahmen markieren (Liste des Partners im Archiv, rund 30
+   Einträge). **Nicht** über `prioritaets_index`: den berechnet die
+   Transform-Phase aus CO₂, Kosten und Durchsetzbarkeit
+   (`phase-template.ts`) und überschreibt ihn bei jedem Lauf. Stattdessen
+   ein Tag `fokus` im Frontmatter der Maßnahmen-Twins (Tags sind Facette
+   und Filter der Docs-API). Das bestehende Banner zeigt weiterhin die
+   sechs nach Index höchstbewerteten Maßnahmen; die Auswahl des Partners
+   wird erst mit `doc-grid` (S3) über `tag=fokus` sichtbar. Bis dahin
+   zeigt `?view=gallery` mit gesetztem Tag-Filter die Auswahl.
 4. `siteEnabled` setzen, Bilder nach `web/images/` und mit
    `scripts/mirror-website-images-to-blob.ts` spiegeln, Logo-URL eintragen.
 5. Ergebnis: `/explore/<slug>` zeigt die Startseite. Reicht als Rückfallebene
@@ -152,12 +157,13 @@ die Sektionen, die ohne Code nicht gehen, zuletzt Kür.
 
 ### S3 · `doc-grid` (Kartenraster aus der Library)
 
-- Marker: `<!-- section layout=doc-grid type=climateAction sort=rating limit=6 bg=greige -->`
+- Marker: `<!-- section layout=doc-grid type=climateAction tag=fokus sort=rating limit=6 bg=greige -->`
   mit Überschrift, Unterzeile und zwei Links im Markdown
-  (`[Alle ansehen](?view=gallery&sort=rating)`,
+  (`[Alle ansehen](?view=gallery&tags=fokus)`,
   `[Alle durchsuchen](?view=gallery)`).
 - Erlaubte `sort`-Werte: `rating`, `date`; erlaubte `type`-Werte: die
-  Registry-Typen. Sonst Parser-Fehler.
+  Registry-Typen; `tag=` ein einzelner Tag-Wert (Facetten-Filter der
+  Docs-API). Sonst Parser-Fehler.
 - Renderer: Client-Komponente `sections/doc-grid-section.tsx`, holt über
   `fetchDocs` aus `use-website-landing-data.ts`, zeigt `DocumentCard` aus
   `@ks/module-explorer` (im Root-Modus mit `?view=gallery&doc=<slug>`, im
@@ -232,8 +238,8 @@ mit Vorher/Nachher-Vergleich; kein `pnpm build` im Cloud-Agent.
 
 1. Domain der Site (Eintrag in `PUBLIC_DOMAIN_LIBRARY_MAP`) oder vorerst nur
    `/explore/<slug>`.
-2. Ob die Fokus-Maßnahmen über `prioritaets_index` (öffentlich, sortierbar)
-   oder über Favoriten (Member-only) markiert werden. Empfehlung:
-   `prioritaets_index`, weil anonym lesbar.
+2. Ob die Fokus-Maßnahmen über ein Tag (`fokus`, anonym filterbar) oder
+   über Favoriten (Member-only, `sort=stars`) markiert werden. Empfehlung:
+   Tag, weil anonym lesbar und ohne Codeänderung setzbar.
 3. Ob das feste Banner unter der Startseite bleibt oder das `doc-grid` es
    ersetzt (Empfehlung: ersetzen, Schalter `banner: false`).
