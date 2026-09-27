@@ -2,14 +2,14 @@
 name: mcp-bruecke-website-publizieren
 overview: "Eine Website aus Cowork oder einer Cloud-Session heraus konzipieren UND ausspielen. Heute kann die MCP-Brücke die Markdown-Seiten anlegen, aber nicht publizieren, keine Felder an Galerie-Einträgen setzen, keine Bilder anonym lesbar ablegen und die Veröffentlichungs-Einstellungen nicht lesen oder setzen. Fünf Werkzeuge schließen die Lücke, nach dem Muster der bestehenden Brücke: schreibend nur mit Begründung und Bestätigung, protokolliert, ohne stille Fallbacks. Vorhaben 2 in docs/STAND.md, Nachbar des Plans website-startseite-sektionen."
 vorhaben: [Klimamaßnahmen Südtirol, Vortrag 30.09.]
-status: entwurf
+status: in-arbeit
 todos:
   - id: b1-publizieren
     content: "B1 `dokument_publizieren`: Markdown-Quelle unverändert (ohne Sprachmodell) als Transformation registrieren und als Galerie-Eintrag ingestieren; Wiederholung aktualisiert; `dokument_depublizieren` als Gegenstück. Antwort: fileId, Navigations-Slug, Warnungen (Bild-URLs nicht anonym, Parser-Fehler der Sektionen)."
-    status: pending
+    status: completed
   - id: b2-felder
     content: "B2 `dokument_felder_setzen`: flache Felder und Tags an Galerie-Eintrag UND Twin-Frontmatter setzen, Stapel bis 30 Quellen; Schutz der `_`-Twin-Ordner bleibt, weil die Brücke selbst schreibt."
-    status: pending
+    status: completed
   - id: b3-bilder
     content: "B3 `bild_veroeffentlichen` und `bilder_auflisten`: Bild (base64, 6 MB) in den öffentlichen Blob unter `<libraryId>/website/images/` legen, anonyme URL zurückgeben; vorhandene Bilder listen."
     status: pending
@@ -18,7 +18,7 @@ todos:
     status: pending
   - id: b5-pruefen
     content: "B5 `seite_pruefen`: alle website-Docs einer Library als Menü- und Footer-Struktur, je Doc die geparsten Sektionen, fehlende Pflichtfelder, nicht anonyme Bild-URLs, tote `?site=`-Ziele; liest nur."
-    status: pending
+    status: completed
   - id: b6-skill
     content: "B6 Skill `website-publishing` auf die neuen Werkzeuge umstellen (kein MongoDB-Lesen, kein Formular-Copy-Paste mehr); Werkzeugsatz-Version hochzählen, `bruecke_info` nennt die neuen Werkzeuge."
     status: pending
@@ -30,6 +30,10 @@ todos:
 > [`website-startseite-sektionen.plan.md`](website-startseite-sektionen.plan.md)
 > (was der Renderer können muss). Dieser Plan: was die Brücke können muss,
 > damit der ganze Weg ohne die App-Oberfläche geht.
+
+> **Stand 27.09.2026:** B1, B2 und B5 sind gebaut (Werkzeugsatz 2.32.0,
+> `src/lib/mcp/tools-website-*.ts`, Tests unter `tests/unit/mcp/website-*`).
+> Offen: B3 Bilder, B4 Veröffentlichung, B6 Skill.
 
 ## 1. Der Weg einer Website heute, Station für Station
 
