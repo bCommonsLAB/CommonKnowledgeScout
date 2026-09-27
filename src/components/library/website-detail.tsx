@@ -5,7 +5,8 @@ import { ArrowLeft } from "lucide-react"
 import { parseWebsiteSections } from "@/lib/website/parse-website-sections"
 import type { HeadingCase } from "@/lib/website/types"
 import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
-import { SectionBlock, VideoEmbed, renderMarkdownText } from "@/components/library/website/website-landing-blocks"
+import { SectionBlock, VideoEmbed } from "@/components/library/website/website-landing-blocks"
+import { SectionContent } from "@/components/library/website/section-content"
 import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
 import { HeroCover } from "@/components/library/website/hero-cover"
 import { HeroCampaign } from "@/components/library/website/hero-campaign"
@@ -182,7 +183,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
                 <section className={cn("px-6 pt-14", flaeche.className)} style={flaeche.style}>
                   <div className="mx-auto max-w-5xl">
                     {s.kicker && <p className={KICKER_CLASS}>{s.kicker}</p>}
-                    {s.markdown && renderMarkdownText(s.markdown, s.bg, headingCase, theme)}
+                    {s.markdown && <SectionContent blocks={s.blocks} bg={s.bg} headingCase={headingCase} theme={theme} />}
                   </div>
                 </section>
               )}

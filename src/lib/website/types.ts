@@ -1,4 +1,5 @@
 import type { SiteSurfaceName } from '@ks/contracts'
+import type { SectionContentBlock } from './parse-section-blocks'
 
 /**
  * Typen fuer den Webseiten-/Landingpage-Renderer (detailViewType: website).
@@ -50,6 +51,12 @@ export interface WebsiteSection {
   videoUrl?: string
   /** Welle S2: Kennzeile (Versalzeile ueber der Ueberschrift), Marker-Attribut `kicker="…"`. */
   kicker?: string
+  /**
+   * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
+   * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;
+   * `markdown` bleibt der Volltext fuer Pruefung und Bestandsnutzer.
+   */
+  blocks: SectionContentBlock[]
 }
 
 /** Eintrag im dynamischen Menue (spaeter: alle website-Dokumente). */

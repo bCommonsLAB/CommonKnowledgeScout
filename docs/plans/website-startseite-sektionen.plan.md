@@ -14,8 +14,8 @@ todos:
     content: "S2 Design-Profil `publicPublishing.siteTheme` (Schriften, Akzent, Farben je Fläche; Vorgabe = Vorlage) plus Hero-Variante `hero_layout: campaign` mit Kennzeile im Bild (`hero_kicker`), kursiver Zweitzeile (`hero_title2`), zweitem Handlungsaufruf (`cta2_label`, `cta2_url`); Sektions-Attribut `kicker=` für die Versalzeile über der Überschrift."
     status: completed
   - id: s3-kacheln
-    content: "S3 Layout `stats`: eine Markdown-Liste `- **600+** Maßnahmen` wird zu Kennzahl-Kacheln, Zahlen stehen im Markdown; Zitatkasten mit Randstreifen; Hintergründe `stone`, `petrol`, `forest`, `greige`."
-    status: pending
+    content: "S3 Blöcke in Sektionen: `<!-- stats -->` + Liste `- **600+** Maßnahmen` wird zu Kennzahl-Kacheln, `<!-- chips label=… -->` + Liste zu Chips, `<!-- box label=… kind=card|note --> … <!-- /box -->` zum Kasten; Zitat mit Randstreifen. Zahlen stehen im Markdown."
+    status: completed
   - id: s4-footer
     content: "S4 Fußzeile mehrspaltig: `footer_columns: 3` am Footer-Doc legt dessen Sektionen nebeneinander; Link-Zeile für menu_area=footer bleibt."
     status: pending
@@ -200,15 +200,28 @@ Buttons und Schrift stammten fest aus der Vorlage und galten für jede Site.
   (`light`, `brand`, `dark-green`, `neutral`). S3 bleibt Layout `stats`,
   Chip-Liste und Zitatkasten.
 
-### S3 · Kacheln, Zitat, Farben
+### S3 · Kacheln, Chips, Kasten, Zitat (gebaut 27.09.)
 
-- Layout `stats`: Markdown-Liste `- **600+** Maßnahmen` wird zu Kacheln,
-  zwei Spalten mit optionalem Bild wie `image-right`. Die Zahlen stehen im
-  Markdown; woher sie kommen, ist Inhaltsarbeit.
-- Blockquote mit Randstreifen in Akzentfarbe je Hintergrund.
-- ~~Neue `bg`-Werte `stone`, `petrol`, `forest`, `greige`~~ — entfällt
-  seit S2 (Farben je Fläche kommen aus dem Design-Profil).
-- Tests: Parser für `stats`, Kachel-Liste.
+Statt eines eigenen Layouts `stats` gibt es **Blöcke innerhalb jeder
+Sektion**, damit Kacheln neben Text und Bild stehen wie in der Vorlage
+(Sektion „Lösung": Text, drei Kacheln, Bild rechts):
+
+- `<!-- stats -->` + Liste `- **600+** Maßnahmen` → Kacheln (zwei, ab
+  Tablet drei Spalten, Wert in Überschriften-Schrift und -Farbe).
+- `<!-- chips label="Träger & Partnernetzwerk" -->` + Liste → Chips mit
+  Kennzeile (Sektion „Wer wir sind").
+- `<!-- box label="Bald" kind=card -->` … `<!-- /box -->` → weiße Karte mit
+  Badge (Infobox „Aus der Praxis"); `kind=note` → durchscheinender Streifen
+  (Termin-Hinweis).
+- Blockquote: Randstreifen in Kennzeilenfarbe der Fläche.
+- Kachel-/Chip-Hintergrund ist `--site-tile` (hell auf dunkel, dunkel auf
+  hell, aus `surface-style.ts`), also profilunabhängig lesbar.
+- Dateien: `src/lib/website/parse-section-blocks.ts`, `WebsiteSection.blocks`,
+  `website/section-content.tsx`, `website/markdown-text.tsx`
+  (herausgezogen). Fehler werfen im Parser, `seite_pruefen` meldet sie.
+- Neue `bg`-Werte entfallen seit S2. Die Ampel-Skala von „Wo stehen wir"
+  bleibt im Vorrat; die rechte Spalte dieser Sektion (Kennzahl-Karten,
+  Infobox, Datenbasis) geht mit `stats`, `box` und Kursivtext.
 
 ### S4 · Fußzeile mehrspaltig (nach dem Termin)
 
@@ -229,7 +242,7 @@ Buttons und Schrift stammten fest aus der Vorlage und galten für jede Site.
 | S0 | ein halber Tag Inhaltsarbeit | ja, zuerst |
 | S1 | ein halber Tag | ja |
 | S2 | ein Tag (Profil + Hero) — gebaut | ja |
-| S3 | ein halber Tag | ja, wenn S1 und S2 stehen |
+| S3 | ein halber Tag — gebaut | ja, wenn S1 und S2 stehen |
 | S4 | ein halber Tag | nein, Vorstellung Ende Oktober |
 | S5 | ein Tag plus Übersetzung | nein |
 
