@@ -58,6 +58,26 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   (`/api/library/<id>/web/...` erfordert Login und ist damit fuer anonyme
   Besucher ungeeignet).
 
+## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.32.0)
+
+- Eine Website-Seite ist eine Markdown-Quelle im Storage (Konvention
+  `Webseite/Seiten/`), deren Transformation `website-page` am Twin haengt
+  und deren Meta-Dokument die Landingpage liest. `dokument_publizieren`
+  stellt genau das her, **ohne Sprachmodell**; ein zweiter Aufruf
+  aktualisiert. Der Vorlagenname ist Teil des Artefakt-Schluessels und
+  bleibt `website-page` (Website) bzw. `markdown-page` (andere Markdown-Quellen).
+- Vor dem Schreiben prueft die Bruecke `detailViewType`, Pflichtfelder der
+  Registry, die Sektions-Marker (der Parser wirft) und ob Bild-URLs anonym
+  ladbar sind (§5). Warnungen blockieren bis `trotzWarnungen`, harte Fehler
+  immer — kein stilles Publizieren eines kaputten Dokuments.
+- Felder an publizierten Dokumenten (z. B. ein Tag zur Auswahl fuer das
+  Banner) setzt `dokument_felder_setzen` an Twin-Frontmatter UND
+  Meta-Dokument (`doc-meta-felder.ts` spiegelt die Facetten auf oberster
+  Ebene wie `meta-document-builder.ts`). Pipeline-Felder
+  (`prioritaets_index`, `bewertung_*`) und Pflichtfelder sind gesperrt.
+- `seite_pruefen` ist die Vorschau ohne Browser und nutzt dieselben Regeln
+  wie der Renderer (`site-navigation.ts`, `parse-website-sections.ts`).
+
 ## Verwandte Rules
 
 - `no-silent-fallbacks.mdc` — ENV-/Typ-Validierung ohne stille Defaults

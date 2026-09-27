@@ -1,6 +1,6 @@
 ---
 name: website-publishing
-description: Analysiere eine öffentliche Library und fülle ihre Website-/Galerie-Einstellungen (Galerie-Texte, Logo, Hintergrundbild) sinnvoll. Verwende diesen Skill, wenn der Benutzer Website-Inhalte, Galerie-Texte, Logo oder Hintergrundbild einer öffentlichen Library einrichten, füllen oder verbessern will — oder alle öffentlichen Libraries auf die Blob-Bild-Konvention umstellen möchte.
+description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke anlegen, prüfen und publizieren (dokument_publizieren, dokument_felder_setzen, seite_pruefen) und die Website-/Galerie-Einstellungen (Galerie-Texte, Logo, Hintergrundbild) sinnvoll füllen. Verwende diesen Skill, wenn der Benutzer eine Website oder Landingpage für eine Library erstellen, Seiten publizieren, Fokus-Tags setzen, Website-Inhalte, Galerie-Texte, Logo oder Hintergrundbild einrichten oder verbessern will — oder alle öffentlichen Libraries auf die Blob-Bild-Konvention umstellen möchte.
 ---
 
 # Website-Publishing: Inhalte einer öffentlichen Library füllen
@@ -87,3 +87,46 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   Blob-URLs verwenden.
 - `siteEnabled` steuert die Website-Landingpage am Slug; ohne dieses Flag gibt
   es nur die Galerie.
+
+
+## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.32.0)
+
+Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
+Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
+nach Bestätigung durch den Menschen, mit `begruendung`.
+
+1. **Bestand lesen.** `seite_pruefen` mit der `libraryId`: zeigt, ob die
+   Library öffentlich ist, ob `siteEnabled` gesetzt ist, welche Seiten
+   schon publiziert sind und welche Befunde sie tragen.
+2. **Seiten schreiben.** `ordner_anlegen` für `Webseite/Seiten` (falls
+   fehlt), dann je Seite `datei_anlegen`:
+   - Startseite: `detailViewType: "website"`, `title`, `language`,
+     `targetLanguage`, `menu_order: 1`, Hero-Felder (`hero_subtitle`,
+     `hero_image`, `hero_layout`, `cta_label`, `cta_url`), Body als
+     Sektionen `<!-- section layout=… bg=… --> … <!-- /section -->`.
+   - Kontakt: `menu_order` hoch, `slug`, `contact_email`, Sektion
+     `layout=contact-form`.
+   - Impressum: `menu_area: "footer"`.
+   - Fußzeile: `site_role: "footer-content"`, `menu_area: "hidden"`.
+   Erlaubte `layout`: image-left, image-right, full-image, text-only, video,
+   contact-form. Erlaubte `bg`: default, light, dark, brand, linen, mint,
+   dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben).
+3. **Publizieren.** `dokument_publizieren` mit `quellPfad` oder `sourceIds`
+   (bis 30). Die Antwort nennt je Seite Warnungen (fehlende Felder,
+   relative Bilder) und harte Fehler (ungültiger Marker). Warnungen erst
+   beheben; nur wenn sie bewusst bleiben sollen, `trotzWarnungen: true`.
+   Ein zweiter Aufruf nach einer Textänderung aktualisiert den Eintrag.
+4. **Auswahl markieren.** Soll das Banner unter der Seite eine kuratierte
+   Auswahl zeigen, `dokument_felder_setzen` mit `sourceIds` der Dokumente
+   und `listen: { tags: ["fokus"] }`. Nicht `prioritaets_index` setzen —
+   den rechnet die Pipeline.
+5. **Prüfen.** Erneut `seite_pruefen`: Startseite, Menüreihenfolge,
+   Footer-Links, Sektionen je Seite, keine Fehler. Danach die Seite unter
+   `/explore/<slug>` ansehen (Site-Modus braucht `siteEnabled`, heute noch
+   im Formular Einstellungen → Veröffentlichung).
+6. **Zurücknehmen.** `dokument_depublizieren` entfernt nur den Eintrag;
+   Datei und Twin bleiben.
+
+Noch nicht über die Brücke: Bilder in den Blob (Skript, Schritt 4 oben) und
+die Veröffentlichungs-Einstellungen (Formular). Beides steht im Plan
+`docs/plans/mcp-bruecke-website-publizieren.plan.md` (B3, B4).

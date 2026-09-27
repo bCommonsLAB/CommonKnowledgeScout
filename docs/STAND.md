@@ -96,7 +96,19 @@ Bekannte Punkte:
    Archiv; noch nicht festgelegt).
 3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
    Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
-   im Konzept).
+   im Konzept). **Bau-Plan seit 26.09.:**
+   [`plans/website-startseite-sektionen.plan.md`](plans/website-startseite-sektionen.plan.md)
+   (Owner 27.09.: das bestehende Banner um Fokus-Filter, Titel und
+   Position erweitern statt ein neues Raster bauen; Wellen S0 Inhalt ohne
+   Code, S1 Banner, S2 Hero, S3 Kacheln nur gelayoutet, S4 Fußzeile, S5
+   Sprache; Ampel-Skala und dynamische Kennzahlen im Vorrat); die
+   Abstimmung mit dem Partner und die Texte liegen im Vorhabensordner des
+   Archivs.
+4. Brücke erweitern, damit eine Website aus Cowork heraus publiziert
+   werden kann (Owner 27.09.):
+   [`plans/mcp-bruecke-website-publizieren.plan.md`](plans/mcp-bruecke-website-publizieren.plan.md)
+   (B1 publizieren, B2 Felder setzen, B3 Bilder in den Blob, B4
+   Veröffentlichung lesen/setzen, B5 Seite prüfen, B6 Skill).
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294
 Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
