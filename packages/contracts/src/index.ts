@@ -124,3 +124,7 @@ export type {
   SiteConfig,
 } from './site-config'
 export { isSitePrimaryBySlug } from './site-config'
+
+// Welle S2: Design-Profil der Website-Landingpage (`publicPublishing.siteTheme`).
+export type { SiteTheme, SiteSurface, SiteSurfaceName, SiteFontName, SiteButtonShape } from './site-theme'
+export { SITE_SURFACES, SITE_FONT_NAMES, SITE_BUTTON_SHAPES } from './site-theme'
