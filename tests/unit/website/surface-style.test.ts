@@ -19,12 +19,12 @@ describe('surfaceStyle', () => {
     expect(s.prose).toContain('[&_p]:text-[color:var(--site-paragraph)]')
   })
 
-  it('Profil: helle Flaeche ohne Absatzfarbe — kein Invert, kein Absatz-Override, Kennzeile = Akzent', () => {
+  it('Profil: helle Flaeche ohne Absatzfarbe — kein Invert, kein Absatz-Override, Kennzeile = Ueberschriftfarbe', () => {
     const theme = resolveSiteTheme({ accent: '#c85a32', surfaces: { light: { bg: '#f4f1ea', text: '#1c3829', heading: '#1c3829' } } })
     const s = surfaceStyle('light', theme)
     expect(s.className).toBe('')
     expect(s.prose).not.toContain('prose-invert')
     expect(s.prose).not.toContain('--site-paragraph')
-    expect(s.style).toMatchObject({ '--site-kicker': '#c85a32' })
+    expect(s.style).toMatchObject({ '--site-kicker': '#1c3829' })
   })
 })

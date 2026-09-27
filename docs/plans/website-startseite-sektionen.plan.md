@@ -29,8 +29,13 @@ todos:
 > **Stand 27.09.2026 (abends):** S2 gebaut — Design-Profil
 > `publicPublishing.siteTheme` (`site-theme.ts`, `surface-style.ts`,
 > `site-fonts.ts`), Hero `campaign` (`hero-campaign.tsx`), Marker-Attribut
-> `kicker`; Werkzeugsatz 2.35.0. Oldies for Future rendert ohne Profil
-> unverändert. Regel 3 unten hat seither eine Ausnahme.
+> `kicker`; Werkzeugsatz 2.36.0 (2.35.0 veröffentlichte `siteTheme` als
+> `anyOf`, der Client zeigte das Feld nicht — jetzt explizites Objekt-Schema,
+> löschen über `siteThemeLoeschen`). Nachträge aus dem ersten Cowork-Lauf:
+> Kennzeile und Fläche in der `banner`-Sektion, `hero_title` getrennt vom
+> Menüpunkt, Kennzeile auf farbigen Flächen in Überschriftfarbe, leeres
+> `$facet` in `aggregateFacets` (500 der Facetten-Route). Oldies for Future
+> rendert ohne Profil unverändert. Regel 3 unten hat seither eine Ausnahme.
 >
 > **Stand 27.09.2026:** S1 gebaut (`website-banner-grid.tsx`, `hero-cover.tsx`,
 > `src/lib/website/banner.ts`; Frontmatter `banner_tag`, `banner_title`,

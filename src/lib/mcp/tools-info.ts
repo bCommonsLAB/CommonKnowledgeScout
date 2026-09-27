@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.35.0'
+export const TOOLSET_VERSION = '2.36.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -81,6 +81,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.36.0: siteTheme in veroeffentlichung_setzen als explizites Objekt-Schema (vorher anyOf mit null, das der Client nicht anzeigte und als Text schickte); loeschen jetzt ueber siteThemeLoeschen: true',
   '2.35.0: veroeffentlichung_setzen nimmt siteTheme, das Design-Profil der Website (Welle S2): Schriften per Name (geist, newsreader, plus-jakarta), Akzent, Buttonform und Farben je Flaeche als #rrggbb; geprueft in site-theme.ts, null loescht; veroeffentlichung_lesen zeigt es. Ohne Profil rendert die Vorlage unveraendert',
   '2.34.0: veroeffentlichung_lesen zeigt publicPublishing der Library (Slug, isPublic, siteEnabled, Logo, Galerie-Texte; API-Schluessel nur als gesetzt/nicht gesetzt) samt Adresse /explore/<slug>; veroeffentlichung_setzen aendert nur genannte Felder mit derselben Validierung und demselben Merge wie das Formular (public-publishing-validation.ts, jetzt von Route UND Bruecke genutzt), prueft Slug-Eindeutigkeit, nur Owner, nie den API-Schluessel; isPublic: true wird als Aktion mit Aussenwirkung benannt',
   '2.33.0: bild_veroeffentlichen kopiert Bilder aus dem Library-Storage (Vorgabe web/images/, oder quellPfad/ordnerPfad) in den oeffentlichen Blob <libraryId>/website/images/ und liefert die anonymen URLs fuer hero_image und Sektions-Bilder — ersetzt das lokale Spiegelskript; Nicht-Bilder werden laut uebersprungen, vorhandene Blobs nur mit ueberschreiben ersetzt. bilder_auflisten listet die Blob-Bilder der Library',

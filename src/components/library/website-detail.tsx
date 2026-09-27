@@ -10,7 +10,7 @@ import { WebsiteContactFormSection } from "@/components/library/website/website-
 import { HeroCover } from "@/components/library/website/hero-cover"
 import { HeroCampaign } from "@/components/library/website/hero-campaign"
 import { OLDIES_THEME, siteThemeCssVars, type SiteThemeResolved } from "@/lib/website/site-theme"
-import { BUTTON_PRIMARY } from "@/lib/website/surface-style"
+import { BUTTON_PRIMARY, KICKER_CLASS, surfaceStyle } from "@/lib/website/surface-style"
 import { cn } from "@/lib/utils"
 
 /** Detail-Daten fuer detailViewType `website` (Landingpage als Dokument). */
@@ -31,6 +31,8 @@ export interface WebsiteDetailData {
   ctaUrl?: string
   /** Welle S2, Hero `campaign`: `hero_kicker`, `hero_title2`, `cta2_label`, `cta2_url`. */
   heroKicker?: string
+  /** `hero_title`: Ueberschrift des Heros, wenn sie vom Dokument-Titel (Menuepunkt) abweichen soll. */
+  heroTitle?: string
   heroTitle2?: string
   cta2Label?: string
   cta2Url?: string
@@ -91,6 +93,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
   const embeddableVideo =
     data.videoUrl && isSafeVideoIframeSrc(data.videoUrl) ? data.videoUrl : undefined
   const headingCase = data.headingCase ?? "capitalize"
+  const heroTitle = data.heroTitle ?? data.title
   // S2: Akzent/Radius als Variablen auch ohne den Wrapper der Live-Seite (Archiv-Vorschau).
   const themeVars = React.useMemo(() => siteThemeCssVars(theme) as React.CSSProperties, [theme])
 
@@ -108,7 +111,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
 
       {data.heroLayout === "campaign" && data.heroImageUrl ? (
         <HeroCampaign
-          title={data.title}
+          title={heroTitle}
           title2={data.heroTitle2}
           subtitle={data.heroSubtitle}
           kicker={data.heroKicker}
@@ -122,7 +125,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         />
       ) : data.heroLayout === "cover" && data.heroImageUrl ? (
         <HeroCover
-          title={data.title}
+          title={heroTitle}
           subtitle={data.heroSubtitle}
           imageUrl={data.heroImageUrl}
           imageAlt={data.heroImageAlt}
@@ -139,7 +142,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             className="h-[50vh] w-full object-cover"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-            <h1 className="text-4xl font-bold md:text-5xl">{data.title}</h1>
+            <h1 className="text-4xl font-bold md:text-5xl">{heroTitle}</h1>
             {data.heroSubtitle && <p className="mt-4 max-w-2xl text-lg">{data.heroSubtitle}</p>}
             {data.ctaLabel && data.ctaUrl && (
               <a href={data.ctaUrl} className={cn(BUTTON_PRIMARY, "mt-6")}>
@@ -150,7 +153,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         </header>
       ) : (
         <header className="px-6 py-10 text-center">
-          <h1 className="text-3xl font-bold">{data.title}</h1>
+          <h1 className="text-3xl font-bold">{heroTitle}</h1>
           {data.heroSubtitle && <p className="mt-3 text-muted-foreground">{data.heroSubtitle}</p>}
         </header>
       )}
@@ -171,11 +174,16 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         }
         if (s.layout === "banner") {
           // S1: Einleitung der Sektion, darunter das Raster an dieser Stelle.
+          // S2-Nachtrag: Kennzeile und Flaeche galten hier nicht (Befund Cowork 27.09.).
+          const flaeche = surfaceStyle(s.bg, theme)
           return (
             <React.Fragment key={i}>
-              {s.markdown && (
-                <section className="px-6 pt-14">
-                  <div className="mx-auto max-w-5xl">{renderMarkdownText(s.markdown, s.bg, headingCase, theme)}</div>
+              {(s.markdown || s.kicker) && (
+                <section className={cn("px-6 pt-14", flaeche.className)} style={flaeche.style}>
+                  <div className="mx-auto max-w-5xl">
+                    {s.kicker && <p className={KICKER_CLASS}>{s.kicker}</p>}
+                    {s.markdown && renderMarkdownText(s.markdown, s.bg, headingCase, theme)}
+                  </div>
                 </section>
               )}
               {bannerSlot}

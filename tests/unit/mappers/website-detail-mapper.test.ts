@@ -39,3 +39,12 @@ describe('mapToWebsiteDetail (S2, Hero campaign)', () => {
     expect(d).toMatchObject({ heroLayout: 'campaign', heroKicker: 'Dialogplattform', heroTitle2: 'Zweite Zeile', cta2Label: 'Mitreden', cta2Url: '?site=kontakt' })
   })
 })
+
+describe('mapToWebsiteDetail (S2-Nachtrag, hero_title)', () => {
+  it('hero_title ist die Hero-Ueberschrift, title bleibt der Menuepunkt', () => {
+    const d = mapToWebsiteDetail({ docMetaJson: { title: 'Kurz', hero_title: 'Lange Hero-Zeile.' } })
+    expect(d.title).toBe('Kurz')
+    expect(d.heroTitle).toBe('Lange Hero-Zeile.')
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Kurz' } }).heroTitle).toBeUndefined()
+  })
+})
