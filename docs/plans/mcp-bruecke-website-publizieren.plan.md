@@ -12,7 +12,7 @@ todos:
     status: completed
   - id: b3-bilder
     content: "B3 `bild_veroeffentlichen` und `bilder_auflisten`: Bild (base64, 6 MB) in den öffentlichen Blob unter `<libraryId>/website/images/` legen, anonyme URL zurückgeben; vorhandene Bilder listen."
-    status: pending
+    status: completed
   - id: b4-veroeffentlichung
     content: "B4 `veroeffentlichung_lesen` und `veroeffentlichung_setzen`: publicPublishing lesen (Schlüssel maskiert) und mit derselben Validierung wie die PUT-Route setzen (slugName, isPublic, siteEnabled, logoUrl, backgroundImageUrl, gallery-Texte)."
     status: pending
@@ -31,9 +31,10 @@ todos:
 > (was der Renderer können muss). Dieser Plan: was die Brücke können muss,
 > damit der ganze Weg ohne die App-Oberfläche geht.
 
-> **Stand 27.09.2026:** B1, B2 und B5 sind gebaut (Werkzeugsatz 2.32.0,
-> `src/lib/mcp/tools-website-*.ts`, Tests unter `tests/unit/mcp/website-*`).
-> Offen: B3 Bilder, B4 Veröffentlichung, B6 Skill.
+> **Stand 27.09.2026:** B1, B2, B3 und B5 sind gebaut (Werkzeugsatz 2.33.0,
+> `src/lib/mcp/tools-website-*.ts`, Tests unter `tests/unit/mcp/website-*` und
+> `tests/unit/services/website-image-blob.test.ts`); B6 Skill nachgezogen.
+> Offen: B4 Veröffentlichung.
 
 ## 1. Der Weg einer Website heute, Station für Station
 
