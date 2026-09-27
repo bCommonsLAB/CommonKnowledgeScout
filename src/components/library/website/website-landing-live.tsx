@@ -17,13 +17,13 @@
  */
 
 import * as React from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { useLibraries } from '@ks/shell/react'
-import { WebsiteDetail } from "@/components/library/website-detail"
-import { DocumentCard } from "@ks/module-explorer/react"
+import { WebsiteDetail, hatBannerSektion } from "@/components/library/website-detail"
+import { WebsiteBannerGrid } from "@/components/library/website/website-banner-grid"
 import { WebsiteSiteFooter } from "@/components/library/website/website-site-footer"
-import { useWebsiteDocs, useWebsiteDetail, fetchDocs } from "@/components/library/website/use-website-landing-data"
+import { useWebsiteDocs, useWebsiteDetail } from "@/components/library/website/use-website-landing-data"
 import {
   selectMainMenuDocs,
   selectFooterLinkDocs,
@@ -31,8 +31,7 @@ import {
   resolveSiteParamDoc,
 } from "@/lib/website/site-navigation"
 import { useTranslation } from "@ks/i18n/react"
-import { getEffectiveDocumentNavigationSlug } from "@ks/util"
-import type { DocCardMeta } from "@ks/contracts"
+import { BANNER_LIMIT_DEFAULT } from "@/lib/website/banner"
 
 interface WebsiteLandingLiveProps {
   libraryId: string
@@ -53,9 +52,6 @@ interface WebsiteLandingLiveProps {
   librarySlug?: string
 }
 
-// Zwei volle Reihen im 3-Spalten-Raster (md:grid-cols-3) -> 6 Karten.
-const BANNER_LIMIT = 6
-
 export function WebsiteLandingLive({
   libraryId,
   fallbackLocale,
@@ -64,7 +60,6 @@ export function WebsiteLandingLive({
   librarySlug,
 }: WebsiteLandingLiveProps): React.ReactElement {
   const { t, locale } = useTranslation()
-  const router = useRouter()
   const pathname = usePathname()
   // Slug fuer die Contact-API (C3): explizite Prop (Root-Modus) oder aus dem
   // Explore-Pfad. null = kein Library-Kontext -> Formular zeigt Hinweis.
@@ -85,7 +80,6 @@ export function WebsiteLandingLive({
       ?.moreLinkLabel || "mehr Inhalte"
 
   const { allDocs, loadingList, listError } = useWebsiteDocs(libraryId, locale)
-  const [bannerDocs, setBannerDocs] = React.useState<DocCardMeta[]>([])
   // Seitenwechsel via URL (`?site=<slug>`), history: push -> Browser-Back
   // wechselt zwischen Website-Seiten.
   const [siteParam, setSiteParam] = useQueryState("site", { history: "push" })
@@ -121,21 +115,22 @@ export function WebsiteLandingLive({
     window.scrollTo({ top: 0 })
   }, [selectedFileId])
 
-  // Side-Banner: hoechstbewertete Nicht-website-Dokumente (Teaser zur Galerie).
-  React.useEffect(() => {
-    let cancelled = false
-    fetchDocs(libraryId, `sort=rating&limit=${BANNER_LIMIT + 5}`, locale)
-      .then((items) => {
-        if (cancelled) return
-        setBannerDocs(items.filter((d) => d.detailViewType !== "website").slice(0, BANNER_LIMIT))
-      })
-      .catch(() => {
-        // Banner ist optional — ein Fehler darf die Landingpage nicht blockieren.
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [libraryId, locale])
+  // S1: Das Raster („Mehr aus dieser Bibliothek") wird vom Seiten-Doc gesteuert
+  // (banner_tag, banner_title, banner_limit) und steht entweder in einer
+  // `banner`-Sektion des Bodys oder — ohne Sektion — unter der Seite.
+  const bannerInSektion = React.useMemo(() => hatBannerSektion(detail?.markdown), [detail?.markdown])
+  const banner = detail ? (
+    <WebsiteBannerGrid
+      libraryId={libraryId}
+      locale={locale}
+      tag={detail.bannerTag}
+      title={detail.bannerTitle}
+      limit={detail.bannerLimit ?? BANNER_LIMIT_DEFAULT}
+      galleryBaseHref={galleryBaseHref}
+      onShowGallery={onShowGallery}
+      moreLinkLabel={moreLinkLabel}
+    />
+  ) : null
 
   const error = listError ?? detailError
   if (error) {
@@ -157,52 +152,15 @@ export function WebsiteLandingLive({
     // C1b: Die fruehere zweite Menue-Leiste (mainMenuDocs) entfaellt — die
     // Website-Seiten liegen jetzt als NavItems in der TopNav (useSiteMenuItems).
     <div ref={containerRef} className={exploreBaseHref ? 'w-full' : 'h-full overflow-y-auto'}>
-      {detail && <WebsiteDetail data={detail} showBackLink={false} contactApiSlug={contactApiSlug} />}
-
-      {bannerDocs.length > 0 && (
-        <section className="bg-muted px-4 py-12">
-          <div className="mx-auto max-w-5xl">
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <h2 className="text-2xl font-semibold">Mehr aus dieser Bibliothek</h2>
-              <button
-                type="button"
-                onClick={() => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())}
-                className="whitespace-nowrap text-sm font-medium text-emerald-700 hover:underline"
-              >
-                {moreLinkLabel} →
-              </button>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-              {bannerDocs.map((d) =>
-                galleryBaseHref ? (
-                  // Root-Modus: Karte navigiert in die Explore-Galerie (Detail-Overlay dort).
-                  // `view=gallery` ist noetig, damit die Galerie (nicht die Website) laedt.
-                  <DocumentCard
-                    key={d.fileId ?? d.id}
-                    doc={d}
-                    onClick={() =>
-                      router.push(`${galleryBaseHref}&doc=${getEffectiveDocumentNavigationSlug(d) ?? ''}`)
-                    }
-                  />
-                ) : (
-                  <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} />
-                ),
-              )}
-            </div>
-            {/* Galerie-Link nach dem Raster wiederholen — der dezente Link oben
-               wird leicht uebersehen; hier als deutlicher Button. */}
-            <div className="mt-8 flex justify-center">
-              <button
-                type="button"
-                onClick={() => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())}
-                className="rounded-full bg-emerald-700 px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-800"
-              >
-                {moreLinkLabel} →
-              </button>
-            </div>
-          </div>
-        </section>
+      {detail && (
+        <WebsiteDetail
+          data={detail}
+          showBackLink={false}
+          contactApiSlug={contactApiSlug}
+          bannerSlot={bannerInSektion ? banner : undefined}
+        />
       )}
+      {!bannerInSektion && banner}
 
       <WebsiteSiteFooter
         libraryId={libraryId}

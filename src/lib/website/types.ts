@@ -10,6 +10,9 @@
  * Layout einer Inhalts-Sektion.
  * `contact-form` (Phase C3): rendert unter dem Sektions-Markdown das
  * Kontakt-Formular (Versand ueber die oeffentliche Contact-API).
+ * `banner` (Welle S1): setzt das Dokument-Raster („Mehr aus dieser
+ * Bibliothek") an diese Stelle der Seite; das Sektions-Markdown steht als
+ * Einleitung darueber. Ohne banner-Sektion bleibt das Raster unter der Seite.
  */
 export type SectionLayout =
   | 'image-left'
@@ -18,6 +21,11 @@ export type SectionLayout =
   | 'text-only'
   | 'video'
   | 'contact-form'
+  | 'banner'
+
+/** Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
+export type HeadingCase = 'capitalize' | 'none'
+export const HEADING_CASES: readonly HeadingCase[] = ['capitalize', 'none']
 
 /**
  * Hintergrund-Variante einer Inhalts-Sektion.

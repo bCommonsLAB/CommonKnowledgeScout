@@ -5,7 +5,7 @@
  */
 
 import * as React from 'react'
-import type { WebsiteSection } from '@/lib/website/types'
+import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
 import { md } from '@ks/viewers'
 import { cn } from '@/lib/utils'
 import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
@@ -40,14 +40,20 @@ const SECTION_STYLE: Record<WebsiteSection['bg'], { wrapper: string; prose: stri
  * Inhalt ist kuratiert/uebersetzt (vertrauenswuerdig) — gleiches Muster wie
  * die MarkdownPreview-Komponente.
  */
-export function renderMarkdownText(markdown: string, bg: WebsiteSection['bg']): React.ReactElement {
+export function renderMarkdownText(
+  markdown: string,
+  bg: WebsiteSection['bg'],
+  headingCase: HeadingCase = 'capitalize',
+): React.ReactElement {
   return (
     <div
       className={cn(
         'prose prose-neutral max-w-none',
         // Vorlage-Optik (`.h-serif-medium`): Ueberschrift NORMAL (400, nicht fett),
-        // capitalize, ~2.35rem; Lead-Absatz (erster) etwas groesser.
-        'prose-headings:font-normal prose-h2:mb-2.5 prose-h2:leading-snug prose-h2:text-[2rem] md:prose-h2:text-[2.35rem] [&_h2]:capitalize',
+        // ~2.35rem; Lead-Absatz (erster) etwas groesser. `capitalize` ist die
+        // Vorlage-Vorgabe (Steckbrief 10); Frontmatter `heading_case: none` schaltet es ab (S1).
+        'prose-headings:font-normal prose-h2:mb-2.5 prose-h2:leading-snug prose-h2:text-[2rem] md:prose-h2:text-[2.35rem]',
+        headingCase === 'capitalize' && '[&_h2]:capitalize',
         '[&_p:first-of-type]:text-lg [&_p:first-of-type]:leading-relaxed md:[&_p:first-of-type]:text-xl',
         // Farb-/Invert-Overrides je Hintergrund-Variante (zentral in SECTION_STYLE).
         SECTION_STYLE[bg].prose,
@@ -58,7 +64,13 @@ export function renderMarkdownText(markdown: string, bg: WebsiteSection['bg']): 
 }
 
 /** Eine Inhalts-Sektion gemaess Layout/Hintergrund. */
-export function SectionBlock({ section }: { section: WebsiteSection }): React.ReactElement | null {
+export function SectionBlock({
+  section,
+  headingCase = 'capitalize',
+}: {
+  section: WebsiteSection
+  headingCase?: HeadingCase
+}): React.ReactElement | null {
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'
   const imageFirst = section.layout === 'image-left'
@@ -71,7 +83,7 @@ export function SectionBlock({ section }: { section: WebsiteSection }): React.Re
       <section className={`px-6 py-14 ${SECTION_STYLE[section.bg].wrapper}`}>
         <div className="mx-auto max-w-4xl">
           {section.markdown && (
-            <div className="mb-6">{renderMarkdownText(section.markdown, section.bg)}</div>
+            <div className="mb-6">{renderMarkdownText(section.markdown, section.bg, headingCase)}</div>
           )}
           {safeVideo && (
             <div className="aspect-video overflow-hidden rounded-xl bg-black/10">
@@ -126,7 +138,7 @@ export function SectionBlock({ section }: { section: WebsiteSection }): React.Re
               : 'mx-auto max-w-3xl'
           }
         >
-          {renderMarkdownText(section.markdown, section.bg)}
+          {renderMarkdownText(section.markdown, section.bg, headingCase)}
         </div>
       </div>
     </section>

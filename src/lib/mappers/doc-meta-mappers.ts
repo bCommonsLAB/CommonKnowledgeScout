@@ -10,6 +10,8 @@ import type { DivaDocumentDetailData } from '@/components/library/diva-document-
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
 import type { WebsiteDetailData } from '@/components/library/website-detail'
+import { bannerLimitAus } from '@/lib/website/banner'
+import { HEADING_CASES, type HeadingCase } from '@/lib/website/types'
 import { extractSdgValues, extractSdgBegruendung } from '@ks/util'
 
 // Der Buch-Mapper liegt seit M5 im Paket (`@ks/module-explorer`, zusammen mit
@@ -261,10 +263,36 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     // C3: Empfaenger-Adresse des Kontakt-Formulars (dokumentgetrieben, oeffentlich
     // sichtbar wie eine Impressums-Adresse — bewusst kein Settings-Feld).
     contactEmail: toStr(docMetaJson.contact_email),
+    // S1: Banner-Steuerung und Ueberschriften-Schreibweise (flache Felder).
+    bannerTag: toStr(docMetaJson.banner_tag),
+    bannerTitle: toStr(docMetaJson.banner_title),
+    bannerLimit: bannerLimitGeprueft(docMetaJson.banner_limit),
+    headingCase: headingCaseAus(docMetaJson.heading_case),
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),
     upsertedAt: toStr(root.upsertedAt),
   };
+}
+
+/** `banner_limit` lesen; ein ungueltiger Wert wird laut gemeldet, die Seite rendert mit der Vorgabe. */
+function bannerLimitGeprueft(wert: unknown): number | undefined {
+  try {
+    return bannerLimitAus(wert);
+  } catch (error) {
+    console.error(`[website] ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * `heading_case` lesen: fehlend = Vorlage (`capitalize`); unbekannter Wert wird
+ * laut gemeldet und wie fehlend behandelt (no-silent-fallbacks: geloggt, nicht still).
+ */
+function headingCaseAus(wert: unknown): HeadingCase | undefined {
+  if (wert === undefined || wert === null || wert === '') return undefined;
+  if (typeof wert === 'string' && (HEADING_CASES as readonly string[]).includes(wert)) return wert as HeadingCase;
+  console.error(`[website] Unbekannter heading_case "${String(wert)}" — erlaubt: ${HEADING_CASES.join(', ')}`);
+  return undefined;
 }
 
 /**

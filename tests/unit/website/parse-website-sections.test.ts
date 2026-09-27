@@ -59,6 +59,16 @@ Bringe deine Ideen mit ein!
     expect(sections.map((s) => s.bg)).toEqual(['brand', 'dark'])
   })
 
+  it('parst eine banner-Sektion (S1) mit Einleitung, auch leer', () => {
+    const mit = parseWebsiteSections('<!-- section layout=banner bg=light -->\n## Im Fokus\nAuswahl der Traeger.\n<!-- /section -->')
+    expect(mit[0].layout).toBe('banner')
+    expect(mit[0].bg).toBe('light')
+    expect(mit[0].markdown).toContain('## Im Fokus')
+    const leer = parseWebsiteSections('<!-- section layout=banner -->\n<!-- /section -->')
+    expect(leer[0].layout).toBe('banner')
+    expect(leer[0].markdown).toBe('')
+  })
+
   it('nutzt Defaults, wenn Attribute fehlen', () => {
     const sections = parseWebsiteSections('<!-- section -->## Titel<!-- /section -->')
     expect(sections[0].layout).toBe('text-only')

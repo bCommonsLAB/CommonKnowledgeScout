@@ -31,9 +31,10 @@ const BEKANNTE_AUFRUFSTELLEN: Record<string, { anbieterIn: string; warum: string
     anbieterIn: 'src/components/library/file-preview/gallery-teaser-card.tsx',
     warum: 'Teaser im Job-Report-Tab; die Huelle bringt die Anbieter selbst mit.',
   },
-  'src/components/library/website/website-landing-live.tsx': {
+  'src/components/library/website/website-banner-grid.tsx': {
     anbieterIn: 'src/app/page.tsx',
     warum:
+      'Raster der Website-Landingpage (S1, aus website-landing-live.tsx ausgelagert). ' +
       'Wird an zwei Stellen montiert: in GalleryRoot (Anbieter vom Galerie-' +
       'Montagepunkt) und auf der Root-Landingpage — dort muss page.tsx ihn liefern.',
   },
