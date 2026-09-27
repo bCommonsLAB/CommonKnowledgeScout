@@ -107,7 +107,7 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
 Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
 Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
 nach Bestätigung durch den Menschen, mit `begruendung`. Vorher `bruecke_info`:
-meldet sie eine Version unter 2.33.0, fehlen Werkzeuge — Erweiterung in den
+meldet sie eine Version unter 2.34.0, fehlen Werkzeuge — Erweiterung in den
 Einstellungen aus- und einschalten.
 
 1. **Bestand lesen.** `seite_pruefen` mit der `libraryId`: zeigt, ob die
