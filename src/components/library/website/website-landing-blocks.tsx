@@ -2,6 +2,10 @@
  * Render-Bausteine fuer den Webseiten-Renderer: Markdown-Text, Inhalts-Sektion,
  * Video-Embed. Bewusst Server-Component (kein 'use client') fuer schnelle
  * Ladezeit im Phase-0-Pilot.
+ *
+ * Welle S2: Farben und Schriften kommen aus dem aufgeloesten Design-Profil
+ * (`site-theme.ts`, `surface-style.ts`) statt aus einer festen Tabelle. Ohne
+ * Profil rendert alles wie die Vorlage „Oldies for Future".
  */
 
 import * as React from 'react'
@@ -9,41 +13,23 @@ import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
 import { md } from '@ks/viewers'
 import { cn } from '@/lib/utils'
 import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
-
-/**
- * Pro Hintergrund-Variante: `wrapper` (Section-Hintergrund + Basis-Textfarbe) und
- * `prose` (zusaetzliche Typografie-/Farb-Overrides fuer den Markdown-Container).
- * Die konkreten Toene entsprechen der Vorlage „Oldies for Future".
- */
-const SECTION_STYLE: Record<WebsiteSection['bg'], { wrapper: string; prose: string }> = {
-  default: { wrapper: 'bg-background text-foreground', prose: '' },
-  light: { wrapper: 'bg-muted text-foreground', prose: '' },
-  dark: { wrapper: 'bg-slate-900 text-slate-50', prose: 'prose-invert' },
-  // Teal (generischer Brand-Ton) – helle Schrift, Linen-Ueberschrift, Mint-Absaetze.
-  brand: { wrapper: 'bg-[#006b55] text-white', prose: 'prose-invert prose-headings:text-[#ebe4dd] [&_p]:text-[#6fc5ae]' },
-  // Linen: heller warmer Ton, dunkle Schrift, Ueberschrift in Primary-Gruen.
-  linen: { wrapper: 'bg-[#ebe4dd] text-[#202020]', prose: 'prose-headings:text-[#16ad8c]' },
-  // Mint: helles Gruen, dunkle Schrift, weisse Ueberschrift.
-  mint: { wrapper: 'bg-[#6fc5ae] text-[#0b3a30]', prose: 'prose-headings:text-white [&_p]:text-[#0b3a30]' },
-  // Dunkelgruen: helle Schrift, Linen-Ueberschrift, Mint-Absaetze.
-  'dark-green': { wrapper: 'bg-[#005140] text-white', prose: 'prose-invert prose-headings:text-[#ebe4dd] [&_p]:text-[#6fc5ae]' },
-  // Neutralgrau (Video-Sektion): dunkle Schrift, dunkelgruene Ueberschrift.
-  neutral: { wrapper: 'bg-[#bfc9c3] text-[#202020]', prose: 'prose-headings:text-[#005140]' },
-}
+import { OLDIES_THEME, type SiteThemeResolved } from '@/lib/website/site-theme'
+import { KICKER_CLASS, surfaceStyle } from '@/lib/website/surface-style'
 
 /**
  * Rendert den Sektions-Markdown ueber den App-weiten Remarkable-Renderer (`md`)
  * in einem `prose`-Container: Ueberschriften, Absaetze, Listen, Links, Fett,
  * Blockquotes, Zeilenumbrueche (md ist mit `breaks`+`linkify` konfiguriert).
  *
- * `invert` (helle Schrift auf dunklem/brand-Hintergrund) nutzt `prose-invert`.
- * Inhalt ist kuratiert/uebersetzt (vertrauenswuerdig) — gleiches Muster wie
- * die MarkdownPreview-Komponente.
+ * Invert und Farben je Flaeche liefert `surfaceStyle`. Inhalt ist
+ * kuratiert/uebersetzt (vertrauenswuerdig) — gleiches Muster wie die
+ * MarkdownPreview-Komponente.
  */
 export function renderMarkdownText(
   markdown: string,
   bg: WebsiteSection['bg'],
   headingCase: HeadingCase = 'capitalize',
+  theme: SiteThemeResolved = OLDIES_THEME,
 ): React.ReactElement {
   return (
     <div
@@ -53,10 +39,11 @@ export function renderMarkdownText(
         // ~2.35rem; Lead-Absatz (erster) etwas groesser. `capitalize` ist die
         // Vorlage-Vorgabe (Steckbrief 10); Frontmatter `heading_case: none` schaltet es ab (S1).
         'prose-headings:font-normal prose-h2:mb-2.5 prose-h2:leading-snug prose-h2:text-[2rem] md:prose-h2:text-[2.35rem]',
+        // S2: Ueberschriften-Schrift aus dem Profil (ohne Profil ungesetzt = erbt).
+        'prose-headings:font-[family-name:var(--site-font-heading)]',
         headingCase === 'capitalize' && '[&_h2]:capitalize',
         '[&_p:first-of-type]:text-lg [&_p:first-of-type]:leading-relaxed md:[&_p:first-of-type]:text-xl',
-        // Farb-/Invert-Overrides je Hintergrund-Variante (zentral in SECTION_STYLE).
-        SECTION_STYLE[bg].prose,
+        surfaceStyle(bg, theme).prose,
       )}
       dangerouslySetInnerHTML={{ __html: md.render(markdown) }}
     />
@@ -67,23 +54,28 @@ export function renderMarkdownText(
 export function SectionBlock({
   section,
   headingCase = 'capitalize',
+  theme = OLDIES_THEME,
 }: {
   section: WebsiteSection
   headingCase?: HeadingCase
+  theme?: SiteThemeResolved
 }): React.ReactElement | null {
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'
   const imageFirst = section.layout === 'image-left'
+  const flaeche = surfaceStyle(section.bg, theme)
+  const kicker = section.kicker ? <p className={KICKER_CLASS}>{section.kicker}</p> : null
 
   // Video-Sektion: sicheres Embed (nur Whitelist-URLs) im bg-abhaengigen Rahmen.
   if (section.layout === 'video') {
     const safeVideo =
       section.videoUrl && isSafeVideoIframeSrc(section.videoUrl) ? section.videoUrl : null
     return (
-      <section className={`px-6 py-14 ${SECTION_STYLE[section.bg].wrapper}`}>
+      <section className={cn('px-6 py-14', flaeche.className)} style={flaeche.style}>
         <div className="mx-auto max-w-4xl">
+          {kicker}
           {section.markdown && (
-            <div className="mb-6">{renderMarkdownText(section.markdown, section.bg, headingCase)}</div>
+            <div className="mb-6">{renderMarkdownText(section.markdown, section.bg, headingCase, theme)}</div>
           )}
           {safeVideo && (
             <div className="aspect-video overflow-hidden rounded-xl bg-black/10">
@@ -103,7 +95,7 @@ export function SectionBlock({
   }
 
   return (
-    <section className={`py-14 px-6 ${SECTION_STYLE[section.bg].wrapper}`}>
+    <section className={cn('py-14 px-6', flaeche.className)} style={flaeche.style}>
       <div
         className={`max-w-5xl mx-auto gap-10 items-center ${
           twoCol && hasImage ? 'grid md:grid-cols-2' : 'flex flex-col'
@@ -138,7 +130,8 @@ export function SectionBlock({
               : 'mx-auto max-w-3xl'
           }
         >
-          {renderMarkdownText(section.markdown, section.bg, headingCase)}
+          {kicker}
+          {renderMarkdownText(section.markdown, section.bg, headingCase, theme)}
         </div>
       </div>
     </section>

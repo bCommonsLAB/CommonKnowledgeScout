@@ -35,10 +35,11 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, siteEnabled } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, siteEnabled, siteTheme } = body;
 
     // Validierung — dieselben Regeln wie die Bruecke (public-publishing-validation.ts).
-    const verletzung = validierePublicPublishing({ slugName, publicName, description, isPublic, requiresAuth, showOnHomepage });
+    // S2: `siteTheme` fehlend = unveraendert, `null` = Profil loeschen.
+    const verletzung = validierePublicPublishing({ slugName, publicName, description, isPublic, requiresAuth, showOnHomepage, siteTheme });
     if (verletzung) {
       return NextResponse.json({ error: verletzung }, { status: 400 });
     }
@@ -90,7 +91,7 @@ export async function PUT(
     // und nicht maskiert; sonst bleibt der alte Wert.
     const gemergt = mergePublicPublishing(prevPub, {
       slugName, publicName, description, icon, requiresAuth, showOnHomepage,
-      backgroundImageUrl, logoUrl, gallery,
+      backgroundImageUrl, logoUrl, gallery, siteTheme,
       isPublic: isPublic !== undefined ? isPublic : false,
       siteEnabled: siteEnabled === true,
     }, library.label)

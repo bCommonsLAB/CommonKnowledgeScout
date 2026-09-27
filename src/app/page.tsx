@@ -36,6 +36,7 @@ export default async function Home() {
             fallbackLocale={target.fallbackLocale}
             exploreBaseHref={`/explore/${encodeURIComponent(target.slug)}`}
             librarySlug={target.slug}
+            siteTheme={target.siteTheme}
           />
         </GalleryAppProviders>
       </main>

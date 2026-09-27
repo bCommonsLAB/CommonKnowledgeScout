@@ -11,7 +11,7 @@
 import type { ReactNode } from 'react'
 
 import type { InstanceApi } from '@ks/api-client'
-import type { Character, SocialContext, TargetLanguage } from '@ks/contracts'
+import type { Character, SiteTheme, SocialContext, TargetLanguage } from '@ks/contracts'
 
 /**
  * Was das Modul ueber den Betrachter wissen muss — mehr nicht.
@@ -39,6 +39,8 @@ export interface ExplorerLibraryPayload {
   siteEnabled?: boolean
   /** Website-Logo (Phase C2): oeffentliche URL fuer die TopNav im Site-Kontext */
   logoUrl?: string
+  /** Welle S2: Design-Profil der Website-Landingpage (fehlt = Vorlage) */
+  siteTheme?: SiteTheme
   /** Galerie-Texte aus den Public-Settings (leer = Standard-Texte des detailViewType) */
   gallery?: {
     headline?: string

@@ -35,6 +35,7 @@ import type {
   TranslationsConfig,
   CaptureWizardsConfig,
   LibraryChatConfig,
+  SiteTheme,
 } from '@ks/contracts';
 
 // Re-Export als G2-Fassade, damit die bestehenden Importeure von
@@ -371,6 +372,13 @@ export interface StorageConfig {
      * `web/`-Snapshot-Publishing (kein Azure-Snapshot mehr).
      */
     siteEnabled?: boolean;
+    /**
+     * Welle S2: Design-Profil der Website-Landingpage — Farben je Flaeche,
+     * Akzent, Schriften (`SiteTheme` in `@ks/contracts`). Fehlt es, rendert
+     * die Seite mit der Vorlage „Oldies for Future" (Steckbrief 10). Geprueft
+     * in `src/lib/website/site-theme.ts`, gesetzt ueber Formular und Bruecke.
+     */
+    siteTheme?: SiteTheme;
   };
 }
 

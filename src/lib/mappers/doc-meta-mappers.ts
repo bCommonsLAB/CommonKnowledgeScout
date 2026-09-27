@@ -259,6 +259,11 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     videoUrl: toStr(docMetaJson.video_url),
     ctaLabel: toStr(docMetaJson.cta_label),
     ctaUrl: toStr(docMetaJson.cta_url),
+    // S2: Hero `campaign` — Kennzeile im Bild, kursive Zweitzeile, zweiter Handlungsaufruf.
+    heroKicker: toStr(docMetaJson.hero_kicker),
+    heroTitle2: toStr(docMetaJson.hero_title2),
+    cta2Label: toStr(docMetaJson.cta2_label),
+    cta2Url: toStr(docMetaJson.cta2_url),
     markdown: toStr(docMetaJson.markdown),
     // C3: Empfaenger-Adresse des Kontakt-Formulars (dokumentgetrieben, oeffentlich
     // sichtbar wie eine Impressums-Adresse — bewusst kein Settings-Feld).

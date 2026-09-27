@@ -15,6 +15,9 @@ import { SectionBlock } from "@/components/library/website/website-landing-block
 import { useWebsiteDetail } from "@/components/library/website/use-website-landing-data"
 import { getSiteParamForDoc } from "@/lib/website/site-navigation"
 import type { DocCardMeta } from "@ks/contracts"
+import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
+import { surfaceStyle } from "@/lib/website/surface-style"
+import { cn } from "@/lib/utils"
 
 interface WebsiteSiteFooterProps {
   libraryId: string
@@ -26,6 +29,8 @@ interface WebsiteSiteFooterProps {
   fallbackLocale?: string
   /** Navigiert zur Website-Seite (setzt den `?site=`-Param). */
   onNavigate: (siteParam: string) => void
+  /** Welle S2: Profil fuer Sektionen und Link-Zeile (Flaeche `dark-green`). */
+  theme?: SiteThemeResolved
 }
 
 export function WebsiteSiteFooter({
@@ -35,6 +40,7 @@ export function WebsiteSiteFooter({
   locale,
   fallbackLocale,
   onNavigate,
+  theme = OLDIES_THEME,
 }: WebsiteSiteFooterProps): React.ReactElement | null {
   const { detail, detailError } = useWebsiteDetail(
     libraryId,
@@ -55,15 +61,17 @@ export function WebsiteSiteFooter({
   )
 
   if (!footerDoc && footerLinkDocs.length === 0) return null
+  // Link-Zeile: Flaeche `dark-green` — Links in Absatzfarbe, Hover in Textfarbe (Vorlage: Mint/Weiss).
+  const linkZeile = surfaceStyle("dark-green", theme)
 
   return (
     <footer>
       {sections.map((s, i) => (
-        <SectionBlock key={i} section={s} />
+        <SectionBlock key={i} section={s} theme={theme} />
       ))}
       {footerLinkDocs.length > 0 && (
-        <nav className="bg-[#005140] px-6 py-4 text-sm text-[#6fc5ae]">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2">
+        <nav className={cn("px-6 py-4 text-sm", linkZeile.className)} style={linkZeile.style}>
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 text-[color:var(--site-paragraph)]">
             {footerLinkDocs.map((d) => {
               const param = getSiteParamForDoc(d)
               if (!param) return null
@@ -72,7 +80,7 @@ export function WebsiteSiteFooter({
                   key={d.fileId ?? d.id}
                   type="button"
                   onClick={() => onNavigate(param)}
-                  className="whitespace-nowrap hover:text-white hover:underline"
+                  className="whitespace-nowrap hover:text-[color:var(--site-text)] hover:underline"
                 >
                   {d.title ?? d.fileName ?? "—"}
                 </button>

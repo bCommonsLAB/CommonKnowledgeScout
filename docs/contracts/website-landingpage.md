@@ -23,6 +23,23 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   (`prioritaets_index`), anonym lesbar. `heading_case: none` schaltet das
   `capitalize` der Vorlage ab. Ungueltige Werte werden geloggt, nie still
   ersetzt (`src/lib/website/banner.ts`, `doc-meta-mappers.ts`).
+- **Design-Profil (Welle S2):** Farben und Schriften der Landingpage kommen
+  aus `publicPublishing.siteTheme` (`SiteTheme` in `@ks/contracts`), nicht
+  aus dem Code. Der Code kennt die Stellschrauben (CSS-Variablen, Flaechen
+  `SITE_SURFACES`, registrierte Schriften in `src/lib/website/site-fonts.ts`);
+  die Werte je Library setzen Formular und Bruecke ueber dieselbe Pruefung
+  (`src/lib/website/site-theme.ts`: Hex-Farben, registrierte Schriften,
+  bekannte Flaechen — alles andere wird abgewiesen). **Ohne Profil rendert
+  die Vorlage „Oldies for Future" unveraendert** (`OLDIES_THEME`); nur
+  genannte Flaechen weichen ab. Bausteine lesen Farben NUR ueber
+  `surfaceStyle()` und die Variablen `--site-*` — keine festen Hex-Klassen
+  mehr in `src/components/library/website/**`. Ein gespeichertes Profil,
+  das die Pruefung nicht besteht, wird laut geloggt und die Vorlage gerendert.
+- **Hero `campaign` und Kennzeile (S2):** `hero_layout: campaign` mit
+  `hero_kicker` (Kennzeile im Bild), `hero_title2` (kursive Zweitzeile),
+  `cta2_label`/`cta2_url` (zweiter Handlungsaufruf). Marker-Attribut
+  `kicker="…"` setzt eine Versalzeile ueber die Sektions-Ueberschrift;
+  Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
 
 ## 2. Entferntes Legacy — NICHT wiedereinfuehren
 
@@ -66,7 +83,7 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   (`/api/library/<id>/web/...` erfordert Login und ist damit fuer anonyme
   Besucher ungeeignet).
 
-## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.34.0)
+## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.35.0)
 
 - Eine Website-Seite ist eine Markdown-Quelle im Storage (Konvention
   `Webseite/Seiten/`), deren Transformation `website-page` am Twin haengt
@@ -87,7 +104,8 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   Library-Storage (`web/images/`) in den oeffentlichen Blob
   (`src/lib/services/website-image-blob.ts`, dieselbe Konvention wie das
   Spiegelskript); die Seiten tragen nur diese anonymen URLs.
-- `publicPublishing` (Slug, `isPublic`, `siteEnabled`, Logo, Galerie-Texte)
+- `publicPublishing` (Slug, `isPublic`, `siteEnabled`, Logo, Galerie-Texte,
+  seit S2 das Design-Profil `siteTheme`)
   setzen Formular UND Bruecke (`veroeffentlichung_setzen`) ueber dieselbe
   Validierung und denselben Merge in
   `src/lib/services/public-publishing-validation.ts`. Wer eine Regel

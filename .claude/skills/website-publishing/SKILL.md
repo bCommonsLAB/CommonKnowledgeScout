@@ -5,7 +5,7 @@ description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke a
 
 # Website-Publishing: Inhalte einer öffentlichen Library füllen
 
-Stand 27.09.2026, Werkzeugsatz 2.34.0. Original im Archiv unter
+Stand 27.09.2026, Werkzeugsatz 2.35.0. Original im Archiv unter
 `Organisation/Skills/website-publishing/SKILL.md`; diese Datei ist die
 Repo-Kopie und wird nach dem Original nachgezogen.
 
@@ -85,6 +85,9 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   `publicName` und `description` (Mindestlängen wie im Formular). Nur genannte
   Felder ändern sich, leere URL-Felder löschen. `isPublic: true` macht die
   Inhalte anonym lesbar — vorher ausdrücklich bestätigen lassen.
+- **Design-Profil** (ab 2.35.0): `siteTheme` setzt Schriften, Akzent und
+  Farben je Fläche der Website — siehe Schritt 4b im Abschnitt „Website-Seiten"
+  unten. Ohne Profil rendert die Seite in der Gestaltung der Vorlage.
 - Alternativ als Copy-Paste-Block für das Formular **Einstellungen →
   Veröffentlichung**.
 - Verifizieren: `veroeffentlichung_lesen`, dann `/explore/<slug>` neu laden —
@@ -102,13 +105,13 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   es nur die Galerie.
 
 
-## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.34.0)
+## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.35.0)
 
 Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
 Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
 nach Bestätigung durch den Menschen, mit `begruendung`. Vorher `bruecke_info`:
-meldet sie eine Version unter 2.34.0, fehlen Werkzeuge — Erweiterung in den
-Einstellungen aus- und einschalten.
+meldet sie eine Version unter 2.35.0, fehlen Werkzeuge oder Felder —
+Erweiterung in den Einstellungen aus- und einschalten.
 
 1. **Bestand lesen.** `seite_pruefen` mit der `libraryId`: zeigt, ob die
    Library öffentlich ist, ob `siteEnabled` gesetzt ist, welche Seiten
@@ -117,8 +120,12 @@ Einstellungen aus- und einschalten.
    fehlt), dann je Seite `datei_anlegen`:
    - Startseite: `detailViewType: "website"`, `title`, `language`,
      `targetLanguage`, `menu_order: 1`, Hero-Felder (`hero_subtitle`,
-     `hero_image`, `hero_layout`, `cta_label`, `cta_url`), Body als
-     Sektionen `<!-- section layout=… bg=… --> … <!-- /section -->`.
+     `hero_image`, `hero_layout` mit `overlay`, `cover` oder `campaign`,
+     `cta_label`, `cta_url`; bei `campaign` zusätzlich `hero_kicker`
+     für die Kennzeile im Bild, `hero_title2` für die kursive Zweitzeile,
+     `cta2_label`/`cta2_url` für den zweiten Button), Body als
+     Sektionen `<!-- section layout=… bg=… kicker="…" --> … <!-- /section -->`
+     (`kicker` = Versalzeile über der Überschrift, optional).
    - Kontakt: `menu_order` hoch, `slug`, `contact_email`, Sektion
      `layout=contact-form`.
    - Impressum: `menu_area: "footer"`.
@@ -128,6 +135,8 @@ Einstellungen aus- und einschalten.
    dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben):
    erst `bild_veroeffentlichen` (Schritt 4 oben), dann die URLs eintragen.
    Frontmatter flach, snake_case, keine verschachtelten Objekte.
+   Welche Farbe hinter `bg=dark-green` oder `bg=light` liegt, entscheidet
+   das Design-Profil (Schritt 4b) — die Namen sind Flächen, keine Farben.
 3. **Publizieren.** `dokument_publizieren` mit `quellPfad` oder `sourceIds`
    (bis 30). Die Antwort nennt je Seite Warnungen (fehlende Felder,
    relative Bilder) und harte Fehler (ungültiger Marker). Warnungen erst
@@ -143,6 +152,22 @@ Einstellungen aus- und einschalten.
    Überschriften ab. Nicht `prioritaets_index` setzen —
    den rechnet die Pipeline und überschreibt ihn bei jedem Transform-Lauf.
    Nicht publizierte Quellen meldet die Zeile als `nicht_publiziert`.
+4b. **Design-Profil übertragen** (wenn die Site nicht wie die Vorlage
+   aussehen soll). Aus der Gestaltungsvorlage (Figma, Styleguide) ablesen:
+   Überschriften- und Fließtextschrift, Akzentfarbe der Buttons, je Sektion
+   Hintergrund- und Textfarbe. Dann `veroeffentlichung_setzen` mit
+   `siteTheme`, z. B.
+   `{ "fontHeading": "newsreader", "fontBody": "plus-jakarta", "accent": "#c85a32",
+   "buttonShape": "rounded", "surfaces": { "default": { "bg": "#faf8f5", "text": "#1c3829" },
+   "light": { "bg": "#f4f1ea", "text": "#1c3829" }, "dark-green": { "bg": "#1c3829",
+   "text": "#f4f6f4", "kicker": "#9cc5a1" }, "brand": { "bg": "#224851", "text": "#f0f6f7" } } }`.
+   Regeln: Schriften nur aus `geist`, `newsreader`, `plus-jakarta` (andere
+   brauchen einen Code-Eintrag); Farben als `#rrggbb`; Flächen nur aus
+   `default, light, dark, brand, linen, mint, dark-green, neutral`; nur
+   genannte Flächen weichen von der Vorlage ab; das Profil ersetzt das
+   gespeicherte als Ganzes (vorher `veroeffentlichung_lesen`), `null`
+   löscht es. Ungültige Werte weist die Brücke ab. Die Seiten selbst
+   ändern sich nicht — nur die Farbe hinter den `bg`-Namen.
 5. **Prüfen.** Erneut `seite_pruefen`: Startseite, Menüreihenfolge,
    Footer-Links, Sektionen je Seite, keine Fehler. `siteEnabled: true` mit
    `veroeffentlichung_setzen`, dann die Seite unter `/explore/<slug>`

@@ -32,6 +32,9 @@ import {
 } from "@/lib/website/site-navigation"
 import { useTranslation } from "@ks/i18n/react"
 import { BANNER_LIMIT_DEFAULT } from "@/lib/website/banner"
+import type { SiteTheme } from "@ks/contracts"
+import { resolveSiteTheme, siteThemeCssVars } from "@/lib/website/site-theme"
+import { SITE_FONT_FAMILIES } from "@/lib/website/site-fonts"
 
 interface WebsiteLandingLiveProps {
   libraryId: string
@@ -50,6 +53,11 @@ interface WebsiteLandingLiveProps {
    * Site-Modus wird er aus dem `/explore/<slug>`-Pfad abgeleitet).
    */
   librarySlug?: string
+  /**
+   * Welle S2: Design-Profil im Root-Modus (`/`), wo das Library-Atom leer sein
+   * kann; im Site-Modus kommt es aus der Library im Atom.
+   */
+  siteTheme?: SiteTheme
 }
 
 export function WebsiteLandingLive({
@@ -58,6 +66,7 @@ export function WebsiteLandingLive({
   onShowGallery,
   exploreBaseHref,
   librarySlug,
+  siteTheme,
 }: WebsiteLandingLiveProps): React.ReactElement {
   const { t, locale } = useTranslation()
   const pathname = usePathname()
@@ -75,9 +84,17 @@ export function WebsiteLandingLive({
   // (Explore-Seite laedt die Library dorthin). Auf der anonymen Domain-Root
   // kann das Atom leer sein — dann greift der Standard-Text „mehr Inhalte".
   const libraries = useLibraries()
-  const moreLinkLabel =
-    libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing?.gallery
-      ?.moreLinkLabel || "mehr Inhalte"
+  const publicPublishing = libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing
+  const moreLinkLabel = publicPublishing?.gallery?.moreLinkLabel || "mehr Inhalte"
+
+  // S2: Design-Profil aufloesen (ohne Profil: Vorlage) und als CSS-Variablen
+  // plus Schriften auf den Wrapper legen — alle Bausteine lesen nur Variablen.
+  const themeConfig = siteTheme ?? publicPublishing?.siteTheme
+  const theme = React.useMemo(() => resolveSiteTheme(themeConfig), [themeConfig])
+  const themeStyle = React.useMemo(
+    () => ({ ...siteThemeCssVars(theme, SITE_FONT_FAMILIES), fontFamily: "var(--site-font-body)" }) as React.CSSProperties,
+    [theme],
+  )
 
   const { allDocs, loadingList, listError } = useWebsiteDocs(libraryId, locale)
   // Seitenwechsel via URL (`?site=<slug>`), history: push -> Browser-Back
@@ -129,6 +146,7 @@ export function WebsiteLandingLive({
       galleryBaseHref={galleryBaseHref}
       onShowGallery={onShowGallery}
       moreLinkLabel={moreLinkLabel}
+      theme={theme}
     />
   ) : null
 
@@ -151,13 +169,14 @@ export function WebsiteLandingLive({
     // Root-Modus (`/`): natuerlicher Fluss (Window-Scroll). Site-Modus: innerer Scroll-Container.
     // C1b: Die fruehere zweite Menue-Leiste (mainMenuDocs) entfaellt — die
     // Website-Seiten liegen jetzt als NavItems in der TopNav (useSiteMenuItems).
-    <div ref={containerRef} className={exploreBaseHref ? 'w-full' : 'h-full overflow-y-auto'}>
+    <div ref={containerRef} className={exploreBaseHref ? 'w-full' : 'h-full overflow-y-auto'} style={themeStyle}>
       {detail && (
         <WebsiteDetail
           data={detail}
           showBackLink={false}
           contactApiSlug={contactApiSlug}
           bannerSlot={bannerInSektion ? banner : undefined}
+          theme={theme}
         />
       )}
       {!bannerInSektion && banner}
@@ -169,6 +188,7 @@ export function WebsiteLandingLive({
         locale={locale}
         fallbackLocale={fallbackLocale}
         onNavigate={(param) => void setSiteParam(param)}
+        theme={theme}
       />
     </div>
   )

@@ -1,3 +1,5 @@
+import type { SiteSurfaceName } from '@ks/contracts'
+
 /**
  * Typen fuer den Webseiten-/Landingpage-Renderer (detailViewType: website).
  *
@@ -28,19 +30,12 @@ export type HeadingCase = 'capitalize' | 'none'
 export const HEADING_CASES: readonly HeadingCase[] = ['capitalize', 'none']
 
 /**
- * Hintergrund-Variante einer Inhalts-Sektion.
- * Zusaetzlich zur generischen Basis (`default/light/dark/brand`) die konkreten
- * Landingpage-Toene (Vorlage „Oldies for Future"): linen, mint, dark-green, neutral.
+ * Hintergrund-Flaeche einer Inhalts-Sektion. Die Namen stehen in
+ * `SITE_SURFACES` (`@ks/contracts`); welche Farbe dahinter liegt, entscheidet
+ * seit Welle S2 das Design-Profil der Library (`site-theme.ts`), Vorgabe ist
+ * die Vorlage „Oldies for Future".
  */
-export type SectionBg =
-  | 'default'
-  | 'light'
-  | 'dark'
-  | 'brand'
-  | 'linen'
-  | 'mint'
-  | 'dark-green'
-  | 'neutral'
+export type SectionBg = SiteSurfaceName
 
 /** Eine aus dem Body geparste Inhalts-Sektion. */
 export interface WebsiteSection {
@@ -53,6 +48,8 @@ export interface WebsiteSection {
   imageAlt?: string
   /** Optionale Video-Embed-URL (nur bei layout=video; erste URL im Sektions-Markdown). */
   videoUrl?: string
+  /** Welle S2: Kennzeile (Versalzeile ueber der Ueberschrift), Marker-Attribut `kicker="…"`. */
+  kicker?: string
 }
 
 /** Eintrag im dynamischen Menue (spaeter: alle website-Dokumente). */

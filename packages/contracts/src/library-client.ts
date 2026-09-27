@@ -16,6 +16,7 @@
 
 import type { StorageProviderType, TranslationsConfig, CaptureWizardsConfig } from './library-config'
 import type { LibraryChatConfig } from './library-chat'
+import type { SiteTheme } from './site-theme'
 
 /**
  * Client-side library representation.
@@ -178,6 +179,8 @@ export interface ClientLibrary {
       };
       /** Website-Landingpage am Slug (siehe serverseitiges publicPublishing.siteEnabled) */
       siteEnabled?: boolean;
+      /** Welle S2: Design-Profil der Landingpage (Farben, Schriften); fehlt = Vorlage */
+      siteTheme?: SiteTheme;
     };
     /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
     nextcloud?: {

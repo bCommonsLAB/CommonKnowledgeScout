@@ -29,3 +29,13 @@ describe('mapToWebsiteDetail (S1)', () => {
     expect(String(fehler.mock.calls[1][0])).toMatch(/heading_case "shouty"/)
   })
 })
+
+describe('mapToWebsiteDetail (S2, Hero campaign)', () => {
+  it('liest hero_kicker, hero_title2, cta2_label, cta2_url', () => {
+    const d = mapToWebsiteDetail({ docMetaJson: {
+      title: 'Start', hero_layout: 'campaign', hero_kicker: 'Dialogplattform', hero_title2: 'Zweite Zeile',
+      cta2_label: 'Mitreden', cta2_url: '?site=kontakt',
+    } })
+    expect(d).toMatchObject({ heroLayout: 'campaign', heroKicker: 'Dialogplattform', heroTitle2: 'Zweite Zeile', cta2Label: 'Mitreden', cta2Url: '?site=kontakt' })
+  })
+})

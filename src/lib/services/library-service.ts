@@ -531,6 +531,8 @@ export class LibraryService {
             ? this.maskApiKey(lib.config.publicPublishing.apiKey)
             : undefined,
           siteEnabled: lib.config.publicPublishing.siteEnabled === true,
+          // Welle S2: Design-Profil (Farben/Schriften, kein Secret)
+          siteTheme: lib.config.publicPublishing.siteTheme,
         } : undefined
       } as Record<string, unknown>;
       

@@ -18,7 +18,7 @@ import { unstable_cache } from 'next/cache'
 import { getAppConfig } from '@/lib/repositories/app-config-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { normalizeHost, resolveSiteConfigForHost } from '@ks/shell'
-import { isSitePrimaryBySlug } from '@ks/contracts'
+import { isSitePrimaryBySlug, type SiteTheme } from '@ks/contracts'
 
 // Re-Export fuer Bestandsnutzer (Host-Normalisierung lebt jetzt in
 // `@ks/shell` — edge-tauglich, damit auch die Middleware sie nutzen kann).
@@ -28,6 +28,8 @@ export interface RootLandingTarget {
   libraryId: string
   slug: string
   fallbackLocale?: string
+  /** Welle S2: Design-Profil — auf `/` gibt es kein Library-Atom, also hier mitgeben. */
+  siteTheme?: SiteTheme
 }
 
 /** Loest einen Slug zur oeffentlichen Library auf (nur wenn wirklich public). */
@@ -38,6 +40,7 @@ async function resolveTargetBySlug(slug: string): Promise<RootLandingTarget | nu
     libraryId: library.id,
     slug,
     fallbackLocale: library.config?.translations?.fallbackLocale,
+    siteTheme: library.config?.publicPublishing?.siteTheme,
   }
 }
 

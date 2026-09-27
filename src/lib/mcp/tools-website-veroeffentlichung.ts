@@ -13,6 +13,7 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { SiteTheme } from '@ks/contracts'
 import { LibraryService } from '@/lib/services/library-service'
 import {
   geaenderteFelder, mergePublicPublishing, validierePublicPublishing, type PublicPublishing,
@@ -41,6 +42,7 @@ function sicht(pub: PublicPublishing | undefined) {
     logoUrl: pub?.logoUrl ?? null,
     gallery: pub?.gallery ?? null,
     siteEnabled: pub?.siteEnabled === true,
+    siteTheme: pub?.siteTheme ?? null,
     apiKeyGesetzt: Boolean(pub?.apiKey),
     adresse: slug ? `/explore/${slug}` : null,
     domainZuordnung: process.env.PUBLIC_DOMAIN_LIBRARY_MAP ? 'im Deployment konfiguriert (Wert nicht lesbar)' : 'keine',
@@ -55,7 +57,8 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
       description:
         'Liest publicPublishing der Library: isPublic, Slug, oeffentlicher Name, Beschreibung, Icon, ' +
         'showOnHomepage, requiresAuth, Logo- und Hintergrundbild-URL, Galerie-Texte, siteEnabled, ' +
-        'ob ein API-Schluessel gesetzt ist (nie sein Wert) und die Adresse /explore/<slug>. Liest nur.',
+        'das Design-Profil siteTheme (null = Vorlage), ob ein API-Schluessel gesetzt ist (nie sein Wert) ' +
+        'und die Adresse /explore/<slug>. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID },
       annotations: { readOnlyHint: true },
     },
@@ -79,7 +82,12 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         'oeffentlicher Name ab 3, Beschreibung ab 10 Zeichen, sobald isPublic true ist; requiresAuth und ' +
         'showOnHomepage=false nur bei isPublic. Nur genannte Felder aendern sich; leere URL-Felder ' +
         'loeschen den Wert. isPublic: true macht die Inhalte anonym lesbar — das ist die eine Aktion mit ' +
-        'Aussenwirkung. Nur Owner; kein API-Schluessel ueber die Bruecke. Nur nach Bestaetigung durch den Menschen.',
+        'Aussenwirkung. siteTheme (Welle S2) ist das Design-Profil der Website: fontHeading/fontBody aus ' +
+        'geist|newsreader|plus-jakarta, accent/accentHover/accentText als #rrggbb, buttonShape pill|rounded, ' +
+        'surfaces je Flaeche (default, light, dark, brand, linen, mint, dark-green, neutral) mit bg, text, ' +
+        'heading, paragraph, kicker als #rrggbb; nur genannte Flaechen weichen von der Vorlage ab, das ' +
+        'Profil ersetzt das gespeicherte als Ganzes, null loescht es. Ungueltige Werte werden abgewiesen. ' +
+        'Nur Owner; kein API-Schluessel ueber die Bruecke. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         isPublic: z.boolean().optional(),
@@ -93,6 +101,8 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         logoUrl: z.string().max(1000).optional().describe('anonym lesbare URL; "" loescht'),
         gallery: GALLERY.optional().describe('Galerie-Texte feldweise; leerer String = Standardtext'),
         siteEnabled: z.boolean().optional().describe('true = /explore/<slug> zeigt die Website statt der Galerie'),
+        siteTheme: z.record(z.string(), z.unknown()).nullable().optional()
+          .describe('Design-Profil als Objekt (Felder siehe Beschreibung); null = Profil loeschen, weglassen = unveraendert'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false },
@@ -109,7 +119,8 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
             }
             const library = await requireLibrary(userEmail, libraryId)
             const alt = library.config?.publicPublishing
-            const neu = mergePublicPublishing(alt, eingabe, library.label)
+            // S2: ein ungueltiges siteTheme wirft schon im Merge (validiereSiteTheme) — laut, mit Feldname.
+            const neu = mergePublicPublishing(alt, { ...eingabe, siteTheme: eingabe.siteTheme as SiteTheme | null | undefined }, library.label)
             const verletzung = validierePublicPublishing(neu)
             if (verletzung) throw new Error(verletzung)
             if (neu.isPublic && neu.slugName && (neu.slugName !== alt?.slugName || !alt?.isPublic)) {

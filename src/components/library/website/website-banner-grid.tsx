@@ -17,6 +17,9 @@ import { getEffectiveDocumentNavigationSlug } from "@ks/util"
 import type { DocCardMeta } from "@ks/contracts"
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
 import { bannerQuery } from "@/lib/website/banner"
+import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
+import { BUTTON_STRONG, HEADING_FONT, surfaceStyle } from "@/lib/website/surface-style"
+import { cn } from "@/lib/utils"
 
 interface WebsiteBannerGridProps {
   libraryId: string
@@ -31,14 +34,17 @@ interface WebsiteBannerGridProps {
   galleryBaseHref: string | null
   onShowGallery?: () => void
   moreLinkLabel: string
+  /** Welle S2: Flaeche `light` und Akzent aus dem Profil. */
+  theme?: SiteThemeResolved
 }
 
 const STANDARD_TITEL = "Mehr aus dieser Bibliothek"
 
 export function WebsiteBannerGrid({
-  libraryId, locale, tag, title, limit, galleryBaseHref, onShowGallery, moreLinkLabel,
+  libraryId, locale, tag, title, limit, galleryBaseHref, onShowGallery, moreLinkLabel, theme = OLDIES_THEME,
 }: WebsiteBannerGridProps): React.ReactElement | null {
   const router = useRouter()
+  const flaeche = surfaceStyle("light", theme)
   const [docs, setDocs] = React.useState<DocCardMeta[]>([])
 
   React.useEffect(() => {
@@ -65,11 +71,11 @@ export function WebsiteBannerGrid({
   const zurGalerie = () => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())
 
   return (
-    <section className="bg-muted px-4 py-12">
+    <section className={cn("px-4 py-12", flaeche.className)} style={flaeche.style}>
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h2 className="text-2xl font-semibold">{title || STANDARD_TITEL}</h2>
-          <button type="button" onClick={zurGalerie} className="whitespace-nowrap text-sm font-medium text-emerald-700 hover:underline">
+          <h2 className={cn("text-2xl font-semibold text-[color:var(--site-heading)]", HEADING_FONT)}>{title || STANDARD_TITEL}</h2>
+          <button type="button" onClick={zurGalerie} className="whitespace-nowrap text-sm font-medium text-[color:var(--site-accent-strong)] hover:underline">
             {moreLinkLabel} →
           </button>
         </div>
@@ -89,11 +95,7 @@ export function WebsiteBannerGrid({
         </div>
         {/* Galerie-Link nach dem Raster wiederholen — der dezente Link oben wird leicht uebersehen. */}
         <div className="mt-8 flex justify-center">
-          <button
-            type="button"
-            onClick={zurGalerie}
-            className="rounded-full bg-emerald-700 px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-800"
-          >
+          <button type="button" onClick={zurGalerie} className={BUTTON_STRONG}>
             {moreLinkLabel} →
           </button>
         </div>

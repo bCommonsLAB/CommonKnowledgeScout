@@ -15,6 +15,7 @@
  * - Body ohne Marker => eine einzige Default-Sektion (Robustheit).
  */
 
+import { SITE_SURFACES } from '@ks/contracts'
 import type { SectionBg, SectionLayout, WebsiteSection } from './types'
 
 const SECTION_LAYOUTS: readonly SectionLayout[] = [
@@ -26,22 +27,15 @@ const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'contact-form',
   'banner',
 ]
-const SECTION_BGS: readonly SectionBg[] = [
-  'default',
-  'light',
-  'dark',
-  'brand',
-  'linen',
-  'mint',
-  'dark-green',
-  'neutral',
-]
+const SECTION_BGS: readonly SectionBg[] = SITE_SURFACES
 
 const DEFAULT_LAYOUT: SectionLayout = 'text-only'
 const DEFAULT_BG: SectionBg = 'default'
 
 const SECTION_RE = /<!--\s*section\b([^>]*?)-->([\s\S]*?)<!--\s*\/section\s*-->/g
-const ATTR_RE = /(\w+)\s*=\s*"?([\w-]+)"?/g
+// Werte ohne Anfuehrungszeichen sind Woerter (`layout=banner`); in
+// Anfuehrungszeichen darf alles stehen (`kicker="Wer wir sind"`, S2).
+const ATTR_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([\w-]+))/g
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/
 // Video-URL: bevorzugt Markdown-Link [text](url), sonst erste nackte http(s)-URL.
 const VIDEO_LINK_RE = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/
@@ -55,14 +49,15 @@ function isBg(value: string): value is SectionBg {
   return (SECTION_BGS as readonly string[]).includes(value)
 }
 
-function parseAttrs(raw: string): { layout: SectionLayout; bg: SectionBg } {
+function parseAttrs(raw: string): { layout: SectionLayout; bg: SectionBg; kicker?: string } {
   let layout: SectionLayout = DEFAULT_LAYOUT
   let bg: SectionBg = DEFAULT_BG
+  let kicker: string | undefined
   ATTR_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTR_RE.exec(raw)) !== null) {
     const key = m[1]
-    const value = m[2]
+    const value = m[2] ?? m[3]
     if (key === 'layout') {
       if (!isLayout(value)) {
         throw new Error(
@@ -77,9 +72,11 @@ function parseAttrs(raw: string): { layout: SectionLayout; bg: SectionBg } {
         )
       }
       bg = value
+    } else if (key === 'kicker') {
+      kicker = value.trim() || undefined
     }
   }
-  return { layout, bg }
+  return { layout, bg, kicker }
 }
 
 function extractImage(markdown: string): {
@@ -114,13 +111,13 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
   SECTION_RE.lastIndex = 0
   let match: RegExpExecArray | null
   while ((match = SECTION_RE.exec(body)) !== null) {
-    const { layout, bg } = parseAttrs(match[1] ?? '')
+    const { layout, bg, kicker } = parseAttrs(match[1] ?? '')
     if (layout === 'video') {
       const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
-      sections.push({ layout, bg, markdown: rest, videoUrl })
+      sections.push({ layout, bg, markdown: rest, videoUrl, kicker })
     } else {
       const { imageUrl, imageAlt, rest } = extractImage(match[2] ?? '')
-      sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt })
+      sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt, kicker })
     }
   }
   if (sections.length === 0) {

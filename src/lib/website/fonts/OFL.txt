@@ -1,0 +1,6 @@
+Die Schriftdateien in diesem Ordner sind Latin-Teilmengen der Google Fonts
+„Newsreader" (Copyright 2020 The Newsreader Project Authors,
+https://github.com/productiontype/Newsreader) und „Plus Jakarta Sans"
+(Copyright 2020 The Plus Jakarta Sans Project Authors,
+https://github.com/tokotype/PlusJakartaSans), lizenziert unter der
+SIL Open Font License 1.1 (https://openfontlicense.org).

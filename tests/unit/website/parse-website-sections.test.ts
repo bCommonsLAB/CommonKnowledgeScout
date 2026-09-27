@@ -94,3 +94,26 @@ Bringe deine Ideen mit ein!
     expect(sections[0].markdown).toBe('Nur Text ohne Marker.')
   })
 })
+
+describe('parseWebsiteSections — Kennzeile (S2)', () => {
+  it('liest kicker="…" mit Leerzeichen und laesst andere Attribute unberuehrt', () => {
+    const body = `
+<!-- section layout=image-right bg=dark-green kicker="Wer wir sind" -->
+## Wer sind wir?
+<!-- /section -->`
+    const [s] = parseWebsiteSections(body)
+    expect(s.kicker).toBe('Wer wir sind')
+    expect(s.layout).toBe('image-right')
+    expect(s.bg).toBe('dark-green')
+  })
+
+  it('kicker ohne Anfuehrungszeichen ist ein Wort; leerer kicker zaehlt nicht', () => {
+    expect(parseWebsiteSections('<!-- section kicker=Mitmachen -->x<!-- /section -->')[0].kicker).toBe('Mitmachen')
+    expect(parseWebsiteSections('<!-- section kicker="  " -->x<!-- /section -->')[0].kicker).toBeUndefined()
+    expect(parseWebsiteSections('<!-- section layout=text-only -->x<!-- /section -->')[0].kicker).toBeUndefined()
+  })
+
+  it('ein ungueltiges bg in Anfuehrungszeichen wirft weiterhin', () => {
+    expect(() => parseWebsiteSections('<!-- section bg="petrol" -->x<!-- /section -->')).toThrow(/Ungueltiges section bg="petrol"/)
+  })
+})

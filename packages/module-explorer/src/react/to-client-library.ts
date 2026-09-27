@@ -33,6 +33,7 @@ export function toClientLibrary(
         siteEnabled: payload.siteEnabled,
         logoUrl: payload.logoUrl,
         gallery: payload.gallery,
+        siteTheme: payload.siteTheme,
       },
     },
   }

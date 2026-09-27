@@ -11,8 +11,8 @@ todos:
     content: "S1 Banner erweitern: Frontmatter `banner_tag`, `banner_title`, `banner_limit` am Startseiten-Doc filtern und betiteln das bestehende Raster; Sektions-Marker `layout=banner` setzt es an eine Stelle im Seitentext; ohne Marker bleibt es unten. Docs-API unverändert (`tags=` ist schon Facette)."
     status: completed
   - id: s2-hero
-    content: "S2 Hero-Variante `hero_layout: campaign` mit Kennzeile im Bild (`hero_kicker`), Unterzeile, primärem und sekundärem Handlungsaufruf (`cta2_label`, `cta2_url`); Sektions-Attribut `kicker=` für die Versalzeile über der Überschrift."
-    status: pending
+    content: "S2 Design-Profil `publicPublishing.siteTheme` (Schriften, Akzent, Farben je Fläche; Vorgabe = Vorlage) plus Hero-Variante `hero_layout: campaign` mit Kennzeile im Bild (`hero_kicker`), kursiver Zweitzeile (`hero_title2`), zweitem Handlungsaufruf (`cta2_label`, `cta2_url`); Sektions-Attribut `kicker=` für die Versalzeile über der Überschrift."
+    status: completed
   - id: s3-kacheln
     content: "S3 Layout `stats`: eine Markdown-Liste `- **600+** Maßnahmen` wird zu Kennzahl-Kacheln, Zahlen stehen im Markdown; Zitatkasten mit Randstreifen; Hintergründe `stone`, `petrol`, `forest`, `greige`."
     status: pending
@@ -26,6 +26,12 @@ todos:
 
 # Website-Startseite: Banner erweitern, Hero und Kacheln
 
+> **Stand 27.09.2026 (abends):** S2 gebaut — Design-Profil
+> `publicPublishing.siteTheme` (`site-theme.ts`, `surface-style.ts`,
+> `site-fonts.ts`), Hero `campaign` (`hero-campaign.tsx`), Marker-Attribut
+> `kicker`; Werkzeugsatz 2.35.0. Oldies for Future rendert ohne Profil
+> unverändert. Regel 3 unten hat seither eine Ausnahme.
+>
 > **Stand 27.09.2026:** S1 gebaut (`website-banner-grid.tsx`, `hero-cover.tsx`,
 > `src/lib/website/banner.ts`; Frontmatter `banner_tag`, `banner_title`,
 > `banner_limit`, `heading_case`; Marker `layout=banner`). Mitgenommen aus dem
@@ -94,7 +100,11 @@ Contract: [`../contracts/website-landingpage.md`](../contracts/website-landingpa
 
 - **Dokumentgetrieben, flach.** Neues sind Frontmatter-Felder oder
   Marker-Attribute; keine neuen Library-Settings, keine verschachtelten
-  YAML-Objekte (AGENTS.md, Frontmatter-Format).
+  YAML-Objekte (AGENTS.md, Frontmatter-Format). **Ausnahme (Owner 27.09.,
+  S2):** das Design-Profil ist ein Library-Setting
+  (`publicPublishing.siteTheme`), weil es site-weit gilt — alle Seiten,
+  Banner, Fußzeile — und nicht je Startseiten-Doc nachgezogen werden soll.
+  Frontmatter bleibt flach.
 - **Kein stiller Fallback.** Unbekannte `layout`-, `bg`- oder
   `hero_layout`-Werte werfen im Parser wie heute einen Fehler
   (`no-silent-fallbacks.md`). Ein `banner_tag`, der keine Treffer liefert,
@@ -151,16 +161,39 @@ kleiner Punkt, Vorrat).
 Tests: Parser (`banner` mit und ohne Text), Query-Bau mit und ohne Tag,
 Banner einmal je Seite.
 
-### S2 · Hero `campaign` und Kennzeile
+### S2 · Design-Profil, Hero `campaign` und Kennzeile (gebaut 27.09.)
 
-- Frontmatter: `hero_layout: campaign`, `hero_kicker`, `cta2_label`,
-  `cta2_url`. Gestaltung: Bild oben abgerundet mit Kennzeile im Bild,
-  darunter Titel, Unterzeile, rechts zwei Buttons.
-- Marker-Attribut `kicker="…"`: kleine Versalzeile über der H2.
-- Dateien: `website/hero-campaign.tsx` (neu), `website-detail.tsx` wählt
-  die Variante; Mapper und Registry ergänzen; Parser liest `kicker`.
-- Tests: Parser (Attribut mit und ohne Anführungszeichen, Fehler bei
-  Unbekanntem), Mapper.
+Befund vor S2: das Layout war null library-spezifisch — Palette, Cover-Hero,
+Buttons und Schrift stammten fest aus der Vorlage und galten für jede Site.
+
+- **Design-Profil** `publicPublishing.siteTheme` (`SiteTheme` in
+  `@ks/contracts`): `fontHeading`/`fontBody` per Name (`geist`,
+  `newsreader`, `plus-jakarta`; gebündelt in `src/lib/website/site-fonts.ts`,
+  Latin-Teilmengen unter `fonts/`, OFL), `accent`/`accentHover`/`accentText`,
+  `buttonShape` (`pill`|`rounded`), `surfaces` je Fläche (`default`, `light`,
+  `dark`, `brand`, `linen`, `mint`, `dark-green`, `neutral`) mit `bg`, `text`,
+  optional `heading`, `paragraph`, `kicker`. Vorgabe = Vorlage
+  (`OLDIES_THEME`); nur genannte Flächen weichen ab. Prüfung in
+  `src/lib/website/site-theme.ts` (Hex, registrierte Schrift, bekannte
+  Fläche — sonst Fehler), Flächen-Stil in `surface-style.ts`; die Bausteine
+  lesen nur CSS-Variablen `--site-*`. Setzbar im Formular (JSON-Feld unter
+  „Website-Landingpage") und über `veroeffentlichung_setzen` (2.35.0);
+  auf `/` kommt es über `RootLandingTarget`, im Explore-Modus aus dem
+  Library-Atom.
+- **Hero `campaign`**: `hero_layout: campaign`, `hero_kicker` (Kennzeile im
+  Bild), `hero_title2` (kursive Zweitzeile), `cta2_label`/`cta2_url`.
+  Bild oben abgerundet mit Schatten, darunter Titel in der
+  Überschriften-Schrift, Unterzeile, rechts zwei Buttons
+  (`website/hero-campaign.tsx`).
+- **Kennzeile** `kicker="…"` am Marker (Werte in Anführungszeichen dürfen
+  Leerzeichen enthalten): Versalzeile über der H2 in Akzent- oder
+  Flächenfarbe.
+- Tests: `site-theme.test.ts`, `surface-style.test.ts`, Parser (kicker),
+  Mapper, `public-publishing-validation.test.ts`.
+- **Folge für S3:** neue `bg`-Namen sind nicht mehr nötig — Stein, Petrol,
+  Tiefgrün, Greige sind Farbwerte des Profils auf den bestehenden Flächen
+  (`light`, `brand`, `dark-green`, `neutral`). S3 bleibt Layout `stats`,
+  Chip-Liste und Zitatkasten.
 
 ### S3 · Kacheln, Zitat, Farben
 
@@ -168,8 +201,8 @@ Banner einmal je Seite.
   zwei Spalten mit optionalem Bild wie `image-right`. Die Zahlen stehen im
   Markdown; woher sie kommen, ist Inhaltsarbeit.
 - Blockquote mit Randstreifen in Akzentfarbe je Hintergrund.
-- Neue `bg`-Werte `stone`, `petrol`, `forest`, `greige`; `SECTION_STYLE`
-  in `website/section-style.ts` ausgliedern. Bestehende Werte bleiben.
+- ~~Neue `bg`-Werte `stone`, `petrol`, `forest`, `greige`~~ — entfällt
+  seit S2 (Farben je Fläche kommen aus dem Design-Profil).
 - Tests: Parser für `stats`, Kachel-Liste.
 
 ### S4 · Fußzeile mehrspaltig (nach dem Termin)
@@ -190,7 +223,7 @@ Banner einmal je Seite.
 |---|---|---|
 | S0 | ein halber Tag Inhaltsarbeit | ja, zuerst |
 | S1 | ein halber Tag | ja |
-| S2 | ein halber Tag | ja |
+| S2 | ein Tag (Profil + Hero) — gebaut | ja |
 | S3 | ein halber Tag | ja, wenn S1 und S2 stehen |
 | S4 | ein halber Tag | nein, Vorstellung Ende Oktober |
 | S5 | ein Tag plus Übersetzung | nein |
