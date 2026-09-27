@@ -37,7 +37,8 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   das die Pruefung nicht besteht, wird laut geloggt und die Vorlage gerendert.
 - **Hero `campaign` und Kennzeile (S2):** `hero_layout: campaign` mit
   `hero_kicker` (Kennzeile im Bild), `hero_title2` (kursive Zweitzeile),
-  `cta2_label`/`cta2_url` (zweiter Handlungsaufruf). Marker-Attribut
+  `cta2_label`/`cta2_url` (zweiter Handlungsaufruf); `hero_title` ersetzt
+  die Hero-Ueberschrift, `title` bleibt der Menuepunkt. Marker-Attribut
   `kicker="…"` setzt eine Versalzeile ueber die Sektions-Ueberschrift;
   Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
 
@@ -83,7 +84,7 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   (`/api/library/<id>/web/...` erfordert Login und ist damit fuer anonyme
   Besucher ungeeignet).
 
-## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.35.0)
+## 6. Publizieren ueber die MCP-Bruecke (Werkzeugsatz 2.36.0)
 
 - Eine Website-Seite ist eine Markdown-Quelle im Storage (Konvention
   `Webseite/Seiten/`), deren Transformation `website-page` am Twin haengt

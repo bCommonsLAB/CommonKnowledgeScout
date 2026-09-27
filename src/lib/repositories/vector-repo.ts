@@ -1507,6 +1507,9 @@ export async function aggregateFacets(
     ...filter,
   }
 
+  // Ohne Definitionen gibt es nichts zu zaehlen — Mongo lehnt ein leeres `$facet`
+  // mit Fehler 500 ab (Befund 27.09.: Library ohne sichtbare Facetten).
+  if (defs.filter((d) => d.metaKey).length === 0) return {}
   const selectionKeys = Object.keys(facetSelections)
   const facetStages: Record<string, Document[]> = {}
 

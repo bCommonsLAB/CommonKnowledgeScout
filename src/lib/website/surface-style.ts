@@ -42,7 +42,9 @@ export function surfaceStyle(bg: SiteSurfaceName, theme: SiteThemeResolved): Sur
     '--site-text': s.text,
     '--site-heading': s.heading ?? s.text,
     '--site-paragraph': s.paragraph ?? s.text,
-    '--site-kicker': s.kicker ?? theme.accent,
+    // Kennzeile ohne eigenen Wert: Ueberschriftfarbe der Flaeche, nicht der Akzent —
+    // der Akzent kann auf einer farbigen Flaeche unlesbar sein (Befund 27.09.).
+    '--site-kicker': s.kicker ?? s.heading ?? s.text,
   }
   return {
     className: '',

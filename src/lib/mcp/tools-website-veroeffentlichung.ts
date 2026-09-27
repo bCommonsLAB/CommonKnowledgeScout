@@ -13,8 +13,8 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { SiteTheme } from '@ks/contracts'
 import { LibraryService } from '@/lib/services/library-service'
+import { SITE_THEME_SCHEMA } from '@/lib/website/site-theme-schema'
 import {
   geaenderteFelder, mergePublicPublishing, validierePublicPublishing, type PublicPublishing,
 } from '@/lib/services/public-publishing-validation'
@@ -86,7 +86,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         'geist|newsreader|plus-jakarta, accent/accentHover/accentText als #rrggbb, buttonShape pill|rounded, ' +
         'surfaces je Flaeche (default, light, dark, brand, linen, mint, dark-green, neutral) mit bg, text, ' +
         'heading, paragraph, kicker als #rrggbb; nur genannte Flaechen weichen von der Vorlage ab, das ' +
-        'Profil ersetzt das gespeicherte als Ganzes, null loescht es. Ungueltige Werte werden abgewiesen. ' +
+        'Profil ersetzt das gespeicherte als Ganzes, siteThemeLoeschen: true loescht es. Ungueltige Werte werden abgewiesen. ' +
         'Nur Owner; kein API-Schluessel ueber die Bruecke. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -101,13 +101,16 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         logoUrl: z.string().max(1000).optional().describe('anonym lesbare URL; "" loescht'),
         gallery: GALLERY.optional().describe('Galerie-Texte feldweise; leerer String = Standardtext'),
         siteEnabled: z.boolean().optional().describe('true = /explore/<slug> zeigt die Website statt der Galerie'),
-        siteTheme: z.record(z.string(), z.unknown()).nullable().optional()
-          .describe('Design-Profil als Objekt (Felder siehe Beschreibung); null = Profil loeschen, weglassen = unveraendert'),
+        siteTheme: SITE_THEME_SCHEMA.optional()
+          .describe('Design-Profil als OBJEKT (kein JSON-Text); ersetzt das gespeicherte Profil als Ganzes; weglassen = unveraendert'),
+        siteThemeLoeschen: z.boolean().optional().describe('true = Design-Profil loeschen, die Website rendert wieder die Vorlage'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, begruendung, ...eingabe }) => {
+    async ({ libraryId, begruendung, siteThemeLoeschen, ...rest }) => {
+      // S2: `siteThemeLoeschen` wird zu `null` (loeschen); sonst gilt das Objekt oder `undefined` (unveraendert).
+      const eingabe = { ...rest, siteTheme: siteThemeLoeschen ? null : rest.siteTheme }
       try {
         return await mitProtokoll(
           { werkzeug: 'veroeffentlichung_setzen', libraryId, akteur: mcpUserEmail(), begruendung },
@@ -120,7 +123,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
             const library = await requireLibrary(userEmail, libraryId)
             const alt = library.config?.publicPublishing
             // S2: ein ungueltiges siteTheme wirft schon im Merge (validiereSiteTheme) — laut, mit Feldname.
-            const neu = mergePublicPublishing(alt, { ...eingabe, siteTheme: eingabe.siteTheme as SiteTheme | null | undefined }, library.label)
+            const neu = mergePublicPublishing(alt, eingabe, library.label)
             const verletzung = validierePublicPublishing(neu)
             if (verletzung) throw new Error(verletzung)
             if (neu.isPublic && neu.slugName && (neu.slugName !== alt?.slugName || !alt?.isPublic)) {

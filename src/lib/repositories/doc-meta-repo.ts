@@ -374,6 +374,9 @@ export async function aggregateFacets(
   filter: Record<string, unknown>,
   defs: Array<{ metaKey: string; type: string; label?: string }>
 ): Promise<Record<string, Array<{ value: string; count: number }>>> {
+  // Ohne Definitionen gibt es nichts zu zaehlen — Mongo lehnt ein leeres `$facet`
+  // mit Fehler 500 ab (Befund 27.09.: Library ohne sichtbare Facetten).
+  if (defs.length === 0) return {}
   const col = await getDocMetaCollection(libraryKey)
   // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
   const match: Record<string, unknown> = { ...(filter || {}) }

@@ -5,7 +5,7 @@ description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke a
 
 # Website-Publishing: Inhalte einer öffentlichen Library füllen
 
-Stand 27.09.2026, Werkzeugsatz 2.35.0. Original im Archiv unter
+Stand 27.09.2026, Werkzeugsatz 2.36.0. Original im Archiv unter
 `Organisation/Skills/website-publishing/SKILL.md`; diese Datei ist die
 Repo-Kopie und wird nach dem Original nachgezogen.
 
@@ -85,7 +85,7 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   `publicName` und `description` (Mindestlängen wie im Formular). Nur genannte
   Felder ändern sich, leere URL-Felder löschen. `isPublic: true` macht die
   Inhalte anonym lesbar — vorher ausdrücklich bestätigen lassen.
-- **Design-Profil** (ab 2.35.0): `siteTheme` setzt Schriften, Akzent und
+- **Design-Profil** (ab 2.36.0): `siteTheme` setzt Schriften, Akzent und
   Farben je Fläche der Website — siehe Schritt 4b im Abschnitt „Website-Seiten"
   unten. Ohne Profil rendert die Seite in der Gestaltung der Vorlage.
 - Alternativ als Copy-Paste-Block für das Formular **Einstellungen →
@@ -105,12 +105,12 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   es nur die Galerie.
 
 
-## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.35.0)
+## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.36.0)
 
 Der Weg einer Website ohne App-Oberfläche. Muster: die Library „Oldies for
 Future" (vier Dokumente in `Webseite/Seiten/`). Jede schreibende Aktion nur
 nach Bestätigung durch den Menschen, mit `begruendung`. Vorher `bruecke_info`:
-meldet sie eine Version unter 2.35.0, fehlen Werkzeuge oder Felder —
+meldet sie eine Version unter 2.36.0, fehlen Werkzeuge oder Felder —
 Erweiterung in den Einstellungen aus- und einschalten.
 
 1. **Bestand lesen.** `seite_pruefen` mit der `libraryId`: zeigt, ob die
@@ -121,7 +121,8 @@ Erweiterung in den Einstellungen aus- und einschalten.
    - Startseite: `detailViewType: "website"`, `title`, `language`,
      `targetLanguage`, `menu_order: 1`, Hero-Felder (`hero_subtitle`,
      `hero_image`, `hero_layout` mit `overlay`, `cover` oder `campaign`,
-     `cta_label`, `cta_url`; bei `campaign` zusätzlich `hero_kicker`
+     `cta_label`, `cta_url`, optional `hero_title`, wenn die Hero-Überschrift
+     vom Titel abweichen soll (`title` bleibt der Menüpunkt); bei `campaign` zusätzlich `hero_kicker`
      für die Kennzeile im Bild, `hero_title2` für die kursive Zweitzeile,
      `cta2_label`/`cta2_url` für den zweiten Button), Body als
      Sektionen `<!-- section layout=… bg=… kicker="…" --> … <!-- /section -->`
@@ -165,8 +166,9 @@ Erweiterung in den Einstellungen aus- und einschalten.
    brauchen einen Code-Eintrag); Farben als `#rrggbb`; Flächen nur aus
    `default, light, dark, brand, linen, mint, dark-green, neutral`; nur
    genannte Flächen weichen von der Vorlage ab; das Profil ersetzt das
-   gespeicherte als Ganzes (vorher `veroeffentlichung_lesen`), `null`
-   löscht es. Ungültige Werte weist die Brücke ab. Die Seiten selbst
+   gespeicherte als Ganzes (vorher `veroeffentlichung_lesen`); `siteTheme`
+   ist ein Objekt, kein JSON-Text; `siteThemeLoeschen: true` löscht es.
+   Ungültige Werte weist die Brücke ab. Die Seiten selbst
    ändern sich nicht — nur die Farbe hinter den `bg`-Namen.
 5. **Prüfen.** Erneut `seite_pruefen`: Startseite, Menüreihenfolge,
    Footer-Links, Sektionen je Seite, keine Fehler. `siteEnabled: true` mit
