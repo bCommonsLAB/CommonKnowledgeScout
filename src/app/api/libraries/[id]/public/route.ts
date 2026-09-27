@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { LibraryService } from '@/lib/services/library-service';
+import { mergePublicPublishing, validierePublicPublishing } from '@/lib/services/public-publishing-validation';
 
 /**
  * PUT /api/libraries/[id]/public
@@ -36,52 +37,10 @@ export async function PUT(
     const body = await request.json().catch(() => ({}));
     const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, siteEnabled } = body;
 
-    // Validierung
-    if (isPublic === true) {
-      if (!slugName || slugName.length < 3) {
-        return NextResponse.json(
-          { error: 'Slug-Name ist erforderlich und muss mindestens 3 Zeichen lang sein' },
-          { status: 400 }
-        );
-      }
-
-      if (!/^[a-z0-9-]+$/.test(slugName)) {
-        return NextResponse.json(
-          { error: 'Slug-Name darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten' },
-          { status: 400 }
-        );
-      }
-
-      if (!publicName || publicName.length < 3) {
-        return NextResponse.json(
-          { error: 'Öffentlicher Name ist erforderlich und muss mindestens 3 Zeichen lang sein' },
-          { status: 400 }
-        );
-      }
-
-      if (!description || description.length < 10) {
-        return NextResponse.json(
-          { error: 'Beschreibung ist erforderlich und muss mindestens 10 Zeichen lang sein' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validierung: requiresAuth kann nur aktiviert werden wenn isPublic true ist
-    if (requiresAuth === true && isPublic !== true) {
-      return NextResponse.json(
-        { error: 'requiresAuth kann nur aktiviert werden, wenn die Library öffentlich ist' },
-        { status: 400 }
-      );
-    }
-    
-    // Validierung: showOnHomepage kann nur deaktiviert werden, wenn die Library öffentlich ist
-    // (ansonsten wäre die Semantik für Nutzer verwirrend; technisch wäre es egal)
-    if (showOnHomepage === false && isPublic !== true) {
-      return NextResponse.json(
-        { error: 'Show-on-Homepage kann nur gesetzt werden, wenn die Library öffentlich ist' },
-        { status: 400 }
-      );
+    // Validierung — dieselben Regeln wie die Bruecke (public-publishing-validation.ts).
+    const verletzung = validierePublicPublishing({ slugName, publicName, description, isPublic, requiresAuth, showOnHomepage });
+    if (verletzung) {
+      return NextResponse.json({ error: verletzung }, { status: 400 });
     }
 
     const libraryService = LibraryService.getInstance();
@@ -125,48 +84,24 @@ export async function PUT(
     // Public-Publishing-Config aktualisieren
     // WICHTIG: Mergen der gesamten config-Struktur, nicht überschreiben
     // Site-Publish-Metadaten (Azure-Snapshot) nur via publish-site/depublish-site ändern — hier explizit beibehalten.
+    // Merge wie in der Bruecke (public-publishing-validation.ts); Formular-Semantik:
+    // fehlendes isPublic => false, fehlendes siteEnabled => false (keine Library
+    // bekommt ungefragt eine Webansicht). API-Key nur aktualisieren, wenn gesetzt
+    // und nicht maskiert; sonst bleibt der alte Wert.
+    const gemergt = mergePublicPublishing(prevPub, {
+      slugName, publicName, description, icon, requiresAuth, showOnHomepage,
+      backgroundImageUrl, logoUrl, gallery,
+      isPublic: isPublic !== undefined ? isPublic : false,
+      siteEnabled: siteEnabled === true,
+    }, library.label)
+    const neuerApiKey = apiKey !== undefined && apiKey !== '' && !apiKey.includes('...') && !apiKey.includes('••••') && (apiKey.match(/\./g)?.length || 0) < 10
+      ? apiKey
+      : prevPub?.apiKey
     const updatedLibrary = {
       ...library,
       config: {
         ...library.config,
-        publicPublishing: {
-          slugName: slugName || prevPub?.slugName || '',
-          publicName: publicName || prevPub?.publicName || library.label,
-          description: description || prevPub?.description || '',
-          icon: icon !== undefined ? (icon === 'none' ? undefined : icon) : prevPub?.icon,
-          // API-Key nur aktualisieren wenn gesetzt und nicht maskiert
-          // Wenn undefined, behalte den alten Wert
-          apiKey: apiKey !== undefined && apiKey !== '' && !apiKey.includes('...') && !apiKey.includes('••••') && (apiKey.match(/\./g)?.length || 0) < 10
-            ? apiKey 
-            : prevPub?.apiKey,
-          isPublic: isPublic !== undefined ? isPublic : false,
-          // Backwards-Compatibility: fehlend => true
-          // Wenn der Client nichts sendet, behalten wir den bisherigen Wert (oder true, wenn bisher nicht vorhanden).
-          showOnHomepage: showOnHomepage !== undefined ? showOnHomepage : (prevPub?.showOnHomepage ?? true),
-          requiresAuth: requiresAuth !== undefined ? requiresAuth : (prevPub?.requiresAuth || false),
-          // Hintergrundbild-URL: Wenn gesetzt, verwende neuen Wert, sonst behalte alten oder undefined
-          backgroundImageUrl: backgroundImageUrl !== undefined
-            ? (backgroundImageUrl === '' ? undefined : backgroundImageUrl)
-            : prevPub?.backgroundImageUrl,
-          // Website-Logo (Phase C2): gleiche Semantik wie backgroundImageUrl
-          // (undefined = unveraendert, '' = loeschen).
-          logoUrl: logoUrl !== undefined
-            ? (logoUrl === '' ? undefined : logoUrl)
-            : prevPub?.logoUrl,
-          // Gallery-Texte mergen (nur wenn vorhanden)
-          gallery: gallery ? {
-            headline: gallery.headline !== undefined ? gallery.headline : prevPub?.gallery?.headline,
-            subtitle: gallery.subtitle !== undefined ? gallery.subtitle : prevPub?.gallery?.subtitle,
-            description: gallery.description !== undefined ? gallery.description : prevPub?.gallery?.description,
-            filterDescription: gallery.filterDescription !== undefined ? gallery.filterDescription : prevPub?.gallery?.filterDescription,
-            // Menü-/Link-Beschriftungen (leer = Standard-Übersetzung)
-            menuLabel: gallery.menuLabel !== undefined ? gallery.menuLabel : prevPub?.gallery?.menuLabel,
-            moreLinkLabel: gallery.moreLinkLabel !== undefined ? gallery.moreLinkLabel : prevPub?.gallery?.moreLinkLabel,
-          } : prevPub?.gallery,
-          // Website-Landingpage am Slug bewusst ein-/ausblenden. Fehlend => false,
-          // damit keine Library ungefragt eine Webansicht bekommt.
-          siteEnabled: siteEnabled === true,
-        },
+        publicPublishing: { ...gemergt, apiKey: neuerApiKey },
       },
     };
 
