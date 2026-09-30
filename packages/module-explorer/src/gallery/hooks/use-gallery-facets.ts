@@ -3,8 +3,22 @@
 import { useEffect, useState } from 'react'
 import { useInstanz } from '../contexts/gallery-host-context'
 
-export function useGalleryFacets(libraryId?: string, filters?: Record<string, string[] | undefined>) {
+export interface UseGalleryFacetsOptions {
+  /**
+   * Schliesst einen `detailViewType` serverseitig aus Typ-Liste und
+   * Zaehlwerten aus — muss zum Ausschluss der Dokumentliste passen
+   * (`useGalleryData`), sonst weichen Facetten und Liste voneinander ab.
+   */
+  excludeDetailViewType?: string
+}
+
+export function useGalleryFacets(
+  libraryId?: string,
+  filters?: Record<string, string[] | undefined>,
+  options?: UseGalleryFacetsOptions,
+) {
   const instanz = useInstanz()
+  const excludeDetailViewType = options?.excludeDetailViewType
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
   // A4a — vorhandene Inhaltstypen (Leitfilter-Optionen, gemischte Libraries).
   const [viewTypes, setViewTypes] = useState<string[]>([])
@@ -19,6 +33,9 @@ export function useGalleryFacets(libraryId?: string, filters?: Record<string, st
           if (k === 'fileId') return
           if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
         })
+        if (excludeDetailViewType) {
+          params.append('excludeDetailViewType', excludeDetailViewType)
+        }
         const url = `/api/chat/${encodeURIComponent(libraryId)}/facets${params.toString() ? `?${params.toString()}` : ''}`
         const res = await instanz.fetch(url, { cache: 'no-store' })
         const data = await res.json()
@@ -33,7 +50,7 @@ export function useGalleryFacets(libraryId?: string, filters?: Record<string, st
     loadFacets()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, JSON.stringify(filters || {}), instanz])
+  }, [libraryId, JSON.stringify(filters || {}), instanz, excludeDetailViewType])
 
   return { facetDefs, setFacetDefs, viewTypes }
 }

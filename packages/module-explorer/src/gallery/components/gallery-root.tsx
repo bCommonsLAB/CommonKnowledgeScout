@@ -396,7 +396,12 @@ export function GalleryRoot({
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
   const docSlug = searchParams?.get('doc')
 
-  const { facetDefs, viewTypes } = useGalleryFacets(libraryId, filters)
+  // Facetten mit demselben Typ-Ausschluss wie die Dokumentliste (oben,
+  // excludeDetailViewType): sonst sieht der Server zwei Typen, die Liste
+  // aber nur einen — und die Sidebar bleibt leer (Befund 30.09.2026).
+  const { facetDefs, viewTypes } = useGalleryFacets(libraryId, filters, {
+    excludeDetailViewType: hideWebsiteDocs ? 'website' : undefined,
+  })
 
   // Oeffentliche Slug-Galerie (hideWebsiteDocs): website-Docs sind aus der
   // Liste ausgeschlossen — dann darf „Webseite" auch nicht als Inhaltstyp-
