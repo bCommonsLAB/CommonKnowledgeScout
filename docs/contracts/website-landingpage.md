@@ -41,6 +41,15 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   die Hero-Ueberschrift, `title` bleibt der Menuepunkt. Marker-Attribut
   `kicker="…"` setzt eine Versalzeile ueber die Sektions-Ueberschrift;
   Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
+- **Bloecke in Sektionen (S3):** innerhalb einer Sektion zerlegt
+  `parse-section-blocks.ts` den Markdown in Text und Sonderbloecke:
+  `<!-- stats -->` + Liste `- **Wert** Beschriftung` (Kennzahl-Kacheln),
+  `<!-- chips label="…" -->` + Liste (Chips), `<!-- box label="…" kind=card|note -->`
+  … `<!-- /box -->` (weisse Karte bzw. durchscheinender Streifen). Blockquotes
+  bekommen den Randstreifen in Kennzeilenfarbe. Jede Sektion traegt die
+  Folge als `blocks`; der Renderer (`section-content.tsx`) liest NUR diese.
+  Kachel ohne `**Wert**`, Block ohne Liste, Kasten ohne Ende oder unbekanntes
+  `kind` werfen im Parser — `seite_pruefen` meldet sie vor dem Publizieren.
 
 ## 2. Entferntes Legacy — NICHT wiedereinfuehren
 

@@ -23,10 +23,15 @@ export interface SurfaceStyle {
 }
 
 /** Klassen der Vorlage fuer Flaechen ohne Farbwerte (Dark-Mode-faehig). */
-const KLASSEN: Partial<Record<SiteSurfaceName, { wrapper: string; prose: string }>> = {
-  default: { wrapper: 'bg-background text-foreground', prose: '' },
-  light: { wrapper: 'bg-muted text-foreground', prose: '' },
-  dark: { wrapper: 'bg-slate-900 text-slate-50', prose: 'prose-invert' },
+const KLASSEN: Partial<Record<SiteSurfaceName, { wrapper: string; prose: string; dunkel: boolean }>> = {
+  default: { wrapper: 'bg-background text-foreground', prose: '', dunkel: false },
+  light: { wrapper: 'bg-muted text-foreground', prose: '', dunkel: false },
+  dark: { wrapper: 'bg-slate-900 text-slate-50', prose: 'prose-invert', dunkel: true },
+}
+
+/** S3: durchscheinender Kachel-/Chip-Hintergrund, passend zur Helligkeit der Flaeche. */
+function tile(dunkel: boolean): string {
+  return dunkel ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)'
 }
 
 export function surfaceStyle(bg: SiteSurfaceName, theme: SiteThemeResolved): SurfaceStyle {
@@ -34,11 +39,13 @@ export function surfaceStyle(bg: SiteSurfaceName, theme: SiteThemeResolved): Sur
   if (!s) {
     const k = KLASSEN[bg]
     if (!k) throw new Error(`Flaeche "${bg}" hat weder Farben im Profil noch Klassen der Vorlage`)
-    return { className: k.wrapper, prose: k.prose }
+    return { className: k.wrapper, prose: k.prose, style: { ['--site-tile' as string]: tile(k.dunkel) } as CSSProperties }
   }
+  const dunkel = istDunkel(s.bg)
   const vars: Record<string, string> = {
     backgroundColor: s.bg,
     color: s.text,
+    '--site-tile': tile(dunkel),
     '--site-text': s.text,
     '--site-heading': s.heading ?? s.text,
     '--site-paragraph': s.paragraph ?? s.text,
@@ -50,7 +57,7 @@ export function surfaceStyle(bg: SiteSurfaceName, theme: SiteThemeResolved): Sur
     className: '',
     style: vars as CSSProperties,
     prose: cn(
-      istDunkel(s.bg) && 'prose-invert',
+      dunkel && 'prose-invert',
       'prose-headings:text-[color:var(--site-heading)]',
       s.paragraph && '[&_p]:text-[color:var(--site-paragraph)]',
     ),

@@ -10,45 +10,14 @@
 
 import * as React from 'react'
 import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
-import { md } from '@ks/viewers'
 import { cn } from '@/lib/utils'
 import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
 import { OLDIES_THEME, type SiteThemeResolved } from '@/lib/website/site-theme'
 import { KICKER_CLASS, surfaceStyle } from '@/lib/website/surface-style'
+import { SectionContent } from './section-content'
 
-/**
- * Rendert den Sektions-Markdown ueber den App-weiten Remarkable-Renderer (`md`)
- * in einem `prose`-Container: Ueberschriften, Absaetze, Listen, Links, Fett,
- * Blockquotes, Zeilenumbrueche (md ist mit `breaks`+`linkify` konfiguriert).
- *
- * Invert und Farben je Flaeche liefert `surfaceStyle`. Inhalt ist
- * kuratiert/uebersetzt (vertrauenswuerdig) — gleiches Muster wie die
- * MarkdownPreview-Komponente.
- */
-export function renderMarkdownText(
-  markdown: string,
-  bg: WebsiteSection['bg'],
-  headingCase: HeadingCase = 'capitalize',
-  theme: SiteThemeResolved = OLDIES_THEME,
-): React.ReactElement {
-  return (
-    <div
-      className={cn(
-        'prose prose-neutral max-w-none',
-        // Vorlage-Optik (`.h-serif-medium`): Ueberschrift NORMAL (400, nicht fett),
-        // ~2.35rem; Lead-Absatz (erster) etwas groesser. `capitalize` ist die
-        // Vorlage-Vorgabe (Steckbrief 10); Frontmatter `heading_case: none` schaltet es ab (S1).
-        'prose-headings:font-normal prose-h2:mb-2.5 prose-h2:leading-snug prose-h2:text-[2rem] md:prose-h2:text-[2.35rem]',
-        // S2: Ueberschriften-Schrift aus dem Profil (ohne Profil ungesetzt = erbt).
-        'prose-headings:font-[family-name:var(--site-font-heading)]',
-        headingCase === 'capitalize' && '[&_h2]:capitalize',
-        '[&_p:first-of-type]:text-lg [&_p:first-of-type]:leading-relaxed md:[&_p:first-of-type]:text-xl',
-        surfaceStyle(bg, theme).prose,
-      )}
-      dangerouslySetInnerHTML={{ __html: md.render(markdown) }}
-    />
-  )
-}
+// S3: `renderMarkdownText` wohnt in `markdown-text.tsx` (Bestandsimporte bleiben gueltig).
+export { renderMarkdownText } from './markdown-text'
 
 /** Eine Inhalts-Sektion gemaess Layout/Hintergrund. */
 export function SectionBlock({
@@ -75,7 +44,7 @@ export function SectionBlock({
         <div className="mx-auto max-w-4xl">
           {kicker}
           {section.markdown && (
-            <div className="mb-6">{renderMarkdownText(section.markdown, section.bg, headingCase, theme)}</div>
+            <div className="mb-6"><SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} /></div>
           )}
           {safeVideo && (
             <div className="aspect-video overflow-hidden rounded-xl bg-black/10">
@@ -131,7 +100,7 @@ export function SectionBlock({
           }
         >
           {kicker}
-          {renderMarkdownText(section.markdown, section.bg, headingCase, theme)}
+          <SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} />
         </div>
       </div>
     </section>

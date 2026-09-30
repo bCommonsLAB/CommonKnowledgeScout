@@ -138,6 +138,13 @@ Erweiterung in den Einstellungen aus- und einschalten.
    Frontmatter flach, snake_case, keine verschachtelten Objekte.
    Welche Farbe hinter `bg=dark-green` oder `bg=light` liegt, entscheidet
    das Design-Profil (Schritt 4b) — die Namen sind Flächen, keine Farben.
+   Blöcke innerhalb einer Sektion (ab Welle S3): `<!-- stats -->` gefolgt
+   von einer Liste `- **600+** Maßnahmen` ergibt Kennzahl-Kacheln;
+   `<!-- chips label="Träger & Partnernetzwerk" -->` gefolgt von einer Liste
+   ergibt Chips; `<!-- box label="Bald" kind=card -->` … `<!-- /box -->`
+   ergibt eine weiße Karte (`kind=note`: durchscheinender Hinweis-Streifen);
+   ein Blockquote (`> …`) bekommt einen Randstreifen. Kacheln brauchen
+   `**Wert**` am Zeilenanfang, sonst weist `seite_pruefen` die Seite ab.
 3. **Publizieren.** `dokument_publizieren` mit `quellPfad` oder `sourceIds`
    (bis 30). Die Antwort nennt je Seite Warnungen (fehlende Felder,
    relative Bilder) und harte Fehler (ungültiger Marker). Warnungen erst

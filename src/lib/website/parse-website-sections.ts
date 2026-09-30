@@ -17,6 +17,7 @@
 
 import { SITE_SURFACES } from '@ks/contracts'
 import type { SectionBg, SectionLayout, WebsiteSection } from './types'
+import { parseSectionBlocks } from './parse-section-blocks'
 
 const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'image-left',
@@ -114,15 +115,15 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
     const { layout, bg, kicker } = parseAttrs(match[1] ?? '')
     if (layout === 'video') {
       const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
-      sections.push({ layout, bg, markdown: rest, videoUrl, kicker })
+      sections.push({ layout, bg, markdown: rest, videoUrl, kicker, blocks: parseSectionBlocks(rest) })
     } else {
       const { imageUrl, imageAlt, rest } = extractImage(match[2] ?? '')
-      sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt, kicker })
+      sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt, kicker, blocks: parseSectionBlocks(rest) })
     }
   }
   if (sections.length === 0) {
     const { imageUrl, imageAlt, rest } = extractImage(body)
-    return [{ layout: DEFAULT_LAYOUT, bg: DEFAULT_BG, markdown: rest, imageUrl, imageAlt }]
+    return [{ layout: DEFAULT_LAYOUT, bg: DEFAULT_BG, markdown: rest, imageUrl, imageAlt, blocks: parseSectionBlocks(rest) }]
   }
   return sections
 }
