@@ -123,7 +123,7 @@ export function BulkPublishButton({
         throw new Error(t('gallery.publishAll.errors.noDocs'))
       }
 
-      // 2) Bulk-Publish-Aufruf. Achtung: Server limitiert auf 500 pro Request.
+      // 2) Bulk-Publish-Aufruf. Achtung: Server limitiert auf 1000 pro Request.
       const response = await instanz.fetch(
         `/api/chat/${encodeURIComponent(libraryId)}/docs/publish-bulk`,
         {

@@ -166,6 +166,24 @@ export function saveStoryContextToLocalStorage(
 }
 
 /**
+ * Speichert NUR die Zielsprache sofort im localStorage.
+ *
+ * Hintergrund (Befund 29.09.2026): Der Sync-Effekt in useStoryContext setzt das
+ * Atom bei jedem Mount auf den gespeicherten Wert zurueck. Wer auf der
+ * Perspektive-Seite die Sprache aendert und ohne den Start-Knopf zurueckgeht,
+ * verlor die Aenderung deshalb wieder. Die Sprachwahl gilt daher ab dem
+ * Moment der Auswahl, nicht erst beim Speichern der ganzen Perspektive.
+ */
+export function persistStoryTargetLanguage(targetLanguage: TargetLanguage): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY_PREFIX + 'targetLanguage', JSON.stringify(targetLanguage))
+  } catch (error) {
+    console.error('[StoryContext] Fehler beim Speichern der Zielsprache in localStorage:', error)
+  }
+}
+
+/**
  * Rückgabewert des Hooks mit aktuellen Werten und Settern.
  */
 export interface UseStoryContextReturn {

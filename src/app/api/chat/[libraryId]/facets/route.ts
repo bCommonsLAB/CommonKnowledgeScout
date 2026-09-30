@@ -40,10 +40,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     if (selectedType && !isValidDetailViewType(selectedType)) {
       return NextResponse.json({ error: `Unbekannter detailViewType „${selectedType}".` }, { status: 400 })
     }
+    // Exclude-Filter (Gegenstueck zur /docs-Route): schliesst einen Typ aus,
+    // z.B. `website` in der oeffentlichen Slug-Galerie. Ohne diesen Ausschluss
+    // sah die Facetten-Route weiterhin ZWEI Typen, obwohl die Liste nur einen
+    // zeigte — und die Regel „gemeinsame Facetten" lieferte eine leere Sidebar
+    // (Befund 30.09.2026, Library mit Website-Seiten).
+    const excludeTypeRaw = url.searchParams.get('excludeDetailViewType')
+    const excludeType = excludeTypeRaw && excludeTypeRaw.trim() ? excludeTypeRaw.trim() : null
+    if (excludeType && !isValidDetailViewType(excludeType)) {
+      return NextResponse.json({ error: `Unbekannter detailViewType „${excludeType}".` }, { status: 400 })
+    }
     const libraryDefaultType = getDetailViewType({}, ctx.library.config?.chat)
     // Immer die vorhandenen Typen ermitteln: dienen als Leitfilter-Optionen (UI)
-    // UND als Basis fuer die gemeinsamen Facetten (ohne Typ-Wahl).
-    const availableViewTypes = await distinctViewTypes(libraryKey, libraryId)
+    // UND als Basis fuer die gemeinsamen Facetten (ohne Typ-Wahl). Ein
+    // ausgeschlossener Typ zaehlt in beidem nicht mit.
+    const availableViewTypes = (await distinctViewTypes(libraryKey, libraryId)).filter(
+      (vt) => vt !== excludeType,
+    )
     const scope = resolveFacetScope({
       library: ctx.library,
       selectedType,
@@ -77,6 +90,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     if (scope.typeFilter) {
       const existing = Array.isArray(filter.$and) ? filter.$and : []
       filter.$and = [...existing, scope.typeFilter]
+    }
+    // Ausgeschlossener Typ: auch aus den Zaehlwerten nehmen, damit die
+    // Facetten-Zahlen zur Galerie-Liste passen (beide Ablagen pruefen, wie /docs).
+    if (excludeType) {
+      const existing = Array.isArray(filter.$and) ? filter.$and : []
+      filter.$and = [
+        ...existing,
+        { detailViewType: { $ne: excludeType } },
+        { 'docMetaJson.detailViewType': { $ne: excludeType } },
+      ]
     }
 
     // Doc-Publication: Drafts werden bei nicht-Owner-Sichten aus den Facetten-

@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-story-context'
+import { useStoryContext, saveStoryContextToLocalStorage, persistStoryTargetLanguage } from '@/hooks/use-story-context'
 import { useTranslation } from '@ks/i18n/react'
 import { useUser } from '@clerk/nextjs'
 import type { Character, SocialContext, TargetLanguage, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
@@ -202,8 +202,11 @@ export function usePerspectiveData(): PerspectiveDataResult {
   const handleLanguageChange = useCallback(
     (newLanguage: TargetLanguage) => {
       setLocalLanguage(newLanguage)
-      // Sprache sofort im Story Context speichern (verhindert Zuruecksetzen)
+      // Sprache sofort im Story Context UND im localStorage speichern. Nur das Atom
+      // reicht nicht: der Sync-Effekt in useStoryContext stellt beim naechsten Mount
+      // den gespeicherten Wert wieder her (Befund 29.09.2026).
       setTargetLanguage(newLanguage)
+      persistStoryTargetLanguage(newLanguage)
       setModelAutoSwitched(false)
 
       const modelsForLanguage = filterModelsByLanguage(availableModels, newLanguage)
