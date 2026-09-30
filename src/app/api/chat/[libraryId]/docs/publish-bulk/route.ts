@@ -22,7 +22,7 @@
  *
  * Die Route iteriert sequentiell und bricht NICHT bei einzelnen Fehlern ab –
  * so werden Teilfolgen abgeschlossen und der Client sieht im Toast, welche
- * Docs betroffen waren. Grenze: 500 Dokumente pro Request, damit die Laufzeit
+ * Docs betroffen waren. Grenze: 1000 Dokumente pro Request (Owner-Wunsch 30.09.2026, Library mit 660 Docs), damit die Laufzeit
  * beherrschbar bleibt.
  *
  * @module api/chat/docs/publish-bulk
@@ -48,7 +48,7 @@ interface BulkPublishRequestBody {
 
 // Hartes Limit: Schuetzt vor versehentlich gigantischen Requests und erzwingt
 // dass sehr grosse Libraries mehrere Batches brauchen.
-const MAX_BULK_SIZE = 500
+const MAX_BULK_SIZE = 1000
 
 export async function POST(
   request: NextRequest,
