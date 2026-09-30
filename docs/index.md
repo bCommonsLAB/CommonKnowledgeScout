@@ -30,6 +30,7 @@ Current runtime behavior and validated decisions:
 - Shadow-Twin v2-only runtime
 - Wizard & External Jobs (contracts)
 - Ingestion (MongoDB Vector Search)
+- [MongoDB → PostgreSQL: Analyse und Empfehlung](analysis/mongodb-zu-postgresql-analyse-und-empfehlung.md)
 - Storage providers (filesystem/OneDrive)
  - Audio/Video transcript-only when no template is selected
 
