@@ -7,6 +7,9 @@
 > was nicht? Wo liegen die Probleme, und wie lassen sie sich lösen?
 > Es ist eine Empfehlung, keine Entscheidung; die Entscheidung gehört in ein
 > ADR (`docs/adr/`) und ein eigenes Vorhaben in `docs/STAND.md`.
+>
+> Betriebsseite (Installation, Backup, Wartung) für die Administration:
+> [`docs/handover/2026-09-30-postgresql-administrator.md`](../handover/2026-09-30-postgresql-administrator.md).
 
 ## 1. Kurzfassung
 
