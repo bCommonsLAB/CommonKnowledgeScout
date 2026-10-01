@@ -278,7 +278,7 @@ export async function getQueryLogById(args: { libraryId: string; queryId: string
 }
 
 
-export async function listRecentQueries(args: { libraryId: string; userEmail?: string; sessionId?: string; chatId?: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'chatId' | 'createdAt' | 'question' | 'shortTitle' | 'mode' | 'status' | 'queryType' | 'answer' | 'references' | 'suggestedQuestions' | 'answerLength' | 'retriever' | 'targetLanguage' | 'character' | 'socialContext' | 'processingLogs'>>> {
+export async function listRecentQueries(args: { libraryId: string; userEmail?: string; sessionId?: string; chatId?: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'chatId' | 'createdAt' | 'question' | 'shortTitle' | 'mode' | 'status' | 'queryType' | 'answer' | 'references' | 'suggestedQuestions' | 'answerLength' | 'retriever' | 'targetLanguage' | 'character' | 'accessPerspective' | 'socialContext' | 'genderInclusive' | 'facetsSelected' | 'cacheParams' | 'processingLogs'>>> {
   const col = await getQueriesCollection()
   const lim = Math.max(1, Math.min(100, Number(args.limit ?? 20)))
   
@@ -301,7 +301,7 @@ export async function listRecentQueries(args: { libraryId: string; userEmail?: s
   
   // Lade auch cacheParams, um Felder zu extrahieren
   const cursor = col
-    .find(filter, { projection: { _id: 0, queryId: 1, chatId: 1, createdAt: 1, question: 1, shortTitle: 1, mode: 1, status: 1, queryType: 1, answer: 1, references: 1, suggestedQuestions: 1, answerLength: 1, retriever: 1, targetLanguage: 1, character: 1, socialContext: 1, processingLogs: 1, cacheParams: 1 } })
+    .find(filter, { projection: { _id: 0, queryId: 1, chatId: 1, createdAt: 1, question: 1, shortTitle: 1, mode: 1, status: 1, queryType: 1, answer: 1, references: 1, suggestedQuestions: 1, answerLength: 1, retriever: 1, targetLanguage: 1, character: 1, accessPerspective: 1, socialContext: 1, genderInclusive: 1, facetsSelected: 1, processingLogs: 1, cacheParams: 1 } })
     .sort({ createdAt: -1 })
     .limit(lim)
   const rows = await cursor.toArray()
@@ -327,7 +327,13 @@ export async function listRecentQueries(args: { libraryId: string; userEmail?: s
     retriever: r.cacheParams?.retriever ?? r.retriever,
     targetLanguage: r.cacheParams?.targetLanguage ?? r.targetLanguage,
     character: r.cacheParams?.character ?? r.character,
+    accessPerspective: r.cacheParams?.accessPerspective ?? r.accessPerspective,
     socialContext: r.cacheParams?.socialContext ?? r.socialContext,
+    genderInclusive: r.cacheParams?.genderInclusive ?? r.genderInclusive,
+    facetsSelected: r.cacheParams?.facetsSelected ?? r.facetsSelected,
+    // D6: Der Chat-Verlauf baut seine Nachrichten aus der Liste — ohne eine
+    // zweite Anfrage je Frage (N+1 aus D1). cacheParams gehen mit.
+    cacheParams: r.cacheParams,
     processingLogs: r.processingLogs,
   }))
 }
