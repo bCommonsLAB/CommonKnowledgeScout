@@ -47,6 +47,12 @@ gleiche Eingabe:
   `upsertedAt`-Timestamp (siehe §4: dieser ist explizit nicht-deterministisch).
 - `extractFacetValues(...)` und `buildVectorDocuments(...)` sind
   deterministisch **bis auf** den `upsertedAt`-Timestamp.
+- `buildVectorDocuments(..., pageSpans)` setzt `page` je Chunk ueber die
+  Chunk-Mitte gegen `splitByPages(finalMarkdown)` (`seiteFuerOffset`); die
+  Spans MUESSEN aus demselben Text stammen, der eingebettet wurde (Praefix
+  + Trenner + Body), sonst verschieben sich die Seiten. Ohne Seitenanker
+  bleibt `page` weg (seit D7, Plan `story-dreiteilung-fragenchronik`;
+  Backfill: `scripts/backfill-chunk-pages.ts`).
 
 `ImageProcessor` (Klasse) ist **nicht** deterministisch in dem Sinne, dass
 sie einen klassen-statischen Cache `imageCache` haelt. Tests **MUESSEN**
