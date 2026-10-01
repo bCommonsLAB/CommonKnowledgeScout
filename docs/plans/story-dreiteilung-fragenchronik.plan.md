@@ -11,8 +11,8 @@ todos:
     content: "[Gebaut 01.10.2026 in PR zu Branch claude/zealous-darwin-wvlu4k, Live-Nachweis offen] [Paket zuerst: packages/module-story anlegen mit Gerüst, Gate und Test gegen fremdes fetch, alle neuen Komponenten dort] Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
     status: done
   - id: d2-auswahl-und-scroll
-    content: "Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1 gestapelt), Live-Nachweis offen] Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
+    status: done
   - id: d3-quellen-spalte
     content: "Rechte Spalte auf 35 % und schmaler gestalten: Quellenliste der aktiven Antwort statt Galerie-Raster; ohne aktive Antwort die gefilterte Übersicht wie heute. Filterleiste bleibt oben."
     status: pending
@@ -256,7 +256,7 @@ Nachziehen.
 |---|---|---|
 | D0 | Figma: drei Desktop-Bildschirme, zwei Mobil-Bildschirme, Klickpfade verbunden (angelegt 01.10., Link unter Entscheidungen) | Owner klickt das Modell durch, Abnahme der Verhältnisse |
 | D1 | Chronik lesend, heuristische Kurztitel, Klick wählt Konversation | Live: zehn Fragen, jede per Klick erreichbar |
-| D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ | Live: Neu laden mit `q=` zeigt die richtige Konversation |
+| D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ (gebaut 01.10., Stand D2 oben) | Live: Neu laden mit `q=` zeigt die richtige Konversation |
 | D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste | Live: Belege wechseln mit der Auswahl |
 | D4 | Mobil: Chronik im Sheet | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
@@ -314,6 +314,65 @@ Neu dazugekommen (beim Bauen gesehen):
 - Der Live-Nachweis (zehn Fragen, jede per Klick erreichbar) steht aus; die
   Welle wurde ohne Mongo nur mit Unit-Tests (Hook, Komponenten, Helfer)
   belegt.
+
+### Stand D2 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Auswahl in der Adresse:** `q=<queryId>` per `nuqs`. Das Paket bleibt
+  URL-frei (`paket-schnitt.test.ts`): `auswahl-kennung.ts` legt nur fest,
+  welche Auswahl eine Kennung hat (gespeicherte Konversationen) und was eine
+  Kennung von außen ändert — fehlt `q`, gilt die Themenübersicht; ein Thema
+  und eine laufende Frage (noch ohne queryId) stehen nicht in der Adresse
+  und bleiben unberührt. Die App bindet das Atom in `StoryAuswahlUrl`
+  (`src/components/library/story/story-auswahl-url.tsx`, montiert in
+  `client.tsx` neben dem Chat-Panel), wie `NextGalleryNavigation` für die
+  Galerie: Klick schreibt mit Verlaufseintrag, der Nachtrag der queryId an
+  eine laufende Frage ersetzt nur (Zurück führt nicht auf „läuft").
+- **Neu laden / Zurück / geteilter Link:** Kommt `q` von außen, löst die
+  App die Sitzung über `GET …/queries/<queryId>` (liefert `chatId`) auf und
+  stellt den Chat darauf um; sonst bliebe die Mitte leer, wenn die
+  Konversation zu einer anderen als der zuletzt aktiven Sitzung
+  (localStorage) gehört. Nicht auffindbar (404, fremde Sitzung): Auswahl
+  bleibt, Warnung in der Konsole, Mitte meldet „nicht im Verlauf".
+- **Frage oben bündig:** `use-chat-scroll` stellt beim Auswahl-Wechsel
+  (Chronik-Klick, Zurück, Neu laden) die Frage der gewählten Konversation
+  oben bündig — dieselbe Regel wie beim Senden (Fix vom 01.10.,
+  `scrollElementToViewportTop` mit Platzhalter). Der Schlüssel ist die
+  lokale Kennung, damit der Nachtrag der queryId keinen zweiten Sprung
+  auslöst.
+- **Zustand „läuft":** `fragenAusVerlauf` kennt den Stream-Zustand; offen
+  ist nur die letzte Frage ohne Antwort, solange gesendet wird (eine
+  abgebrochene Frage stand sonst ewig als „läuft"). Die erste Frage einer
+  neuen Sitzung erscheint sofort unter einer vorläufigen Sitzung („Neue
+  Sitzung", nicht umbenennbar), bis der Server die Kennung vergibt.
+- **Verarbeitung in einfachen Worten:** `VerarbeitungEinfach` im Paket
+  (`verarbeitungInWorten` als reine Funktion): eine Zeile je Phase
+  (erinnern, verstehen, lesen, zusammenstellen, formulieren, aufbereiten),
+  keine Technikbegriffe; i18n `processing.plain.*` in fünf Sprachen.
+  `ProcessingStatus` hat dafür `einfach`; Story-Mitte und eingebetteter
+  Verlauf nutzen es, Chat-Reiter und Protokoll-Dialog bleiben technisch.
+  Dafür liegt `ChatProcessingStep` jetzt in `@ks/contracts`
+  (`src/types/chat-processing.ts` ist Shim, `formatSSE` bleibt dort).
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- `use-chat-history` lädt je Sitzung nur die letzten 20 Fragen. Ein `q` auf
+  eine ältere Frage derselben Sitzung findet die Konversation nicht und
+  meldet „nicht im Verlauf", obwohl die Chronik (100 je Sitzung) sie
+  listet. Kandidat für D6 zusammen mit dem N+1 aus D1.
+- Der Wechsel in die Galerie-Ansicht trägt `q` mit (`nextParamsForMode`
+  kopiert alle Parameter); zurück im Story-Modus ist die Konversation wieder
+  gewählt. Bewusst so gelassen; wer das anders will, löscht `q` in
+  `nextParamsForMode` für `gallery`/`site`.
+- Contract `welle-3-iii-galerie-chat-contracts` §5 nannte `?q=<query>` als
+  Suchtext — nie gebaut, nirgends gelesen. Die Zeile heißt jetzt
+  `q=<queryId>` (Story: gewählte Konversation).
+- `story-topics/index.tsx` (seit D1 ohne Aufrufer) nutzt weiter die
+  technische Ansicht; fällt in D6.
+- Live-Nachweis (Neu laden mit `q=` zeigt die richtige Konversation) steht
+  aus: ohne Mongo nur per Unit-Tests belegt (URL-Bindung mit
+  `NuqsTestingAdapter`, Kennung-Regeln, Chronik, Verarbeitung in Worten).
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

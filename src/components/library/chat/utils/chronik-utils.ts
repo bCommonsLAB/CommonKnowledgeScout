@@ -9,14 +9,20 @@
 import type { ChronikFrage, StoryAuswahl } from '@ks/module-story/react'
 import { groupMessagesToConversations, type ChatMessage } from './chat-utils'
 
-/** Fragen der aktiven Sitzung aus dem Verlauf, chronologisch, mit Zustand „offen". */
-export function fragenAusVerlauf(messages: ChatMessage[]): ChronikFrage[] {
-  return groupMessagesToConversations(messages).map((paar) => ({
+/**
+ * Fragen der aktiven Sitzung aus dem Verlauf, chronologisch, mit Zustand
+ * „offen" (D2: „laeuft"). Offen ist nur die letzte Frage ohne Antwort,
+ * solange der Stream laeuft — eine abgebrochene Frage (Fehler) bleibt im
+ * Verlauf ohne Antwort und darf nicht ewig als „laeuft" stehen.
+ */
+export function fragenAusVerlauf(messages: ChatMessage[], laeuft: boolean): ChronikFrage[] {
+  const paare = groupMessagesToConversations(messages)
+  return paare.map((paar, i) => ({
     queryId: paar.question.queryId,
     frageId: paar.question.id,
     text: paar.question.content,
     createdAt: paar.question.createdAt,
-    offen: paar.answer === undefined,
+    offen: laeuft && i === paare.length - 1 && paar.answer === undefined,
   }))
 }
 

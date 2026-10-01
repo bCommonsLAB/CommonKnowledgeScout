@@ -53,6 +53,12 @@ interface UseChatScrollProps {
   isSending: boolean
   processingSteps: ChatProcessingStep[]
   prevMessagesLengthRef: React.MutableRefObject<number>
+  /**
+   * D2 (Story-Modus): Schluessel der in der Mitte gewaehlten Konversation,
+   * sobald sie gerendert ist; `null` ohne Auswahl. Ein Wechsel stellt die
+   * Frage oben buendig — dieselbe Regel wie beim Senden.
+   */
+  gewaehlteKonversation?: string | null
 }
 
 /**
@@ -71,6 +77,7 @@ export function useChatScroll({
   isSending,
   processingSteps,
   prevMessagesLengthRef,
+  gewaehlteKonversation = null,
 }: UseChatScrollProps) {
   // Auto-Scroll zum neuesten Accordion wurde deaktiviert - Benutzer möchte nicht automatisch scrollen
   // Aktualisiere nur prevMessagesLengthRef, damit andere Logik weiterhin funktioniert
@@ -97,6 +104,19 @@ export function useChatScroll({
     const timeoutId = setTimeout(scrollToQuestion, 200)
     return () => clearTimeout(timeoutId)
   }, [isSending, scrollRef])
+
+  // D2: Auswahl gewechselt (Chronik-Klick, Zurueck-Knopf, Neu laden mit `q=`)
+  // → die gewaehlte Konversation steht allein in der Mitte; ihre Frage oben
+  // buendig stellen, nach dem Rendern (ein Frame), sonst misst der Platzhalter
+  // noch den alten Inhalt.
+  useEffect(() => {
+    if (!gewaehlteKonversation) return
+    const frame = requestAnimationFrame(() => {
+      const el = scrollRef.current?.querySelector('[data-conversation-id]')
+      if (el) scrollElementToViewportTop(el)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [gewaehlteKonversation, scrollRef])
 
   // Waehrend der Verarbeitung wird bewusst NICHT mehr nachgescrollt: die
   // Frage bleibt oben stehen, der Status darunter waechst nach unten.

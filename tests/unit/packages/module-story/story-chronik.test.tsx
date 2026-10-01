@@ -118,6 +118,21 @@ describe('StoryChronik', () => {
     expect(store.get(storyAuswahlAtom)).toMatchObject({ art: 'konversation', queryId: 'alt-1', themaId: undefined })
   })
 
+  it('erste Frage einer neuen Sitzung steht sofort als „laeuft" unter einer vorlaeufigen Sitzung', async () => {
+    const { store } = renderChronik()
+    await waitFor(() => screen.getByText('Heute'))
+    store.set(storyAktiveSitzungAtom, { chatId: null, fragen: [
+      { frageId: 'question-9', text: 'Was passiert mit dem Bahnhof?', createdAt: '2026-10-01T11:00:00.000Z', offen: true },
+    ] })
+    await waitFor(() => expect(screen.getByText('story.running')).toBeTruthy())
+    // Vorlaeufige Sitzung traegt den Namen „Neue Sitzung" (neben dem Knopf) und laesst sich nicht umbenennen.
+    expect(screen.getAllByText('story.newSession').length).toBe(2)
+    expect(screen.getAllByRole('button', { name: 'story.renameSession' })).toHaveLength(2) // nur „Heute" und „Gestern"
+    // Klick waehlt die laufende Frage ueber ihre lokale Kennung, ohne die App auf eine Sitzung umzustellen.
+    fireEvent.click(screen.getByText('story.running'))
+    expect(store.get(storyAuswahlAtom)).toMatchObject({ art: 'konversation', frageId: 'question-9', queryId: undefined })
+  })
+
   it('„Themenuebersicht" und „Neue Sitzung" fuehren zur Uebersicht zurueck', async () => {
     const { store, onNeueSitzung } = renderChronik()
     store.set(storyAuswahlAtom, { art: 'thema', themaId: 'heizen' })

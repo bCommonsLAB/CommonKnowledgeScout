@@ -755,7 +755,31 @@
     "model": "Modèle : {model}",
     "processAnswer": "Traiter la réponse",
     "answerGenerated": "Terminé - Réponse générée avec succès",
-    "error": "Erreur"
+    "error": "Erreur",
+    "plain": {
+      "lookingUp": "Je vérifie si cette question a déjà reçu une réponse",
+      "foundEarlier": "Une réponse précédente est disponible",
+      "notFoundYet": "Pas encore de réponse, je l'élabore à nouveau",
+      "thinking": "Je réfléchis à la façon d'aborder la question",
+      "readPassages": "Je cherche les passages pertinents dans les documents",
+      "readSummaries": "Je lis les résumés des documents",
+      "readBoth": "Je consulte passages et résumés",
+      "reading": "Je lis les documents pertinents",
+      "passagesOne": "Un passage pertinent trouvé",
+      "passagesMany": "{count} passages pertinents trouvés",
+      "passagesOneIn": "Un passage pertinent trouvé dans {documents}",
+      "passagesManyIn": "{count} passages pertinents trouvés dans {documents}",
+      "documentsOne": "un document",
+      "documentsMany": "{count} documents",
+      "composing": "Je rassemble ce que j'ai trouvé",
+      "composedOne": "Un passage entre dans la réponse",
+      "composedMany": "{count} passages entrent dans la réponse",
+      "writing": "Je rédige la réponse",
+      "written": "La réponse est rédigée",
+      "finishing": "Je prépare la réponse",
+      "done": "Terminé",
+      "failed": "Quelque chose a mal tourné : {error}"
+    }
   },
   "chatMessages": {
     "welcomeTitle": "Bienvenue dans le mode Histoire.",

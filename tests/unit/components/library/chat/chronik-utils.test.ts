@@ -14,11 +14,15 @@ const verlauf: ChatMessage[] = [
 ]
 
 describe('fragenAusVerlauf', () => {
-  it('eine Frage je Konversation, laufende als offen', () => {
-    expect(fragenAusVerlauf(verlauf)).toEqual([
+  it('eine Frage je Konversation, die laufende als offen', () => {
+    expect(fragenAusVerlauf(verlauf, true)).toEqual([
       { queryId: 'q1', frageId: 'q1-question', text: 'Erste Frage?', createdAt: t, offen: false },
       { queryId: undefined, frageId: 'question-1700', text: 'Zweite, laeuft noch?', createdAt: t, offen: true },
     ])
+  })
+
+  it('ohne laufenden Stream ist nichts offen — eine abgebrochene Frage bleibt stehen, nicht „laeuft"', () => {
+    expect(fragenAusVerlauf(verlauf, false).map((f) => f.offen)).toEqual([false, false])
   })
 })
 

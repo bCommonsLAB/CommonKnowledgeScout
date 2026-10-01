@@ -338,8 +338,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   }, [isEmbedded, cachedStoryTopicsData, setStoryGliederung])
 
   useEffect(() => {
-    if (isEmbedded) setStoryAktiveSitzung({ chatId: activeChatId, fragen: fragenAusVerlauf(messages) })
-  }, [isEmbedded, activeChatId, messages, setStoryAktiveSitzung])
+    if (isEmbedded) setStoryAktiveSitzung({ chatId: activeChatId, fragen: fragenAusVerlauf(messages, isSending) })
+  }, [isEmbedded, activeChatId, messages, isSending, setStoryAktiveSitzung])
 
   // Klickmodell: „Frage tippen oder eigene senden" → die neue Frage wird die
   // aktive Konversation; ihr Thema (falls aus einem Thema gewaehlt) markiert
@@ -366,8 +366,29 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     vorherigeChatIdRef.current = activeChatId
   }, [isEmbedded, activeChatId, setMessages])
 
+  // D2: Sobald die laufende Frage ihre gespeicherte Kennung hat, traegt die
+  // Auswahl sie nach — die App schreibt sie dann in die Adresse (`q=`). Kam
+  // die Auswahl aus der Adresse, fehlt ihr das Thema: aus dem Fragetext
+  // ergaenzen, damit die Gliederung es markiert.
+  useEffect(() => {
+    if (!isEmbedded || storyAuswahl.art !== 'konversation') return
+    const frage = frageZurAuswahl(messages, storyAuswahl)
+    if (!frage) return
+    const queryId = storyAuswahl.queryId ?? frage.queryId
+    const themaId = storyAuswahl.themaId ?? themaZuFrage(cachedStoryTopicsData ?? null, frage.content) ?? undefined
+    if (queryId !== storyAuswahl.queryId || themaId !== storyAuswahl.themaId) {
+      setStoryAuswahl({ ...storyAuswahl, queryId, themaId })
+    }
+  }, [isEmbedded, storyAuswahl, messages, cachedStoryTopicsData, setStoryAuswahl])
+
   // Die Mitte zeigt genau die gewaehlte Konversation — aufgeklappt.
   const konversation = isEmbedded ? konversationAuswaehlen(messages, storyAuswahl) : messages
+  // Schluessel fuer den Scroll (D2): erst, wenn die Konversation gerendert ist;
+  // die lokale Kennung bleibt ueber den Nachtrag der queryId hinweg stabil.
+  const gewaehlteKonversation =
+    isEmbedded && storyAuswahl.art === 'konversation' && konversation.length > 0
+      ? (storyAuswahl.frageId ?? storyAuswahl.queryId ?? null)
+      : null
   useEffect(() => {
     if (!isEmbedded || storyAuswahl.art !== 'konversation') return
     const paar = groupMessagesToConversations(konversationAuswaehlen(messages, storyAuswahl))[0]
@@ -555,6 +576,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     isSending,
     processingSteps,
     prevMessagesLengthRef,
+    gewaehlteKonversation,
   })
   
   // Prüfe Cache beim ersten Laden UND bei Filter-/Parameteränderungen

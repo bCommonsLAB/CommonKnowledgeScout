@@ -91,7 +91,7 @@ export function StoryMitte({
       <div className="text-sm text-muted-foreground">{t('gallery.storyMode.generatingTopics')}</div>
       {processingSteps.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border/50">
-          <ProcessingStatus steps={processingSteps} isActive={isLoading || isRegenerating} />
+          <ProcessingStatus steps={processingSteps} isActive={isLoading || isRegenerating} einfach />
         </div>
       )}
     </div>
