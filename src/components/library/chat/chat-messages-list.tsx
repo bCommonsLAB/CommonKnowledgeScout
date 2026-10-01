@@ -185,7 +185,7 @@ export function ChatMessagesList({
               {/* Processing Steps - dezent innerhalb des Blocks */}
               {processingSteps.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border/50">
-                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC || isGeneratingTOC} />
+                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC || isGeneratingTOC} einfach={isEmbedded} />
                 </div>
               )}
             </div>

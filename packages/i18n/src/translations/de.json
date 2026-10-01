@@ -802,7 +802,31 @@
     "model": "Modell: {model}",
     "processAnswer": "Antwort verarbeiten",
     "answerGenerated": "Fertig - Antwort erfolgreich generiert",
-    "error": "Fehler"
+    "error": "Fehler",
+    "plain": {
+      "lookingUp": "Ich schaue nach, ob diese Frage schon einmal beantwortet wurde",
+      "foundEarlier": "Eine frühere Antwort ist da",
+      "notFoundYet": "Noch nicht beantwortet, ich erarbeite die Antwort neu",
+      "thinking": "Ich überlege, wie ich die Frage angehe",
+      "readPassages": "Ich suche passende Textstellen in den Dokumenten",
+      "readSummaries": "Ich lese die Zusammenfassungen der Dokumente",
+      "readBoth": "Ich schaue in Textstellen und Zusammenfassungen",
+      "reading": "Ich lese die passenden Dokumente",
+      "passagesOne": "Eine passende Stelle gefunden",
+      "passagesMany": "{count} passende Stellen gefunden",
+      "passagesOneIn": "Eine passende Stelle in {documents} gefunden",
+      "passagesManyIn": "{count} passende Stellen in {documents} gefunden",
+      "documentsOne": "einem Dokument",
+      "documentsMany": "{count} Dokumenten",
+      "composing": "Ich stelle die Fundstellen zusammen",
+      "composedOne": "Eine Fundstelle fließt in die Antwort ein",
+      "composedMany": "{count} Fundstellen fließen in die Antwort ein",
+      "writing": "Ich formuliere die Antwort",
+      "written": "Die Antwort ist formuliert",
+      "finishing": "Ich bereite die Antwort auf",
+      "done": "Fertig",
+      "failed": "Dabei ist etwas schiefgegangen: {error}"
+    }
   },
   "chatMessages": {
     "welcomeTitle": "Willkommen im Story Mode.",

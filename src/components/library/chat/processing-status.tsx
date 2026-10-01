@@ -4,10 +4,16 @@ import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle2, Circle, XCircle } from 'lucide-react'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { useTranslation } from '@ks/i18n/react'
+import { VerarbeitungEinfach } from '@ks/module-story/react'
 
 interface ProcessingStatusProps {
   steps: ChatProcessingStep[]
   isActive: boolean
+  /**
+   * Einfache Worte statt Technikbegriffen (Story-Modus, D2): „Ich lese die
+   * passenden Dokumente" statt Cache, Retriever, Chunks und Token.
+   */
+  einfach?: boolean
 }
 
 interface StepDisplay {
@@ -17,7 +23,13 @@ interface StepDisplay {
   icon?: React.ReactNode
 }
 
-export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
+export function ProcessingStatus({ steps, isActive, einfach = false }: ProcessingStatusProps) {
+  if (einfach) return <VerarbeitungEinfach schritte={steps} />
+  return <ProcessingStatusTechnisch steps={steps} isActive={isActive} />
+}
+
+/** Die technische Ansicht: jeder Schritt mit Kennzahlen (Chat-Reiter, Protokoll-Dialog). */
+function ProcessingStatusTechnisch({ steps, isActive }: { steps: ChatProcessingStep[]; isActive: boolean }) {
   const { t } = useTranslation()
   const [progress, setProgress] = useState(0)
   
