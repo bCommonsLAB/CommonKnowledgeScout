@@ -72,6 +72,9 @@ export {
   getTableColumnsForViewType,
 } from './detail-view-type-registry'
 export type { SumPlaceholderField } from './detail-view-type-registry'
+// D3 (Plan story-dreiteilung-fragenchronik): Belegkarte im Story-Modus je ViewType.
+export type { BelegKarteConfig, BelegPlakette } from './detail-view-type-registry'
+export { BELEG_PLAKETTEN } from './detail-view-type-registry'
 export { VIEW_TYPE_LABELS, getViewTypeLabel, getPresentDetailViewTypes } from './detail-view-type-display'
 export { getDetailViewType } from './resolve-detail-view-type'
 

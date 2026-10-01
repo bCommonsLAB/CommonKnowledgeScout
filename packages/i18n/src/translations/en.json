@@ -859,6 +859,25 @@
     "conversationLoading": "Loading conversation …",
     "conversationNotInHistory": "This question is not in the loaded history.",
     "recompute": "Recompute overview",
-    "recomputing": "Recomputing …"
+    "recomputing": "Recomputing …",
+    "beleg": {
+      "title": "Evidence",
+      "count": {
+        "one": "1 source for this answer",
+        "many": "{count} sources for this answer"
+      },
+      "citedAs": "Cited as {numbers}",
+      "original": "View original",
+      "moreFound": "Other documents found ({count})",
+      "catalog": "All {count} original sources in the catalogue",
+      "close": "Close evidence",
+      "none": "No sources are attached to this answer.",
+      "status": {
+        "umsetzung": "In progress",
+        "geplant": "Planned",
+        "pruefung": "Under review",
+        "abgelehnt": "Rejected"
+      }
+    }
   }
 }

@@ -906,6 +906,25 @@
     "conversationLoading": "Konversation wird geladen …",
     "conversationNotInHistory": "Diese Frage liegt nicht im geladenen Verlauf.",
     "recompute": "Übersicht neu berechnen",
-    "recomputing": "Neuberechnung …"
+    "recomputing": "Neuberechnung …",
+    "beleg": {
+      "title": "Belege",
+      "count": {
+        "one": "1 Beleg zu dieser Antwort",
+        "many": "{count} Belege zu dieser Antwort"
+      },
+      "citedAs": "Zitiert als {numbers}",
+      "original": "Original ansehen",
+      "moreFound": "Weitere gefundene Dokumente ({count})",
+      "catalog": "Alle {count} Originalquellen im Katalog",
+      "close": "Belege schließen",
+      "none": "Zu dieser Antwort liegen keine Belege vor.",
+      "status": {
+        "umsetzung": "In Umsetzung",
+        "geplant": "Geplant",
+        "pruefung": "In Prüfung",
+        "abgelehnt": "Abgelehnt"
+      }
+    }
   }
 }

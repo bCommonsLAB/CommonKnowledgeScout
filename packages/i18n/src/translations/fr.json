@@ -859,6 +859,25 @@
     "conversationLoading": "Chargement de la conversation …",
     "conversationNotInHistory": "Cette question n’est pas dans l’historique chargé.",
     "recompute": "Recalculer l’aperçu",
-    "recomputing": "Recalcul …"
+    "recomputing": "Recalcul …",
+    "beleg": {
+      "title": "Sources",
+      "count": {
+        "one": "1 source pour cette réponse",
+        "many": "{count} sources pour cette réponse"
+      },
+      "citedAs": "Citée comme {numbers}",
+      "original": "Voir l'original",
+      "moreFound": "Autres documents trouvés ({count})",
+      "catalog": "Les {count} sources originales dans le catalogue",
+      "close": "Fermer les sources",
+      "none": "Aucune source n'est rattachée à cette réponse.",
+      "status": {
+        "umsetzung": "En cours",
+        "geplant": "Prévue",
+        "pruefung": "En examen",
+        "abgelehnt": "Rejetée"
+      }
+    }
   }
 }
