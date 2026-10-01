@@ -13,14 +13,17 @@
  *   Filter-Ereignisse: `hooks/use-toc-reload-hint`, `use-toc-complete-step`,
  *   `use-story-toc-autostart`, `use-story-filter-events`
  * - Aktionen (loeschen, neu stellen, Praeferenzen, senden): `hooks/use-chat-actions`
+ * - Kopf (Konfig-Leiste) und Fuss (Eingabe, Knopf): `panel-header`, `panel-footer`
+ *
+ * Die Varianten `default` und `compact` teilen sich seit D6 denselben Pfad
+ * (compact: engerer Innenabstand, keine Fusszeile); `embedded` ist die
+ * Story-Mitte: Themenuebersicht oder genau die gewaehlte Konversation.
  */
 
 import { useCallback, useRef, useState } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useUser } from '@clerk/nextjs'
-import { ScrollArea, Button } from '@ks/ui'
-import { MessageCircle, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ScrollArea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { chatReferencesAtom, galleryFiltersAtom, useGalleryData } from '@ks/module-explorer/react'
 import { STORY_UEBERSICHT } from '@ks/module-story/react'
@@ -38,9 +41,6 @@ import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useAnonymousPreferences } from '@/hooks/use-anonymous-preferences'
 import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import { StoryMitte } from '../story/story-mitte'
-import { ChatInput } from './chat-input'
-import { ChatConfigBar } from './chat-config-bar'
-import { ChatConfigPopover } from './chat-config-popover'
 import { ChatMessagesList } from './chat-messages-list'
 import { useChatHistory } from './hooks/use-chat-history'
 import { useChatScroll } from './hooks/use-chat-scroll'
@@ -48,6 +48,8 @@ import { useChatStream } from './hooks/use-chat-stream'
 import { useChatTOC } from './hooks/use-chat-toc'
 import type { UseChatTOCResult } from './hooks/use-chat-toc/types'
 import { frageZurAuswahl } from './utils/chronik-utils'
+import { ChatPanelFooter } from './chat-panel/panel-footer'
+import { ChatPanelHeader } from './chat-panel/panel-header'
 import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
 import { useChatActions } from './chat-panel/hooks/use-chat-actions'
 import { useChatPerspectiveState } from './chat-panel/hooks/use-chat-perspective-state'
@@ -240,169 +242,52 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     setGenderInclusive: perspektive.setGenderInclusive,
   })
 
-  const { setTargetLanguage, setCharacter, setAccessPerspective, setSocialContext, setGenderInclusive } = perspektive
+  const padding = variant === 'compact' ? '' : 'p-6'
+  if (loading) return <div className={padding}>Lade Chat...</div>
+  if (error) return <div className={`${padding} text-destructive`}>{error}</div>
+  if (!cfg) return <div className={padding}>Keine Konfiguration gefunden.</div>
 
-  // Gemeinsame ChatInput-Renderung für beide Varianten
-  function renderChatInput() {
-    if (!cfg) return null
-    
-    if (!isEmbedded) {
-      return (
-        <ChatInput
-          input={input}
-          setInput={setInput}
-          onSend={onSend}
-          isSending={isSending}
-          answerLength={answerLength}
-          setAnswerLength={setAnswerLength}
-          placeholder={cfg.config.placeholder}
-          variant="default"
-          inputRef={inputRef}
-        />
-      )
-    }
-    
-    return (
-      <ChatInput
-        input={input}
-        setInput={setInput}
-        onSend={onSend}
-        isSending={isSending}
-        answerLength={answerLength}
-        setAnswerLength={setAnswerLength}
-        placeholder={cfg.config.placeholder}
-        variant="embedded"
-        inputRef={inputRef}
-        isOpen={isChatInputOpen}
-        onOpenChange={setIsChatInputOpen}
-      />
-    )
+  // Eingabefeld aufklappen und die Frage uebernehmen (Themenfrage oder Anschlussfrage).
+  const frageUebernehmen = (text: string, verzoegerung: number) => {
+    setInput(text)
+    setIsChatInputOpen(true)
+    setTimeout(() => inputRef.current?.focus(), verzoegerung)
   }
-  
-  if (loading) return <div className={variant === 'compact' ? '' : 'p-6'}>Lade Chat...</div>
-  if (error) return <div className={(variant === 'compact' ? '' : 'p-6 ') + 'text-destructive'}>{error}</div>
-  if (!cfg) return <div className={variant === 'compact' ? '' : 'p-6'}>Keine Konfiguration gefunden.</div>
-  
-  if (variant === 'compact') {
-    return (
-      <div className="flex flex-col flex-1 min-h-0 w-full" style={isEmbedded ? { maxHeight: '100%' } : undefined}>
-        {!isEmbedded && (
-          <ChatConfigBar
-            targetLanguage={targetLanguage}
-            setTargetLanguage={setTargetLanguage}
-            character={character}
-            setCharacter={setCharacter}
-            accessPerspective={accessPerspective}
-            setAccessPerspective={setAccessPerspective}
-            socialContext={socialContext}
-            setSocialContext={setSocialContext}
-            libraryId={libraryId}
-            activeChatId={activeChatId}
-            setActiveChatId={setActiveChatId}
-            isEmbedded={isEmbedded}
-          >
-            <ChatConfigPopover
-              open={configPopoverOpen}
-              onOpenChange={handleConfigPopoverChange}
-              answerLength={answerLength}
-              setAnswerLength={setAnswerLength}
-              retriever={retriever}
-              setRetriever={setRetriever}
-              genderInclusive={genderInclusive}
-              setGenderInclusive={setGenderInclusive}
-              targetLanguage={targetLanguage}
-              character={character}
-              socialContext={socialContext}
-              onGenerateTOC={generateTOC}
-              onSavePreferences={saveUserPreferences}
-            />
-          </ChatConfigBar>
-        )}
-        
-        <div className={`flex-1 min-h-0 flex flex-col ${isEmbedded ? 'relative overflow-visible' : 'overflow-hidden'}`}>
-          <ScrollArea className="flex-1 min-h-0 h-full" ref={scrollRef}>
-            <div className={`p-4 ${isEmbedded ? 'pb-20' : ''}`}>
-              {/* Variante compact ist nie eingebettet — der Story-Block (StoryTopics) war hier toter Code (D1). */}
-              
-              <ChatMessagesList
-                messages={messages}
-                openConversations={openConversations}
-                setOpenConversations={setOpenConversations}
-                libraryId={libraryId}
-                isSending={isSending}
-                processingSteps={processingSteps}
-                error={error}
-                answerLength={answerLength}
-                retriever={retriever}
-                targetLanguage={targetLanguage}
-                character={character}
-                accessPerspective={accessPerspective}
-                socialContext={socialContext}
-                llmModel={llmModel}
-                onQuestionClick={(question) => {
-                  setInput(question)
-                  inputRef.current?.focus()
-                }}
-                onDelete={handleDeleteQuery}
-                onReload={handleReloadQuestion}
-                messageRefs={messageRefs}
-                isEmbedded={isEmbedded}
-                isCheckingTOC={isCheckingTOC}
-                isGeneratingTOC={isGeneratingTOC}
-                cachedTOC={cachedTOC}
-              />
-            </div>
-          </ScrollArea>
-          
-          <div className="flex-shrink-0">
-            {renderChatInput()}
-          </div>
-        </div>
-      </div>
-    )
-  }
-  
+  const zeigeMitte = isEmbedded && storyAuswahl.art !== 'konversation'
+
   return (
-    <div className={`w-full flex flex-col overflow-hidden flex-1 min-h-0`} style={isEmbedded ? { maxHeight: '100%' } : undefined}>
+    <div className="w-full flex flex-col overflow-hidden flex-1 min-h-0" style={isEmbedded ? { maxHeight: '100%' } : undefined}>
       {!isEmbedded && (
-        <ChatConfigBar
-          targetLanguage={targetLanguage}
-          setTargetLanguage={setTargetLanguage}
-          character={character}
-          setCharacter={setCharacter}
-          accessPerspective={accessPerspective}
-          setAccessPerspective={setAccessPerspective}
-          socialContext={socialContext}
-          setSocialContext={setSocialContext}
+        <ChatPanelHeader
           libraryId={libraryId}
           activeChatId={activeChatId}
           setActiveChatId={setActiveChatId}
-          isEmbedded={isEmbedded}
-        >
-          <ChatConfigPopover
-            open={configPopoverOpen}
-            onOpenChange={handleConfigPopoverChange}
-            answerLength={answerLength}
-            setAnswerLength={setAnswerLength}
-            retriever={retriever}
-            setRetriever={setRetriever}
-            genderInclusive={genderInclusive}
-            setGenderInclusive={setGenderInclusive}
-            targetLanguage={targetLanguage}
-            character={character}
-            socialContext={socialContext}
-            onGenerateTOC={generateTOC}
-            onSavePreferences={saveUserPreferences}
-          />
-        </ChatConfigBar>
+          targetLanguage={targetLanguage}
+          setTargetLanguage={perspektive.setTargetLanguage}
+          character={character}
+          setCharacter={perspektive.setCharacter}
+          accessPerspective={accessPerspective}
+          setAccessPerspective={perspektive.setAccessPerspective}
+          socialContext={socialContext}
+          setSocialContext={perspektive.setSocialContext}
+          popoverOpen={configPopoverOpen}
+          onPopoverOpenChange={handleConfigPopoverChange}
+          answerLength={answerLength}
+          setAnswerLength={setAnswerLength}
+          retriever={retriever}
+          setRetriever={setRetriever}
+          genderInclusive={genderInclusive}
+          setGenderInclusive={perspektive.setGenderInclusive}
+          onGenerateTOC={generateTOC}
+          onSavePreferences={saveUserPreferences}
+        />
       )}
-      
+
       <div className={`flex-1 min-h-0 flex flex-col ${isEmbedded ? 'relative overflow-visible' : 'overflow-hidden'}`}>
         <ScrollArea className="flex-1 h-full min-h-0" ref={scrollRef}>
-          <div className={`p-6 ${isEmbedded ? 'pb-20' : ''}`}>
-            {/* Mitte (D1): Kopf des Ganzen mit Themenkarten bzw. Themenseite,
-                solange keine Konversation gewaehlt ist; nur mit Dokumenten. */}
-            {isEmbedded && storyAuswahl.art !== 'konversation' && filteredDocsCount >= 1 && !galleryDataLoading && (
+          <div className={`${variant === 'compact' ? 'p-4' : 'p-6'} ${isEmbedded ? 'pb-20' : ''}`}>
+            {/* Mitte (D1): Kopf des Ganzen mit Themenkarten bzw. Themenseite, solange keine Konversation gewaehlt ist. */}
+            {zeigeMitte && filteredDocsCount >= 1 && !galleryDataLoading && (
               <StoryMitte
                 libraryId={libraryId}
                 gliederung={cachedStoryTopicsData ?? null}
@@ -416,102 +301,69 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 onRegenerate={forceRegenerateTOC}
                 cachedTOC={cachedTOC}
                 llmModel={llmModel}
-                onSelectQuestion={(question) => {
-                  setInput(question.text)
-                  setIsChatInputOpen(true)
-                  setTimeout(() => {
-                    inputRef.current?.focus()
-                  }, 200)
-                }}
+                onSelectQuestion={(question) => frageUebernehmen(question.text, 200)}
               />
             )}
-            {isEmbedded && storyAuswahl.art !== 'konversation' && error && (
-              <div className="mt-4 text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
-                {error}
-              </div>
+            {zeigeMitte && error && (
+              <div className="mt-4 text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">{error}</div>
             )}
-            {isEmbedded && storyAuswahl.art === 'konversation' && konversation.length === 0 && !isSending && (
+            {isEmbedded && !zeigeMitte && konversation.length === 0 && !isSending && (
               <div className="text-sm text-muted-foreground p-4">
                 {messages.length === 0 ? t('story.conversationLoading') : t('story.conversationNotInHistory')}
               </div>
             )}
-
-            {(!isEmbedded || storyAuswahl.art === 'konversation') && (
-            <ChatMessagesList
-              messages={konversation}
-              openConversations={openConversations}
-              setOpenConversations={setOpenConversations}
-              libraryId={libraryId}
-              isSending={isSending}
-              processingSteps={processingSteps}
-              error={error}
-              answerLength={answerLength}
-              retriever={retriever}
-              targetLanguage={targetLanguage}
-              character={character}
-              accessPerspective={accessPerspective}
-              socialContext={socialContext}
-              llmModel={llmModel}
-              filters={galleryFilters}
-              onQuestionClick={(question) => {
-                setInput(question)
-                setIsChatInputOpen(true)
-                setTimeout(() => {
-                  inputRef.current?.focus()
-                }, 100)
-              }}
-              onDelete={async (queryId) => {
-                const gewaehlt = frageZurAuswahl(messages, storyAuswahl)?.queryId
-                await handleDeleteQuery(queryId)
-                // Die gewaehlte Konversation ist weg → zurueck zur Uebersicht, nicht ins Leere.
-                if (isEmbedded && gewaehlt === queryId) setStoryAuswahl(STORY_UEBERSICHT)
-              }}
-              onReload={handleReloadQuestion}
-              messageRefs={messageRefs}
-              isEmbedded={isEmbedded}
-              isCheckingTOC={isCheckingTOC}
-              isGeneratingTOC={isGeneratingTOC}
-              cachedTOC={cachedTOC}
-            />
+            {!zeigeMitte && (
+              <ChatMessagesList
+                messages={konversation}
+                openConversations={openConversations}
+                setOpenConversations={setOpenConversations}
+                libraryId={libraryId}
+                isSending={isSending}
+                processingSteps={processingSteps}
+                error={error}
+                answerLength={answerLength}
+                retriever={retriever}
+                targetLanguage={targetLanguage}
+                character={character}
+                accessPerspective={accessPerspective}
+                socialContext={socialContext}
+                llmModel={llmModel}
+                filters={galleryFilters}
+                onQuestionClick={(question) => frageUebernehmen(question, 100)}
+                onDelete={async (queryId) => {
+                  const gewaehlt = frageZurAuswahl(messages, storyAuswahl)?.queryId
+                  await handleDeleteQuery(queryId)
+                  // Die gewaehlte Konversation ist weg → zurueck zur Uebersicht, nicht ins Leere.
+                  if (isEmbedded && gewaehlt === queryId) setStoryAuswahl(STORY_UEBERSICHT)
+                }}
+                onReload={handleReloadQuestion}
+                messageRefs={messageRefs}
+                isEmbedded={isEmbedded}
+                isCheckingTOC={isCheckingTOC}
+                isGeneratingTOC={isGeneratingTOC}
+                cachedTOC={cachedTOC}
+              />
             )}
-            {/* Platzhalter: Hoehe setzt scrollElementToViewportTop (use-chat-scroll),
-                damit die zuletzt gestellte Frage oben buendig stehen kann. */}
+            {/* Platzhalter: Hoehe setzt scrollElementToViewportTop (use-chat-scroll), damit die Frage oben buendig stehen kann. */}
             <div data-chat-scroll-spacer aria-hidden="true" />
           </div>
         </ScrollArea>
-        
-        <div className="flex-shrink-0">
-          {renderChatInput()}
-        </div>
-        
-        {/* Chat-Symbol Button - direkt im Chat-Panel, relativ zum Chat-Panel-Container */}
-        {isEmbedded && (
-          <div
-            style={{
-              position: 'absolute',
-              right: '1rem',
-              bottom: '1rem',
-              zIndex: 100,
-            }}
-          >
-            <Button
-              onClick={() => setIsChatInputOpen(!isChatInputOpen)}
-              className={cn(
-                "h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 p-0 aspect-square flex items-center justify-center",
-                "bg-primary text-primary-foreground hover:bg-primary/90"
-              )}
-              aria-label={isChatInputOpen ? t('chat.input.closeChat') : t('chat.input.askQuestion')}
-            >
-              {isChatInputOpen ? (
-                <X className="h-5 w-5 transition-transform duration-300" />
-              ) : (
-                <MessageCircle className="h-5 w-5 transition-transform duration-300" />
-              )}
-            </Button>
-          </div>
-        )}
-        
-        {cfg.config.footerText && !isEmbedded && (
+
+        <ChatPanelFooter
+          isEmbedded={isEmbedded}
+          input={input}
+          setInput={setInput}
+          onSend={onSend}
+          isSending={isSending}
+          answerLength={answerLength}
+          setAnswerLength={setAnswerLength}
+          placeholder={cfg.config.placeholder}
+          inputRef={inputRef}
+          isChatInputOpen={isChatInputOpen}
+          setIsChatInputOpen={setIsChatInputOpen}
+        />
+
+        {cfg.config.footerText && !isEmbedded && variant !== 'compact' && (
           <div className="mt-4 text-xs text-muted-foreground px-4">
             {cfg.config.footerText} {cfg.config.companyLink ? (<a className="underline" href={cfg.config.companyLink} target="_blank" rel="noreferrer">mehr</a>) : null}
           </div>
@@ -520,4 +372,3 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     </div>
   )
 }
-
