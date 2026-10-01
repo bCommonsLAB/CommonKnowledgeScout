@@ -278,7 +278,7 @@ export async function getQueryLogById(args: { libraryId: string; queryId: string
 }
 
 
-export async function listRecentQueries(args: { libraryId: string; userEmail?: string; sessionId?: string; chatId?: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'createdAt' | 'question' | 'mode' | 'status' | 'answer' | 'references' | 'suggestedQuestions' | 'answerLength' | 'retriever' | 'targetLanguage' | 'character' | 'socialContext' | 'processingLogs'>>> {
+export async function listRecentQueries(args: { libraryId: string; userEmail?: string; sessionId?: string; chatId?: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'chatId' | 'createdAt' | 'question' | 'mode' | 'status' | 'queryType' | 'answer' | 'references' | 'suggestedQuestions' | 'answerLength' | 'retriever' | 'targetLanguage' | 'character' | 'socialContext' | 'processingLogs'>>> {
   const col = await getQueriesCollection()
   const lim = Math.max(1, Math.min(100, Number(args.limit ?? 20)))
   
@@ -301,7 +301,7 @@ export async function listRecentQueries(args: { libraryId: string; userEmail?: s
   
   // Lade auch cacheParams, um Felder zu extrahieren
   const cursor = col
-    .find(filter, { projection: { _id: 0, queryId: 1, createdAt: 1, question: 1, mode: 1, status: 1, answer: 1, references: 1, suggestedQuestions: 1, answerLength: 1, retriever: 1, targetLanguage: 1, character: 1, socialContext: 1, processingLogs: 1, cacheParams: 1 } })
+    .find(filter, { projection: { _id: 0, queryId: 1, chatId: 1, createdAt: 1, question: 1, mode: 1, status: 1, queryType: 1, answer: 1, references: 1, suggestedQuestions: 1, answerLength: 1, retriever: 1, targetLanguage: 1, character: 1, socialContext: 1, processingLogs: 1, cacheParams: 1 } })
     .sort({ createdAt: -1 })
     .limit(lim)
   const rows = await cursor.toArray()
@@ -309,10 +309,14 @@ export async function listRecentQueries(args: { libraryId: string; userEmail?: s
   // Extrahiere Felder aus cacheParams, falls vorhanden (für neue Einträge)
   return rows.map(r => ({
     queryId: r.queryId,
+    chatId: r.chatId,
     createdAt: r.createdAt,
     question: r.question,
     mode: r.mode,
     status: r.status,
+    // Themenuebersicht ('toc') vs. Frage der Person — die Story-Chronik (D1)
+    // laesst die Uebersicht weg, ohne jede Query einzeln nachzuladen.
+    queryType: r.cacheParams?.queryType ?? r.queryType,
     answer: r.answer,
     references: r.references,
     suggestedQuestions: r.suggestedQuestions,

@@ -43,7 +43,8 @@ import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { applyDraftExclusionToChunkFilter } from '@/lib/chat/publication-filter'
 import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
-import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
+import { createChat, touchChat, getChatById, updateChatTitle } from '@/lib/db/chats-repo'
+import { istThemenuebersichtTitel, sitzungstitelAusFrage } from '@/lib/chat/common/sitzungstitel'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,
@@ -294,6 +295,11 @@ export async function POST(
               // Chat gefunden, verwende ihn
               activeChatId = chatId
               await touchChat(chatId)
+              // Die Sitzung wurde von der Themenuebersicht eroeffnet: Die erste
+              // echte Frage gibt ihr den Titel (Story-Chronik, D1).
+              if (!isTOCQuery && istThemenuebersichtTitel(existingChat.title)) {
+                await updateChatTitle(chatId, sitzungstitelAusFrage(message))
+              }
             }
           }
         }
