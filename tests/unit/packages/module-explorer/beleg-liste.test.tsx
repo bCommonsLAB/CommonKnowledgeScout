@@ -15,6 +15,7 @@ import { BelegListe } from '../../../../packages/module-explorer/src/gallery/com
 import {
   belegeAusReferenzen,
   belegKonfig,
+  ersteSeite,
   kennzeileFuer,
   plaketteFuer,
 } from '../../../../packages/module-explorer/src/gallery/components/beleg-liste/helpers'
@@ -154,5 +155,66 @@ describe('BelegListe', () => {
     fireEvent.click(weitere)
     expect(weitere.getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByText('Noch ein Dokument')).toBeTruthy()
+  })
+})
+
+describe('BelegListe mit Textstellen (D7)', () => {
+  const mitSeiten: DocReference[] = [
+    {
+      number: 1, fileId: 'f-a', fileName: 'Radwege.md', description: 'Radwege', detailViewType: 'climateAction',
+      passages: [
+        { chunkIndex: 4, page: 3, excerpt: 'Der Ausbau der Radwege beginnt 2027.' },
+        { chunkIndex: 9, page: 7, excerpt: 'Kosten: 1,2 Mio.' },
+      ],
+    },
+    { number: 2, fileId: 'f-b', fileName: 'Heizen.md', description: 'Fernwaerme', passages: [{ chunkIndex: 1, excerpt: 'Ohne Seite.' }] },
+  ]
+
+  function renderListe() {
+    const openDocument = vi.fn()
+    const navigation: GalleryNavigation = {
+      openDocument,
+      closeDocument: vi.fn(),
+      documentShareUrl: () => '',
+      params: new URLSearchParams(),
+      replaceParams: vi.fn(),
+      pushParams: vi.fn(),
+      applyModeParams: vi.fn(),
+    }
+    render(
+      <GalleryNavigationProvider navigation={navigation}>
+        <BelegListe references={mitSeiten} usedDocs={docs} unusedDocs={[]} libraryId="lib" katalogAnzahl={1} onSchliessen={vi.fn()} />
+      </GalleryNavigationProvider>,
+    )
+    return { openDocument }
+  }
+
+  it('sammelt die Textstellen je Dokument; erste Seite fuer „Original ansehen"', () => {
+    const belege = belegeAusReferenzen(mitSeiten, docs)
+    expect(belege[0].passages.map((p) => p.page)).toEqual([3, 7])
+    expect(ersteSeite(belege[0])).toBe(3)
+    expect(ersteSeite(belege[1])).toBeUndefined()
+    expect(belegeAusReferenzen(references, docs)[0].passages).toEqual([])
+  })
+
+  it('Zitatmarke statt Zahl, Anker beleg-<n>, Textstellen mit Seite als Knopf', () => {
+    renderListe()
+    expect(screen.getByText('①')).toBeTruthy()
+    expect(document.getElementById('beleg-1')?.getAttribute('data-beleg')).toBe('f-a')
+    expect(document.getElementById('beleg-2')).toBeTruthy()
+    expect(screen.getByText('Der Ausbau der Radwege beginnt 2027.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'story.beleg.openAtPage:7' })).toBeTruthy()
+    // Ohne Seite: Zitat, aber kein Seitenknopf
+    expect(screen.getByText('Ohne Seite.')).toBeTruthy()
+    expect(screen.queryAllByRole('button', { name: /openAtPage/ })).toHaveLength(2)
+  })
+
+  it('Seitenknopf oeffnet an der Seite, „Original ansehen" an der ersten Seite, ohne Seite am Anfang', () => {
+    const { openDocument } = renderListe()
+    fireEvent.click(screen.getByRole('button', { name: 'story.beleg.openAtPage:7' }))
+    expect(openDocument).toHaveBeenLastCalledWith('radwege', { page: 7 })
+    const original = screen.getAllByRole('button', { name: /story.beleg.original/ })
+    fireEvent.click(original[0])
+    expect(openDocument).toHaveBeenLastCalledWith('radwege', { page: 3 })
   })
 })

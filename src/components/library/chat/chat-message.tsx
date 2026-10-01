@@ -17,6 +17,7 @@ import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatFiltersDisplay } from './chat-filters-display'
 import { AppLogo } from '@/components/shared/app-logo'
 import { useTranslation } from '@ks/i18n/react'
+import { zitatmarkenImText } from '@ks/util'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -156,7 +157,8 @@ export function ChatMessage({
             )}
             
             <div className="prose prose-sm max-w-none">
-              <MarkdownPreview content={content} compact />
+              {/* D7: [n] → ① als Anker auf die Belegkarte (#beleg-n) */}
+              <MarkdownPreview content={zitatmarkenImText(content)} compact />
             </div>
             
             {/* KI-Info-Hinweis unter jeder Antwort */}

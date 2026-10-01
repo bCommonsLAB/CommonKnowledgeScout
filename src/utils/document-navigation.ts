@@ -17,11 +17,17 @@ export function openDocumentBySlug(
   slug: string,
   router: AppRouterInstance,
   pathname: string | null,
-  searchParams: URLSearchParams | null
+  searchParams: URLSearchParams | null,
+  /** D7: Seite, an der das Dokument aufgeht (Parameter `page`); ohne Angabe wird ein alter `page` entfernt. */
+  opts?: { page?: number }
 ): void {
   if (!slug) {
     console.warn('[openDocumentBySlug] Kein Slug angegeben')
     return
+  }
+  const seiteSetzen = (params: URLSearchParams) => {
+    if (typeof opts?.page === 'number' && opts.page > 0) params.set('page', String(opts.page))
+    else params.delete('page')
   }
 
   try {
@@ -33,6 +39,7 @@ export function openDocumentBySlug(
         const librarySlug = librarySlugMatch[1]
         const params = new URLSearchParams(searchParams?.toString() || '')
         params.set('doc', slug)
+        seiteSetzen(params)
         router.replace(`/explore/${librarySlug}?${params.toString()}`, { scroll: false })
       } else {
         console.warn('[openDocumentBySlug] Konnte library-slug nicht aus pathname extrahieren:', pathname)
@@ -41,6 +48,7 @@ export function openDocumentBySlug(
       // Library-Route: Navigiere zur Gallery-Route mit doc-Parameter
       const params = new URLSearchParams(searchParams?.toString() || '')
       params.set('doc', slug)
+      seiteSetzen(params)
       // Prüfe ob bereits auf Gallery-Route
       if (pathname === '/library/gallery' || pathname.startsWith('/library/gallery')) {
         router.replace(`/library/gallery?${params.toString()}`, { scroll: false })
@@ -53,6 +61,7 @@ export function openDocumentBySlug(
       console.warn('[openDocumentBySlug] Unbekannte Route, navigiere zur Library-Gallery:', pathname)
       const params = new URLSearchParams()
       params.set('doc', slug)
+      seiteSetzen(params)
       router.push(`/library/gallery?${params.toString()}`, { scroll: false })
     }
   } catch (err) {
@@ -92,6 +101,7 @@ export function closeDocument(
         const params = new URLSearchParams(searchParams?.toString() || '')
         const hadDoc = params.has('doc')
         params.delete('doc')
+        params.delete('page')
         const newUrl = params.toString() ? `/explore/${librarySlug}?${params.toString()}` : `/explore/${librarySlug}`
         console.log('[closeDocument] 🧭 Explore-Route:', {
           librarySlug,
@@ -108,6 +118,7 @@ export function closeDocument(
       const params = new URLSearchParams(searchParams?.toString() || '')
       const hadDoc = params.has('doc')
       params.delete('doc')
+      params.delete('page')
       const newUrl = params.toString() ? `/library/gallery?${params.toString()}` : '/library/gallery'
       console.log('[closeDocument] 🧭 Library-Route:', {
         hadDoc,

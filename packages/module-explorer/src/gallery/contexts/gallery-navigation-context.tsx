@@ -33,8 +33,11 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 export interface GalleryNavigation {
-  /** Ein Dokument oeffnen (Slug aus `getEffectiveDocumentNavigationSlug`). */
-  openDocument(slug: string): void
+  /**
+   * Ein Dokument oeffnen (Slug aus `getEffectiveDocumentNavigationSlug`).
+   * D7: `page` oeffnet es an dieser Seite (Parameter `page`); ohne Seite am Anfang.
+   */
+  openDocument(slug: string, opts?: { page?: number }): void
   /** Die Detailansicht schliessen. */
   closeDocument(): void
   /**

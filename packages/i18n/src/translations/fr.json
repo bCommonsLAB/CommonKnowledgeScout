@@ -877,7 +877,14 @@
         "geplant": "Prévue",
         "pruefung": "En examen",
         "abgelehnt": "Rejetée"
-      }
+      },
+      "passages": {
+        "one": "s'appuie sur 1 passage",
+        "many": "s'appuie sur {count} passages"
+      },
+      "page": "Page {page}",
+      "pageShort": "p. {page}",
+      "openAtPage": "Ouvrir l'original à la page {page}"
     },
     "chronik": {
       "title": "Chronique",

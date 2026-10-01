@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Button, ScrollArea } from '@ks/ui'
+import { useSeitenSprung } from './detail-overlay/seiten-sprung'
 import { X, ExternalLink, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
 import { useUserStates } from '../hooks/use-user-states'
 import { findDocMetaByFileId } from '../lib/apply-favorite-optimistic'
@@ -57,6 +58,8 @@ export interface DetailOverlayProps {
    * Typfehler, bis er eine Ansicht hat.
    */
   detailRenderers: Record<DetailViewType, DetailRenderer>
+  /** D7: Seite, an der die Ansicht aufgeht (Zitatmarke → Beleg → Seite); ohne Angabe am Anfang. */
+  page?: number
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -110,6 +113,7 @@ export function DetailOverlay({
   fileId,
   viewType,
   detailRenderers,
+  page,
   title,
   doc,
   storyModusVerfuegbar,
@@ -211,6 +215,9 @@ export function DetailOverlay({
   // jeweiligen Ansicht macht der Renderer (M4g) — die Galerie kennt sie nicht.
   const [docMeta, setDocMeta] = React.useState<Record<string, unknown> | null>(null)
   const [isDocMetaReady, setIsDocMetaReady] = React.useState(false)
+  // D7: Sprung auf die Seite aus der Adresse, sobald der Inhalt da ist
+  const inhaltRef = React.useRef<HTMLDivElement>(null)
+  useSeitenSprung(page, inhaltRef, isDocMetaReady)
   const [sessionUrl, setSessionUrl] = React.useState<string | null>(null)
   // Lokalisiertes docMetaJson fuer das generische SDG-Profil (alle View-Typen).
   const [sdgDocMeta, setSdgDocMeta] = React.useState<Record<string, unknown> | null>(null)
@@ -424,6 +431,7 @@ export function DetailOverlay({
             hinaus und wurde rechts abgeschnitten. Block + min-w-0 stellt das
             normale Umbruchverhalten her (gleiches Muster wie in gallery-root). */}
         <ScrollArea
+          ref={inhaltRef}
           className='flex-1 w-full overflow-hidden relative'
           viewportClassName='[&>div]:!block [&>div]:!min-w-0 [&>div]:w-full'
         >

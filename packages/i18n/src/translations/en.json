@@ -877,7 +877,14 @@
         "geplant": "Planned",
         "pruefung": "Under review",
         "abgelehnt": "Rejected"
-      }
+      },
+      "passages": {
+        "one": "draws on 1 passage",
+        "many": "draws on {count} passages"
+      },
+      "page": "Page {page}",
+      "pageShort": "p. {page}",
+      "openAtPage": "Open original at page {page}"
     },
     "chronik": {
       "title": "Chronicle",

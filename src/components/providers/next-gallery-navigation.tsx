@@ -45,8 +45,8 @@ export function NextGalleryNavigation({ children }: { children: ReactNode }) {
     return {
       params,
 
-      openDocument: (slug: string) => {
-        openDocumentBySlug(slug, router, pathname, searchParams)
+      openDocument: (slug: string, opts?: { page?: number }) => {
+        openDocumentBySlug(slug, router, pathname, searchParams, opts)
       },
 
       closeDocument: () => {

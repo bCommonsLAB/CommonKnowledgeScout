@@ -877,7 +877,14 @@
         "geplant": "Pianificata",
         "pruefung": "In esame",
         "abgelehnt": "Respinta"
-      }
+      },
+      "passages": {
+        "one": "si basa su 1 passaggio",
+        "many": "si basa su {count} passaggi"
+      },
+      "page": "Pagina {page}",
+      "pageShort": "p. {page}",
+      "openAtPage": "Apri l'originale a pagina {page}"
     },
     "chronik": {
       "title": "Cronologia",

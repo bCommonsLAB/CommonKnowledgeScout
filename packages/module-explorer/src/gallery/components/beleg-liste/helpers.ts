@@ -14,6 +14,7 @@ import {
   type BelegPlakette,
   type DetailViewType,
   type DocCardMeta,
+  type DocPassage,
   type DocReference,
 } from '@ks/contracts'
 
@@ -32,6 +33,8 @@ export interface Beleg {
   kurztext?: string
   /** Detailansichtstyp: Dokument vor Referenz vor Library-Konfig; `null`, wenn keiner gueltig ist. */
   typ: DetailViewType | null
+  /** D7: die zitierten Textstellen (Seite nur bei Quellen mit Seitenankern); leer bei alten Antworten. */
+  passages: DocPassage[]
   /** Das Dokument aus dem Galerie-Bestand, falls geladen. */
   doc?: DocCardMeta
 }
@@ -63,6 +66,7 @@ export function belegeAusReferenzen(
       titel: doc?.title ?? doc?.shortTitle ?? erste.fileName ?? fileId,
       kurztext: erste.description.trim() !== '' ? erste.description : undefined,
       typ: gueltigerTyp(doc?.detailViewType, erste.detailViewType, libraryDetailViewType),
+      passages: refs.flatMap((r) => r.passages ?? []),
       doc,
     }
   })
@@ -103,4 +107,9 @@ export function kennzeileFuer(konfig: BelegKarteConfig | undefined, doc: DocCard
     }
   }
   return teile
+}
+
+/** Erste Seite eines Belegs — fuer „Original ansehen"; `undefined`, wenn keine Textstelle eine hat. */
+export function ersteSeite(beleg: Pick<Beleg, 'passages'>): number | undefined {
+  return beleg.passages.find((p) => typeof p.page === 'number')?.page
 }

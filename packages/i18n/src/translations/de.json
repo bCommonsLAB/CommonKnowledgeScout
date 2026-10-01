@@ -924,7 +924,14 @@
         "geplant": "Geplant",
         "pruefung": "In Prüfung",
         "abgelehnt": "Abgelehnt"
-      }
+      },
+      "passages": {
+        "one": "stützt sich auf 1 Textstelle",
+        "many": "stützt sich auf {count} Textstellen"
+      },
+      "page": "Seite {page}",
+      "pageShort": "S. {page}",
+      "openAtPage": "Original auf Seite {page} öffnen"
     },
     "chronik": {
       "title": "Chronik",

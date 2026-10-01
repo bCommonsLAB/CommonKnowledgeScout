@@ -417,6 +417,9 @@ export function GalleryRoot({
   
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
   const docSlug = searchParams?.get('doc')
+  // D7: Seite, an der die Detailansicht aufgehen soll (Zitatmarke → Beleg → Seite)
+  const docPageRaw = searchParams?.get('page')
+  const docPage = docPageRaw && /^\d+$/.test(docPageRaw) ? Number(docPageRaw) : undefined
 
   // Facetten mit demselben Typ-Ausschluss wie die Dokumentliste (oben,
   // excludeDetailViewType): sonst sieht der Server zwei Typen, die Liste
@@ -1347,6 +1350,7 @@ export function GalleryRoot({
           onClose={handleCloseDocument}
           libraryId={libraryId || ''}
           fileId={selectedDoc.fileId || selectedDoc.id}
+          page={docPage}
           viewType={detailViewTypeForDoc}
           detailRenderers={detailRenderers}
           doc={selectedDoc}
