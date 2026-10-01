@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { kurztitel, themaZuFrage } from '@ks/module-story/react'
+import { kurztitel, kurztitelFuer, themaZuFrage } from '@ks/module-story/react'
 import type { StoryTopicsData } from '@ks/contracts'
 
 describe('kurztitel — erste Worte als Kurztitel (D1-Heuristik)', () => {
@@ -48,5 +48,13 @@ describe('themaZuFrage — Zuordnung ueber den Fragetext', () => {
   it('selbst getippte Fragen haben kein Thema', () => {
     expect(themaZuFrage(gliederung, 'Wer hat das entschieden?')).toBeNull()
     expect(themaZuFrage(null, 'Wie heizen wir morgen?')).toBeNull()
+  })
+})
+
+describe('kurztitelFuer', () => {
+  it('nimmt den Kurztitel des Sprachmodells, sonst die Heuristik', () => {
+    expect(kurztitelFuer({ text: 'Wie heizen wir morgen ohne Öl?', kurztitel: 'Heizen ohne Öl' })).toBe('Heizen ohne Öl')
+    expect(kurztitelFuer({ text: 'Wie heizen wir morgen ohne Öl?' })).toBe(kurztitel('Wie heizen wir morgen ohne Öl?'))
+    expect(kurztitelFuer({ text: 'Wie heizen wir morgen ohne Öl?', kurztitel: '  ' })).toBe(kurztitel('Wie heizen wir morgen ohne Öl?'))
   })
 })

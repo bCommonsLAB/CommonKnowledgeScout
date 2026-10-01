@@ -8,7 +8,7 @@ import {
 
 const t = '2026-10-01T10:00:00.000Z'
 const verlauf: ChatMessage[] = [
-  { id: 'q1-question', type: 'question', content: 'Erste Frage?', queryId: 'q1', createdAt: t },
+  { id: 'q1-question', type: 'question', content: 'Erste Frage?', shortTitle: 'Erste', queryId: 'q1', createdAt: t },
   { id: 'q1-answer', type: 'answer', content: 'Antwort eins', queryId: 'q1', createdAt: t },
   { id: 'question-1700', type: 'question', content: 'Zweite, laeuft noch?', createdAt: t },
 ]
@@ -16,8 +16,8 @@ const verlauf: ChatMessage[] = [
 describe('fragenAusVerlauf', () => {
   it('eine Frage je Konversation, die laufende als offen', () => {
     expect(fragenAusVerlauf(verlauf, true)).toEqual([
-      { queryId: 'q1', frageId: 'q1-question', text: 'Erste Frage?', createdAt: t, offen: false },
-      { queryId: undefined, frageId: 'question-1700', text: 'Zweite, laeuft noch?', createdAt: t, offen: true },
+      { queryId: 'q1', frageId: 'q1-question', text: 'Erste Frage?', kurztitel: 'Erste', createdAt: t, offen: false },
+      { queryId: undefined, frageId: 'question-1700', text: 'Zweite, laeuft noch?', kurztitel: undefined, createdAt: t, offen: true },
     ])
   })
 

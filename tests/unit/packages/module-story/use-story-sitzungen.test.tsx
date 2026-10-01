@@ -66,7 +66,7 @@ describe('useStorySitzungen', () => {
       'chatId=c1': { ok: true, body: { items: [
         { queryId: 'q3', question: 'Dritte?', createdAt: '2026-09-30T12:00:00.000Z', status: 'pending' },
         { queryId: 'toc', question: 'What topics are covered here?', createdAt: '2026-09-30T09:00:00.000Z', status: 'ok', queryType: 'toc' },
-        { queryId: 'q1', question: 'Erste?', createdAt: '2026-09-30T10:00:00.000Z', status: 'ok', queryType: 'question' },
+        { queryId: 'q1', question: 'Erste?', shortTitle: 'Erste Frage', createdAt: '2026-09-30T10:00:00.000Z', status: 'ok', queryType: 'question' },
       ] } },
     })
     const { result } = renderHook(() =>
@@ -82,6 +82,8 @@ describe('useStorySitzungen', () => {
     const c1 = result.current.sitzungen.find((s) => s.chatId === 'c1')
     expect(c1?.fragen?.map((f) => f.queryId)).toEqual(['q1', 'q3'])
     expect(c1?.fragen?.[1].offen).toBe(true)
+    // D5: Kurztitel des Sprachmodells kommt mit; alte Eintraege ohne bleiben ohne.
+    expect(c1?.fragen?.map((f) => f.kurztitel)).toEqual(['Erste Frage', undefined])
   })
 
   it('umbenennen geht per PATCH und aktualisiert die Liste', async () => {

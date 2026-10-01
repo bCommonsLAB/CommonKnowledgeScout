@@ -19,6 +19,20 @@ import {
 } from '@/components/library/chat/utils/chat-utils'
 
 describe('createMessagesFromQueryLog', () => {
+  it('D5: haengt den Kurztitel an die Frage, nicht an die Antwort; ohne Kurztitel kein Feld', () => {
+    const mit = createMessagesFromQueryLog({
+      queryId: 'q-1',
+      question: 'Was ist Klimaschutz?',
+      shortTitle: 'Klimaschutz erklärt',
+      answer: 'Klimaschutz ist ...',
+      createdAt: '2026-01-01T10:00:00Z',
+    })
+    expect(mit[0].shortTitle).toBe('Klimaschutz erklärt')
+    expect(mit[1].shortTitle).toBeUndefined()
+    const ohne = createMessagesFromQueryLog({ queryId: 'q-2', question: 'Alt?', createdAt: '2026-01-01T10:00:00Z' })
+    expect('shortTitle' in ohne[0]).toBe(false)
+  })
+
   it('liefert genau eine Question-Message, wenn keine Antwort vorhanden ist', () => {
     const result = createMessagesFromQueryLog({
       queryId: 'q-1',
