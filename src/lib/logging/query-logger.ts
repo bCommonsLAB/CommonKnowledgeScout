@@ -75,7 +75,7 @@ export async function setPrompt(
   })
 }
 
-export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage']; storyTopicsData?: QueryLog['storyTopicsData'] }): Promise<void> {
+export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage']; storyTopicsData?: QueryLog['storyTopicsData']; shortTitle?: QueryLog['shortTitle'] }): Promise<void> {
   await updateQueryLogPartial(queryId, { 
     status: 'ok', 
     answer: payload.answer, 
@@ -84,7 +84,9 @@ export async function finalizeQueryLog(queryId: string, payload: { answer: strin
     suggestedQuestions: payload.suggestedQuestions,
     timing: payload.timing, 
     tokenUsage: payload.tokenUsage,
-    storyTopicsData: payload.storyTopicsData
+    storyTopicsData: payload.storyTopicsData,
+    // D5: nur setzen, wenn vorhanden — sonst bliebe ein leeres Feld im Log stehen.
+    ...(payload.shortTitle !== undefined ? { shortTitle: payload.shortTitle } : {}),
   })
 }
 

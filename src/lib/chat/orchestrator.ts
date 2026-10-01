@@ -35,6 +35,7 @@ import { normalizeSuggestedQuestionsToSeven } from '@/lib/chat/common/normalize-
 import { getSecretaryConfig } from '@/lib/env'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
+import { normalizeShortTitle } from '@/lib/chat/common/short-title'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
 import { summariesMongoRetriever } from '@/lib/chat/retrievers/summaries-mongo'
 import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
@@ -70,6 +71,8 @@ export interface OrchestratorOutput {
   completionTokens?: number
   totalTokens?: number
   storyTopicsData?: StoryTopicsData  // Für TOC-Queries: Strukturierte Themenübersicht
+  /** D5: Kurztitel der Frage aus derselben LLM-Antwort (nur Fragen, nicht TOC); fehlt, wenn das Modell keinen lieferte. */
+  shortTitle?: string
 }
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
@@ -229,6 +232,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   let suggestedQuestions: string[] = []
   let usedReferences: number[] = []
   let storyTopicsData: StoryTopicsData | undefined = undefined
+  let shortTitle: string | undefined = undefined
   
   try {
     if (run.isTOCQuery && run.libraryId) {
@@ -290,6 +294,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         seedQuestion: run.question,
       })
       usedReferences = result.data.usedReferences ?? []
+      shortTitle = normalizeShortTitle(result.data.shortTitle)
       promptTokens = result.usage?.promptTokens
       completionTokens = result.usage?.completionTokens
       totalTokens = result.usage?.totalTokens
@@ -427,6 +432,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             answer = retryResult.data.answer
             suggestedQuestions = retryResult.data.suggestedQuestions
             usedReferences = [...new Set(retryResult.data.usedReferences ?? [])].sort((a, b) => a - b)
+            shortTitle = normalizeShortTitle(retryResult.data.shortTitle)
             promptTokens = retryResult.usage?.promptTokens
             completionTokens = retryResult.usage?.completionTokens
             totalTokens = retryResult.usage?.totalTokens
@@ -524,6 +530,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       ? { promptTokens, completionTokens, totalTokens }
       : undefined,
     storyTopicsData,
+    shortTitle,
   })
 
   return { 
@@ -536,7 +543,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     promptTokens, 
     completionTokens, 
     totalTokens,
-    storyTopicsData 
+    storyTopicsData,
+    shortTitle,
   }
 }
 

@@ -114,6 +114,13 @@ export interface QueryLog {
   // stand sie hier und in chat-response.ts je einmal ausgeschrieben.
   references?: DocReference[]; // Referenzen für die Antwort
   suggestedQuestions?: string[]; // Vorgeschlagene Folgefragen
+  /**
+   * Kurztitel der Frage vom Sprachmodell (D5, zwei bis vier Worte in der
+   * Antwortsprache). Darstellung fuer die Story-Chronik — NICHT Teil von
+   * `cacheHash`/`cacheParams`; alte Eintraege ohne Feld bekommen in der
+   * Chronik den heuristischen Kurztitel.
+   */
+  shortTitle?: string;
   sources?: QuerySource[]; // zur schnellen Sicht
   timing?: { retrievalMs?: number; llmMs?: number; totalMs?: number };
   tokenUsage?: QueryTokenUsage;

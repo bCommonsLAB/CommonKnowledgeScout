@@ -11,6 +11,21 @@ import { describe, it, expect } from 'vitest'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 
 describe('createCacheHash', () => {
+  it('D5: ein Kurztitel (shortTitle) aendert den Hash nicht — er ist Darstellung, nicht Kontext', () => {
+    const basis = {
+      libraryId: 'lib-1',
+      question: 'Hello?',
+      queryType: 'question' as const,
+      answerLength: 'mittel',
+      targetLanguage: 'de',
+      retriever: 'chunk',
+      documentCount: 9,
+      llmModel: 'model-a',
+    }
+    const mitTitel = { ...basis, shortTitle: 'Hello world' } as typeof basis
+    expect(createCacheHash(mitTitel)).toBe(createCacheHash(basis))
+  })
+
   it('should generate the same hash for the same inputs', () => {
     const a = createCacheHash({
       libraryId: 'lib-1',

@@ -33,5 +33,15 @@ export type ChatProcessingStep =
   | { type: 'llm_progress'; message?: string }
   | { type: 'llm_complete'; timingMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number; maxTokens?: number }
   | { type: 'parsing_response'; message?: string }
-  | { type: 'complete'; answer: string; references: unknown[]; suggestedQuestions: string[]; queryId: string; chatId: string; storyTopicsData?: StoryTopicsData }
+  | {
+      type: 'complete'
+      answer: string
+      references: unknown[]
+      suggestedQuestions: string[]
+      queryId: string
+      chatId: string
+      storyTopicsData?: StoryTopicsData
+      /** D5: Kurztitel der Frage vom Sprachmodell (nur Fragen; fehlt bei alten Logs und TOC). */
+      shortTitle?: string
+    }
   | { type: 'error'; error: string }
