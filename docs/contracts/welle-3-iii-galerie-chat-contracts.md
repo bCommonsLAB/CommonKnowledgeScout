@@ -166,7 +166,10 @@ Die Galerie nutzt URL-Parameter fuer Filter, View-Modus und Auswahl:
 - `?group=<key>` — Gruppierung
 - `?filter=<json>` — Aktive Filter (URL-encoded)
 - `?selected=<ids>` — Bulk-Selection
-- `?q=<query>` — Suchtext
+- `?q=<queryId>` — Story-Modus: gewählte Konversation (D2, Plan
+  `story-dreiteilung-fragenchronik`); fehlt `q`, gilt die Themenübersicht.
+  Das Paket `@ks/module-story` liest die Adresse nicht, die App bindet
+  `storyAuswahlAtom` per `nuqs` (`story-auswahl-url.tsx`)
 - `?perspective=<id>` — Story-/Perspective-Mode
 
 **Vertrag**:
