@@ -260,11 +260,16 @@ export async function POST(
         
         // Schritt 1: Chat-Verwaltung
         let activeChatId: string
+        // D6: Hat diese Frage die Sitzung benannt (neu angelegt oder den
+        // Systemtitel der Themenuebersicht ersetzt), wird nach der Antwort der
+        // Kurztitel des Sprachmodells (D5) zum Sitzungstitel.
+        let sitzungstitelAusDieserFrage = false
         if (!chatId) {
           // Chat-Title direkt aus Frage generieren (erste 60 Zeichen)
           const chatTitle = message.slice(0, 60)
           // Verwende userEmail oder sessionId für Chat-Erstellung
           activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
+          sitzungstitelAusDieserFrage = true
         } else {
           // WICHTIG: Für anonyme Nutzer muss sessionId vorhanden sein, sonst kann Chat nicht gefunden werden
           const userEmailOrSessionId = userEmail || sessionId
@@ -278,6 +283,7 @@ export async function POST(
             // Erstelle neuen Chat statt Fehler
             const chatTitle = message.slice(0, 60)
             activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
+            sitzungstitelAusDieserFrage = true
           } else {
             const existingChat = await getChatById(chatId, userEmailOrSessionId)
             if (!existingChat) {
@@ -291,6 +297,7 @@ export async function POST(
               // Erstelle neuen Chat statt Fehler
               const chatTitle = message.slice(0, 60)
               activeChatId = await createChat(libraryId, userEmailOrSessionId, chatTitle)
+              sitzungstitelAusDieserFrage = true
             } else {
               // Chat gefunden, verwende ihn
               activeChatId = chatId
@@ -299,6 +306,7 @@ export async function POST(
               // echte Frage gibt ihr den Titel (Story-Chronik, D1).
               if (!isTOCQuery && istThemenuebersichtTitel(existingChat.title)) {
                 await updateChatTitle(chatId, sitzungstitelAusFrage(message))
+                sitzungstitelAusDieserFrage = true
               }
             }
           }
@@ -539,6 +547,9 @@ export async function POST(
               // D5: Kurztitel aus dem Log; alte Eintraege haben keinen.
               ...(cachedQuery.shortTitle ? { shortTitle: cachedQuery.shortTitle } : {}),
             }
+            if (!isTOCQuery && sitzungstitelAusDieserFrage && cachedQuery.shortTitle) {
+              await updateChatTitle(activeChatId, cachedQuery.shortTitle)
+            }
             // Setze storyTopicsData explizit, auch wenn es undefined ist (damit Frontend es erkennt)
             if (cachedQuery.storyTopicsData !== undefined && cachedQuery.storyTopicsData !== null) {
               completeStep.storyTopicsData = cachedQuery.storyTopicsData
@@ -767,6 +778,11 @@ export async function POST(
             send(step)
           },
         })
+
+        // D6: Kurztitel des Sprachmodells als Sitzungstitel (nur wenn diese Frage die Sitzung benannt hat)
+        if (!isTOCQuery && sitzungstitelAusDieserFrage && shortTitle) {
+          await updateChatTitle(activeChatId, shortTitle)
+        }
 
         // Schritt 10: Complete
         const completeStep: ChatProcessingStep = {
