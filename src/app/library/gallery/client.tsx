@@ -10,6 +10,7 @@ import { WebsiteLandingLive } from '@/components/library/website/website-landing
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { LibraryVerificationBadge } from '@/components/library/library-verification-badge'
 import { StoryChronikMount } from '@/components/library/story/story-chronik-mount'
+import { StoryAuswahlUrl } from '@/components/library/story/story-auswahl-url'
 
 // Das Story-Panel (Chat, eingebettet) faul laden — wie bisher, nur hier statt
 // in der Galerie: Sie kennt `next/dynamic` seit M4f nicht mehr.
@@ -33,6 +34,8 @@ const LazyChatPanel = dynamic(
  * - **Story-Panel**: der Chat in der eingebetteten Variante, faul geladen.
  * - **Story-Chronik** (D1): Gliederung und Sitzungen aus `@ks/module-story`,
  *   mit Anmeldung und aktiver Sitzung der App verdrahtet.
+ * - **Story-Auswahl in der Adresse** (D2): `q=<queryId>` per nuqs, neben dem
+ *   Chat-Panel montiert — das Paket kennt keine Adresszeile.
  * - **Detail-Renderer** (M4g): welche Ansicht zu welchem Typ gehoert.
  * - **Website-Ansicht**, **Story-Kopf**, **Verifikations-Abzeichen** (M4g):
  *   drei App-Bausteine, die die Galerie nur noch zeigt, nicht mehr kennt.
@@ -56,7 +59,12 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
       <GalleryRoot
         {...props}
         kopfAktionen={(libraryId) => <CaptureContentButton libraryId={libraryId} />}
-        storyPanel={(libraryId) => <LazyChatPanel libraryId={libraryId} variant='embedded' />}
+        storyPanel={(libraryId) => (
+          <>
+            <StoryAuswahlUrl libraryId={libraryId} />
+            <LazyChatPanel libraryId={libraryId} variant='embedded' />
+          </>
+        )}
         storyChronik={(libraryId) => <StoryChronikMount libraryId={libraryId} />}
         detailRenderers={DETAIL_RENDERERS}
         siteView={({ libraryId, onShowGallery }) => (
