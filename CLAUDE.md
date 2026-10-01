@@ -43,6 +43,7 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 | `src/lib/gallery/**`, `src/app/api/library/*/favorites/**` | welle-3-iii-galerie-chat-contracts | `contracts-ui` | **0002 (Aktiv)** |
 | `src/lib/library-access/**`, `src/app/api/libraries/*/members/**`, `.../invites/**` | — | — | 0005 |
 | `src/lib/graph/**`, `src/app/api/library/*/doc-relations/**` | — | — | 0009 |
+| `packages/module-story/**`, `src/components/library/story/**` | welle-3-iii-galerie-chat-contracts, chat-contracts | `contracts-ui` | 0007, 0008 |
 | `pnpm-workspace.yaml`, `packages/**`, `apps/**`, `next.config.js` | — | — | 0007, 0008 |
 | `docs/refactor/**`, `docs/plans/**`, `scripts/welle-pre-merge-check.sh` | refactor-batch-strategy, refactor-naming-konvention, cloud-agent-cost-strategy | — | — |
 

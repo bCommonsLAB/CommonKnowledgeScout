@@ -8,8 +8,8 @@ todos:
     content: "[Drahtgitter angelegt 01.10.2026, Abnahme offen] Layout-Konzept und Klickmodell in Figma: drei Bildschirme Desktop (Start mit Themenübersicht, Frage gewählt, Frage läuft), zwei Bildschirme Mobil (Chronik-Menü zu und auf). Verhältnis 15/50/35 als Startwert, Owner-Abnahme vor Welle D1."
     status: pending
   - id: d1-chronik-lesend
-    content: "[Paket zuerst: packages/module-story anlegen mit Gerüst, Gate und Test gegen fremdes fetch, alle neuen Komponenten dort] Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch claude/zealous-darwin-wvlu4k, Live-Nachweis offen] [Paket zuerst: packages/module-story anlegen mit Gerüst, Gate und Test gegen fremdes fetch, alle neuen Komponenten dort] Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
+    status: done
   - id: d2-auswahl-und-scroll
     content: "Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
     status: pending
@@ -263,6 +263,57 @@ Nachziehen.
 | D6 | Entflechten und Doku | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
+
+### Stand D1 (gebaut 01.10.2026)
+
+Was steht:
+
+- Paket `@ks/module-story` (`packages/module-story`): React-freies
+  Wurzel-Barrel mit `storyGate` (`SiteModule` um `story` erweitert, die
+  Voll-App liefert es aus), React-Einstieg `@ks/module-story/react`. Tests:
+  kein nacktes `fetch`, kein `next/*`, kein Clerk, kein `@/`, keine
+  Adresszeile. Die Chat-Routen bleiben bis D6 unter `explorerGate`.
+- `StoryTopicsData` liegt in `@ks/contracts`; `src/types/story-topics.ts`
+  ist Shim.
+- Linke Spalte (`StoryChronik`): Gliederung (zu beim Einstieg, klappt auf und
+  markiert das Thema der Auswahl) und „Meine Fragen" nach Sitzungen; Fragen
+  der aktiven Sitzung live aus dem Verlauf, ältere Sitzungen laden beim
+  Aufklappen; Umbenennen per PATCH; „Neue Sitzung".
+- Mitte (`StoryUebersicht`, `StoryThema` im Paket; `StoryMitte` in der App
+  hängt Konfig-Texte, Rechen-Status, „neu berechnen", KI-Hinweis an): Kopf des
+  Ganzen (Label, Beschreibung, Zähler) mit Themenkarten; Themenseite mit
+  Fragen als Knöpfen. Gewählte Konversation steht allein in der Mitte.
+- Zustand zwischen den Spalten über drei Jotai-Atome (`storyAuswahlAtom`,
+  `storyGliederungAtom`, `storyAktiveSitzungAtom`); `useActiveChatId` teilt
+  die aktive Sitzung über ein Atom. Die Auswahl ist noch lokal (URL ist D2).
+- `GalleryRoot` hat den Slot `storyChronik`; mit Slot 15 / 50 / 35 als feste
+  Startwerte (Ziehen, Entscheidung 2, kommt mit D3, wenn die Spalten ohnehin
+  angefasst werden). Chronik nur auf Desktop gemountet; Mobil ist D4.
+- Server: `GET …/queries` liefert `queryType` und `chatId` (die Chronik lässt
+  die Themenübersicht weg); eine Sitzung, die die Themenübersicht eröffnet
+  hat, bekommt mit der ersten echten Frage deren Titel.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- Jede erste Anfrage ohne `chatId` legt einen Chat an — im Story-Modus ist das
+  die Themenübersicht. Solche Sitzungen trugen die englische Systemfrage als
+  Titel; die Server-Regel oben behebt das für Sitzungen mit Fragen. Eine
+  Sitzung, in der nie gefragt wurde, bleibt mit Systemtitel sichtbar.
+  Entscheidung offen: ausblenden (braucht Zähler je Sitzung) oder in D5/D6
+  gar keinen Chat für die Themenübersicht anlegen.
+- `publicPublishing.story` (topicsTitle, topicsIntro) erreicht anonyme
+  Betrachter auf `/explore/[slug]` nicht: `GET /api/public/libraries/[slug]`
+  liefert das Feld nicht, `toClientLibrary` kennt es nicht. Die Karten-
+  Überschrift fällt dort auf den Titel der Gliederung zurück. Kandidat für
+  D3 (Konfig-Stellen) oder D6.
+- Toter Code im Chat: `chat-welcome-assistant.tsx` und
+  `hooks/use-chat-config.ts` importiert niemand; `StoryTopics` wird mit D1
+  nur noch von nichts gerendert. Alle drei fallen in D6.
+- `use-chat-history` lädt je Frage eine zweite Anfrage (N+1), um `queryType`
+  zu kennen; mit dem Feld in der Liste kann D6 das streichen.
+- Der Live-Nachweis (zehn Fragen, jede per Klick erreichbar) steht aus; die
+  Welle wurde ohne Mongo nur mit Unit-Tests (Hook, Komponenten, Helfer)
+  belegt.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
