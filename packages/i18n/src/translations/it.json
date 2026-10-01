@@ -804,5 +804,33 @@
     "crystalDesign": "Crystal Design GmbH",
     "bcommonslab": "b*CommonsLAB",
     "collaboration": "– in collaborazione con comunità aperte e partner di ricerca."
+  },
+  "story": {
+    "topicsOverview": "Panoramica dei temi",
+    "topics": "Temi",
+    "myQuestions": "Le mie domande",
+    "newSession": "Nuova sessione",
+    "noSessions": "Nessuna domanda posta finora.",
+    "noQuestionsYet": "Nessuna domanda in questa sessione.",
+    "sessionsLoadError": "Impossibile caricare le sessioni: {error}",
+    "renameSession": "Rinomina sessione",
+    "renameError": "Rinomina non riuscita: {error}",
+    "running": "in corso …",
+    "back": "Torna alla panoramica dei temi",
+    "chooseQuestion": "Scegli una domanda",
+    "count": {
+      "documents": {
+        "one": "1 documento",
+        "many": "{count} documenti"
+      },
+      "topics": {
+        "one": "1 tema",
+        "many": "{count} temi"
+      },
+      "questions": {
+        "one": "1 domanda",
+        "many": "{count} domande"
+      }
+    }
   }
 }
