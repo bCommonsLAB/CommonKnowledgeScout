@@ -31,6 +31,8 @@ import { useGalleryEvents } from '../hooks/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '../lib/types'
 import { ReferencesSheet } from './references-sheet'
+import { StorySpalten } from './story-spalten'
+import { BelegListe } from './beleg-liste/beleg-liste'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
@@ -854,6 +856,13 @@ export function GalleryRoot({
   }, [showReferencesSheet, referencesSheetMode, setChatReferences])
 
   // Filter handlers
+  // D3: Belege schliessen → Referenzen zurueck, Filter auf die Antwort loesen;
+  // dieselben zwei Schritte wie bisher der Schliessen-Knopf im Raster.
+  const handleBelegeSchliessen = () => {
+    setChatReferences({ references: [] })
+    window.dispatchEvent(new CustomEvent('clear-gallery-filter', { detail: {} }))
+  }
+
   const handleClearFilters = () => {
     setFilters({} as Record<string, string[]>)
     
@@ -1222,32 +1231,35 @@ export function GalleryRoot({
           <div className="flex-shrink-0">
             {storyHeader ? storyHeader({ libraryId: libraryId || '', onBackToGallery: () => setMode('gallery') }) : null}
           </div>
-          <div
-            className={`grid gap-6 flex-1 min-h-0 overflow-hidden ${
-              storyChronik ? 'lg:grid-cols-[15fr_50fr_35fr]' : 'lg:grid-cols-[1fr_1fr]'
-            }`}
-          >
-            {/* Chronik (D1): nur auf Desktop mounten, wie die Quellenspalte —
-                mobil kommt sie in D4 als Sheet, nicht als zweiter Mount. */}
-            {storyChronik && !isMobile && (
-              <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md border bg-muted/20" data-story-chronik>
-                {storyChronik(libraryId)}
-              </div>
-            )}
-            <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
-              {storyPanel ? (
-                storyPanel(libraryId)
-              ) : (
-                // Kein stiller Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das.
-                <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
-              )}
-            </div>
-            {/* Nur auf Desktop mounten — auf Mobil war die Spalte bisher nur
-                CSS-versteckt und hat Liste/Hooks trotzdem doppelt betrieben. */}
-            {!isMobile && (
-            <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
-              {/* FilterContextBar nur anzeigen wenn KEINE Antwort-Referenzen angezeigt werden (Answer-Modus) */}
-              {!(chatReferences && chatReferences.references && chatReferences.references.length > 0) && (
+          {/* Mitte: der Story-Inhalt der App (Chat-Panel). Kein stiller
+              Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das. */}
+          {(() => {
+            const storyMitte = storyPanel ? (
+              storyPanel(libraryId)
+            ) : (
+              <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
+            )
+            // Mobil: nur die Mitte mounten — Chronik (D4: Sheet) und Quellen
+            // (Overlay) duerfen nicht als zweiter Mount laufen (Lehre aus M4h).
+            if (isMobile) {
+              return <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-md">{storyMitte}</div>
+            }
+            const belegeAktiv = Boolean(chatReferences?.references && chatReferences.references.length > 0)
+            // Rechts (D3): Belege der aktiven Antwort als schmale Liste; ohne
+            // aktive Antwort die gefilterte Uebersicht wie heute, Filterleiste oben.
+            const storyQuellen = belegeAktiv ? (
+              <BelegListe
+                references={chatReferences.references}
+                usedDocs={usedDocs}
+                unusedDocs={unusedDocs}
+                libraryId={libraryId || ''}
+                libraryDetailViewType={detailViewType}
+                katalogAnzahl={effectiveDocCount}
+                onOpenDocument={handleOpenDocument}
+                onSchliessen={handleBelegeSchliessen}
+              />
+            ) : (
+              <>
                 <div className="flex-shrink-0">
                   <FilterContextBar
                     docCount={effectiveDocCount}
@@ -1263,17 +1275,22 @@ export function GalleryRoot({
                     showRatingSort={showRatingSort}
                   />
                 </div>
-              )}
-              {/* ReferencesLegend wird nicht mehr angezeigt, wenn chatReferences gesetzt ist (wird durch GroupedItemsGrid ersetzt) */}
-              <section
-                className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
-                data-gallery-section
-              >
-                <div>{renderItemsView()}</div>
-              </section>
-            </div>
-            )}
-          </div>
+                <section
+                  className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
+                  data-gallery-section
+                >
+                  <div>{renderItemsView()}</div>
+                </section>
+              </>
+            )
+            return (
+              <StorySpalten
+                chronik={storyChronik ? storyChronik(libraryId) : undefined}
+                mitte={storyMitte}
+                quellen={storyQuellen}
+              />
+            )
+          })()}
         </TabsContent>
         )}
       </Tabs>
