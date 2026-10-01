@@ -37,8 +37,9 @@ Filter-Komponenten. Sie ergaenzt:
   - `gallery/references-sheet.tsx`, `references-legend.tsx`,
     `reference-group-header.tsx`
 - **Chat-Hauptkomponenten**:
-  - `chat/chat-panel.tsx` (seit D6 372z: Zustand, Verdrahtung, Layout;
-    Logik unter `chat/chat-panel/hooks/`, Kopf und Fuss unter `chat/chat-panel/`)
+  - `chat/chat-panel.tsx` (seit D6c 265z, nur `default`/`compact`; die
+    Story-Mitte ist `StoryRoot` aus `@ks/module-story`). **Befund D6c**:
+    niemand montiert `ChatPanel` mehr — Rueckbau ist D6d.
   - `chat/chat-messages-list.tsx`, `chat-message.tsx`, `chat-input.tsx`
 - **Chat-Hooks**:
   - `chat/hooks/use-chat-stream.ts` (492z — Streaming-Reducer)
@@ -59,17 +60,18 @@ Filter-Komponenten. Sie ergaenzt:
 - **Chat-Pure-Helpers**:
   - `chat/utils/chat-utils.ts`, `chat/utils/chat-storage.ts`
 - **Story**:
-  - `story/story-mode-header.tsx`, `story-header.tsx`, `story-mitte.tsx`,
-    `story-chronik-mount.tsx`, `story-auswahl-url.tsx` (Bausteine aus
-    `@ks/module-story/react`, Plan `story-dreiteilung-fragenchronik`)
+  - `story/story-mode-header.tsx`, `story-header.tsx`, `story-root-mount.tsx`,
+    `story-fuss.tsx`, `story-chronik-mount.tsx`, `story-auswahl-url.tsx`
+    (Bausteine aus `@ks/module-story/react`, Plan `story-dreiteilung-fragenchronik`)
 - **Story-Paket** (`packages/module-story/src/react/`, seit D6b die
   Konversation): `konversation/` (Verlauf, Stream, Antworttext mit
   Zitatmarken, Eingabe), `story-root.tsx` (Mitte + Eingabe als Wurzel),
   `story-root/use-story-konversation.ts` (Verdrahtung), `story-kopfzeile.tsx`.
   Regeln: nur `instanz.fetch`, kein Clerk, kein `next/*`, kein `@/`, keine
   Adresszeile — `tests/unit/packages/module-story/{paket-schnitt,instanz-fetch}.test.ts`.
-  Das Embed (`packages/embed/src/embed-story.tsx`) montiert sie als die drei
-  Story-Slots der Galerie; die App montiert dort weiter `ChatPanel` (D6c).
+  Das Embed (`packages/embed/src/embed-story.tsx`) und die App
+  (`story/story-root-mount.tsx` + `story-fuss.tsx`, D6c) montieren sie als
+  die drei Story-Slots der Galerie — eine Mitte, zwei Montagepunkte.
 - **Perspective**:
   - `shared/perspective-page-content.tsx` (926z, 13 Hooks),
     `shared/perspective-display.tsx`
