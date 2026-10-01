@@ -11,7 +11,7 @@ import { ChevronDown, ChevronRight, Loader2, Pencil } from 'lucide-react'
 import { Button, Input } from '@ks/ui'
 import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
-import { kurztitel } from './kurztitel'
+import { kurztitelFuer } from './kurztitel'
 import type { ChronikFrage, ChronikSitzung, StoryAuswahl } from './types'
 
 export interface SitzungEintragProps {
@@ -132,7 +132,7 @@ export function SitzungEintrag({
                   )}
                 >
                   {frage.offen && <Loader2 className="h-3 w-3 shrink-0 animate-spin" />}
-                  <span className="truncate">{frage.offen ? t('story.running') : kurztitel(frage.text)}</span>
+                  <span className="truncate">{frage.offen ? t('story.running') : kurztitelFuer(frage)}</span>
                 </button>
               </li>
             )

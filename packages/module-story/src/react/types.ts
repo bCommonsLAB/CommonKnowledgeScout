@@ -32,6 +32,8 @@ export interface ChronikFrage {
   queryId?: string
   frageId?: string
   text: string
+  /** Kurztitel vom Sprachmodell (D5, Antwortsprache); fehlt bei alten Eintraegen → Heuristik `kurztitel(text)`. */
+  kurztitel?: string
   createdAt: string
   /** `true`, solange die Antwort noch nicht da ist (D2 zeigt „laeuft"). */
   offen: boolean

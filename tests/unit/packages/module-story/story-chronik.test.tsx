@@ -134,6 +134,16 @@ describe('StoryChronik', () => {
     expect(store.get(storyAuswahlAtom)).toMatchObject({ art: 'konversation', frageId: 'question-9', queryId: undefined })
   })
 
+  it('zeigt den Kurztitel des Sprachmodells statt der Heuristik, wenn er da ist (D5)', async () => {
+    const { store } = renderChronik()
+    await waitFor(() => screen.getByText('heizen wir morgen'))
+    store.set(storyAktiveSitzungAtom, { chatId: 'aktiv', fragen: [
+      { queryId: 'q-a', text: 'Wie heizen wir morgen?', kurztitel: 'Heizen ohne Öl', createdAt: '2026-10-01T10:01:00.000Z', offen: false },
+    ] })
+    await waitFor(() => expect(screen.getByText('Heizen ohne Öl')).toBeTruthy())
+    expect(screen.queryByText('heizen wir morgen')).toBeNull()
+  })
+
   it('meldet jede Auswahl nach aussen (D4: das Sheet schliesst sich mobil)', async () => {
     const onGewaehlt = vi.fn()
     const { store } = renderChronik(onGewaehlt)

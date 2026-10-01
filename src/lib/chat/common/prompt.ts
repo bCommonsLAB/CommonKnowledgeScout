@@ -425,10 +425,11 @@ Requirements:
 - Available descriptions: ${sourceDescriptions}${filterText}${spaceConstraintNote}
 
 Output Format:
-Always respond as a JSON object with exactly these three fields:
+Always respond as a JSON object with exactly these four fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
 - "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
 - "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+- "shortTitle": A short title for the question in two to four words, in the same language as your answer, no quotation marks, no trailing punctuation (e.g., "Heating without oil")
 
 Example:
 {
@@ -438,7 +439,8 @@ Example:
     "What are the prerequisites for Y?",
     ...
   ],
-  "usedReferences": [1, 2]
+  "usedReferences": [1, 2],
+  "shortTitle": "How X works"
 }
 
 IMPORTANT: 
@@ -591,10 +593,11 @@ ${chatHistoryText ? '\n- Consider the previous conversation and build upon it if
 ${filterText}
 
 Output Format:
-Always respond as a JSON object with exactly these three fields:
+Always respond as a JSON object with exactly these four fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
 - "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
 - "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+- "shortTitle": A short title for the question in two to four words, in the same language as your answer, no quotation marks, no trailing punctuation (e.g., "Heating without oil")
 
 Example:
 {
@@ -604,7 +607,8 @@ Example:
     "What are the prerequisites for Y?",
     ...
   ],
-  "usedReferences": [1, 2]
+  "usedReferences": [1, 2],
+  "shortTitle": "How X works"
 }
 
 IMPORTANT: 

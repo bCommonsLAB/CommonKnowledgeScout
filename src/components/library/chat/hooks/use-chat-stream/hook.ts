@@ -351,10 +351,12 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
 
                 setMessages((prev) => [...prev, answerMessage])
 
-                // Aktualisiere die vorhandene Frage mit queryId
+                // Aktualisiere die vorhandene Frage mit queryId — und dem Kurztitel
+                // des Sprachmodells (D5), damit die Chronik ihn sofort zeigt.
+                const shortTitle = typeof step.shortTitle === 'string' && step.shortTitle.trim() !== '' ? step.shortTitle : undefined
                 setMessages((prev) =>
                   prev.map((msg) =>
-                    msg.id === questionId ? { ...msg, queryId: finalQueryId } : msg
+                    msg.id === questionId ? { ...msg, queryId: finalQueryId, ...(shortTitle ? { shortTitle } : {}) } : msg
                   )
                 )
 

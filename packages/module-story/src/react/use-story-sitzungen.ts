@@ -24,6 +24,8 @@ interface ChatEintrag {
 interface FrageEintrag {
   queryId: string
   question: string
+  /** D5: Kurztitel vom Sprachmodell; alte Eintraege haben keinen. */
+  shortTitle?: string
   createdAt: string
   status?: 'pending' | 'ok' | 'error'
   /** `'toc'` ist die Themenuebersicht, keine Frage der Person (D1, Server-Projektion). */
@@ -110,7 +112,13 @@ export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId
         const body = (await res.json()) as { items?: FrageEintrag[] }
         const fragen: ChronikFrage[] = (Array.isArray(body.items) ? body.items : [])
           .filter((q) => q.queryType !== 'toc')
-          .map((q) => ({ queryId: q.queryId, text: q.question, createdAt: String(q.createdAt), offen: q.status === 'pending' }))
+          .map((q) => ({
+            queryId: q.queryId,
+            text: q.question,
+            kurztitel: typeof q.shortTitle === 'string' && q.shortTitle.trim() !== '' ? q.shortTitle : undefined,
+            createdAt: String(q.createdAt),
+            offen: q.status === 'pending',
+          }))
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         setSitzungen((vorher) => vorher.map((s) => (s.chatId === chatId ? { ...s, fragen } : s)))
         setFehler(null)

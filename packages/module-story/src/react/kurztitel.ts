@@ -1,8 +1,9 @@
 /**
  * Heuristischer Kurztitel einer Frage: die ersten Worte.
  *
- * D1-Regel aus dem Plan; ab D5 liefert das Sprachmodell einen Kurztitel
- * (`shortTitle` am QueryLog), die Heuristik bleibt fuer alte Eintraege.
+ * D1-Regel aus dem Plan; seit D5 liefert das Sprachmodell einen Kurztitel
+ * (`shortTitle` am QueryLog, in der Chronik `kurztitel`), die Heuristik
+ * bleibt fuer alte Eintraege — `kurztitelFuer` entscheidet.
  */
 
 const MAX_WORTE = 5
@@ -40,4 +41,9 @@ export function kurztitel(frage: string): string {
   const gekuerzt = gewaehlt.length < kern.length
   const text = gewaehlt.join(' ').replace(/[?!.,;:…]+$/u, '')
   return gekuerzt ? `${text}…` : text
+}
+
+/** Kurztitel einer Chronik-Frage: der vom Sprachmodell, sonst die Heuristik. */
+export function kurztitelFuer(frage: { text: string; kurztitel?: string }): string {
+  return frage.kurztitel !== undefined && frage.kurztitel.trim() !== '' ? frage.kurztitel : kurztitel(frage.text)
 }

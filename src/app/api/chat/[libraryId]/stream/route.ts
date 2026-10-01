@@ -536,6 +536,8 @@ export async function POST(
               suggestedQuestions: cachedQuery.suggestedQuestions || [],
               queryId: finalQueryId,
               chatId: activeChatId,
+              // D5: Kurztitel aus dem Log; alte Eintraege haben keinen.
+              ...(cachedQuery.shortTitle ? { shortTitle: cachedQuery.shortTitle } : {}),
             }
             // Setze storyTopicsData explizit, auch wenn es undefined ist (damit Frontend es erkennt)
             if (cachedQuery.storyTopicsData !== undefined && cachedQuery.storyTopicsData !== null) {
@@ -736,7 +738,7 @@ export async function POST(
         }
 
         // uiLocale wurde bereits oben definiert, verwende es hier
-        const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({
+        const { answer, references, suggestedQuestions, storyTopicsData, shortTitle } = await runChatOrchestrated({
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           libraryId,
           userEmail: userEmail,
@@ -775,6 +777,7 @@ export async function POST(
           queryId,
           chatId: activeChatId,
           ...(storyTopicsData && { storyTopicsData }),
+          ...(shortTitle ? { shortTitle } : {}),
         }
         
         // Füge complete-Step zu den gesammelten Steps hinzu

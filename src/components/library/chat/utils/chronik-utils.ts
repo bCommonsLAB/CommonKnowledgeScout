@@ -21,6 +21,7 @@ export function fragenAusVerlauf(messages: ChatMessage[], laeuft: boolean): Chro
     queryId: paar.question.queryId,
     frageId: paar.question.id,
     text: paar.question.content,
+    kurztitel: paar.question.shortTitle,
     createdAt: paar.question.createdAt,
     offen: laeuft && i === paare.length - 1 && paar.answer === undefined,
   }))

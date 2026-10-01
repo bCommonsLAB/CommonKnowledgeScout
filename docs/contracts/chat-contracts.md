@@ -104,6 +104,11 @@ Komponenten sollen vorzugsweise via API-Routen kommunizieren.
   Eingabe. Cache-Hits werden in Stats reflektiert.
 - Stat-Helper (`vector-stats.ts`) duerfen Globals lesen, nicht
   schreiben.
+- `createCacheHash` baut aus einer festen Feldliste. Darstellungsfelder
+  der Antwort — seit D5 (Plan `story-dreiteilung-fragenchronik`) der
+  Kurztitel `shortTitle` — gehoeren NICHT hinein und nicht in den
+  Query-Log-Vergleich; sonst entwerten sich alle Zwischenspeicher. Test:
+  `tests/unit/chat/cache-key-utils.test.ts`.
 
 ## §6 Test-Vertrag
 

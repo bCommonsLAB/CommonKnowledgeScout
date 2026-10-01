@@ -86,6 +86,8 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
             queryId: string
             createdAt: string
             question: string
+            /** D5: Kurztitel vom Sprachmodell (Liste liefert ihn, alte Eintraege nicht). */
+            shortTitle?: string
             mode: string
             status: string
           }>
@@ -173,6 +175,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                 const msgs = createMessagesFromQueryLog({
                   queryId: item.queryId,
                   question: item.question,
+                  shortTitle: typeof item.shortTitle === 'string' ? item.shortTitle : undefined,
                   answer: queryData.answer,
                   references: references.length > 0 ? references : undefined,
                   suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,

@@ -20,8 +20,8 @@ todos:
     content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1–D3 gestapelt), Live-Nachweis offen] Mobil (unter lg): Chronik als Sheet hinter einem Menü-Knopf im Story-Kopf; Mitte füllt den Schirm; Quellen wie heute als Overlay. Keine doppelten Mounts (Lehre aus M4h)."
     status: done
   - id: d5-kurztitel-llm
-    content: "Kurztitel (zwei bis vier Worte) aus derselben LLM-Antwort wie die Antwort selbst (Prompt-Erweiterung im Orchestrator, Feld shortTitle im QueryLog, Sprache = Zielsprache). Heuristik aus D1 bleibt Fallback für alte Einträge."
-    status: pending
+    content: "[Gebaut 01.10.2026 (auf D1–D4 gestapelt), Live-Nachweis offen] Kurztitel (zwei bis vier Worte) aus derselben LLM-Antwort wie die Antwort selbst (Prompt-Erweiterung im Orchestrator, Feld shortTitle im QueryLog, Sprache = Zielsprache). Heuristik aus D1 bleibt Fallback für alte Einträge."
+    status: done
   - id: d7-zitatmarken
     content: "Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
     status: pending
@@ -259,7 +259,7 @@ Nachziehen.
 | D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ (gebaut 01.10., Stand D2 oben) | Live: Neu laden mit `q=` zeigt die richtige Konversation |
 | D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
 | D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
-| D5 | Kurztitel aus dem LLM, Feld `shortTitle` | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
+| D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
 | D6 | Entflechten und Doku | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
@@ -454,6 +454,48 @@ Neu dazugekommen (beim Bauen gesehen):
 - Live-Nachweis (Browser-Pane mobil: Knopf, Sheet, Auswahl schließt,
   kein Doppel-Mount) steht aus: ohne Mongo nur per Unit-Tests belegt
   (Sheet mountet nur offen, Chronik meldet jede Auswahl).
+
+### Stand D5 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Kurztitel aus derselben Antwort:** Das Antwort-Schema
+  (`chatAnswerZodSchema`, JSON-Schema) hat ein optionales Feld `shortTitle`;
+  der Prompt (`buildChatUserMessage` und `buildPrompt`) verlangt es als
+  viertes Feld: zwei bis vier Worte, in der Sprache der Antwort, ohne
+  Anführungszeichen und Satzzeichen. Kein zweiter LLM-Aufruf. Optional,
+  damit ein Modell ohne das Feld nicht die ganze Antwort verwirft.
+- **Bereinigen statt raten:** `normalizeShortTitle` (reine Funktion,
+  `src/lib/chat/common/short-title.ts`) entfernt Anführungszeichen,
+  Satzzeichen am Ende und Mehrfach-Leerzeichen, kürzt über 60 Zeichen an der
+  Wortgrenze; nichts Brauchbares → `undefined`, kein Platzhalter. Der
+  Orchestrator setzt es im Haupt- und im Retry-Pfad, schreibt es über
+  `finalizeQueryLog` ins Log und liefert es im Ergebnis.
+- **Feld und Projektion:** `QueryLog.shortTitle`; `GET …/queries` liefert es
+  in der Liste (Projektion in `listRecentQueries`), der Stream im
+  `complete`-Schritt (frisch und aus dem Cache; `ChatProcessingStep` in
+  `@ks/contracts`).
+- **Cache unberührt:** `createCacheHash` baut aus einer festen Feldliste —
+  `shortTitle` ist nicht dabei, der Query-Log-Vergleich läuft über den Hash.
+  Test in `cache-key-utils.test.ts`; `chat-contracts` §5 nennt die Regel.
+- **Chronik:** `ChronikFrage.kurztitel` (aus `shortTitle` der Liste bzw. der
+  Frage-Nachricht im Verlauf, die der Stream-Hook beim Abschluss ergänzt);
+  `kurztitelFuer` nimmt ihn, sonst die Heuristik `kurztitel(text)` — alte
+  Einträge bleiben lesbar. Sitzungstitel (D1-Serverregel) bleiben, wie sie
+  sind.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- Der Analyse-Schritt (`question-analyzer.ts`) erzeugt schon einen
+  `chatTitle` (bis 60 Zeichen) in einem eigenen LLM-Aufruf, der heute den
+  Sitzungstitel speist. Zwei Titel aus zwei Aufrufen: Kandidat für D6, den
+  Sitzungstitel aus dem `shortTitle` der ersten Frage zu nehmen und den
+  Analyse-Aufruf zu verschlanken.
+- TOC-Antworten (Themenübersicht) bekommen bewusst keinen `shortTitle`; die
+  Chronik lässt sie ohnehin weg.
+- Live-Nachweis (neue Frage bekommt treffenden Titel in der Zielsprache)
+  steht aus: ohne Mongo und Sprachmodell nur per Unit-Tests belegt (Schema,
+  Prompt, Normalisierung, Hash, Verlauf, Chronik).
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
