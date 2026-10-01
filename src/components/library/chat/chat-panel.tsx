@@ -1,19 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@ks/module-explorer/react'
 import { ScrollArea, Button } from '@ks/ui'
 import { StoryMitte } from '../story/story-mitte'
-import {
-  STORY_UEBERSICHT,
-  storyAktiveSitzungAtom,
-  storyAuswahlAtom,
-  storyGliederungAtom,
-  themaZuFrage,
-} from '@ks/module-story/react'
-import { fragenAusVerlauf, frageZurAuswahl, konversationAuswaehlen, neueFrage } from './utils/chronik-utils'
-import { groupMessagesToConversations } from './utils/chat-utils'
+import { STORY_UEBERSICHT } from '@ks/module-story/react'
+import { frageZurAuswahl } from './utils/chronik-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
@@ -24,14 +17,12 @@ import {
   type Retriever,
   type TargetLanguage,
   type SocialContext,
-  type LlmModelId,
   ANSWER_LENGTH_DEFAULT,
   RETRIEVER_DEFAULT,
   TOC_QUESTION,
   characterArrayToString,
   accessPerspectiveArrayToString,
 } from '@/lib/chat/constants'
-import { useStoryContext } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
 import { useUser } from '@clerk/nextjs'
 import { ChatInput } from './chat-input'
@@ -41,18 +32,20 @@ import { ChatConfigBar } from './chat-config-bar'
 import { ChatConfigPopover } from './chat-config-popover'
 import { ChatMessagesList } from './chat-messages-list'
 import { useChatScroll } from './hooks/use-chat-scroll'
-import { getInitialTargetLanguage, getInitialCharacter, getInitialAccessPerspective, getInitialSocialContext, getInitialGenderInclusive, getInitialLlmModel } from './utils/chat-storage'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useAnonymousPreferences } from '@/hooks/use-anonymous-preferences'
 import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import { useChatHistory } from './hooks/use-chat-history'
 import { useChatStream } from './hooks/use-chat-stream'
 import { useChatTOC } from './hooks/use-chat-toc'
-import type { QueryLog } from '@/types/query-log'
-import type { GalleryFilters } from '@ks/contracts'
 import { useTranslation } from '@ks/i18n/react'
 import { useGalleryData } from '@ks/module-explorer/react'
 import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
+import { useChatPerspectiveState } from './chat-panel/hooks/use-chat-perspective-state'
+import { useOpenConversationsOnLoad } from './chat-panel/hooks/use-open-conversations-on-load'
+import { useStoryAuswahlBridge } from './chat-panel/hooks/use-story-auswahl-bridge'
+import { useTocCompleteStep } from './chat-panel/hooks/use-toc-complete-step'
+import { useTocReloadHint } from './chat-panel/hooks/use-toc-reload-hint'
 
 interface ChatPanelProps {
   libraryId: string
@@ -62,7 +55,6 @@ interface ChatPanelProps {
 export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const { t } = useTranslation()
   const isEmbedded = variant === 'embedded'
-  const storyContext = useStoryContext()
   const { isSignedIn } = useUser()
   const isAnonymous = !isSignedIn
   const [configPopoverOpen, setConfigPopoverOpen] = useState(false)
@@ -89,72 +81,30 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [retriever, setRetriever] = useState<Retriever>(RETRIEVER_DEFAULT)
   const [isChatInputOpen, setIsChatInputOpen] = useState(false)
   
-  // Context State (embedded vs. local)
-  const [targetLanguageState, setTargetLanguageState] = useState<TargetLanguage>(getInitialTargetLanguage())
-  const [characterState, setCharacterState] = useState<Character[]>(getInitialCharacter())
-  const [accessPerspectiveState, setAccessPerspectiveState] = useState<AccessPerspective[]>(getInitialAccessPerspective())
-  const [socialContextState, setSocialContextState] = useState<SocialContext>(getInitialSocialContext())
-  const [genderInclusive, setGenderInclusive] = useState<boolean>(getInitialGenderInclusive())
-  const [llmModelState] = useState<LlmModelId>(getInitialLlmModel())
-  
-  const targetLanguage = isEmbedded ? storyContext.targetLanguage : targetLanguageState
-  const character = isEmbedded ? storyContext.character : characterState
-  const accessPerspective = isEmbedded ? storyContext.accessPerspective : accessPerspectiveState
-  const socialContext = isEmbedded ? storyContext.socialContext : socialContextState
-  const llmModel = (isEmbedded ? storyContext.llmModel : llmModelState) || ''
-  const setTargetLanguage = isEmbedded ? storyContext.setTargetLanguage : setTargetLanguageState
-  
-  console.log('[ChatPanel] llmModel bestimmt:', {
-    isEmbedded,
-    llmModel,
-    storyContextLlmModel: storyContext.llmModel,
-    llmModelState,
-    hasLlmModel: !!llmModel,
-  })
-  
-  // Log targetLanguage-Quelle für Debugging
-  useEffect(() => {
-    console.log('[ChatPanel] targetLanguage bestimmt:', {
-      isEmbedded,
-      targetLanguage,
-      storyContextTargetLanguage: storyContext.targetLanguage,
-      targetLanguageState,
-      source: isEmbedded ? 'storyContext' : 'localState',
-    })
-  }, [isEmbedded, targetLanguage, storyContext.targetLanguage, targetLanguageState])
-  // Wrapper für setCharacter: storyContext verwendet bereits Character[]
-  const setCharacter = isEmbedded 
-    ? storyContext.setCharacter
-    : setCharacterState
-  const setAccessPerspective = isEmbedded
-    ? storyContext.setAccessPerspective
-    : setAccessPerspectiveState
-  const setSocialContext = isEmbedded ? storyContext.setSocialContext : setSocialContextState
-  
+  // Perspektive (D6): eingebettet aus dem Story-Context, sonst lokal — hooks/use-chat-perspective-state
+  const perspektive = useChatPerspectiveState(isEmbedded)
+  const { targetLanguage, character, accessPerspective, socialContext, llmModel, genderInclusive, setGenderInclusive, setTargetLanguage, setCharacter, setAccessPerspective, setSocialContext } = perspektive
+
   // Anonymous Preferences
   const { save: saveAnonymousPreferences } = useAnonymousPreferences()
-  
+
   // Session Headers
   const sessionHeaders = useClerkSessionHeaders()
-  
-  // Handler für Config-Popover: Speichere Werte beim Schließen
+
+  // Konfig-Popover: beim Schliessen die lokalen Werte fuer anonyme Betrachter sichern.
   function handleConfigPopoverChange(open: boolean) {
     setConfigPopoverOpen(open)
-    
     if (!open && !isEmbedded && isAnonymous) {
-      // Konvertiere Character-Array zu komma-separiertem String für localStorage
-      const characterString = characterArrayToString(characterState)
-      const accessPerspectiveString = accessPerspectiveArrayToString(accessPerspectiveState)
-      
       saveAnonymousPreferences({
-        targetLanguage: targetLanguageState,
-        character: characterString,
-        accessPerspective: accessPerspectiveString,
-        socialContext: socialContextState,
+        targetLanguage: perspektive.lokal.targetLanguage,
+        character: characterArrayToString(perspektive.lokal.character),
+        accessPerspective: accessPerspectiveArrayToString(perspektive.lokal.accessPerspective),
+        socialContext: perspektive.lokal.socialContext,
         genderInclusive,
       })
     }
   }
+
   
   // Gallery Filters
   const galleryFilters = useAtomValue(galleryFiltersAtom)
@@ -186,48 +136,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Open Conversations State
   const [openConversations, setOpenConversations] = useState<Set<string>>(new Set())
-  
-  // Ref zum Verfolgen, ob die Historie bereits initial geladen wurde
-  // Dies verhindert, dass Conversations wieder geöffnet werden, wenn der Benutzer sie geschlossen hat
-  const historyInitializedRef = useRef<string | null>(null)
-  
-  // Öffne automatisch alle Conversations beim ersten Laden der Historie
-  // Dies stellt sicher, dass wiederhergestellte Fragen auf- und zuklappbar sind
-  useEffect(() => {
-    // Nur ausführen, wenn activeChatId vorhanden ist und sich geändert hat
-    if (activeChatId && historyInitializedRef.current !== activeChatId && messages.length > 0) {
-      // Markiere diesen Chat als initialisiert
-      historyInitializedRef.current = activeChatId
-      
-      // VARIANTE 2 BEHOBEN: Verwende exakt die gleiche Logik wie groupMessagesToConversations
-      // Stelle sicher, dass conversationId konsistent ist
-      const conversations: string[] = []
-      for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i]
-        if (msg.type === 'question' && msg.queryId) {
-          // Verwende EXAKT die gleiche Logik wie in groupMessagesToConversations
-          // Dies stellt sicher, dass die IDs konsistent sind
-          const conversationId = msg.queryId 
-            ? `${msg.queryId}-${msg.id}` 
-            : msg.id.replace('-question', '') || `conv-${i}`
-          conversations.push(conversationId)
-        }
-      }
-      
-      // Öffne alle Conversations beim ersten Laden
-      // Der Benutzer kann sie danach normal schließen
-      if (conversations.length > 0) {
-        setOpenConversations(new Set(conversations))
-      }
-    }
-  }, [messages, activeChatId])
-  
-  // Setze historyInitializedRef zurück, wenn activeChatId sich ändert oder null wird
-  useEffect(() => {
-    if (!activeChatId) {
-      historyInitializedRef.current = null
-    }
-  }, [activeChatId])
+  useOpenConversationsOnLoad({ messages, activeChatId, setOpenConversations })
+
   
   // Chat Stream (muss vor useChatTOC sein, da sendQuestion benötigt wird)
   const checkTOCCacheRef = useRef<(() => Promise<void>) | null>(null)
@@ -325,242 +235,34 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   checkTOCCacheRef.current = checkTOCCache
   setTOCDataRef.current = setTOCData
 
-  // --- Story-Dreiteilung (D1, Plan story-dreiteilung-fragenchronik) ---
-  // Die Chronik links haengt als eigener Slot im Story-Reiter; geteilt wird
-  // ueber die drei Story-Atome: Auswahl (was die Mitte zeigt), Gliederung
-  // (die Themenuebersicht) und die Fragen der aktiven Sitzung aus dem Verlauf.
-  const [storyAuswahl, setStoryAuswahl] = useAtom(storyAuswahlAtom)
-  const setStoryGliederung = useSetAtom(storyGliederungAtom)
-  const setStoryAktiveSitzung = useSetAtom(storyAktiveSitzungAtom)
+  // Story-Dreiteilung (D1/D2): Bruecke zu Chronik und Auswahl — hooks/use-story-auswahl-bridge
+  const { storyAuswahl, setStoryAuswahl, konversation, gewaehlteKonversation } = useStoryAuswahlBridge({
+    isEmbedded,
+    messages,
+    setMessages,
+    activeChatId,
+    isSending,
+    gliederung: cachedStoryTopicsData ?? null,
+    setOpenConversations,
+  })
 
-  useEffect(() => {
-    if (isEmbedded) setStoryGliederung(cachedStoryTopicsData ?? null)
-  }, [isEmbedded, cachedStoryTopicsData, setStoryGliederung])
+  // Themenuebersicht: Nachladen-Hinweis und Abschluss-Schritt aus dem Stream
+  const showReloadButton = useTocReloadHint({
+    libraryId,
+    cachedTOCQueryId: cachedTOC?.queryId,
+    targetLanguage,
+    character,
+    socialContext,
+    galleryFilters,
+    sessionHeaders,
+  })
+  useTocCompleteStep({
+    processingSteps,
+    messages,
+    setTOCData,
+    params: { answerLength, retriever, targetLanguage, character, accessPerspective, socialContext, facetsSelected: galleryFilters || {}, llmModel },
+  })
 
-  useEffect(() => {
-    if (isEmbedded) setStoryAktiveSitzung({ chatId: activeChatId, fragen: fragenAusVerlauf(messages, isSending) })
-  }, [isEmbedded, activeChatId, messages, isSending, setStoryAktiveSitzung])
-
-  // Klickmodell: „Frage tippen oder eigene senden" → die neue Frage wird die
-  // aktive Konversation; ihr Thema (falls aus einem Thema gewaehlt) markiert
-  // die Gliederung. Ein Verlaufs-Laden bringt viele Nachrichten auf einmal
-  // und loest das nicht aus (neueFrage).
-  const vorherigeNachrichtenRef = useRef(messages.length)
-  useEffect(() => {
-    const frage = isEmbedded ? neueFrage(vorherigeNachrichtenRef.current, messages) : null
-    vorherigeNachrichtenRef.current = messages.length
-    if (frage) {
-      setStoryAuswahl({
-        art: 'konversation',
-        frageId: frage.id,
-        themaId: themaZuFrage(cachedStoryTopicsData ?? null, frage.content) ?? undefined,
-      })
-    }
-  }, [isEmbedded, messages, cachedStoryTopicsData, setStoryAuswahl])
-
-  // „Neue Sitzung" in der Chronik loest die aktive Sitzung: Der Verlauf der
-  // alten Sitzung gehoert nicht in die neue (use-chat-history behaelt ihn sonst).
-  const vorherigeChatIdRef = useRef(activeChatId)
-  useEffect(() => {
-    if (isEmbedded && vorherigeChatIdRef.current !== null && activeChatId === null) setMessages([])
-    vorherigeChatIdRef.current = activeChatId
-  }, [isEmbedded, activeChatId, setMessages])
-
-  // D2: Sobald die laufende Frage ihre gespeicherte Kennung hat, traegt die
-  // Auswahl sie nach — die App schreibt sie dann in die Adresse (`q=`). Kam
-  // die Auswahl aus der Adresse, fehlt ihr das Thema: aus dem Fragetext
-  // ergaenzen, damit die Gliederung es markiert.
-  useEffect(() => {
-    if (!isEmbedded || storyAuswahl.art !== 'konversation') return
-    const frage = frageZurAuswahl(messages, storyAuswahl)
-    if (!frage) return
-    const queryId = storyAuswahl.queryId ?? frage.queryId
-    const themaId = storyAuswahl.themaId ?? themaZuFrage(cachedStoryTopicsData ?? null, frage.content) ?? undefined
-    if (queryId !== storyAuswahl.queryId || themaId !== storyAuswahl.themaId) {
-      setStoryAuswahl({ ...storyAuswahl, queryId, themaId })
-    }
-  }, [isEmbedded, storyAuswahl, messages, cachedStoryTopicsData, setStoryAuswahl])
-
-  // Die Mitte zeigt genau die gewaehlte Konversation — aufgeklappt.
-  const konversation = isEmbedded ? konversationAuswaehlen(messages, storyAuswahl) : messages
-  // Schluessel fuer den Scroll (D2): erst, wenn die Konversation gerendert ist;
-  // die lokale Kennung bleibt ueber den Nachtrag der queryId hinweg stabil.
-  const gewaehlteKonversation =
-    isEmbedded && storyAuswahl.art === 'konversation' && konversation.length > 0
-      ? (storyAuswahl.frageId ?? storyAuswahl.queryId ?? null)
-      : null
-  useEffect(() => {
-    if (!isEmbedded || storyAuswahl.art !== 'konversation') return
-    const paar = groupMessagesToConversations(konversationAuswaehlen(messages, storyAuswahl))[0]
-    if (paar) {
-      setOpenConversations((prev) => (prev.has(paar.conversationId) ? prev : new Set([...prev, paar.conversationId])))
-    }
-  }, [isEmbedded, storyAuswahl, messages])
-  
-  // State für Reload-Button-Anzeige (wenn Parameter geändert wurden)
-  const [showReloadButton, setShowReloadButton] = useState(false)
-  
-  // Parameter-Vergleich: Prüfe, ob aktuelle Parameter von Query-Parametern abweichen
-  useEffect(() => {
-    if (!cachedTOC?.queryId || !libraryId) {
-      setShowReloadButton(false)
-      return
-    }
-    
-    let cancelled = false
-    
-    async function compareParams() {
-      if (!cachedTOC?.queryId) {
-        return
-      }
-      
-      try {
-        const queryRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(cachedTOC.queryId)}`, {
-          cache: 'no-store',
-          headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
-        })
-        
-        if (!queryRes.ok || cancelled) {
-          // Wenn Query nicht gefunden wurde (404), setze showReloadButton auf false
-          // und beende die Funktion, ohne Fehler zu werfen
-          if (queryRes.status === 404) {
-            setShowReloadButton(false)
-            return
-          }
-          return
-        }
-        
-        const queryLog = await queryRes.json() as QueryLog
-        
-        if (cancelled) return
-        
-        // Vergleiche Parameter
-        // Extrahiere Cache-Felder aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Felder (alte Einträge)
-        const queryParams = {
-          targetLanguage: queryLog.cacheParams?.targetLanguage ?? queryLog.targetLanguage,
-          character: queryLog.cacheParams?.character ?? queryLog.character,
-          socialContext: queryLog.cacheParams?.socialContext ?? queryLog.socialContext,
-          facetsSelected: queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected ?? {},
-        }
-        
-        const currentParams = {
-          targetLanguage,
-          character,
-          socialContext,
-          facetsSelected: galleryFilters || {},
-        }
-        
-        // Normalisiere Filter für Vergleich
-        const normalizeFilters = (filters: GalleryFilters | Record<string, unknown>): Record<string, string[]> => {
-          const normalized: Record<string, string[]> = {}
-          Object.entries(filters).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              normalized[key] = value.map(v => String(v)).sort()
-            } else if (value !== undefined && value !== null) {
-              normalized[key] = [String(value)].sort()
-            }
-          })
-          return normalized
-        }
-        
-        const queryFiltersNormalized = normalizeFilters(queryParams.facetsSelected)
-        const currentFiltersNormalized = normalizeFilters(currentParams.facetsSelected)
-        
-        // Vergleiche alle Parameter
-        const paramsMatch = 
-          queryParams.targetLanguage === currentParams.targetLanguage &&
-          queryParams.character === currentParams.character &&
-          queryParams.socialContext === currentParams.socialContext &&
-          JSON.stringify(queryFiltersNormalized) === JSON.stringify(currentFiltersNormalized)
-        
-        setShowReloadButton(!paramsMatch)
-      } catch (error) {
-        console.error('[ChatPanel] Fehler beim Vergleich der Parameter:', error)
-        setShowReloadButton(false)
-      }
-    }
-    
-    compareParams()
-    
-    return () => {
-      cancelled = true
-    }
-  }, [cachedTOC?.queryId, libraryId, targetLanguage, character, socialContext, galleryFilters, sessionHeaders])
-  
-  // Setze TOC-Daten direkt, wenn sie aus dem Stream kommen
-  useEffect(() => {
-    if (processingSteps.length > 0) {
-      const lastStep = processingSteps[processingSteps.length - 1]
-      if (lastStep.type === 'complete') {
-        const completeStep = lastStep as import('@/types/chat-processing').ChatProcessingStep & {
-          storyTopicsData?: import('@/types/story-topics').StoryTopicsData
-        }
-        
-        // Debug-Logging: Prüfe, ob storyTopicsData vorhanden ist
-        console.log('[chat-panel] Complete-Step empfangen:', {
-          hasStoryTopicsData: !!completeStep.storyTopicsData,
-          storyTopicsDataKeys: completeStep.storyTopicsData ? Object.keys(completeStep.storyTopicsData) : [],
-          storyTopicsDataTitle: completeStep.storyTopicsData?.title,
-          storyTopicsDataTopicsCount: completeStep.storyTopicsData?.topics?.length,
-        })
-        
-        // Prüfe, ob dies eine TOC-Query war
-        // WICHTIG: Prüfe sowohl messages als auch processingSteps, da die Message möglicherweise
-        // noch nicht in messages ist, wenn der complete-Step kommt
-        const isTOCQueryInMessages = messages.some(
-          (msg) => msg.type === 'question' && msg.content.trim() === TOC_QUESTION.trim()
-        )
-        // Prüfe auch processingSteps für TOC-Query-Indikator
-        const isTOCQueryInSteps = processingSteps.some(
-          (step) => step.type === 'retriever_selected' && 
-            (step as { retriever?: string; reason?: string }).reason?.includes('TOC query')
-        )
-        const isTOCQuery = isTOCQueryInMessages || isTOCQueryInSteps || !!completeStep.storyTopicsData
-        
-        console.log('[chat-panel] TOC-Query-Prüfung:', {
-          isTOCQueryInMessages,
-          isTOCQueryInSteps,
-          hasStoryTopicsData: !!completeStep.storyTopicsData,
-          isTOCQuery,
-        })
-        
-        // Für TOC-Queries: Rufe IMMER setTOCData auf, auch wenn storyTopicsData null ist
-        // (um isGeneratingTOCRef zurückzusetzen und Endlosschleifen zu verhindern)
-        if (isTOCQuery) {
-          setTOCData({
-            storyTopicsData: completeStep.storyTopicsData,
-            answer: lastStep.answer || '',
-            references: Array.isArray(lastStep.references)
-              ? lastStep.references.filter(
-                  (r): r is ChatResponse['references'][number] =>
-                    typeof r === 'object' &&
-                    r !== null &&
-                    'number' in r &&
-                    'fileId' in r &&
-                    'description' in r
-                )
-              : [],
-            suggestedQuestions: Array.isArray(lastStep.suggestedQuestions)
-              ? lastStep.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-              : [],
-            queryId: typeof lastStep.queryId === 'string' ? lastStep.queryId : `temp-${Date.now()}`,
-            // Parameter aus aktuellem State speichern
-            answerLength,
-            retriever,
-            targetLanguage,
-            // character ist bereits Array (kann leer sein)
-            character: character,
-            accessPerspective,
-            socialContext,
-            facetsSelected: galleryFilters || {},
-            llmModel,
-          })
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processingSteps.length, processingSteps])
-  
   
   // Refs
   const inputRef = useRef<HTMLInputElement>(null)
