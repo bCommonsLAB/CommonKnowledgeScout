@@ -12,10 +12,10 @@ import { LibraryVerificationBadge } from '@/components/library/library-verificat
 import { StoryChronikMount } from '@/components/library/story/story-chronik-mount'
 import { StoryAuswahlUrl } from '@/components/library/story/story-auswahl-url'
 
-// Das Story-Panel (Chat, eingebettet) faul laden — wie bisher, nur hier statt
-// in der Galerie: Sie kennt `next/dynamic` seit M4f nicht mehr.
-const LazyChatPanel = dynamic(
-  () => import('@/components/library/chat/chat-panel').then((module) => module.ChatPanel),
+// Die Story-Mitte (D6c: `StoryRoot` aus dem Story-Paket mit App-Verdrahtung)
+// faul laden — hier statt in der Galerie: Sie kennt `next/dynamic` seit M4f nicht mehr.
+const LazyStoryRoot = dynamic(
+  () => import('@/components/library/story/story-root-mount').then((module) => module.StoryRootMount),
   {
     ssr: false,
     loading: () => <div className='text-sm text-muted-foreground p-4'>Lade Story-Panel…</div>,
@@ -31,7 +31,7 @@ const LazyChatPanel = dynamic(
  * - **Adressierung**: wie die Galerie in die Adresszeile kommt.
  * - **Gastgeber**: Job-Meldungen und womit Bilder gerendert werden.
  * - **Kopf-Aktionen**: der Erfassungs-Knopf, ein anderes Modul.
- * - **Story-Panel**: der Chat in der eingebetteten Variante, faul geladen.
+ * - **Story-Panel**: die Story-Mitte (`StoryRoot` aus `@ks/module-story`, D6c), faul geladen.
  * - **Story-Chronik** (D1): Gliederung und Sitzungen aus `@ks/module-story`,
  *   mit Anmeldung und aktiver Sitzung der App verdrahtet.
  * - **Story-Auswahl in der Adresse** (D2): `q=<queryId>` per nuqs, neben dem
@@ -64,7 +64,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
         storyPanel={(libraryId) => (
           <>
             <StoryAuswahlUrl libraryId={libraryId} />
-            <LazyChatPanel libraryId={libraryId} variant='embedded' />
+            <LazyStoryRoot libraryId={libraryId} />
           </>
         )}
         storyChronik={(libraryId, ctx) => <StoryChronikMount libraryId={libraryId} onGewaehlt={ctx?.schliessen} />}
