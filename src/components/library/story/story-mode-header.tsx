@@ -9,6 +9,8 @@ import { useLibraries } from '@ks/shell/react'
 interface StoryModeHeaderProps {
   libraryId: string
   onBackToGallery?: () => void
+  /** D4: oeffnet mobil die Chronik (Sheet); ohne Rueckruf kein Knopf. */
+  onOpenChronik?: () => void
 }
 
 interface StoryConfig {
@@ -28,7 +30,7 @@ interface StoryConfig {
  * - Lässt die Buttons sichtbar
  * - Verwendet die gleiche Scroll-Visibility-Logik wie TopNav und GalleryStickyHeader
  */
-export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderProps) {
+export function StoryModeHeader({ libraryId, onBackToGallery, onOpenChronik }: StoryModeHeaderProps) {
   const { t } = useTranslation()
   const libraries = useLibraries()
   
@@ -74,7 +76,7 @@ export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderP
 
       {/* Buttons: StoryHeader nutzt jetzt die ganze Breite */}
       <div className="py-2 w-full">
-        <StoryHeader compact onBackToGallery={onBackToGallery} libraryId={libraryId} />
+        <StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} libraryId={libraryId} />
       </div>
     </div>
   )

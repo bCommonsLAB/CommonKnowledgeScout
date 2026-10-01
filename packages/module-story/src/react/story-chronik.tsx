@@ -28,9 +28,14 @@ export interface StoryChronikProps {
   onSitzungWaehlen: (chatId: string) => void
   /** „Neue Sitzung": die App loest die aktive Sitzung, die naechste Frage eroeffnet eine neue. */
   onNeueSitzung: () => void
+  /**
+   * Nach jeder Auswahl (Uebersicht, Thema, Frage, neue Sitzung) — D4: mobil
+   * liegt die Chronik in einem Sheet, das sich danach schliessen soll.
+   */
+  onGewaehlt?: () => void
 }
 
-export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onNeueSitzung }: StoryChronikProps) {
+export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onNeueSitzung, onGewaehlt }: StoryChronikProps) {
   const [auswahl, setAuswahl] = useAtom(storyAuswahlAtom)
   const gliederung = useAtomValue(storyGliederungAtom)
   const aktiveSitzung = useAtomValue(storyAktiveSitzungAtom)
@@ -50,8 +55,9 @@ export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onN
         frageId: frage.frageId,
         themaId: themaZuFrage(gliederung, frage.text) ?? undefined,
       })
+      onGewaehlt?.()
     },
-    [aktiveSitzung.chatId, gliederung, onSitzungWaehlen, setAuswahl],
+    [aktiveSitzung.chatId, gliederung, onSitzungWaehlen, setAuswahl, onGewaehlt],
   )
 
   return (
@@ -60,8 +66,14 @@ export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onN
         <Gliederung
           gliederung={gliederung}
           auswahl={auswahl}
-          onUebersicht={() => setAuswahl(STORY_UEBERSICHT)}
-          onThema={(themaId) => setAuswahl({ art: 'thema', themaId })}
+          onUebersicht={() => {
+            setAuswahl(STORY_UEBERSICHT)
+            onGewaehlt?.()
+          }}
+          onThema={(themaId) => {
+            setAuswahl({ art: 'thema', themaId })
+            onGewaehlt?.()
+          }}
         />
         <SitzungenListe
           sitzungen={sitzungen}
@@ -75,6 +87,7 @@ export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onN
           onNeueSitzung={() => {
             onNeueSitzung()
             setAuswahl(STORY_UEBERSICHT)
+            onGewaehlt?.()
           }}
         />
       </div>

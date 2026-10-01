@@ -925,6 +925,10 @@
         "pruefung": "In Prüfung",
         "abgelehnt": "Abgelehnt"
       }
+    },
+    "chronik": {
+      "title": "Chronik",
+      "open": "Themen und Fragen"
     }
   }
 }

@@ -878,6 +878,10 @@
         "pruefung": "In esame",
         "abgelehnt": "Respinta"
       }
+    },
+    "chronik": {
+      "title": "Cronologia",
+      "open": "Temi e domande"
     }
   }
 }

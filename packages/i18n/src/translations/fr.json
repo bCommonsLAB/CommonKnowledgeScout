@@ -878,6 +878,10 @@
         "pruefung": "En examen",
         "abgelehnt": "Rejetée"
       }
+    },
+    "chronik": {
+      "title": "Chronique",
+      "open": "Thèmes et questions"
     }
   }
 }

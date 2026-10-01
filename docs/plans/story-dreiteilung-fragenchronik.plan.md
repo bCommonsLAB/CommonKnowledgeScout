@@ -17,8 +17,8 @@ todos:
     content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1+D2 gestapelt), Live-Nachweis offen] Rechte Spalte auf 35 % und schmaler gestalten: Quellenliste der aktiven Antwort statt Galerie-Raster; ohne aktive Antwort die gefilterte Übersicht wie heute. Filterleiste bleibt oben."
     status: done
   - id: d4-mobil
-    content: "Mobil (unter lg): Chronik als Sheet hinter einem Menü-Knopf im Story-Kopf; Mitte füllt den Schirm; Quellen wie heute als Overlay. Keine doppelten Mounts (Lehre aus M4h)."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1–D3 gestapelt), Live-Nachweis offen] Mobil (unter lg): Chronik als Sheet hinter einem Menü-Knopf im Story-Kopf; Mitte füllt den Schirm; Quellen wie heute als Overlay. Keine doppelten Mounts (Lehre aus M4h)."
+    status: done
   - id: d5-kurztitel-llm
     content: "Kurztitel (zwei bis vier Worte) aus derselben LLM-Antwort wie die Antwort selbst (Prompt-Erweiterung im Orchestrator, Feld shortTitle im QueryLog, Sprache = Zielsprache). Heuristik aus D1 bleibt Fallback für alte Einträge."
     status: pending
@@ -258,7 +258,7 @@ Nachziehen.
 | D1 | Chronik lesend, heuristische Kurztitel, Klick wählt Konversation | Live: zehn Fragen, jede per Klick erreichbar |
 | D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ (gebaut 01.10., Stand D2 oben) | Live: Neu laden mit `q=` zeigt die richtige Konversation |
 | D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
-| D4 | Mobil: Chronik im Sheet | Browser-Pane mobil, keine Doppel-Mounts |
+| D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
 | D6 | Entflechten und Doku | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
 
@@ -424,6 +424,36 @@ Neu dazugekommen (beim Bauen gesehen):
 - Live-Nachweis (Belege wechseln mit der Auswahl, Spalten ziehen und merken)
   steht aus: ohne Mongo nur per Unit-Tests belegt (Helfer, Belegliste mit
   Adressierung, Registry-Konfig).
+
+### Stand D4 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Chronik mobil als Sheet:** `StoryChronikSheet` im Explorer-Paket (Sheet
+  von links, Inhalt ist der `storyChronik`-Slot). `GalleryRoot` hält den
+  Zustand und mountet den Slot unter `lg` NUR im Sheet, solange es offen ist
+  (Radix hält geschlossenen Inhalt nicht im DOM); auf dem Desktop nur in der
+  Spalte. Verlässt man den Story-Modus oder springt die Breite auf Desktop,
+  fällt das Sheet zu — nie zwei Mounts (Lehre aus M4h). Mitte füllt den
+  Schirm, Quellen bleiben das Overlay (`ReferencesSheet`).
+- **Menü-Knopf im Story-Kopf:** Der `storyHeader`-Slot bekommt
+  `onOpenChronik` (nur mit Chronik-Slot); `StoryHeader` der App zeigt dafür
+  unter `lg` den Knopf „Themen und Fragen" (`story.chronik.open`, fünf
+  Sprachen). Das Paket kennt keine App-Komponente — der Knopf ist App.
+- **Schließen nach Auswahl:** Der `storyChronik`-Slot bekommt
+  `ctx.schliessen` mit; `StoryChronik` (`@ks/module-story`) meldet jede
+  Auswahl über `onGewaehlt` (Übersicht, Thema, Frage, neue Sitzung), die App
+  reicht beides durch. Nach dem Tipp steht die Mitte frei.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Embed:** `@ks/embed` montiert `GalleryRoot` ohne Story-Slots (M5: Story
+  und Chat nicht mitnehmen); dort gibt es keinen Story-Modus und damit
+  nichts mobil zu prüfen. Sobald D6 `StoryRoot` im Embed montiert, gilt
+  dieselbe Mechanik (Slot + Sheet) ohne weitere Änderung.
+- Live-Nachweis (Browser-Pane mobil: Knopf, Sheet, Auswahl schließt,
+  kein Doppel-Mount) steht aus: ohne Mongo nur per Unit-Tests belegt
+  (Sheet mountet nur offen, Chronik meldet jede Auswahl).
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

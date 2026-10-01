@@ -32,6 +32,7 @@ import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '../lib/types'
 import { ReferencesSheet } from './references-sheet'
 import { StorySpalten } from './story-spalten'
+import { StoryChronikSheet } from './story-chronik-sheet'
 import { BelegListe } from './beleg-liste/beleg-liste'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
@@ -89,8 +90,11 @@ export interface GalleryRootProps {
    * dreispaltig (15 / 50 / 35 als Startwerte), ohne bleibt die Zweiteilung.
    * Die Komponente kommt aus `@ks/module-story/react`; die App reicht sie
    * herein, weil nur sie Anmeldung und aktive Sitzung kennt.
+   *
+   * D4: Mobil liegt die Chronik in einem Sheet; `ctx.schliessen` kommt dann
+   * mit, damit die App es nach einer Auswahl schliessen laesst.
    */
-  storyChronik?: (libraryId: string) => React.ReactNode
+  storyChronik?: (libraryId: string, ctx?: { schliessen: () => void }) => React.ReactNode
   /**
    * Welche Detailansicht zu welchem Renderer-Typ gehoert (M4g). Pflicht: Die
    * Galerie kennt die Detail-Komponenten der App nicht mehr, und ohne Tabelle
@@ -102,8 +106,12 @@ export interface GalleryRootProps {
    * (`website/website-landing-live`) und liest dort ihre eigenen APIs.
    */
   siteView?: (opts: { libraryId: string; onShowGallery: () => void }) => React.ReactNode
-  /** Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht mit dem Story-Modus um. */
-  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void }) => React.ReactNode
+  /**
+   * Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht
+   * mit dem Story-Modus um. `onOpenChronik` (D4) gibt es nur mit Chronik-Slot:
+   * der Kopf zeigt dafuer unter `lg` den Menue-Knopf, der das Sheet oeffnet.
+   */
+  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void; onOpenChronik?: () => void }) => React.ReactNode
   /** Verifikations-Abzeichen neben der Ueberschrift; kein Slot, kein Abzeichen. */
   verifikationsAbzeichen?: React.ReactNode
 }
@@ -136,6 +144,9 @@ export function GalleryRoot({
   const setLibraries = useSetLibraries()
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
+  // D4: Chronik-Sheet (mobil). Faellt zu, sobald der Story-Modus verlassen
+  // wird oder die Breite auf Desktop springt — dort lebt die Chronik in der Spalte.
+  const [chronikOffen, setChronikOffen] = useState(false)
   const isClosingRef = React.useRef(false)
   const isSwitchingToStoryModeRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -736,6 +747,11 @@ export function GalleryRoot({
     }
   }
   
+  // D4: Chronik-Sheet nur mobil im Story-Modus; sonst zu (kein zweiter Mount neben der Spalte).
+  useEffect(() => {
+    if (!isMobile || mode !== 'story') setChronikOffen(false)
+  }, [isMobile, mode])
+
   // Koordiniere ReferencesSheet mit DetailOverlay: Schließe Sheet wenn DetailOverlay geöffnet wird (URL-Parameter gesetzt)
   useEffect(() => {
     if (docSlug && showReferencesSheet) {
@@ -1229,7 +1245,13 @@ export function GalleryRoot({
         {mode === 'story' && (
         <TabsContent value="story" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden">
           <div className="flex-shrink-0">
-            {storyHeader ? storyHeader({ libraryId: libraryId || '', onBackToGallery: () => setMode('gallery') }) : null}
+            {storyHeader
+              ? storyHeader({
+                  libraryId: libraryId || '',
+                  onBackToGallery: () => setMode('gallery'),
+                  onOpenChronik: storyChronik ? () => setChronikOffen(true) : undefined,
+                })
+              : null}
           </div>
           {/* Mitte: der Story-Inhalt der App (Chat-Panel). Kein stiller
               Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das. */}
@@ -1242,7 +1264,16 @@ export function GalleryRoot({
             // Mobil: nur die Mitte mounten — Chronik (D4: Sheet) und Quellen
             // (Overlay) duerfen nicht als zweiter Mount laufen (Lehre aus M4h).
             if (isMobile) {
-              return <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-md">{storyMitte}</div>
+              return (
+                <>
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-md">{storyMitte}</div>
+                  {storyChronik && (
+                    <StoryChronikSheet open={chronikOffen} onOpenChange={setChronikOffen}>
+                      {storyChronik(libraryId, { schliessen: () => setChronikOffen(false) })}
+                    </StoryChronikSheet>
+                  )}
+                </>
+              )
             }
             const belegeAktiv = Boolean(chatReferences?.references && chatReferences.references.length > 0)
             // Rechts (D3): Belege der aktiven Antwort als schmale Liste; ohne
