@@ -912,6 +912,8 @@ Siehe: docs/mongodb-vector-search-index.md für Details.`
       metadata.headingContext = doc.headingContext ? String(doc.headingContext) : undefined
       metadata.startChar = typeof doc.startChar === 'number' ? doc.startChar : undefined
       metadata.endChar = typeof doc.endChar === 'number' ? doc.endChar : undefined
+      // D7: Seite der Textstelle (nur Quellen mit Seitenankern)
+      metadata.page = typeof doc.page === 'number' ? doc.page : undefined
     }
     
     // Meta-Dokument-spezifische Felder

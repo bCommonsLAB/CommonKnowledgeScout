@@ -1,6 +1,7 @@
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
 import type { DocMeta } from '@ks/contracts'
 import { safeText } from '@/lib/utils/string-utils'
+import { seiteFuerOffset, type PageSpan } from './page-split'
 
 export interface VectorDocument {
   _id: string
@@ -84,12 +85,16 @@ export function buildVectorDocuments(
   fileName: string,
   libraryId: string,
   userEmail: string,
-  facetValues: Record<string, unknown>
+  facetValues: Record<string, unknown>,
+  /** D7: Seitenspannen DESSELBEN Markdowns, das die Chunks erzeugt hat; leer = Quelle ohne Seiten. */
+  pageSpans: PageSpan[] = [],
 ): VectorDocument[] {
   const vectors: VectorDocument[] = []
   const upsertedAt = new Date().toISOString()
   
   for (const chunk of ragResult.chunks) {
+    // Seite aus der Chunk-Mitte (Anfang kann auf der Ankerzeile liegen); ohne Offsets keine Seite.
+    const page = seiteFuerChunk(pageSpans, chunk.startChar ?? undefined, chunk.endChar ?? undefined)
     const vectorDoc: VectorDocument = {
       _id: `${fileId}-${chunk.index}`,
       kind: 'chunk',
@@ -115,6 +120,9 @@ export function buildVectorDocuments(
     if (chunk.endChar !== null && chunk.endChar !== undefined) {
       vectorDoc.endChar = chunk.endChar
     }
+    if (page !== undefined) {
+      vectorDoc.page = page
+    }
     
     // Chunk-spezifische Metadaten übernehmen
     if (chunk.metadata && typeof chunk.metadata === 'object') {
@@ -139,3 +147,10 @@ export function buildVectorDocuments(
 
 
 
+
+/** Seite eines Chunks ueber seine Mitte; ohne Start-Offset oder ohne Spannen `undefined`. */
+export function seiteFuerChunk(pageSpans: PageSpan[], startChar?: number, endChar?: number): number | undefined {
+  if (pageSpans.length === 0 || typeof startChar !== 'number') return undefined
+  const mitte = typeof endChar === 'number' && endChar > startChar ? Math.floor((startChar + endChar) / 2) : startChar
+  return seiteFuerOffset(pageSpans, mitte)
+}

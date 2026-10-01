@@ -339,6 +339,7 @@ export const chunksRetriever: ChatRetriever = {
             headingContext: 1,
             startChar: 1,
             endChar: 1,
+            page: 1,
             year: 1,
             authors: 1,
             region: 1,
@@ -362,6 +363,7 @@ export const chunksRetriever: ChatRetriever = {
           chunkIndex: doc.chunkIndex as number,
           text: doc.text as string,
           headingContext: doc.headingContext as string | undefined,
+          page: typeof doc.page === 'number' ? doc.page : undefined,
           startChar: doc.startChar as number | undefined,
           endChar: doc.endChar as number | undefined,
           year: doc.year as number | undefined,
@@ -460,6 +462,8 @@ export const chunksRetriever: ChatRetriever = {
       const slideTitle = typeof meta.slideTitle === 'string' ? meta.slideTitle : undefined
       const chapterTitle = typeof meta.chapterTitle === 'string' ? meta.chapterTitle : undefined
       const chapterOrder = typeof meta.chapterOrder === 'number' ? meta.chapterOrder : undefined
+      // D7: Seite der Textstelle, nur bei Quellen mit Seitenankern
+      const page = typeof meta.page === 'number' ? meta.page : undefined
       
       // Extrahiere Metadaten basierend auf Facetten-Definitionen
       const facetMetadata = extractFacetMetadata(meta, facetDefs)
@@ -471,6 +475,7 @@ export const chunksRetriever: ChatRetriever = {
         fileId,
         chunkIndex, 
         text: t,
+        ...(page !== undefined ? { page } : {}),
         sourceType,
         slidePageNum,
         slideTitle,
