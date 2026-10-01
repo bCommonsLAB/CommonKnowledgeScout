@@ -70,3 +70,7 @@ export { useLibraryRole, type LibraryRoleClient, type UseLibraryRoleResult } fro
 export { readGalleryMode, nextParamsForMode, type GalleryMode } from './lib/mode-params'
 export { normalizeGalleryCardDensity, type GalleryCardDensity } from './lib/gallery-card-density'
 export { mapItemToDocCardMeta, type GalleryItem } from './lib/types'
+
+// D6: Status-Plakette aus der Registry-Konfig `belegKarte` — fuer Karte und Detailansicht dieselbe Quelle.
+export { belegKonfig, plaketteFuer, kennzeileFuer, belegeAusReferenzen, type Beleg, type PlaketteErgebnis } from './components/beleg-liste/helpers'
+export { PLAKETTE_SYMBOL, plaketteLabelKey } from './components/beleg-liste/plakette'

@@ -76,3 +76,6 @@ export type {
   GalleryCardDensity,
   GalleryItem,
 } from '../gallery'
+
+// D6: Status-Plakette (Registry-Konfig `belegKarte`) fuer App-Detailansichten.
+export { belegKonfig, plaketteFuer, kennzeileFuer, PLAKETTE_SYMBOL, plaketteLabelKey, type PlaketteErgebnis } from '../gallery'
