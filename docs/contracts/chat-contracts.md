@@ -97,6 +97,15 @@ Komponenten sollen vorzugsweise via API-Routen kommunizieren.
 - Fehlende Embedding-Konfiguration: wirft, kein Fallback auf Default-
   Modell ohne Begruendung.
 - `canAccumulateTokens(current, add, budget)`: deterministisch true/false.
+- **Belege je Dokument (seit D7, Plan `story-dreiteilung-fragenchronik`):**
+  `dokumenteNummerieren(sources)` (`common/zitatmarken.ts`) vergibt EINE
+  Nummer je `fileId` in Trefferreihenfolge; Prompt (`buildContext`,
+  `beschreibeDokumente`) und Orchestrator (`belegeAusGruppen`) MUESSEN
+  dieselbe Funktion nutzen, sonst zeigen die Marken im Text auf falsche
+  Karten. `DocReference.passages` traegt die Textstellen (`chunkIndex`,
+  `page?`, `excerpt`); `page` nur, wenn der Chunk eines hat — kein
+  Ersatzwert. Test: `tests/unit/chat/zitatmarken.test.ts`,
+  `tests/unit/chat/prompt-zitatmarken.test.ts`.
 
 ## §5 Cache-Vertrag
 

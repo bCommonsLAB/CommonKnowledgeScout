@@ -17,7 +17,7 @@ import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
 import { useGalleryNavigation } from '../../contexts/gallery-navigation-context'
 import { BelegKarte } from './beleg-karte'
-import { belegeAusReferenzen, type Beleg } from './helpers'
+import { belegeAusReferenzen, ersteSeite, type Beleg } from './helpers'
 
 export interface BelegListeProps {
   references: DocReference[]
@@ -49,14 +49,17 @@ export function BelegListe({
   const { openDocument } = useGalleryNavigation()
   const belege = useMemo(() => belegeAusReferenzen(references, usedDocs, libraryDetailViewType), [references, usedDocs, libraryDetailViewType])
 
-  function oeffnen(doc: DocCardMeta | undefined, fileId: string, fileName?: string) {
+  function oeffnen(doc: DocCardMeta | undefined, fileId: string, fileName?: string, page?: number) {
     const slug = doc ? getEffectiveDocumentNavigationSlug(doc) : undefined
-    if (slug) openDocument(slug)
+    // D7: Nur die Adressierung kennt die Seite; die Rueckfaelle oeffnen am Anfang.
+    if (slug && page !== undefined) openDocument(slug, { page })
+    else if (slug) openDocument(slug)
     else if (doc && onOpenDocument) onOpenDocument(doc)
     else window.dispatchEvent(new CustomEvent('open-document-detail', { detail: { fileId, fileName, libraryId } }))
   }
 
-  const original = (beleg: Beleg) => oeffnen(beleg.doc, beleg.fileId, beleg.doc?.fileName ?? beleg.titel)
+  const original = (beleg: Beleg, page?: number) =>
+    oeffnen(beleg.doc, beleg.fileId, beleg.doc?.fileName ?? beleg.titel, page ?? ersteSeite(beleg))
   const anzahlText = belege.length === 1 ? t('story.beleg.count.one') : t('story.beleg.count.many', { count: belege.length })
 
   return (

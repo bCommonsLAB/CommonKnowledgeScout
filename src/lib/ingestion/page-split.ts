@@ -43,9 +43,14 @@ export function splitByPages(markdown: string): PageSpan[] {
   return spans
 }
 
-
-
-
-
-
-
+/**
+ * Seite, in deren Spanne ein Zeichen-Offset faellt (D7: Seite je Chunk).
+ * Offsets vor dem ersten Anker (Metadaten-Praefix) haben keine Seite —
+ * `undefined`, kein Ersatzwert. Ein Offset in einer Ankerzeile gehoert zur
+ * Seite, die der Anker eroeffnet (die Spanne davor endet am Ankerbeginn).
+ */
+export function seiteFuerOffset(spans: PageSpan[], offset: number): number | undefined {
+  if (spans.length === 0 || offset < spans[0].startIdx) return undefined
+  const treffer = spans.find((span) => offset < span.endIdx)
+  return treffer?.page
+}

@@ -36,6 +36,7 @@ import { getSecretaryConfig } from '@/lib/env'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
 import { normalizeShortTitle } from '@/lib/chat/common/short-title'
+import { belegeAusGruppen, dokumenteNummerieren } from '@/lib/chat/common/zitatmarken'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
 import { summariesMongoRetriever } from '@/lib/chat/retrievers/summaries-mongo'
 import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
@@ -482,20 +483,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   // WICHTIG: Bei TOC-Queries keine References erfassen (zu voluminös)
   let references: ChatResponse['references'] = []
   if (!run.isTOCQuery) {
-    const allReferences: ChatResponse['references'] = sources.map((s, index) => {
-      const fileId = s.fileId || s.id.split('-')[0]
-      return {
-        number: index + 1,
-        fileId,
-        fileName: s.fileName,
-        description: getSourceDescription(s),
-      }
-    })
-    
-    // Filter only the actually used references from usedReferences
-    references = usedReferences.length > 0
-      ? allReferences.filter(ref => usedReferences.includes(ref.number))
-      : allReferences // Fallback: If none found, show all
+    // D7: eine Nummer je Dokument (dieselbe Nummerierung wie im Prompt), die
+    // Textstellen haengen als passages unter dem Beleg. Nennt das Modell keine
+    // Nummern, bleiben alle Dokumente (wie bisher: lieber alle als keine).
+    references = belegeAusGruppen(dokumenteNummerieren(sources), usedReferences, getSourceDescription)
   }
 
   // A4: References um den Inhaltstyp (detailViewType) anreichern — fuer

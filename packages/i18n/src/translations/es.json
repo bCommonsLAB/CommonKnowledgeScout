@@ -877,7 +877,14 @@
         "geplant": "Planificada",
         "pruefung": "En revisión",
         "abgelehnt": "Rechazada"
-      }
+      },
+      "passages": {
+        "one": "se basa en 1 pasaje",
+        "many": "se basa en {count} pasajes"
+      },
+      "page": "Página {page}",
+      "pageShort": "p. {page}",
+      "openAtPage": "Abrir el original en la página {page}"
     },
     "chronik": {
       "title": "Crónica",

@@ -23,8 +23,8 @@ todos:
     content: "[Gebaut 01.10.2026 (auf D1–D4 gestapelt), Live-Nachweis offen] Kurztitel (zwei bis vier Worte) aus derselben LLM-Antwort wie die Antwort selbst (Prompt-Erweiterung im Orchestrator, Feld shortTitle im QueryLog, Sprache = Zielsprache). Heuristik aus D1 bleibt Fallback für alte Einträge."
     status: done
   - id: d7-zitatmarken
-    content: "Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
-    status: pending
+    content: "[Gebaut 01.10.2026 (auf D1–D6a gestapelt), Live-Nachweis und Backfill-Lauf offen] Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
+    status: done
   - id: d6-aufraeumen
     content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b offen: StoryRoot in @ks/embed] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
     status: in_progress
@@ -261,6 +261,7 @@ Nachziehen.
 | D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
 | D6 | Entflechten und Doku (D6a gebaut 01.10., Stand oben; D6b Embed offen) | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
+| D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -536,6 +537,56 @@ Was in D6b bleibt (eigene PR):
   heute `StoryUebersicht`/`StoryThema` plus App-Glue (`StoryMitte`); die
   Konversations-Ansicht kommt mit D7 (Zitatmarken), die sie ohnehin neu
   baut.
+
+### Stand D7 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Eine Nummer je Dokument:** `dokumenteNummerieren` (`src/lib/chat/common/zitatmarken.ts`)
+  gruppiert die Treffer nach `fileId` in Trefferreihenfolge; Prompt
+  (`buildContext`, `beschreibeDokumente`) und Orchestrator
+  (`belegeAusGruppen`) rechnen mit derselben Nummerierung. Das Sprachmodell
+  zitiert Dokument-Nummern („one number = one document“); `usedReferences`
+  meint Dokumente. `DocReference.passages` (`@ks/contracts`, `DocPassage`:
+  `chunkIndex`, `page?`, `excerpt` ≈ 160 Zeichen) hängt die Textstellen an.
+  Cache-Hash unverändert.
+- **Seite je Chunk, nur mit Seitenankern:** `buildVectorDocuments` bekommt die
+  `PageSpan[]` aus `splitByPages(finalMarkdown)` und setzt `page` über die
+  Chunk-Mitte (`seiteFuerOffset`, `page-split.ts`); `vector-repo` schreibt es
+  in die Chunk-Metadaten, der Chunk-Retriever reicht es als
+  `RetrievedSource.page` weiter. Quellen ohne `--- Seite N ---` haben kein
+  Feld — kein Ersatzwert. Bestehende Libraries:
+  `pnpm tsx scripts/backfill-chunk-pages.ts --collection <name> [--apply]`
+  rechnet den eingebetteten Text aus dem Meta-Dokument nach (Trockenlauf
+  ohne `--apply`). **Noch nicht gelaufen** — Owner entscheidet, welche
+  PDF-Libraries nachgezogen werden.
+- **Marken im Text und an der Karte:** `zitatmarkenImText` (`@ks/util`) macht
+  aus `[n]` den Anker `[①](#beleg-n)`; `MarkdownPreview` lässt `#`-Links in
+  der Seite. Die Belegkarte trägt `id="beleg-<n>"`, zeigt ①… statt Zahlen,
+  ein Tooltip „stützt sich auf n Textstellen“ und darunter die Textstellen
+  mit Zitat; die Seite ist ein Knopf („S. 7“), „Original ansehen“ öffnet an
+  der ersten Seite. Ohne Seite nur das Zitat (Audio, Video, Markdown).
+- **Sprung auf die Seite:** `openDocument(slug, { page })` in beiden
+  Adressierungen (App: `openDocumentBySlug` setzt/löscht `page`; Embed:
+  `SpeicherGalleryNavigation`), `closeDocument` räumt `page` mit auf.
+  `GalleryRoot` liest `page` und gibt es an `DetailOverlay`; der Hook
+  `useSeitenSprung` (`detail-overlay/seiten-sprung.ts`) sucht
+  `[data-page-marker]` (Markdown, `injectPageAnchors`) oder `[data-page]`
+  (PDF-Canvas) im Viewport, versucht es bis 3 s nach dem Laden und meldet
+  einen fehlenden Anker einmal.
+
+Was bewusst anders ist als im Zielbild:
+
+- **Kein Tooltip auf der Marke im Text.** Die Marke ist ein Anker auf die
+  Karte; das Tooltip mit Zitaten sitzt an der Karte. Ein Tooltip im
+  Markdown-Text bräuchte einen eigenen Link-Renderer in `MarkdownPreview`
+  (App) und `markdown-body` (Paket) — kommt mit D6b, wenn die Konversation
+  ins Paket zieht und beide Renderer ohnehin zusammenfallen.
+- **Alte Antworten** (Query-Log vor D7) haben Referenzen je Textstelle ohne
+  `passages`; die Karte zeigt dann wie bisher den Kurztext aus der
+  Beschreibung, die Nummern im Text bleiben die alten.
+- `detail-overlay.tsx` ist mit 493 Zeilen weiter über der 200-Zeilen-Grenze
+  (Altlast, +5 Zeilen für den Sprung); das Aufteilen gehört zu D6b.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

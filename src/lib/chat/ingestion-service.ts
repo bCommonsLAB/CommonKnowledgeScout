@@ -1321,7 +1321,10 @@ export class IngestionService {
       
       // MongoDB-Vektoren aus RAG-Chunks bauen (mit Facetten-Metadaten)
       const facetValues = extractFacetValues(mongoDoc, docMetaJsonObj, facetDefs)
-      const vectors = buildVectorDocuments(ragResult, fileId, fileName, libraryId, userEmail, facetValues)
+      // D7: Seite je Chunk aus den Ankern DESSELBEN Textes, der eingebettet wurde
+      // (Chunk-Offsets beziehen sich auf finalMarkdown); ohne Anker keine Seiten.
+      const pageSpans = splitByPages(finalMarkdown)
+      const vectors = buildVectorDocuments(ragResult, fileId, fileName, libraryId, userEmail, facetValues, pageSpans)
       
       // Aktualisiere chunksUpserted mit der tatsächlichen Anzahl der Vektoren
       chunksUpserted = vectors.length

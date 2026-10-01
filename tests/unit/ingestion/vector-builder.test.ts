@@ -197,3 +197,35 @@ describe('buildVectorDocuments — Optional-Felder + Facets', () => {
     expect(vectors[0]).not.toHaveProperty('undef')
   })
 })
+
+describe('seiteFuerChunk / buildVectorDocuments — Seite je Chunk (D7)', async () => {
+  const { seiteFuerChunk, buildVectorDocuments } = await import('@/lib/ingestion/vector-builder')
+  const { splitByPages } = await import('@/lib/ingestion/page-split')
+  const md = 'Praefix\n--- Seite 1 ---\nEins eins eins\n--- Seite 2 ---\nZwei zwei zwei'
+  const spans = splitByPages(md)
+
+  it('nimmt die Chunk-Mitte; ohne Offsets oder Spannen keine Seite', () => {
+    const start2 = md.indexOf('Zwei')
+    expect(seiteFuerChunk(spans, start2, md.length)).toBe(2)
+    expect(seiteFuerChunk(spans, md.indexOf('--- Seite 2'), md.length)).toBe(2)
+    expect(seiteFuerChunk(spans, undefined, 10)).toBeUndefined()
+    expect(seiteFuerChunk([], 10, 20)).toBeUndefined()
+  })
+
+  it('schreibt page nur, wenn eine Seite bestimmt ist', () => {
+    const rag = {
+      chunks: [
+        { index: 0, text: 'Eins', embedding: [0.1], startChar: md.indexOf('Eins'), endChar: md.indexOf('--- Seite 2') },
+        { index: 1, text: 'Zwei', embedding: [0.1], startChar: md.indexOf('Zwei'), endChar: md.length },
+        { index: 2, text: 'Ohne', embedding: [0.1] },
+      ],
+      dimensions: 1,
+      model: 'test',
+    }
+    const mit = buildVectorDocuments(rag as never, 'f', 'f.md', 'lib', 'u@x', {}, spans)
+    expect(mit.map((v) => v.page)).toEqual([1, 2, undefined])
+    expect('page' in mit[2]).toBe(false)
+    const ohne = buildVectorDocuments(rag as never, 'f', 'f.md', 'lib', 'u@x', {})
+    expect(ohne.every((v) => !('page' in v))).toBe(true)
+  })
+})
