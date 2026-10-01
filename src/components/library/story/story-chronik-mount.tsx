@@ -14,7 +14,7 @@ import { SAME_ORIGIN_API } from '@ks/api-client'
 import { StoryChronik } from '@ks/module-story/react'
 import { useActiveChatId } from '@/components/library/chat/chat-panel/hooks/use-active-chat-id'
 
-export function StoryChronikMount({ libraryId }: { libraryId: string }) {
+export function StoryChronikMount({ libraryId, onGewaehlt }: { libraryId: string; onGewaehlt?: () => void }) {
   const { isSignedIn } = useUser()
   const { setActiveChatId } = useActiveChatId(libraryId)
   return (
@@ -24,6 +24,7 @@ export function StoryChronikMount({ libraryId }: { libraryId: string }) {
       viewer={{ isSignedIn: isSignedIn === true }}
       onSitzungWaehlen={setActiveChatId}
       onNeueSitzung={() => setActiveChatId(null)}
+      onGewaehlt={onGewaehlt}
     />
   )
 }

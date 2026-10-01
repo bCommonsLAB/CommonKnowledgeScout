@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@ks/ui'
-import { Settings2, ChevronLeft } from 'lucide-react'
+import { Settings2, ChevronLeft, PanelLeft } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
@@ -14,6 +14,8 @@ interface StoryHeaderProps {
   onBackToGallery?: () => void
   /** Library-ID (optional, wird aus Atom verwendet falls nicht angegeben) */
   libraryId?: string
+  /** D4: Menue-Knopf unter `lg`, oeffnet die Chronik als Sheet; ohne Rueckruf kein Knopf. */
+  onOpenChronik?: () => void
 }
 
 /**
@@ -23,7 +25,7 @@ interface StoryHeaderProps {
  * - Button "Eigene Perspektive anpassen" mit Popover für drei Dropdowns
  * - Button "Zurück zur Gallery" (optional)
  */
-export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp }: StoryHeaderProps) {
+export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp, onOpenChronik }: StoryHeaderProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
@@ -63,6 +65,20 @@ export function StoryHeader({ compact = false, onBackToGallery, libraryId: libra
 
       {/* Buttons: Zurück und Perspektive */}
       <div className="flex flex-wrap items-center gap-3 min-w-0 w-full">
+        {/* D4: Chronik (Themen, Meine Fragen) mobil als Sheet — nur unter lg,
+            auf dem Desktop steht sie als Spalte links. */}
+        {onOpenChronik && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenChronik}
+            className="flex items-center gap-2 shrink-0 lg:hidden"
+            aria-label={t('story.chronik.open')}
+          >
+            <PanelLeft className="h-4 w-4" />
+            <span className="whitespace-nowrap">{t('story.chronik.open')}</span>
+          </Button>
+        )}
         {/* Zurück-Button - vor Perspektive-Button */}
         {onBackToGallery && (
           <Button

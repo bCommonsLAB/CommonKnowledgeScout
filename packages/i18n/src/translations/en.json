@@ -878,6 +878,10 @@
         "pruefung": "Under review",
         "abgelehnt": "Rejected"
       }
+    },
+    "chronik": {
+      "title": "Chronicle",
+      "open": "Topics and questions"
     }
   }
 }

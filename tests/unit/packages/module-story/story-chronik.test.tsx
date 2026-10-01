@@ -53,7 +53,7 @@ function stubChats() {
   }))
 }
 
-function renderChronik() {
+function renderChronik(onGewaehlt?: () => void) {
   const store = createStore()
   store.set(storyGliederungAtom, gliederung)
   store.set(storyAktiveSitzungAtom, { chatId: 'aktiv', fragen: [
@@ -70,6 +70,7 @@ function renderChronik() {
         viewer={{ isSignedIn: true }}
         onSitzungWaehlen={onSitzungWaehlen}
         onNeueSitzung={onNeueSitzung}
+        onGewaehlt={onGewaehlt}
       />
     </Provider>,
   )
@@ -131,6 +132,21 @@ describe('StoryChronik', () => {
     // Klick waehlt die laufende Frage ueber ihre lokale Kennung, ohne die App auf eine Sitzung umzustellen.
     fireEvent.click(screen.getByText('story.running'))
     expect(store.get(storyAuswahlAtom)).toMatchObject({ art: 'konversation', frageId: 'question-9', queryId: undefined })
+  })
+
+  it('meldet jede Auswahl nach aussen (D4: das Sheet schliesst sich mobil)', async () => {
+    const onGewaehlt = vi.fn()
+    const { store } = renderChronik(onGewaehlt)
+    await waitFor(() => screen.getByText('heizen wir morgen'))
+    fireEvent.click(screen.getByText('heizen wir morgen'))
+    expect(onGewaehlt).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Verkehr' }))
+    expect(onGewaehlt).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'story.topicsOverview' }))
+    expect(onGewaehlt).toHaveBeenCalledTimes(3)
+    fireEvent.click(screen.getByRole('button', { name: /story.newSession/ }))
+    expect(onGewaehlt).toHaveBeenCalledTimes(4)
+    expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
   })
 
   it('„Themenuebersicht" und „Neue Sitzung" fuehren zur Uebersicht zurueck', async () => {

@@ -36,6 +36,8 @@ const LazyChatPanel = dynamic(
  *   mit Anmeldung und aktiver Sitzung der App verdrahtet.
  * - **Story-Auswahl in der Adresse** (D2): `q=<queryId>` per nuqs, neben dem
  *   Chat-Panel montiert — das Paket kennt keine Adresszeile.
+ * - **Chronik mobil** (D4): die Galerie zeigt den Slot im Sheet und reicht
+ *   `schliessen` mit; der Story-Kopf bekommt `onOpenChronik` fuer den Knopf.
  * - **Detail-Renderer** (M4g): welche Ansicht zu welchem Typ gehoert.
  * - **Website-Ansicht**, **Story-Kopf**, **Verifikations-Abzeichen** (M4g):
  *   drei App-Bausteine, die die Galerie nur noch zeigt, nicht mehr kennt.
@@ -65,13 +67,13 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
             <LazyChatPanel libraryId={libraryId} variant='embedded' />
           </>
         )}
-        storyChronik={(libraryId) => <StoryChronikMount libraryId={libraryId} />}
+        storyChronik={(libraryId, ctx) => <StoryChronikMount libraryId={libraryId} onGewaehlt={ctx?.schliessen} />}
         detailRenderers={DETAIL_RENDERERS}
         siteView={({ libraryId, onShowGallery }) => (
           <WebsiteLandingLive libraryId={libraryId} onShowGallery={onShowGallery} />
         )}
-        storyHeader={({ libraryId, onBackToGallery }) => (
-          <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} />
+        storyHeader={({ libraryId, onBackToGallery, onOpenChronik }) => (
+          <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} />
         )}
         verifikationsAbzeichen={<LibraryVerificationBadge />}
       />
