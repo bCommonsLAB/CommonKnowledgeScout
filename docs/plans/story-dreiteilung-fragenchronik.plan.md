@@ -26,8 +26,8 @@ todos:
     content: "[Gebaut 01.10.2026 (auf D1–D6a gestapelt), Live-Nachweis und Backfill-Lauf offen] Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
     status: done
   - id: d6-aufraeumen
-    content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b offen: StoryRoot in @ks/embed] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
-    status: in_progress
+    content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b gebaut 01.10.2026 (Konversation im Paket, StoryRoot im Embed, Detailansicht aufgeteilt); Live-Nachweis im Embed offen; die App montiert weiter ChatPanel — Umstellung auf StoryRoot ist D6c] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
+    status: done
 ---
 
 # Story-Modus: Dreiteilung mit Fragen-Chronik
@@ -260,7 +260,7 @@ Nachziehen.
 | D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
 | D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
-| D6 | Entflechten und Doku (D6a gebaut 01.10., Stand oben; D6b Embed offen) | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
+| D6 | Entflechten und Doku (D6a gebaut 01.10.; D6b gebaut 01.10.: Konversation im Paket, StoryRoot im Embed; D6c offen: App auf StoryRoot) | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200; Embed `view="story"` stellt Fragen |
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
@@ -587,6 +587,66 @@ Was bewusst anders ist als im Zielbild:
   Beschreibung, die Nummern im Text bleiben die alten.
 - `detail-overlay.tsx` ist mit 493 Zeilen weiter über der 200-Zeilen-Grenze
   (Altlast, +5 Zeilen für den Sprung); das Aufteilen gehört zu D6b.
+
+### Stand D6b (gebaut 01.10.2026) — Konversation im Paket, StoryRoot im Embed
+
+Was steht:
+
+- **Konversation in `@ks/module-story`** (`src/react/konversation/`): Vokabular
+  (`Nachricht`, `Perspektive`, `AntwortLaenge`), SSE-Zeilen, Fragenliste →
+  Nachrichten mit Paaren, Chronik-Fragen und Auswahl (`verlauf.ts`), Verlauf
+  einer Sitzung (`useStoryVerlauf`) und Stream (`useStoryStream`: Frage und
+  Themenübersicht über denselben Weg, `complete` bringt Antwort, Belege,
+  Kurztitel, Sitzung) — alles über die Instanz, ohne Clerk, ohne `@/`,
+  Paket-Schnitt- und Fetch-Tests grün. Die Systemfrage der Themenübersicht
+  liegt als `STORY_TOC_QUESTION` in `@ks/contracts`; die App exportiert sie
+  weiter als `TOC_QUESTION`.
+- **Antworttext mit Zitatmarken** (`AntwortText`): dieselbe Markdown-Engine
+  wie die Buch-Ansicht (`md` aus `@ks/viewers`), Marken ①… als Anker mit
+  `title` „Dokument: stützt sich auf n Textstellen“ (`mitMarkenTiteln`, reine
+  String-Arbeit auf dem HTML). Klick scrollt zur Belegkarte `#beleg-n`, die
+  Adresse bleibt unberührt (Embed). Das ist der Tooltip im Text aus D7 — im
+  Paket; die App zeigt im Chat-Panel weiter nur den Anker (MarkdownPreview
+  rendert HTML aus einem eigenen Pfad).
+- **`StoryRoot`** (Mitte + Eingabe): Themenübersicht, Themenseite oder genau
+  die gewählte Konversation; Anschlussfragen und Themenfragen landen in der
+  aufklappbaren Eingabe; aktive Sitzung je Library über `useStorySitzungId`
+  (Atom + localStorage, derselbe Schlüssel wie `useActiveChatId` der App);
+  Verdrahtung in `useStoryKonversation` (Autostart der Übersicht einmal je
+  Filter- und Perspektiven-Stand, gesendete Frage wird die aktive
+  Konversation per Rückruf `onFrage`, Kennung und Thema werden nachgetragen,
+  Chronik-Atome gefüllt). `StoryKopfzeile` für Montagepunkte ohne eigenen
+  Story-Kopf.
+- **Embed `view="story"`** (`packages/embed/src/embed-story.tsx`): die drei
+  Story-Slots der Galerie mit `StoryRoot`, `StoryChronik` und
+  `StoryKopfzeile`, Start im Story-Modus (`initialParams=mode=story`).
+  Perspektive aus der Chat-Konfig der Library, Sprache = `locale` des
+  Embeds, Modell = erstes öffentlich gelistetes (Regel wie `useStoryContext`),
+  Belege über `chatReferencesAtom` an die Belegliste rechts, Dokumentenzahl
+  aus dem geteilten Galerie-Zustand. Ohne Modell eine sichtbare Meldung.
+  Bündel gebaut und geprüft (`pnpm --filter @ks/embed build`, 1,7 MB ESM).
+- **Detailansicht aufgeteilt**: `detail-overlay.tsx` 493 → 139 Zeilen;
+  Props-Vertrag, Doc-Meta, Bewertungsmodus, Kopf und Inhalt unter
+  `detail-overlay/`, jede Datei unter 200 Zeilen.
+
+Was bewusst (noch) nicht ist:
+
+- **Die App montiert weiter `ChatPanel`** (`variant='embedded'`) als
+  Story-Mitte. Sie trägt, was das Paket nicht hat: Perspektiven-Seite,
+  Konfig-Anzeige, Debug und Protokoll, Löschen und Neu-Stellen,
+  Filter-Ereignisse, Nachladen-Hinweis. Die Umstellung der App auf
+  `StoryRoot` (und der Rückbau von `chat-panel/`, `chat-messages-list`,
+  `use-chat-stream`, `use-chat-history` für die Story-Mitte) ist **D6c** —
+  erst nach dem Live-Nachweis des Embeds, damit beide Wege nicht gleichzeitig
+  kippen.
+- Im Embed gibt es keine Perspektiven-Wahl (ADR 0008: nur Öffentliches, keine
+  Identität); Interessenprofil und Sprachstil kommen aus der Library.
+- `publicPublishing.story` (topicsTitle, topicsIntro) fehlt der öffentlichen
+  Library-Route weiterhin (Befund D1); im Embed heißt die Übersicht nach der
+  Gliederung.
+- Live-Nachweis offen: `view="story"` in einer fremden Next-App — Übersicht
+  entsteht, Frage antwortet mit ① auf der Karte rechts, Chronik listet die
+  Sitzung nach dem Neuladen.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

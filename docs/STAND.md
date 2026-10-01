@@ -77,7 +77,11 @@ am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
   09.09.): Archiv `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
 Nicht in diesem Vorhaben: M6 bis M8, Headless-API P8, Story und Chat im Embed
-vor der Galerie.
+vor der Galerie. **Nachtrag 01.10.2026**: Der Story-Modus liegt seit D6b des
+Plans [`story-dreiteilung-fragenchronik`](plans/story-dreiteilung-fragenchronik.plan.md)
+als `view="story"` im Embed (Konversation in `@ks/module-story`, anonym über
+die Sitzungskennung); Live-Nachweis in einer fremden App offen, die App
+montiert ihre Story-Mitte weiter über `ChatPanel` (D6c).
 
 ## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
 

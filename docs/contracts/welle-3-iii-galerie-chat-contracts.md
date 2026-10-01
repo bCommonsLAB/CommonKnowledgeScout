@@ -62,6 +62,14 @@ Filter-Komponenten. Sie ergaenzt:
   - `story/story-mode-header.tsx`, `story-header.tsx`, `story-mitte.tsx`,
     `story-chronik-mount.tsx`, `story-auswahl-url.tsx` (Bausteine aus
     `@ks/module-story/react`, Plan `story-dreiteilung-fragenchronik`)
+- **Story-Paket** (`packages/module-story/src/react/`, seit D6b die
+  Konversation): `konversation/` (Verlauf, Stream, Antworttext mit
+  Zitatmarken, Eingabe), `story-root.tsx` (Mitte + Eingabe als Wurzel),
+  `story-root/use-story-konversation.ts` (Verdrahtung), `story-kopfzeile.tsx`.
+  Regeln: nur `instanz.fetch`, kein Clerk, kein `next/*`, kein `@/`, keine
+  Adresszeile — `tests/unit/packages/module-story/{paket-schnitt,instanz-fetch}.test.ts`.
+  Das Embed (`packages/embed/src/embed-story.tsx`) montiert sie als die drei
+  Story-Slots der Galerie; die App montiert dort weiter `ChatPanel` (D6c).
 - **Perspective**:
   - `shared/perspective-page-content.tsx` (926z, 13 Hooks),
     `shared/perspective-display.tsx`
@@ -154,6 +162,10 @@ Filter-Komponenten. Sie ergaenzt:
   (`chat-welcome-assistant.tsx`). Niemals leeres Panel.
 - **Chat-Streaming-Abbruch**: laufender Stream zeigt
   Abbruch-Indikator + erlaubt Retry.
+- **Story-Paket, Fehler im Stream**: `useStoryStream` entfernt die Frage
+  wieder und meldet den Text (`onFehler`), `StoryRoot` zeigt ihn unter der
+  Konversation bzw. der Uebersicht. Ohne Sprachmodell (`llmModel` leer)
+  wird nicht gefragt — der Montagepunkt zeigt `story.modelMissing`.
 - **Story-Mode ohne Topics**: Empty-State + Verweis auf
   Story-Generierung.
 - **Perspective ohne Daten**: Loading-Skeleton im Hook-Loading-State,
