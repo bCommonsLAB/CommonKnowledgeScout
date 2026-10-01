@@ -16,8 +16,8 @@ import { renderToString } from 'react-dom/server'
 vi.mock('@ks/module-explorer/react', async (original) => ({
   ...(await original<typeof import('@ks/module-explorer/react')>()),
   // Die Galerie hat eigene Tests; hier geht es um die Huelle.
-  GalleryRoot: ({ libraryIdProp }: { libraryIdProp?: string }) => (
-    <div data-testid="galerie">{`galerie:${libraryIdProp}`}</div>
+  GalleryRoot: ({ libraryIdProp, storyPanel, storyChronik, storyHeader }: { libraryIdProp?: string; storyPanel?: unknown; storyChronik?: unknown; storyHeader?: unknown }) => (
+    <div data-testid="galerie" data-story={[storyPanel, storyChronik, storyHeader].filter(Boolean).length}>{`galerie:${libraryIdProp}`}</div>
   ),
 }))
 
@@ -61,6 +61,15 @@ describe('KnowledgeScoutExplorer', () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit | undefined]
     expect(url).toBe('https://ks.example/api/public/libraries/aeced')
     expect(new Headers(init?.headers).get('Accept-Language')).toBe('it')
+  })
+
+  it('D6b: view="story" montiert die drei Story-Slots, "gallery" keinen', async () => {
+    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } } })
+    const { unmount } = render(<KnowledgeScoutExplorer {...GRUND} view="story" />)
+    expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('3')
+    unmount()
+    render(<KnowledgeScoutExplorer {...GRUND} />)
+    expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('0')
   })
 
   it('legt alles in den Rahmen .ks-embed mit der gewuenschten Hoehe', async () => {
@@ -113,7 +122,7 @@ describe('KnowledgeScoutExplorer', () => {
   it.each([
     ['eine Basis-URL ohne Schema', { baseUrl: 'knowledgescout.org' }, /Basis-URL/],
     ['eine unbekannte Sprache', { locale: 'xx' }, /Sprache "xx"/],
-    ['eine unbekannte Ansicht', { view: 'story' }, /Ansicht "story"/],
+    ['eine unbekannte Ansicht', { view: 'tabelle' }, /Ansicht "tabelle"/],
   ])('meldet %s im Rahmen, ohne einen Request', (_fall, falsch, meldung) => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const fetchMock = stubFetch({})

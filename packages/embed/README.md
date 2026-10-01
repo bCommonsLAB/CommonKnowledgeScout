@@ -31,7 +31,7 @@ export default function Galerie() {
 |---|---|
 | `baseUrl` | Die Instanz, mit `https://` |
 | `library` | Slug einer öffentlichen Library |
-| `view` | Bisher nur `"gallery"` |
+| `view` | `"gallery"` (Inhalte) oder `"story"` (Themenübersicht, Fragen, Belege; anonym über eine Sitzungskennung im Browser der Besucherin) |
 | `locale` | `en`, `de`, `it`, `fr` oder `es` — gilt für Oberfläche und Inhalte |
 | `height` | Höhe des Rahmens (Standard `80vh`); die Galerie scrollt darin |
 | `className` | Zusätzliche Klassen für den Rahmen |
@@ -48,13 +48,20 @@ export default function Galerie() {
 - Falsche Props (Basis-URL ohne `https://`, unbekannte Sprache) meldet die
   Komponente sichtbar im Rahmen und in der Konsole.
 - Eine Library, die eine Anmeldung verlangt, wird nicht angezeigt.
+- `view="story"`: Fragen laufen über die Instanz mit deren erstem öffentlich
+  gelisteten Sprachmodell; die Perspektive (Interessenprofil, Sprachstil)
+  kommt aus der Chat-Konfiguration der Library, die Sprache aus `locale`.
+  Sitzungen und Fragen hängen an einer anonymen Sitzungskennung (30 Tage,
+  localStorage) — keine Anmeldung, kein Token.
 
 ## English
 
 A React component that shows the gallery of a **public** KnowledgeScout
 library inside another application. It reads anonymously from the central
 instance. Install the `.tgz`, import `@ks/embed/styles.css` once, and render
-`<KnowledgeScoutExplorer baseUrl library view="gallery" locale />` as above.
+`<KnowledgeScoutExplorer baseUrl library view="gallery" locale />` as above;
+`view="story"` adds the story mode (topic overview, questions with cited
+sources) over an anonymous browser session.
 All styles are scoped to `.ks-embed`.
 
 ## Bauen (im Monorepo)

@@ -19,8 +19,11 @@ export interface KnowledgeScoutExplorerProps {
   baseUrl: string
   /** Slug der oeffentlichen Library, z. B. `aeced`. */
   library: string
-  /** Welche Ansicht. Das Embed kann bisher die Galerie. */
-  view: 'gallery'
+  /**
+   * Welche Ansicht: `gallery` (Inhalte) oder `story` (D6b: Themenuebersicht,
+   * Fragen und Belege, anonym ueber die Sitzungskennung des Browsers).
+   */
+  view: 'gallery' | 'story'
   /** Sprache der Oberflaeche und der Inhalte. */
   locale: KnowledgeScoutLocale
   /** Hoehe des Rahmens als CSS-Wert; die Galerie scrollt darin. Standard: `80vh`. */
