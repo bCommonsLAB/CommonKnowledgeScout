@@ -91,3 +91,13 @@ export function belegeAusGruppen(
       }
     })
 }
+
+/** Fuer den Prompt: `[n] = Dateiname (Beschreibung1; Beschreibung2)`, kommagetrennt. */
+export function beschreibeDokumente(gruppen: DokumentGruppe[], beschreibung: (source: RetrievedSource) => string): string {
+  return gruppen
+    .map((g) => {
+      const stellen = Array.from(new Set(g.sources.map(beschreibung))).join('; ')
+      return `[${g.nummer}] = ${g.fileName ?? g.fileId} (${stellen})`
+    })
+    .join(', ')
+}
