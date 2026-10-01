@@ -18,6 +18,7 @@ import { parseSSELines } from '@/utils/sse'
 import { formatChatError } from '@/utils/error-format'
 import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
 import type { UseChatStreamParams, UseChatStreamResult } from './types'
+import { scrollElementToViewportTop } from '../use-chat-scroll'
 
 /**
  * Hook für Chat-Stream-Verarbeitung
@@ -361,16 +362,24 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
                 const newConversationId = finalQueryId
                 setOpenConversations(new Set([newConversationId]))
 
-                // Scroll zum neuen Accordion nach kurzer Verzögerung
-                // Robuste Implementierung für ältere Geräte
+                // Scroll zum neuen Accordion nach kurzer Verzögerung: Frage oben
+                // buendig, Antwort darunter. `scrollIntoView(nearest)` setzte eine
+                // kurze Antwort unten ins Fenster (Befund 01.10.2026).
+                // Dreimal setzen (0 / 300 / 800 ms): das Akkordeon oeffnet sich
+                // animiert und die Antwort rendert nach, beides verschiebt die Frage.
                 setTimeout(() => {
                   const tryScroll = (attempts = 0) => {
-                  const element = document.querySelector(`[data-conversation-id="${newConversationId}"]`)
+                  // Die Kennung im Verlauf lautet "<queryId>-<frageId>" (siehe
+                  // groupMessagesToConversations), deshalb Praefix-Suche. Die
+                  // exakte Suche fand nie etwas — der Scroll lief nie (Befund 01.10.2026).
+                  const element = document.querySelector(`[data-conversation-id^="${newConversationId}"]`)
                     if (element && element.parentElement && element.parentElement.contains(element)) {
                       try {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    scrollElementToViewportTop(element)
+                    setTimeout(() => scrollElementToViewportTop(element), 300)
+                    setTimeout(() => scrollElementToViewportTop(element), 800)
                       } catch {
-                        // scrollIntoView wird auf aelteren Geraeten nicht unterstuetzt — kein Log noetig
+                        // Scroll-APIs fehlen auf sehr alten Geraeten — kein Log noetig
                       }
                     } else if (attempts < 3) {
                       // Versuche es nochmal nach kurzer Verzögerung

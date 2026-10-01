@@ -1174,6 +1174,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               isGeneratingTOC={isGeneratingTOC}
               cachedTOC={cachedTOC}
             />
+            {/* Platzhalter: Hoehe setzt scrollElementToViewportTop (use-chat-scroll),
+                damit die zuletzt gestellte Frage oben buendig stehen kann. */}
+            <div data-chat-scroll-spacer aria-hidden="true" />
           </div>
         </ScrollArea>
         
