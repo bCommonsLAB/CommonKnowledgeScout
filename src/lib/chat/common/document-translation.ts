@@ -550,6 +550,44 @@ type GenericTranslatedFieldValue = string | string[] | undefined | null
  * Hinweis: `nested`-Strukturen (z.B. book.chapters, session.slides) werden hier
  * NICHT abgedeckt - dafuer sind die spezialisierten Translator zustaendig.
  */
+/**
+ * Kurzbeschreibung einer Secretary-Antwort fuer Fehlermeldungen: Status,
+ * vorhandene Schluessel unter data, Anfang von data.text. Keine Geheimnisse,
+ * gekuerzt auf wenige hundert Zeichen.
+ */
+export function describeSecretaryResponse(responseData: unknown): string {
+  if (!responseData || typeof responseData !== 'object') {
+    return `Antwort ist kein Objekt (${typeof responseData})`
+  }
+  const r = responseData as {
+    status?: unknown
+    error?: unknown
+    data?: Record<string, unknown> | null
+    process?: { llm_info?: { model?: unknown } }
+  }
+  const dataKeys = r.data && typeof r.data === 'object' ? Object.keys(r.data).join(',') : '(kein data)'
+  const text = r.data && typeof r.data.text === 'string' ? r.data.text : undefined
+  const textHead = text !== undefined ? JSON.stringify(text.slice(0, 200)) : '(kein text)'
+  const errorPart = r.error ? ` error=${JSON.stringify(r.error).slice(0, 200)}` : ''
+  const model = r.process?.llm_info?.model
+  const modelPart = model ? ` model=${String(model)}` : ''
+  // Verschachtelte Antwort (Befund 30.09.2026): Der Secretary kann aussen
+  // status=success melden und in data ein ZWEITES Antwort-Objekt mit eigenem
+  // status=error tragen. Dann sind dessen status/error/translation/data die
+  // eigentliche Auskunft — der request-Teil (Prompt, Text) bleibt aussen vor.
+  let innerPart = ''
+  if (r.data && typeof r.data === 'object' && 'status' in r.data) {
+    const inner = r.data as { status?: unknown; error?: unknown; translation?: unknown; data?: unknown }
+    const innerData = inner.data && typeof inner.data === 'object' ? Object.keys(inner.data as object).join(',') : String(inner.data)
+    innerPart =
+      ` inner.status=${String(inner.status)}` +
+      ` inner.error=${JSON.stringify(inner.error ?? null).slice(0, 400)}` +
+      ` inner.translation=${JSON.stringify(inner.translation ?? null).slice(0, 200)}` +
+      ` inner.data-keys=[${innerData}]`
+  }
+  return `status=${String(r.status)} data-keys=[${dataKeys}] text=${textHead}${errorPart}${modelPart}${innerPart}`
+}
+
 function buildGenericTranslationTemplate(
   textKeys: string[],
   arrayKeys: string[],
@@ -715,7 +753,15 @@ export async function translateGenericData<T extends Record<string, unknown>>(
     structuredData = inner?.structured_data
   }
   if (!structuredData) {
-    throw new Error('Secretary Service lieferte kein structured_data')
+    // Diagnose statt nackter Meldung (Befund 30.09.2026, 125 von 1236 Jobs):
+    // Der Secretary antwortet mit status=success, aber ohne structured_data.
+    // Ohne Blick in die Antwort ist nicht zu unterscheiden, ob das LLM kein
+    // JSON geliefert hat, der Secretary es nicht parsen konnte oder ein
+    // Cache-Treffer defekt ist. Deshalb Status, Schluessel und Textanfang
+    // in die Fehlermeldung (landet im Job-Fehler und im Dokument-Status).
+    throw new Error(
+      `Secretary Service lieferte kein structured_data — ${describeSecretaryResponse(responseData)}`,
+    )
   }
 
   const validated = schema.parse(structuredData)

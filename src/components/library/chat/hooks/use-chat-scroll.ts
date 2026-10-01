@@ -3,6 +3,48 @@ import type { ChatMessage } from '../utils/chat-utils'
 import { groupMessagesToConversations } from '../utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 
+/** Abstand (px) zwischen Viewport-Oberkante und Frage-Oberkante. */
+const SCROLL_TOP_OFFSET_PX = 8
+
+/**
+ * Scrollt den naechsten Scroll-Viewport so, dass `el` oben buendig steht.
+ *
+ * Bewusst NICHT `scrollIntoView`: das scrollt auch das Fenster mit, und mit
+ * `block: 'nearest'` landete eine kurze Antwort unten im Viewport, die
+ * Themenuebersicht darueber (Befund 01.10.2026). Gewollt ist: Frage oben,
+ * Antwort darunter — bei jeder Antwortlaenge gleich.
+ *
+ * Bewusst NICHT `behavior: 'smooth'`: waehrend die Antwort streamt, waechst
+ * der Inhalt, und Chrome bricht eine laufende weiche Scroll-Animation dabei
+ * ab — die Frage blieb dann mitten im Fenster stehen (Messung 01.10.2026,
+ * Frage bei 393 px statt 8 px). Sofortiges Setzen ist stabil.
+ */
+export function scrollElementToViewportTop(el: Element): void {
+  const viewport = el.closest('[data-radix-scroll-area-viewport]')
+  if (!(viewport instanceof HTMLElement)) return
+  // Platzhalter unter dem Verlauf: Solange die Antwort fehlt oder kurz ist,
+  // reicht der Inhalt nicht, um die letzte Frage nach oben zu schieben — der
+  // Bereich scrollt nur bis zum Ende. Der Platzhalter fuellt genau die Luecke
+  // (Fensterhoehe minus Hoehe der Konversation) und schrumpft, sobald die
+  // Antwort waechst. Fehlt er im DOM, laeuft der Scroll ohne ihn.
+  const spacer = viewport.querySelector('[data-chat-scroll-spacer]')
+  if (spacer instanceof HTMLElement) {
+    const gap = viewport.clientHeight - el.getBoundingClientRect().height - SCROLL_TOP_OFFSET_PX
+    spacer.style.height = `${Math.max(0, Math.round(gap))}px`
+  }
+  const top =
+    el.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop - SCROLL_TOP_OFFSET_PX
+  viewport.scrollTo({ top: Math.max(0, top), behavior: 'auto' })
+}
+
+/** Letzte Konversation (ohne Themenuebersicht) im Scroll-Bereich finden. */
+function findLastConversationElement(root: HTMLElement): Element | null {
+  const all = Array.from(root.querySelectorAll('[data-conversation-id]')).filter(
+    (el) => el.getAttribute('data-conversation-id') !== 'toc',
+  )
+  return all.length > 0 ? all[all.length - 1] : null
+}
+
 interface UseChatScrollProps {
   scrollRef: RefObject<HTMLDivElement>
   messages: ChatMessage[]
@@ -39,51 +81,27 @@ export function useChatScroll({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]) // prevMessagesLengthRef ist ein Ref und muss nicht in Dependencies sein
 
-  // Auto-Scroll beim Start des Sendens (wenn Frage hinzugefügt wird)
+  // Auto-Scroll beim Start des Sendens: die neue Frage oben buendig stellen.
+  // Vorher wurde "ans Ende" gescrollt — dann stand die Frage unten im Fenster
+  // und die Themenuebersicht fuellte den Rest (Befund 01.10.2026). Der
+  // Verarbeitungsstatus haengt direkt unter der Frage und bleibt so sichtbar.
   useEffect(() => {
     if (!isSending) return
-    
-    // Scroll zum Ende, wenn eine Frage gesendet wird
-    const scrollToBottom = () => {
-      if (scrollRef.current) {
-        const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]')
-        if (viewport) {
-          viewport.scrollTo({
-            top: viewport.scrollHeight,
-            behavior: 'smooth'
-          })
-        }
-      }
+    const scrollToQuestion = () => {
+      if (!scrollRef.current) return
+      const el = findLastConversationElement(scrollRef.current)
+      if (el) scrollElementToViewportTop(el)
     }
-    
-    // Scroll sofort und nochmal nach kurzer Verzögerung
-    scrollToBottom()
-    setTimeout(scrollToBottom, 200)
+    // Sofort und nochmal nach kurzer Verzoegerung (Frage ist dann sicher gerendert)
+    scrollToQuestion()
+    const timeoutId = setTimeout(scrollToQuestion, 200)
+    return () => clearTimeout(timeoutId)
   }, [isSending, scrollRef])
 
-  // Auto-Scroll während der Verarbeitung (Processing Steps)
-  useEffect(() => {
-    if (!isSending || processingSteps.length === 0) return
-    
-    // Scroll zum Ende des Scroll-Bereichs, damit Processing-Status sichtbar ist
-    const scrollToBottom = () => {
-      if (scrollRef.current) {
-        const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]')
-        if (viewport) {
-          viewport.scrollTo({
-            top: viewport.scrollHeight,
-            behavior: 'smooth'
-          })
-        }
-      }
-    }
-    
-    // Scroll sofort und dann nochmal nach kurzer Verzögerung für Updates
-    scrollToBottom()
-    const timeoutId = setTimeout(scrollToBottom, 300)
-    
-    return () => clearTimeout(timeoutId)
-  }, [isSending, processingSteps, scrollRef])
+  // Waehrend der Verarbeitung wird bewusst NICHT mehr nachgescrollt: die
+  // Frage bleibt oben stehen, der Status darunter waechst nach unten.
+  // (processingSteps bleibt in der Signatur, damit Aufrufer unveraendert bleiben.)
+  void processingSteps
 
   // Auto-Scroll wenn neue Antworten hinzugefügt werden - scrollt zum Anfang der Antwort
   // Öffne nur, wenn die Antwort wirklich neu ist und noch nie automatisch geöffnet wurde
