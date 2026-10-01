@@ -47,3 +47,11 @@ export interface StoryQuestion {
   /** Frage im Klartext */
   text: string
 }
+
+/**
+ * Die Systemfrage, mit der der Chat-Server die Themenuebersicht erzeugt
+ * (D6b: eine Quelle fuer App und `@ks/module-story`; die App exportiert sie
+ * weiter als `TOC_QUESTION` in `src/lib/chat/constants.ts`). Der Text ist Teil
+ * des Cache-Schluessels — wer ihn aendert, entwertet alle Uebersichten.
+ */
+export const STORY_TOC_QUESTION = 'What topics are covered here? Can we output them as a table of contents.'

@@ -52,6 +52,7 @@ import type {
   AccessPerspective,
 } from '@ks/contracts'
 import { SOCIAL_CONTEXT_VALUES } from '@ks/contracts'
+import { STORY_TOC_QUESTION } from '@ks/contracts'
 
 // Re-Export, damit die bestehenden Importeure unveraendert bleiben (G2-Fassade)
 export type { TargetLanguage, Character, SocialContext, AccessPerspective }
@@ -795,7 +796,7 @@ export function isValidRetriever(value: unknown): value is Retriever {
  * Standard question used to generate Table of Contents (TOC) / Topic Overview
  * This question is sent to the LLM to generate a structured topic overview
  */
-export const TOC_QUESTION = 'What topics are covered here? Can we output them as a table of contents.'
+export const TOC_QUESTION: string = STORY_TOC_QUESTION
 
 // ============================================================================
 // LLM MODELL (LlmModelId)
