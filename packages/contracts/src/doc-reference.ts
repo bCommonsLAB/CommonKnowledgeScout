@@ -21,9 +21,25 @@
  */
 
 /**
+ * Eine zitierte Textstelle eines Dokuments (D7, Plan
+ * `story-dreiteilung-fragenchronik`). `page` gibt es nur fuer Quellen mit
+ * Seitenankern (PDF-Transkripte); Audio, Video, Markdown haben keine —
+ * kein Ersatzwert.
+ */
+export interface DocPassage {
+  chunkIndex?: number
+  page?: number
+  /** Die ersten ~160 Zeichen der Textstelle, serverseitig mitgeliefert. */
+  excerpt: string
+}
+
+/**
  * Ein zitiertes Dokument, wie es unter einer Antwort erscheint.
  *
- * `number` ist die Fussnoten-Nummer im Antworttext (`[1]`, `[2]`, …).
+ * `number` ist die Zitatmarke im Antworttext (`[1]`, `[2]`, …). Seit D7 wird
+ * je DOKUMENT nummeriert, die Textstellen haengen als `passages` darunter.
+ * Aeltere Antworten (ohne `passages`) tragen eine Nummer je Textstelle —
+ * die Oberflaeche gruppiert sie weiterhin nach `fileId`.
  */
 export interface DocReference {
   number: number
@@ -32,6 +48,8 @@ export interface DocReference {
   description: string
   /** Inhaltstyp des referenzierten Dokuments (A4: formatgerechte Story-Verweise). */
   detailViewType?: string
+  /** D7: die zitierten Textstellen dieses Dokuments; fehlt bei alten Antworten. */
+  passages?: DocPassage[]
 }
 
 /**

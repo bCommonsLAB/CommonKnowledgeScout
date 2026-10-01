@@ -18,6 +18,8 @@ export interface RetrievedSource {
   chunkIndex?: number
   score?: number
   text: string
+  /** D7: Seite der Textstelle — nur bei Quellen mit Seitenankern (`--- Seite N ---`), sonst fehlt das Feld. */
+  page?: number
   sourceType?: 'slides' | 'body' | 'video_transcript' | 'chapter' // Quelle des Chunks
   // Zusätzliche Metadaten für benutzerfreundliche Beschreibungen
   slidePageNum?: number // Für Slides: Seiten-Nummer

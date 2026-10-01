@@ -93,7 +93,7 @@ export type {
 
 export type { DocCardMeta, DetailDoc, ChapterInfo, FavoriteVoter } from './doc-card-meta'
 
-export type { DocReference, QuerySource } from './doc-reference'
+export type { DocReference, DocPassage, QuerySource } from './doc-reference'
 
 export type { StoryTopicsData, StoryTopic, StoryQuestion } from './story-topics'
 
