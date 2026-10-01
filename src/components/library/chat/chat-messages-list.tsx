@@ -35,7 +35,6 @@ interface ChatMessagesListProps {
     socialContext?: SocialContext
   }) => Promise<void>
   messageRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
-  isEmbedded?: boolean
   isCheckingTOC?: boolean
   isGeneratingTOC?: boolean
   cachedTOC?: unknown
@@ -69,7 +68,6 @@ export function ChatMessagesList({
   onDelete,
   onReload,
   messageRefs,
-  isEmbedded = false,
   isCheckingTOC = false,
   isGeneratingTOC = false,
   cachedTOC = null,
@@ -77,8 +75,8 @@ export function ChatMessagesList({
   const { t } = useTranslation()
   const conversations = groupMessagesToConversations(messages)
 
-  // Leerer Zustand / Startnachricht - nicht im embedded Modus
-  if (!isEmbedded && !isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending) {
+  // Leerer Zustand / Startnachricht
+  if (!isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
         <div className="text-4xl mb-4">💡</div>
@@ -185,7 +183,7 @@ export function ChatMessagesList({
               {/* Processing Steps - dezent innerhalb des Blocks */}
               {processingSteps.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border/50">
-                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC || isGeneratingTOC} einfach={isEmbedded} />
+                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC || isGeneratingTOC} />
                 </div>
               )}
             </div>

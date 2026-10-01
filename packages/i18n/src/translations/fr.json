@@ -899,6 +899,11 @@
     "eingabe": {
       "tooLong": "La question est trop longue (au plus {max} caractères)."
     },
-    "modelMissing": "Aucun modèle de langage disponible – les questions ne sont pas possibles pour le moment."
+    "modelMissing": "Aucun modèle de langage disponible – les questions ne sont pas possibles pour le moment.",
+    "konversation": {
+      "delete": "Supprimer la question",
+      "deleteConfirm": "Vraiment supprimer cette question ?",
+      "again": "Reposer la question"
+    }
   }
 }

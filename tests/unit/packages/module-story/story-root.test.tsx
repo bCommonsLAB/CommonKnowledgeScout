@@ -38,6 +38,7 @@ function sse(schritte: unknown[]) {
 
 const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
   if (url.includes('/queries?')) return { ok: true, status: 200, json: async () => ({ items: [] }) }
+  if (init?.method === 'DELETE') return { ok: true, status: 200, json: async () => ({}) }
   if (url.includes('/stream?')) {
     const body = JSON.parse(String(init?.body)) as { message: string }
     if (body.message === STORY_TOC_QUESTION) {
@@ -76,6 +77,8 @@ function montieren(dokumente = 12) {
         eingabe={{ placeholder: 'Frag mich', maxZeichen: 500 }}
         onBelege={onBelege}
         antwortFuss={() => <span data-testid="fuss">KI</span>}
+        uebersichtFuss={({ queryId }) => <span data-testid="uebersicht-fuss">{queryId ?? '—'}</span>}
+        loeschenErlaubt
       />
     </Provider>,
   )
@@ -91,6 +94,7 @@ describe('StoryRoot', () => {
     expect(String(tocCall?.[0])).toMatch(/^https:\/\/ks\.example\/api\/chat\/lib\/stream\?.*llmModel=m/)
     expect(new Headers(tocCall?.[1]?.headers).get('X-Session-ID')).toMatch(/^anon-/)
     expect(store.get(storyGliederungAtom)).toEqual(gliederung)
+    expect(screen.getByTestId('uebersicht-fuss').textContent).toBe('toc')
     // Nur einmal geholt, auch nach weiteren Renders.
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))).toHaveLength(1)
   })
@@ -121,5 +125,34 @@ describe('StoryRoot', () => {
     expect(auswahl).toMatchObject({ art: 'konversation', queryId: 'q9', themaId: 'verkehr' })
     expect(store.get(storyAktiveSitzungAtom)).toMatchObject({ chatId: 'c1', fragen: [expect.objectContaining({ queryId: 'q9', kurztitel: 'Radwege', offen: false })] })
     expect(localStorage.getItem('chat-activeChatId-lib')).toBe('c1')
+  })
+
+  it('D6c: Frage loeschen fragt nach, loescht ueber die Instanz und kehrt zur Uebersicht zurueck; „neu stellen" fuellt die Eingabe', async () => {
+    const { store } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    fireEvent.click(screen.getByText('Verkehr'))
+    fireEvent.click(screen.getByText('Welche Massnahmen gibt es zum Verkehr?'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'story.konversation.delete' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'story.konversation.again' }))
+    expect((screen.getByPlaceholderText('Frag mich') as HTMLTextAreaElement).value).toBe('Welche Massnahmen gibt es zum Verkehr?')
+
+    vi.stubGlobal('confirm', vi.fn(() => false))
+    fireEvent.click(screen.getByRole('button', { name: 'story.konversation.delete' }))
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'story.konversation.delete' }))
+    })
+    const del = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')
+    expect(String(del?.[0])).toBe('https://ks.example/api/chat/lib/queries/q9')
+    expect(new Headers(del?.[1]?.headers).get('X-Session-ID')).toMatch(/^anon-/)
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
+    expect(store.get(storyAktiveSitzungAtom).fragen).toEqual([])
   })
 })

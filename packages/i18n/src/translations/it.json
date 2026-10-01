@@ -899,6 +899,11 @@
     "eingabe": {
       "tooLong": "La domanda è troppo lunga (al massimo {max} caratteri)."
     },
-    "modelMissing": "Nessun modello linguistico disponibile – al momento non è possibile porre domande."
+    "modelMissing": "Nessun modello linguistico disponibile – al momento non è possibile porre domande.",
+    "konversation": {
+      "delete": "Elimina domanda",
+      "deleteConfirm": "Eliminare davvero questa domanda?",
+      "again": "Ripeti la domanda"
+    }
   }
 }

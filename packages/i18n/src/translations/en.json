@@ -899,6 +899,11 @@
     "eingabe": {
       "tooLong": "The question is too long (at most {max} characters)."
     },
-    "modelMissing": "No language model available – questions are not possible right now."
+    "modelMissing": "No language model available – questions are not possible right now.",
+    "konversation": {
+      "delete": "Delete question",
+      "deleteConfirm": "Really delete this question?",
+      "again": "Ask again"
+    }
   }
 }

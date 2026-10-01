@@ -946,6 +946,11 @@
     "eingabe": {
       "tooLong": "Die Frage ist zu lang (höchstens {max} Zeichen)."
     },
-    "modelMissing": "Kein Sprachmodell verfügbar – Fragen sind derzeit nicht möglich."
+    "modelMissing": "Kein Sprachmodell verfügbar – Fragen sind derzeit nicht möglich.",
+    "konversation": {
+      "delete": "Frage löschen",
+      "deleteConfirm": "Diese Frage wirklich löschen?",
+      "again": "Frage neu stellen"
+    }
   }
 }

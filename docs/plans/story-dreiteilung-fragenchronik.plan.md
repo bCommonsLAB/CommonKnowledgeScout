@@ -26,7 +26,7 @@ todos:
     content: "[Gebaut 01.10.2026 (auf D1–D6a gestapelt), Live-Nachweis und Backfill-Lauf offen] Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
     status: done
   - id: d6-aufraeumen
-    content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b gebaut 01.10.2026 (Konversation im Paket, StoryRoot im Embed, Detailansicht aufgeteilt); Live-Nachweis im Embed offen; die App montiert weiter ChatPanel — Umstellung auf StoryRoot ist D6c] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
+    content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b gebaut 01.10.2026 (Konversation im Paket, StoryRoot im Embed, Detailansicht aufgeteilt); D6c gebaut 01.10.2026 (App montiert StoryRoot, eingebettete Chat-Variante zurückgebaut); Live-Nachweis App und Embed offen; Befund: ChatPanel ist nirgends mehr montiert — Rückbau des App-Chats ist D6d] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
     status: done
 ---
 
@@ -260,7 +260,7 @@ Nachziehen.
 | D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
 | D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
-| D6 | Entflechten und Doku (D6a gebaut 01.10.; D6b gebaut 01.10.: Konversation im Paket, StoryRoot im Embed; D6c offen: App auf StoryRoot) | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200; Embed `view="story"` stellt Fragen |
+| D6 | Entflechten und Doku (D6a, D6b, D6c gebaut 01.10.: App und Embed montieren `StoryRoot`; D6d offen: toten App-Chat entfernen) | Story-Mitte in App und Embed aus demselben Paket; Live: Übersicht, Frage mit ①, Chronik, Löschen |
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
@@ -647,6 +647,65 @@ Was bewusst (noch) nicht ist:
 - Live-Nachweis offen: `view="story"` in einer fremden Next-App — Übersicht
   entsteht, Frage antwortet mit ① auf der Karte rechts, Chronik listet die
   Sitzung nach dem Neuladen.
+
+### Stand D6c (gebaut 01.10.2026) — App auf StoryRoot
+
+Was steht:
+
+- **Die App montiert `StoryRoot`** (`story/story-root-mount.tsx`) als
+  Story-Mitte statt `ChatPanel variant="embedded"`. Hereingereicht, was nur
+  die App kennt: Anmeldung (Clerk), Perspektive aus dem Story-Context
+  (Perspektiven-Seite; gendergerechte Sprache aus dem gespeicherten Kontext),
+  Konfig-Texte aus `useLibraries`, Eingabegrenze aus der Chat-Konfig, Filter
+  und Dokumentenzahl der Galerie, Belege an `chatReferencesAtom`. Füße
+  (`story-fuss.tsx`): KI-Hinweis, Konfig-Anzeige (aus dem Query-Log),
+  Quellen-Sheet für Mobil (`show-reference-legend`, `show-toc-references`),
+  Protokoll und Debug für Angemeldete.
+- **Paket-Ergänzungen:** Frage löschen (Rückfrage, `DELETE …/queries/<id>`
+  über die Instanz, zurück zur Übersicht; opt-in `loeschenErlaubt`, die App
+  setzt es, das Embed nicht), „Frage neu stellen“ (Text in die Eingabe),
+  `uebersichtFuss` bekommt die gespeicherte Kennung der Übersicht.
+- **Eine Sitzung für alle:** `useActiveChatId` ist ein Mantel um
+  `useStorySitzungId` — Chronik-Montage, `StoryAuswahlUrl` und Mitte sehen
+  dasselbe Atom und denselben localStorage-Schlüssel.
+- **Rückbau:** `chat-panel.tsx` kennt nur noch `default`/`compact`
+  (265 Zeilen); weg sind `story-mitte.tsx`, `use-story-auswahl-bridge`,
+  `use-story-toc-autostart`, `use-story-filter-events`, `use-toc-reload-hint`,
+  `chronik-utils` (+ Test), der Story-Zweig von `use-chat-perspective-state`,
+  die aufklappbare Variante von `chat-input`/`panel-footer`, der Mobil-
+  Platzhalter und `storyPerspectiveOpenAtom`.
+
+Was bewusst anders ist als vorher:
+
+- **Filter-Ereignisse:** `StoryRoot` holt die Übersicht neu, sobald sich
+  Filter oder Perspektive ändern — über den Server-Cache. Die App erzwang
+  bei `gallery-filters-changed` eine Neuberechnung ohne Cache; das entfällt
+  (Cache-Treffer sind erwünscht, „neu berechnen“ bleibt als Knopf).
+- **Nachladen-Hinweis:** Der Knopf „Übersicht neu berechnen“ steht immer,
+  wenn eine Gliederung da ist, nicht nur bei abweichenden Parametern
+  (`use-toc-reload-hint` verglich dafür den Query-Log).
+- **„Frage neu stellen“** füllt die Eingabe statt sofort zu senden (die alte
+  Variante setzte zugleich die Perspektive der alten Frage zurück).
+- **Scroll:** Jede Auswahl beginnt oben in der Mitte; der Platzhalter für
+  „Frage oben bündig“ ist weg, weil die Konversation allein steht.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **`ChatPanel` ist nirgends mehr montiert.** Der angenommene „Chat-Reiter“
+  existiert nicht: Außer dem eigenen Ordner importiert niemand mehr
+  `chat/chat-panel` (nur der Debug-Footer nennt den Namen als Text). Damit
+  sind `chat-panel.tsx`, `chat-panel/**`, `chat-messages-list`,
+  `chat-conversation-item`, `chat-message`, `chat-input`, `chat-config-bar`,
+  `chat-config-popover`, `chat-selector`, `use-chat-stream`,
+  `use-chat-history`, `use-chat-toc`, `use-chat-scroll` toter Code in der
+  App. Noch gebraucht werden `chat-config-display`, `query-details-dialog`,
+  `processing-logs-dialog`, `processing-status`, `chat-storage` (über die
+  Story-Füße bzw. den Story-Context). **D6d** räumt den toten App-Chat weg —
+  nach dem Live-Nachweis, falls der Owner den Chat-Reiter nicht doch
+  zurückholen will.
+- Live-Nachweis offen (App): Themenübersicht entsteht, Themenfrage →
+  Eingabe → Antwort mit ① und Belegen rechts, `q=` nach dem Neuladen,
+  Chronik-Klick auf eine ältere Sitzung, Löschen einer Frage.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
