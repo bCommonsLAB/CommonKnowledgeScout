@@ -8,7 +8,7 @@ todos:
     content: "[Drahtgitter angelegt 01.10.2026, Abnahme offen] Layout-Konzept und Klickmodell in Figma: drei Bildschirme Desktop (Start mit Themenübersicht, Frage gewählt, Frage läuft), zwei Bildschirme Mobil (Chronik-Menü zu und auf). Verhältnis 15/50/35 als Startwert, Owner-Abnahme vor Welle D1."
     status: pending
   - id: d1-chronik-lesend
-    content: "Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
+    content: "[Paket zuerst: packages/module-story anlegen mit Gerüst, Gate und Test gegen fremdes fetch, alle neuen Komponenten dort] Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
     status: pending
   - id: d2-auswahl-und-scroll
     content: "Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
@@ -26,7 +26,7 @@ todos:
     content: "Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
     status: pending
   - id: d6-aufraeumen
-    content: "chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
+    content: "chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
     status: pending
 ---
 
@@ -214,6 +214,41 @@ Ingestion betroffen sind (Contracts: chat-contracts, ingestion-contracts).
   gelöst, beibehalten).
 - Kosten: D5 ändert den Prompt. Cache-Hash und Query-Log-Vergleich
   müssen den Kurztitel ignorieren, sonst entwerten sich alle Zwischenspeicher.
+
+## Paketierung: Story-Modus als einbettbare Komponente (Owner-Entscheidung 01.10.: mitnehmen)
+
+Die Galerie liegt seit M4i als Komponente in `@ks/module-explorer` und läuft
+über `@ks/embed` in fremden Anwendungen. Der Story-Modus sollte als nächstes
+denselben Weg gehen; STAND.md führt „Story und Chat im Embed“ bislang außerhalb
+von Vorhaben 1. Diese Wellen bauen genau die Komponenten, die später das
+Paket bilden. Owner-Entscheidung 01.10.2026: **mitnehmen, nicht nachziehen** — die
+Regeln kosten beim Neubau fast nichts, beim Nachziehen einen zweiten Durchgang
+durch dieselben Dateien.
+
+Regeln ab D1 (aus M4f bis M4i übernommen):
+
+- Neue Komponenten entstehen unter `packages/module-story/src` (Arbeitsname
+  `@ks/module-story`), nicht unter `src/components/library/chat`. Alte
+  Dateien werden nur abgebaut, nicht erweitert (D6).
+- Das Paket spricht ausschließlich über die Instanz-Schnittstelle
+  (`InstanceApi` aus `@ks/api-client`, wie der Explorer); kein eigenes
+  `fetch`, kein `next/*`, kein Clerk. Ein Unit-Test verbietet fremdes
+  `fetch` wie im Explorer.
+- Alles, was das Paket nicht kennen darf, kommt als Slot oder Prop: Anmeldung,
+  Bilder über den Gastgeber, Detailansicht öffnen, Perspektive-Seite.
+- Chat-Vokabular (`lib/chat/constants`) nur über `@ks/contracts`; keine
+  Server-Typen ins Paket (`src/lib/chat` bleibt Server-Stack).
+- Embed liefert nur Öffentliches (ADR 0008 Nachtrag): Der Story-Modus im Embed
+  läuft anonym über die Sitzungskennung; Sitzungen und Chronik funktionieren
+  damit, Umbenennen und Löschen auch (an die Kennung gebunden).
+- Wurzelkomponente `StoryRoot` mit denselben Montagepunkten wie
+  `ExplorerRoot`: `/explore/[slug]?mode=story`, `/library/gallery`, Embed.
+
+Was dadurch zu den Wellen dazukommt: D1 legt das Paket an (Gerüst, Gate,
+Test gegen fremdes `fetch`); D4 prüft Mobil auch im Embed; D6 montiert
+`StoryRoot` in `@ks/embed` und entfernt die alte Zweiteilung. Mehraufwand
+grob ein halber Tag über alle Wellen, gegenüber zwei bis drei Tagen beim
+Nachziehen.
 
 ## Wellen
 
