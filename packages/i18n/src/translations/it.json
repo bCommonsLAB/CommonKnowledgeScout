@@ -859,6 +859,25 @@
     "conversationLoading": "Caricamento della conversazione …",
     "conversationNotInHistory": "Questa domanda non è nella cronologia caricata.",
     "recompute": "Ricalcola panoramica",
-    "recomputing": "Ricalcolo …"
+    "recomputing": "Ricalcolo …",
+    "beleg": {
+      "title": "Fonti",
+      "count": {
+        "one": "1 fonte per questa risposta",
+        "many": "{count} fonti per questa risposta"
+      },
+      "citedAs": "Citata come {numbers}",
+      "original": "Vedi l'originale",
+      "moreFound": "Altri documenti trovati ({count})",
+      "catalog": "Tutte le {count} fonti originali nel catalogo",
+      "close": "Chiudi le fonti",
+      "none": "Questa risposta non ha fonti allegate.",
+      "status": {
+        "umsetzung": "In attuazione",
+        "geplant": "Pianificata",
+        "pruefung": "In esame",
+        "abgelehnt": "Respinta"
+      }
+    }
   }
 }

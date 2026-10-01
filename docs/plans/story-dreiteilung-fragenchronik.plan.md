@@ -14,8 +14,8 @@ todos:
     content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1 gestapelt), Live-Nachweis offen] Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
     status: done
   - id: d3-quellen-spalte
-    content: "Rechte Spalte auf 35 % und schmaler gestalten: Quellenliste der aktiven Antwort statt Galerie-Raster; ohne aktive Antwort die gefilterte Übersicht wie heute. Filterleiste bleibt oben."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1+D2 gestapelt), Live-Nachweis offen] Rechte Spalte auf 35 % und schmaler gestalten: Quellenliste der aktiven Antwort statt Galerie-Raster; ohne aktive Antwort die gefilterte Übersicht wie heute. Filterleiste bleibt oben."
+    status: done
   - id: d4-mobil
     content: "Mobil (unter lg): Chronik als Sheet hinter einem Menü-Knopf im Story-Kopf; Mitte füllt den Schirm; Quellen wie heute als Overlay. Keine doppelten Mounts (Lehre aus M4h)."
     status: pending
@@ -257,7 +257,7 @@ Nachziehen.
 | D0 | Figma: drei Desktop-Bildschirme, zwei Mobil-Bildschirme, Klickpfade verbunden (angelegt 01.10., Link unter Entscheidungen) | Owner klickt das Modell durch, Abnahme der Verhältnisse |
 | D1 | Chronik lesend, heuristische Kurztitel, Klick wählt Konversation | Live: zehn Fragen, jede per Klick erreichbar |
 | D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ (gebaut 01.10., Stand D2 oben) | Live: Neu laden mit `q=` zeigt die richtige Konversation |
-| D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste | Live: Belege wechseln mit der Auswahl |
+| D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
 | D4 | Mobil: Chronik im Sheet | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
 | D6 | Entflechten und Doku | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
@@ -374,6 +374,57 @@ Neu dazugekommen (beim Bauen gesehen):
   aus: ohne Mongo nur per Unit-Tests belegt (URL-Bindung mit
   `NuqsTestingAdapter`, Kennung-Regeln, Chronik, Verarbeitung in Worten).
 
+### Stand D3 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Spalten per Ziehen:** `StorySpalten` im Explorer-Paket
+  (`gallery/components/story-spalten.tsx`): `ResizablePanelGroup` mit
+  Chronik | Mitte | Quellen, Startwerte 15 / 50 / 35 (Entscheidung 2), Stand
+  im localStorage über `autoSaveId` wie die Archiv-Panels; ohne Chronik-Slot
+  50 / 50 unter eigenem Schlüssel. Mobil wird nur die Mitte gemountet (keine
+  Doppel-Mounts, Lehre aus M4h); Quellen bleiben dort das Overlay.
+- **Belege rechts:** Mit aktiver Antwort zeigt die Spalte `BelegListe` statt
+  des Galerie-Rasters: je Dokument eine Karte mit Fußnoten-Nummern (heute
+  noch je Textstelle, D7 macht sie je Dokument), Titel, Status-Plakette,
+  Kennzeile, Kurztext und „Original ansehen" (Galerie-Adressierung, sonst
+  Rückfall über `open-document-detail`). Darunter „Weitere gefundene
+  Dokumente" zugeklappt und der Weg in den Katalog („Alle n Originalquellen
+  im Katalog"); beides und „Schließen" setzen Referenzen und Antwort-Filter
+  zurück. Ohne aktive Antwort: Filterleiste oben, gefilterte Übersicht wie
+  bisher. Die Filterleiste bleibt in der Beleg-Ansicht ausgeblendet (wie
+  bisher im Raster: sie filtert den Katalog, nicht die Belege).
+- **Konfig je Detailansichtstyp** (Registry `belegKarte` in `@ks/contracts`):
+  Status-Feld mit Zuordnung seiner Werte auf vier generische Plaketten
+  (`umsetzung`, `geplant`, `pruefung`, `abgelehnt`; Labels aus i18n
+  `story.beleg.status.*`) und Kennzeilen-Felder. Fehlt die Konfig oder das
+  Feld, fällt der Block weg; ein Wert ohne Zuordnung erscheint roh als
+  neutrale Plakette (sichtbar, nicht geraten). Kein Code kennt eine Library.
+- **Zuordnung climateAction (festgelegt, Offene Punkte):** in_umsetzung,
+  im_klimaplan, in_fachplaenen → In Umsetzung; neu_umsetzbar → Geplant;
+  vertieft_pruefen, unklar → In Prüfung; nicht_umsetzbar → Abgelehnt.
+  Kennzeile: massnahme_nr · arbeitsgruppe · vorschlag_quelle. book: Autoren,
+  Jahr; session: Vortragende, Track, Datum. Test
+  `beleg-karte-config.test.ts` hält Felder und Plaketten fest.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Kurztext:** `DocCardMeta` (die Galerie-Karte) trägt keine
+  Zusammenfassung — weder `summary` noch `teaser` kommen in der
+  Galerie-Projektion an. Der Kurztext des Belegs ist deshalb die Begründung
+  der ersten Referenz (warum zitiert). Soll die „Beschreibung des
+  Vorschlags" auf die Karte, muss die Galerie-Projektion das Feld liefern
+  (Server, `docs`-Route) — Kandidat für D7 zusammen mit den Zitaten.
+- **Zwei Status-Zuordnungen:** Die Galerie-Karte (`document-card/
+  status-config.ts`: neu_umsetzbar = aktiv, vertieft_pruefen = geplant) und
+  die Detailansicht (`climate-action-detail.tsx`) ordnen `lv_bewertung`
+  anders zu als die Belegkarte. Vereinheitlichen auf die Registry-Konfig ist
+  Kandidat für D6.
+- **Zustimmungsbalken** (Offene Punkte) bleibt weg: kein Feld dafür.
+- Live-Nachweis (Belege wechseln mit der Auswahl, Spalten ziehen und merken)
+  steht aus: ohne Mongo nur per Unit-Tests belegt (Helfer, Belegliste mit
+  Adressierung, Registry-Konfig).
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
@@ -382,7 +433,7 @@ Neu dazugekommen (beim Bauen gesehen):
   Umsetzung“ unter den Belegen) oder weglassen.
 - **Status-Plakette am Beleg:** aus `lv_bewertung` abbildbar (in_umsetzung,
   nicht_umsetzbar, neu_umsetzbar, vertieft_pruefen …). Zuordnung auf vier
-  Plaketten in D3 festlegen.
+  Plaketten in D3 festgelegt (siehe Stand D3, Registry `belegKarte`).
 - **Kurztext je Beleg:** vorhanden (Beschreibung des Vorschlags). „Original
   ansehen“ öffnet die Detailansicht.
 - **Zusammenfassung je Thema:** gibt es nur als Kurzbeschreibung aus der

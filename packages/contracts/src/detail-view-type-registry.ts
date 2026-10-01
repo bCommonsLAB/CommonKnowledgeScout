@@ -169,12 +169,43 @@ export interface ViewTypeConfig {
    * Texts. Das Feld wird NICHT aggregiert (kein Server-Aufruf dafuer).
    */
   sumPlaceholderFields?: SumPlaceholderField[]
+  /**
+   * Belegkarte im Story-Modus (D3): Status-Plakette und Kennzeile. Die
+   * Felder muessen in `requiredFields`/`optionalFields` stehen (Test
+   * `beleg-karte-config.test.ts`).
+   */
+  belegKarte?: BelegKarteConfig
 }
 
 /** Ein Summen-Feld ohne Zahl: Anzeigename aus den Facetten, Text aus i18n. */
 export interface SumPlaceholderField {
   field: string
   noteKey: string
+}
+
+/**
+ * Die vier Status-Plaketten der Belegkarte im Story-Modus (D3, Plan
+ * `story-dreiteilung-fragenchronik`). Generische Oberflaeche: die Labels
+ * kommen aus i18n (`story.beleg.status.*`), welche Feldwerte darauf fallen,
+ * sagt die Konfig je ViewType.
+ */
+export type BelegPlakette = 'umsetzung' | 'geplant' | 'pruefung' | 'abgelehnt'
+export const BELEG_PLAKETTEN: readonly BelegPlakette[] = ['umsetzung', 'geplant', 'pruefung', 'abgelehnt']
+
+/**
+ * Was die Belegkarte eines ViewTypes ueber den Titel hinaus zeigt. Fehlt ein
+ * Teil, faellt der Block auf der Karte weg — kein Platzhalter
+ * (no-silent-fallbacks). Ein Feldwert, der in `plaketten` nicht vorkommt,
+ * erscheint roh als neutrale Plakette, damit die Luecke auffaellt.
+ */
+export interface BelegKarteConfig {
+  /** Status-Plakette: Frontmatter-Feld und Zuordnung seiner Werte auf die vier Plaketten. */
+  status?: {
+    field: string
+    plaketten: Record<string, BelegPlakette>
+  }
+  /** Kennzeile: Felder, deren Werte mit „ · " verbunden unter dem Titel stehen (leere fallen weg). */
+  kennzeile?: string[]
 }
 
 /**
@@ -195,6 +226,7 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     optionalFields: ['summary', 'authors', 'authors_image_url', 'year', 'coverImageUrl', 'chapters', 'pages', 'region', 'topics', 'tags', 'docType', 'source', 'url', 'attachments_url', 'attachments_names', 'video_url', 'audio_url'],
     labelKey: 'gallery.detailViewTypeBook',
     descriptionKey: 'gallery.detailViewTypeBookDescription',
+    belegKarte: { kennzeile: ['authors', 'year'] },
     mediaConfig: {
       coverImage: true,
       personField: { listKey: 'authors', imageKey: 'authors_image_url', label: 'Autoren' },
@@ -254,6 +286,7 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'source',
     ],
     labelKey: 'gallery.detailViewTypeSession',
+    belegKarte: { kennzeile: ['speakers', 'track', 'date'] },
     descriptionKey: 'gallery.detailViewTypeSessionDescription',
     mediaConfig: {
       coverImage: true,
@@ -358,6 +391,25 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeClimateAction',
     descriptionKey: 'gallery.detailViewTypeClimateActionDescription',
+    // Belegkarte (D3): Zuordnung der Bewertung auf die vier Plaketten, festgelegt
+    // 01.10.2026 (Plan, Offene Punkte). Weicht von der Kartenfarbe in
+    // `document-card/status-config.ts` ab (dort neu_umsetzbar = aktiv,
+    // vertieft_pruefen = geplant) — Vereinheitlichung ist Kandidat fuer D6.
+    belegKarte: {
+      status: {
+        field: 'lv_bewertung',
+        plaketten: {
+          in_umsetzung: 'umsetzung',
+          im_klimaplan: 'umsetzung',
+          in_fachplaenen: 'umsetzung',
+          neu_umsetzbar: 'geplant',
+          vertieft_pruefen: 'pruefung',
+          unklar: 'pruefung',
+          nicht_umsetzbar: 'abgelehnt',
+        },
+      },
+      kennzeile: ['massnahme_nr', 'arbeitsgruppe', 'vorschlag_quelle'],
+    },
     // Nur additive Groessen summieren (kt CO2/Jahr). Scores bleiben draussen.
     // Kosten (EUR) seit 2026-09-15 nicht mehr summiert — die Schaetzungen sind
     // noch nicht belastbar; die Summen-Anzeige zeigt stattdessen einen Text.
