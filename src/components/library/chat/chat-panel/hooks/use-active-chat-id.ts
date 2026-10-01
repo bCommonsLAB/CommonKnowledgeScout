@@ -1,14 +1,20 @@
 /**
  * Hook fuer persistente activeChatId-Verwaltung via localStorage.
  *
- * Extrahiert aus chat-panel.tsx (Welle 3-III-b).
- * Kapselt: localStorage-Lesen beim Mount, persistentes Schreiben beim
- * Aendern, Sync bei libraryId-Wechsel.
+ * Extrahiert aus chat-panel.tsx (Welle 3-III-b). Seit D1 (Story-Chronik)
+ * liegt der Wert zusaetzlich in einem Jotai-Atom: Chat-Panel (Mitte) und
+ * Chronik (links) haengen als getrennte Slots im Story-Reiter und muessen
+ * dieselbe aktive Sitzung sehen — zwei lokale useState-Instanzen wuessten
+ * nichts voneinander. localStorage bleibt die Persistenz ueber Seitenladen.
  *
  * Kein 'use client' noetig — wird nur in Client-Komponenten verwendet.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import { atom, useAtom } from 'jotai'
+
+/** Aktive Sitzung je Library; fehlt der Schluessel, wurde noch nicht aus localStorage gelesen. */
+const activeChatIdsAtom = atom<Record<string, string | null>>({})
 
 /** Liest activeChatId sicher aus localStorage */
 function getStoredActiveChatId(libId: string): string | null {
@@ -43,36 +49,32 @@ interface UseActiveChatIdResult {
 }
 
 /**
- * Verwaltet activeChatId mit localStorage-Persistenz.
+ * Verwaltet activeChatId mit localStorage-Persistenz, geteilt ueber ein Atom.
  *
  * @param libraryId - Library-ID fuer den localStorage-Schluessel
  * @returns activeChatId und Setter (persistiert automatisch in localStorage)
  */
 export function useActiveChatId(libraryId: string): UseActiveChatIdResult {
-  const [activeChatId, setActiveChatIdState] = useState<string | null>(() =>
-    libraryId ? getStoredActiveChatId(libraryId) : null
-  )
+  const [ids, setIds] = useAtom(activeChatIdsAtom)
+  const gelesen = libraryId !== '' && libraryId in ids
+  const activeChatId = gelesen ? ids[libraryId] : null
 
-  // Sync activeChatId aus localStorage bei libraryId-Wechsel
+  // Einmal je Library aus localStorage lesen (im Effekt, nicht im Render:
+  // der Server kennt kein localStorage, die Hydration bliebe sonst uneins).
   useEffect(() => {
-    if (libraryId) {
-      const stored = getStoredActiveChatId(libraryId)
-      if (stored !== activeChatId) {
-        // setActiveChatIdState direkt verwenden, nicht setActiveChatId,
-        // um eine Endlosschleife (Lesen→Schreiben→Lesen) zu vermeiden
-        setActiveChatIdState(stored)
-      }
-    }
-    // activeChatId bewusst nicht als Dependency — verhindert Endlosschleife
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId])
+    if (!libraryId || gelesen) return
+    const stored = getStoredActiveChatId(libraryId)
+    setIds((prev) => (libraryId in prev ? prev : { ...prev, [libraryId]: stored }))
+  }, [libraryId, gelesen, setIds])
 
-  const setActiveChatId = useCallback((chatId: string | null) => {
-    setActiveChatIdState(chatId)
-    if (libraryId) {
+  const setActiveChatId = useCallback(
+    (chatId: string | null) => {
+      if (!libraryId) return
+      setIds((prev) => ({ ...prev, [libraryId]: chatId }))
       saveActiveChatId(libraryId, chatId)
-    }
-  }, [libraryId])
+    },
+    [libraryId, setIds],
+  )
 
   return { activeChatId, setActiveChatId }
 }

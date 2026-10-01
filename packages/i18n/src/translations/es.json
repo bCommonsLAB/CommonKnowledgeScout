@@ -831,6 +831,10 @@
         "one": "1 pregunta",
         "many": "{count} preguntas"
       }
-    }
+    },
+    "conversationLoading": "Cargando la conversación …",
+    "conversationNotInHistory": "Esta pregunta no está en el historial cargado.",
+    "recompute": "Recalcular el resumen",
+    "recomputing": "Recalculando …"
   }
 }

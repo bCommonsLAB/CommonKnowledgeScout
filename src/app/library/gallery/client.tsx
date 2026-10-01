@@ -9,6 +9,7 @@ import { DETAIL_RENDERERS } from '@/components/library/gallery-detail-renderers'
 import { WebsiteLandingLive } from '@/components/library/website/website-landing-live'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { LibraryVerificationBadge } from '@/components/library/library-verification-badge'
+import { StoryChronikMount } from '@/components/library/story/story-chronik-mount'
 
 // Das Story-Panel (Chat, eingebettet) faul laden — wie bisher, nur hier statt
 // in der Galerie: Sie kennt `next/dynamic` seit M4f nicht mehr.
@@ -30,6 +31,8 @@ const LazyChatPanel = dynamic(
  * - **Gastgeber**: Job-Meldungen und womit Bilder gerendert werden.
  * - **Kopf-Aktionen**: der Erfassungs-Knopf, ein anderes Modul.
  * - **Story-Panel**: der Chat in der eingebetteten Variante, faul geladen.
+ * - **Story-Chronik** (D1): Gliederung und Sitzungen aus `@ks/module-story`,
+ *   mit Anmeldung und aktiver Sitzung der App verdrahtet.
  * - **Detail-Renderer** (M4g): welche Ansicht zu welchem Typ gehoert.
  * - **Website-Ansicht**, **Story-Kopf**, **Verifikations-Abzeichen** (M4g):
  *   drei App-Bausteine, die die Galerie nur noch zeigt, nicht mehr kennt.
@@ -44,7 +47,7 @@ const LazyChatPanel = dynamic(
  */
 export type GalleryClientProps = Omit<
   GalleryRootProps,
-  'detailRenderers' | 'siteView' | 'storyHeader' | 'storyPanel' | 'verifikationsAbzeichen' | 'kopfAktionen'
+  'detailRenderers' | 'siteView' | 'storyHeader' | 'storyPanel' | 'storyChronik' | 'verifikationsAbzeichen' | 'kopfAktionen'
 >
 
 export default function GalleryClient(props: GalleryClientProps = {}) {
@@ -54,6 +57,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
         {...props}
         kopfAktionen={(libraryId) => <CaptureContentButton libraryId={libraryId} />}
         storyPanel={(libraryId) => <LazyChatPanel libraryId={libraryId} variant='embedded' />}
+        storyChronik={(libraryId) => <StoryChronikMount libraryId={libraryId} />}
         detailRenderers={DETAIL_RENDERERS}
         siteView={({ libraryId, onShowGallery }) => (
           <WebsiteLandingLive libraryId={libraryId} onShowGallery={onShowGallery} />

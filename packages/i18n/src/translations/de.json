@@ -878,6 +878,10 @@
         "one": "1 Frage",
         "many": "{count} Fragen"
       }
-    }
+    },
+    "conversationLoading": "Konversation wird geladen …",
+    "conversationNotInHistory": "Diese Frage liegt nicht im geladenen Verlauf.",
+    "recompute": "Übersicht neu berechnen",
+    "recomputing": "Neuberechnung …"
   }
 }

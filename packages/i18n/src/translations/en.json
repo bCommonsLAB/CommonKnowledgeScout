@@ -831,6 +831,10 @@
         "one": "1 question",
         "many": "{count} questions"
       }
-    }
+    },
+    "conversationLoading": "Loading conversation …",
+    "conversationNotInHistory": "This question is not in the loaded history.",
+    "recompute": "Recompute overview",
+    "recomputing": "Recomputing …"
   }
 }

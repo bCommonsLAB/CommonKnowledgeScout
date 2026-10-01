@@ -1,11 +1,19 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useAtomValue } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@ks/module-explorer/react'
-import { useLibraries } from '@ks/shell/react'
 import { ScrollArea, Button } from '@ks/ui'
-import { StoryTopics } from '../story/story-topics'
+import { StoryMitte } from '../story/story-mitte'
+import {
+  STORY_UEBERSICHT,
+  storyAktiveSitzungAtom,
+  storyAuswahlAtom,
+  storyGliederungAtom,
+  themaZuFrage,
+} from '@ks/module-story/react'
+import { fragenAusVerlauf, frageZurAuswahl, konversationAuswaehlen, neueFrage } from './utils/chronik-utils'
+import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
@@ -45,7 +53,6 @@ import type { GalleryFilters } from '@ks/contracts'
 import { useTranslation } from '@ks/i18n/react'
 import { useGalleryData } from '@ks/module-explorer/react'
 import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
-import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 
 interface ChatPanelProps {
   libraryId: string
@@ -168,15 +175,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Dokumente-Lade-Status wird nur intern für Render-Entscheidungen verwendet.
   
-  // Detail View Type aus Library Config (direkt aus Atom, wie in gallery-root.tsx)
-  const libraries = useLibraries()
-  const activeLibrary = libraries.find(lib => lib.id === libraryId)
-  const galleryConfig = activeLibrary?.config?.chat?.gallery
-  // Gueltigkeit gegen die zentrale Registry pruefen — hier stand frueher eine
-  // eigene Kopie der Werteliste (Galerie-Audit, Befund 3c).
-  const rawDetailViewType = galleryConfig?.detailViewType
-  const detailViewType = isValidDetailViewType(rawDetailViewType) ? rawDetailViewType : 'book'
-  const typeKey = detailViewType === 'session' ? 'talks' : 'documents'
   
   // Chat History
   const { messages, setMessages, prevMessagesLengthRef } = useChatHistory({
@@ -326,6 +324,57 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Setze Refs für späteren Zugriff
   checkTOCCacheRef.current = checkTOCCache
   setTOCDataRef.current = setTOCData
+
+  // --- Story-Dreiteilung (D1, Plan story-dreiteilung-fragenchronik) ---
+  // Die Chronik links haengt als eigener Slot im Story-Reiter; geteilt wird
+  // ueber die drei Story-Atome: Auswahl (was die Mitte zeigt), Gliederung
+  // (die Themenuebersicht) und die Fragen der aktiven Sitzung aus dem Verlauf.
+  const [storyAuswahl, setStoryAuswahl] = useAtom(storyAuswahlAtom)
+  const setStoryGliederung = useSetAtom(storyGliederungAtom)
+  const setStoryAktiveSitzung = useSetAtom(storyAktiveSitzungAtom)
+
+  useEffect(() => {
+    if (isEmbedded) setStoryGliederung(cachedStoryTopicsData ?? null)
+  }, [isEmbedded, cachedStoryTopicsData, setStoryGliederung])
+
+  useEffect(() => {
+    if (isEmbedded) setStoryAktiveSitzung({ chatId: activeChatId, fragen: fragenAusVerlauf(messages) })
+  }, [isEmbedded, activeChatId, messages, setStoryAktiveSitzung])
+
+  // Klickmodell: „Frage tippen oder eigene senden" → die neue Frage wird die
+  // aktive Konversation; ihr Thema (falls aus einem Thema gewaehlt) markiert
+  // die Gliederung. Ein Verlaufs-Laden bringt viele Nachrichten auf einmal
+  // und loest das nicht aus (neueFrage).
+  const vorherigeNachrichtenRef = useRef(messages.length)
+  useEffect(() => {
+    const frage = isEmbedded ? neueFrage(vorherigeNachrichtenRef.current, messages) : null
+    vorherigeNachrichtenRef.current = messages.length
+    if (frage) {
+      setStoryAuswahl({
+        art: 'konversation',
+        frageId: frage.id,
+        themaId: themaZuFrage(cachedStoryTopicsData ?? null, frage.content) ?? undefined,
+      })
+    }
+  }, [isEmbedded, messages, cachedStoryTopicsData, setStoryAuswahl])
+
+  // „Neue Sitzung" in der Chronik loest die aktive Sitzung: Der Verlauf der
+  // alten Sitzung gehoert nicht in die neue (use-chat-history behaelt ihn sonst).
+  const vorherigeChatIdRef = useRef(activeChatId)
+  useEffect(() => {
+    if (isEmbedded && vorherigeChatIdRef.current !== null && activeChatId === null) setMessages([])
+    vorherigeChatIdRef.current = activeChatId
+  }, [isEmbedded, activeChatId, setMessages])
+
+  // Die Mitte zeigt genau die gewaehlte Konversation — aufgeklappt.
+  const konversation = isEmbedded ? konversationAuswaehlen(messages, storyAuswahl) : messages
+  useEffect(() => {
+    if (!isEmbedded || storyAuswahl.art !== 'konversation') return
+    const paar = groupMessagesToConversations(konversationAuswaehlen(messages, storyAuswahl))[0]
+    if (paar) {
+      setOpenConversations((prev) => (prev.has(paar.conversationId) ? prev : new Set([...prev, paar.conversationId])))
+    }
+  }, [isEmbedded, storyAuswahl, messages])
   
   // State für Reload-Button-Anzeige (wenn Parameter geändert wurden)
   const [showReloadButton, setShowReloadButton] = useState(false)
@@ -996,40 +1045,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         <div className={`flex-1 min-h-0 flex flex-col ${isEmbedded ? 'relative overflow-visible' : 'overflow-hidden'}`}>
           <ScrollArea className="flex-1 min-h-0 h-full" ref={scrollRef}>
             <div className={`p-4 ${isEmbedded ? 'pb-20' : ''}`}>
-              {isEmbedded && (
-                <>
-                  {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
-                  {filteredDocsCount >= 1 && !galleryDataLoading && (
-                    <StoryTopics 
-                      libraryId={libraryId}
-                      data={cachedStoryTopicsData}
-                      isLoading={isCheckingTOC}
-                      queryId={cachedTOC?.queryId}
-                      cachedTOC={cachedTOC}
-                      showReloadButton={showReloadButton}
-                      processingSteps={processingSteps}
-                      docCount={filteredDocsCount}
-                      docType={typeKey}
-                      answerLength={answerLength}
-                      retriever={retriever}
-                      targetLanguage={targetLanguage}
-                      character={character}
-                      accessPerspective={accessPerspective}
-                      socialContext={socialContext}
-                      filters={galleryFilters || {}}
-                      llmModel={llmModel}
-                      onSelectQuestion={(question) => {
-                        setInput(question.text)
-                        setIsChatInputOpen(true)
-                        setTimeout(() => {
-                          inputRef.current?.focus()
-                        }, 100)
-                      }}
-                    />
-                  )}
-                  {/* Logge Render-Entscheidung */}
-                </>
-              )}
+              {/* Variante compact ist nie eingebettet — der Story-Block (StoryTopics) war hier toter Code (D1). */}
               
               <ChatMessagesList
                 messages={messages}
@@ -1107,44 +1123,45 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       <div className={`flex-1 min-h-0 flex flex-col ${isEmbedded ? 'relative overflow-visible' : 'overflow-hidden'}`}>
         <ScrollArea className="flex-1 h-full min-h-0" ref={scrollRef}>
           <div className={`p-6 ${isEmbedded ? 'pb-20' : ''}`}>
-            {isEmbedded && (
-              <>
-                {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
-                {filteredDocsCount >= 1 && !galleryDataLoading && (
-                  <StoryTopics 
-                    libraryId={libraryId}
-                    data={cachedStoryTopicsData}
-                    isLoading={isCheckingTOC}
-                    queryId={cachedTOC?.queryId}
-                    cachedTOC={cachedTOC}
-                    showReloadButton={showReloadButton}
-                    onRegenerate={forceRegenerateTOC}
-                    isRegenerating={isGeneratingTOC}
-                    processingSteps={processingSteps}
-                    docCount={filteredDocsCount}
-                    docType={typeKey}
-                    answerLength={answerLength}
-                    retriever={retriever}
-                    targetLanguage={targetLanguage}
-                    character={character}
-                    accessPerspective={accessPerspective}
-                    socialContext={socialContext}
-                    filters={galleryFilters || {}}
-                    llmModel={llmModel}
-                    onSelectQuestion={(question) => {
-                      setInput(question.text)
-                      setIsChatInputOpen(true)
-                      setTimeout(() => {
-                        inputRef.current?.focus()
-                      }, 200)
-                    }}
-                  />
-                )}
-              </>
+            {/* Mitte (D1): Kopf des Ganzen mit Themenkarten bzw. Themenseite,
+                solange keine Konversation gewaehlt ist; nur mit Dokumenten. */}
+            {isEmbedded && storyAuswahl.art !== 'konversation' && filteredDocsCount >= 1 && !galleryDataLoading && (
+              <StoryMitte
+                libraryId={libraryId}
+                gliederung={cachedStoryTopicsData ?? null}
+                auswahl={storyAuswahl}
+                setAuswahl={setStoryAuswahl}
+                dokumente={filteredDocsCount}
+                isLoading={isCheckingTOC}
+                isRegenerating={isGeneratingTOC}
+                processingSteps={processingSteps}
+                showReloadButton={showReloadButton}
+                onRegenerate={forceRegenerateTOC}
+                cachedTOC={cachedTOC}
+                llmModel={llmModel}
+                onSelectQuestion={(question) => {
+                  setInput(question.text)
+                  setIsChatInputOpen(true)
+                  setTimeout(() => {
+                    inputRef.current?.focus()
+                  }, 200)
+                }}
+              />
             )}
-            
+            {isEmbedded && storyAuswahl.art !== 'konversation' && error && (
+              <div className="mt-4 text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
+                {error}
+              </div>
+            )}
+            {isEmbedded && storyAuswahl.art === 'konversation' && konversation.length === 0 && !isSending && (
+              <div className="text-sm text-muted-foreground p-4">
+                {messages.length === 0 ? t('story.conversationLoading') : t('story.conversationNotInHistory')}
+              </div>
+            )}
+
+            {(!isEmbedded || storyAuswahl.art === 'konversation') && (
             <ChatMessagesList
-              messages={messages}
+              messages={konversation}
               openConversations={openConversations}
               setOpenConversations={setOpenConversations}
               libraryId={libraryId}
@@ -1166,7 +1183,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   inputRef.current?.focus()
                 }, 100)
               }}
-              onDelete={handleDeleteQuery}
+              onDelete={async (queryId) => {
+                const gewaehlt = frageZurAuswahl(messages, storyAuswahl)?.queryId
+                await handleDeleteQuery(queryId)
+                // Die gewaehlte Konversation ist weg → zurueck zur Uebersicht, nicht ins Leere.
+                if (isEmbedded && gewaehlt === queryId) setStoryAuswahl(STORY_UEBERSICHT)
+              }}
               onReload={handleReloadQuestion}
               messageRefs={messageRefs}
               isEmbedded={isEmbedded}
@@ -1174,6 +1196,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               isGeneratingTOC={isGeneratingTOC}
               cachedTOC={cachedTOC}
             />
+            )}
             {/* Platzhalter: Hoehe setzt scrollElementToViewportTop (use-chat-scroll),
                 damit die zuletzt gestellte Frage oben buendig stehen kann. */}
             <div data-chat-scroll-spacer aria-hidden="true" />

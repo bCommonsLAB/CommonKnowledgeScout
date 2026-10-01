@@ -82,6 +82,14 @@ export interface GalleryRootProps {
    */
   storyPanel?: (libraryId: string) => React.ReactNode
   /**
+   * Die Fragen-Chronik links neben dem Story-Panel (Plan
+   * `story-dreiteilung-fragenchronik`, D1). Mit Slot wird der Story-Reiter
+   * dreispaltig (15 / 50 / 35 als Startwerte), ohne bleibt die Zweiteilung.
+   * Die Komponente kommt aus `@ks/module-story/react`; die App reicht sie
+   * herein, weil nur sie Anmeldung und aktive Sitzung kennt.
+   */
+  storyChronik?: (libraryId: string) => React.ReactNode
+  /**
    * Welche Detailansicht zu welchem Renderer-Typ gehoert (M4g). Pflicht: Die
    * Galerie kennt die Detail-Komponenten der App nicht mehr, und ohne Tabelle
    * gibt es nichts zu zeigen — das soll auffallen, nicht leer bleiben.
@@ -112,6 +120,7 @@ export function GalleryRoot({
   hideWebsiteDocs = false,
   kopfAktionen,
   storyPanel,
+  storyChronik,
   detailRenderers,
   siteView,
   storyHeader,
@@ -1213,7 +1222,18 @@ export function GalleryRoot({
           <div className="flex-shrink-0">
             {storyHeader ? storyHeader({ libraryId: libraryId || '', onBackToGallery: () => setMode('gallery') }) : null}
           </div>
-          <div className="grid gap-6 lg:grid-cols-[1fr_1fr] flex-1 min-h-0 overflow-hidden">
+          <div
+            className={`grid gap-6 flex-1 min-h-0 overflow-hidden ${
+              storyChronik ? 'lg:grid-cols-[15fr_50fr_35fr]' : 'lg:grid-cols-[1fr_1fr]'
+            }`}
+          >
+            {/* Chronik (D1): nur auf Desktop mounten, wie die Quellenspalte —
+                mobil kommt sie in D4 als Sheet, nicht als zweiter Mount. */}
+            {storyChronik && !isMobile && (
+              <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md border bg-muted/20" data-story-chronik>
+                {storyChronik(libraryId)}
+              </div>
+            )}
             <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
               {storyPanel ? (
                 storyPanel(libraryId)

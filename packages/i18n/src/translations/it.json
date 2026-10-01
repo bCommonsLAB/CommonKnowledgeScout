@@ -831,6 +831,10 @@
         "one": "1 domanda",
         "many": "{count} domande"
       }
-    }
+    },
+    "conversationLoading": "Caricamento della conversazione …",
+    "conversationNotInHistory": "Questa domanda non è nella cronologia caricata.",
+    "recompute": "Ricalcola panoramica",
+    "recomputing": "Ricalcolo …"
   }
 }
