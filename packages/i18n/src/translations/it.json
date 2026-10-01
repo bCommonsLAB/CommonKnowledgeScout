@@ -889,6 +889,16 @@
     "chronik": {
       "title": "Cronologia",
       "open": "Temi e domande"
-    }
+    },
+    "zitat": {
+      "marke": "{document}: {passages}"
+    },
+    "uebersicht": {
+      "empty": "Per questa selezione non esiste una panoramica dei temi."
+    },
+    "eingabe": {
+      "tooLong": "La domanda è troppo lunga (al massimo {max} caratteri)."
+    },
+    "modelMissing": "Nessun modello linguistico disponibile – al momento non è possibile porre domande."
   }
 }

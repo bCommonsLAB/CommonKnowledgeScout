@@ -889,6 +889,16 @@
     "chronik": {
       "title": "Chronicle",
       "open": "Topics and questions"
-    }
+    },
+    "zitat": {
+      "marke": "{document}: {passages}"
+    },
+    "uebersicht": {
+      "empty": "There is no topic overview for this selection."
+    },
+    "eingabe": {
+      "tooLong": "The question is too long (at most {max} characters)."
+    },
+    "modelMissing": "No language model available – questions are not possible right now."
   }
 }

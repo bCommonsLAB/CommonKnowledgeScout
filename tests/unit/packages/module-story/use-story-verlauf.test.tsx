@@ -28,7 +28,7 @@ describe('useStoryVerlauf', () => {
     const hook = montieren(fetchMock, 'c1')
     act(() => hook.result.current.setNachrichten([{ id: 'question-1', art: 'frage', text: 'Lokal', createdAt: '2026-10-01T11:00:00.000Z' }]))
     await waitFor(() => expect(hook.result.current.nachrichten).toHaveLength(3))
-    expect(String(fetchMock.mock.calls[0][0])).toBe('https://ks.example/api/chat/lib/queries?limit=100&chatId=c1')
+    expect(String((fetchMock.mock.calls[0] as unknown as [string])[0])).toBe('https://ks.example/api/chat/lib/queries?limit=100&chatId=c1')
     expect(hook.result.current.nachrichten.map((m) => m.id)).toEqual(['q1-question', 'q1-answer', 'question-1'])
     expect(hook.result.current.fehler).toBeNull()
   })

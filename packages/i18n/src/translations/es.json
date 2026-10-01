@@ -889,6 +889,16 @@
     "chronik": {
       "title": "Crónica",
       "open": "Temas y preguntas"
-    }
+    },
+    "zitat": {
+      "marke": "{document}: {passages}"
+    },
+    "uebersicht": {
+      "empty": "No hay una visión general de temas para esta selección."
+    },
+    "eingabe": {
+      "tooLong": "La pregunta es demasiado larga (como máximo {max} caracteres)."
+    },
+    "modelMissing": "No hay ningún modelo de lenguaje disponible – por ahora no se pueden hacer preguntas."
   }
 }

@@ -936,6 +936,16 @@
     "chronik": {
       "title": "Chronik",
       "open": "Themen und Fragen"
-    }
+    },
+    "zitat": {
+      "marke": "{document}: {passages}"
+    },
+    "uebersicht": {
+      "empty": "Für diese Auswahl liegt keine Themenübersicht vor."
+    },
+    "eingabe": {
+      "tooLong": "Die Frage ist zu lang (höchstens {max} Zeichen)."
+    },
+    "modelMissing": "Kein Sprachmodell verfügbar – Fragen sind derzeit nicht möglich."
   }
 }

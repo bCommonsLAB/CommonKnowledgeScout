@@ -28,6 +28,13 @@ export interface UseStoryStreamParams {
   setNachrichten: Dispatch<SetStateAction<Nachricht[]>>
   /** Der Server hat eine Sitzung angelegt (erste Frage ohne Kennung). */
   onSitzung: (chatId: string) => void
+  /**
+   * Die Frage steht als lokale Nachricht im Verlauf — sie wird die aktive
+   * Konversation. Ausdruecklich als Rueckruf, nicht aus der Laenge des
+   * Verlaufs abgeleitet: React fasst die Zustaende einer schnellen Antwort
+   * zusammen, der Zwischenstand „eine Frage mehr" ist dann nie zu sehen.
+   */
+  onFrage?: (frage: Nachricht) => void
   /** Belege der frischen Antwort — die Galerie zeigt sie rechts. */
   onBelege?: (belege: DocReference[], queryId: string) => void
   /** Ergebnis der Themenuebersicht; `null`, wenn der Server keine Gliederung lieferte. */
@@ -49,7 +56,7 @@ export interface UseStoryStreamResult {
 type Abschluss = Extract<ChatProcessingStep, { type: 'complete' }>
 
 export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
-  const { libraryId, instanz, isSignedIn, rahmen, nachrichten, setNachrichten, onSitzung, onBelege, onUebersicht, onFehler } = p
+  const { libraryId, instanz, isSignedIn, rahmen, nachrichten, setNachrichten, onSitzung, onFrage, onBelege, onUebersicht, onFehler } = p
   const sessionHeaders = useSessionHeaders(isSignedIn)
   const [laeuft, setLaeuft] = useState(false)
   const [schritte, setSchritte] = useState<ChatProcessingStep[]>([])
@@ -87,7 +94,9 @@ export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
       setSchritte([])
       const frageId = opts.uebersicht ? null : `question-${Date.now()}`
       if (frageId) {
-        setNachrichten((alt) => [...alt, { id: frageId, art: 'frage', text, createdAt: new Date().toISOString() }])
+        const frage: Nachricht = { id: frageId, art: 'frage', text, createdAt: new Date().toISOString() }
+        setNachrichten((alt) => [...alt, frage])
+        onFrage?.(frage)
       }
       try {
         const res = await instanz.fetch(streamAdresse(libraryId, rahmen), {
@@ -125,7 +134,7 @@ export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
         setLaeuft(false)
       }
     },
-    [laeuft, p.maxZeichen, p.maxZeichenHinweis, onFehler, setNachrichten, instanz, libraryId, rahmen, sessionHeaders, nachrichten, abschliessen],
+    [laeuft, p.maxZeichen, p.maxZeichenHinweis, onFehler, setNachrichten, onFrage, instanz, libraryId, rahmen, sessionHeaders, nachrichten, abschliessen],
   )
 
   const frageSenden = useCallback((text: string) => senden(text, { uebersicht: false }), [senden])
