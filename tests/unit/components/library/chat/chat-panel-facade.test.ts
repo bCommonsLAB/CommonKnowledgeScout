@@ -3,7 +3,7 @@
  *
  * Diese Tests fixieren den Export-Vertrag von chat-panel.tsx:
  * - ChatPanel wird namentlich exportiert (kein Default-Export)
- * - ChatPanelProps Interface: libraryId (string), variant? ('default'|'compact'|'embedded')
+ * - ChatPanelProps Interface: libraryId (string), variant? ('default'|'compact') — `embedded` ist seit D6c weg (StoryRoot)
  *
  * Sicherheitsnetz: Nach dem Modul-Split (chat-panel/ Verzeichnis) muss
  * die Fassade exakt dieselben Exporte haben wie das Original.
@@ -49,20 +49,14 @@ describe('ChatPanelProps-Varianten', () => {
    * erlaubt, stimmt der Typ ueberein.
    */
   it('akzeptiert variant=default (implizit)', () => {
-    type ChatPanelVariant = 'default' | 'compact' | 'embedded'
+    type ChatPanelVariant = 'default' | 'compact'
     const v: ChatPanelVariant = 'default'
     expect(v).toBe('default')
   })
 
   it('akzeptiert variant=compact', () => {
-    type ChatPanelVariant = 'default' | 'compact' | 'embedded'
+    type ChatPanelVariant = 'default' | 'compact'
     const v: ChatPanelVariant = 'compact'
     expect(v).toBe('compact')
-  })
-
-  it('akzeptiert variant=embedded', () => {
-    type ChatPanelVariant = 'default' | 'compact' | 'embedded'
-    const v: ChatPanelVariant = 'embedded'
-    expect(v).toBe('embedded')
   })
 })
