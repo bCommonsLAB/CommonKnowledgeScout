@@ -312,12 +312,13 @@ describe('Galerie-Schnitt', () => {
     // haengen deshalb am Slot `storyPanel`, den nur die App hereinreicht.
     const komponenten = join(REPO_ROOT, 'packages/module-explorer/src/gallery/components')
     const wurzel = readFileSync(join(komponenten, 'gallery-root.tsx'), 'utf-8')
-    const overlay = readFileSync(join(komponenten, 'detail-overlay.tsx'), 'utf-8')
+    // D6b: Der Kopf der Detailansicht liegt unter `detail-overlay/detail-kopf.tsx`.
+    const overlay = readFileSync(join(komponenten, 'detail-overlay', 'detail-kopf.tsx'), 'utf-8')
 
     expect(wurzel).toContain('storyModusVerfuegbar={Boolean(storyPanel)}')
     expect(wurzel).toContain("ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}")
     expect(wurzel).not.toMatch(/ctaLabel=\{t\('gallery\.switchToStoryMode'\)\}/)
-    expect(overlay).toMatch(/\{storyModusVerfuegbar \? \(\s*<SwitchToStoryModeButton/)
+    expect(overlay).toMatch(/\{p\.storyModusVerfuegbar \? \(\s*<SwitchToStoryModeButton/)
 
     // Kein zweiter Weg zum Knopf an der Bedingung vorbei.
     const verwendungen = collectSourceFiles(join(REPO_ROOT, 'packages/module-explorer/src')).flatMap((file) =>
@@ -325,6 +326,6 @@ describe('Galerie-Schnitt', () => {
         relative(REPO_ROOT, file).replace(/\\/g, '/'),
       ),
     )
-    expect(verwendungen).toEqual(['packages/module-explorer/src/gallery/components/detail-overlay.tsx'])
+    expect(verwendungen).toEqual(['packages/module-explorer/src/gallery/components/detail-overlay/detail-kopf.tsx'])
   })
 })
