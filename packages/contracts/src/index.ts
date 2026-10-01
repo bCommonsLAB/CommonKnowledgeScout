@@ -96,6 +96,7 @@ export type { DocCardMeta, DetailDoc, ChapterInfo, FavoriteVoter } from './doc-c
 export type { DocReference, DocPassage, QuerySource } from './doc-reference'
 
 export type { StoryTopicsData, StoryTopic, StoryQuestion } from './story-topics'
+export { STORY_TOC_QUESTION } from './story-topics'
 
 export type { GalleryFilters } from './gallery-filters'
 

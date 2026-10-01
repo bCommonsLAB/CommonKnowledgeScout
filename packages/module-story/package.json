@@ -11,7 +11,8 @@
     "@ks/i18n": "workspace:*",
     "@ks/shell": "workspace:*",
     "@ks/ui": "workspace:*",
-    "@ks/util": "workspace:*"
+    "@ks/util": "workspace:*",
+    "@ks/viewers": "workspace:*"
   },
   "exports": {
     ".": "./src/index.ts",
