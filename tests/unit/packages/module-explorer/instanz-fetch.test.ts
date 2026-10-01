@@ -14,47 +14,17 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { fetchFundstellen, nacktesFetchImPaket } from '../paket-fetch-schnitt'
 
 const REPO_ROOT = process.cwd()
 const PAKET = 'packages/module-explorer/src'
 
-/** `fetch(` ohne Objekt davor — `instanz.fetch(` ist erlaubt, `prefetch(` kein Treffer. */
-const NACKTES_FETCH = /(?<![\w.$])fetch\s*\(/
-/** Auch nicht ueber das globale Objekt. */
-const GLOBALES_FETCH = /\b(?:window|globalThis|self)\s*\.\s*fetch\b/
-
-function collect(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) collect(full, acc)
-    else if (/\.tsx?$/.test(entry)) acc.push(full)
-  }
-  return acc
-}
-
-function istKommentar(zeile: string): boolean {
-  const t = zeile.trim()
-  return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')
-}
-
-/** Zeilen mit nacktem oder globalem `fetch`, als `Zeile: Inhalt`. */
-function fundstellen(inhalt: string): string[] {
-  return inhalt.split('\n').flatMap((zeile, i) =>
-    !istKommentar(zeile) && (NACKTES_FETCH.test(zeile) || GLOBALES_FETCH.test(zeile))
-      ? [`${i + 1}: ${zeile.trim()}`]
-      : [],
-  )
-}
+/** Lokaler Name, damit die Gegenproben unten lesbar bleiben. */
+const fundstellen = fetchFundstellen
 
 describe('Explorer-Modul spricht nur ueber die Instanz', () => {
   it('kein nacktes fetch im Paket', () => {
-    const offenders: string[] = []
-    for (const file of collect(join(REPO_ROOT, PAKET))) {
-      const rel = relative(REPO_ROOT, file).replace(/\\/g, '/')
-      for (const treffer of fundstellen(readFileSync(file, 'utf-8'))) offenders.push(`${rel}:${treffer}`)
-    }
+    const offenders = nacktesFetchImPaket(REPO_ROOT, PAKET)
     expect(
       offenders,
       `Nacktes fetch im Explorer-Modul:\n${offenders.join('\n')}\n` +

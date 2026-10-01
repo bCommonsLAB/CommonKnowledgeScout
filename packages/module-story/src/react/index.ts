@@ -1,0 +1,16 @@
+/**
+ * `@ks/module-story/react` — die montierbaren Bausteine des Story-Modus.
+ *
+ * BEWUSST ein eigener Einstiegspunkt neben dem React-freien Wurzel-Barrel
+ * (wie `@ks/module-explorer/react`).
+ *
+ * Regeln (Plan `story-dreiteilung-fragenchronik`, Abschnitt Paketierung):
+ * - jeder Request geht ueber die Instanz (`InstanceApi` aus `@ks/api-client`),
+ *   kein nacktes `fetch` — Test `tests/unit/packages/module-story/instanz-fetch.test.ts`
+ * - kein `next/*`, kein Clerk, kein `@/` — Test `paket-schnitt.test.ts`
+ * - Chat-Vokabular nur ueber `@ks/contracts`; `src/lib/chat` bleibt Server-Stack
+ * - was das Paket nicht kennen darf (Anmeldung, Detailansicht, Perspektive),
+ *   kommt als Slot oder Prop
+ */
+
+export {}
