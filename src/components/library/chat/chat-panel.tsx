@@ -338,8 +338,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   }, [isEmbedded, cachedStoryTopicsData, setStoryGliederung])
 
   useEffect(() => {
-    if (isEmbedded) setStoryAktiveSitzung({ chatId: activeChatId, fragen: fragenAusVerlauf(messages) })
-  }, [isEmbedded, activeChatId, messages, setStoryAktiveSitzung])
+    if (isEmbedded) setStoryAktiveSitzung({ chatId: activeChatId, fragen: fragenAusVerlauf(messages, isSending) })
+  }, [isEmbedded, activeChatId, messages, isSending, setStoryAktiveSitzung])
 
   // Klickmodell: „Frage tippen oder eigene senden" → die neue Frage wird die
   // aktive Konversation; ihr Thema (falls aus einem Thema gewaehlt) markiert

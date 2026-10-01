@@ -22,6 +22,8 @@ export interface SitzungEintragProps {
   onOeffnen: (chatId: string, offen: boolean) => void
   onFrageWaehlen: (chatId: string, frage: ChronikFrage) => void
   onUmbenennen: (chatId: string, titel: string) => Promise<void>
+  /** `false` fuer die vorlaeufige Sitzung (D2): Sie hat auf dem Server noch keinen Titel. */
+  umbenennbar?: boolean
 }
 
 function istGewaehlt(auswahl: StoryAuswahl, frage: ChronikFrage): boolean {
@@ -30,7 +32,16 @@ function istGewaehlt(auswahl: StoryAuswahl, frage: ChronikFrage): boolean {
   return Boolean(auswahl.frageId && frage.frageId && auswahl.frageId === frage.frageId)
 }
 
-export function SitzungEintrag({ sitzung, istAktiv, offen, auswahl, onOeffnen, onFrageWaehlen, onUmbenennen }: SitzungEintragProps) {
+export function SitzungEintrag({
+  sitzung,
+  istAktiv,
+  offen,
+  auswahl,
+  onOeffnen,
+  onFrageWaehlen,
+  onUmbenennen,
+  umbenennbar = true,
+}: SitzungEintragProps) {
   const { t } = useTranslation()
   const [bearbeiten, setBearbeiten] = useState(false)
   const [entwurf, setEntwurf] = useState(sitzung.titel)
@@ -79,7 +90,7 @@ export function SitzungEintrag({ sitzung, istAktiv, offen, auswahl, onOeffnen, o
             <span className={cn('truncate', istAktiv ? 'font-medium' : 'text-muted-foreground')}>{sitzung.titel}</span>
           )}
         </button>
-        {!bearbeiten && (
+        {umbenennbar && !bearbeiten && (
           <Button
             variant="ghost"
             size="icon"
