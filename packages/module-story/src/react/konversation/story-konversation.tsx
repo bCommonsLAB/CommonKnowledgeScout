@@ -9,7 +9,8 @@
  */
 
 import type { ReactNode } from 'react'
-import { HelpCircle, User } from 'lucide-react'
+import { useState } from 'react'
+import { HelpCircle, RotateCcw, Trash2, User } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { ChatProcessingStep } from '@ks/contracts'
@@ -26,9 +27,50 @@ export interface StoryKonversationProps {
   onFrage: (text: string) => void
   /** Unter jeder Antwort, z. B. KI-Hinweis. */
   fuss?: (antwort: Nachricht) => ReactNode
+  /** D6c: Frage loeschen (nach Rueckfrage); ohne Rueckruf kein Knopf. */
+  onLoeschen?: (queryId: string) => Promise<void>
+  /** D6c: Frage neu stellen — der Text wandert in die Eingabe. */
+  onErneut?: (text: string) => void
 }
 
-export function StoryKonversation({ paare, laeuft, schritte, fehler, onFrage, fuss }: StoryKonversationProps) {
+function FrageAktionen({ paar, onLoeschen, onErneut }: Pick<StoryKonversationProps, 'onLoeschen' | 'onErneut'> & { paar: FrageAntwort }) {
+  const { t } = useTranslation()
+  const [loescht, setLoescht] = useState(false)
+  const queryId = paar.frage.queryId ?? paar.antwort?.queryId
+  if (!onErneut && !(onLoeschen && queryId)) return null
+  return (
+    <div className="flex shrink-0 items-start gap-1">
+      {onErneut && (
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title={t('story.konversation.again')} aria-label={t('story.konversation.again')} onClick={() => onErneut(paar.frage.text)}>
+          <RotateCcw className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      {onLoeschen && queryId && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive"
+          title={t('story.konversation.delete')}
+          aria-label={t('story.konversation.delete')}
+          disabled={loescht}
+          onClick={async () => {
+            if (!confirm(t('story.konversation.deleteConfirm'))) return
+            setLoescht(true)
+            try {
+              await onLoeschen(queryId)
+            } finally {
+              setLoescht(false)
+            }
+          }}
+        >
+          <Trash2 className={loescht ? 'h-3.5 w-3.5 animate-pulse' : 'h-3.5 w-3.5'} />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export function StoryKonversation({ paare, laeuft, schritte, fehler, onFrage, fuss, onLoeschen, onErneut }: StoryKonversationProps) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6" data-story-konversation>
@@ -41,6 +83,7 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, onFrage, fu
             <div className="min-w-0 flex-1 rounded-lg border bg-background p-3">
               <p className="whitespace-pre-wrap break-words text-sm font-medium">{paar.frage.text}</p>
             </div>
+            <FrageAktionen paar={paar} onLoeschen={onLoeschen} onErneut={onErneut} />
           </div>
           {paar.antwort ? (
             <div className="rounded-lg border bg-muted/30 p-4" data-antwort={paar.antwort.queryId ?? paar.antwort.id}>

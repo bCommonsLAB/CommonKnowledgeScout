@@ -13,10 +13,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAtom, useSetAtom } from 'jotai'
-import type { InstanceApi } from '@ks/api-client'
+import { useSessionHeaders, type InstanceApi } from '@ks/api-client'
 import type { DocReference, GalleryFilters, StoryTopicsData } from '@ks/contracts'
 import { storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom } from '../atoms'
 import { themaZuFrage } from '../thema-zu-frage'
+import { STORY_UEBERSICHT } from '../types'
 import { ANTWORT_LAENGE_STANDARD, type AntwortLaenge, type Nachricht, type Perspektive } from '../konversation/types'
 import { useStoryStream } from '../konversation/use-story-stream'
 import { useStoryVerlauf } from '../konversation/use-story-verlauf'
@@ -45,6 +46,9 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   const [antwortLaenge, setAntwortLaenge] = useState<AntwortLaenge>(ANTWORT_LAENGE_STANDARD)
   const [fehler, setFehler] = useState<string | null>(null)
   const [uebersichtLaeuft, setUebersichtLaeuft] = useState(false)
+  /** Gespeicherte Kennung der Themenuebersicht (fuer Konfig-Anzeige und Quellen des Gastgebers). */
+  const [uebersichtQueryId, setUebersichtQueryId] = useState<string | null>(null)
+  const sessionHeaders = useSessionHeaders(isSignedIn)
   /** Fuer welchen Stand (Filter + Perspektive) die Uebersicht zuletzt geholt wurde. */
   const uebersichtStand = useRef<string | null>(null)
 
@@ -52,8 +56,9 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   const { nachrichten, setNachrichten } = verlauf
 
   const onUebersicht = useCallback(
-    (g: StoryTopicsData | null) => {
+    (g: StoryTopicsData | null, queryId: string) => {
       setGliederung(g)
+      setUebersichtQueryId(queryId)
       setUebersichtLaeuft(false)
     },
     [setGliederung],
@@ -121,6 +126,28 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     [stream],
   )
 
+  // Frage loeschen (D6c): `DELETE …/queries/<queryId>` ueber die Instanz; die
+  // Nachrichten fallen aus dem Verlauf, eine geloeschte Auswahl kehrt zur
+  // Uebersicht zurueck. Ein Serverfehler bleibt sichtbar.
+  const frageLoeschen = useCallback(
+    async (queryId: string) => {
+      setFehler(null)
+      try {
+        const res = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
+          method: 'DELETE',
+          headers: sessionHeaders,
+        })
+        if (!res.ok) throw new Error(`Frage löschen: HTTP ${res.status}`)
+        setNachrichten((alt) => alt.filter((m) => m.queryId !== queryId))
+        if (auswahl.art === 'konversation' && auswahl.queryId === queryId) setAuswahl(STORY_UEBERSICHT)
+      } catch (e) {
+        console.error('[useStoryKonversation] Frage nicht gelöscht', e)
+        setFehler(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [instanz, libraryId, sessionHeaders, setNachrichten, auswahl, setAuswahl],
+  )
+
   return {
     chatId,
     auswahl,
@@ -132,10 +159,12 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     laeuft,
     schritte: stream.schritte,
     uebersichtLaeuft,
+    uebersichtQueryId,
     fehler: fehler ?? verlauf.fehler,
     antwortLaenge,
     setAntwortLaenge,
     frageSenden,
     uebersichtNeu,
+    frageLoeschen,
   }
 }

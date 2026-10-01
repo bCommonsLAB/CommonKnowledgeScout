@@ -41,8 +41,10 @@ export interface StoryRootProps {
   onBelege?: (belege: DocReference[], queryId: string) => void
   /** Unter jeder Antwort (KI-Hinweis). */
   antwortFuss?: (antwort: Nachricht) => ReactNode
-  /** Unter den Themenkarten. */
-  uebersichtFuss?: ReactNode
+  /** Unter den Themenkarten; bekommt die gespeicherte Kennung der Uebersicht (Konfig-Anzeige, Quellen). */
+  uebersichtFuss?: (info: { queryId: string | null }) => ReactNode
+  /** D6c: Fragen duerfen geloescht werden (eigene Sitzung); Standard aus. */
+  loeschenErlaubt?: boolean
 }
 
 export function StoryRoot(p: StoryRootProps) {
@@ -105,7 +107,16 @@ export function StoryRoot(p: StoryRootProps) {
           {k.verlaufLadend ? t('story.conversationLoading') : t('story.conversationNotInHistory')}
         </p>
       ) : (
-        <StoryKonversation paare={k.paareDerAuswahl} laeuft={k.laeuft} schritte={k.schritte} fehler={k.fehler} onFrage={frageUebernehmen} fuss={p.antwortFuss} />
+        <StoryKonversation
+          paare={k.paareDerAuswahl}
+          laeuft={k.laeuft}
+          schritte={k.schritte}
+          fehler={k.fehler}
+          onFrage={frageUebernehmen}
+          fuss={p.antwortFuss}
+          onErneut={frageUebernehmen}
+          onLoeschen={p.loeschenErlaubt ? k.frageLoeschen : undefined}
+        />
       )
   } else if (thema) {
     mitte = <StoryThema thema={thema} onFrageWaehlen={(frage) => frageUebernehmen(frage.text)} onZurueck={() => k.setAuswahl(STORY_UEBERSICHT)} />
@@ -121,7 +132,7 @@ export function StoryRoot(p: StoryRootProps) {
           onThemaWaehlen={(themaId) => k.setAuswahl({ art: 'thema', themaId })}
           status={status}
           aktionen={aktionen}
-          fuss={p.uebersichtFuss}
+          fuss={p.uebersichtFuss?.({ queryId: k.uebersichtQueryId })}
         />
         {k.fehler && <div role="alert" className="mt-4 rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{k.fehler}</div>}
       </>
