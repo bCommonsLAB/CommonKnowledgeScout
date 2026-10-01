@@ -26,8 +26,8 @@ todos:
     content: "Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
     status: pending
   - id: d6-aufraeumen
-    content: "chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
-    status: pending
+    content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b offen: StoryRoot in @ks/embed] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
+    status: in_progress
 ---
 
 # Story-Modus: Dreiteilung mit Fragen-Chronik
@@ -260,7 +260,7 @@ Nachziehen.
 | D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
 | D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
-| D6 | Entflechten und Doku | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
+| D6 | Entflechten und Doku (D6a gebaut 01.10., Stand oben; D6b Embed offen) | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -496,6 +496,46 @@ Neu dazugekommen (beim Bauen gesehen):
 - Live-Nachweis (neue Frage bekommt treffenden Titel in der Zielsprache)
   steht aus: ohne Mongo und Sprachmodell nur per Unit-Tests belegt (Schema,
   Prompt, Normalisierung, Hash, Verlauf, Chronik).
+
+### Stand D6a (gebaut 01.10.2026) — D6b (Embed) offen
+
+Was steht:
+
+- **chat-panel.tsx entflochten:** 1.220 → 372 Zeilen. Sieben Hooks unter
+  `chat-panel/hooks/` (Perspektive, Aufklappen beim Laden, Story-Brücke
+  D1/D2, Nachladen-Hinweis, Abschluss-Schritt, Autostart der
+  Themenübersicht, Filter-Ereignisse, Aktionen) und zwei Layout-Teile
+  (`panel-header`, `panel-footer`), jede Datei unter 200 Zeilen, Verhalten
+  1:1. Die Varianten `default` und `compact` teilen sich einen Render-Pfad.
+  Der Umbau lief in vier Commits unter 1.000 Zeilen, jeder baut.
+- **Toter Code weg:** `chat-welcome-assistant.tsx`, `hooks/use-chat-config.ts`,
+  `story-topics.tsx` und `story-topics/**` (alte Zweiteilung) samt
+  Export-Vertragstest. `src/types/story-topics.ts` bleibt Shim.
+- **Verlauf ohne N+1:** `GET …/queries` projiziert jetzt auch
+  `accessPerspective`, `genderInclusive`, `facetsSelected` und `cacheParams`;
+  `use-chat-history` lädt eine Liste je Sitzung (bis 100 Fragen) und baut die
+  Nachrichten über die reine Funktion `verlaufZuNachrichten`
+  (`utils/verlauf-utils.ts`). Damit findet `q=` auch ältere Fragen.
+- **Status-Zuordnung vereinheitlicht:** Klimakarte (`climate-action-card`)
+  und Detailansicht (`climate-action-detail`) nehmen die Registry-Konfig
+  `belegKarte` (`plaketteFuer`, Labels `story.beleg.status.*`) wie die
+  Belegkarte; `document-card/status-config.ts` ist weg. Ohne Wert keine
+  Plakette, unbekannter Wert roh.
+- **Sitzungstitel aus dem Kurztitel:** Hat eine Frage die Sitzung benannt
+  (neu angelegt oder Systemtitel der Themenübersicht ersetzt), wird nach der
+  Antwort der `shortTitle` des Sprachmodells (D5) zum Sitzungstitel — frisch
+  wie aus dem Cache. Der Analyse-`chatTitle` bleibt vorerst (Verschlanken des
+  Analyse-Aufrufs ist Server-Arbeit für eine eigene kleine Welle).
+
+Was in D6b bleibt (eigene PR):
+
+- `StoryRoot` mit denselben Montagepunkten wie `ExplorerRoot` und Montage in
+  `@ks/embed` (anonym über die Sitzungskennung); dafür muss die Konversation
+  (`ChatMessagesList`, Stream-Hook, Verlauf) ohne `@/`-Importe im Paket
+  stehen — das ist der große Rest des Monolithen. Die Mitte im Paket ist
+  heute `StoryUebersicht`/`StoryThema` plus App-Glue (`StoryMitte`); die
+  Konversations-Ansicht kommt mit D7 (Zitatmarken), die sie ohnehin neu
+  baut.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

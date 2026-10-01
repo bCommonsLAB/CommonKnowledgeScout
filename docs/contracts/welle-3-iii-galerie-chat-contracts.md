@@ -37,12 +37,13 @@ Filter-Komponenten. Sie ergaenzt:
   - `gallery/references-sheet.tsx`, `references-legend.tsx`,
     `reference-group-header.tsx`
 - **Chat-Hauptkomponenten**:
-  - `chat/chat-panel.tsx` (1.268z, 36 Hooks — groesster Hot-Spot der Welle)
+  - `chat/chat-panel.tsx` (seit D6 372z: Zustand, Verdrahtung, Layout;
+    Logik unter `chat/chat-panel/hooks/`, Kopf und Fuss unter `chat/chat-panel/`)
   - `chat/chat-messages-list.tsx`, `chat-message.tsx`, `chat-input.tsx`
 - **Chat-Hooks**:
   - `chat/hooks/use-chat-stream.ts` (492z — Streaming-Reducer)
   - `chat/hooks/use-chat-toc.ts` (328z — TOC-Builder)
-  - `chat/hooks/use-chat-history.ts`, `use-chat-config.ts`,
+  - `chat/hooks/use-chat-history.ts` (D6: eine Liste je Sitzung, `utils/verlauf-utils.ts`),
     `use-chat-scroll.ts`
 - **Chat-Konfiguration**:
   - `chat/chat-config-{bar,display,popover}.tsx`
@@ -58,7 +59,9 @@ Filter-Komponenten. Sie ergaenzt:
 - **Chat-Pure-Helpers**:
   - `chat/utils/chat-utils.ts`, `chat/utils/chat-storage.ts`
 - **Story**:
-  - `story/story-mode-header.tsx`, `story-header.tsx`, `story-topics.tsx`
+  - `story/story-mode-header.tsx`, `story-header.tsx`, `story-mitte.tsx`,
+    `story-chronik-mount.tsx`, `story-auswahl-url.tsx` (Bausteine aus
+    `@ks/module-story/react`, Plan `story-dreiteilung-fragenchronik`)
 - **Perspective**:
   - `shared/perspective-page-content.tsx` (926z, 13 Hooks),
     `shared/perspective-display.tsx`
