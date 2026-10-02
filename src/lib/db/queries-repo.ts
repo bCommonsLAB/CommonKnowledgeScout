@@ -37,6 +37,7 @@ import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import type { Library } from '@/types/library'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
+import { logFuerLeser } from './query-log-zugriff'
 
 const COLLECTION_NAME = 'queries'
 
@@ -262,19 +263,19 @@ export async function updateQueryLogPartial(queryId: string, updateFields: Parti
   await col.updateOne({ queryId }, update)
 }
 
+/**
+ * Ein Log lesen. Eigene Logs (E-Mail bzw. anonyme Sitzung) wie bisher; die
+ * Themenuebersicht (`toc`) ist innerhalb der Library fuer alle lesbar, weil
+ * ihr Cache benutzeruebergreifend ist (D12a, Regel in `query-log-zugriff`).
+ */
 export async function getQueryLogById(args: { libraryId: string; queryId: string; userEmail?: string; sessionId?: string }): Promise<QueryLog | null> {
-  const col = await getQueriesCollection()
-  const filter: Record<string, unknown> = { queryId: args.queryId, libraryId: args.libraryId }
-  
-  if (args.userEmail) {
-    filter.userEmail = args.userEmail
-  } else if (args.sessionId) {
-    filter.sessionId = args.sessionId
-  } else {
+  if (!args.userEmail && !args.sessionId) {
     throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
   }
-  
-  return await col.findOne(filter)
+  const col = await getQueriesCollection()
+  const log = await col.findOne({ queryId: args.queryId, libraryId: args.libraryId })
+  if (!log) return null
+  return logFuerLeser(log, { userEmail: args.userEmail, sessionId: args.sessionId })
 }
 
 
