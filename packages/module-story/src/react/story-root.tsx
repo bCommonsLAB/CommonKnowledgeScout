@@ -44,8 +44,6 @@ export interface StoryRootProps {
   antwortFuss?: (antwort: Nachricht) => ReactNode
   /** Unter den Themenkarten; bekommt die gespeicherte Kennung der Uebersicht (Konfig-Anzeige, Quellen). */
   uebersichtFuss?: (info: { queryId: string | null }) => ReactNode
-  /** D10: einmaliger Hinweis zur Bedienung, oben in der Uebersicht (Gastgeber entscheidet, ob und wann). */
-  uebersichtHinweis?: ReactNode
   /** D6c: Fragen duerfen geloescht werden (eigene Sitzung); Standard aus. */
   loeschenErlaubt?: boolean
 }
@@ -132,7 +130,6 @@ export function StoryRoot(p: StoryRootProps) {
           themenTitel={p.kopf?.themenTitel}
           themenIntro={p.kopf?.themenIntro}
           onThemaWaehlen={(themaId) => k.setAuswahl({ art: 'thema', themaId })}
-          hinweis={p.uebersichtHinweis}
           status={status}
           aktionen={aktionen}
           fuss={p.uebersichtFuss?.({ queryId: k.uebersichtQueryId })}

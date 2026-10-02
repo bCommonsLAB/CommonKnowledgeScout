@@ -36,25 +36,17 @@ describe('zaehlerText', () => {
 })
 
 describe('StoryUebersicht', () => {
-  it('zeigt Hinweis, Zaehler, Themenzeile und eine Karte je Thema; Klick waehlt das Thema', () => {
+  it('zeigt Zaehler, Kopf der Gliederung, Themenzeile und eine Karte je Thema; Klick waehlt das Thema', () => {
     const onThemaWaehlen = vi.fn()
-    render(
-      <StoryUebersicht
-        gliederung={gliederung}
-        dokumente={42}
-        onThemaWaehlen={onThemaWaehlen}
-        hinweis={<div data-testid="hinweis">Hinweis</div>}
-      />,
-    )
-    // D10: kein Kopf des Inhalts mehr in der Mitte, der Hinweis steht ganz oben
+    render(<StoryUebersicht gliederung={gliederung} dokumente={42} onThemaWaehlen={onThemaWaehlen} />)
+    // D10: kein Kopf des Inhalts mehr in der Mitte (steht im Kopf der Seite)
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
-    expect(screen.getByTestId('hinweis')).toBeTruthy()
     expect(screen.getByText('story.count.documents.many:42')).toBeTruthy()
     expect(screen.getByText('story.count.topics.many:2')).toBeTruthy()
     expect(screen.getByText('story.count.questions.many:3')).toBeTruthy()
-    // Themenzeile generisch mit Zahl; Titel und Einleitung des Sprachmodells werden nicht gezeigt
-    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('story.uebersicht.themenzeile.many:2')
-    expect(screen.queryByText('Themen der Sammlung')).toBeNull()
+    // D10b: Titel und Einleitung des Sprachmodells vor den Karten, darunter die Themenzeile mit Zahl
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Themen der Sammlung')
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('story.uebersicht.themenzeile.many:2')
     expect(screen.getByText('Wege und Wagen.')).toBeTruthy()
     expect(screen.getByText('story.count.questions.one')).toBeTruthy()
     // Fragen stehen NICHT in der Uebersicht
@@ -77,7 +69,7 @@ describe('StoryUebersicht', () => {
     expect(screen.getByText('story.count.documents.one')).toBeTruthy()
     expect(screen.queryByText(/story.count.topics/)).toBeNull()
     expect(screen.queryByRole('list')).toBeNull()
-    expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
+    expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
   })
 
   it('Konfig-Texte ersetzen die Themenzeile und ergaenzen eine Einleitung', () => {
@@ -90,9 +82,9 @@ describe('StoryUebersicht', () => {
         onThemaWaehlen={() => {}}
       />,
     )
-    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Unsere Themen')
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Unsere Themen')
     expect(screen.getByText('Eigene Einleitung.')).toBeTruthy()
-    expect(screen.queryByText('Themen der Sammlung')).toBeNull()
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Themen der Sammlung')
     expect(screen.queryByText(/themenzeile/)).toBeNull()
   })
 })

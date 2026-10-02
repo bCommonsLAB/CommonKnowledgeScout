@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@ks/ui'
-import { Settings2, ChevronLeft, PanelLeft, HelpCircle } from 'lucide-react'
+import { Settings2, ChevronLeft, PanelLeft } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
@@ -16,8 +16,6 @@ interface StoryHeaderProps {
   libraryId?: string
   /** D4: Menue-Knopf unter `lg`, oeffnet die Chronik als Sheet; ohne Rueckruf kein Knopf. */
   onOpenChronik?: () => void
-  /** D10: holt den einmaligen Hinweis zur Bedienung zurueck; ohne Rueckruf kein Knopf. */
-  onHilfe?: () => void
 }
 
 /**
@@ -27,7 +25,7 @@ interface StoryHeaderProps {
  * - Button "Eigene Perspektive anpassen" und daneben die Perspektive als Plaketten (D9)
  * - Button "Zurück zur Gallery" (optional)
  */
-export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp, onOpenChronik, onHilfe }: StoryHeaderProps) {
+export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp, onOpenChronik }: StoryHeaderProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
@@ -104,13 +102,6 @@ export function StoryHeader({ compact = false, onBackToGallery, libraryId: libra
           <Settings2 className="h-4 w-4 shrink-0" />
           <span className="whitespace-nowrap">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
         </Button>
-        {/* D10: „?" holt den einmaligen Hinweis zur Bedienung zurueck */}
-        {onHilfe && (
-          <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={onHilfe} aria-label={t('story.hinweis.titel')}>
-            <HelpCircle className="h-4 w-4 shrink-0" />
-            <span className="hidden whitespace-nowrap sm:inline">{t('story.hinweis.titel')}</span>
-          </Button>
-        )}
         {/* D9: Perspektive als Plaketten, Klick fuehrt wie der Knopf zur Perspektive-Seite */}
         <PerspectiveDisplay variant="header" onClick={handleAdjustPerspective} />
       </div>

@@ -1,16 +1,16 @@
 'use client'
 
 /**
- * Mitte beim Einstieg: optionaler Hinweis, Kennzahlen, eine Karte je Thema.
+ * Mitte beim Einstieg: Kennzahlen, Kopf der Gliederung, eine Karte je Thema.
  *
  * Seit D10 steht der Kopf des Inhalts (Titel, Zweizeiler der Library) NICHT
- * mehr hier, sondern im Kopf der Seite (Gastgeber). Ueber den Karten steht
- * eine kurze Themenzeile mit Zahl („7 Themen · waehle eines"); die Konfig
+ * mehr hier, sondern im Kopf der Seite (Gastgeber). Vor den Karten steht der
+ * Kopf der Gliederung, den das Sprachmodell mitliefert (Titel und
+ * Einleitung — Owner 02.10.: „das war vorher besser"), darunter eine kurze
+ * Themenzeile mit Zahl („7 Themen · waehle eines"); die Konfig
  * (`story.topicsTitle`/`topicsIntro`) darf sie ersetzen bzw. ergaenzen.
- * Titel und Einleitung, die das Sprachmodell mit der Gliederung liefert,
- * werden nicht angezeigt — sie wiederholten den Kopf (Befund 02.10.).
- * Was das Paket nicht kennt, kommt als Slot: Hinweis (D10), Rechen-Status,
- * Aktionen (neu berechnen) und der Fuss (KI-Hinweis, Konfig-Anzeige).
+ * Was das Paket nicht kennt, kommt als Slot: Rechen-Status, Aktionen (neu
+ * berechnen) und der Fuss (KI-Hinweis, Konfig-Anzeige).
  */
 
 import type { ReactNode } from 'react'
@@ -28,8 +28,6 @@ export interface StoryUebersichtProps {
   /** Einleitung zu den Karten (Konfig `story.topicsIntro`); ohne Konfig keine. */
   themenIntro?: string
   onThemaWaehlen: (themaId: string) => void
-  /** D10: einmaliger Hinweis zur Bedienung, ganz oben. */
-  hinweis?: ReactNode
   /** Rechen-Status, solange keine Gliederung da ist (oder sie neu entsteht). */
   status?: ReactNode
   /** Aktionen rechts neben den Kennzahlen, z. B. „neu berechnen". */
@@ -38,17 +36,7 @@ export interface StoryUebersichtProps {
   fuss?: ReactNode
 }
 
-export function StoryUebersicht({
-  gliederung,
-  dokumente,
-  themenTitel,
-  themenIntro,
-  onThemaWaehlen,
-  hinweis,
-  status,
-  aktionen,
-  fuss,
-}: StoryUebersichtProps) {
+export function StoryUebersicht({ gliederung, dokumente, themenTitel, themenIntro, onThemaWaehlen, status, aktionen, fuss }: StoryUebersichtProps) {
   const { t } = useTranslation()
   const themen = gliederung?.topics ?? []
   const fragen = themen.reduce((summe, thema) => summe + thema.questions.length, 0)
@@ -57,8 +45,6 @@ export function StoryUebersicht({
 
   return (
     <div className="space-y-6" data-story-uebersicht>
-      {hinweis}
-
       <header className="flex flex-wrap items-center justify-between gap-3">
         <Kennzahlen
           werte={[
@@ -73,7 +59,10 @@ export function StoryUebersicht({
 
       {gliederung && (
         <section className="space-y-3" aria-label={t('story.topics')}>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{themenzeile}</h2>
+          {/* Kopf der Gliederung: Titel und Einleitung des Sprachmodells (D10b) */}
+          {gliederung.title && <h2 className="text-lg font-semibold leading-snug">{gliederung.title}</h2>}
+          {gliederung.intro && <p className="text-sm leading-relaxed text-muted-foreground">{gliederung.intro}</p>}
+          <h3 className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{themenzeile}</h3>
           {themenIntro && <p className="text-sm text-muted-foreground">{themenIntro}</p>}
           <ul className="grid gap-3 sm:grid-cols-2">
             {themen.map((thema) => (

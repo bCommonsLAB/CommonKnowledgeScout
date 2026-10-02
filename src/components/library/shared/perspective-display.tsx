@@ -7,6 +7,7 @@ import {
   CHARACTER_LABELS,
   ACCESS_PERSPECTIVE_LABELS,
   SOCIAL_CONTEXT_LABELS,
+  resolveTargetLanguage,
   type Character,
   type AccessPerspective,
   type AnswerLength,
@@ -85,7 +86,7 @@ export function PerspectiveDisplay({
   paddingLeft,
   onClick,
 }: PerspectiveDisplayProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const {
     targetLanguage: targetLanguageContext,
     character: characterContext,
@@ -101,18 +102,17 @@ export function PerspectiveDisplay({
   // Verwende Props falls vorhanden, sonst Context als Fallback
   // WICHTIG: Bei 'inline'-Variante (für Antworten) KEIN Fallback auf Context,
   // da die Parameter aus dem QueryLog kommen müssen und unterschiedlich sein können
-  const targetLanguage = variant === 'header' 
-    ? (targetLanguageProp ?? targetLanguageContext)
-    : targetLanguageProp
-  const character = variant === 'header'
-    ? (characterProp ?? characterContext)
-    : characterProp
-  const accessPerspective = variant === 'header'
-    ? (accessPerspectiveProp ?? accessPerspectiveContext)
-    : accessPerspectiveProp
-  const socialContext = variant === 'header'
-    ? (socialContextProp ?? socialContextContext)
-    : socialContextProp
+  // D10b (Owner 02.10., Platz ist wertvoll): Im Kopf nur Gesetztes — „undefined"
+  // (nicht spezifiziert) faellt weg, die Sprache nur, wenn sie von der
+  // Oberflaechensprache abweicht. Die Inline-Variante zeigt weiter alles aus dem Log.
+  const ohneUnspezifiziert = <T extends string>(werte: T[] | undefined): T[] | undefined => werte?.filter((w) => w !== 'undefined')
+  const sprache = variant === 'header' ? (targetLanguageProp ?? targetLanguageContext) : targetLanguageProp
+  const targetLanguage =
+    variant === 'header' && sprache && resolveTargetLanguage(sprache, locale) === resolveTargetLanguage('global', locale) ? undefined : sprache
+  const character = variant === 'header' ? ohneUnspezifiziert(characterProp ?? characterContext) : characterProp
+  const accessPerspective = variant === 'header' ? ohneUnspezifiziert(accessPerspectiveProp ?? accessPerspectiveContext) : accessPerspectiveProp
+  const socialContextRoh = variant === 'header' ? (socialContextProp ?? socialContextContext) : socialContextProp
+  const socialContext = variant === 'header' && socialContextRoh === 'undefined' ? undefined : socialContextRoh
   const llmModelResolved =
     variant === 'header'
       ? (llmModelProp ?? (llmModelContext?.trim() ? llmModelContext : undefined))

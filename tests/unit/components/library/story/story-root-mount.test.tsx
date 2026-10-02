@@ -7,7 +7,7 @@
  * Belege an das Atom der Galerie; Loeschen erlaubt; Fuesse mit App-Stuecken.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import type { ComponentProps } from 'react'
 import { chatReferencesAtom, galleryFiltersAtom } from '@ks/module-explorer/react'
@@ -43,7 +43,6 @@ vi.mock('@ks/module-story/react', async (original) => ({
       <div data-testid="root">
         {props.antwortFuss?.({ id: 'a', art: 'antwort', text: 'x', createdAt: '', queryId: 'q7', belege: [{ number: 1, fileId: 'f', description: 'd' }] })}
         {props.uebersichtFuss?.({ queryId: 'toc-1' })}
-        {props.uebersichtHinweis}
       </div>
     )
   },
@@ -77,12 +76,6 @@ describe('StoryRootMount', () => {
     expect(screen.getAllByTestId('konfig').map((el) => el.textContent)).toEqual(['q7', 'toc-1'])
     expect(screen.getAllByTestId('ki')).toHaveLength(2)
     expect(screen.getByRole('button', { name: /Debug/ })).toBeTruthy()
-    // D10: Hinweis beim ersten Besuch mit den eigenen Texten der Library; „Verstanden" merkt es im Browser
-    expect(screen.getByRole('note').textContent).toContain('Eigene Erklärung.')
-    expect(screen.getByRole('note').textContent).toContain('story.hinweis.titel')
-    fireEvent.click(screen.getByText('story.hinweis.verstanden'))
-    expect(localStorage.getItem('story-hinweis-gesehen')).toBe('true')
-    expect(screen.queryByRole('note')).toBeNull()
     localStorage.clear()
   })
 })

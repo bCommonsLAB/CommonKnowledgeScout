@@ -264,7 +264,7 @@ Nachziehen.
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 | D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
 | D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten statt Info-Symbol, wie Figma Schritt 1; Chronik ohne Aufruf bei leerer Library-Kennung (gebaut 02.10., Stand D9 unten) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite; kein 405 beim Start |
-| D10 | Kopf der Seite: Titel und Zweizeiler der Library über den Spalten, Erklärung des Story-Modus als einmaliger Hinweis mit „?“-Knopf, Mitte ohne zweiten Kopf, Themenzeile generisch (Figma „6 · Kopf der Seite“ abgenommen 02.10., gebaut 02.10., Stand D10 unten) | Live: Hinweis einmal, „?“ holt ihn zurück, Kopf zeigt Library, kein Modelltitel in der Mitte |
+| D10 | Kopf der Seite für beide Ansichten: Titel und Zweizeiler der Library oben, darunter die Ansichtszeile („Inhalte erkunden“ / „Story-Modus“) mit ⓘ-Erklärung zum Auf- und Zuklappen; Mitte ohne Konfig-Kopf, Modelltitel vor den Themen (Figma „6“ und „Schritt 7“ abgenommen 02.10., gebaut als D10 + D10b 02.10., Stand D10 unten) | Live: Erklärung beim ersten Besuch auf, Pfeil klappt zu, ⓘ wieder auf; Kopf zeigt Library in Galerie und Story; Plaketten nur Gesetztes |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -815,7 +815,7 @@ Nicht in D9 (Owner 02.10., Konzept offen):
   einmaliger Hinweis zum Wegklicken. Konzept folgt, generisch für alle
   Libraries.
 
-### Stand D10 (Figma abgenommen und gebaut 02.10.2026) — Kopf der Seite
+### Stand D10 + D10b (Figma abgenommen und gebaut 02.10.2026) — Kopf der Seite für beide Ansichten
 
 Owner 02.10.: Der Kopf über den drei Spalten erklärt heute die Bedienung
 (`gallery.storyMode.headline/subtitle/description` bzw.
@@ -867,6 +867,44 @@ Was steht (gebaut 02.10., Owner „passt“ zum Figma-Bildschirm):
   `story-root.test.tsx`, `story-root-mount.test.tsx` (Hinweis, Verstanden),
   `story-hinweis.test.tsx`, `use-story-hinweis.test.tsx`; tsc-Vergleich
   leer, Lint 0 Fehler.
+
+**D10b (Owner-Rückmeldung 02.10. nach dem Live-Blick auf D10):** „Gar kein
+Titel mehr in der Mitte, das war vorher besser“ und „die Hilfe gehört in eine
+Ansichtszeile über den Knöpfen, gleich für Galerie und Story“. Figma
+„Schritt 7 · Kopf für beide Ansichten“ (Node `23-2`, vier Köpfe: Galerie und
+Story, Erklärung zu und auf), abgenommen mit der Auflage, dass das Einklappen
+ohne Lesen erkennbar ist (runder Pfeil nach oben im Kasten).
+
+Was seit D10b steht (ersetzt den Hinweis in der Mitte und den „?“-Knopf):
+
+- **`AnsichtsZeile` + `useAnsichtErklaerung` (`@ks/ui`, generisch):** links
+  der Name der Ansicht mit rundem ⓘ-Knopf, rechts die Werkzeuge; ⓘ klappt die
+  Erklärung der Ansicht darunter auf, im Kasten rechts oben klappt ein
+  runder Pfeil sie ein. Beim ersten Besuch offen, der Browser merkt sich „zu“
+  je Ansicht (`ansicht-erklaerung-zu:<ansicht>`). Beim Scrollen bleibt die
+  Zeile, die Erklärung geht zu.
+- **Galerie-Kopf (`GalleryStickyHeader`):** Kopf der Seite = `publicName`
+  (sonst Label) und `publicPublishing.description`; Ansichtszeile „Inhalte
+  erkunden“ mit Suche, Ansichtswahl, Aktionen; Erklärung aus
+  `publicPublishing.gallery.headline/description` (sonst Übersetzung
+  `gallery.texts.*`). `gallery.subtitle` wird nicht mehr angezeigt.
+- **Story-Kopf (`StoryModeHeader`, App) und `StoryKopfzeile` (Embed):**
+  gleicher Kopf der Seite; Ansichtszeile „Story-Modus“ mit Zurück,
+  Perspektive anpassen, Plaketten; Erklärung aus `story.headline/intro`
+  (sonst Übersetzung). `story.subtitle` wird nicht mehr angezeigt.
+- **Mitte (`StoryUebersicht`):** Titel und Einleitung des Sprachmodells
+  stehen wieder vor den Karten (h2 + Absatz), darunter die Themenzeile
+  „7 Themen · wähle eines“ (h3). Kein Hinweis-Slot mehr; `StoryHinweis` und
+  `useStoryHinweis` sind weg.
+- **Plaketten (`PerspectiveDisplay` header, Owner 02.10.: Platz ist
+  wertvoll):** nur Gesetztes — „nicht spezifiziert“ fällt weg, die Sprache
+  nur, wenn sie von der Oberflächensprache abweicht (`resolveTargetLanguage`
+  gegen `locale`). Die Inline-Variante unter der Antwort zeigt weiter alles.
+- Übersetzungen: neuer Block `ansicht.*` (de/en/it/es/fr), `story.hinweis.*`
+  entfernt. Belege: `ansichts-zeile.test.tsx`,
+  `use-ansicht-erklaerung.test.tsx`, `perspective-display-plaketten.test.tsx`
+  (D10b-Regeln), `story-mitte.test.tsx` (Kopf der Gliederung zurück); tsc-
+  Vergleich leer, Lint 0 Fehler.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
