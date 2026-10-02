@@ -865,7 +865,7 @@
     },
     "conversationLoading": "Chargement de la conversation …",
     "conversationNotInHistory": "Cette question n’est pas dans l’historique chargé.",
-    "recompute": "Recalculer l’aperçu",
+    "recompute": "Recalculer l’aperçu des thèmes",
     "recomputing": "Recalcul …",
     "beleg": {
       "title": "Sources",

@@ -932,6 +932,27 @@ verschwindet. Unbekannte Fehler bleiben wie bisher (`fehlerText`). Beleg:
 `use-story-stream.test.tsx` (Kennung → Klartext + Detail). Weitere Kennungen
 (Modell fehlt, Schlüssel ungültig) folgen bei Bedarf nach demselben Muster.
 
+**D11a (Owner 02.10., „der Knopf oben stört“):** „Übersicht neu berechnen“
+stand als Knopf in der Mitte neben den Kennzahlen. Jetzt steht er als
+dezentes Symbol (Pfeilkreis, beim Rechnen Spinner) rechts in der
+Chronik-Zeile „Themenübersicht“, mit Tooltip „Themenübersicht neu berechnen“
+(`story.recompute`, de/en/it/es/fr). Technik: `StoryRoot` stellt die Aktion
+über `storyUebersichtAktionAtom` bereit (`null` ohne Gliederung), die
+Chronik (`Gliederung`) zeigt den Knopf nur dann. Die Mitte beginnt damit
+direkt mit den Kennzahlen. Beleg: `story-chronik.test.tsx` (Knopf erscheint
+mit der Aktion, ruft sie, ist beim Rechnen gesperrt).
+
+**Neu dazugekommen (Owner 02.10., noch Konzept):**
+
+- **Quellenverzeichnis rechts** nimmt ungefragt Platz; Wunsch: anders
+  formatieren und als „fliegendes Verzeichnis“ einblenden, wenn es jemand
+  braucht. Vorschlag: rechte Spalte einklappbar auf eine schmale Leiste mit
+  „Quellen (610)“ bzw. „Belege (4)“, Aufklappen als Spalte (Desktop) oder
+  Sheet (mobil, gibt es seit D4); nach einer Antwort kurz aufmerksam machen
+  (Zähler), nicht aufdrängen. Figma zuerst (D11b).
+- **KI-Hinweis für Laien** umformulieren; Vorschläge im Chat, Entscheidung
+  offen.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

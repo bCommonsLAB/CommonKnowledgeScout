@@ -865,7 +865,7 @@
     },
     "conversationLoading": "Caricamento della conversazione …",
     "conversationNotInHistory": "Questa domanda non è nella cronologia caricata.",
-    "recompute": "Ricalcola panoramica",
+    "recompute": "Ricalcola la panoramica dei temi",
     "recomputing": "Ricalcolo …",
     "beleg": {
       "title": "Fonti",

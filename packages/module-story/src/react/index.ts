@@ -15,7 +15,7 @@
 
 export type { StoryAuswahl, ChronikFrage, ChronikSitzung, AktiveSitzung, StoryKopf } from './types'
 export { STORY_UEBERSICHT } from './types'
-export { storyAuswahlAtom, storyGliederungAtom, storyAktiveSitzungAtom } from './atoms'
+export { storyAuswahlAtom, storyGliederungAtom, storyAktiveSitzungAtom, storyUebersichtAktionAtom, type UebersichtAktion } from './atoms'
 export { kurztitel, kurztitelFuer } from './kurztitel'
 export { themaZuFrage } from './thema-zu-frage'
 export { useStorySitzungen, type UseStorySitzungenParams, type UseStorySitzungenResult } from './use-story-sitzungen'

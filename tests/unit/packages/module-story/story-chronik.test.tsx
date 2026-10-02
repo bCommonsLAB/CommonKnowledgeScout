@@ -18,6 +18,7 @@ import {
   storyAktiveSitzungAtom,
   storyAuswahlAtom,
   storyGliederungAtom,
+  storyUebersichtAktionAtom,
 } from '@ks/module-story/react'
 
 vi.mock('@ks/i18n/react', () => ({
@@ -180,6 +181,18 @@ describe('StoryChronik', () => {
     fireEvent.click(screen.getByRole('button', { name: /story.newSession/ }))
     expect(onGewaehlt).toHaveBeenCalledTimes(4)
     expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
+  })
+
+  it('„Themenuebersicht neu berechnen" steht dezent an der Zeile, sobald die Mitte die Aktion bereitstellt (D11a)', async () => {
+    const { store } = renderChronik()
+    expect(screen.queryByRole('button', { name: 'story.recompute' })).toBeNull()
+    const neuBerechnen = vi.fn()
+    store.set(storyUebersichtAktionAtom, { neuBerechnen, laeuft: false })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'story.recompute' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'story.recompute' }))
+    expect(neuBerechnen).toHaveBeenCalledTimes(1)
+    store.set(storyUebersichtAktionAtom, { neuBerechnen, laeuft: true })
+    await waitFor(() => expect((screen.getByRole('button', { name: 'story.recomputing' }) as HTMLButtonElement).disabled).toBe(true))
   })
 
   it('„Themenuebersicht" und „Neue Sitzung" fuehren zur Uebersicht zurueck', async () => {

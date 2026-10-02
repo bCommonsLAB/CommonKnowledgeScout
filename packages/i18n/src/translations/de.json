@@ -912,7 +912,7 @@
     },
     "conversationLoading": "Konversation wird geladen …",
     "conversationNotInHistory": "Diese Frage liegt nicht im geladenen Verlauf.",
-    "recompute": "Übersicht neu berechnen",
+    "recompute": "Themenübersicht neu berechnen",
     "recomputing": "Neuberechnung …",
     "beleg": {
       "title": "Belege",

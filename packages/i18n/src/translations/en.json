@@ -865,7 +865,7 @@
     },
     "conversationLoading": "Loading conversation …",
     "conversationNotInHistory": "This question is not in the loaded history.",
-    "recompute": "Recompute overview",
+    "recompute": "Recompute topic overview",
     "recomputing": "Recomputing …",
     "beleg": {
       "title": "Evidence",
