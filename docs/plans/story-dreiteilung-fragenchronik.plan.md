@@ -264,6 +264,7 @@ Nachziehen.
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 | D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
 | D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten statt Info-Symbol, wie Figma Schritt 1; Chronik ohne Aufruf bei leerer Library-Kennung (gebaut 02.10., Stand D9 unten) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite; kein 405 beim Start |
+| D10 | Kopf der Seite: Titel und Zweizeiler der Library über den Spalten, Erklärung des Story-Modus als einmaliger Hinweis mit „?“-Knopf, Mitte ohne zweiten Kopf, Themenzeile generisch (Figma „6 · Kopf der Seite“ angelegt 02.10., Abnahme offen) | Owner nimmt den Figma-Bildschirm ab; Live: Hinweis einmal, Kopf zeigt Library, kein Modelltitel in der Mitte |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -813,6 +814,34 @@ Nicht in D9 (Owner 02.10., Konzept offen):
   Mitte als „Kopf des Ganzen“); die Erklärung des Story-Modus wird ein
   einmaliger Hinweis zum Wegklicken. Konzept folgt, generisch für alle
   Libraries.
+
+### Stand D10 (Figma angelegt 02.10.2026, Abnahme offen) — Kopf der Seite
+
+Owner 02.10.: Der Kopf über den drei Spalten erklärt heute die Bedienung
+(`gallery.storyMode.headline/subtitle/description` bzw.
+`publicPublishing.story.headline/subtitle/intro`). Das ist Hilfetext, kein
+Kopf des Inhalts. Dort gehören Titel und Zweizeiler der Library hin.
+
+Figma: Bildschirm „6 · Kopf der Seite (D10)“ mit Erklärtext „Schritt 6“ auf
+der maßgeblichen Seite (Node `22-169`), Kopie von „1 · Einstieg“ mit diesen
+Änderungen:
+
+- **Kopf:** Titel der Library (24 px) und Zweizeiler (14 px, gedämpft) über
+  der Knopfzeile; darunter „Zurück“, „Perspektive anpassen“, neu
+  „? So funktioniert der Story-Modus“, dann die Plaketten (D9).
+- **Mitte:** oben ein einmaliger Hinweis (ⓘ, Erklärtext, „Verstanden ✕“),
+  gemerkt im Browser wie die Perspektive; „?“ im Kopf holt ihn zurück. Dann
+  Kennzahlen, die Themenzeile „Die vier Themen · wähle eines“ und die
+  Karten. Der „Kopf des Ganzen“ in der Mitte und der Modelltitel entfallen.
+- **Generisch:** Titel und Zweizeiler aus den Library-Einstellungen
+  (`publicPublishing` Titel/Beschreibung, wie heute der Kopf in der Mitte);
+  die Erklärung aus den Übersetzungen oder `publicPublishing.story`; die
+  Themenzeile aus der Übersetzung mit Zahl, `story.topicsTitle/topicsIntro`
+  bleiben als Übersteuerung. Kein Library-Wissen im Code.
+
+Bau nach Abnahme: `StoryModeHeader` (Kopf), `StoryRoot`/`StoryUebersicht`
+(Hinweis-Slot, Themenzeile, Kopf-Block weg), App- und Embed-Montage, Tests,
+Übersetzungen de/en/it.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
