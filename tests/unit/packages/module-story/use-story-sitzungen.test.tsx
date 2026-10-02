@@ -16,7 +16,8 @@ import { useStorySitzungen } from '@ks/module-story/react'
 interface Antwort { ok: boolean; status?: number; body?: unknown }
 
 function stubFetch(routen: Record<string, Antwort>) {
-  const fetchMock = vi.fn(async (url: string) => {
+  // Signatur wie `fetch` (url, init), damit `mock.calls` als [string, RequestInit] lesbar ist.
+  const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
     const treffer = Object.keys(routen).find((fragment) => url.includes(fragment))
     if (!treffer) throw new Error(`Unerwarteter Request im Test: ${url}`)
     const r = routen[treffer]
