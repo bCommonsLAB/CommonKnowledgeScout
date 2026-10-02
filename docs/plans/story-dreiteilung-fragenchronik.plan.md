@@ -972,11 +972,15 @@ mit der Aktion, ruft sie, ist beim Rechnen gesperrt).
   `StorySpalten` bekommt `leiste` (ohne Angabe wie bisher, Embed) und
   rendert zu die Leiste (Zähler = Belege der Antwort, blau, sonst Quellen
   im Bestand) statt der Spalte, auf die Spalte mit Pfeil zum Einklappen;
-  Schlüssel der Spaltengruppe bleibt beim Ein-/Ausklappen gleich (ein
-  Schlüsselwechsel baute Chronik und Mitte neu auf, die Übersicht lief
-  erneut an — live gesehen und behoben). Beleg: `story-spalten.test.tsx`;
-  live: Leiste 56 px, Mitte 1005 px, Auf-/Zuklappen ohne neue Aufrufe.
-  Übersetzungen `story.leiste.*`.
+  Owner-Korrektur nach dem ersten Live-Blick: Die Quellen legen sich als
+  **Schicht** über den rechten Teil der Mitte (480 px, max. 55 %), die
+  Breiten von Chronik und Mitte ändern sich dabei nicht (die Leiste bleibt
+  unsichtbar stehen); zugeklappt ist die Chronik breiter (22 % statt 15 %),
+  damit die Fragen lesbar sind. Eigene Breiten-Schlüssel
+  `story-spalten-fliegend-*`; ohne `leiste` (Embed) die alte Dreiteilung.
+  Beleg: `story-spalten.test.tsx`; live: Chronik 260 px und Mitte 923 px vor
+  und nach dem Aufklappen identisch, keine neuen Aufrufe. Übersetzungen
+  `story.leiste.*`.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

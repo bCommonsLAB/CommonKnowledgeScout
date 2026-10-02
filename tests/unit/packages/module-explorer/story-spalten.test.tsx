@@ -36,15 +36,20 @@ describe('StorySpalten (D11b Quellen-Leiste)', () => {
     expect(screen.getByLabelText('4 story.beleg.title').querySelector('[data-belege-zaehler]')?.textContent).toBe('4')
   })
 
-  it('auf: Spalte mit Inhalt und Pfeil zum Einklappen; ohne leiste immer die Spalte', () => {
+  it('auf: Quellen als Schicht ueber der Mitte (Mitte bleibt), Pfeil klappt ein; ohne leiste feste Spalte', () => {
     const onToggle = vi.fn()
     const { unmount } = render(<StorySpalten mitte={<div>Mitte</div>} quellen={<div>Quellenliste</div>} leiste={{ offen: true, onToggle, zaehler: 610, belege: false }} />)
     expect(screen.getByText('Quellenliste')).toBeTruthy()
+    expect(screen.getByText('Mitte')).toBeTruthy()
+    expect(document.querySelector('[data-story-quellen][data-fliegend]')).not.toBeNull()
+    // Die Leiste bleibt unsichtbar stehen, damit die Spaltenbreiten gleich bleiben
+    expect(document.querySelector('[data-story-quellen-leiste]')?.getAttribute('data-story-quellen-leiste')).toBe('unsichtbar')
     fireEvent.click(screen.getByRole('button', { name: 'story.leiste.schliessen' }))
     expect(onToggle).toHaveBeenCalledTimes(1)
     unmount()
     render(<StorySpalten mitte={<div>Mitte</div>} quellen={<div>Quellenliste</div>} />)
     expect(screen.getByText('Quellenliste')).toBeTruthy()
+    expect(document.querySelector('[data-story-quellen][data-fliegend]')).toBeNull()
     expect(screen.queryByRole('button', { name: 'story.leiste.schliessen' })).toBeNull()
   })
 })

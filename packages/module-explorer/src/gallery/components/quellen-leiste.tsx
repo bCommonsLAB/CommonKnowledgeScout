@@ -52,19 +52,22 @@ export interface QuellenLeisteProps {
   /** `true`: der Zaehler meint Belege einer Antwort (blau, macht aufmerksam). */
   belege: boolean
   onOeffnen: () => void
+  /** Offen: die Leiste bleibt unsichtbar stehen, damit die Spaltenbreiten exakt gleich bleiben. */
+  unsichtbar?: boolean
 }
 
 const rund =
   'inline-flex h-7 w-7 items-center justify-center rounded-full border border-input bg-background text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 
-export function QuellenLeiste({ zaehler, belege, onOeffnen }: QuellenLeisteProps) {
+export function QuellenLeiste({ zaehler, belege, onOeffnen, unsichtbar = false }: QuellenLeisteProps) {
   const { t } = useTranslation()
   const label = belege ? t('story.beleg.title') : t('gallery.sources')
   return (
     <aside
-      className="flex w-14 shrink-0 flex-col items-center gap-3 rounded-md border bg-background py-3"
+      className={cn('flex w-14 shrink-0 flex-col items-center gap-3 rounded-md border bg-background py-3', unsichtbar && 'invisible')}
       aria-label={`${zaehler} ${label}`}
-      data-story-quellen-leiste
+      aria-hidden={unsichtbar || undefined}
+      data-story-quellen-leiste={unsichtbar ? 'unsichtbar' : 'sichtbar'}
     >
       <button type="button" onClick={onOeffnen} className={rund} aria-label={t('story.leiste.oeffnen')} title={t('story.leiste.oeffnen')}>
         <ChevronLeft className="h-4 w-4" />
