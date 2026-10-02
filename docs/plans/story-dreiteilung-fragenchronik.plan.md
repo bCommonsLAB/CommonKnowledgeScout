@@ -1075,6 +1075,66 @@ Hinweis), neu `gesperrt` sperrt den Knopf, solange eine Frage läuft
 `skipQueryCache`; ohne Dokumente keine Aktion), `story-chronik.test.tsx`
 (gesperrt ohne Spinner); tsc-Vergleich leer, Lint 0 Fehler.
 
+### Stand D12e (gebaut 02.10.2026, Cloud) — Belege folgen der Auswahl, Markenklick öffnet die Quellen
+
+Befund aus dem Schreibtischtest (Schritte 6, 7, 12, 13, 14, 21):
+`chatReferencesAtom` wurde nur aus dem Stream gesetzt (`onBelege` bei einer
+frischen Antwort). Jede über Chronik, `?q=` oder Zurück-Knopf gewählte
+ältere Antwort ließ rechts die Belege der zuletzt frisch beantworteten Frage
+stehen; „Neue Sitzung“ und Löschen ließen sie ebenfalls stehen. Dazu: Seit
+D11b steht die Belegliste nur im DOM, wenn die Quellen-Schicht offen ist —
+der Klick auf eine Zitatmarke fand bei zugeklappter Schicht keine Karte und
+tat nichts (nur `console.warn`). Bei alten Antworten (Nummern je Textstelle)
+trug eine Karte nur den Anker der ersten Nummer.
+
+Was steht:
+
+- **Belege folgen der gezeigten Antwort** (`useStoryKonversation`): ein
+  Effekt auf Auswahl und Nachrichten meldet `onBelege(belege, queryId)` der
+  gezeigten Antwort; Übersicht, Themenseite und eine noch laufende Frage
+  melden leer (`[]`, `null`) — rechts steht dann der Katalog (Figma
+  Schritt 5: „leer bis Antwort“). Der Stream-Hook meldet nicht mehr selbst.
+  `StoryRoot.onBelege` bekommt `queryId: string | null`; App-Montage und
+  Embed setzen `undefined` ins Atom.
+- **Markenklick öffnet die Schicht:** Findet `AntwortText` keine Karte,
+  sendet es `STORY_BELEG_ZEIGEN_EVENT` (`@ks/contracts`, mit `marke`).
+  `useBelegSprung` (`@ks/module-explorer`, in `GalleryRoot`) öffnet die
+  Quellen (`useQuellenOffen.oeffnen`, merkt „auf“) und scrollt zur Karte,
+  sobald sie gerendert ist; ohne Karte (Mobil, alte Antwort ohne diese Marke)
+  eine Warnung, kein Schweigen.
+- **Anker je Nummer:** `BelegKarte` rendert für weitere Nummern desselben
+  Dokuments unsichtbare Anker `#beleg-n`.
+- Belege: `story-root.test.tsx` (Übersicht leer → Antwort → Übersicht leer →
+  Konversation wieder voll), `antwort-text.test.tsx` (Ereignis statt
+  Warnung), `story-spalten.test.tsx` (`oeffnen`, `useBelegSprung`),
+  `beleg-liste.test.tsx` (Anker je Nummer); Paket-Tests 183 grün,
+  tsc-Vergleich leer, Lint 0 Fehler. Kein Live-Nachweis — lokal Schritte 6,
+  7, 12: Marke klicken bei zugeklappten Quellen, ältere Antwort wählen.
+
+Neu dazugekommen (Schreibtischtest Cloud 02.10., am Code belegt, nicht
+gebaut):
+
+- **Schritt 14, letzte Frage löschen:** `DELETE …/queries/<id>` löscht nur
+  das Log; der Chat bleibt leer mit dem Kurztitel der gelöschten Frage, die
+  nächste Frage landet darin und behält den alten Titel
+  (`sitzungstitelAusDieserFrage` ist dann `false`). Vorschlag: Route oder
+  Hook löscht einen leer gewordenen Chat mit, oder die Stream-Route benennt
+  einen Chat ohne Fragen wie einen neuen.
+- **Schritt 12, Fragenliste veraltet:** `useStorySitzungen.fragenLaden`
+  lädt je Sitzung nur einmal (`geladeneFragen`); eine einmal aufgeklappte
+  Sitzung, die danach aktiv war und Fragen bekam oder verlor, zeigt nach dem
+  Zurückwechseln die alte Liste. Vorschlag: beim Wechsel der aktiven Sitzung
+  die vorherige aus `geladeneFragen` streichen.
+- **Schritt 21, Zähler der Leiste:** `chatReferences.references.length`
+  zählt bei alten Antworten Textstellen statt Dokumente. Vorschlag: Zähler
+  aus den gebündelten Belegen (`belegeAusReferenzen`) nehmen.
+- **Mobil (< lg), Markenklick:** Die Belege liegen im Blatt (D4);
+  `useBelegSprung` öffnet die Desktop-Schicht, die dort nicht gerendert ist
+  (Warnung). Vorschlag: auf Mobil das Ereignis `show-reference-legend`
+  auslösen.
+- **Konfig-Felder ohne Anzeige** (`gallery.subtitle`, `story.subtitle`,
+  seit D10b) und **D6d** (toter App-Chat) warten weiter auf den Owner.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

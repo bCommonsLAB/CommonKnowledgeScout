@@ -123,6 +123,8 @@ describe('BelegListe', () => {
     expect(screen.getByText('Heizen.md')).toBeTruthy()
     expect(screen.getByText('Kapitel 2: Fernwaerme')).toBeTruthy()
     expect(screen.getAllByText('story.beleg.status.umsetzung')).toHaveLength(1)
+    // D12e: jede Marke der Antwort findet ihre Karte, auch die zweite desselben Dokuments.
+    for (const r of references) expect(document.getElementById(`beleg-${r.number}`)).not.toBeNull()
   })
 
   it('„Original ansehen" oeffnet ueber die Adressierung (Slug), sonst ueber den Rueckfall', () => {

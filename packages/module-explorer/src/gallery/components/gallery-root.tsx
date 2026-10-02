@@ -21,6 +21,7 @@ import { MobileFiltersSheet } from './mobile-filters-sheet'
 import { DetailOverlay, type DetailRenderer } from './detail-overlay'
 import { useGalleryMode } from '../hooks/use-gallery-mode'
 import { useQuellenOffen } from './quellen-leiste'
+import { useBelegSprung } from './beleg-sprung'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { useGalleryConfig } from '../hooks/use-gallery-config'
 import { useGalleryData } from '../hooks/use-gallery-data'
@@ -228,6 +229,8 @@ export function GalleryRoot({
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
   // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
   const quellenLeiste = useQuellenOffen()
+  // D12e: Klick auf eine Zitatmarke bei zugeklappten Quellen — oeffnen und zur Karte scrollen.
+  useBelegSprung(quellenLeiste)
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab

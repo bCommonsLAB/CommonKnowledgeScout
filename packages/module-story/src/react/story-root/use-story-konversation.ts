@@ -9,9 +9,13 @@
  * gespeicherte Kennung da ist, traegt die Auswahl sie nach (die App schreibt
  * sie in die Adresse, D2). Die Themenuebersicht wird einmal je Filter- und
  * Perspektiven-Stand geholt, sobald Dokumente da sind.
+ *
+ * Belege (D12e): `onBelege` folgt der gezeigten Antwort — frisch oder aus
+ * der Chronik, `?q=`, Zurueck-Knopf gewaehlt. Uebersicht, Themenseite und
+ * eine noch laufende Frage melden leere Belege (rechts dann der Katalog).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useSessionHeaders, type InstanceApi } from '@ks/api-client'
 import type { DocReference, GalleryFilters, StoryTopicsData } from '@ks/contracts'
@@ -32,7 +36,8 @@ export interface UseStoryKonversationParams {
   filter?: GalleryFilters
   /** Dokumente im (gefilterten) Bestand; ohne Dokumente keine Uebersicht. */
   dokumente: number
-  onBelege?: (belege: DocReference[], queryId: string) => void
+  /** Belege der gezeigten Antwort; leer (und `queryId` null), wenn keine Antwort gezeigt wird. */
+  onBelege?: (belege: DocReference[], queryId: string | null) => void
   maxZeichen?: number
   maxZeichenHinweis?: string
 }
@@ -83,7 +88,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     libraryId, instanz, isSignedIn,
     rahmen: { perspektive, antwortLaenge, filter, chatId },
     nachrichten, setNachrichten,
-    onSitzung: setChatId, onFrage, onBelege, onUebersicht, onFehler,
+    onSitzung: setChatId, onFrage, onUebersicht, onFehler,
     maxZeichen: p.maxZeichen, maxZeichenHinweis: p.maxZeichenHinweis,
   })
   const { laeuft, uebersichtLaden } = stream
@@ -110,6 +115,19 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     setUebersichtLaeuft(true)
     void uebersichtLaden(true)
   }, [laeuft, uebersichtLaden, setGliederung])
+
+  // D12e: Belege der gezeigten Antwort an den Gastgeber — bei jeder Auswahl, nicht nur
+  // bei einer frischen Antwort. Keine Antwort (Uebersicht, Thema, laufende Frage): leer.
+  const paareDerAuswahl = useMemo(() => paare(konversationAuswaehlen(nachrichten, auswahl)), [nachrichten, auswahl])
+  const gezeigteAntwort = useMemo(
+    () => (auswahl.art === 'konversation' ? [...paareDerAuswahl].reverse().find((p) => p.antwort)?.antwort ?? null : null),
+    [auswahl.art, paareDerAuswahl],
+  )
+  const onBelegeRef = useRef(onBelege)
+  onBelegeRef.current = onBelege
+  useEffect(() => {
+    onBelegeRef.current?.(gezeigteAntwort?.belege ?? [], gezeigteAntwort?.queryId ?? null)
+  }, [gezeigteAntwort])
 
   // Gespeicherte Kennung und Thema nachtragen, sobald bekannt.
   useEffect(() => {
@@ -160,7 +178,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     gliederung,
     nachrichten,
     verlaufLadend: verlauf.ladend,
-    paareDerAuswahl: paare(konversationAuswaehlen(nachrichten, auswahl)),
+    paareDerAuswahl,
     laeuft,
     schritte: stream.schritte,
     uebersichtLaeuft,
