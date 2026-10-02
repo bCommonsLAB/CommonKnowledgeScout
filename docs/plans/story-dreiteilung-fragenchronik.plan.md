@@ -262,6 +262,8 @@ Nachziehen.
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
 | D6 | Entflechten und Doku (D6a, D6b, D6c gebaut 01.10.: App und Embed montieren `StoryRoot`; D6d offen: toten App-Chat entfernen) | Story-Mitte in App und Embed aus demselben Paket; Live: Übersicht, Frage mit ①, Chronik, Löschen |
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
+| D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
+| D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten (Sprache, Interessen, Zugang, Stil) statt Info-Symbol mit Tooltip, wie Figma Schritt 1 (Owner 02.10.) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -706,6 +708,54 @@ Neu dazugekommen (beim Bauen gesehen):
 - Live-Nachweis offen (App): Themenübersicht entsteht, Themenfrage →
   Eingabe → Antwort mit ① und Belegen rechts, `q=` nach dem Neuladen,
   Chronik-Klick auf eine ältere Sitzung, Löschen einer Frage.
+- **02.10., lokaler Test, Schritt 1 (Kopf):** Figma „1 · Einstieg“ zeigt die
+  Perspektive neben „Perspektive anpassen“ als Plaketten (Sprache,
+  Interessen, Stil). Die App rendert dort `PerspectiveDisplay
+  variant="header"`: ein Info-Symbol, die Werte stehen im Tooltip. Der
+  Story-Kopf (`story-header.tsx`) war in keiner Welle dran. → **D9**.
+- **02.10., lokaler Test, Schritt 9/12 (Chronik):** Unter „Meine Fragen“
+  stehen Sitzungen mit dem Titel „What topics are covered here? …“. Das ist
+  die Systemfrage der Themenübersicht: Der Stream legte für jede Anfrage ohne
+  `chatId` einen Chat an, auch für die Übersicht; wer nur ansah, hinterließ
+  eine Sitzung mit Systemtitel (in der Testlibrary 56 von 59). Figma
+  Schritt 1: „Deine erste Frage eröffnet eine neue Sitzung“. → **D8**.
+
+### Stand D8 (gebaut 02.10.2026) — Sitzungsstart
+
+Owner-Entscheidung 02.10.: Ein Chat beginnt erst mit einer Frage. Die
+Themenübersicht braucht keine Sitzung — ihr Cache ist benutzerübergreifend
+(Hash + Library), ihre Kennung für Konfig-Anzeige, Logs, Debug und
+Quellen-Sheet hängt an der Query, nicht am Chat. Die einzige Kopplung war
+das Pflichtfeld `chatId` im Query-Log, und das war selbst gemacht.
+
+Was steht:
+
+- **Stream-Route:** Für `isTOCQuery` wird kein Chat angelegt und keiner
+  berührt; `activeChatId` bleibt leer, der `complete`-Schritt trägt dann keine
+  `chatId`. Der Zweig „Systemtitel durch die erste Frage ersetzen“ (D1) ist
+  weg, mit ihm `sitzungstitelAusFrage`. Der Kurztitel des Sprachmodells (D5)
+  wird nur noch gesetzt, wenn die Frage die Sitzung angelegt hat.
+- **Typen:** `chatId` ist optional in `QueryLog`, `startQueryLog` und im
+  `complete`-Schritt (`@ks/contracts`), mit Kommentar: nur die Übersicht hat
+  keine.
+- **Stream-Hook (`use-story-stream`):** `onSitzung` feuert nur aus einer
+  Frage, nie aus der Übersicht — auch wenn ein alter Server eine Kennung
+  mitschickt (Test).
+- **Altlasten:** `scripts/cleanup-toc-chats.ts` (Analyse ohne `--apply`,
+  `--db=` Pflicht, vorher `mongodump` von `chats` und `queries`): über alle
+  Libraries Chats mit Systemtitel (`istThemenuebersichtTitel`); ohne Frage
+  einer Person → löschen, ihre Übersichts-Logs verlieren die `chatId` (wie D8
+  sie heute anlegt); mit Fragen (App-Chat vor D1) → Titel aus der ersten
+  Frage (Kurztitel, sonst 60 Zeichen), wie D1 ihn gegeben hätte.
+- Belege: `sitzungstitel.test.ts`, `use-story-stream.test.tsx` (neuer Fall),
+  tsc-Vergleich leer, Lint 0 Fehler.
+
+Was bewusst anders ist als vorher:
+
+- Eine neue Sitzung erscheint in der Chronik erst mit der ersten Frage
+  (Figma Schritt 1), nicht schon beim Öffnen des Story-Modus.
+- „Übersicht neu berechnen“ in einer laufenden Sitzung hängt die Übersicht
+  nicht mehr an die Sitzung; `touchChat` entfällt dafür.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

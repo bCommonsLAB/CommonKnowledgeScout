@@ -39,7 +39,8 @@ export type ChatProcessingStep =
       references: unknown[]
       suggestedQuestions: string[]
       queryId: string
-      chatId: string
+      /** Sitzung der Frage; die Themenuebersicht hat keine (D8). */
+      chatId?: string
       storyTopicsData?: StoryTopicsData
       /** D5: Kurztitel der Frage vom Sprachmodell (nur Fragen; fehlt bei alten Logs und TOC). */
       shortTitle?: string

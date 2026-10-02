@@ -26,7 +26,7 @@ export interface UseStoryStreamParams {
   rahmen: AnfrageRahmen
   nachrichten: Nachricht[]
   setNachrichten: Dispatch<SetStateAction<Nachricht[]>>
-  /** Der Server hat eine Sitzung angelegt (erste Frage ohne Kennung). */
+  /** Der Server hat eine Sitzung angelegt (erste Frage ohne Kennung; nie die Themenuebersicht, D8). */
   onSitzung: (chatId: string) => void
   /**
    * Die Frage steht als lokale Nachricht im Verlauf — sie wird die aktive
@@ -63,7 +63,8 @@ export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
 
   const abschliessen = useCallback(
     (schritt: Abschluss, frageId: string | null) => {
-      if (typeof schritt.chatId === 'string' && schritt.chatId !== '' && !rahmen.chatId) onSitzung(schritt.chatId)
+      // D8: Nur eine Frage eroeffnet eine Sitzung; die Themenuebersicht bringt keine Kennung.
+      if (frageId !== null && typeof schritt.chatId === 'string' && schritt.chatId !== '' && !rahmen.chatId) onSitzung(schritt.chatId)
       const queryId = typeof schritt.queryId === 'string' && schritt.queryId !== '' ? schritt.queryId : `temp-${Date.now()}`
       if (frageId === null) {
         onUebersicht?.(schritt.storyTopicsData ?? null, queryId)

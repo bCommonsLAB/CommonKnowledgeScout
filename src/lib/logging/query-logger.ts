@@ -14,7 +14,7 @@ function clampSnippet(text: string | undefined, max = 300): string | undefined {
 
 export async function startQueryLog(context: {
   libraryId: string
-  chatId: string // Required: chatId für Chat-Zuordnung
+  chatId?: string // Sitzung der Frage; die Themenuebersicht (`toc`) hat keine (D8)
   userEmail?: string // Optional: für authentifizierte Nutzer
   sessionId?: string // Optional: für anonyme Nutzer
   question: string

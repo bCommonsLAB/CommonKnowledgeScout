@@ -80,8 +80,8 @@ export interface CacheParams {
 
 export interface QueryLog {
   queryId: string;
-  /** Chat-ID, zu der diese Query gehört (required für neue Queries) */
-  chatId: string;
+  /** Chat-ID, zu der diese Query gehört; die Themenuebersicht (`toc`) hat keine (D8). */
+  chatId?: string;
   libraryId: string;
   /** E-Mail-Adresse des Benutzers (für authentifizierte Nutzer) */
   userEmail?: string;

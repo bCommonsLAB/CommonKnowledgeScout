@@ -216,7 +216,7 @@ export async function insertQueryLog(doc: InsertQueryLogInput): Promise<string> 
   
   const payload: QueryLog = {
     queryId,
-    chatId: doc.chatId, // Required: chatId muss angegeben werden
+    chatId: doc.chatId, // Fehlt bei der Themenuebersicht (D8)
     createdAt: new Date(),
     status: doc.status || 'pending',
     libraryId: doc.libraryId, // Bleibt in Root, da für Datenbank-Queries benötigt

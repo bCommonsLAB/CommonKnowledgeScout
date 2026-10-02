@@ -90,6 +90,17 @@ describe('useStoryStream', () => {
     expect(hook.result.current.nachrichten).toEqual([])
   })
 
+  it('Themenuebersicht eroeffnet keine Sitzung, auch wenn der Server eine Kennung mitschickt (D8)', async () => {
+    const gliederung = { id: 'lib', title: 'T', tagline: '', intro: '', topics: [] }
+    const fetchMock = vi.fn(async () =>
+      sseAntwort([JSON.stringify({ type: 'complete', answer: 'x', references: [], suggestedQuestions: [], queryId: 'toc-2', chatId: 'alt-1', storyTopicsData: gliederung })]),
+    )
+    const { hook, onSitzung, onUebersicht } = montieren(fetchMock, null)
+    await act(() => hook.result.current.uebersichtLaden())
+    expect(onUebersicht).toHaveBeenCalledWith(gliederung, 'toc-2')
+    expect(onSitzung).not.toHaveBeenCalled()
+  })
+
   it('Fehler-Schritt und HTTP-Fehler: Frage wieder weg, Meldung sichtbar', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const fetchMock = vi.fn()
