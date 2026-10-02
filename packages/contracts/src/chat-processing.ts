@@ -18,6 +18,13 @@
 
 import type { StoryTopicsData } from './story-topics'
 
+/**
+ * Fehlerkennungen des Chat-Streams (D10d): Die Oberflaeche uebersetzt sie in
+ * Klartext und zeigt die technische Meldung als Detail darunter.
+ * - `dienst_nicht_erreichbar`: Secretary (Einbettung, Sprachmodell) antwortet nicht
+ */
+export type StoryFehlerCode = 'dienst_nicht_erreichbar'
+
 export type ChatProcessingStep =
   | { type: 'cache_check'; parameters: { targetLanguage?: string; character?: string; accessPerspective?: string; socialContext?: string; filters?: Record<string, unknown>; llmModel?: string }; cacheHash?: string; documentCount?: number }
   | { type: 'cache_check_complete'; found: boolean; queryId?: string; cacheHash?: string; documentCount?: number; cachedQueryId?: string }
@@ -45,4 +52,10 @@ export type ChatProcessingStep =
       /** D5: Kurztitel der Frage vom Sprachmodell (nur Fragen; fehlt bei alten Logs und TOC). */
       shortTitle?: string
     }
-  | { type: 'error'; error: string }
+  | {
+      type: 'error'
+      /** Technische Meldung (fuer Protokoll und Detail), nie allein als Oberflaechentext. */
+      error: string
+      /** D10d: Kennung fuer einen Klartext der Oberflaeche; fehlt bei unbekannten Fehlern. */
+      code?: StoryFehlerCode
+    }

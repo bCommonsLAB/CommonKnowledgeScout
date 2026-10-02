@@ -954,6 +954,10 @@
         "many": "{count} Themen · wähle eines"
       }
     },
+    "fehler": {
+      "dienstNichtErreichbar": "Die Antwort kann gerade nicht erstellt werden: Der Sprachdienst ist nicht erreichbar. Bitte in ein paar Minuten noch einmal versuchen.",
+      "detail": "Technische Angabe"
+    },
     "eingabe": {
       "tooLong": "Die Frage ist zu lang (höchstens {max} Zeichen)."
     },

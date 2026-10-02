@@ -13,6 +13,8 @@ import { createInstanceApi } from '@ks/api-client'
 import { STORY_TOC_QUESTION } from '@ks/contracts'
 import { useStoryStream, type Nachricht, type Perspektive } from '@ks/module-story/react'
 
+vi.mock('@ks/i18n/react', () => ({ useTranslation: () => ({ t: (key: string) => key, locale: 'de' }) }))
+
 const perspektive: Perspektive = { targetLanguage: 'de', character: [], accessPerspective: [], socialContext: 'general', genderInclusive: true, llmModel: 'm' }
 
 /** Eine Antwort mit SSE-Koerper, in zwei Chunks. */
@@ -112,6 +114,16 @@ describe('useStoryStream', () => {
     await act(() => hook.result.current.frageSenden('Zwei'))
     expect(onFehler).toHaveBeenLastCalledWith('HTTP 500: Fehler')
     expect(hook.result.current.nachrichten).toEqual([])
+  })
+
+  it('Fehler mit Kennung: Klartext fuer die Person, technische Meldung als Detail (D10d)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchMock = vi.fn(async () =>
+      sseAntwort([JSON.stringify({ type: 'error', error: 'Secretary Service nicht erreichbar (http://127.0.0.1:5001/api/rag/embed-text)', code: 'dienst_nicht_erreichbar' })]),
+    )
+    const { hook, onFehler } = montieren(fetchMock)
+    await act(() => hook.result.current.frageSenden('Eins'))
+    expect(onFehler).toHaveBeenLastCalledWith('story.fehler.dienstNichtErreichbar', 'Secretary Service nicht erreichbar (http://127.0.0.1:5001/api/rag/embed-text)')
   })
 
   it('zu lange Frage wird gar nicht erst geschickt', async () => {

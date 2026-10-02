@@ -907,6 +907,10 @@
         "many": "{count} topics · choose one"
       }
     },
+    "fehler": {
+      "dienstNichtErreichbar": "The answer cannot be created right now: the language service is not reachable. Please try again in a few minutes.",
+      "detail": "Technical detail"
+    },
     "eingabe": {
       "tooLong": "The question is too long (at most {max} characters)."
     },

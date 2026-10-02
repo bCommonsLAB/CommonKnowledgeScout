@@ -918,6 +918,20 @@ wenn eine ihrer Fragen in der Mitte steht oder gerade läuft
 die nächste Frage landet. Von Hand Auf- und Zuklappen geht weiter. Beleg:
 `story-chronik.test.tsx` (Einstieg zu und unmarkiert, Auswahl klappt auf).
 
+**D10d (Owner 02.10., Testplan Schritt 5, „bitte bessere Fehlermeldung“):**
+Ohne laufenden Secretary stand unter der Konversation die technische
+Meldung „Secretary Service nicht erreichbar (http://127.0.0.1:5001/api/rag/
+embed-text) … fetch failed“. Seit D10d gibt der Stream dem `error`-Schritt
+eine Kennung (`code: 'dienst_nicht_erreichbar'`, Vertrag `StoryFehlerCode`
+in `@ks/contracts`), wenn der Secretary nicht antwortet. Die Oberfläche
+zeigt dann Klartext („Die Antwort kann gerade nicht erstellt werden: Der
+Sprachdienst ist nicht erreichbar. Bitte in ein paar Minuten noch einmal
+versuchen.“, `story.fehler.dienstNichtErreichbar`, de/en/it/es/fr) und die
+technische Meldung klein darunter als „Technische Angabe“ — nichts
+verschwindet. Unbekannte Fehler bleiben wie bisher (`fehlerText`). Beleg:
+`use-story-stream.test.tsx` (Kennung → Klartext + Detail). Weitere Kennungen
+(Modell fehlt, Schlüssel ungültig) folgen bei Bedarf nach demselben Muster.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

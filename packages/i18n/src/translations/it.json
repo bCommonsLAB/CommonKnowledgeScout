@@ -907,6 +907,10 @@
         "many": "{count} temi · scegline uno"
       }
     },
+    "fehler": {
+      "dienstNichtErreichbar": "La risposta non può essere creata al momento: il servizio linguistico non è raggiungibile. Riprova tra qualche minuto.",
+      "detail": "Dettaglio tecnico"
+    },
     "eingabe": {
       "tooLong": "La domanda è troppo lunga (al massimo {max} caratteri)."
     },

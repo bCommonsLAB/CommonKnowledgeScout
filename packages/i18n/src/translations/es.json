@@ -907,6 +907,10 @@
         "many": "{count} temas · elige uno"
       }
     },
+    "fehler": {
+      "dienstNichtErreichbar": "La respuesta no se puede crear ahora: el servicio de lenguaje no está disponible. Inténtalo de nuevo en unos minutos.",
+      "detail": "Detalle técnico"
+    },
     "eingabe": {
       "tooLong": "La pregunta es demasiado larga (como máximo {max} caracteres)."
     },

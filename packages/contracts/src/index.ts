@@ -137,4 +137,4 @@ export { SITE_SURFACES, SITE_FONT_NAMES, SITE_BUTTON_SHAPES } from './site-theme
 
 // D2 (Plan story-dreiteilung-fragenchronik): Verarbeitungsschritte des
 // Chat-Streams — das Story-Paket zeigt sie in einfachen Worten.
-export type { ChatProcessingStep } from './chat-processing'
+export type { ChatProcessingStep, StoryFehlerCode } from './chat-processing'

@@ -113,6 +113,7 @@ export function StoryRoot(p: StoryRootProps) {
           laeuft={k.laeuft}
           schritte={k.schritte}
           fehler={k.fehler}
+          fehlerDetail={k.fehlerDetail}
           onFrage={frageUebernehmen}
           fuss={p.antwortFuss}
           onErneut={frageUebernehmen}
@@ -134,7 +135,12 @@ export function StoryRoot(p: StoryRootProps) {
           aktionen={aktionen}
           fuss={p.uebersichtFuss?.({ queryId: k.uebersichtQueryId })}
         />
-        {k.fehler && <div role="alert" className="mt-4 rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{k.fehler}</div>}
+        {k.fehler && (
+          <div role="alert" className="mt-4 rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <p>{k.fehler}</p>
+            {k.fehlerDetail && <p className="mt-1 break-words text-xs text-destructive/70">{t('story.fehler.detail')}: {k.fehlerDetail}</p>}
+          </div>
+        )}
       </>
     )
   }

@@ -817,7 +817,13 @@ export async function POST(
         }
       } catch (error) {
         console.error('[api/chat/stream] Error:', error)
-        const errorStep: ChatProcessingStep = { type: 'error', error: error instanceof Error ? error.message : String(error) }
+        // D10d: Kennung fuer den Klartext der Oberflaeche; die technische Meldung bleibt als Detail.
+        const dienstWeg = error instanceof Error && error.name === 'SecretaryServiceError' && error.message.includes('nicht erreichbar')
+        const errorStep: ChatProcessingStep = {
+          type: 'error',
+          error: error instanceof Error ? error.message : String(error),
+          ...(dienstWeg ? { code: 'dienst_nicht_erreichbar' as const } : {}),
+        }
         
         // Query-Log finalisieren: bisher wurden nur processingLogs geschrieben — ohne status/error
         // blieb der Eintrag dauerhaft "pending" (z. B. bei SchemaValidationError nach dem LLM).
