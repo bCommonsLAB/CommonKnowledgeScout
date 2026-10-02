@@ -906,6 +906,18 @@ Was seit D10b steht (ersetzt den Hinweis in der Mitte und den „?“-Knopf):
   (D10b-Regeln), `story-mitte.test.tsx` (Kopf der Gliederung zurück); tsc-
   Vergleich leer, Lint 0 Fehler.
 
+**D10c (Owner 02.10., Startansicht):** „Links scheint der erste Eintrag von
+„Meine Fragen“ selektiert zu sein, obwohl in der Mitte die Themenübersicht
+steht — irreführend. Der sollte am Anfang zugeklappt und nicht selektiert
+sein.“ Ursache: Die Chronik hob die aktive Sitzung (gemerkte Kennung aus dem
+Browser) hervor und klappte sie auf, unabhängig davon, was in der Mitte
+steht. Seit D10c ist eine Sitzung nur hervorgehoben und von selbst offen,
+wenn eine ihrer Fragen in der Mitte steht oder gerade läuft
+(`istHervorgehoben` in `sitzungen-liste.tsx`, `istGewaehlt` aus
+`sitzung-eintrag.tsx`); die aktive Sitzung bleibt im Hintergrund die, in der
+die nächste Frage landet. Von Hand Auf- und Zuklappen geht weiter. Beleg:
+`story-chronik.test.tsx` (Einstieg zu und unmarkiert, Auswahl klappt auf).
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

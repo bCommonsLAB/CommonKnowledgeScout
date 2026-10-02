@@ -93,6 +93,27 @@ describe('StoryChronik', () => {
     expect(screen.getByRole('button', { name: 'Verkehr' }).getAttribute('aria-current')).toBeNull()
   })
 
+  it('beim Einstieg ist die aktive Sitzung zu und nicht markiert; eine gewaehlte Frage klappt sie auf (D10c)', async () => {
+    const store = createStore()
+    store.set(storyGliederungAtom, gliederung)
+    store.set(storyAktiveSitzungAtom, { chatId: 'aktiv', fragen: [
+      { queryId: 'q-a', text: 'Wie heizen wir morgen?', createdAt: '2026-10-01T10:01:00.000Z', offen: false },
+    ] })
+    render(
+      <Provider store={store}>
+        <StoryChronik libraryId="lib" instanz={SAME_ORIGIN_API} viewer={{ isSignedIn: true }} onSitzungWaehlen={() => {}} onNeueSitzung={() => {}} />
+      </Provider>,
+    )
+    await waitFor(() => screen.getByText('Heute'))
+    expect(screen.queryByText('heizen wir morgen')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Heute' }).getAttribute('aria-expanded')).toBe('false')
+    expect(document.querySelector('[data-hervorgehoben]')).toBeNull()
+
+    store.set(storyAuswahlAtom, { art: 'konversation', queryId: 'q-a' })
+    await waitFor(() => expect(screen.getByText('heizen wir morgen')).toBeTruthy())
+    expect(document.querySelector('[data-hervorgehoben]')).not.toBeNull()
+  })
+
   it('zeigt die Fragen der aktiven Sitzung live als Kurztitel, laufende als „laeuft"', async () => {
     renderChronik()
     await waitFor(() => expect(screen.getByText('Heute')).toBeTruthy())
@@ -140,6 +161,8 @@ describe('StoryChronik', () => {
     store.set(storyAktiveSitzungAtom, { chatId: 'aktiv', fragen: [
       { queryId: 'q-a', text: 'Wie heizen wir morgen?', kurztitel: 'Heizen ohne Öl', createdAt: '2026-10-01T10:01:00.000Z', offen: false },
     ] })
+    // D10c: ohne laufende Frage bleibt die Sitzung zu — die gewaehlte Frage klappt sie auf.
+    store.set(storyAuswahlAtom, { art: 'konversation', queryId: 'q-a' })
     await waitFor(() => expect(screen.getByText('Heizen ohne Öl')).toBeTruthy())
     expect(screen.queryByText('heizen wir morgen')).toBeNull()
   })

@@ -8,6 +8,11 @@
  * Aufklappen nach. „Neue Sitzung" loest die aktive Sitzung — die naechste
  * Frage eroeffnet eine neue.
  *
+ * D10c (Owner 02.10.): Hervorgehoben und von selbst offen ist nur die
+ * Sitzung, deren Frage in der Mitte steht oder gerade laeuft. Beim Einstieg
+ * mit der Themenuebersicht ist nichts markiert — die aktive Sitzung bleibt
+ * im Hintergrund die, in der die naechste Frage landet.
+ *
  * D2: Die erste Frage einer neuen Sitzung laeuft, bevor der Server eine
  * Sitzungskennung vergeben hat. Damit sie sofort als „laeuft" in der Chronik
  * steht, zeigt die Liste bis dahin eine vorlaeufige Sitzung („Neue Sitzung",
@@ -19,7 +24,7 @@ import { useState } from 'react'
 import { Loader2, Plus } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { SitzungEintrag } from './sitzung-eintrag'
+import { SitzungEintrag, istGewaehlt } from './sitzung-eintrag'
 import type { AktiveSitzung, ChronikFrage, ChronikSitzung, StoryAuswahl } from './types'
 
 /** Kennung der vorlaeufigen Sitzung — kein Chat auf dem Server, nur Darstellung. */
@@ -49,11 +54,20 @@ export function SitzungenListe({
   onNeueSitzung,
 }: SitzungenListeProps) {
   const { t } = useTranslation()
-  // Von Hand auf- oder zugeklappte Sitzungen; die aktive ist standardmaessig offen.
+  // Von Hand auf- oder zugeklappte Sitzungen; von selbst offen ist nur die hervorgehobene.
   const [geklappt, setGeklappt] = useState<Record<string, boolean>>({})
 
-  function istOffen(chatId: string): boolean {
-    return geklappt[chatId] ?? chatId === aktiveSitzung.chatId
+  function fragenVon(sitzung: ChronikSitzung): ChronikFrage[] {
+    return sitzung.chatId === aktiveSitzung.chatId ? aktiveSitzung.fragen : (sitzung.fragen ?? [])
+  }
+
+  /** Eine Frage der Sitzung steht in der Mitte oder laeuft gerade. */
+  function istHervorgehoben(sitzung: ChronikSitzung): boolean {
+    return fragenVon(sitzung).some((frage) => frage.offen || istGewaehlt(auswahl, frage))
+  }
+
+  function istOffen(sitzung: ChronikSitzung): boolean {
+    return geklappt[sitzung.chatId] ?? istHervorgehoben(sitzung)
   }
 
   function oeffnen(chatId: string, offen: boolean) {
@@ -90,7 +104,7 @@ export function SitzungenListe({
         {vorlaeufig && (
           <SitzungEintrag
             sitzung={vorlaeufig}
-            istAktiv
+            hervorgehoben
             offen
             auswahl={auswahl}
             onOeffnen={() => undefined}
@@ -106,8 +120,8 @@ export function SitzungenListe({
             <SitzungEintrag
               key={sitzung.chatId}
               sitzung={anzeige}
-              istAktiv={istAktiv}
-              offen={istOffen(sitzung.chatId)}
+              hervorgehoben={istHervorgehoben(sitzung)}
+              offen={istOffen(sitzung)}
               auswahl={auswahl}
               onOeffnen={oeffnen}
               onFrageWaehlen={onFrageWaehlen}
