@@ -37,11 +37,12 @@ auf dem ccr-Head**, nicht auf der Kette — Pflicht vor dem Merge nach master.
 
 ## 2. Wie es weitergeht (Owner-Entscheidung 02.10.: noch nicht nach master)
 
-**Die Kette nach ccr bringen** (GitHub, in dieser Reihenfolge, je PR
-„Merge"; GitHub stellt die Basis der nächsten PR automatisch auf ccr um,
-sobald der Head-Branch der gemergten PR gelöscht ist): #317 → #318 → #319 →
-#320 → #321 → #322 → #323 → #324. Danach ist ccr die Summe aller Wellen und
-die Basis für die nächste Online-Session. master bleibt unberührt.
+**Nachtrag 02.10. (Owner):** Die acht Einzel-PRs sind zu **einer Sammel-PR
+zusammengefasst: #324 `claude/story-d11b-quellen-leiste` → ccr** (13
+Commits, der Commit aus #317 per Cherry-pick dazu). #317–#323 sind
+geschlossen, ihre Branches und Beschreibungen bleiben als Beleg je Welle.
+Nach dem Merge von #324 ist ccr die Summe aller Wellen und die Basis für die
+nächste Online-Session. master bleibt unberührt.
 
 Alternative ohne Merge: Die Online-Session zweigt direkt von
 `claude/story-d11b-quellen-leiste` ab und stapelt weiter.
@@ -96,8 +97,8 @@ Alternative ohne Merge: Die Online-Session zweigt direkt von
    > Lies CLAUDE.md, AGENTS.md, docs/guides/verification-playbook.md,
    > docs/handover/2026-10-02-story-dreiteilung-lokaler-test.md und
    > docs/handover/2026-10-02-story-layout-d8-d11b-handover.md. Basis ist
-   > `claude/story-d11b-quellen-leiste` (oder ccr, falls die PR-Kette
-   > #317–#324 gemergt ist). Gehe den Testplan in Abschnitt 3 des ersten
+   > `claude/story-d11b-quellen-leiste` (oder ccr, falls die Sammel-PR
+   > #324 gemergt ist). Gehe den Testplan in Abschnitt 3 des ersten
    > Handovers ab Schritt 3 durch; Befunde unter „Neu dazugekommen" im Plan,
    > Fixes als kleine PRs gegen die Basis mit Tests, tsc-Vergleich und Lint.
    > Kein `pnpm build` in der Cloud. Keine Änderung an master.
