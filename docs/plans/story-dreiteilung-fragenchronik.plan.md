@@ -719,6 +719,20 @@ Neu dazugekommen (beim Bauen gesehen):
   `chatId` einen Chat an, auch für die Übersicht; wer nur ansah, hinterließ
   eine Sitzung mit Systemtitel (in der Testlibrary 56 von 59). Figma
   Schritt 1: „Deine erste Frage eröffnet eine neue Sitzung“. → **D8**.
+- **02.10., lokaler Test, Schritt 2 (Übersicht, Fuß):** Unter der
+  Themenübersicht steht „Keine Konfiguration gefunden“. Netz:
+  `GET …/queries/<Übersichts-Query>` → 404. Ursache: `getQueryLogById`
+  filtert nach `userEmail`/`sessionId`, der Übersichts-Cache ist aber
+  benutzerübergreifend (Hash + Library) — ein Treffer aus fremder Sitzung ist
+  für die Konfig-Anzeige unsichtbar. Vermutung: Lesen einer Query nur noch
+  an Library binden, wenn sie `toc` ist (oder die Konfig aus dem
+  `complete`-Schritt nehmen statt nachzuladen). Noch nicht gebaut.
+- **02.10., lokaler Test, Schritt 1 (Start):** Beim Öffnen der Seite feuert
+  die Chronik `GET /api/chat/chats?limit=50` (ohne Library) → 405, zweimal.
+  `StoryChronikMount` wird mit leerer `libraryId` montiert, bevor die
+  Library geladen ist; `useStorySitzungen` wartet nicht darauf. Vermutung:
+  Laden erst bei nicht-leerer Kennung (kein stiller Fallback, aber auch kein
+  Aufruf ins Leere). Noch nicht gebaut.
 
 ### Stand D8 (gebaut 02.10.2026) — Sitzungsstart
 
@@ -748,7 +762,9 @@ Was steht:
   sie heute anlegt); mit Fragen (App-Chat vor D1) → Titel aus der ersten
   Frage (Kurztitel, sonst 60 Zeichen), wie D1 ihn gegeben hätte.
 - Belege: `sitzungstitel.test.ts`, `use-story-stream.test.tsx` (neuer Fall),
-  tsc-Vergleich leer, Lint 0 Fehler.
+  tsc-Vergleich leer, Lint 0 Fehler. Live 02.10. (Dev-Server, Prod-DB,
+  Cache-Treffer): der `complete`-Schritt der Übersicht trägt `queryId` und
+  `storyTopicsData`, keine `chatId`; die Übersicht erscheint wie zuvor.
 
 Was bewusst anders ist als vorher:
 
