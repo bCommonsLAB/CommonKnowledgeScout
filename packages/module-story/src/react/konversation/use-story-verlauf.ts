@@ -6,7 +6,11 @@
  * Lokal hinzugekommene Nachrichten (laufende Frage ohne queryId) bleiben beim
  * Laden erhalten; der Verlauf wird darunter einsortiert. „Neue Sitzung"
  * (Kennung von gesetzt auf `null`) leert den Verlauf — der der alten Sitzung
- * gehoert nicht in die neue. Fehler werden gemeldet, nicht verschluckt.
+ * gehoert nicht in die neue. Dasselbe beim Wechsel von einer Sitzung in eine
+ * andere (Chronik, `?q=`, Zurueck-Knopf; D12c): Gespeicherte Nachrichten der
+ * alten Sitzung fallen weg, sonst stuenden ihre Fragen unter der neuen
+ * Sitzung und gingen als Verlauf an das Sprachmodell. Fehler werden
+ * gemeldet, nicht verschluckt.
  */
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
@@ -50,6 +54,10 @@ export function useStoryVerlauf({ libraryId, instanz, isSignedIn, chatId }: UseS
       if (vorher !== null) setNachrichten([])
       return
     }
+    // D12c: Wechsel in eine andere Sitzung — nur Lokales ohne gespeicherte Kennung
+    // bleibt (eine gerade laufende Frage). Von `null` auf die erste Kennung (die
+    // erste Frage hat die Sitzung eroeffnet) bleibt alles stehen.
+    if (vorher !== null && vorher !== chatId) setNachrichten((lokal) => lokal.filter((m) => !m.queryId))
     let aktuell = true
     const laden = async () => {
       setLadend(true)
