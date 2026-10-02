@@ -16,8 +16,7 @@ import {
 } from '@/lib/chat/constants'
 import { useTranslation } from '@ks/i18n/react'
 import { useStoryContext } from '@/hooks/use-story-context'
-import { Info } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
+import { Badge } from '@ks/ui'
 
 interface PerspectiveDisplayProps {
   /** Variante der Anzeige: 'header' zeigt "Deine Perspektive:" mit Labels, 'inline' zeigt kompakt mit · */
@@ -58,13 +57,16 @@ interface PerspectiveDisplayProps {
   llmModel?: string
   /** Padding links (für Header-Variante, um mit Buttons ausgerichtet zu sein) */
   paddingLeft?: string
+  /** D9: Klick auf eine Plakette (Header-Variante), z. B. zur Perspektive-Seite. Ohne Rueckruf sind die Plaketten passiv. */
+  onClick?: () => void
 }
 
 /**
  * Gemeinsame Komponente zur Anzeige der Perspektive/Konfiguration
  * 
  * Unterstützt zwei Varianten:
- * - 'header': Zeigt "Deine Perspektive: Sprache: ..., Interessenprofil: ..." (wie in StoryHeader)
+ * - 'header': eine Plakette je Wert (Sprache, Interessenprofil, Zugang, Sprachstil; D9, Figma Schritt 1),
+ *   anklickbar, wenn `onClick` gesetzt ist — das Modell steht nicht im Kopf, sondern in der Konfig-Anzeige der Antwort
  * - 'inline': Zeigt "Antwortlänge: ... · Methode: ... · Sprache: ..." (wie in ChatConfigDisplay)
  * 
  * Verwendet useStoryContext als Fallback für Parameter, die nicht explizit übergeben werden.
@@ -81,6 +83,7 @@ export function PerspectiveDisplay({
   socialContext: socialContextProp,
   llmModel: llmModelProp,
   paddingLeft,
+  onClick,
 }: PerspectiveDisplayProps) {
   const { t } = useTranslation()
   const {
@@ -186,14 +189,6 @@ export function PerspectiveDisplay({
       })
     }
 
-    // Header: Modell nach Sprachstil (Transparenz)
-    if (variant === 'header' && llmModelResolved) {
-      result.push({
-        label: t('configDisplay.llmModel'),
-        value: llmModelResolved,
-      })
-    }
-
     return result
   }, [
     variant,
@@ -217,42 +212,34 @@ export function PerspectiveDisplay({
     return null
   }
 
-  // Header-Variante: Info-Icon mit Tooltip
+  // Header-Variante (D9): eine Plakette je Wert, wie im Klickmodell (Figma Schritt 1)
   if (variant === 'header') {
     return (
-      <div 
-        className="flex items-center gap-2 min-w-0"
+      <div
+        className="flex min-w-0 flex-wrap items-center gap-2"
         style={paddingLeft ? { paddingLeft } : undefined}
+        aria-label={t('gallery.storyMode.perspective.title')}
+        data-perspective-plaketten
       >
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                aria-label={t('gallery.storyMode.perspective.title')}
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent 
-              className="text-xs max-w-sm"
-              side="bottom"
-              align="start"
+        {items.map((item) =>
+          onClick ? (
+            <button
+              key={item.label}
+              type="button"
+              onClick={onClick}
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              title={t('gallery.storyMode.perspective.adjustPerspective')}
             >
-              <div className="flex flex-col gap-2">
-                <div className="font-medium mb-1">{t('gallery.storyMode.perspective.title')}</div>
-                <div className="flex flex-col gap-1">
-                  {items.map((item, index) => (
-                    <div key={index} className="break-words">
-                      <span className="font-medium">{item.label}:</span> {item.value}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+              <Badge variant="secondary" className="cursor-pointer whitespace-nowrap font-medium">
+                {item.label}: {item.value}
+              </Badge>
+            </button>
+          ) : (
+            <Badge key={item.label} variant="secondary" className="whitespace-nowrap font-medium">
+              {item.label}: {item.value}
+            </Badge>
+          ),
+        )}
       </div>
     )
   }

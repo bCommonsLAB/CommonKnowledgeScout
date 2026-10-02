@@ -263,7 +263,7 @@ Nachziehen.
 | D6 | Entflechten und Doku (D6a, D6b, D6c gebaut 01.10.: App und Embed montieren `StoryRoot`; D6d offen: toten App-Chat entfernen) | Story-Mitte in App und Embed aus demselben Paket; Live: Übersicht, Frage mit ①, Chronik, Löschen |
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 | D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
-| D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten (Sprache, Interessen, Zugang, Stil) statt Info-Symbol mit Tooltip, wie Figma Schritt 1 (Owner 02.10.) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite |
+| D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten statt Info-Symbol, wie Figma Schritt 1; Chronik ohne Aufruf bei leerer Library-Kennung (gebaut 02.10., Stand D9 unten) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite; kein 405 beim Start |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -772,6 +772,47 @@ Was bewusst anders ist als vorher:
   (Figma Schritt 1), nicht schon beim Öffnen des Story-Modus.
 - „Übersicht neu berechnen“ in einer laufenden Sitzung hängt die Übersicht
   nicht mehr an die Sitzung; `touchChat` entfällt dafür.
+
+### Stand D9 (gebaut 02.10.2026) — Kopf-Plaketten
+
+Owner 02.10. nach dem Vergleich mit Figma Schritt 1: Die Perspektive steht
+neben „Perspektive anpassen“ als Plaketten, nicht als Info-Symbol mit
+Tooltip.
+
+Was steht:
+
+- **`PerspectiveDisplay variant="header"`** rendert je gesetztem Wert eine
+  Plakette „Sprache: Deutsch“, „Interessenprofil: …“, „Zugangsperspektive:
+  …“, „Sprachstil: …“ (Reihenfolge wie bisher im Tooltip). Leere Werte
+  lassen die Plakette weg. Das Modell steht nicht im Kopf — es bleibt in der
+  Konfig-Anzeige unter der Antwort. Mit `onClick` sind die Plaketten Knöpfe;
+  `StoryHeader` reicht denselben Weg wie der Knopf „Perspektive anpassen“
+  herein (Perspektive-Seite, `from=story`). Die Inline-Variante (Antwort-Fuß)
+  ist unverändert.
+- **Chronik ohne Library-Kennung:** `useStorySitzungen` lädt nichts, solange
+  `libraryId` leer ist (die Schale montiert die Chronik vor der Library);
+  kein `GET /api/chat//chats` → 405 mehr. Sobald die Kennung da ist, lädt der
+  Hook wie gewohnt (Test).
+- Belege: `perspective-display-plaketten.test.tsx`,
+  `use-story-sitzungen-leer.test.tsx`, tsc-Vergleich leer, Lint 0 Fehler.
+
+Nicht in D9 (Owner 02.10., Konzept offen):
+
+- **Themenzeile über den Karten:** Fehlt `story.topicsTitle`/`topicsIntro`
+  in der Konfig, zeigt die Übersicht Titel und Einleitung des Sprachmodells
+  als zweiten Kopf unter dem Konfig-Kopf — wirkt doppelt (Befund 02.10.,
+  Schritt 2). Figma hat dort nur eine kleine Zeile „Die vier Themen · wähle
+  eines“. Vorschlag: generische Zeile mit Zahl, Konfig-Felder als
+  Übersteuerung, Modelltext nicht mehr anzeigen. Wartet auf das Konzept zum
+  Kopf.
+- **Kopf der Seite vs. Kopf des Inhalts:** Über den drei Spalten stehen
+  heute Erklärtexte zum Story-Modus (`gallery.storyMode.headline`,
+  `subtitle`, `description` bzw. `publicPublishing.story.headline/subtitle/
+  intro`). Owner 02.10.: Das ist Hilfetext zur Bedienung, kein Kopf des
+  Inhalts. Dort gehören Titel und Zweizeiler der Library hin (heute in der
+  Mitte als „Kopf des Ganzen“); die Erklärung des Story-Modus wird ein
+  einmaliger Hinweis zum Wegklicken. Konzept folgt, generisch für alle
+  Libraries.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

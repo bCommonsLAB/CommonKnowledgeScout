@@ -22,7 +22,7 @@ interface StoryHeaderProps {
  * Header-Komponente für den Story-Modus.
  * 
  * Enthält:
- * - Button "Eigene Perspektive anpassen" mit Popover für drei Dropdowns
+ * - Button "Eigene Perspektive anpassen" und daneben die Perspektive als Plaketten (D9)
  * - Button "Zurück zur Gallery" (optional)
  */
 export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp, onOpenChronik }: StoryHeaderProps) {
@@ -102,7 +102,8 @@ export function StoryHeader({ compact = false, onBackToGallery, libraryId: libra
           <Settings2 className="h-4 w-4 shrink-0" />
           <span className="whitespace-nowrap">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
         </Button>
-        <PerspectiveDisplay variant="header" />
+        {/* D9: Perspektive als Plaketten, Klick fuehrt wie der Knopf zur Perspektive-Seite */}
+        <PerspectiveDisplay variant="header" onClick={handleAdjustPerspective} />
       </div>
     </div>
   )

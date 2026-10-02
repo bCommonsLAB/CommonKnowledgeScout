@@ -68,6 +68,9 @@ export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId
   const basis = useMemo(() => `/api/chat/${encodeURIComponent(libraryId)}`, [libraryId])
 
   const neuLaden = useCallback(async () => {
+    // D9: Die Schale montiert die Chronik, bevor die Library bekannt ist (Kennung leer).
+    // Ohne Kennung gibt es nichts zu laden — kein Aufruf ins Leere (`/api/chat//chats` → 405).
+    if (libraryId === '') return
     setLadend(true)
     try {
       const res = await instanz.fetch(`${basis}/chats?limit=50`, { headers: sessionHeaders, cache: 'no-store' })
@@ -86,7 +89,7 @@ export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId
     } finally {
       setLadend(false)
     }
-  }, [basis, instanz, sessionHeaders])
+  }, [basis, instanz, libraryId, sessionHeaders])
 
   useEffect(() => {
     void neuLaden()
@@ -101,7 +104,7 @@ export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId
 
   const fragenLaden = useCallback(
     async (chatId: string) => {
-      if (geladeneFragen.current.has(chatId)) return
+      if (libraryId === '' || geladeneFragen.current.has(chatId)) return
       geladeneFragen.current.add(chatId)
       try {
         const res = await instanz.fetch(`${basis}/queries?limit=100&chatId=${encodeURIComponent(chatId)}`, {
@@ -127,7 +130,7 @@ export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId
         setFehler(meldung(e))
       }
     },
-    [basis, instanz, sessionHeaders],
+    [basis, instanz, libraryId, sessionHeaders],
   )
 
   const umbenennen = useCallback(
