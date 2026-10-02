@@ -193,6 +193,10 @@ describe('StoryChronik', () => {
     expect(neuBerechnen).toHaveBeenCalledTimes(1)
     store.set(storyUebersichtAktionAtom, { neuBerechnen, laeuft: true })
     await waitFor(() => expect((screen.getByRole('button', { name: 'story.recomputing' }) as HTMLButtonElement).disabled).toBe(true))
+    // D12d: Laeuft eine Frage, ist der Knopf nur gesperrt — kein Spinner, kein „Neuberechnung"-Hinweis.
+    store.set(storyUebersichtAktionAtom, { neuBerechnen, laeuft: false, gesperrt: true })
+    await waitFor(() => expect((screen.getByRole('button', { name: 'story.recompute' }) as HTMLButtonElement).disabled).toBe(true))
+    expect(screen.queryByRole('button', { name: 'story.recomputing' })).toBeNull()
   })
 
   it('„Themenuebersicht" und „Neue Sitzung" fuehren zur Uebersicht zurueck', async () => {

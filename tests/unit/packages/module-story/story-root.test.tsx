@@ -12,7 +12,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { Provider, createStore } from 'jotai'
 import { createInstanceApi } from '@ks/api-client'
 import { STORY_TOC_QUESTION } from '@ks/contracts'
-import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, type Perspektive } from '@ks/module-story/react'
+import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom, type Perspektive } from '@ks/module-story/react'
 
 vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
@@ -99,8 +99,26 @@ describe('StoryRoot', () => {
   })
 
   it('ohne Dokumente keine Anfrage', () => {
-    montieren(0)
+    const { store } = montieren(0)
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))).toHaveLength(0)
+    // D12d: ohne Dokumente auch keine Aktion „neu berechnen" in der Chronik.
+    expect(store.get(storyUebersichtAktionAtom)).toBeNull()
+  })
+
+  it('D12d: „neu berechnen" steht, sobald eine Uebersicht moeglich ist — auch waehrend der Neuberechnung', async () => {
+    const { store } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    const aktion = store.get(storyUebersichtAktionAtom)
+    expect(aktion).toMatchObject({ laeuft: false, gesperrt: false })
+    act(() => aktion?.neuBerechnen())
+    // Die Gliederung ist waehrend der Neuberechnung weg, die Aktion bleibt (mit Spinner).
+    expect(store.get(storyGliederungAtom)).toBeNull()
+    expect(store.get(storyUebersichtAktionAtom)).toMatchObject({ laeuft: true })
+    await waitFor(() => expect(store.get(storyGliederungAtom)).toEqual(gliederung))
+    expect(store.get(storyUebersichtAktionAtom)).toMatchObject({ laeuft: false, gesperrt: false })
+    const streamCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))
+    expect(streamCalls).toHaveLength(2)
+    expect(JSON.parse(String(streamCalls[1][1]?.body)).skipQueryCache).toBe(true)
   })
 
   it('Thema → Frage uebernehmen → senden: Konversation allein in der Mitte, Belege an den Gastgeber, Sitzung in den Atomen', async () => {

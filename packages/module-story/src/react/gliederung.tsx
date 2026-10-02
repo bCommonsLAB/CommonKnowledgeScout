@@ -60,7 +60,7 @@ export function Gliederung({ gliederung, auswahl, onUebersicht, onThema, neuBere
           <button
             type="button"
             onClick={neuBerechnen.neuBerechnen}
-            disabled={neuBerechnen.laeuft}
+            disabled={neuBerechnen.laeuft || neuBerechnen.gesperrt === true}
             aria-label={neuBerechnen.laeuft ? t('story.recomputing') : t('story.recompute')}
             title={neuBerechnen.laeuft ? t('story.recomputing') : t('story.recompute')}
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-60"
