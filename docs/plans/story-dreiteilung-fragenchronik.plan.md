@@ -1006,6 +1006,41 @@ Was steht:
   im nächsten lokalen Test Schritt 2 prüfen: Konfig-Anzeige unter der
   Übersicht steht, Netz `GET …/queries/<id>` → 200.
 
+### Stand D12b (gebaut 02.10.2026, Cloud) — Cache-Treffer einer Frage im eigenen Verlauf
+
+Befund aus dem Schreibtischtest (Cloud, am Code): Trifft eine Frage den
+benutzerübergreifenden Antwort-Cache (Hash + Library), schickte die
+Stream-Route die Kennung des **fremden** Logs im `complete`-Schritt und
+legte für die Person nichts an — der Chat wurde angelegt oder berührt, das
+Query-Log nicht. Folgen in der Fragen-Chronik: Die Frage fehlte nach dem
+Neuladen im Verlauf der Sitzung (`GET …/queries?chatId=` filtert nach
+Person), `?q=<id>` lief auf 404, ebenso Konfig-Anzeige, Protokoll und Debug
+unter der Antwort; eine mit dieser Frage eröffnete Sitzung stand ohne Frage
+in der Chronik. Trifft vor allem die vorgeschlagenen Fragen der Themenseite,
+die mehrere Personen wortgleich stellen. Vor D1 unsichtbar, weil der alte
+App-Chat den Verlauf aus dem Browser nahm.
+
+Was steht:
+
+- **`src/lib/chat/cache-treffer-log.ts`** (`eigenesLogFuerCacheTreffer`):
+  legt über `startQueryLog` ein Frage-Log im Rahmen der Person an (Sitzung,
+  Perspektive, Filter, Modell, Dokumentenzahl — dieselben Felder wie beim
+  regulären Lauf), hängt einen `cache_check`-Schritt mit der Kennung des
+  Treffers an und setzt Antwort, Belege, Vorschläge, Kurztitel (nur wenn
+  vorhanden) und die Cache-Schritte als Protokoll, Status `ok`. Der
+  Cache-Hash entsteht wie immer in `insertQueryLog`; das eigene Log ist damit
+  selbst ein gültiger Treffer für die nächste gleiche Frage.
+- **Stream-Route:** Im Treffer-Zweig bekommt eine Frage (nicht die
+  Übersicht, D8/D12a) das eigene Log; `cache_check_complete` und `complete`
+  tragen die eigene Kennung, `cachedQueryId` weiter die des Treffers.
+  `effectiveTargetLanguageForLog` steht jetzt vor dem Cache-Check. Der
+  Sitzungstitel aus dem Kurztitel des Treffers (D6) bleibt wie er war.
+- Belege: `tests/unit/chat/cache-treffer-log.test.ts`; tsc-Vergleich leer,
+  Lint 0 Fehler. Kein Live-Nachweis — im nächsten lokalen Test: dieselbe
+  Frage zweimal in zwei Sitzungen stellen; die zweite Antwort kommt aus dem
+  Cache, die Frage steht nach dem Neuladen trotzdem in der Chronik, `?q=`
+  und Debug zeigen das eigene Log mit `cachedQueryId`.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
