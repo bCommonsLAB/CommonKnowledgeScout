@@ -20,6 +20,7 @@ import { useDebouncedValue } from '../hooks/use-debounced-value'
 import { MobileFiltersSheet } from './mobile-filters-sheet'
 import { DetailOverlay, type DetailRenderer } from './detail-overlay'
 import { useGalleryMode } from '../hooks/use-gallery-mode'
+import { useQuellenOffen } from './quellen-leiste'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { useGalleryConfig } from '../hooks/use-gallery-config'
 import { useGalleryData } from '../hooks/use-gallery-data'
@@ -225,6 +226,8 @@ export function GalleryRoot({
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
+  // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
+  const quellenLeiste = useQuellenOffen()
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab
@@ -1332,6 +1335,12 @@ export function GalleryRoot({
                 chronik={storyChronik ? storyChronik(libraryId) : undefined}
                 mitte={storyMitte}
                 quellen={storyQuellen}
+                leiste={{
+                  offen: quellenLeiste.offen,
+                  onToggle: quellenLeiste.toggle,
+                  zaehler: belegeAktiv ? chatReferences.references.length : effectiveDocCount,
+                  belege: belegeAktiv,
+                }}
               />
             )
           })()}

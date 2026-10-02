@@ -967,7 +967,16 @@ mit der Aktion, ruft sie, ist beim Rechnen gesperrt).
   „610 Quellen“), 8b Antwort mit aufgeklappten Belegen (Chip „Belege · 4“,
   Pfeil › klappt ein), 8c Antwort eingeklappt mit blauem Zähler „4“ auf der
   Leiste. Browser merkt sich auf/zu; mobil bleibt das Blatt aus D4.
-  Abnahme offen, danach Bau.
+  Abgenommen und gebaut 02.10.: `QuellenLeiste` + `useQuellenOffen`
+  (`story-quellen-offen`, Einstieg zu) in `quellen-leiste.tsx`;
+  `StorySpalten` bekommt `leiste` (ohne Angabe wie bisher, Embed) und
+  rendert zu die Leiste (Zähler = Belege der Antwort, blau, sonst Quellen
+  im Bestand) statt der Spalte, auf die Spalte mit Pfeil zum Einklappen;
+  Schlüssel der Spaltengruppe bleibt beim Ein-/Ausklappen gleich (ein
+  Schlüsselwechsel baute Chronik und Mitte neu auf, die Übersicht lief
+  erneut an — live gesehen und behoben). Beleg: `story-spalten.test.tsx`;
+  live: Leiste 56 px, Mitte 1005 px, Auf-/Zuklappen ohne neue Aufrufe.
+  Übersetzungen `story.leiste.*`.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
