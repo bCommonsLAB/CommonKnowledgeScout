@@ -894,7 +894,16 @@
       "marke": "{document}: {passages}"
     },
     "uebersicht": {
-      "empty": "Per questa selezione non esiste una panoramica dei temi."
+      "empty": "Per questa selezione non esiste una panoramica dei temi.",
+      "themenzeile": {
+        "one": "1 tema · scegli",
+        "many": "{count} temi · scegline uno"
+      }
+    },
+    "hinweis": {
+      "titel": "Come funziona la modalità Storia",
+      "verstanden": "Ho capito",
+      "einmalig": "Appare solo alla prima visita · in seguito sempre tramite “?” nell’intestazione"
     },
     "eingabe": {
       "tooLong": "La domanda è troppo lunga (al massimo {max} caratteri)."

@@ -894,7 +894,16 @@
       "marke": "{document}: {passages}"
     },
     "uebersicht": {
-      "empty": "There is no topic overview for this selection."
+      "empty": "There is no topic overview for this selection.",
+      "themenzeile": {
+        "one": "1 topic · choose it",
+        "many": "{count} topics · choose one"
+      }
+    },
+    "hinweis": {
+      "titel": "How Story Mode works",
+      "verstanden": "Got it",
+      "einmalig": "Shown only on your first visit · later any time via “?” in the header"
     },
     "eingabe": {
       "tooLong": "The question is too long (at most {max} characters)."

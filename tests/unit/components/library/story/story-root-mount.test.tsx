@@ -7,7 +7,7 @@
  * Belege an das Atom der Galerie; Loeschen erlaubt; Fuesse mit App-Stuecken.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import type { ComponentProps } from 'react'
 import { chatReferencesAtom, galleryFiltersAtom } from '@ks/module-explorer/react'
@@ -19,7 +19,7 @@ const empfangen: { props?: RootProps } = {}
 vi.mock('@clerk/nextjs', () => ({ useUser: () => ({ isSignedIn: true, isLoaded: true }) }))
 vi.mock('@ks/i18n/react', () => ({ useTranslation: () => ({ t: (k: string) => k, locale: 'de' }) }))
 vi.mock('@ks/shell/react', () => ({
-  useLibraries: () => [{ id: 'lib', label: 'Lib', config: { publicPublishing: { publicName: 'Klimaplan', description: 'Besch', story: { topicsTitle: 'Themen' } } } }],
+  useLibraries: () => [{ id: 'lib', label: 'Lib', config: { publicPublishing: { publicName: 'Klimaplan', description: 'Besch', story: { topicsTitle: 'Themen', intro: 'Eigene Erklärung.' } } } }],
 }))
 vi.mock('@/hooks/use-story-context', () => ({
   useStoryContext: () => ({ targetLanguage: 'it', character: ['ecology'], accessPerspective: ['insight'], socialContext: 'youth', llmModel: 'm-1' }),
@@ -43,6 +43,7 @@ vi.mock('@ks/module-story/react', async (original) => ({
       <div data-testid="root">
         {props.antwortFuss?.({ id: 'a', art: 'antwort', text: 'x', createdAt: '', queryId: 'q7', belege: [{ number: 1, fileId: 'f', description: 'd' }] })}
         {props.uebersichtFuss?.({ queryId: 'toc-1' })}
+        {props.uebersichtHinweis}
       </div>
     )
   },
@@ -64,7 +65,7 @@ describe('StoryRootMount', () => {
     )
     const p = empfangen.props!
     expect(p.perspektive).toEqual({ targetLanguage: 'it', character: ['ecology'], accessPerspective: ['insight'], socialContext: 'youth', genderInclusive: false, llmModel: 'm-1' })
-    expect(p.kopf).toEqual({ titel: 'Klimaplan', beschreibung: 'Besch', themenTitel: 'Themen', themenIntro: undefined })
+    expect(p.kopf).toEqual({ themenTitel: 'Themen', themenIntro: undefined })
     expect(p.eingabe).toEqual({ placeholder: 'Frag', maxZeichen: 300, maxZeichenHinweis: 'Zu lang' })
     expect(p.filter).toEqual({ jahr: ['2024'] })
     expect(p.dokumente).toBe(42)
@@ -76,6 +77,12 @@ describe('StoryRootMount', () => {
     expect(screen.getAllByTestId('konfig').map((el) => el.textContent)).toEqual(['q7', 'toc-1'])
     expect(screen.getAllByTestId('ki')).toHaveLength(2)
     expect(screen.getByRole('button', { name: /Debug/ })).toBeTruthy()
+    // D10: Hinweis beim ersten Besuch mit den eigenen Texten der Library; „Verstanden" merkt es im Browser
+    expect(screen.getByRole('note').textContent).toContain('Eigene Erklärung.')
+    expect(screen.getByRole('note').textContent).toContain('story.hinweis.titel')
+    fireEvent.click(screen.getByText('story.hinweis.verstanden'))
+    expect(localStorage.getItem('story-hinweis-gesehen')).toBe('true')
+    expect(screen.queryByRole('note')).toBeNull()
     localStorage.clear()
   })
 })

@@ -894,7 +894,16 @@
       "marke": "{document} : {passages}"
     },
     "uebersicht": {
-      "empty": "Aucun aperçu des thèmes pour cette sélection."
+      "empty": "Aucun aperçu des thèmes pour cette sélection.",
+      "themenzeile": {
+        "one": "1 thème · choisissez-le",
+        "many": "{count} thèmes · choisissez-en un"
+      }
+    },
+    "hinweis": {
+      "titel": "Comment fonctionne le mode Histoire",
+      "verstanden": "Compris",
+      "einmalig": "N’apparaît qu’à la première visite · ensuite à tout moment via « ? » dans l’en-tête"
     },
     "eingabe": {
       "tooLong": "La question est trop longue (au plus {max} caractères)."

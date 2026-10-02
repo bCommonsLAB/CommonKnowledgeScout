@@ -1,14 +1,16 @@
 'use client'
 
 /**
- * Mitte beim Einstieg: Kopf des Ganzen, dann eine Karte je Thema.
+ * Mitte beim Einstieg: optionaler Hinweis, Kennzahlen, eine Karte je Thema.
  *
- * Kopf = Titel, Kurzbeschreibung (Konfig aus publicPublishing; fehlt die
- * Beschreibung, faellt der Block weg) und generische Zaehler. Karten = Thema
- * mit einem Satz und „n Fragen"; Klick waehlt das Thema (Gliederung links
- * klappt auf). Was das Paket nicht kennt, kommt als Slot: der Rechen-Status
- * waehrend die Uebersicht entsteht, die Aktionen am Kopf (neu berechnen) und
- * der Fuss (KI-Hinweis, Konfig-Anzeige).
+ * Seit D10 steht der Kopf des Inhalts (Titel, Zweizeiler der Library) NICHT
+ * mehr hier, sondern im Kopf der Seite (Gastgeber). Ueber den Karten steht
+ * eine kurze Themenzeile mit Zahl („7 Themen · waehle eines"); die Konfig
+ * (`story.topicsTitle`/`topicsIntro`) darf sie ersetzen bzw. ergaenzen.
+ * Titel und Einleitung, die das Sprachmodell mit der Gliederung liefert,
+ * werden nicht angezeigt — sie wiederholten den Kopf (Befund 02.10.).
+ * Was das Paket nicht kennt, kommt als Slot: Hinweis (D10), Rechen-Status,
+ * Aktionen (neu berechnen) und der Fuss (KI-Hinweis, Konfig-Anzeige).
  */
 
 import type { ReactNode } from 'react'
@@ -16,33 +18,33 @@ import { ChevronRight } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import type { StoryTopicsData } from '@ks/contracts'
 import { Kennzahlen, zaehlerText } from './kennzahlen'
-import type { StoryKopf } from './types'
 
 export interface StoryUebersichtProps {
-  kopf: StoryKopf
   /** `null`, solange die Themenuebersicht noch berechnet wird. */
   gliederung: StoryTopicsData | null
   dokumente: number
-  /** Ueberschrift ueber den Karten (Konfig `story.topicsTitle`); sonst der Titel der Gliederung. */
+  /** Ueberschrift ueber den Karten (Konfig `story.topicsTitle`); sonst die Themenzeile mit Zahl. */
   themenTitel?: string
-  /** Einleitung zu den Karten (Konfig `story.topicsIntro`); sonst die Einleitung der Gliederung. */
+  /** Einleitung zu den Karten (Konfig `story.topicsIntro`); ohne Konfig keine. */
   themenIntro?: string
   onThemaWaehlen: (themaId: string) => void
+  /** D10: einmaliger Hinweis zur Bedienung, ganz oben. */
+  hinweis?: ReactNode
   /** Rechen-Status, solange keine Gliederung da ist (oder sie neu entsteht). */
   status?: ReactNode
-  /** Aktionen rechts im Kopf, z. B. „neu berechnen". */
+  /** Aktionen rechts neben den Kennzahlen, z. B. „neu berechnen". */
   aktionen?: ReactNode
   /** Unter den Karten: KI-Hinweis, Konfig-Anzeige, Debug. */
   fuss?: ReactNode
 }
 
 export function StoryUebersicht({
-  kopf,
   gliederung,
   dokumente,
   themenTitel,
   themenIntro,
   onThemaWaehlen,
+  hinweis,
   status,
   aktionen,
   fuss,
@@ -50,33 +52,29 @@ export function StoryUebersicht({
   const { t } = useTranslation()
   const themen = gliederung?.topics ?? []
   const fragen = themen.reduce((summe, thema) => summe + thema.questions.length, 0)
-  const titelDerThemen = themenTitel ?? gliederung?.title
-  const introDerThemen = themenIntro ?? gliederung?.intro
+  const themenzeile =
+    themenTitel ?? (themen.length === 1 ? t('story.uebersicht.themenzeile.one') : t('story.uebersicht.themenzeile.many', { count: themen.length }))
 
   return (
     <div className="space-y-6" data-story-uebersicht>
-      <header className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold leading-tight">{kopf.titel}</h1>
-          {aktionen && <div className="shrink-0">{aktionen}</div>}
-        </div>
-        {kopf.beschreibung && (
-          <p className="line-clamp-3 text-base leading-relaxed text-muted-foreground">{kopf.beschreibung}</p>
-        )}
+      {hinweis}
+
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <Kennzahlen
           werte={[
             { art: 'documents', wert: dokumente },
             ...(gliederung ? [{ art: 'topics' as const, wert: themen.length }, { art: 'questions' as const, wert: fragen }] : []),
           ]}
         />
+        {aktionen && <div className="shrink-0">{aktionen}</div>}
       </header>
 
       {status}
 
       {gliederung && (
         <section className="space-y-3" aria-label={t('story.topics')}>
-          {titelDerThemen && <h2 className="text-lg font-semibold">{titelDerThemen}</h2>}
-          {introDerThemen && <p className="text-sm text-muted-foreground">{introDerThemen}</p>}
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{themenzeile}</h2>
+          {themenIntro && <p className="text-sm text-muted-foreground">{themenIntro}</p>}
           <ul className="grid gap-3 sm:grid-cols-2">
             {themen.map((thema) => (
               <li key={thema.id}>

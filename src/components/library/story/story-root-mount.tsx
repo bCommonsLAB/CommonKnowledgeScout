@@ -17,17 +17,21 @@ import { useUser } from '@clerk/nextjs'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { SAME_ORIGIN_API } from '@ks/api-client'
 import { useLibraries } from '@ks/shell/react'
+import { useTranslation } from '@ks/i18n/react'
 import type { DocReference } from '@ks/contracts'
 import { chatReferencesAtom, galleryFiltersAtom, useGalleryData } from '@ks/module-explorer/react'
-import { StoryRoot, type Nachricht, type Perspektive } from '@ks/module-story/react'
+import { StoryHinweis, StoryRoot, type Nachricht, type Perspektive } from '@ks/module-story/react'
 import { useStoryContext } from '@/hooks/use-story-context'
+import { useStoryHinweis } from '@/hooks/use-story-hinweis'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
 import { StoryAntwortFuss, StoryUebersichtFuss } from './story-fuss'
 
 export function StoryRootMount({ libraryId }: { libraryId: string }) {
+  const { t } = useTranslation()
   const { isSignedIn } = useUser()
   const story = useStoryContext()
+  const hinweis = useStoryHinweis()
   const libraries = useLibraries()
   const { cfg, loading, error } = useLibraryConfig(libraryId)
   const filter = useAtomValue(galleryFiltersAtom)
@@ -49,17 +53,26 @@ export function StoryRootMount({ libraryId }: { libraryId: string }) {
     [story.targetLanguage, story.character, story.accessPerspective, story.socialContext, story.llmModel, genderInclusive],
   )
 
-  // Konfig (publicPublishing): Label und Beschreibung fuer den Kopf, die Story-Texte fuer die Karten.
+  // Konfig (publicPublishing.story): Texte ueber den Karten; Titel und Zweizeiler
+  // der Library stehen seit D10 im Kopf der Seite (StoryModeHeader).
   const kopf = useMemo(() => {
     const library = libraries.find((lib) => lib.id === libraryId)
     const pub = library?.config?.publicPublishing
     return {
-      titel: pub?.publicName || library?.label || '',
-      beschreibung: pub?.description || undefined,
       themenTitel: pub?.story?.topicsTitle || undefined,
       themenIntro: pub?.story?.topicsIntro || undefined,
     }
   }, [libraries, libraryId])
+
+  // D10: Erklaerung des Story-Modus als einmaliger Hinweis — eigene Texte der
+  // Library (publicPublishing.story.headline/intro) gehen vor der Uebersetzung.
+  const hinweisTexte = useMemo(() => {
+    const pub = libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing
+    return {
+      titel: pub?.story?.headline || t('story.hinweis.titel'),
+      text: pub?.story?.intro || t('gallery.storyMode.description'),
+    }
+  }, [libraries, libraryId, t])
 
   const onBelege = useCallback((references: DocReference[], queryId: string) => setBelege({ references, queryId }), [setBelege])
   const antwortFuss = useCallback(
@@ -88,6 +101,7 @@ export function StoryRootMount({ libraryId }: { libraryId: string }) {
       onBelege={onBelege}
       antwortFuss={antwortFuss}
       uebersichtFuss={uebersichtFuss}
+      uebersichtHinweis={hinweis.offen ? <StoryHinweis titel={hinweisTexte.titel} text={hinweisTexte.text} onVerstanden={hinweis.verstanden} /> : undefined}
       loeschenErlaubt
     />
   )

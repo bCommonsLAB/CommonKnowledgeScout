@@ -894,7 +894,16 @@
       "marke": "{document}: {passages}"
     },
     "uebersicht": {
-      "empty": "No hay una visión general de temas para esta selección."
+      "empty": "No hay una visión general de temas para esta selección.",
+      "themenzeile": {
+        "one": "1 tema · elígelo",
+        "many": "{count} temas · elige uno"
+      }
+    },
+    "hinweis": {
+      "titel": "Cómo funciona el modo Historia",
+      "verstanden": "Entendido",
+      "einmalig": "Aparece solo en la primera visita · después siempre mediante “?” en la cabecera"
     },
     "eingabe": {
       "tooLong": "La pregunta es demasiado larga (como máximo {max} caracteres)."

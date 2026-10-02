@@ -941,7 +941,16 @@
       "marke": "{document}: {passages}"
     },
     "uebersicht": {
-      "empty": "Für diese Auswahl liegt keine Themenübersicht vor."
+      "empty": "Für diese Auswahl liegt keine Themenübersicht vor.",
+      "themenzeile": {
+        "one": "1 Thema · wähle es",
+        "many": "{count} Themen · wähle eines"
+      }
+    },
+    "hinweis": {
+      "titel": "So funktioniert der Story-Modus",
+      "verstanden": "Verstanden",
+      "einmalig": "Erscheint nur beim ersten Besuch · später jederzeit über „?“ im Kopf"
     },
     "eingabe": {
       "tooLong": "Die Frage ist zu lang (höchstens {max} Zeichen)."

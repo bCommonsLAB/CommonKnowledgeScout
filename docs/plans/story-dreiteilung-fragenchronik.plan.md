@@ -264,7 +264,7 @@ Nachziehen.
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
 | D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
 | D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten statt Info-Symbol, wie Figma Schritt 1; Chronik ohne Aufruf bei leerer Library-Kennung (gebaut 02.10., Stand D9 unten) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite; kein 405 beim Start |
-| D10 | Kopf der Seite: Titel und Zweizeiler der Library über den Spalten, Erklärung des Story-Modus als einmaliger Hinweis mit „?“-Knopf, Mitte ohne zweiten Kopf, Themenzeile generisch (Figma „6 · Kopf der Seite“ angelegt 02.10., Abnahme offen) | Owner nimmt den Figma-Bildschirm ab; Live: Hinweis einmal, Kopf zeigt Library, kein Modelltitel in der Mitte |
+| D10 | Kopf der Seite: Titel und Zweizeiler der Library über den Spalten, Erklärung des Story-Modus als einmaliger Hinweis mit „?“-Knopf, Mitte ohne zweiten Kopf, Themenzeile generisch (Figma „6 · Kopf der Seite“ abgenommen 02.10., gebaut 02.10., Stand D10 unten) | Live: Hinweis einmal, „?“ holt ihn zurück, Kopf zeigt Library, kein Modelltitel in der Mitte |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -815,7 +815,7 @@ Nicht in D9 (Owner 02.10., Konzept offen):
   einmaliger Hinweis zum Wegklicken. Konzept folgt, generisch für alle
   Libraries.
 
-### Stand D10 (Figma angelegt 02.10.2026, Abnahme offen) — Kopf der Seite
+### Stand D10 (Figma abgenommen und gebaut 02.10.2026) — Kopf der Seite
 
 Owner 02.10.: Der Kopf über den drei Spalten erklärt heute die Bedienung
 (`gallery.storyMode.headline/subtitle/description` bzw.
@@ -839,9 +839,34 @@ der maßgeblichen Seite (Node `22-169`), Kopie von „1 · Einstieg“ mit diese
   Themenzeile aus der Übersetzung mit Zahl, `story.topicsTitle/topicsIntro`
   bleiben als Übersteuerung. Kein Library-Wissen im Code.
 
-Bau nach Abnahme: `StoryModeHeader` (Kopf), `StoryRoot`/`StoryUebersicht`
-(Hinweis-Slot, Themenzeile, Kopf-Block weg), App- und Embed-Montage, Tests,
-Übersetzungen de/en/it.
+Was steht (gebaut 02.10., Owner „passt“ zum Figma-Bildschirm):
+
+- **Kopf der Seite (`StoryModeHeader`):** Titel (`publicName`, sonst Label)
+  und Zweizeiler (`description`) der Library, beim Scrollen ausgeblendet wie
+  bisher; darunter die Knopfzeile mit neuem „?“-Knopf (`StoryHeader`,
+  `onHilfe`). Die drei Erklärzeilen oben sind weg.
+- **Hinweis (`StoryHinweis`, Paket):** ⓘ, Titel, Text, Zusatzzeile
+  „Erscheint nur beim ersten Besuch …“, Knopf „Verstanden ✕“. Die App
+  (`useStoryHinweis`, Jotai-Atom + `localStorage` `story-hinweis-gesehen`)
+  zeigt ihn beim ersten Besuch, „Verstanden“ merkt es im Browser, „?“ holt
+  ihn zurück. Texte: `publicPublishing.story.headline/intro` der Library,
+  sonst `story.hinweis.titel` bzw. `gallery.storyMode.description`. Das Feld
+  `story.subtitle` wird nicht mehr angezeigt.
+- **Mitte (`StoryUebersicht`):** kein Kopf des Inhalts mehr; oben der
+  Hinweis-Slot, dann Kennzahlen mit „neu berechnen“ rechts, dann die
+  Themenzeile „7 Themen · wähle eines“ (`story.uebersicht.themenzeile`,
+  Konfig `topicsTitle` ersetzt sie, `topicsIntro` ergänzt) und die Karten.
+  Titel und Einleitung des Sprachmodells werden nicht mehr angezeigt.
+- **Paket-API:** `StoryRoot.kopf` ist jetzt optional und trägt nur
+  `themenTitel`/`themenIntro` (`StoryKopf`); neuer Slot `uebersichtHinweis`.
+  `StoryHinweis` exportiert.
+- **Embed:** `EmbedStoryKopfzeile` bekommt Label und Beschreibung der
+  Library als Überschrift und Einleitung — der Kopf wandert auch dort nach
+  oben. Kein Hinweis im Embed (kein „?“-Knopf; später opt-in).
+- Übersetzungen de/en/it/es/fr. Belege: `story-mitte.test.tsx` (angepasst),
+  `story-root.test.tsx`, `story-root-mount.test.tsx` (Hinweis, Verstanden),
+  `story-hinweis.test.tsx`, `use-story-hinweis.test.tsx`; tsc-Vergleich
+  leer, Lint 0 Fehler.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

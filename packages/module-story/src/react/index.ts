@@ -22,6 +22,7 @@ export { useStorySitzungen, type UseStorySitzungenParams, type UseStorySitzungen
 export { StoryChronik, type StoryChronikProps } from './story-chronik'
 export { Gliederung, aktivesThema, type GliederungProps } from './gliederung'
 export { StoryUebersicht, type StoryUebersichtProps } from './story-uebersicht'
+export { StoryHinweis, type StoryHinweisProps } from './story-hinweis'
 export { StoryThema, type StoryThemaProps } from './story-thema'
 export { Kennzahlen, zaehlerText, type Kennzahl, type KennzahlArt } from './kennzahlen'
 export { VerarbeitungEinfach, verarbeitungInWorten, type VerarbeitungEinfachProps, type VerarbeitungZeile } from './verarbeitung-einfach'

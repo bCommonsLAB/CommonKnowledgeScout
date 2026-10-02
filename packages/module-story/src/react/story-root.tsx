@@ -32,7 +32,8 @@ export interface StoryRootProps {
   instanz: InstanceApi
   viewer: { isSignedIn: boolean }
   perspektive: Perspektive
-  kopf: StoryKopf & { themenTitel?: string; themenIntro?: string }
+  /** Konfig-Texte ueber den Karten; ohne Angabe die Themenzeile mit Zahl. */
+  kopf?: StoryKopf
   /** Dokumente im (gefilterten) Bestand. */
   dokumente: number
   filter?: GalleryFilters
@@ -43,6 +44,8 @@ export interface StoryRootProps {
   antwortFuss?: (antwort: Nachricht) => ReactNode
   /** Unter den Themenkarten; bekommt die gespeicherte Kennung der Uebersicht (Konfig-Anzeige, Quellen). */
   uebersichtFuss?: (info: { queryId: string | null }) => ReactNode
+  /** D10: einmaliger Hinweis zur Bedienung, oben in der Uebersicht (Gastgeber entscheidet, ob und wann). */
+  uebersichtHinweis?: ReactNode
   /** D6c: Fragen duerfen geloescht werden (eigene Sitzung); Standard aus. */
   loeschenErlaubt?: boolean
 }
@@ -124,12 +127,12 @@ export function StoryRoot(p: StoryRootProps) {
     mitte = (
       <>
         <StoryUebersicht
-          kopf={{ titel: p.kopf.titel, beschreibung: p.kopf.beschreibung }}
           gliederung={k.gliederung}
           dokumente={p.dokumente}
-          themenTitel={p.kopf.themenTitel}
-          themenIntro={p.kopf.themenIntro}
+          themenTitel={p.kopf?.themenTitel}
+          themenIntro={p.kopf?.themenIntro}
           onThemaWaehlen={(themaId) => k.setAuswahl({ art: 'thema', themaId })}
+          hinweis={p.uebersichtHinweis}
           status={status}
           aktionen={aktionen}
           fuss={p.uebersichtFuss?.({ queryId: k.uebersichtQueryId })}
