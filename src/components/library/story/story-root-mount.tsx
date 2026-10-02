@@ -49,13 +49,12 @@ export function StoryRootMount({ libraryId }: { libraryId: string }) {
     [story.targetLanguage, story.character, story.accessPerspective, story.socialContext, story.llmModel, genderInclusive],
   )
 
-  // Konfig (publicPublishing): Label und Beschreibung fuer den Kopf, die Story-Texte fuer die Karten.
+  // Konfig (publicPublishing.story): Texte ueber den Karten; Titel und Zweizeiler
+  // der Library stehen seit D10 im Kopf der Seite (StoryModeHeader).
   const kopf = useMemo(() => {
     const library = libraries.find((lib) => lib.id === libraryId)
     const pub = library?.config?.publicPublishing
     return {
-      titel: pub?.publicName || library?.label || '',
-      beschreibung: pub?.description || undefined,
       themenTitel: pub?.story?.topicsTitle || undefined,
       themenIntro: pub?.story?.topicsIntro || undefined,
     }

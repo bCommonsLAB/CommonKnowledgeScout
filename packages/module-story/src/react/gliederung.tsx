@@ -9,17 +9,20 @@
  */
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, LayoutList } from 'lucide-react'
+import { ChevronDown, ChevronRight, LayoutList, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
 import type { StoryTopicsData } from '@ks/contracts'
 import type { StoryAuswahl } from './types'
+import type { UebersichtAktion } from './atoms'
 
 export interface GliederungProps {
   gliederung: StoryTopicsData | null
   auswahl: StoryAuswahl
   onUebersicht: () => void
   onThema: (themaId: string) => void
+  /** D11a: „Themenuebersicht neu berechnen" als dezenter Knopf rechts in der Zeile; ohne Angabe kein Knopf. */
+  neuBerechnen?: UebersichtAktion | null
 }
 
 /** Thema, das die Auswahl markiert — direkt gewaehlt oder Herkunft einer Frage. */
@@ -29,7 +32,7 @@ export function aktivesThema(auswahl: StoryAuswahl): string | null {
   return null
 }
 
-export function Gliederung({ gliederung, auswahl, onUebersicht, onThema }: GliederungProps) {
+export function Gliederung({ gliederung, auswahl, onUebersicht, onThema, neuBerechnen }: GliederungProps) {
   const { t } = useTranslation()
   const [offen, setOffen] = useState(false)
   const aktiv = aktivesThema(auswahl)
@@ -43,18 +46,29 @@ export function Gliederung({ gliederung, auswahl, onUebersicht, onThema }: Glied
 
   return (
     <nav aria-label={t('story.topicsOverview')} className="space-y-1">
-      <button
-        type="button"
-        onClick={onUebersicht}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium hover:bg-muted',
-          auswahl.art === 'uebersicht' && 'bg-muted text-foreground',
+      <div className={cn('flex items-center gap-1 rounded-md pr-1', auswahl.art === 'uebersicht' && 'bg-muted text-foreground')}>
+        <button
+          type="button"
+          onClick={onUebersicht}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium hover:bg-muted"
+          aria-current={auswahl.art === 'uebersicht' ? 'page' : undefined}
+        >
+          <LayoutList className="h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate">{t('story.topicsOverview')}</span>
+        </button>
+        {neuBerechnen && (
+          <button
+            type="button"
+            onClick={neuBerechnen.neuBerechnen}
+            disabled={neuBerechnen.laeuft}
+            aria-label={neuBerechnen.laeuft ? t('story.recomputing') : t('story.recompute')}
+            title={neuBerechnen.laeuft ? t('story.recomputing') : t('story.recompute')}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-60"
+          >
+            {neuBerechnen.laeuft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          </button>
         )}
-        aria-current={auswahl.art === 'uebersicht' ? 'page' : undefined}
-      >
-        <LayoutList className="h-4 w-4 shrink-0" />
-        <span className="flex-1 truncate">{t('story.topicsOverview')}</span>
-      </button>
+      </div>
 
       {themen.length > 0 && (
         <>

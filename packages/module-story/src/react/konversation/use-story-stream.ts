@@ -13,7 +13,8 @@
 
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
 import { useSessionHeaders, type InstanceApi } from '@ks/api-client'
-import { STORY_TOC_QUESTION, type ChatProcessingStep, type DocReference, type StoryTopicsData } from '@ks/contracts'
+import { useTranslation } from '@ks/i18n/react'
+import { STORY_TOC_QUESTION, type ChatProcessingStep, type DocReference, type StoryFehlerCode, type StoryTopicsData } from '@ks/contracts'
 import { fehlerText, streamAdresse, streamKoerper } from './anfrage'
 import { sseSchritte } from './sse'
 import type { AnfrageRahmen, Nachricht } from './types'
@@ -26,7 +27,7 @@ export interface UseStoryStreamParams {
   rahmen: AnfrageRahmen
   nachrichten: Nachricht[]
   setNachrichten: Dispatch<SetStateAction<Nachricht[]>>
-  /** Der Server hat eine Sitzung angelegt (erste Frage ohne Kennung). */
+  /** Der Server hat eine Sitzung angelegt (erste Frage ohne Kennung; nie die Themenuebersicht, D8). */
   onSitzung: (chatId: string) => void
   /**
    * Die Frage steht als lokale Nachricht im Verlauf — sie wird die aktive
@@ -39,7 +40,8 @@ export interface UseStoryStreamParams {
   onBelege?: (belege: DocReference[], queryId: string) => void
   /** Ergebnis der Themenuebersicht; `null`, wenn der Server keine Gliederung lieferte. */
   onUebersicht?: (gliederung: StoryTopicsData | null, queryId: string) => void
-  onFehler: (text: string) => void
+  /** Klartext fuer die Person; `detail` ist die technische Meldung (D10d), wenn der Server eine Kennung mitgab. */
+  onFehler: (text: string, detail?: string) => void
   /** Eingabegrenze der Library; ohne Angabe keine Pruefung. */
   maxZeichen?: number
   maxZeichenHinweis?: string
@@ -55,15 +57,25 @@ export interface UseStoryStreamResult {
 
 type Abschluss = Extract<ChatProcessingStep, { type: 'complete' }>
 
+/** Fehler aus dem Stream mit Kennung des Servers (D10d). */
+class StreamFehler extends Error {
+  constructor(message: string, readonly code?: StoryFehlerCode) {
+    super(message)
+    this.name = 'StreamFehler'
+  }
+}
+
 export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
   const { libraryId, instanz, isSignedIn, rahmen, nachrichten, setNachrichten, onSitzung, onFrage, onBelege, onUebersicht, onFehler } = p
+  const { t } = useTranslation()
   const sessionHeaders = useSessionHeaders(isSignedIn)
   const [laeuft, setLaeuft] = useState(false)
   const [schritte, setSchritte] = useState<ChatProcessingStep[]>([])
 
   const abschliessen = useCallback(
     (schritt: Abschluss, frageId: string | null) => {
-      if (typeof schritt.chatId === 'string' && schritt.chatId !== '' && !rahmen.chatId) onSitzung(schritt.chatId)
+      // D8: Nur eine Frage eroeffnet eine Sitzung; die Themenuebersicht bringt keine Kennung.
+      if (frageId !== null && typeof schritt.chatId === 'string' && schritt.chatId !== '' && !rahmen.chatId) onSitzung(schritt.chatId)
       const queryId = typeof schritt.queryId === 'string' && schritt.queryId !== '' ? schritt.queryId : `temp-${Date.now()}`
       if (frageId === null) {
         onUebersicht?.(schritt.storyTopicsData ?? null, queryId)
@@ -117,7 +129,7 @@ export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
           puffer = rest
           for (const schritt of neue) {
             setSchritte((alt) => [...alt, schritt])
-            if (schritt.type === 'error') throw new Error(schritt.error || 'Unbekannter Fehler')
+            if (schritt.type === 'error') throw new StreamFehler(schritt.error || 'Unbekannter Fehler', schritt.code)
             if (schritt.type === 'complete') {
               abschliessen(schritt, frageId)
               return
@@ -127,14 +139,16 @@ export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
         throw new Error('Der Stream endete ohne Antwort')
       } catch (e) {
         console.error('[useStoryStream] Fehler beim Senden', e)
-        onFehler(fehlerText(e instanceof Error ? e.message : String(e)))
+        const roh = e instanceof Error ? e.message : String(e)
+        if (e instanceof StreamFehler && e.code === 'dienst_nicht_erreichbar') onFehler(t('story.fehler.dienstNichtErreichbar'), roh)
+        else onFehler(fehlerText(roh))
         if (frageId) setNachrichten((alt) => alt.filter((m) => m.id !== frageId))
       } finally {
         setSchritte([])
         setLaeuft(false)
       }
     },
-    [laeuft, p.maxZeichen, p.maxZeichenHinweis, onFehler, setNachrichten, onFrage, instanz, libraryId, rahmen, sessionHeaders, nachrichten, abschliessen],
+    [laeuft, p.maxZeichen, p.maxZeichenHinweis, onFehler, setNachrichten, onFrage, instanz, libraryId, rahmen, sessionHeaders, nachrichten, abschliessen, t],
   )
 
   const frageSenden = useCallback((text: string) => senden(text, { uebersicht: false }), [senden])

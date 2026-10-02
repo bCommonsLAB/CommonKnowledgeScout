@@ -262,6 +262,9 @@ Nachziehen.
 | D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
 | D6 | Entflechten und Doku (D6a, D6b, D6c gebaut 01.10.: App und Embed montieren `StoryRoot`; D6d offen: toten App-Chat entfernen) | Story-Mitte in App und Embed aus demselben Paket; Live: Übersicht, Frage mit ①, Chronik, Löschen |
 | D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
+| D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
+| D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten statt Info-Symbol, wie Figma Schritt 1; Chronik ohne Aufruf bei leerer Library-Kennung (gebaut 02.10., Stand D9 unten) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite; kein 405 beim Start |
+| D10 | Kopf der Seite für beide Ansichten: Titel und Zweizeiler der Library oben, darunter die Ansichtszeile („Inhalte erkunden“ / „Story-Modus“) mit ⓘ-Erklärung zum Auf- und Zuklappen; Mitte ohne Konfig-Kopf, Modelltitel vor den Themen (Figma „6“ und „Schritt 7“ abgenommen 02.10., gebaut als D10 + D10b 02.10., Stand D10 unten) | Live: Erklärung beim ersten Besuch auf, Pfeil klappt zu, ⓘ wieder auf; Kopf zeigt Library in Galerie und Story; Plaketten nur Gesetztes |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
 
@@ -706,6 +709,278 @@ Neu dazugekommen (beim Bauen gesehen):
 - Live-Nachweis offen (App): Themenübersicht entsteht, Themenfrage →
   Eingabe → Antwort mit ① und Belegen rechts, `q=` nach dem Neuladen,
   Chronik-Klick auf eine ältere Sitzung, Löschen einer Frage.
+- **02.10., lokaler Test, Schritt 1 (Kopf):** Figma „1 · Einstieg“ zeigt die
+  Perspektive neben „Perspektive anpassen“ als Plaketten (Sprache,
+  Interessen, Stil). Die App rendert dort `PerspectiveDisplay
+  variant="header"`: ein Info-Symbol, die Werte stehen im Tooltip. Der
+  Story-Kopf (`story-header.tsx`) war in keiner Welle dran. → **D9**.
+- **02.10., lokaler Test, Schritt 9/12 (Chronik):** Unter „Meine Fragen“
+  stehen Sitzungen mit dem Titel „What topics are covered here? …“. Das ist
+  die Systemfrage der Themenübersicht: Der Stream legte für jede Anfrage ohne
+  `chatId` einen Chat an, auch für die Übersicht; wer nur ansah, hinterließ
+  eine Sitzung mit Systemtitel (in der Testlibrary 56 von 59). Figma
+  Schritt 1: „Deine erste Frage eröffnet eine neue Sitzung“. → **D8**.
+- **02.10., lokaler Test, Schritt 2 (Übersicht, Fuß):** Unter der
+  Themenübersicht steht „Keine Konfiguration gefunden“. Netz:
+  `GET …/queries/<Übersichts-Query>` → 404. Ursache: `getQueryLogById`
+  filtert nach `userEmail`/`sessionId`, der Übersichts-Cache ist aber
+  benutzerübergreifend (Hash + Library) — ein Treffer aus fremder Sitzung ist
+  für die Konfig-Anzeige unsichtbar. Vermutung: Lesen einer Query nur noch
+  an Library binden, wenn sie `toc` ist (oder die Konfig aus dem
+  `complete`-Schritt nehmen statt nachzuladen). Noch nicht gebaut.
+- **02.10., lokaler Test, Schritt 1 (Start):** Beim Öffnen der Seite feuert
+  die Chronik `GET /api/chat/chats?limit=50` (ohne Library) → 405, zweimal.
+  `StoryChronikMount` wird mit leerer `libraryId` montiert, bevor die
+  Library geladen ist; `useStorySitzungen` wartet nicht darauf. Vermutung:
+  Laden erst bei nicht-leerer Kennung (kein stiller Fallback, aber auch kein
+  Aufruf ins Leere). Noch nicht gebaut.
+
+### Stand D8 (gebaut 02.10.2026) — Sitzungsstart
+
+Owner-Entscheidung 02.10.: Ein Chat beginnt erst mit einer Frage. Die
+Themenübersicht braucht keine Sitzung — ihr Cache ist benutzerübergreifend
+(Hash + Library), ihre Kennung für Konfig-Anzeige, Logs, Debug und
+Quellen-Sheet hängt an der Query, nicht am Chat. Die einzige Kopplung war
+das Pflichtfeld `chatId` im Query-Log, und das war selbst gemacht.
+
+Was steht:
+
+- **Stream-Route:** Für `isTOCQuery` wird kein Chat angelegt und keiner
+  berührt; `activeChatId` bleibt leer, der `complete`-Schritt trägt dann keine
+  `chatId`. Der Zweig „Systemtitel durch die erste Frage ersetzen“ (D1) ist
+  weg, mit ihm `sitzungstitelAusFrage`. Der Kurztitel des Sprachmodells (D5)
+  wird nur noch gesetzt, wenn die Frage die Sitzung angelegt hat.
+- **Typen:** `chatId` ist optional in `QueryLog`, `startQueryLog` und im
+  `complete`-Schritt (`@ks/contracts`), mit Kommentar: nur die Übersicht hat
+  keine.
+- **Stream-Hook (`use-story-stream`):** `onSitzung` feuert nur aus einer
+  Frage, nie aus der Übersicht — auch wenn ein alter Server eine Kennung
+  mitschickt (Test).
+- **Altlasten:** `scripts/cleanup-toc-chats.ts` (Analyse ohne `--apply`,
+  `--db=` Pflicht, vorher `mongodump` von `chats` und `queries`): über alle
+  Libraries Chats mit Systemtitel (`istThemenuebersichtTitel`); ohne Frage
+  einer Person → löschen, ihre Übersichts-Logs verlieren die `chatId` (wie D8
+  sie heute anlegt); mit Fragen (App-Chat vor D1) → Titel aus der ersten
+  Frage (Kurztitel, sonst 60 Zeichen), wie D1 ihn gegeben hätte.
+- Belege: `sitzungstitel.test.ts`, `use-story-stream.test.tsx` (neuer Fall),
+  tsc-Vergleich leer, Lint 0 Fehler. Live 02.10. (Dev-Server, Prod-DB,
+  Cache-Treffer): der `complete`-Schritt der Übersicht trägt `queryId` und
+  `storyTopicsData`, keine `chatId`; die Übersicht erscheint wie zuvor.
+
+Was bewusst anders ist als vorher:
+
+- Eine neue Sitzung erscheint in der Chronik erst mit der ersten Frage
+  (Figma Schritt 1), nicht schon beim Öffnen des Story-Modus.
+- „Übersicht neu berechnen“ in einer laufenden Sitzung hängt die Übersicht
+  nicht mehr an die Sitzung; `touchChat` entfällt dafür.
+
+### Stand D9 (gebaut 02.10.2026) — Kopf-Plaketten
+
+Owner 02.10. nach dem Vergleich mit Figma Schritt 1: Die Perspektive steht
+neben „Perspektive anpassen“ als Plaketten, nicht als Info-Symbol mit
+Tooltip.
+
+Was steht:
+
+- **`PerspectiveDisplay variant="header"`** rendert je gesetztem Wert eine
+  Plakette „Sprache: Deutsch“, „Interessenprofil: …“, „Zugangsperspektive:
+  …“, „Sprachstil: …“ (Reihenfolge wie bisher im Tooltip). Leere Werte
+  lassen die Plakette weg. Das Modell steht nicht im Kopf — es bleibt in der
+  Konfig-Anzeige unter der Antwort. Mit `onClick` sind die Plaketten Knöpfe;
+  `StoryHeader` reicht denselben Weg wie der Knopf „Perspektive anpassen“
+  herein (Perspektive-Seite, `from=story`). Die Inline-Variante (Antwort-Fuß)
+  ist unverändert.
+- **Chronik ohne Library-Kennung:** `useStorySitzungen` lädt nichts, solange
+  `libraryId` leer ist (die Schale montiert die Chronik vor der Library);
+  kein `GET /api/chat//chats` → 405 mehr. Sobald die Kennung da ist, lädt der
+  Hook wie gewohnt (Test).
+- Belege: `perspective-display-plaketten.test.tsx`,
+  `use-story-sitzungen-leer.test.tsx`, tsc-Vergleich leer, Lint 0 Fehler.
+
+Nicht in D9 (Owner 02.10., Konzept offen):
+
+- **Themenzeile über den Karten:** Fehlt `story.topicsTitle`/`topicsIntro`
+  in der Konfig, zeigt die Übersicht Titel und Einleitung des Sprachmodells
+  als zweiten Kopf unter dem Konfig-Kopf — wirkt doppelt (Befund 02.10.,
+  Schritt 2). Figma hat dort nur eine kleine Zeile „Die vier Themen · wähle
+  eines“. Vorschlag: generische Zeile mit Zahl, Konfig-Felder als
+  Übersteuerung, Modelltext nicht mehr anzeigen. Wartet auf das Konzept zum
+  Kopf.
+- **Kopf der Seite vs. Kopf des Inhalts:** Über den drei Spalten stehen
+  heute Erklärtexte zum Story-Modus (`gallery.storyMode.headline`,
+  `subtitle`, `description` bzw. `publicPublishing.story.headline/subtitle/
+  intro`). Owner 02.10.: Das ist Hilfetext zur Bedienung, kein Kopf des
+  Inhalts. Dort gehören Titel und Zweizeiler der Library hin (heute in der
+  Mitte als „Kopf des Ganzen“); die Erklärung des Story-Modus wird ein
+  einmaliger Hinweis zum Wegklicken. Konzept folgt, generisch für alle
+  Libraries.
+
+### Stand D10 + D10b (Figma abgenommen und gebaut 02.10.2026) — Kopf der Seite für beide Ansichten
+
+Owner 02.10.: Der Kopf über den drei Spalten erklärt heute die Bedienung
+(`gallery.storyMode.headline/subtitle/description` bzw.
+`publicPublishing.story.headline/subtitle/intro`). Das ist Hilfetext, kein
+Kopf des Inhalts. Dort gehören Titel und Zweizeiler der Library hin.
+
+Figma: Bildschirm „6 · Kopf der Seite (D10)“ mit Erklärtext „Schritt 6“ auf
+der maßgeblichen Seite (Node `22-169`), Kopie von „1 · Einstieg“ mit diesen
+Änderungen:
+
+- **Kopf:** Titel der Library (24 px) und Zweizeiler (14 px, gedämpft) über
+  der Knopfzeile; darunter „Zurück“, „Perspektive anpassen“, neu
+  „? So funktioniert der Story-Modus“, dann die Plaketten (D9).
+- **Mitte:** oben ein einmaliger Hinweis (ⓘ, Erklärtext, „Verstanden ✕“),
+  gemerkt im Browser wie die Perspektive; „?“ im Kopf holt ihn zurück. Dann
+  Kennzahlen, die Themenzeile „Die vier Themen · wähle eines“ und die
+  Karten. Der „Kopf des Ganzen“ in der Mitte und der Modelltitel entfallen.
+- **Generisch:** Titel und Zweizeiler aus den Library-Einstellungen
+  (`publicPublishing` Titel/Beschreibung, wie heute der Kopf in der Mitte);
+  die Erklärung aus den Übersetzungen oder `publicPublishing.story`; die
+  Themenzeile aus der Übersetzung mit Zahl, `story.topicsTitle/topicsIntro`
+  bleiben als Übersteuerung. Kein Library-Wissen im Code.
+
+Was steht (gebaut 02.10., Owner „passt“ zum Figma-Bildschirm):
+
+- **Kopf der Seite (`StoryModeHeader`):** Titel (`publicName`, sonst Label)
+  und Zweizeiler (`description`) der Library, beim Scrollen ausgeblendet wie
+  bisher; darunter die Knopfzeile mit neuem „?“-Knopf (`StoryHeader`,
+  `onHilfe`). Die drei Erklärzeilen oben sind weg.
+- **Hinweis (`StoryHinweis`, Paket):** ⓘ, Titel, Text, Zusatzzeile
+  „Erscheint nur beim ersten Besuch …“, Knopf „Verstanden ✕“. Die App
+  (`useStoryHinweis`, Jotai-Atom + `localStorage` `story-hinweis-gesehen`)
+  zeigt ihn beim ersten Besuch, „Verstanden“ merkt es im Browser, „?“ holt
+  ihn zurück. Texte: `publicPublishing.story.headline/intro` der Library,
+  sonst `story.hinweis.titel` bzw. `gallery.storyMode.description`. Das Feld
+  `story.subtitle` wird nicht mehr angezeigt.
+- **Mitte (`StoryUebersicht`):** kein Kopf des Inhalts mehr; oben der
+  Hinweis-Slot, dann Kennzahlen mit „neu berechnen“ rechts, dann die
+  Themenzeile „7 Themen · wähle eines“ (`story.uebersicht.themenzeile`,
+  Konfig `topicsTitle` ersetzt sie, `topicsIntro` ergänzt) und die Karten.
+  Titel und Einleitung des Sprachmodells werden nicht mehr angezeigt.
+- **Paket-API:** `StoryRoot.kopf` ist jetzt optional und trägt nur
+  `themenTitel`/`themenIntro` (`StoryKopf`); neuer Slot `uebersichtHinweis`.
+  `StoryHinweis` exportiert.
+- **Embed:** `EmbedStoryKopfzeile` bekommt Label und Beschreibung der
+  Library als Überschrift und Einleitung — der Kopf wandert auch dort nach
+  oben. Kein Hinweis im Embed (kein „?“-Knopf; später opt-in).
+- Übersetzungen de/en/it/es/fr. Belege: `story-mitte.test.tsx` (angepasst),
+  `story-root.test.tsx`, `story-root-mount.test.tsx` (Hinweis, Verstanden),
+  `story-hinweis.test.tsx`, `use-story-hinweis.test.tsx`; tsc-Vergleich
+  leer, Lint 0 Fehler.
+
+**D10b (Owner-Rückmeldung 02.10. nach dem Live-Blick auf D10):** „Gar kein
+Titel mehr in der Mitte, das war vorher besser“ und „die Hilfe gehört in eine
+Ansichtszeile über den Knöpfen, gleich für Galerie und Story“. Figma
+„Schritt 7 · Kopf für beide Ansichten“ (Node `23-2`, vier Köpfe: Galerie und
+Story, Erklärung zu und auf), abgenommen mit der Auflage, dass das Einklappen
+ohne Lesen erkennbar ist (runder Pfeil nach oben im Kasten).
+
+Was seit D10b steht (ersetzt den Hinweis in der Mitte und den „?“-Knopf):
+
+- **`AnsichtsZeile` + `useAnsichtErklaerung` (`@ks/ui`, generisch):** links
+  der Name der Ansicht mit rundem ⓘ-Knopf, rechts die Werkzeuge; ⓘ klappt die
+  Erklärung der Ansicht darunter auf, im Kasten rechts oben klappt ein
+  runder Pfeil sie ein. Beim ersten Besuch offen, der Browser merkt sich „zu“
+  je Ansicht (`ansicht-erklaerung-zu:<ansicht>`). Beim Scrollen bleibt die
+  Zeile, die Erklärung geht zu.
+- **Galerie-Kopf (`GalleryStickyHeader`):** Kopf der Seite = `publicName`
+  (sonst Label) und `publicPublishing.description`; Ansichtszeile „Inhalte
+  erkunden“ mit Suche, Ansichtswahl, Aktionen; Erklärung aus
+  `publicPublishing.gallery.headline/description` (sonst Übersetzung
+  `gallery.texts.*`). `gallery.subtitle` wird nicht mehr angezeigt.
+- **Story-Kopf (`StoryModeHeader`, App) und `StoryKopfzeile` (Embed):**
+  gleicher Kopf der Seite; Ansichtszeile „Story-Modus“ mit Zurück,
+  Perspektive anpassen, Plaketten; Erklärung aus `story.headline/intro`
+  (sonst Übersetzung). `story.subtitle` wird nicht mehr angezeigt.
+- **Mitte (`StoryUebersicht`):** Titel und Einleitung des Sprachmodells
+  stehen wieder vor den Karten (h2 + Absatz), darunter die Themenzeile
+  „7 Themen · wähle eines“ (h3). Kein Hinweis-Slot mehr; `StoryHinweis` und
+  `useStoryHinweis` sind weg.
+- **Plaketten (`PerspectiveDisplay` header, Owner 02.10.: Platz ist
+  wertvoll):** nur Gesetztes — „nicht spezifiziert“ fällt weg, die Sprache
+  nur, wenn sie von der Oberflächensprache abweicht (`resolveTargetLanguage`
+  gegen `locale`). Die Inline-Variante unter der Antwort zeigt weiter alles.
+- Übersetzungen: neuer Block `ansicht.*` (de/en/it/es/fr), `story.hinweis.*`
+  entfernt. Belege: `ansichts-zeile.test.tsx`,
+  `use-ansicht-erklaerung.test.tsx`, `perspective-display-plaketten.test.tsx`
+  (D10b-Regeln), `story-mitte.test.tsx` (Kopf der Gliederung zurück); tsc-
+  Vergleich leer, Lint 0 Fehler.
+
+**D10c (Owner 02.10., Startansicht):** „Links scheint der erste Eintrag von
+„Meine Fragen“ selektiert zu sein, obwohl in der Mitte die Themenübersicht
+steht — irreführend. Der sollte am Anfang zugeklappt und nicht selektiert
+sein.“ Ursache: Die Chronik hob die aktive Sitzung (gemerkte Kennung aus dem
+Browser) hervor und klappte sie auf, unabhängig davon, was in der Mitte
+steht. Seit D10c ist eine Sitzung nur hervorgehoben und von selbst offen,
+wenn eine ihrer Fragen in der Mitte steht oder gerade läuft
+(`istHervorgehoben` in `sitzungen-liste.tsx`, `istGewaehlt` aus
+`sitzung-eintrag.tsx`); die aktive Sitzung bleibt im Hintergrund die, in der
+die nächste Frage landet. Von Hand Auf- und Zuklappen geht weiter. Beleg:
+`story-chronik.test.tsx` (Einstieg zu und unmarkiert, Auswahl klappt auf).
+
+**D10d (Owner 02.10., Testplan Schritt 5, „bitte bessere Fehlermeldung“):**
+Ohne laufenden Secretary stand unter der Konversation die technische
+Meldung „Secretary Service nicht erreichbar (http://127.0.0.1:5001/api/rag/
+embed-text) … fetch failed“. Seit D10d gibt der Stream dem `error`-Schritt
+eine Kennung (`code: 'dienst_nicht_erreichbar'`, Vertrag `StoryFehlerCode`
+in `@ks/contracts`), wenn der Secretary nicht antwortet. Die Oberfläche
+zeigt dann Klartext („Die Antwort kann gerade nicht erstellt werden: Der
+Sprachdienst ist nicht erreichbar. Bitte in ein paar Minuten noch einmal
+versuchen.“, `story.fehler.dienstNichtErreichbar`, de/en/it/es/fr) und die
+technische Meldung klein darunter als „Technische Angabe“ — nichts
+verschwindet. Unbekannte Fehler bleiben wie bisher (`fehlerText`). Beleg:
+`use-story-stream.test.tsx` (Kennung → Klartext + Detail). Weitere Kennungen
+(Modell fehlt, Schlüssel ungültig) folgen bei Bedarf nach demselben Muster.
+
+**D11a (Owner 02.10., „der Knopf oben stört“):** „Übersicht neu berechnen“
+stand als Knopf in der Mitte neben den Kennzahlen. Jetzt steht er als
+dezentes Symbol (Pfeilkreis, beim Rechnen Spinner) rechts in der
+Chronik-Zeile „Themenübersicht“, mit Tooltip „Themenübersicht neu berechnen“
+(`story.recompute`, de/en/it/es/fr). Technik: `StoryRoot` stellt die Aktion
+über `storyUebersichtAktionAtom` bereit (`null` ohne Gliederung), die
+Chronik (`Gliederung`) zeigt den Knopf nur dann. Die Mitte beginnt damit
+direkt mit den Kennzahlen. Beleg: `story-chronik.test.tsx` (Knopf erscheint
+mit der Aktion, ruft sie, ist beim Rechnen gesperrt).
+
+**Neu dazugekommen (Owner 02.10., noch Konzept):**
+
+- **Quellenverzeichnis rechts** nimmt ungefragt Platz; Wunsch: anders
+  formatieren und als „fliegendes Verzeichnis“ einblenden, wenn es jemand
+  braucht. Vorschlag: rechte Spalte einklappbar auf eine schmale Leiste mit
+  „Quellen (610)“ bzw. „Belege (4)“, Aufklappen als Spalte (Desktop) oder
+  Sheet (mobil, gibt es seit D4); nach einer Antwort kurz aufmerksam machen
+  (Zähler), nicht aufdrängen. Figma zuerst (D11b).
+- **KI-Hinweis für Laien** (Owner 02.10., Variante 2 gewählt): Antwort
+  „Eine KI hat die Antwort aus den Quellen rechts zusammengestellt. Die
+  Quellen kannst du dort nachlesen.“, Übersicht „Eine KI hat diese Übersicht
+  aus den Quellen rechts erstellt. …“ (`common.aiGenerated.contentAutoGenerated`
+  / `overviewGenerated`, de/en/it/es/fr; `AIGeneratedNotice variant`).
+  Gebaut 02.10. auf dem D11b-Branch.
+- **Rand unten (Owner 02.10., „die Anwendung ist nicht voll nutzbar“):**
+  `useGalleryMode` rechnete die Rahmenhöhe aus Fensterhöhe minus Navigation
+  minus pauschal 115 px (mobil 70) — je nach Kopf blieben bis zu 90 px
+  ungenutzt. Jetzt ab der tatsächlichen Oberkante des Rahmens, unten nur der
+  Innenabstand der Seite (Desktop gemessen: 981 statt 894 px Höhe). Gebaut
+  02.10. auf dem D11b-Branch.
+- **D11b Quellen als fliegendes Verzeichnis:** Figma „Schritt 8“ (Node
+  `27-557`): 8a Einstieg mit eingeklappter Leiste (56 px, Pfeil, Symbol,
+  „610 Quellen“), 8b Antwort mit aufgeklappten Belegen (Chip „Belege · 4“,
+  Pfeil › klappt ein), 8c Antwort eingeklappt mit blauem Zähler „4“ auf der
+  Leiste. Browser merkt sich auf/zu; mobil bleibt das Blatt aus D4.
+  Abgenommen und gebaut 02.10.: `QuellenLeiste` + `useQuellenOffen`
+  (`story-quellen-offen`, Einstieg zu) in `quellen-leiste.tsx`;
+  `StorySpalten` bekommt `leiste` (ohne Angabe wie bisher, Embed) und
+  rendert zu die Leiste (Zähler = Belege der Antwort, blau, sonst Quellen
+  im Bestand) statt der Spalte, auf die Spalte mit Pfeil zum Einklappen;
+  Owner-Korrektur nach dem ersten Live-Blick: Die Quellen legen sich als
+  **Schicht** über den rechten Teil der Mitte (480 px, max. 55 %), die
+  Breiten von Chronik und Mitte ändern sich dabei nicht (die Leiste bleibt
+  unsichtbar stehen); zugeklappt ist die Chronik breiter (22 % statt 15 %),
+  damit die Fragen lesbar sind. Eigene Breiten-Schlüssel
+  `story-spalten-fliegend-*`; ohne `leiste` (Embed) die alte Dreiteilung.
+  Beleg: `story-spalten.test.tsx`; live: Chronik 260 px und Mitte 923 px vor
+  und nach dem Aufklappen identisch, keine neuen Aufrufe. Übersetzungen
+  `story.leiste.*`.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

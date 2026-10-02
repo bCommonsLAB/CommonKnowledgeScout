@@ -3,7 +3,11 @@
 /**
  * Eine Sitzung in „Meine Fragen": Titel (umbenennbar), aufklappbar, darunter
  * die Fragen chronologisch als Kurztitel. Klick auf eine Frage waehlt die
- * Konversation; Klick auf den Titel macht die Sitzung aktiv (fortsetzen).
+ * Konversation; Klick auf den Titel klappt die Sitzung auf oder zu.
+ *
+ * Hervorgehoben (und von selbst offen) ist eine Sitzung nur, wenn in der
+ * Mitte eine ihrer Fragen steht oder eine laeuft (D10c, Owner 02.10.: beim
+ * Einstieg mit der Themenuebersicht ist nichts markiert und nichts offen).
  */
 
 import { useState } from 'react'
@@ -16,7 +20,8 @@ import type { ChronikFrage, ChronikSitzung, StoryAuswahl } from './types'
 
 export interface SitzungEintragProps {
   sitzung: ChronikSitzung
-  istAktiv: boolean
+  /** Eine Frage dieser Sitzung steht in der Mitte oder laeuft. */
+  hervorgehoben: boolean
   offen: boolean
   auswahl: StoryAuswahl
   onOeffnen: (chatId: string, offen: boolean) => void
@@ -26,7 +31,7 @@ export interface SitzungEintragProps {
   umbenennbar?: boolean
 }
 
-function istGewaehlt(auswahl: StoryAuswahl, frage: ChronikFrage): boolean {
+export function istGewaehlt(auswahl: StoryAuswahl, frage: ChronikFrage): boolean {
   if (auswahl.art !== 'konversation') return false
   if (auswahl.queryId && frage.queryId) return auswahl.queryId === frage.queryId
   return Boolean(auswahl.frageId && frage.frageId && auswahl.frageId === frage.frageId)
@@ -34,7 +39,7 @@ function istGewaehlt(auswahl: StoryAuswahl, frage: ChronikFrage): boolean {
 
 export function SitzungEintrag({
   sitzung,
-  istAktiv,
+  hervorgehoben,
   offen,
   auswahl,
   onOeffnen,
@@ -60,7 +65,7 @@ export function SitzungEintrag({
 
   return (
     <li className="group">
-      <div className={cn('flex items-center gap-1 rounded-md px-1 py-1', istAktiv && 'bg-muted')}>
+      <div className={cn('flex items-center gap-1 rounded-md px-1 py-1', hervorgehoben && 'bg-muted')} data-hervorgehoben={hervorgehoben || undefined}>
         <button
           type="button"
           onClick={() => onOeffnen(sitzung.chatId, !offen)}
@@ -87,7 +92,7 @@ export function SitzungEintrag({
               aria-label={t('story.renameSession')}
             />
           ) : (
-            <span className={cn('truncate', istAktiv ? 'font-medium' : 'text-muted-foreground')}>{sitzung.titel}</span>
+            <span className={cn('truncate', hervorgehoben ? 'font-medium' : 'text-muted-foreground')}>{sitzung.titel}</span>
           )}
         </button>
         {umbenennbar && !bearbeiten && (

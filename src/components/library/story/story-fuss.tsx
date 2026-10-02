@@ -84,7 +84,7 @@ export function StoryUebersichtFuss({ libraryId, queryId, llmModel }: StoryUeber
   const { t } = useTranslation()
   return (
     <div className="space-y-4" data-story-uebersicht-fuss>
-      <AIGeneratedNotice compact />
+      <AIGeneratedNotice compact variant="uebersicht" />
       {queryId && (
         <div className="border-t border-border/50 pt-4">
           <ChatConfigDisplay libraryId={libraryId} queryId={queryId} llmModel={llmModel} />

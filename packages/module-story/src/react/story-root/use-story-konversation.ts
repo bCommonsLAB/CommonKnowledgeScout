@@ -45,6 +45,8 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   const setAktiveSitzung = useSetAtom(storyAktiveSitzungAtom)
   const [antwortLaenge, setAntwortLaenge] = useState<AntwortLaenge>(ANTWORT_LAENGE_STANDARD)
   const [fehler, setFehler] = useState<string | null>(null)
+  /** Technische Meldung zum Klartext in `fehler` (D10d). */
+  const [fehlerDetail, setFehlerDetail] = useState<string | null>(null)
   const [uebersichtLaeuft, setUebersichtLaeuft] = useState(false)
   /** Gespeicherte Kennung der Themenuebersicht (fuer Konfig-Anzeige und Quellen des Gastgebers). */
   const [uebersichtQueryId, setUebersichtQueryId] = useState<string | null>(null)
@@ -63,8 +65,9 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     },
     [setGliederung],
   )
-  const onFehler = useCallback((text: string) => {
+  const onFehler = useCallback((text: string, detail?: string) => {
     setFehler(text)
+    setFehlerDetail(detail ?? null)
     setUebersichtLaeuft(false)
   }, [])
 
@@ -121,6 +124,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   const frageSenden = useCallback(
     async (text: string) => {
       setFehler(null)
+      setFehlerDetail(null)
       await stream.frageSenden(text)
     },
     [stream],
@@ -132,6 +136,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   const frageLoeschen = useCallback(
     async (queryId: string) => {
       setFehler(null)
+      setFehlerDetail(null)
       try {
         const res = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
           method: 'DELETE',
@@ -161,6 +166,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     uebersichtLaeuft,
     uebersichtQueryId,
     fehler: fehler ?? verlauf.fehler,
+    fehlerDetail: fehler ? fehlerDetail : null,
     antwortLaenge,
     setAntwortLaenge,
     frageSenden,

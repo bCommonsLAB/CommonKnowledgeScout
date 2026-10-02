@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * Mitte des Story-Modus (D1): Kopf des Ganzen mit Themenkarten, Themenseite
+ * Mitte des Story-Modus (D1, D10): Kennzahlen mit Themenkarten, Themenseite
  * mit Fragen als Knoepfen. Konfig-Bloecke fallen weg, wenn das Feld fehlt.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -36,23 +36,17 @@ describe('zaehlerText', () => {
 })
 
 describe('StoryUebersicht', () => {
-  it('zeigt Kopf, Zaehler und eine Karte je Thema; Klick waehlt das Thema', () => {
+  it('zeigt Zaehler, Kopf der Gliederung, Themenzeile und eine Karte je Thema; Klick waehlt das Thema', () => {
     const onThemaWaehlen = vi.fn()
-    render(
-      <StoryUebersicht
-        kopf={{ titel: 'Klimamassnahmen', beschreibung: 'Was die Region plant.' }}
-        gliederung={gliederung}
-        dokumente={42}
-        onThemaWaehlen={onThemaWaehlen}
-      />,
-    )
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Klimamassnahmen')
-    expect(screen.getByText('Was die Region plant.')).toBeTruthy()
+    render(<StoryUebersicht gliederung={gliederung} dokumente={42} onThemaWaehlen={onThemaWaehlen} />)
+    // D10: kein Kopf des Inhalts mehr in der Mitte (steht im Kopf der Seite)
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     expect(screen.getByText('story.count.documents.many:42')).toBeTruthy()
     expect(screen.getByText('story.count.topics.many:2')).toBeTruthy()
     expect(screen.getByText('story.count.questions.many:3')).toBeTruthy()
-    // Karten: Titel der Gliederung als Ueberschrift, je Thema ein Satz und „n Fragen"
-    expect(screen.getByText('Themen der Sammlung')).toBeTruthy()
+    // D10b: Titel und Einleitung des Sprachmodells vor den Karten, darunter die Themenzeile mit Zahl
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Themen der Sammlung')
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('story.uebersicht.themenzeile.many:2')
     expect(screen.getByText('Wege und Wagen.')).toBeTruthy()
     expect(screen.getByText('story.count.questions.one')).toBeTruthy()
     // Fragen stehen NICHT in der Uebersicht
@@ -62,10 +56,9 @@ describe('StoryUebersicht', () => {
     expect(onThemaWaehlen).toHaveBeenCalledWith('heizen')
   })
 
-  it('ohne Beschreibung kein Block; ohne Gliederung nur Kopf, Dokumente und Status', () => {
+  it('ohne Gliederung nur Dokumente und Status, keine Themenzeile', () => {
     render(
       <StoryUebersicht
-        kopf={{ titel: 'Klimamassnahmen' }}
         gliederung={null}
         dokumente={1}
         onThemaWaehlen={() => {}}
@@ -76,12 +69,12 @@ describe('StoryUebersicht', () => {
     expect(screen.getByText('story.count.documents.one')).toBeTruthy()
     expect(screen.queryByText(/story.count.topics/)).toBeNull()
     expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
   })
 
-  it('Konfig-Texte gehen vor den Texten der Gliederung', () => {
+  it('Konfig-Texte ersetzen die Themenzeile und ergaenzen eine Einleitung', () => {
     render(
       <StoryUebersicht
-        kopf={{ titel: 'K' }}
         gliederung={gliederung}
         dokumente={3}
         themenTitel="Unsere Themen"
@@ -89,9 +82,10 @@ describe('StoryUebersicht', () => {
         onThemaWaehlen={() => {}}
       />,
     )
-    expect(screen.getByText('Unsere Themen')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Unsere Themen')
     expect(screen.getByText('Eigene Einleitung.')).toBeTruthy()
-    expect(screen.queryByText('Themen der Sammlung')).toBeNull()
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Themen der Sammlung')
+    expect(screen.queryByText(/themenzeile/)).toBeNull()
   })
 })
 

@@ -23,6 +23,8 @@ export interface StoryKonversationProps {
   laeuft: boolean
   schritte: ChatProcessingStep[]
   fehler: string | null
+  /** Technische Meldung zum Fehler (D10d), klein darunter. */
+  fehlerDetail?: string | null
   /** Anschlussfrage gewaehlt — die Eingabe uebernimmt sie. */
   onFrage: (text: string) => void
   /** Unter jeder Antwort, z. B. KI-Hinweis. */
@@ -70,7 +72,7 @@ function FrageAktionen({ paar, onLoeschen, onErneut }: Pick<StoryKonversationPro
   )
 }
 
-export function StoryKonversation({ paare, laeuft, schritte, fehler, onFrage, fuss, onLoeschen, onErneut }: StoryKonversationProps) {
+export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut }: StoryKonversationProps) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6" data-story-konversation>
@@ -119,7 +121,12 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, onFrage, fu
       ))}
       {fehler && (
         <div role="alert" className="rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {fehler}
+          <p>{fehler}</p>
+          {fehlerDetail && (
+            <p className="mt-1 break-words text-xs text-destructive/70">
+              {t('story.fehler.detail')}: {fehlerDetail}
+            </p>
+          )}
         </div>
       )}
     </div>

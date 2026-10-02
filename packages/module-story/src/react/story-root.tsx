@@ -13,8 +13,8 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Loader2, RefreshCw } from 'lucide-react'
-import { Button, ScrollArea } from '@ks/ui'
+import { useSetAtom } from 'jotai'
+import { ScrollArea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocReference, GalleryFilters } from '@ks/contracts'
@@ -25,6 +25,7 @@ import { StoryKonversation } from './konversation/story-konversation'
 import { StoryEingabe } from './konversation/story-eingabe'
 import type { Nachricht, Perspektive } from './konversation/types'
 import { STORY_UEBERSICHT, type StoryKopf } from './types'
+import { storyUebersichtAktionAtom } from './atoms'
 import { useStoryKonversation } from './story-root/use-story-konversation'
 
 export interface StoryRootProps {
@@ -32,7 +33,8 @@ export interface StoryRootProps {
   instanz: InstanceApi
   viewer: { isSignedIn: boolean }
   perspektive: Perspektive
-  kopf: StoryKopf & { themenTitel?: string; themenIntro?: string }
+  /** Konfig-Texte ueber den Karten; ohne Angabe die Themenzeile mit Zahl. */
+  kopf?: StoryKopf
   /** Dokumente im (gefilterten) Bestand. */
   dokumente: number
   filter?: GalleryFilters
@@ -58,6 +60,13 @@ export function StoryRoot(p: StoryRootProps) {
   const [text, setText] = useState('')
   const [eingabeOffen, setEingabeOffen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // D11a: „Themenuebersicht neu berechnen" steht in der Chronik; die Mitte stellt die Aktion bereit.
+  const setUebersichtAktion = useSetAtom(storyUebersichtAktionAtom)
+  useEffect(() => {
+    setUebersichtAktion(k.gliederung ? { neuBerechnen: k.uebersichtNeu, laeuft: k.laeuft } : null)
+    return () => setUebersichtAktion(null)
+  }, [k.gliederung, k.uebersichtNeu, k.laeuft, setUebersichtAktion])
 
   const gewaehltesThema = k.auswahl.art === 'thema' ? k.auswahl.themaId : null
   const thema = gewaehltesThema ? k.gliederung?.topics.find((th) => th.id === gewaehltesThema) ?? null : null
@@ -92,13 +101,6 @@ export function StoryRoot(p: StoryRootProps) {
     <p className="text-sm text-muted-foreground">{t('story.uebersicht.empty')}</p>
   ) : undefined
 
-  const aktionen = k.gliederung ? (
-    <Button variant="outline" size="sm" className="gap-2" onClick={k.uebersichtNeu} disabled={k.laeuft} title={t('gallery.storyMode.reloadTooltip')}>
-      {k.uebersichtLaeuft ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-      <span className="hidden sm:inline">{k.uebersichtLaeuft ? t('story.recomputing') : t('story.recompute')}</span>
-    </Button>
-  ) : undefined
-
   let mitte: ReactNode
   if (k.auswahl.art === 'konversation') {
     mitte =
@@ -112,6 +114,7 @@ export function StoryRoot(p: StoryRootProps) {
           laeuft={k.laeuft}
           schritte={k.schritte}
           fehler={k.fehler}
+          fehlerDetail={k.fehlerDetail}
           onFrage={frageUebernehmen}
           fuss={p.antwortFuss}
           onErneut={frageUebernehmen}
@@ -124,17 +127,20 @@ export function StoryRoot(p: StoryRootProps) {
     mitte = (
       <>
         <StoryUebersicht
-          kopf={{ titel: p.kopf.titel, beschreibung: p.kopf.beschreibung }}
           gliederung={k.gliederung}
           dokumente={p.dokumente}
-          themenTitel={p.kopf.themenTitel}
-          themenIntro={p.kopf.themenIntro}
+          themenTitel={p.kopf?.themenTitel}
+          themenIntro={p.kopf?.themenIntro}
           onThemaWaehlen={(themaId) => k.setAuswahl({ art: 'thema', themaId })}
           status={status}
-          aktionen={aktionen}
           fuss={p.uebersichtFuss?.({ queryId: k.uebersichtQueryId })}
         />
-        {k.fehler && <div role="alert" className="mt-4 rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{k.fehler}</div>}
+        {k.fehler && (
+          <div role="alert" className="mt-4 rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <p>{k.fehler}</p>
+            {k.fehlerDetail && <p className="mt-1 break-words text-xs text-destructive/70">{t('story.fehler.detail')}: {k.fehlerDetail}</p>}
+          </div>
+        )}
       </>
     )
   }

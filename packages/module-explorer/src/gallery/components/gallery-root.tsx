@@ -20,6 +20,7 @@ import { useDebouncedValue } from '../hooks/use-debounced-value'
 import { MobileFiltersSheet } from './mobile-filters-sheet'
 import { DetailOverlay, type DetailRenderer } from './detail-overlay'
 import { useGalleryMode } from '../hooks/use-gallery-mode'
+import { useQuellenOffen } from './quellen-leiste'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { useGalleryConfig } from '../hooks/use-gallery-config'
 import { useGalleryData } from '../hooks/use-gallery-data'
@@ -29,6 +30,7 @@ import { useGallerySums } from '../hooks/use-gallery-sums'
 import { getSummableFields } from '@ks/contracts'
 import { useGalleryEvents } from '../hooks/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
+import { LayoutGrid } from 'lucide-react'
 import type { DocCardMeta } from '../lib/types'
 import { ReferencesSheet } from './references-sheet'
 import { StorySpalten } from './story-spalten'
@@ -224,6 +226,8 @@ export function GalleryRoot({
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
+  // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
+  const quellenLeiste = useQuellenOffen()
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab
@@ -1123,9 +1127,18 @@ export function GalleryRoot({
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
             verifikationsAbzeichen={verifikationsAbzeichen}
-            headline={texts.headline}
-            subtitle={texts.subtitle}
-            description={texts.description}
+            headline={activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || ''}
+            description={activeLibrary?.config?.publicPublishing?.description || undefined}
+            ansicht={{
+              name: (
+                <span className="inline-flex items-center gap-1.5">
+                  <LayoutGrid className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  {t('ansicht.inhalte')}
+                </span>
+              ),
+              erklaerung: { titel: texts.headline, text: texts.description },
+              labels: { oeffnen: t('ansicht.erklaerungOeffnen'), schliessen: t('ansicht.erklaerungSchliessen') },
+            }}
             searchPlaceholder={searchPlaceholder}
             onChangeQuery={(value) => {
               // Entferne Refresh-Suffix beim Setzen des Query-Werts
@@ -1322,6 +1335,12 @@ export function GalleryRoot({
                 chronik={storyChronik ? storyChronik(libraryId) : undefined}
                 mitte={storyMitte}
                 quellen={storyQuellen}
+                leiste={{
+                  offen: quellenLeiste.offen,
+                  onToggle: quellenLeiste.toggle,
+                  zaehler: belegeAktiv ? chatReferences.references.length : effectiveDocCount,
+                  belege: belegeAktiv,
+                }}
               />
             )
           })()}

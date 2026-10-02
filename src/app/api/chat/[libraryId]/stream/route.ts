@@ -44,7 +44,6 @@ import { applyDraftExclusionToChunkFilter } from '@/lib/chat/publication-filter'
 import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { createChat, touchChat, getChatById, updateChatTitle } from '@/lib/db/chats-repo'
-import { istThemenuebersichtTitel, sitzungstitelAusFrage } from '@/lib/chat/common/sitzungstitel'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,
@@ -259,12 +258,17 @@ export async function POST(
         const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
         
         // Schritt 1: Chat-Verwaltung
-        let activeChatId: string
-        // D6: Hat diese Frage die Sitzung benannt (neu angelegt oder den
-        // Systemtitel der Themenuebersicht ersetzt), wird nach der Antwort der
+        // D8 (Sitzungsstart): Die Themenuebersicht eroeffnet KEINE Sitzung und
+        // haengt an keiner — ihr Query-Log steht ohne `chatId`. Erst die erste
+        // Frage der Person legt den Chat an (Plan `story-dreiteilung-fragenchronik`,
+        // Figma Schritt 1: „Deine erste Frage eroeffnet eine neue Sitzung").
+        let activeChatId: string | undefined
+        // D6: Hat diese Frage die Sitzung neu angelegt, wird nach der Antwort der
         // Kurztitel des Sprachmodells (D5) zum Sitzungstitel.
         let sitzungstitelAusDieserFrage = false
-        if (!chatId) {
+        if (isTOCQuery) {
+          activeChatId = undefined
+        } else if (!chatId) {
           // Chat-Title direkt aus Frage generieren (erste 60 Zeichen)
           const chatTitle = message.slice(0, 60)
           // Verwende userEmail oder sessionId für Chat-Erstellung
@@ -302,12 +306,6 @@ export async function POST(
               // Chat gefunden, verwende ihn
               activeChatId = chatId
               await touchChat(chatId)
-              // Die Sitzung wurde von der Themenuebersicht eroeffnet: Die erste
-              // echte Frage gibt ihr den Titel (Story-Chronik, D1).
-              if (!isTOCQuery && istThemenuebersichtTitel(existingChat.title)) {
-                await updateChatTitle(chatId, sitzungstitelAusFrage(message))
-                sitzungstitelAusDieserFrage = true
-              }
             }
           }
         }
@@ -543,11 +541,11 @@ export async function POST(
               references: cachedQuery.references || [],
               suggestedQuestions: cachedQuery.suggestedQuestions || [],
               queryId: finalQueryId,
-              chatId: activeChatId,
+              ...(activeChatId ? { chatId: activeChatId } : {}),
               // D5: Kurztitel aus dem Log; alte Eintraege haben keinen.
               ...(cachedQuery.shortTitle ? { shortTitle: cachedQuery.shortTitle } : {}),
             }
-            if (!isTOCQuery && sitzungstitelAusDieserFrage && cachedQuery.shortTitle) {
+            if (activeChatId && sitzungstitelAusDieserFrage && cachedQuery.shortTitle) {
               await updateChatTitle(activeChatId, cachedQuery.shortTitle)
             }
             // Setze storyTopicsData explizit, auch wenn es undefined ist (damit Frontend es erkennt)
@@ -780,7 +778,7 @@ export async function POST(
         })
 
         // D6: Kurztitel des Sprachmodells als Sitzungstitel (nur wenn diese Frage die Sitzung benannt hat)
-        if (!isTOCQuery && sitzungstitelAusDieserFrage && shortTitle) {
+        if (activeChatId && sitzungstitelAusDieserFrage && shortTitle) {
           await updateChatTitle(activeChatId, shortTitle)
         }
 
@@ -791,7 +789,7 @@ export async function POST(
           references,
           suggestedQuestions,
           queryId,
-          chatId: activeChatId,
+          ...(activeChatId ? { chatId: activeChatId } : {}),
           ...(storyTopicsData && { storyTopicsData }),
           ...(shortTitle ? { shortTitle } : {}),
         }
@@ -819,7 +817,13 @@ export async function POST(
         }
       } catch (error) {
         console.error('[api/chat/stream] Error:', error)
-        const errorStep: ChatProcessingStep = { type: 'error', error: error instanceof Error ? error.message : String(error) }
+        // D10d: Kennung fuer den Klartext der Oberflaeche; die technische Meldung bleibt als Detail.
+        const dienstWeg = error instanceof Error && error.name === 'SecretaryServiceError' && error.message.includes('nicht erreichbar')
+        const errorStep: ChatProcessingStep = {
+          type: 'error',
+          error: error instanceof Error ? error.message : String(error),
+          ...(dienstWeg ? { code: 'dienst_nicht_erreichbar' as const } : {}),
+        }
         
         // Query-Log finalisieren: bisher wurden nur processingLogs geschrieben — ohne status/error
         // blieb der Eintrag dauerhaft "pending" (z. B. bei SchemaValidationError nach dem LLM).

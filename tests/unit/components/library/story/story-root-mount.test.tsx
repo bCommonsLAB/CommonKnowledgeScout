@@ -19,7 +19,7 @@ const empfangen: { props?: RootProps } = {}
 vi.mock('@clerk/nextjs', () => ({ useUser: () => ({ isSignedIn: true, isLoaded: true }) }))
 vi.mock('@ks/i18n/react', () => ({ useTranslation: () => ({ t: (k: string) => k, locale: 'de' }) }))
 vi.mock('@ks/shell/react', () => ({
-  useLibraries: () => [{ id: 'lib', label: 'Lib', config: { publicPublishing: { publicName: 'Klimaplan', description: 'Besch', story: { topicsTitle: 'Themen' } } } }],
+  useLibraries: () => [{ id: 'lib', label: 'Lib', config: { publicPublishing: { publicName: 'Klimaplan', description: 'Besch', story: { topicsTitle: 'Themen', intro: 'Eigene Erklärung.' } } } }],
 }))
 vi.mock('@/hooks/use-story-context', () => ({
   useStoryContext: () => ({ targetLanguage: 'it', character: ['ecology'], accessPerspective: ['insight'], socialContext: 'youth', llmModel: 'm-1' }),
@@ -64,7 +64,7 @@ describe('StoryRootMount', () => {
     )
     const p = empfangen.props!
     expect(p.perspektive).toEqual({ targetLanguage: 'it', character: ['ecology'], accessPerspective: ['insight'], socialContext: 'youth', genderInclusive: false, llmModel: 'm-1' })
-    expect(p.kopf).toEqual({ titel: 'Klimaplan', beschreibung: 'Besch', themenTitel: 'Themen', themenIntro: undefined })
+    expect(p.kopf).toEqual({ themenTitel: 'Themen', themenIntro: undefined })
     expect(p.eingabe).toEqual({ placeholder: 'Frag', maxZeichen: 300, maxZeichenHinweis: 'Zu lang' })
     expect(p.filter).toEqual({ jahr: ['2024'] })
     expect(p.dokumente).toBe(42)

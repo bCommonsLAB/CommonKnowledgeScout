@@ -54,9 +54,14 @@ export interface AktiveSitzung {
   fragen: ChronikFrage[]
 }
 
-/** Kopf des gesamten Inhalts (Konfig: Label und Beschreibung aus publicPublishing). */
+/**
+ * Konfig-Texte ueber den Themenkarten (publicPublishing.story). Titel und
+ * Zweizeiler der Library stehen seit D10 im Kopf der Seite beim Gastgeber,
+ * nicht mehr in der Mitte.
+ */
 export interface StoryKopf {
-  titel: string
-  /** Fehlt das Feld in der Konfig, faellt der Block weg — kein Platzhalter. */
-  beschreibung?: string
+  /** Ueberschrift ueber den Karten (`story.topicsTitle`); sonst die Themenzeile mit Zahl. */
+  themenTitel?: string
+  /** Einleitung zu den Karten (`story.topicsIntro`); ohne Konfig keine. */
+  themenIntro?: string
 }

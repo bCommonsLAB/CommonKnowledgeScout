@@ -72,7 +72,7 @@ function montieren(dokumente = 12) {
         instanz={createInstanceApi({ baseUrl: 'https://ks.example' })}
         viewer={{ isSignedIn: false }}
         perspektive={perspektive}
-        kopf={{ titel: 'Klimaplan', beschreibung: 'Beschreibung', themenTitel: 'Themen' }}
+        kopf={{ themenTitel: 'Themen' }}
         dokumente={dokumente}
         eingabe={{ placeholder: 'Frag mich', maxZeichen: 500 }}
         onBelege={onBelege}
@@ -88,7 +88,6 @@ function montieren(dokumente = 12) {
 describe('StoryRoot', () => {
   it('holt die Themenuebersicht ueber die Instanz und zeigt die Themen; ohne Dokumente nicht', async () => {
     const { store } = montieren()
-    expect(screen.getByText('Klimaplan')).toBeTruthy()
     await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
     const tocCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/stream?'))
     expect(String(tocCall?.[0])).toMatch(/^https:\/\/ks\.example\/api\/chat\/lib\/stream\?.*llmModel=m/)

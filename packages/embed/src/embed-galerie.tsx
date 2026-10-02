@@ -70,7 +70,12 @@ export function EmbedGalerie({ slug, instanz, view, locale }: EmbedGalerieProps)
             <EmbedStoryChronik libraryId={libraryId} instanz={instanz} onGewaehlt={ctx?.schliessen} />
           ),
           storyHeader: ({ onBackToGallery, onOpenChronik }: { onBackToGallery: () => void; onOpenChronik?: () => void }) => (
-            <EmbedStoryKopfzeile onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} />
+            <EmbedStoryKopfzeile
+              onBackToGallery={onBackToGallery}
+              onOpenChronik={onOpenChronik}
+              ueberschrift={geladen.label}
+              einleitung={geladen.description || undefined}
+            />
           ),
         }
       : {}
