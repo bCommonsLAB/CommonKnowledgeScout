@@ -11,6 +11,14 @@
 
 export const STORY_BELEG_ZEIGEN_EVENT = 'story-beleg-zeigen'
 
+/**
+ * D12l: Die Quellen rechts folgen immer der Mitte (Antwort → Belege,
+ * Uebersicht → Katalog). Der Weg „Alle n Originalquellen im Katalog" aus
+ * der Belegliste bittet deshalb die Mitte, zur Themenuebersicht zu gehen —
+ * die Quellen ziehen dann von selbst nach. Ohne Detail.
+ */
+export const STORY_UEBERSICHT_ZEIGEN_EVENT = 'story-uebersicht-zeigen'
+
 export interface StoryBelegZeigenDetail {
   /** Nummer der Marke (Belegkarte `#beleg-<marke>`). */
   marke: string

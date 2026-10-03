@@ -83,6 +83,7 @@ schreibt Chats und Query-Logs. Je Punkt: Aktion, Erwartung, wo nachschauen.
 | I | D12h | Alte Antwort (vor D7) wählen, Quellen zu | Zähler = Zahl der Dokumente, nicht der Textstellen | `gallery-root.tsx` Leiste, `helpers.ts anzahlBelegDokumente` |
 | J | D12i | Fenster < lg, Antwort mit Belegen, Marke klicken | Blatt „Quellenverzeichnis" öffnet sich mit den Belegen und scrollt zur Karte | `gallery-root.tsx belegSprungZiel`, `references-sheet.tsx` |
 | K | D8–D11b | Testplan 02.10. Schritte 1–21 noch einmal zügig | wie dort; bekannte Lücken Abschnitt 6 dort | — |
+| M | D12l | Antwort offen, Belege mit X schließen; dann „Alle n Originalquellen im Katalog" | X: Spalte klappt zur Leiste zu, Zähler zeigt die Belege, Aufklappen zeigt wieder die Belege; Katalog-Knopf: Mitte geht zur Themenübersicht, rechts der Katalog | `beleg-liste.tsx`, `gallery-root.tsx handleZumKatalog`, `story-root.tsx` (Ereignis) |
 | L | D12k | Alte Antwort (vor D7, viele Marken) und neue Antwort ansehen, Quellen auf | Marken sind Kreise mit Zahl, je Dokument eine Nummer, keine Doppelmarke hintereinander; Karte kompakt (Marke, Titel, Status, Original), Textstellen erst nach Aufklappen; Tooltip nennt bei neuen Antworten den Titel | `zitatmarke.ts` (util), `antwort-text.tsx`, `beleg-karte.tsx`, `zitatmarken.ts excerpt` |
 
 Befunde: unter „Neu dazugekommen" im Plan (jüngster Stand-Abschnitt), Fixes
