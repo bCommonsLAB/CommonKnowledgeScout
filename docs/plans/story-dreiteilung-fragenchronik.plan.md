@@ -1166,6 +1166,17 @@ Stand vom Server. Beleg: `use-story-sitzungen.test.tsx` (Stand bleibt, dann
 neu geladen); `story-chronik.test.tsx` unverändert grün; tsc-Vergleich leer,
 Lint 0 Fehler.
 
+### Stand D12h (gebaut 03.10.2026, Cloud) — Zähler der Quellen-Leiste
+
+Befund (Schreibtischtest, Schritt 21): Der blaue Zähler der eingeklappten
+Leiste nahm `references.length`; alte Antworten (vor D7) nummerieren je
+Textstelle, der Zähler zeigte dann Textstellen statt Dokumente — die
+aufgeklappte Liste sagt „n Belege“ je Dokument.
+
+Was steht: `anzahlBelegDokumente` (`beleg-liste/helpers.ts`) zählt die
+verschiedenen `fileId`s; `GalleryRoot` gibt diese Zahl an die Leiste. Beleg:
+`beleg-liste.test.tsx`; tsc-Vergleich leer, Lint 0 Fehler.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
