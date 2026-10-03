@@ -10,6 +10,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { StorySpalten } from '../../../../packages/module-explorer/src/gallery/components/story-spalten'
 import { QUELLEN_OFFEN_KEY, useQuellenOffen } from '../../../../packages/module-explorer/src/gallery/components/quellen-leiste'
+import { useBelegSprung } from '../../../../packages/module-explorer/src/gallery/components/beleg-sprung'
+import { STORY_BELEG_ZEIGEN_EVENT } from '@ks/contracts'
 
 vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'de' }),
@@ -70,5 +72,52 @@ describe('useQuellenOffen', () => {
     localStorage.setItem(QUELLEN_OFFEN_KEY, 'true')
     const { result } = renderHook(() => useQuellenOffen())
     expect(result.current.offen).toBe(true)
+  })
+
+  it('oeffnen (D12e) oeffnet und merkt „auf"; nochmal oeffnen aendert nichts', () => {
+    const { result } = renderHook(() => useQuellenOffen())
+    act(() => result.current.oeffnen())
+    expect(result.current.offen).toBe(true)
+    expect(localStorage.getItem(QUELLEN_OFFEN_KEY)).toBe('true')
+    act(() => result.current.oeffnen())
+    expect(result.current.offen).toBe(true)
+  })
+})
+
+describe('useBelegSprung (D12e)', () => {
+  it('oeffnet die Quellen auf das Ereignis der Mitte und scrollt zur Karte, sobald sie da ist', () => {
+    const { result } = renderHook(() => {
+      const leiste = useQuellenOffen()
+      useBelegSprung(leiste)
+      return leiste
+    })
+    expect(result.current.offen).toBe(false)
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STORY_BELEG_ZEIGEN_EVENT, { detail: { marke: '2' } }))
+    })
+    expect(result.current.offen).toBe(true)
+    // Die Karte erscheint erst mit der offenen Schicht — der Sprung wartet darauf.
+    const karte = document.createElement('li')
+    karte.id = 'beleg-2'
+    karte.scrollIntoView = vi.fn()
+    document.body.appendChild(karte)
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STORY_BELEG_ZEIGEN_EVENT, { detail: { marke: '2' } }))
+    })
+    expect(karte.scrollIntoView).toHaveBeenCalledTimes(1)
+    karte.remove()
+  })
+
+  it('ohne Karte wird gewarnt, nicht geschwiegen', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    renderHook(() => {
+      const leiste = useQuellenOffen()
+      useBelegSprung(leiste)
+    })
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STORY_BELEG_ZEIGEN_EVENT, { detail: { marke: '9' } }))
+    })
+    expect(warn).toHaveBeenCalledWith('[useBelegSprung] Keine Belegkarte zur Marke gefunden', { marke: '9' })
+    warn.mockRestore()
   })
 })

@@ -60,7 +60,8 @@ export function StoryRootMount({ libraryId }: { libraryId: string }) {
     }
   }, [libraries, libraryId])
 
-  const onBelege = useCallback((references: DocReference[], queryId: string) => setBelege({ references, queryId }), [setBelege])
+  // D12e: folgt der gezeigten Antwort; ohne Antwort leer (rechts der Katalog).
+  const onBelege = useCallback((references: DocReference[], queryId: string | null) => setBelege({ references, queryId: queryId ?? undefined }), [setBelege])
   const antwortFuss = useCallback(
     (antwort: Nachricht) => <StoryAntwortFuss libraryId={libraryId} antwort={antwort} llmModel={story.llmModel} />,
     [libraryId, story.llmModel],

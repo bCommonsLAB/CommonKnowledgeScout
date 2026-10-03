@@ -106,7 +106,7 @@ export function EmbedStoryPanel({ library, instanz, locale }: EmbedStoryProps) {
       dokumente={galerie.loading ? 0 : galerie.totalCount || 0}
       filter={filter}
       eingabe={{ placeholder: chat?.placeholder, maxZeichen: chat?.maxChars, maxZeichenHinweis: chat?.maxCharsWarningMessage }}
-      onBelege={(references, queryId) => setBelege({ references, queryId })}
+      onBelege={(references, queryId) => setBelege({ references, queryId: queryId ?? undefined })}
       antwortFuss={() => <AIGeneratedNotice compact className="mt-3" hinweisHref={instanz.url(HINWEIS_PFAD)} Link={InstanzLink} />}
     />
   )

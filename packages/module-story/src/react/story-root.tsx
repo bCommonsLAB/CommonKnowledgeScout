@@ -39,8 +39,8 @@ export interface StoryRootProps {
   dokumente: number
   filter?: GalleryFilters
   eingabe?: { placeholder?: string; maxZeichen?: number; maxZeichenHinweis?: string }
-  /** Belege einer frischen Antwort — der Gastgeber zeigt sie (Galerie rechts). */
-  onBelege?: (belege: DocReference[], queryId: string) => void
+  /** Belege der gezeigten Antwort — der Gastgeber zeigt sie (Galerie rechts); leer ohne Antwort (D12e). */
+  onBelege?: (belege: DocReference[], queryId: string | null) => void
   /** Unter jeder Antwort (KI-Hinweis). */
   antwortFuss?: (antwort: Nachricht) => ReactNode
   /** Unter den Themenkarten; bekommt die gespeicherte Kennung der Uebersicht (Konfig-Anzeige, Quellen). */

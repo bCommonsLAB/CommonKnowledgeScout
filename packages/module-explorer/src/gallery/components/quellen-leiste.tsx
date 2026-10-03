@@ -9,7 +9,7 @@
  * Beim Einstieg ist sie zu (Owner 02.10.: „nimmt ungefragt Platz weg").
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
@@ -19,11 +19,16 @@ export const QUELLEN_OFFEN_KEY = 'story-quellen-offen'
 export interface QuellenOffenZustand {
   offen: boolean
   toggle: () => void
+  /** Oeffnet (und merkt „auf"), z. B. fuer den Sprung zu einer Belegkarte (D12e). */
+  oeffnen: () => void
 }
 
 /** Ob die Quellenspalte offen ist; beim Einstieg zu, der Browser merkt sich „auf". */
 export function useQuellenOffen(): QuellenOffenZustand {
   const [offen, setOffen] = useState(false)
+  // Fuer `toggle` ohne Abhaengigkeit vom Zustand (stabile Referenz fuer Hoerer).
+  const offenRef = useRef(offen)
+  offenRef.current = offen
   useEffect(() => {
     try {
       setOffen(localStorage.getItem(QUELLEN_OFFEN_KEY) === 'true')
@@ -31,19 +36,18 @@ export function useQuellenOffen(): QuellenOffenZustand {
       console.warn('[useQuellenOffen] localStorage nicht lesbar, Quellen bleiben zu:', error)
     }
   }, [])
-  const toggle = useCallback(() => {
-    setOffen((vorher) => {
-      const neu = !vorher
-      try {
-        if (neu) localStorage.setItem(QUELLEN_OFFEN_KEY, 'true')
-        else localStorage.removeItem(QUELLEN_OFFEN_KEY)
-      } catch (error) {
-        console.warn('[useQuellenOffen] localStorage nicht schreibbar, Zustand gilt nur fuer diese Seite:', error)
-      }
-      return neu
-    })
+  const setzen = useCallback((neu: boolean) => {
+    try {
+      if (neu) localStorage.setItem(QUELLEN_OFFEN_KEY, 'true')
+      else localStorage.removeItem(QUELLEN_OFFEN_KEY)
+    } catch (error) {
+      console.warn('[useQuellenOffen] localStorage nicht schreibbar, Zustand gilt nur fuer diese Seite:', error)
+    }
+    setOffen(neu)
   }, [])
-  return { offen, toggle }
+  const toggle = useCallback(() => setzen(!offenRef.current), [setzen])
+  const oeffnen = useCallback(() => setzen(true), [setzen])
+  return { offen, toggle, oeffnen }
 }
 
 export interface QuellenLeisteProps {

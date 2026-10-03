@@ -144,6 +144,25 @@ describe('StoryRoot', () => {
     expect(localStorage.getItem('chat-activeChatId-lib')).toBe('c1')
   })
 
+  it('D12e: die Belege folgen der gezeigten Antwort — Uebersicht leer, Konversation wieder voll', async () => {
+    const { store, onBelege } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    // Einstieg (Uebersicht): keine Antwort gezeigt → leere Belege.
+    expect(onBelege).toHaveBeenLastCalledWith([], null)
+    fireEvent.click(screen.getByText('Verkehr'))
+    fireEvent.click(screen.getByText('Welche Massnahmen gibt es zum Verkehr?'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
+    })
+    await waitFor(() => expect(onBelege).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9'))
+    // Zurueck zur Uebersicht (Chronik, Zurueck-Knopf): leer. Wieder die Konversation: die Belege dieser Antwort.
+    act(() => store.set(storyAuswahlAtom, { art: 'uebersicht' }))
+    await waitFor(() => expect(onBelege).toHaveBeenLastCalledWith([], null))
+    const frageId = store.get(storyAktiveSitzungAtom).fragen[0]?.frageId
+    act(() => store.set(storyAuswahlAtom, { art: 'konversation', frageId: frageId ?? 'question-1', queryId: 'q9' }))
+    await waitFor(() => expect(onBelege).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9'))
+  })
+
   it('D6c: Frage loeschen fragt nach, loescht ueber die Instanz und kehrt zur Uebersicht zurueck; „neu stellen" fuellt die Eingabe', async () => {
     const { store } = montieren()
     await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())

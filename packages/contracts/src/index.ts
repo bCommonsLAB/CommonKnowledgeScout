@@ -25,6 +25,7 @@ export type { StorageCapabilityInfo, StorageCapabilities } from './storage-capab
 export { supportsCapabilities } from './storage-capabilities'
 
 export type { LlmModelDto } from './llm-model'
+export { STORY_BELEG_ZEIGEN_EVENT, type StoryBelegZeigenDetail } from './story-events'
 export type { UserInfoDto, UserInfoEmailDto } from './user-info'
 
 export type {
