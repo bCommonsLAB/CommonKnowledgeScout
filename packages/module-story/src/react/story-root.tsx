@@ -39,6 +39,8 @@ export interface StoryRootProps {
   /** Dokumente im (gefilterten) Bestand. */
   dokumente: number
   filter?: GalleryFilters
+  /** D12o: der gesetzte Filter als Chips (vom Gastgeber), neben den Kennzahlen — sonst sieht niemand, dass gefiltert ist. */
+  filterAnzeige?: ReactNode
   eingabe?: { placeholder?: string; maxZeichen?: number; maxZeichenHinweis?: string }
   /** Belege der gezeigten Antwort — der Gastgeber zeigt sie (Galerie rechts); leer ohne Antwort (D12e). */
   onBelege?: (belege: DocReference[], queryId: string | null) => void
@@ -134,13 +136,21 @@ export function StoryRoot(p: StoryRootProps) {
         />
       )
   } else if (thema) {
-    mitte = <StoryThema thema={thema} onFrageWaehlen={(frage) => frageUebernehmen(frage.text)} onZurueck={() => k.setAuswahl(STORY_UEBERSICHT)} />
+    mitte = (
+      <StoryThema
+        thema={thema}
+        filterAnzeige={p.filterAnzeige}
+        onFrageWaehlen={(frage) => frageUebernehmen(frage.text)}
+        onZurueck={() => k.setAuswahl(STORY_UEBERSICHT)}
+      />
+    )
   } else {
     mitte = (
       <>
         <StoryUebersicht
           gliederung={k.gliederung}
           dokumente={p.dokumente}
+          filterAnzeige={p.filterAnzeige}
           themenTitel={p.kopf?.themenTitel}
           themenIntro={p.kopf?.themenIntro}
           onThemaWaehlen={(themaId) => k.setAuswahl({ art: 'thema', themaId })}
