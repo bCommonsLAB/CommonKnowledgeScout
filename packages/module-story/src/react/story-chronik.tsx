@@ -47,6 +47,7 @@ export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onN
     isSignedIn: viewer.isSignedIn,
     aktiveChatId: aktiveSitzung.chatId,
     stand: sitzungenStand,
+    aktiveFragen: aktiveSitzung.fragen,
   })
 
   const frageWaehlen = useCallback(

@@ -40,6 +40,13 @@ export interface UseStorySitzungenParams {
   aktiveChatId: string | null
   /** D12f: Zaehler der Mitte (`storySitzungenStandAtom`); jede Aenderung laedt die Liste neu. */
   stand?: number
+  /**
+   * D12g: Fragen der aktiven Sitzung, live aus der Mitte. Beim Wechsel der
+   * aktiven Sitzung bleibt diese Liste als Stand der verlassenen Sitzung
+   * stehen und ihre Fragen werden beim naechsten Aufklappen neu geladen —
+   * sonst zeigte die Chronik die Liste von vor dem Aktivwerden.
+   */
+  aktiveFragen?: ChronikFrage[]
 }
 
 export interface UseStorySitzungenResult {
@@ -61,7 +68,7 @@ async function antwortPruefen(res: Response, was: string): Promise<void> {
   if (!res.ok) throw new Error(`${was}: HTTP ${res.status}`)
 }
 
-export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId, stand = 0 }: UseStorySitzungenParams): UseStorySitzungenResult {
+export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId, stand = 0, aktiveFragen }: UseStorySitzungenParams): UseStorySitzungenResult {
   const sessionHeaders = useSessionHeaders(isSignedIn)
   const [sitzungen, setSitzungen] = useState<ChronikSitzung[]>([])
   const [ladend, setLadend] = useState(false)
@@ -96,6 +103,20 @@ export function useStorySitzungen({ libraryId, instanz, isSignedIn, aktiveChatId
   useEffect(() => {
     void neuLaden()
   }, [neuLaden])
+
+  // D12g: Die verlassene Sitzung behaelt den zuletzt live gesehenen Stand und
+  // wird beim naechsten Aufklappen neu geladen.
+  const live = useRef<{ chatId: string | null; fragen: ChronikFrage[] }>({ chatId: aktiveChatId, fragen: aktiveFragen ?? [] })
+  useEffect(() => {
+    const vorher = live.current
+    live.current = { chatId: aktiveChatId, fragen: aktiveFragen ?? [] }
+    if (vorher.chatId === aktiveChatId || vorher.chatId === null) return
+    geladeneFragen.current.delete(vorher.chatId)
+    // Nur gespeicherte Fragen, keine als „laeuft" — ob eine beim Verlassen laufende Frage
+    // fertig wurde, weiss die Chronik nicht; das naechste Aufklappen laedt den Stand vom Server.
+    const stand = vorher.fragen.filter((f) => f.queryId).map((f) => ({ ...f, offen: false }))
+    setSitzungen((alt) => alt.map((s) => (s.chatId === vorher.chatId ? { ...s, fragen: stand } : s)))
+  }, [aktiveChatId, aktiveFragen])
 
   // D12f: Die Mitte hat eine bekannte Sitzung auf dem Server veraendert (geloescht): Liste nachziehen.
   const standVorher = useRef(stand)
