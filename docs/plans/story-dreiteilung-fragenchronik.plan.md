@@ -1135,6 +1135,22 @@ gebaut):
 - **Konfig-Felder ohne Anzeige** (`gallery.subtitle`, `story.subtitle`,
   seit D10b) und **D6d** (toter App-Chat) warten weiter auf den Owner.
 
+### Stand D12f (gebaut 03.10.2026, Cloud) — Letzte Frage löschen räumt die Sitzung weg
+
+Befund (Schreibtischtest, Schritt 14): `DELETE …/queries/<id>` löschte nur
+das Log; der Chat blieb leer mit dem Kurztitel der gelöschten Frage stehen,
+die nächste Frage landete darin und behielt den alten Titel.
+
+Was steht: `frageLoeschen` (`useStoryKonversation`) löscht nach der letzten
+gespeicherten Frage auch die Sitzung (`DELETE …/chats/<chatId>`), setzt die
+aktive Sitzung auf `null` (die nächste Frage eröffnet eine neue, mit eigenem
+Titel) und erhöht `storySitzungenStandAtom`; `useStorySitzungen` lädt die
+Liste bei jedem neuen Stand neu, die Chronik zeigt die Sitzung nicht mehr.
+Ein Fehler beim Löschen der Sitzung bleibt sichtbar. Belege:
+`story-root.test.tsx` (zweiter DELETE auf die Sitzung, Kennung leer, Stand
+1), `use-story-sitzungen.test.tsx` (neuer Stand lädt neu); tsc-Vergleich
+leer, Lint 0 Fehler.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

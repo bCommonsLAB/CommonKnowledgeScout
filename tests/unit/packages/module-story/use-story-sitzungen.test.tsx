@@ -127,4 +127,19 @@ describe('useStorySitzungen', () => {
     rerender({ aktiv: 'c-neu' }) // unbekannt — Nachladen
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
   })
+
+  it('D12f: ein neuer Stand der Mitte laedt die Liste neu (geloeschte Sitzung verschwindet)', async () => {
+    const fetchMock = stubFetch({ '/chats?limit=50': { ok: true, body: chats } })
+    const { result, rerender } = renderHook(
+      ({ stand }: { stand: number }) => useStorySitzungen({ libraryId: 'lib', instanz, isSignedIn: true, aktiveChatId: null, stand }),
+      { initialProps: { stand: 0 } },
+    )
+    await waitFor(() => expect(result.current.sitzungen).toHaveLength(2))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: chats.items.slice(1) }) })
+    rerender({ stand: 1 })
+    await waitFor(() => expect(result.current.sitzungen).toHaveLength(1))
+    expect(result.current.sitzungen[0].chatId).toBe('c1')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 })

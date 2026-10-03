@@ -12,7 +12,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { Provider, createStore } from 'jotai'
 import { createInstanceApi } from '@ks/api-client'
 import { STORY_TOC_QUESTION } from '@ks/contracts'
-import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom, type Perspektive } from '@ks/module-story/react'
+import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom, storySitzungenStandAtom, type Perspektive } from '@ks/module-story/react'
 
 vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
@@ -190,5 +190,11 @@ describe('StoryRoot', () => {
     await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
     expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
     expect(store.get(storyAktiveSitzungAtom).fragen).toEqual([])
+    // D12f: Es war die letzte Frage — die leere Sitzung wird mitgeloescht, die Mitte beginnt eine neue.
+    const dels = fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE').map(([url]) => String(url))
+    expect(dels).toEqual(['https://ks.example/api/chat/lib/queries/q9', 'https://ks.example/api/chat/lib/chats/c1'])
+    expect(store.get(storyAktiveSitzungAtom).chatId).toBeNull()
+    expect(localStorage.getItem('chat-activeChatId-lib')).toBeNull()
+    expect(store.get(storySitzungenStandAtom)).toBe(1)
   })
 })
