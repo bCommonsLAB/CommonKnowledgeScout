@@ -1151,6 +1151,21 @@ Ein Fehler beim Löschen der Sitzung bleibt sichtbar. Belege:
 1), `use-story-sitzungen.test.tsx` (neuer Stand lädt neu); tsc-Vergleich
 leer, Lint 0 Fehler.
 
+### Stand D12g (gebaut 03.10.2026, Cloud) — Fragenliste der verlassenen Sitzung
+
+Befund (Schreibtischtest, Schritt 12): `useStorySitzungen.fragenLaden` lud
+je Sitzung nur einmal (`geladeneFragen`); eine einmal aufgeklappte Sitzung,
+die danach aktiv war und Fragen bekam oder verlor, zeigte nach dem
+Zurückwechseln die alte Liste.
+
+Was steht: Die Chronik reicht die live gesehenen Fragen der aktiven Sitzung
+an `useStorySitzungen` (`aktiveFragen`). Beim Wechsel der aktiven Sitzung
+behält die verlassene Sitzung diesen Stand (nur gespeicherte Fragen, keine
+als „läuft“) und fällt aus dem Lade-Cache — das nächste Aufklappen holt den
+Stand vom Server. Beleg: `use-story-sitzungen.test.tsx` (Stand bleibt, dann
+neu geladen); `story-chronik.test.tsx` unverändert grün; tsc-Vergleich leer,
+Lint 0 Fehler.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
