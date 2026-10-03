@@ -230,8 +230,23 @@ export function GalleryRoot({
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
   // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
   const quellenLeiste = useQuellenOffen()
-  // D12e: Klick auf eine Zitatmarke bei zugeklappten Quellen — oeffnen und zur Karte scrollen.
-  useBelegSprung(quellenLeiste)
+  // D12e/D12i: Klick auf eine Zitatmarke bei zugeklappten Quellen — am Desktop die Schicht
+  // oeffnen, auf Mobil das Blatt mit den Belegen (D4); dann zur Karte scrollen.
+  const belegSprungZiel = useMemo(
+    () =>
+      isMobile
+        ? {
+            offen: showReferencesSheet && referencesSheetMode === 'answer',
+            oeffnen: () => {
+              setShowReferencesSheet(true)
+              setReferencesSheetMode('answer')
+              setReferencesSheetData({ references: chatReferences.references, queryId: chatReferences.queryId })
+            },
+          }
+        : { offen: quellenLeiste.offen, oeffnen: quellenLeiste.oeffnen },
+    [isMobile, showReferencesSheet, referencesSheetMode, chatReferences, quellenLeiste.offen, quellenLeiste.oeffnen],
+  )
+  useBelegSprung(belegSprungZiel)
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab

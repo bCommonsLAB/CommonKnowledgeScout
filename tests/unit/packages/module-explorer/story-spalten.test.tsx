@@ -108,6 +108,22 @@ describe('useBelegSprung (D12e)', () => {
     karte.remove()
   })
 
+  it('D12i: nimmt ein beliebiges Ziel — auf Mobil das Blatt mit den Belegen', () => {
+    const oeffnen = vi.fn()
+    const { rerender } = renderHook(({ offen }: { offen: boolean }) => useBelegSprung({ offen, oeffnen }), { initialProps: { offen: false } })
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STORY_BELEG_ZEIGEN_EVENT, { detail: { marke: '3' } }))
+    })
+    expect(oeffnen).toHaveBeenCalledTimes(1)
+    const karte = document.createElement('li')
+    karte.id = 'beleg-3'
+    karte.scrollIntoView = vi.fn()
+    document.body.appendChild(karte)
+    rerender({ offen: true })
+    expect(karte.scrollIntoView).toHaveBeenCalledTimes(1)
+    karte.remove()
+  })
+
   it('ohne Karte wird gewarnt, nicht geschwiegen', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     renderHook(() => {

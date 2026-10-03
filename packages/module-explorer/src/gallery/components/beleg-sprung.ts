@@ -6,19 +6,23 @@
  * Seit D11b steht die Belegliste nur im DOM, wenn die Quellen-Schicht offen
  * ist. Klickt jemand bei zugeklappten Quellen auf eine Zitatmarke ①…, findet
  * `AntwortText` keine Karte und sendet `STORY_BELEG_ZEIGEN_EVENT`. Dieser
- * Hook (im Gastgeber, `GalleryRoot`) oeffnet die Schicht und scrollt, sobald
- * die Karte gerendert ist. Gibt es sie auch dann nicht (Mobil: dort liegen
- * die Belege im Blatt; alte Antwort ohne diese Marke), wird das gemeldet,
- * nicht verschluckt.
+ * Hook (im Gastgeber, `GalleryRoot`) oeffnet das Ziel und scrollt, sobald die
+ * Karte gerendert ist. Das Ziel ist am Desktop die Quellen-Schicht, auf Mobil
+ * das Blatt mit den Belegen (D4; D12i) — der Gastgeber reicht `offen` und
+ * `oeffnen` des passenden Ziels herein. Gibt es die Karte auch dann nicht
+ * (alte Antwort ohne diese Marke), wird das gemeldet, nicht verschluckt.
  */
 
 import { useEffect, useState } from 'react'
 import { STORY_BELEG_ZEIGEN_EVENT, type StoryBelegZeigenDetail } from '@ks/contracts'
 import type { QuellenOffenZustand } from './quellen-leiste'
 
-export function useBelegSprung(leiste: QuellenOffenZustand): void {
+/** Wohin der Sprung geht: offen? und wie oeffnen (Schicht am Desktop, Blatt auf Mobil). */
+export type BelegSprungZiel = Pick<QuellenOffenZustand, 'offen' | 'oeffnen'>
+
+export function useBelegSprung(sprungZiel: BelegSprungZiel): void {
   const [ziel, setZiel] = useState<string | null>(null)
-  const { offen, oeffnen } = leiste
+  const { offen, oeffnen } = sprungZiel
 
   useEffect(() => {
     const onZeigen = (e: Event) => {

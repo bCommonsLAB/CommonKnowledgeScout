@@ -1177,6 +1177,23 @@ Was steht: `anzahlBelegDokumente` (`beleg-liste/helpers.ts`) zählt die
 verschiedenen `fileId`s; `GalleryRoot` gibt diese Zahl an die Leiste. Beleg:
 `beleg-liste.test.tsx`; tsc-Vergleich leer, Lint 0 Fehler.
 
+### Stand D12i (gebaut 03.10.2026, Cloud) — Markenklick auf Mobil
+
+Befund (Schreibtischtest, Schritt 6 mobil): `useBelegSprung` (D12e) öffnete
+immer die Desktop-Schicht; unter `lg` liegen die Belege im Blatt (D4), die
+Schicht ist dort nicht gerendert — der Klick auf eine Zitatmarke warnte nur.
+
+Was steht: `useBelegSprung` nimmt ein Ziel (`offen`, `oeffnen`); `GalleryRoot`
+reicht auf Mobil das Belege-Blatt herein (öffnet es im Modus „answer“ mit
+den Belegen der gezeigten Antwort), am Desktop wie bisher die Schicht. Der
+Sprung scrollt, sobald das Ziel offen ist und die Karte im DOM steht. Beleg:
+`story-spalten.test.tsx` (beliebiges Ziel); tsc-Vergleich leer, Lint 0 Fehler.
+
+Damit sind die vier Befunde aus dem Schreibtischtest (D12e „Neu
+dazugekommen“) gebaut: Schritt 14 (D12f), Schritt 12 (D12g), Schritt 21
+(D12h), Mobil (D12i). Offen bleiben die Owner-Entscheide D6d und
+`gallery.subtitle`/`story.subtitle` sowie der Live-Nachweis aller Wellen.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
