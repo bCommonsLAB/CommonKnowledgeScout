@@ -102,7 +102,8 @@ describe('BelegListe', () => {
       pushParams: vi.fn(),
       applyModeParams: vi.fn(),
     }
-    const onSchliessen = vi.fn()
+    const onZuklappen = vi.fn()
+    const onKatalog = vi.fn()
     const onOpenDocument = vi.fn()
     render(
       <GalleryNavigationProvider navigation={navigation}>
@@ -113,12 +114,13 @@ describe('BelegListe', () => {
           libraryId="lib"
           katalogAnzahl={42}
           onOpenDocument={onOpenDocument}
-          onSchliessen={onSchliessen}
+          onZuklappen={onZuklappen}
+          onKatalog={onKatalog}
           {...props}
         />
       </GalleryNavigationProvider>,
     )
-    return { openDocument, onSchliessen, onOpenDocument }
+    return { openDocument, onZuklappen, onKatalog, onOpenDocument }
   }
 
   it('zeigt je Dokument eine kompakte Karte mit Marke, Plakette, Kennzeile; Kurztext erst nach „Mehr dazu"', () => {
@@ -160,11 +162,14 @@ describe('BelegListe', () => {
     expect(onOpenDocument).not.toHaveBeenCalled()
   })
 
-  it('Schliessen und der Weg in den Katalog rufen dieselbe Rueckkehr auf', () => {
-    const { onSchliessen } = renderListe()
+  it('D12l: das X klappt nur zu, der Weg in den Katalog ist ein eigener Weg', () => {
+    const { onZuklappen, onKatalog } = renderListe()
     fireEvent.click(screen.getByRole('button', { name: 'story.beleg.close' }))
+    expect(onZuklappen).toHaveBeenCalledTimes(1)
+    expect(onKatalog).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'story.beleg.catalog:42' }))
-    expect(onSchliessen).toHaveBeenCalledTimes(2)
+    expect(onKatalog).toHaveBeenCalledTimes(1)
+    expect(onZuklappen).toHaveBeenCalledTimes(1)
   })
 
   it('ohne Belege eine sichtbare Meldung, weitere Dokumente zugeklappt', () => {
@@ -203,7 +208,7 @@ describe('BelegListe mit Textstellen (D7)', () => {
     }
     render(
       <GalleryNavigationProvider navigation={navigation}>
-        <BelegListe references={mitSeiten} usedDocs={docs} unusedDocs={[]} libraryId="lib" katalogAnzahl={1} onSchliessen={vi.fn()} />
+        <BelegListe references={mitSeiten} usedDocs={docs} unusedDocs={[]} libraryId="lib" katalogAnzahl={1} onZuklappen={vi.fn()} onKatalog={vi.fn()} />
       </GalleryNavigationProvider>,
     )
     return { openDocument }

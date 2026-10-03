@@ -1278,12 +1278,29 @@ Neu dazugekommen (beim Bauen gesehen):
 - **Mobil-Blatt zeigt die alte Referenzliste** (`GroupedItemsView` →
   `ReferenceList`): Dateiname statt Titel, Nummern als `[14-56]`, keine
   Anker `beleg-<n>` — der Sprung von D12i findet dort keine Karte, und nach
-  D12k stehen im Text andere Nummern als im Blatt. Vorschlag D12l: das Blatt
+  D12k stehen im Text andere Nummern als im Blatt. Vorschlag D12m: das Blatt
   im Modus „answer" auf `BelegListe` umstellen.
 - Live gesehen 03.10. (Antwort „Schwerverkehr auf Schiene verlagern“,
   Servernummern bis 56): 20 Marken, Nummern 1–18, Karten `beleg-1` bis
   `beleg-18`, Marke 20 px / 12 px, Textstellen zu. Tooltip dort noch der
   Dateiname — die Antwort liegt im Cache ohne `title`.
+
+### Stand D12l (gebaut 03.10.2026, lokal) — Quellen folgen der Mitte
+
+Befund Owner (Live-Test 03.10.): Das X an den Belegen leerte die
+Referenzen; rechts erschien der Katalog mit 606 Quellen, links stand noch
+die Antwort — zwei Kontexte nebeneinander. Owner: Die Spalte rechts wird
+nur ein- und ausgeblendet und speist sich immer aus dem, was links steht;
+der Katalog gehört zur Themenübersicht.
+
+Was steht: Das X klappt die Spalte zu (`quellenLeiste.toggle`, D11b-Leiste
+mit Zähler), die Belege bleiben die der gezeigten Antwort. „Alle n
+Originalquellen im Katalog" sendet `STORY_UEBERSICHT_ZEIGEN_EVENT`
+(`@ks/contracts`); `StoryRoot` setzt die Auswahl auf die Übersicht, die
+Belege leeren sich über `onBelege` (D12e), die Spalte zeigt den Katalog;
+der Filter auf die Antwort fällt mit (`clear-gallery-filter` wie bisher).
+`BelegListe` hat dafür zwei Wege (`onZuklappen`, `onKatalog`) statt einem
+`onSchliessen`. Belege: `beleg-liste.test.tsx`, `story-root.test.tsx`.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

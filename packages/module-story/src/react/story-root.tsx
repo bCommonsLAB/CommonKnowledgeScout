@@ -18,6 +18,7 @@ import { ScrollArea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocReference, GalleryFilters } from '@ks/contracts'
+import { STORY_UEBERSICHT_ZEIGEN_EVENT } from '@ks/contracts'
 import { StoryUebersicht } from './story-uebersicht'
 import { StoryThema } from './story-thema'
 import { VerarbeitungEinfach } from './verarbeitung-einfach'
@@ -77,6 +78,14 @@ export function StoryRoot(p: StoryRootProps) {
   useEffect(() => {
     if (k.auswahl.art === 'thema' && k.gliederung && !thema) k.setAuswahl(STORY_UEBERSICHT)
   }, [k, thema])
+
+  // D12l: Der Gastgeber (Katalog-Knopf in der Belegliste) bittet um die Uebersicht;
+  // die Belege rechts folgen der Auswahl (D12e) und machen dem Katalog Platz.
+  useEffect(() => {
+    const zurUebersicht = () => k.setAuswahl(STORY_UEBERSICHT)
+    window.addEventListener(STORY_UEBERSICHT_ZEIGEN_EVENT, zurUebersicht)
+    return () => window.removeEventListener(STORY_UEBERSICHT_ZEIGEN_EVENT, zurUebersicht)
+  }, [k])
 
   // Jede Auswahl beginnt oben — die Konversation steht allein in der Mitte.
   useEffect(() => {
