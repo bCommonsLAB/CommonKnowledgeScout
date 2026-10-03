@@ -1331,6 +1331,27 @@ Neu dazugekommen (beim Bauen gesehen):
   Facettenfilter, den der Scope nicht kennt, muss laut fehlschlagen statt
   still wegzufallen (`no-silent-fallbacks`). Owner-Entscheid.
 
+Neu dazugekommen (Live-Test Owner 03.10., Remote, noch Konzept):
+
+- **Aktiver Filter im Story-Modus unsichtbar.** Die Filter-Chips
+  („gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen", `FilterContextBar`
+  mit `mode="story"`) stehen in der rechten Quellen-Spalte — die ist seit
+  D11b beim Einstieg zu. Die Mitte zeigt nur „120 Dokumente · 8 Themen ·
+  46 Fragen"; wer gefiltert hat, sieht es nicht und kann es dort nicht
+  lösen. Vorschlag D12o: die Chips mit Zurücksetzen in die Mitte neben die
+  Kennzahlen (`StoryKopfzeile`/`Kennzahlen`), als Slot vom Gastgeber
+  (`GalleryRoot` kennt `filters` und `facetDefs`; `StoryRoot` bekommt nur
+  die Werte). Die Leiste rechts behält ihre Chips.
+- **Überschrift doppelt** auf der öffentlichen Erkunden-Seite:
+  `ExplorerHeader` zeigt Library-Name + „Öffentliche Wissensbibliothek",
+  darunter der Kopf der Seite (D10) mit `headline` (fällt ohne eigene
+  Galerie-Überschrift auf den Library-Namen zurück) + Beschreibung. In
+  der App-Galerie (`/library/gallery`) gibt es den ExplorerHeader nicht.
+  Vorschlag D12p: auf der Erkunden-Seite den D10-Kopf ohne Titel rendern,
+  wenn `headline` gleich dem Library-Namen ist, oder den ExplorerHeader
+  dort auf die Hinweiszeile reduzieren. Owner-Entscheid, welche Zeile
+  bleibt.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
