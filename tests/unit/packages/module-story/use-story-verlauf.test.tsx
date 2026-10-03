@@ -3,7 +3,9 @@
 /**
  * `useStoryVerlauf` (D6b): eine Anfrage je Sitzung ueber die Instanz, Verlauf
  * unter lokale Nachrichten gemischt; 404 ist kein Fehler; „Neue Sitzung"
- * leert den Verlauf; ein Serverfehler wird gemeldet.
+ * leert den Verlauf; ein Serverfehler wird gemeldet. D12c: Der Wechsel in
+ * eine andere Sitzung laesst die gespeicherten Nachrichten der alten fallen,
+ * die erste Kennung nach `null` behaelt alles.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -45,5 +47,32 @@ describe('useStoryVerlauf', () => {
     expect(hook.result.current.nachrichten).toEqual([])
     hook.rerender({ id: 'c2' })
     await waitFor(() => expect(hook.result.current.fehler).toBe('Verlauf laden: HTTP 500'))
+  })
+
+  it('Wechsel A→B laesst die gespeicherten Nachrichten von A fallen, Lokales ohne Kennung bleibt', async () => {
+    const eintragB = { ...eintrag, queryId: 'q2', question: 'Frage B', createdAt: '2026-10-01T12:00:00.000Z' }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: [eintrag] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: [eintragB] }) })
+    const hook = montieren(fetchMock, 'c1')
+    await waitFor(() => expect(hook.result.current.nachrichten).toHaveLength(2))
+    act(() => hook.result.current.setNachrichten((alt) => [...alt, { id: 'question-1', art: 'frage', text: 'Laeuft', createdAt: '2026-10-01T13:00:00.000Z' }]))
+    hook.rerender({ id: 'c2' })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(hook.result.current.nachrichten.map((m) => m.id)).toEqual(['q2-question', 'q2-answer', 'question-1']))
+  })
+
+  it('erste Kennung nach „Neue Sitzung" behaelt die Nachrichten der eroeffnenden Frage', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) })
+    const hook = montieren(fetchMock, null)
+    act(() =>
+      hook.result.current.setNachrichten([
+        { id: 'question-1', art: 'frage', text: 'Erste', createdAt: '2026-10-01T11:00:00.000Z', queryId: 'q9' },
+        { id: 'q9-answer', art: 'antwort', text: 'Antwort', createdAt: '2026-10-01T11:00:01.000Z', queryId: 'q9' },
+      ]),
+    )
+    hook.rerender({ id: 'c-neu' })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(hook.result.current.nachrichten.map((m) => m.id)).toEqual(['question-1', 'q9-answer'])
   })
 })

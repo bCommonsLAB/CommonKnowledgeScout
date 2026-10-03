@@ -1041,6 +1041,22 @@ Was steht:
   Cache, die Frage steht nach dem Neuladen trotzdem in der Chronik, `?q=`
   und Debug zeigen das eigene Log mit `cachedQueryId`.
 
+### Stand D12c (gebaut 02.10.2026, Cloud) — Verlauf beim Sitzungswechsel
+
+Befund aus dem Schreibtischtest (Schritte 10, 11, 12, 16): `useStoryVerlauf`
+leerte die Nachrichten nur beim Wechsel auf `null` („Neue Sitzung“). Beim
+Wechsel von Sitzung A nach B (Chronik-Klick, `?q=` aus anderer Sitzung,
+Zurück-Knopf) mischte `verlaufMischen` die Nachrichten von A unter B: Die
+Chronik listete unter B auch die Fragen von A, und die nächste Frage schickte
+Paare aus A als `chatHistory` an das Sprachmodell.
+
+Was steht: Beim Wechsel auf eine andere Kennung fallen die gespeicherten
+Nachrichten (mit `queryId`) weg; Lokales ohne Kennung (eine gerade laufende
+Frage) bleibt. Von `null` auf die erste Kennung (die erste Frage hat die
+Sitzung eröffnet) bleibt alles stehen — sonst flackerte die eröffnende
+Frage, bis der Verlauf geladen ist. Beleg: `use-story-verlauf.test.tsx`
+(A→B, `null`→erste Kennung); tsc-Vergleich leer, Lint 0 Fehler.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
