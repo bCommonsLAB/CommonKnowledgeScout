@@ -50,6 +50,8 @@ export * from './textarea'
 export * from './toast'
 export * from './toaster'
 export * from './tooltip'
+// D12k: Nummer eines Belegs als Kreis — im Antworttext und an der Karte.
+export * from './zitatmarke'
 export * from './tree'
 export * from './use-toast'
 export * from './ansichts-zeile'

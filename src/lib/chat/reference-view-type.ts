@@ -30,6 +30,31 @@ export function buildViewTypeByFileId(
 }
 
 /**
+ * D12k: `fileId → title` aus denselben Meta-Dokumenten (`docMetaJson.title`),
+ * damit Tooltip und Belegkarte den Dokumenttitel statt des Dateinamens zeigen.
+ * Leere/fehlende Werte ergeben `undefined` (kein Raten).
+ */
+export function buildTitleByFileId(metaByFileId: ReadonlyMap<string, MetaDocLike>): Map<string, string | undefined> {
+  const out = new Map<string, string | undefined>()
+  for (const [fileId, doc] of metaByFileId) {
+    const value = doc?.docMetaJson?.title
+    out.set(fileId, typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined)
+  }
+  return out
+}
+
+/** Reichert Referenzen um den Titel ihres Dokuments an (rein, immutabel); ohne Titel unveraendert. */
+export function attachTitleToReferences(
+  references: ChatResponse['references'],
+  titleByFileId: ReadonlyMap<string, string | undefined>
+): ChatResponse['references'] {
+  return references.map((ref) => {
+    const title = titleByFileId.get(ref.fileId)
+    return title ? { ...ref, title } : ref
+  })
+}
+
+/**
  * Reichert Referenzen um den `detailViewType` ihres Dokuments an (rein, immutabel).
  * Referenzen ohne bekannten Typ bleiben unveraendert.
  */

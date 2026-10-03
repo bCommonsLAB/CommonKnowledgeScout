@@ -13,6 +13,7 @@
 
 import type { DocPassage, DocReference } from '@ks/contracts'
 import type { RetrievedSource } from '@/types/retriever'
+import { DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
 
 export const EXCERPT_MAX_CHARS = 160
 
@@ -54,9 +55,18 @@ export function nummerFuerQuelle(gruppen: DokumentGruppe[], source: RetrievedSou
   return gruppen.find((g) => g.fileId === fileId)?.nummer
 }
 
-/** Zitat-Ausschnitt: Anfang des Chunks, an der Wortgrenze gekuerzt, ohne Zeilenumbrueche. */
+/**
+ * Zitat-Ausschnitt: Anfang des Chunks, an der Wortgrenze gekuerzt, ohne
+ * Zeilenumbrueche. D12k: Der erste Chunk eines Dokuments traegt den
+ * Metadaten-Vorspann der Ingestion (`**Tags:** …`); das Zitat beginnt beim
+ * Dokument-Body. Steht hinter dem Marker nichts, bleibt der ganze Text — ein
+ * leeres Zitat waere schlechter als ein unschoenes.
+ */
 export function excerpt(text: string, max = EXCERPT_MAX_CHARS): string {
-  const flach = text.replace(/\s+/g, ' ').trim()
+  const marker = text.indexOf(DOKUMENT_BODY_MARKER)
+  const body = marker >= 0 ? text.slice(marker + DOKUMENT_BODY_MARKER.length) : text
+  const flachBody = body.replace(/\s+/g, ' ').trim()
+  const flach = flachBody !== '' ? flachBody : text.replace(/\s+/g, ' ').trim()
   if (flach.length <= max) return flach
   const schnitt = flach.lastIndexOf(' ', max)
   return `${flach.slice(0, schnitt > max / 2 ? schnitt : max).trimEnd()}…`

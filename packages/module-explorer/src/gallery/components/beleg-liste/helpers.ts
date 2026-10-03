@@ -2,9 +2,11 @@
  * Reine Helfer der Belegliste (D3, Plan `story-dreiteilung-fragenchronik`).
  *
  * Aus den Referenzen einer Antwort (eine je Textstelle, `DocReference`) wird
- * je Dokument EIN Beleg: die Fussnoten-Nummern, der Titel, der Kurztext und —
- * aus der Konfig des Detailansichtstyps (`belegKarte` in der Registry) — die
- * Status-Plakette und die Kennzeile. Nichts hier kennt eine bestimmte Library.
+ * je Dokument EIN Beleg: die Dokumentnummer (D12k, dieselbe wie im
+ * Antworttext — `dokumentNummern` aus `@ks/util`), der Titel, der Kurztext
+ * und — aus der Konfig des Detailansichtstyps (`belegKarte` in der Registry)
+ * — die Status-Plakette und die Kennzeile. Nichts hier kennt eine bestimmte
+ * Library.
  */
 
 import {
@@ -17,11 +19,12 @@ import {
   type DocPassage,
   type DocReference,
 } from '@ks/contracts'
+import { dokumentNummern } from '@ks/util'
 
 export interface Beleg {
   fileId: string
-  /** Fussnoten-Nummern dieser Quelle im Antworttext, aufsteigend, ohne Dubletten. */
-  nummern: number[]
+  /** Dokumentnummer (D12k): die Marke im Antworttext, auch bei alten Antworten mit Nummer je Textstelle. */
+  nummer: number
   titel: string
   /**
    * Kurztext: die Begruendung der ersten Referenz (warum das Dokument
@@ -53,32 +56,35 @@ export function anzahlBelegDokumente(references: Pick<DocReference, 'fileId'>[])
   return new Set(references.map((r) => r.fileId)).size
 }
 
-/** Ein Beleg je Dokument, in der Reihenfolge der ersten Nennung. */
+/** Ein Beleg je Dokument, sortiert nach Dokumentnummer (Reihenfolge der ersten Nennung). */
 export function belegeAusReferenzen(
   references: DocReference[],
   docs: DocCardMeta[],
   libraryDetailViewType?: string,
 ): Beleg[] {
+  const nummern = dokumentNummern(references)
   const nachDatei = new Map<string, DocReference[]>()
   for (const ref of references) {
     const liste = nachDatei.get(ref.fileId)
     if (liste) liste.push(ref)
     else nachDatei.set(ref.fileId, [ref])
   }
-  return Array.from(nachDatei.entries()).map(([fileId, refs]) => {
+  const belege = Array.from(nachDatei.entries()).map(([fileId, refs]): Beleg => {
     const doc = docs.find((d) => d.fileId === fileId || d.id === fileId)
-    const erste = refs[0]
-    const nummern = Array.from(new Set(refs.map((r) => r.number))).sort((a, b) => a - b)
+    const erste = [...refs].sort((a, b) => a.number - b.number)[0]
+    // Jede Referenz der Datei liegt in der Map — `dokumentNummern` kennt genau diese Referenzen.
+    const nummer = nummern.get(erste.number) as number
     return {
       fileId,
-      nummern,
-      titel: doc?.title ?? doc?.shortTitle ?? erste.fileName ?? fileId,
+      nummer,
+      titel: doc?.title ?? doc?.shortTitle ?? erste.title ?? erste.fileName ?? fileId,
       kurztext: erste.description.trim() !== '' ? erste.description : undefined,
       typ: gueltigerTyp(doc?.detailViewType, erste.detailViewType, libraryDetailViewType),
       passages: refs.flatMap((r) => r.passages ?? []),
       doc,
     }
   })
+  return belege.sort((a, b) => a.nummer - b.nummer)
 }
 
 /** Die Belegkarten-Konfig des Typs — `undefined`, wenn der Typ keine hat. */

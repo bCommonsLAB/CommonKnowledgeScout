@@ -53,4 +53,4 @@ export { isSafeVideoIframeSrc, isSafeAudioIframeSrc, isDirectAudioFileUrl } from
 
 // Zitatmarken des Story-Modus (D7): Kreiszahl je Beleg, im Text wie an der
 // Karte — reine Zeichenketten-Arbeit, von Chat (App) und Galerie (Paket) genutzt.
-export { zitatmarke, zitatmarkenImText } from './zitatmarke'
+export { dokumentNummern, zitatmarke, zitatmarkenImText, type NummerFuerMarke, type ReferenzNummer } from './zitatmarke'

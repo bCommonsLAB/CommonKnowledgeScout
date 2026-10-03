@@ -890,6 +890,7 @@
         "one": "s'appuie sur 1 passage",
         "many": "s'appuie sur {count} passages"
       },
+      "more": "Plus",
       "page": "Page {page}",
       "pageShort": "p. {page}",
       "openAtPage": "Ouvrir l'original à la page {page}"

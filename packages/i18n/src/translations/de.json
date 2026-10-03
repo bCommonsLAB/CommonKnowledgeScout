@@ -937,6 +937,7 @@
         "one": "stützt sich auf 1 Textstelle",
         "many": "stützt sich auf {count} Textstellen"
       },
+      "more": "Mehr dazu",
       "page": "Seite {page}",
       "pageShort": "S. {page}",
       "openAtPage": "Original auf Seite {page} öffnen"

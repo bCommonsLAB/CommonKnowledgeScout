@@ -5,6 +5,12 @@
  * @param docMetaJsonObj - Das Dokument-Metadaten-Objekt
  * @returns Formatierter Metadaten-Text oder leerer String, falls keine Metadaten vorhanden
  */
+/**
+ * Trennt im eingebetteten Text den Metadaten-Vorspann vom Dokument-Body.
+ * Die Zitat-Ausschnitte (`zitatmarken.ts excerpt`) beginnen dahinter.
+ */
+export const DOKUMENT_BODY_MARKER = '--- Dokument-Body beginnt hier ---'
+
 export function buildMetadataPrefix(docMetaJsonObj: Record<string, unknown>): string {
   const parts: string[] = []
   
