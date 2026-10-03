@@ -35,3 +35,11 @@ export interface UebersichtAktion {
   gesperrt?: boolean
 }
 export const storyUebersichtAktionAtom = atom<UebersichtAktion | null>(null)
+
+/**
+ * D12f: Stand der Sitzungen auf dem Server, als Zaehler. Die Mitte erhoeht
+ * ihn, wenn sie eine Sitzung veraendert hat, die die Chronik schon kennt
+ * (leer gewordene Sitzung nach dem Loeschen der letzten Frage geloescht);
+ * die Chronik laedt ihre Liste dann neu.
+ */
+export const storySitzungenStandAtom = atom(0)
