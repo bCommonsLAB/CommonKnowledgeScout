@@ -62,11 +62,14 @@ export function StoryRoot(p: StoryRootProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // D11a: „Themenuebersicht neu berechnen" steht in der Chronik; die Mitte stellt die Aktion bereit.
+  // D12d: sobald eine Uebersicht moeglich ist (Dokumente und Modell) — nicht erst mit der
+  // Gliederung, die beim Neuberechnen und nach einem Fehler `null` ist (sonst verschwand der Knopf).
   const setUebersichtAktion = useSetAtom(storyUebersichtAktionAtom)
+  const uebersichtMoeglich = p.dokumente >= 1 && !!p.perspektive.llmModel
   useEffect(() => {
-    setUebersichtAktion(k.gliederung ? { neuBerechnen: k.uebersichtNeu, laeuft: k.laeuft } : null)
+    setUebersichtAktion(uebersichtMoeglich ? { neuBerechnen: k.uebersichtNeu, laeuft: k.uebersichtLaeuft, gesperrt: k.laeuft } : null)
     return () => setUebersichtAktion(null)
-  }, [k.gliederung, k.uebersichtNeu, k.laeuft, setUebersichtAktion])
+  }, [uebersichtMoeglich, k.uebersichtNeu, k.uebersichtLaeuft, k.laeuft, setUebersichtAktion])
 
   const gewaehltesThema = k.auswahl.art === 'thema' ? k.auswahl.themaId : null
   const thema = gewaehltesThema ? k.gliederung?.topics.find((th) => th.id === gewaehltesThema) ?? null : null

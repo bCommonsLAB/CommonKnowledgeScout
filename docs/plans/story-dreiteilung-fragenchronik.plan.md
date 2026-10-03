@@ -1057,6 +1057,24 @@ Sitzung eröffnet) bleibt alles stehen — sonst flackerte die eröffnende
 Frage, bis der Verlauf geladen ist. Beleg: `use-story-verlauf.test.tsx`
 (A→B, `null`→erste Kennung); tsc-Vergleich leer, Lint 0 Fehler.
 
+### Stand D12d (gebaut 02.10.2026, Cloud) — „Neu berechnen“ bleibt stehen
+
+Befund aus dem Schreibtischtest (Schritt 18): Die Aktion „Themenübersicht
+neu berechnen“ (D11a) hing an der Gliederung; `uebersichtNeu` setzte die
+Gliederung sofort auf `null`, damit verschwand der Knopf während der
+Neuberechnung (kein Spinner) und nach einem Fehler ganz — ohne Weg zum
+erneuten Versuch außer Neuladen. Während einer Frage zeigte er den
+irreführenden Hinweis „Neuberechnung …“.
+
+Was steht: `StoryRoot` stellt die Aktion bereit, sobald eine Übersicht
+möglich ist (Dokumente und Modell), unabhängig von der Gliederung.
+`laeuft` meint jetzt nur die Neuberechnung der Übersicht (Spinner,
+Hinweis), neu `gesperrt` sperrt den Knopf, solange eine Frage läuft
+(`UebersichtAktion` in `@ks/module-story`). Belege: `story-root.test.tsx`
+(Aktion bleibt mit Spinner während der Neuberechnung, zweite Anfrage mit
+`skipQueryCache`; ohne Dokumente keine Aktion), `story-chronik.test.tsx`
+(gesperrt ohne Spinner); tsc-Vergleich leer, Lint 0 Fehler.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
