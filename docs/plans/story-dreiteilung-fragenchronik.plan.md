@@ -1302,6 +1302,35 @@ der Filter auf die Antwort fällt mit (`clear-gallery-filter` wie bisher).
 `BelegListe` hat dafür zwei Wege (`onZuklappen`, `onKatalog`) statt einem
 `onSchliessen`. Belege: `beleg-liste.test.tsx`, `story-root.test.tsx`.
 
+### Stand D12n (gebaut 03.10.2026, lokal) — Facettenfilter ohne Typwahl griff nicht
+
+Befund Owner (Live-Test 03.10.): Facettenfilter „Arbeitsgruppe: Energie"
+(80) gesetzt, Zähler sagt weiter „606 Quellen", die Galerie zeigt gemischte
+Arbeitsgruppen; im Story-Modus „606 Dokumente" und 606 im Quellenverzeichnis.
+
+Ursache (am Netz belegt): `GET …/docs?arbeitsgruppe=Energie` lieferte 610
+ungefiltert, mit `detailViewType=climateAction` 80 gefiltert. Ohne Typwahl
+nimmt die Dokumente-Route die Facetten, die ALLE vorhandenen Typen teilen
+(`commonFacetDefs`, A4a); die Library hat neben `climateAction` auch
+`website`-Dokumente, gemeinsam ist nichts — `buildFilterFromQuery` kannte
+`arbeitsgruppe` nicht, der Filter fiel still weg. Die Facetten-Route nahm
+den `excludeDetailViewType` schon aus den vorhandenen Typen heraus, die
+Dokumente-Route nicht: Facettenleiste und Liste rechneten mit zwei Scopes.
+
+Was steht: Die Dokumente-Route liest `excludeDetailViewType` vor dem Scope
+und filtert ihn aus den vorhandenen Typen (wie die Facetten-Route). Live:
+mit Ausschluss + Filter 80 (nur Energie), ohne Filter 606. Kein Unit-Test
+(Route gegen Mongo); Beleg ist der Netz-Vergleich.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Ohne Ausschluss bleibt die Lücke:** `…/docs?arbeitsgruppe=Energie`
+  ohne `excludeDetailViewType` liefert weiter 610 ungefiltert, weil
+  `website` zu den vorhandenen Typen zählt. Strukturelle Typen (Website,
+  Landingpage) sollten bei `commonFacetDefs` nicht mitzählen — oder ein
+  Facettenfilter, den der Scope nicht kennt, muss laut fehlschlagen statt
+  still wegzufallen (`no-silent-fallbacks`). Owner-Entscheid.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
