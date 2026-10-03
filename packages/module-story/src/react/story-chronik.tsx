@@ -13,7 +13,7 @@ import { useCallback } from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { ScrollArea } from '@ks/ui'
 import type { InstanceApi } from '@ks/api-client'
-import { storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom } from './atoms'
+import { storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storySitzungenStandAtom, storyUebersichtAktionAtom } from './atoms'
 import { Gliederung } from './gliederung'
 import { SitzungenListe } from './sitzungen-liste'
 import { themaZuFrage } from './thema-zu-frage'
@@ -40,11 +40,14 @@ export function StoryChronik({ libraryId, instanz, viewer, onSitzungWaehlen, onN
   const gliederung = useAtomValue(storyGliederungAtom)
   const aktiveSitzung = useAtomValue(storyAktiveSitzungAtom)
   const uebersichtAktion = useAtomValue(storyUebersichtAktionAtom)
+  const sitzungenStand = useAtomValue(storySitzungenStandAtom)
   const { sitzungen, ladend, fehler, fragenLaden, umbenennen } = useStorySitzungen({
     libraryId,
     instanz,
     isSignedIn: viewer.isSignedIn,
     aktiveChatId: aktiveSitzung.chatId,
+    stand: sitzungenStand,
+    aktiveFragen: aktiveSitzung.fragen,
   })
 
   const frageWaehlen = useCallback(

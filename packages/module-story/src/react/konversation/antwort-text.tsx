@@ -7,14 +7,17 @@
  *
  * Ein Klick auf eine Marke scrollt zur Karte `#beleg-n` im Dokument, statt die
  * Adresse zu aendern — im Embed gehoert die Adresszeile der fremden Seite.
- * Klicks mit Zusatztaste oder mittlerer Maustaste bleiben dem Browser.
+ * Steht die Karte nicht im DOM (die Quellen-Schicht ist zu, D11b), bittet die
+ * Mitte den Gastgeber per `STORY_BELEG_ZEIGEN_EVENT`, sie zu oeffnen und zur
+ * Marke zu scrollen (D12e). Klicks mit Zusatztaste oder mittlerer Maustaste
+ * bleiben dem Browser.
  */
 
 import { useCallback, useMemo, type MouseEvent } from 'react'
 import { md } from '@ks/viewers'
 import { zitatmarkenImText } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
-import type { DocReference } from '@ks/contracts'
+import { STORY_BELEG_ZEIGEN_EVENT, type DocReference, type StoryBelegZeigenDetail } from '@ks/contracts'
 import { mitMarkenTiteln } from './zitat-titel'
 
 export interface AntwortTextProps {
@@ -45,9 +48,11 @@ export function AntwortText({ text, belege = [], className }: AntwortTextProps) 
     const link = e.target instanceof Element ? e.target.closest('a[data-beleg]') : null
     if (!link) return
     e.preventDefault()
-    const karte = belegKarte(link.getAttribute('data-beleg') ?? '')
+    const marke = link.getAttribute('data-beleg') ?? ''
+    const karte = belegKarte(marke)
     if (!karte) {
-      console.warn('[AntwortText] Keine Belegkarte zur Marke gefunden', { marke: link.getAttribute('data-beleg') })
+      // Die Quellen sind zu — der Gastgeber oeffnet sie und scrollt (useBelegSprung in der Galerie).
+      window.dispatchEvent(new CustomEvent<StoryBelegZeigenDetail>(STORY_BELEG_ZEIGEN_EVENT, { detail: { marke } }))
       return
     }
     karte.scrollIntoView({ behavior: 'smooth', block: 'nearest' })

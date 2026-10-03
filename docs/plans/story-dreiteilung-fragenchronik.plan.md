@@ -1006,6 +1006,194 @@ Was steht:
   im nächsten lokalen Test Schritt 2 prüfen: Konfig-Anzeige unter der
   Übersicht steht, Netz `GET …/queries/<id>` → 200.
 
+### Stand D12b (gebaut 02.10.2026, Cloud) — Cache-Treffer einer Frage im eigenen Verlauf
+
+Befund aus dem Schreibtischtest (Cloud, am Code): Trifft eine Frage den
+benutzerübergreifenden Antwort-Cache (Hash + Library), schickte die
+Stream-Route die Kennung des **fremden** Logs im `complete`-Schritt und
+legte für die Person nichts an — der Chat wurde angelegt oder berührt, das
+Query-Log nicht. Folgen in der Fragen-Chronik: Die Frage fehlte nach dem
+Neuladen im Verlauf der Sitzung (`GET …/queries?chatId=` filtert nach
+Person), `?q=<id>` lief auf 404, ebenso Konfig-Anzeige, Protokoll und Debug
+unter der Antwort; eine mit dieser Frage eröffnete Sitzung stand ohne Frage
+in der Chronik. Trifft vor allem die vorgeschlagenen Fragen der Themenseite,
+die mehrere Personen wortgleich stellen. Vor D1 unsichtbar, weil der alte
+App-Chat den Verlauf aus dem Browser nahm.
+
+Was steht:
+
+- **`src/lib/chat/cache-treffer-log.ts`** (`eigenesLogFuerCacheTreffer`):
+  legt über `startQueryLog` ein Frage-Log im Rahmen der Person an (Sitzung,
+  Perspektive, Filter, Modell, Dokumentenzahl — dieselben Felder wie beim
+  regulären Lauf), hängt einen `cache_check`-Schritt mit der Kennung des
+  Treffers an und setzt Antwort, Belege, Vorschläge, Kurztitel (nur wenn
+  vorhanden) und die Cache-Schritte als Protokoll, Status `ok`. Der
+  Cache-Hash entsteht wie immer in `insertQueryLog`; das eigene Log ist damit
+  selbst ein gültiger Treffer für die nächste gleiche Frage.
+- **Stream-Route:** Im Treffer-Zweig bekommt eine Frage (nicht die
+  Übersicht, D8/D12a) das eigene Log; `cache_check_complete` und `complete`
+  tragen die eigene Kennung, `cachedQueryId` weiter die des Treffers.
+  `effectiveTargetLanguageForLog` steht jetzt vor dem Cache-Check. Der
+  Sitzungstitel aus dem Kurztitel des Treffers (D6) bleibt wie er war.
+- Belege: `tests/unit/chat/cache-treffer-log.test.ts`; tsc-Vergleich leer,
+  Lint 0 Fehler. Kein Live-Nachweis — im nächsten lokalen Test: dieselbe
+  Frage zweimal in zwei Sitzungen stellen; die zweite Antwort kommt aus dem
+  Cache, die Frage steht nach dem Neuladen trotzdem in der Chronik, `?q=`
+  und Debug zeigen das eigene Log mit `cachedQueryId`.
+
+### Stand D12c (gebaut 02.10.2026, Cloud) — Verlauf beim Sitzungswechsel
+
+Befund aus dem Schreibtischtest (Schritte 10, 11, 12, 16): `useStoryVerlauf`
+leerte die Nachrichten nur beim Wechsel auf `null` („Neue Sitzung“). Beim
+Wechsel von Sitzung A nach B (Chronik-Klick, `?q=` aus anderer Sitzung,
+Zurück-Knopf) mischte `verlaufMischen` die Nachrichten von A unter B: Die
+Chronik listete unter B auch die Fragen von A, und die nächste Frage schickte
+Paare aus A als `chatHistory` an das Sprachmodell.
+
+Was steht: Beim Wechsel auf eine andere Kennung fallen die gespeicherten
+Nachrichten (mit `queryId`) weg; Lokales ohne Kennung (eine gerade laufende
+Frage) bleibt. Von `null` auf die erste Kennung (die erste Frage hat die
+Sitzung eröffnet) bleibt alles stehen — sonst flackerte die eröffnende
+Frage, bis der Verlauf geladen ist. Beleg: `use-story-verlauf.test.tsx`
+(A→B, `null`→erste Kennung); tsc-Vergleich leer, Lint 0 Fehler.
+
+### Stand D12d (gebaut 02.10.2026, Cloud) — „Neu berechnen“ bleibt stehen
+
+Befund aus dem Schreibtischtest (Schritt 18): Die Aktion „Themenübersicht
+neu berechnen“ (D11a) hing an der Gliederung; `uebersichtNeu` setzte die
+Gliederung sofort auf `null`, damit verschwand der Knopf während der
+Neuberechnung (kein Spinner) und nach einem Fehler ganz — ohne Weg zum
+erneuten Versuch außer Neuladen. Während einer Frage zeigte er den
+irreführenden Hinweis „Neuberechnung …“.
+
+Was steht: `StoryRoot` stellt die Aktion bereit, sobald eine Übersicht
+möglich ist (Dokumente und Modell), unabhängig von der Gliederung.
+`laeuft` meint jetzt nur die Neuberechnung der Übersicht (Spinner,
+Hinweis), neu `gesperrt` sperrt den Knopf, solange eine Frage läuft
+(`UebersichtAktion` in `@ks/module-story`). Belege: `story-root.test.tsx`
+(Aktion bleibt mit Spinner während der Neuberechnung, zweite Anfrage mit
+`skipQueryCache`; ohne Dokumente keine Aktion), `story-chronik.test.tsx`
+(gesperrt ohne Spinner); tsc-Vergleich leer, Lint 0 Fehler.
+
+### Stand D12e (gebaut 02.10.2026, Cloud) — Belege folgen der Auswahl, Markenklick öffnet die Quellen
+
+Befund aus dem Schreibtischtest (Schritte 6, 7, 12, 13, 14, 21):
+`chatReferencesAtom` wurde nur aus dem Stream gesetzt (`onBelege` bei einer
+frischen Antwort). Jede über Chronik, `?q=` oder Zurück-Knopf gewählte
+ältere Antwort ließ rechts die Belege der zuletzt frisch beantworteten Frage
+stehen; „Neue Sitzung“ und Löschen ließen sie ebenfalls stehen. Dazu: Seit
+D11b steht die Belegliste nur im DOM, wenn die Quellen-Schicht offen ist —
+der Klick auf eine Zitatmarke fand bei zugeklappter Schicht keine Karte und
+tat nichts (nur `console.warn`). Bei alten Antworten (Nummern je Textstelle)
+trug eine Karte nur den Anker der ersten Nummer.
+
+Was steht:
+
+- **Belege folgen der gezeigten Antwort** (`useStoryKonversation`): ein
+  Effekt auf Auswahl und Nachrichten meldet `onBelege(belege, queryId)` der
+  gezeigten Antwort; Übersicht, Themenseite und eine noch laufende Frage
+  melden leer (`[]`, `null`) — rechts steht dann der Katalog (Figma
+  Schritt 5: „leer bis Antwort“). Der Stream-Hook meldet nicht mehr selbst.
+  `StoryRoot.onBelege` bekommt `queryId: string | null`; App-Montage und
+  Embed setzen `undefined` ins Atom.
+- **Markenklick öffnet die Schicht:** Findet `AntwortText` keine Karte,
+  sendet es `STORY_BELEG_ZEIGEN_EVENT` (`@ks/contracts`, mit `marke`).
+  `useBelegSprung` (`@ks/module-explorer`, in `GalleryRoot`) öffnet die
+  Quellen (`useQuellenOffen.oeffnen`, merkt „auf“) und scrollt zur Karte,
+  sobald sie gerendert ist; ohne Karte (Mobil, alte Antwort ohne diese Marke)
+  eine Warnung, kein Schweigen.
+- **Anker je Nummer:** `BelegKarte` rendert für weitere Nummern desselben
+  Dokuments unsichtbare Anker `#beleg-n`.
+- Belege: `story-root.test.tsx` (Übersicht leer → Antwort → Übersicht leer →
+  Konversation wieder voll), `antwort-text.test.tsx` (Ereignis statt
+  Warnung), `story-spalten.test.tsx` (`oeffnen`, `useBelegSprung`),
+  `beleg-liste.test.tsx` (Anker je Nummer); Paket-Tests 183 grün,
+  tsc-Vergleich leer, Lint 0 Fehler. Kein Live-Nachweis — lokal Schritte 6,
+  7, 12: Marke klicken bei zugeklappten Quellen, ältere Antwort wählen.
+
+Neu dazugekommen (Schreibtischtest Cloud 02.10., am Code belegt, nicht
+gebaut):
+
+- **Schritt 14, letzte Frage löschen:** `DELETE …/queries/<id>` löscht nur
+  das Log; der Chat bleibt leer mit dem Kurztitel der gelöschten Frage, die
+  nächste Frage landet darin und behält den alten Titel
+  (`sitzungstitelAusDieserFrage` ist dann `false`). Vorschlag: Route oder
+  Hook löscht einen leer gewordenen Chat mit, oder die Stream-Route benennt
+  einen Chat ohne Fragen wie einen neuen.
+- **Schritt 12, Fragenliste veraltet:** `useStorySitzungen.fragenLaden`
+  lädt je Sitzung nur einmal (`geladeneFragen`); eine einmal aufgeklappte
+  Sitzung, die danach aktiv war und Fragen bekam oder verlor, zeigt nach dem
+  Zurückwechseln die alte Liste. Vorschlag: beim Wechsel der aktiven Sitzung
+  die vorherige aus `geladeneFragen` streichen.
+- **Schritt 21, Zähler der Leiste:** `chatReferences.references.length`
+  zählt bei alten Antworten Textstellen statt Dokumente. Vorschlag: Zähler
+  aus den gebündelten Belegen (`belegeAusReferenzen`) nehmen.
+- **Mobil (< lg), Markenklick:** Die Belege liegen im Blatt (D4);
+  `useBelegSprung` öffnet die Desktop-Schicht, die dort nicht gerendert ist
+  (Warnung). Vorschlag: auf Mobil das Ereignis `show-reference-legend`
+  auslösen.
+- **Konfig-Felder ohne Anzeige** (`gallery.subtitle`, `story.subtitle`,
+  seit D10b) und **D6d** (toter App-Chat) warten weiter auf den Owner.
+
+### Stand D12f (gebaut 03.10.2026, Cloud) — Letzte Frage löschen räumt die Sitzung weg
+
+Befund (Schreibtischtest, Schritt 14): `DELETE …/queries/<id>` löschte nur
+das Log; der Chat blieb leer mit dem Kurztitel der gelöschten Frage stehen,
+die nächste Frage landete darin und behielt den alten Titel.
+
+Was steht: `frageLoeschen` (`useStoryKonversation`) löscht nach der letzten
+gespeicherten Frage auch die Sitzung (`DELETE …/chats/<chatId>`), setzt die
+aktive Sitzung auf `null` (die nächste Frage eröffnet eine neue, mit eigenem
+Titel) und erhöht `storySitzungenStandAtom`; `useStorySitzungen` lädt die
+Liste bei jedem neuen Stand neu, die Chronik zeigt die Sitzung nicht mehr.
+Ein Fehler beim Löschen der Sitzung bleibt sichtbar. Belege:
+`story-root.test.tsx` (zweiter DELETE auf die Sitzung, Kennung leer, Stand
+1), `use-story-sitzungen.test.tsx` (neuer Stand lädt neu); tsc-Vergleich
+leer, Lint 0 Fehler.
+
+### Stand D12g (gebaut 03.10.2026, Cloud) — Fragenliste der verlassenen Sitzung
+
+Befund (Schreibtischtest, Schritt 12): `useStorySitzungen.fragenLaden` lud
+je Sitzung nur einmal (`geladeneFragen`); eine einmal aufgeklappte Sitzung,
+die danach aktiv war und Fragen bekam oder verlor, zeigte nach dem
+Zurückwechseln die alte Liste.
+
+Was steht: Die Chronik reicht die live gesehenen Fragen der aktiven Sitzung
+an `useStorySitzungen` (`aktiveFragen`). Beim Wechsel der aktiven Sitzung
+behält die verlassene Sitzung diesen Stand (nur gespeicherte Fragen, keine
+als „läuft“) und fällt aus dem Lade-Cache — das nächste Aufklappen holt den
+Stand vom Server. Beleg: `use-story-sitzungen.test.tsx` (Stand bleibt, dann
+neu geladen); `story-chronik.test.tsx` unverändert grün; tsc-Vergleich leer,
+Lint 0 Fehler.
+
+### Stand D12h (gebaut 03.10.2026, Cloud) — Zähler der Quellen-Leiste
+
+Befund (Schreibtischtest, Schritt 21): Der blaue Zähler der eingeklappten
+Leiste nahm `references.length`; alte Antworten (vor D7) nummerieren je
+Textstelle, der Zähler zeigte dann Textstellen statt Dokumente — die
+aufgeklappte Liste sagt „n Belege“ je Dokument.
+
+Was steht: `anzahlBelegDokumente` (`beleg-liste/helpers.ts`) zählt die
+verschiedenen `fileId`s; `GalleryRoot` gibt diese Zahl an die Leiste. Beleg:
+`beleg-liste.test.tsx`; tsc-Vergleich leer, Lint 0 Fehler.
+
+### Stand D12i (gebaut 03.10.2026, Cloud) — Markenklick auf Mobil
+
+Befund (Schreibtischtest, Schritt 6 mobil): `useBelegSprung` (D12e) öffnete
+immer die Desktop-Schicht; unter `lg` liegen die Belege im Blatt (D4), die
+Schicht ist dort nicht gerendert — der Klick auf eine Zitatmarke warnte nur.
+
+Was steht: `useBelegSprung` nimmt ein Ziel (`offen`, `oeffnen`); `GalleryRoot`
+reicht auf Mobil das Belege-Blatt herein (öffnet es im Modus „answer“ mit
+den Belegen der gezeigten Antwort), am Desktop wie bisher die Schicht. Der
+Sprung scrollt, sobald das Ziel offen ist und die Karte im DOM steht. Beleg:
+`story-spalten.test.tsx` (beliebiges Ziel); tsc-Vergleich leer, Lint 0 Fehler.
+
+Damit sind die vier Befunde aus dem Schreibtischtest (D12e „Neu
+dazugekommen“) gebaut: Schritt 14 (D12f), Schritt 12 (D12g), Schritt 21
+(D12h), Mobil (D12i). Offen bleiben die Owner-Entscheide D6d und
+`gallery.subtitle`/`story.subtitle` sowie der Live-Nachweis aller Wellen.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

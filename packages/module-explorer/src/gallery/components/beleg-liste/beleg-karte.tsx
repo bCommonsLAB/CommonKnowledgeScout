@@ -56,6 +56,10 @@ export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
 
   return (
     <li className="rounded-lg border bg-card p-3 space-y-2" data-beleg={beleg.fileId} id={`beleg-${beleg.nummern[0]}`}>
+      {/* D12e: Auch die weiteren Marken dieses Dokuments (alte Antworten je Textstelle) finden die Karte. */}
+      {beleg.nummern.slice(1).map((n) => (
+        <span key={n} id={`beleg-${n}`} className="sr-only" aria-hidden="true" />
+      ))}
       <div className="flex items-start gap-2">
         {anzahl > 0 ? (
           <TooltipProvider delayDuration={300}>

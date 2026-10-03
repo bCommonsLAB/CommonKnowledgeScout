@@ -21,6 +21,7 @@ import { MobileFiltersSheet } from './mobile-filters-sheet'
 import { DetailOverlay, type DetailRenderer } from './detail-overlay'
 import { useGalleryMode } from '../hooks/use-gallery-mode'
 import { useQuellenOffen } from './quellen-leiste'
+import { useBelegSprung } from './beleg-sprung'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { useGalleryConfig } from '../hooks/use-gallery-config'
 import { useGalleryData } from '../hooks/use-gallery-data'
@@ -36,6 +37,7 @@ import { ReferencesSheet } from './references-sheet'
 import { StorySpalten } from './story-spalten'
 import { StoryChronikSheet } from './story-chronik-sheet'
 import { BelegListe } from './beleg-liste/beleg-liste'
+import { anzahlBelegDokumente } from './beleg-liste/helpers'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
@@ -228,6 +230,23 @@ export function GalleryRoot({
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
   // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
   const quellenLeiste = useQuellenOffen()
+  // D12e/D12i: Klick auf eine Zitatmarke bei zugeklappten Quellen — am Desktop die Schicht
+  // oeffnen, auf Mobil das Blatt mit den Belegen (D4); dann zur Karte scrollen.
+  const belegSprungZiel = useMemo(
+    () =>
+      isMobile
+        ? {
+            offen: showReferencesSheet && referencesSheetMode === 'answer',
+            oeffnen: () => {
+              setShowReferencesSheet(true)
+              setReferencesSheetMode('answer')
+              setReferencesSheetData({ references: chatReferences.references, queryId: chatReferences.queryId })
+            },
+          }
+        : { offen: quellenLeiste.offen, oeffnen: quellenLeiste.oeffnen },
+    [isMobile, showReferencesSheet, referencesSheetMode, chatReferences, quellenLeiste.offen, quellenLeiste.oeffnen],
+  )
+  useBelegSprung(belegSprungZiel)
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab
@@ -1338,7 +1357,8 @@ export function GalleryRoot({
                 leiste={{
                   offen: quellenLeiste.offen,
                   onToggle: quellenLeiste.toggle,
-                  zaehler: belegeAktiv ? chatReferences.references.length : effectiveDocCount,
+                  // D12h: Dokumente zaehlen, nicht Textstellen (alte Antworten nummerieren je Textstelle).
+                  zaehler: belegeAktiv ? anzahlBelegDokumente(chatReferences.references) : effectiveDocCount,
                   belege: belegeAktiv,
                 }}
               />

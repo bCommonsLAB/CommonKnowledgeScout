@@ -13,6 +13,7 @@ import type { DocCardMeta, DocReference } from '@ks/contracts'
 import { GalleryNavigationProvider, type GalleryNavigation } from '@ks/module-explorer/react'
 import { BelegListe } from '../../../../packages/module-explorer/src/gallery/components/beleg-liste/beleg-liste'
 import {
+  anzahlBelegDokumente,
   belegeAusReferenzen,
   belegKonfig,
   ersteSeite,
@@ -52,6 +53,12 @@ describe('belegeAusReferenzen', () => {
     expect(belege[0].kurztext).toBe('Markdown-Body: Radwege ausbauen')
     expect(belegeAusReferenzen([{ number: 1, fileId: 'f-a', description: '   ' }], docs)[0].kurztext).toBeUndefined()
     expect(belege[0].typ).toBe('climateAction')
+  })
+
+  it('D12h: anzahlBelegDokumente zaehlt Dokumente, nicht Textstellen', () => {
+    expect(anzahlBelegDokumente(references)).toBe(2)
+    expect(anzahlBelegDokumente([])).toBe(0)
+    expect(anzahlBelegDokumente([{ fileId: 'x' }, { fileId: 'x' }, { fileId: 'y' }])).toBe(2)
   })
 
   it('ohne geladenes Dokument: Dateiname als Titel, Typ aus der Library-Konfig', () => {
@@ -123,6 +130,8 @@ describe('BelegListe', () => {
     expect(screen.getByText('Heizen.md')).toBeTruthy()
     expect(screen.getByText('Kapitel 2: Fernwaerme')).toBeTruthy()
     expect(screen.getAllByText('story.beleg.status.umsetzung')).toHaveLength(1)
+    // D12e: jede Marke der Antwort findet ihre Karte, auch die zweite desselben Dokuments.
+    for (const r of references) expect(document.getElementById(`beleg-${r.number}`)).not.toBeNull()
   })
 
   it('„Original ansehen" oeffnet ueber die Adressierung (Slug), sonst ueber den Rueckfall', () => {

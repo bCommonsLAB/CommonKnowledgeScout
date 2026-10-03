@@ -12,7 +12,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { Provider, createStore } from 'jotai'
 import { createInstanceApi } from '@ks/api-client'
 import { STORY_TOC_QUESTION } from '@ks/contracts'
-import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, type Perspektive } from '@ks/module-story/react'
+import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom, storySitzungenStandAtom, type Perspektive } from '@ks/module-story/react'
 
 vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
@@ -99,8 +99,26 @@ describe('StoryRoot', () => {
   })
 
   it('ohne Dokumente keine Anfrage', () => {
-    montieren(0)
+    const { store } = montieren(0)
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))).toHaveLength(0)
+    // D12d: ohne Dokumente auch keine Aktion „neu berechnen" in der Chronik.
+    expect(store.get(storyUebersichtAktionAtom)).toBeNull()
+  })
+
+  it('D12d: „neu berechnen" steht, sobald eine Uebersicht moeglich ist — auch waehrend der Neuberechnung', async () => {
+    const { store } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    const aktion = store.get(storyUebersichtAktionAtom)
+    expect(aktion).toMatchObject({ laeuft: false, gesperrt: false })
+    act(() => aktion?.neuBerechnen())
+    // Die Gliederung ist waehrend der Neuberechnung weg, die Aktion bleibt (mit Spinner).
+    expect(store.get(storyGliederungAtom)).toBeNull()
+    expect(store.get(storyUebersichtAktionAtom)).toMatchObject({ laeuft: true })
+    await waitFor(() => expect(store.get(storyGliederungAtom)).toEqual(gliederung))
+    expect(store.get(storyUebersichtAktionAtom)).toMatchObject({ laeuft: false, gesperrt: false })
+    const streamCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))
+    expect(streamCalls).toHaveLength(2)
+    expect(JSON.parse(String(streamCalls[1][1]?.body)).skipQueryCache).toBe(true)
   })
 
   it('Thema → Frage uebernehmen → senden: Konversation allein in der Mitte, Belege an den Gastgeber, Sitzung in den Atomen', async () => {
@@ -124,6 +142,25 @@ describe('StoryRoot', () => {
     expect(auswahl).toMatchObject({ art: 'konversation', queryId: 'q9', themaId: 'verkehr' })
     expect(store.get(storyAktiveSitzungAtom)).toMatchObject({ chatId: 'c1', fragen: [expect.objectContaining({ queryId: 'q9', kurztitel: 'Radwege', offen: false })] })
     expect(localStorage.getItem('chat-activeChatId-lib')).toBe('c1')
+  })
+
+  it('D12e: die Belege folgen der gezeigten Antwort — Uebersicht leer, Konversation wieder voll', async () => {
+    const { store, onBelege } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    // Einstieg (Uebersicht): keine Antwort gezeigt → leere Belege.
+    expect(onBelege).toHaveBeenLastCalledWith([], null)
+    fireEvent.click(screen.getByText('Verkehr'))
+    fireEvent.click(screen.getByText('Welche Massnahmen gibt es zum Verkehr?'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
+    })
+    await waitFor(() => expect(onBelege).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9'))
+    // Zurueck zur Uebersicht (Chronik, Zurueck-Knopf): leer. Wieder die Konversation: die Belege dieser Antwort.
+    act(() => store.set(storyAuswahlAtom, { art: 'uebersicht' }))
+    await waitFor(() => expect(onBelege).toHaveBeenLastCalledWith([], null))
+    const frageId = store.get(storyAktiveSitzungAtom).fragen[0]?.frageId
+    act(() => store.set(storyAuswahlAtom, { art: 'konversation', frageId: frageId ?? 'question-1', queryId: 'q9' }))
+    await waitFor(() => expect(onBelege).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9'))
   })
 
   it('D6c: Frage loeschen fragt nach, loescht ueber die Instanz und kehrt zur Uebersicht zurueck; „neu stellen" fuellt die Eingabe', async () => {
@@ -153,5 +190,11 @@ describe('StoryRoot', () => {
     await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
     expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
     expect(store.get(storyAktiveSitzungAtom).fragen).toEqual([])
+    // D12f: Es war die letzte Frage — die leere Sitzung wird mitgeloescht, die Mitte beginnt eine neue.
+    const dels = fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE').map(([url]) => String(url))
+    expect(dels).toEqual(['https://ks.example/api/chat/lib/queries/q9', 'https://ks.example/api/chat/lib/chats/c1'])
+    expect(store.get(storyAktiveSitzungAtom).chatId).toBeNull()
+    expect(localStorage.getItem('chat-activeChatId-lib')).toBeNull()
+    expect(store.get(storySitzungenStandAtom)).toBe(1)
   })
 })

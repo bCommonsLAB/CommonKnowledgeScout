@@ -127,4 +127,48 @@ describe('useStorySitzungen', () => {
     rerender({ aktiv: 'c-neu' }) // unbekannt — Nachladen
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
   })
+
+  it('D12f: ein neuer Stand der Mitte laedt die Liste neu (geloeschte Sitzung verschwindet)', async () => {
+    const fetchMock = stubFetch({ '/chats?limit=50': { ok: true, body: chats } })
+    const { result, rerender } = renderHook(
+      ({ stand }: { stand: number }) => useStorySitzungen({ libraryId: 'lib', instanz, isSignedIn: true, aktiveChatId: null, stand }),
+      { initialProps: { stand: 0 } },
+    )
+    await waitFor(() => expect(result.current.sitzungen).toHaveLength(2))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ items: chats.items.slice(1) }) })
+    rerender({ stand: 1 })
+    await waitFor(() => expect(result.current.sitzungen).toHaveLength(1))
+    expect(result.current.sitzungen[0].chatId).toBe('c1')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('D12g: die verlassene Sitzung behaelt den live gesehenen Stand und laedt beim Aufklappen neu', async () => {
+    const fetchMock = stubFetch({
+      '/chats?limit=50': { ok: true, body: chats },
+      'chatId=c1': { ok: true, body: { items: [
+        { queryId: 'q1', question: 'Erste?', createdAt: '2026-09-30T10:00:00.000Z', status: 'ok', queryType: 'question' },
+      ] } },
+    })
+    const live = [
+      { queryId: 'q1', text: 'Erste?', createdAt: '2026-09-30T10:00:00.000Z', offen: false },
+      { queryId: 'q7', text: 'Neue, waehrend aktiv', createdAt: '2026-09-30T11:00:00.000Z', offen: false },
+    ]
+    const { result, rerender } = renderHook(
+      (p: { aktiveChatId: string | null; aktiveFragen: typeof live }) =>
+        useStorySitzungen({ libraryId: 'lib', instanz, isSignedIn: true, ...p }),
+      { initialProps: { aktiveChatId: 'c1', aktiveFragen: live } },
+    )
+    await waitFor(() => expect(result.current.sitzungen).toHaveLength(2))
+    // c1 war aufgeklappt, als es noch nicht aktiv war: alte Liste vom Server (nur q1).
+    await act(() => result.current.fragenLaden('c1'))
+    expect(result.current.sitzungen.find((s) => s.chatId === 'c1')?.fragen?.map((f) => f.queryId)).toEqual(['q1'])
+    // Wechsel nach c2: c1 behaelt den live gesehenen Stand (q1, q7) …
+    rerender({ aktiveChatId: 'c2', aktiveFragen: [] })
+    await waitFor(() => expect(result.current.sitzungen.find((s) => s.chatId === 'c1')?.fragen?.map((f) => f.queryId)).toEqual(['q1', 'q7']))
+    // … und laedt beim naechsten Aufklappen neu statt aus dem Cache.
+    const vorher = fetchMock.mock.calls.length
+    await act(() => result.current.fragenLaden('c1'))
+    expect(fetchMock.mock.calls.length).toBe(vorher + 1)
+  })
 })
