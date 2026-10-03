@@ -32,6 +32,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getLocale } from '@ks/i18n'
 import { startQueryLog } from '@/lib/logging/query-logger'
 import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
+import { eigenesLogFuerCacheTreffer } from '@/lib/chat/cache-treffer-log'
 import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import { appendRetrievalStep } from '@/lib/logging/query-logger'
@@ -363,6 +364,13 @@ export async function POST(
           uiLocale,
         })
 
+        // Konvertiere 'global' targetLanguage zur tatsächlichen Sprache für Query-Log
+        // WICHTIG: Query-Log muss die tatsächliche Sprache enthalten, nicht 'global'
+        // (vor dem Cache-Check, weil auch ein Cache-Treffer ein eigenes Log bekommt, D12b)
+        const effectiveTargetLanguageForLog = effectiveChatConfig.targetLanguage === 'global' && uiLocale
+          ? resolveTargetLanguage('global', uiLocale)
+          : effectiveChatConfig.targetLanguage
+
         // Schritt 1.5: Cache-Check für bestehende Query
         // Prüfe, ob bereits eine identische Query mit Antwort existiert
         // Verwendet Hash-basierte Suche für optimale Performance
@@ -474,24 +482,8 @@ export async function POST(
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
           if (cachedQuery && ((cachedQuery.answer && cachedQuery.answer.trim().length > 0) || cachedQuery.storyTopicsData)) {
-            // Verwende die queryId aus dem Cache (falls vorhanden) oder erstelle neue
-            const finalQueryId = cachedQuery.queryId || `cached-${Date.now()}`
-            
-            // Wenn queryId noch nicht gesetzt wurde, setze sie für später
-            queryId = finalQueryId
-            
-            // Sende Cache-Check-Complete-Step (gefunden) mit Debug-Informationen
-            send({
-              type: 'cache_check_complete',
-              found: true,
-              queryId: finalQueryId,
-              cacheHash: cacheHashForLog,
-              documentCount,
-              cachedQueryId: cachedQuery.queryId,
-            })
-            
             // Sammle Cache-Check-Steps für Logs (auch wenn Cache gefunden wurde)
-            const cacheSteps: ChatProcessingStep[] = [
+            const cacheSchritte = (fuerQueryId: string): ChatProcessingStep[] => [
               {
                 type: 'cache_check',
                 parameters: {
@@ -508,12 +500,51 @@ export async function POST(
               {
                 type: 'cache_check_complete',
                 found: true,
-                queryId: finalQueryId,
+                queryId: fuerQueryId,
                 cacheHash: cacheHashForLog,
                 documentCount,
                 cachedQueryId: cachedQuery.queryId,
               },
             ]
+
+            // Kennung fuer den Client: Die Themenuebersicht nimmt die des Treffers
+            // (kein eigenes Log, D8; fuer alle lesbar, D12a). Eine Frage bekommt ein
+            // eigenes Log in der Sitzung der Person (D12b) — sonst fehlt sie nach dem
+            // Neuladen im Verlauf, und `?q=`, Konfig-Anzeige, Protokoll und Debug
+            // laufen auf die fremde Kennung (404).
+            let finalQueryId = cachedQuery.queryId || `cached-${Date.now()}`
+            if (!isTOCQuery) {
+              finalQueryId = await eigenesLogFuerCacheTreffer({
+                rahmen: {
+                  libraryId,
+                  chatId: activeChatId,
+                  userEmail: userEmail || undefined,
+                  sessionId: sessionId || undefined,
+                  question: message,
+                  mode: retrieverForCache === 'summary' ? 'summaries' : 'chunks',
+                  answerLength,
+                  retriever: retrieverForCache === 'summary' ? 'summary' : 'chunk',
+                  targetLanguage: effectiveTargetLanguageForLog,
+                  character: effectiveChatConfig.character,
+                  accessPerspective: effectiveChatConfig.accessPerspective,
+                  socialContext: effectiveChatConfig.socialContext,
+                  genderInclusive: effectiveChatConfig.genderInclusive,
+                  facetsSelected: facetsSelectedForCache,
+                  filtersNormalized: { ...built.normalized },
+                  documentCount,
+                  llmModel: llmModelForCache,
+                },
+                treffer: cachedQuery,
+                cacheHash: cacheHashForLog,
+                documentCount,
+                protokoll: cacheSchritte,
+              })
+            }
+            queryId = finalQueryId
+            const cacheSteps = cacheSchritte(finalQueryId)
+
+            // Sende Cache-Check-Complete-Step (gefunden) mit Debug-Informationen
+            send(cacheSteps[1])
             
             // Speichere Cache-Check-Step auch im retrieval Array (für Debug-Zwecke)
             if (cachedQuery.queryId) {
@@ -677,12 +708,6 @@ export async function POST(
 
         // Schritt 3: Query-Log starten
         // Prüfe, ob es eine TOC-Frage ist (bereits oben definiert)
-        
-        // Konvertiere 'global' targetLanguage zur tatsächlichen Sprache für Query-Log
-        // WICHTIG: Query-Log muss die tatsächliche Sprache enthalten, nicht 'global'
-        const effectiveTargetLanguageForLog = effectiveChatConfig.targetLanguage === 'global' && uiLocale
-          ? resolveTargetLanguage('global', uiLocale)
-          : effectiveChatConfig.targetLanguage
         
         queryId = await startQueryLog({
           libraryId,
