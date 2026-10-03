@@ -890,6 +890,7 @@
         "one": "se basa en 1 pasaje",
         "many": "se basa en {count} pasajes"
       },
+      "more": "Más",
       "page": "Página {page}",
       "pageShort": "p. {page}",
       "openAtPage": "Abrir el original en la página {page}"

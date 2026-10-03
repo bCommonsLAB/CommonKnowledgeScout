@@ -890,6 +890,7 @@
         "one": "si basa su 1 passaggio",
         "many": "si basa su {count} passaggi"
       },
+      "more": "Altro",
       "page": "Pagina {page}",
       "pageShort": "p. {page}",
       "openAtPage": "Apri l'originale a pagina {page}"

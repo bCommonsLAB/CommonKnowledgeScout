@@ -890,6 +890,7 @@
         "one": "draws on 1 passage",
         "many": "draws on {count} passages"
       },
+      "more": "More",
       "page": "Page {page}",
       "pageShort": "p. {page}",
       "openAtPage": "Open original at page {page}"
