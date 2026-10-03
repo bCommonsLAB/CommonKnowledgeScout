@@ -982,6 +982,30 @@ mit der Aktion, ruft sie, ist beim Rechnen gesperrt).
   und nach dem Aufklappen identisch, keine neuen Aufrufe. Übersetzungen
   `story.leiste.*`.
 
+### Stand D12a (gebaut 02.10.2026, Cloud) — Übersichts-Log lesbar für alle
+
+Befund aus dem lokalen Test (Schritt 2, „Keine Konfiguration gefunden“,
+`GET …/queries/<Übersichts-Query>` → 404): `getQueryLogById` band jedes Log
+an `userEmail` bzw. `sessionId`, der Übersichts-Cache ist aber
+benutzerübergreifend (Hash + Library) — der `complete`-Schritt trägt deshalb
+oft die Kennung eines Logs, das eine andere Person angelegt hat.
+
+Was steht:
+
+- **Regel in `src/lib/db/query-log-zugriff.ts`** (`logFuerLeser`): Eigene
+  Logs (E-Mail bzw. anonyme Sitzung) wie bisher; ein `toc`-Log ist innerhalb
+  seiner Library für alle lesbar, kommt aber **ohne `userEmail` und
+  `sessionId` des Erstellers**, wenn es nicht das eigene ist. Fremde Fragen
+  bleiben unsichtbar. Ohne Leser-Kennung wirft die Regel wie bisher.
+- `getQueryLogById` sucht nach `queryId` + `libraryId` und legt die Regel an;
+  die Routen `GET`/`DELETE …/queries/<id>` sind unverändert. Folge für
+  `DELETE` einer fremden Übersicht: 403 statt 404 (das Log existiert, gehört
+  aber nicht der Person) — gewollt.
+- Beleg: `tests/unit/chat/query-log-zugriff.test.ts`; tsc-Vergleich leer,
+  Lint 0 Fehler. Kein Live-Nachweis (Cloud-Session ohne DB und Secretary) —
+  im nächsten lokalen Test Schritt 2 prüfen: Konfig-Anzeige unter der
+  Übersicht steht, Netz `GET …/queries/<id>` → 200.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
