@@ -71,7 +71,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       return NextResponse.json({ error: `Unbekannter detailViewType „${selectedType}".` }, { status: 400 })
     }
     const libraryDefaultType = getDetailViewType({}, ctx.library.config?.chat)
-    const presentTypes = selectedType ? [] : await distinctViewTypes(libraryKey, libraryId)
+
+    // Exclude-Filter: schliesst einen detailViewType aus der Liste aus (z.B.
+    // `website` in der oeffentlichen Slug-Galerie — Website-Docs sind
+    // strukturell fuer die Landingpage/das Menue, kein Galerie-Inhalt).
+    const excludeTypeRaw = url.searchParams.get('excludeDetailViewType')
+    const excludeType = excludeTypeRaw && excludeTypeRaw.trim() ? excludeTypeRaw.trim() : null
+    if (excludeType && !isValidDetailViewType(excludeType)) {
+      return NextResponse.json({ error: `Unbekannter detailViewType „${excludeType}".` }, { status: 400 })
+    }
+
+    // D12n: Der ausgeschlossene Typ zaehlt nicht zu den vorhandenen Typen — wie
+    // in der Facetten-Route. Sonst bleiben ohne Typwahl nur die Facetten uebrig,
+    // die ALLE Typen teilen (bei Website + Klimamassnahme: keine), und ein
+    // gesetzter Facettenfilter fiel still weg (Liste und `total` ungefiltert).
+    const presentTypes = selectedType
+      ? []
+      : (await distinctViewTypes(libraryKey, libraryId)).filter((vt) => vt !== excludeType)
     const scope = resolveFacetScope({ library: ctx.library, selectedType, presentTypes, libraryDefaultType })
     const defs = scope.defs
 
@@ -104,16 +120,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       filter.$and = [...existing, scope.typeFilter]
     }
 
-    // Exclude-Filter: schliesst einen detailViewType aus der Liste aus (z.B.
-    // `website` in der oeffentlichen Slug-Galerie — Website-Docs sind
-    // strukturell fuer die Landingpage/das Menue, kein Galerie-Inhalt).
-    // Prueft beide Ablagen (Top-Level + docMetaJson), da der Typ in beiden liegen kann.
-    const excludeTypeRaw = url.searchParams.get('excludeDetailViewType')
-    const excludeType = excludeTypeRaw && excludeTypeRaw.trim() ? excludeTypeRaw.trim() : null
+    // Exclude-Filter anhaengen: prueft beide Ablagen (Top-Level + docMetaJson),
+    // da der Typ in beiden liegen kann.
     if (excludeType) {
-      if (!isValidDetailViewType(excludeType)) {
-        return NextResponse.json({ error: `Unbekannter detailViewType „${excludeType}".` }, { status: 400 })
-      }
       const existing = Array.isArray(filter.$and) ? filter.$and : []
       filter.$and = [
         ...existing,
