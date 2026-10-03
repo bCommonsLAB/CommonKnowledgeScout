@@ -37,6 +37,7 @@ import { ReferencesSheet } from './references-sheet'
 import { StorySpalten } from './story-spalten'
 import { StoryChronikSheet } from './story-chronik-sheet'
 import { BelegListe } from './beleg-liste/beleg-liste'
+import { anzahlBelegDokumente } from './beleg-liste/helpers'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
@@ -1341,7 +1342,8 @@ export function GalleryRoot({
                 leiste={{
                   offen: quellenLeiste.offen,
                   onToggle: quellenLeiste.toggle,
-                  zaehler: belegeAktiv ? chatReferences.references.length : effectiveDocCount,
+                  // D12h: Dokumente zaehlen, nicht Textstellen (alte Antworten nummerieren je Textstelle).
+                  zaehler: belegeAktiv ? anzahlBelegDokumente(chatReferences.references) : effectiveDocCount,
                   belege: belegeAktiv,
                 }}
               />

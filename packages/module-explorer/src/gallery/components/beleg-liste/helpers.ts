@@ -44,6 +44,15 @@ function gueltigerTyp(...kandidaten: Array<string | undefined>): DetailViewType 
   return null
 }
 
+/**
+ * Zahl der belegten Dokumente (D12h): Alte Antworten (vor D7) nummerieren je
+ * Textstelle, mehrere Referenzen zeigen dann auf dasselbe Dokument — der
+ * Zaehler der Quellen-Leiste meint Dokumente, nicht Textstellen.
+ */
+export function anzahlBelegDokumente(references: Pick<DocReference, 'fileId'>[]): number {
+  return new Set(references.map((r) => r.fileId)).size
+}
+
 /** Ein Beleg je Dokument, in der Reihenfolge der ersten Nennung. */
 export function belegeAusReferenzen(
   references: DocReference[],
