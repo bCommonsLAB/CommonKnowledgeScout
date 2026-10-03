@@ -9,6 +9,7 @@
  * (Plan, offene Punkte).
  */
 
+import type { ReactNode } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
@@ -17,11 +18,13 @@ import { Kennzahlen } from './kennzahlen'
 
 export interface StoryThemaProps {
   thema: StoryTopic
+  /** D12o: gesetzter Filter als Chips, neben den Kennzahlen. */
+  filterAnzeige?: ReactNode
   onFrageWaehlen: (frage: StoryQuestion) => void
   onZurueck: () => void
 }
 
-export function StoryThema({ thema, onFrageWaehlen, onZurueck }: StoryThemaProps) {
+export function StoryThema({ thema, filterAnzeige, onFrageWaehlen, onZurueck }: StoryThemaProps) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6" data-story-thema={thema.id}>
@@ -33,7 +36,10 @@ export function StoryThema({ thema, onFrageWaehlen, onZurueck }: StoryThemaProps
       <header className="space-y-2">
         <h1 className="text-2xl font-bold leading-tight">{thema.title}</h1>
         {thema.summary && <p className="line-clamp-3 text-base leading-relaxed text-muted-foreground">{thema.summary}</p>}
-        <Kennzahlen werte={[{ art: 'questions', wert: thema.questions.length }]} />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Kennzahlen werte={[{ art: 'questions', wert: thema.questions.length }]} />
+          {filterAnzeige}
+        </div>
       </header>
 
       <section className="space-y-2" aria-label={t('story.chooseQuestion')}>

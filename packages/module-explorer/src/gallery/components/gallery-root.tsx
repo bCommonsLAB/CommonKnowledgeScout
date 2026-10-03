@@ -38,6 +38,7 @@ import { ReferencesSheet } from './references-sheet'
 import { StorySpalten } from './story-spalten'
 import { StoryChronikSheet } from './story-chronik-sheet'
 import { BelegListe } from './beleg-liste/beleg-liste'
+import { FilterChips } from './filter-chips'
 import { anzahlBelegDokumente } from './beleg-liste/helpers'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
@@ -88,7 +89,8 @@ export interface GalleryRootProps {
    * Ohne Slot gibt es auch keinen Knopf in den Story-Modus — das Embed zeigt
    * nur die Galerie (M5, „Story und Chat nicht mitnehmen").
    */
-  storyPanel?: (libraryId: string) => React.ReactNode
+  /** Story-Mitte; `ctx.filterAnzeige` sind die gesetzten Filter als Chips (D12o), damit die Mitte zeigt, dass gefiltert ist. */
+  storyPanel?: (libraryId: string, ctx?: { filterAnzeige: React.ReactNode }) => React.ReactNode
   /**
    * Die Fragen-Chronik links neben dem Story-Panel (Plan
    * `story-dreiteilung-fragenchronik`, D1). Mit Slot wird der Story-Reiter
@@ -1295,7 +1297,7 @@ export function GalleryRoot({
               Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das. */}
           {(() => {
             const storyMitte = storyPanel ? (
-              storyPanel(libraryId)
+              storyPanel(libraryId, { filterAnzeige: <FilterChips facetDefs={facetDefs} onClear={handleClearFilters} /> })
             ) : (
               <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
             )
