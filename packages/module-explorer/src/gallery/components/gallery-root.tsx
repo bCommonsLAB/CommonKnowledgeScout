@@ -38,6 +38,7 @@ import { ReferencesSheet } from './references-sheet'
 import { StorySpalten } from './story-spalten'
 import { StoryChronikSheet } from './story-chronik-sheet'
 import { BelegListe } from './beleg-liste/beleg-liste'
+import { QuellenListe } from './beleg-liste/quellen-liste'
 import { FilterChips } from './filter-chips'
 import { anzahlBelegDokumente } from './beleg-liste/helpers'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
@@ -1317,7 +1318,8 @@ export function GalleryRoot({
             }
             const belegeAktiv = Boolean(chatReferences?.references && chatReferences.references.length > 0)
             // Rechts (D3): Belege der aktiven Antwort als schmale Liste; ohne
-            // aktive Antwort die gefilterte Uebersicht wie heute, Filterleiste oben.
+            // aktive Antwort der gefilterte Bestand als dieselbe kompakte Liste
+            // (D12q) statt des Rasters — Zaehler, Filter-Chips, Nachladen.
             const storyQuellen = belegeAktiv ? (
               <BelegListe
                 references={chatReferences.references}
@@ -1331,29 +1333,20 @@ export function GalleryRoot({
                 onKatalog={handleZumKatalog}
               />
             ) : (
-              <>
-                <div className="flex-shrink-0">
-                  <FilterContextBar
-                    docCount={effectiveDocCount}
-                    onOpenFilters={() => setShowFilters(true)}
-                    onClear={handleClearFilters}
-                    hideFilterButton={true}
-                    facetDefs={facetDefs}
-                    viewMode={viewMode}
-                    onViewModeChange={setViewMode}
-                    cardDensity={cardDensity}
-                    onCardDensityChange={handleCardDensityChange}
-                    mode="story"
-                    showRatingSort={showRatingSort}
-                  />
-                </div>
-                <section
-                  className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
-                  data-gallery-section
-                >
-                  <div>{renderItemsView()}</div>
-                </section>
-              </>
+              <QuellenListe
+                docs={filteredFlat}
+                anzahl={effectiveDocCount}
+                loading={loading}
+                error={error}
+                hasMore={anyEngagementFilterActive ? false : hasMore}
+                isLoadingMore={isLoadingMore}
+                onLoadMore={loadMore}
+                libraryId={libraryId || ''}
+                libraryDetailViewType={detailViewType}
+                filterAnzeige={<FilterChips facetDefs={facetDefs} onClear={handleClearFilters} />}
+                onOpenDocument={handleOpenDocument}
+                onZuklappen={quellenLeiste.toggle}
+              />
             )
             return (
               <StorySpalten

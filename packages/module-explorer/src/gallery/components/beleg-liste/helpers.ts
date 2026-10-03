@@ -23,8 +23,8 @@ import { dokumentNummern } from '@ks/util'
 
 export interface Beleg {
   fileId: string
-  /** Dokumentnummer (D12k): die Marke im Antworttext, auch bei alten Antworten mit Nummer je Textstelle. */
-  nummer: number
+  /** Dokumentnummer (D12k): die Marke im Antworttext, auch bei alten Antworten mit Nummer je Textstelle. Ohne Antwort (D12q, Bestand) keine. */
+  nummer?: number
   titel: string
   /**
    * Kurztext: die Begruendung der ersten Referenz (warum das Dokument
@@ -69,7 +69,7 @@ export function belegeAusReferenzen(
     if (liste) liste.push(ref)
     else nachDatei.set(ref.fileId, [ref])
   }
-  const belege = Array.from(nachDatei.entries()).map(([fileId, refs]): Beleg => {
+  const belege = Array.from(nachDatei.entries()).map(([fileId, refs]): Beleg & { nummer: number } => {
     const doc = docs.find((d) => d.fileId === fileId || d.id === fileId)
     const erste = [...refs].sort((a, b) => a.number - b.number)[0]
     // Jede Referenz der Datei liegt in der Map — `dokumentNummern` kennt genau diese Referenzen.
@@ -85,6 +85,18 @@ export function belegeAusReferenzen(
     }
   })
   return belege.sort((a, b) => a.nummer - b.nummer)
+}
+
+/** D12q: Ein Dokument des Bestands als Beleg ohne Marke — dieselbe Karte wie unter einer Antwort. */
+export function belegAusDokument(doc: DocCardMeta, libraryDetailViewType?: string): Beleg {
+  const fileId = doc.fileId ?? doc.id
+  return {
+    fileId,
+    titel: doc.title ?? doc.shortTitle ?? doc.fileName ?? fileId,
+    typ: gueltigerTyp(doc.detailViewType, libraryDetailViewType),
+    passages: [],
+    doc,
+  }
 }
 
 /** Die Belegkarten-Konfig des Typs — `undefined`, wenn der Typ keine hat. */

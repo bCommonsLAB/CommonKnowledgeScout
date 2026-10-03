@@ -1367,6 +1367,24 @@ der Themenseite neben die Kennzahlen stellt. Zurücksetzen ist
 `filter-chips.test.tsx`, `story-root.test.tsx`. Die doppelte Überschrift
 (D12p) wartet auf Owner-Entscheid.
 
+### Stand D12q (gebaut 03.10.2026, lokal) — Quellen der Übersicht so kompakt wie die Belege
+
+Owner 03.10.: Bei einer Antwort sind die Quellen kompakt, bei der
+Themenübersicht nicht (Galerie-Raster mit Bildern, Ansichts-Umschalter,
+Sortierknöpfe) — vereinheitlichen. Was steht: `QuellenListe`
+(`beleg-liste/quellen-liste.tsx`) zeigt den gefilterten Bestand mit
+denselben Karten wie die Belege (`BelegKarte` ohne Marke und Anker,
+`Beleg.nummer` optional, `belegAusDokument`): Kopf mit Zähler und
+Zuklappen, darunter die Filter-Chips (D12o), Karten mit Titel, Kennzeile,
+Plakette, „Original ansehen"; ein Fühler lädt weitere Seiten nach (Knopf
+„Weitere laden" als Rückfall). `GalleryRoot` setzt sie im Story-Modus ohne
+Antwort statt `FilterContextBar` + Raster ein; Belegliste und Quellenliste
+öffnen Dokumente über denselben Hook (`useDokumentOeffnen`). Neue
+i18n-Schlüssel `story.quellen.more`/`.none` (5 Sprachen). Live: 606 Quellen,
+50 Karten der ersten Seite, keine Bilder. Belege: `quellen-liste.test.tsx`.
+Weg gefallen im Story-Modus: Umschalter Galerie/Tabelle/Graph und die
+Sortierknöpfe der rechten Spalte — die gibt es in „Inhalte" weiterhin.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
