@@ -12,8 +12,9 @@ lokale Sitzung holt den Live-Nachweis nach.
 
 ## 1. Wo der Code liegt (Vorsicht, gestapelte Merges)
 
-Die Kette D12a–D12e wurde am 02.10. von unten nach oben in die jeweilige
-Basis gemergt, nicht nach ccr durchgereicht:
+Stand am Ende der Cloud-Session (vor #336, siehe Nachtrag unten): Die Kette
+D12a–D12e wurde am 02.10. von unten nach oben in die jeweilige Basis
+gemergt, nicht nach ccr durchgereicht:
 
 - `ccr-72b5c0ce-oj24xu` (`685065a6`) hat nur **D12a** (#325).
 - `claude/story-d12e-belege-folgen-auswahl` (`bdcf7b2a`) hat **alles**: D8–D11b,
@@ -29,16 +30,20 @@ Basis gemergt, nicht nach ccr durchgereicht:
 | #334 | `claude/story-d12i-markenklick-mobil` | D12i | Markenklick auf Mobil öffnet das Belege-Blatt statt der Desktop-Schicht |
 | #335 | `claude/story-handover-lokal-d12` | — | dieses Handover |
 
-**Spitze der Kette: `claude/story-handover-lokal-d12`.** Sie enthält alles.
+**Nachtrag 03.10., nach der Cloud-Session:** Die PRs #331–#335 wurden
+jeweils in ihre Basis gemergt. Dadurch trug `claude/story-d12e-…` nur
+D12b–D12f, die Summe D12b–D12i plus beide Handover lag auf
+`claude/story-d12i-markenklick-mobil` (Merge von #335). Von dort ging
+**eine Sammel-PR #336 nach ccr** (`1347a313`). Seitdem gilt:
 
-Weg nach ccr (Owner-Entscheid): Entweder die PRs #331–#335 von oben nach
-unten mergen und dann **eine PR `claude/story-d12e-belege-folgen-auswahl` →
-ccr** (bringt D12b–D12i), oder die lokale Sitzung zweigt direkt von der
-Spitze ab und ccr wird am Ende in einem Zug nachgezogen.
+**Einzige Basis für die lokale Sitzung: `ccr-72b5c0ce-oj24xu`.** Sie
+enthält D8–D12i und beide Handover. Die Wellen-Branches oben sind
+Geschichte, nicht Arbeitsstand. Wo im Folgenden „Spitze" steht, ist ccr
+gemeint.
 
 ```bash
 git fetch origin
-git checkout claude/story-handover-lokal-d12
+git checkout ccr-72b5c0ce-oj24xu
 pnpm install
 ```
 
@@ -73,7 +78,7 @@ schreibt Chats und Query-Logs. Je Punkt: Aktion, Erwartung, wo nachschauen.
 | K | D8–D11b | Testplan 02.10. Schritte 1–21 noch einmal zügig | wie dort; bekannte Lücken Abschnitt 6 dort | — |
 
 Befunde: unter „Neu dazugekommen" im Plan (jüngster Stand-Abschnitt), Fixes
-als kleine PRs gegen die Spitze; Tests, tsc-Vergleich, Lint je PR.
+als kleine PRs gegen ccr; Tests, tsc-Vergleich, Lint je PR.
 
 ## 4. Danach (Testplan 02.10., Abschnitte 4 und 5)
 
@@ -105,14 +110,14 @@ als kleine PRs gegen die Spitze; Tests, tsc-Vergleich, Lint je PR.
    > Lies CLAUDE.md, AGENTS.md, docs/guides/verification-playbook.md,
    > docs/handover/2026-10-02-story-dreiteilung-lokaler-test.md und
    > docs/handover/2026-10-03-story-lokaler-test-d12.md. Wir sind auf
-   > `claude/story-handover-lokal-d12` (Spitze der Kette). Führe zuerst
+   > `ccr-72b5c0ce-oj24xu` (einzige Basis, enthält D8–D12i). Führe zuerst
    > Abschnitt 2 aus (Pre-Merge-Check, `pnpm build`, Tests, Lint,
    > tsc-Vergleich, Embed-Build) und melde das Ergebnis. Dann `pnpm dev` und
    > mit mir Abschnitt 3 Punkt A bis K durchgehen: Ich klicke, du liest
    > Dev-Log und Netzwerk mit (Playbook: frischer Server, eine Aktion, dann
    > messen) und hältst je Punkt „passt" oder Symptom + Vermutung fest.
-   > Befunde unter „Neu dazugekommen" im Plan, Fixes als kleine PRs gegen die
-   > Spitze mit Tests, tsc-Vergleich und Lint. Keine Änderung an master ohne
+   > Befunde unter „Neu dazugekommen" im Plan, Fixes als kleine PRs gegen
+   > ccr mit Tests, tsc-Vergleich und Lint. Keine Änderung an master ohne
    > meine Freigabe.
 
 6. **Kosten:** Gates und Live-Sitzung 3–6 USD; je Befund-Fix 0,5–1,5 USD.
