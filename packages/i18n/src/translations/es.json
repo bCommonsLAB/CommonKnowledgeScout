@@ -895,6 +895,10 @@
       "pageShort": "p. {page}",
       "openAtPage": "Abrir el original en la página {page}"
     },
+    "quellen": {
+      "more": "Cargar más",
+      "none": "Ningún documento coincide con este filtro."
+    },
     "chronik": {
       "title": "Crónica",
       "open": "Temas y preguntas"

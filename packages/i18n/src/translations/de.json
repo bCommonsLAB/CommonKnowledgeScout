@@ -942,6 +942,10 @@
       "pageShort": "S. {page}",
       "openAtPage": "Original auf Seite {page} öffnen"
     },
+    "quellen": {
+      "more": "Weitere laden",
+      "none": "Keine Dokumente zu diesem Filter."
+    },
     "chronik": {
       "title": "Chronik",
       "open": "Themen und Fragen"

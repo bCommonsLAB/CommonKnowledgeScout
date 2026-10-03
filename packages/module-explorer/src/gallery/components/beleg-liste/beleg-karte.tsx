@@ -7,7 +7,8 @@
  * der Block weg.
  *
  * D12k: Die Marke ist die Dokumentnummer (dieselbe wie im Antworttext), die
- * Karte traegt den Anker `beleg-<nummer>`. Textstellen mit Seite (D7) und
+ * Karte traegt den Anker `beleg-<nummer>`. Ohne Nummer (D12q, Bestand ohne
+ * Antwort) gibt es weder Marke noch Anker. Textstellen mit Seite (D7) und
  * der Kurztext sind Expertenwissen und liegen hinter einem Aufklapper
  * („stützt sich auf n Textstellen" bzw. „Mehr dazu"), zu beim Start.
  */
@@ -47,9 +48,11 @@ export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
     anzahl === 0 ? t('story.beleg.more') : anzahl === 1 ? t('story.beleg.passages.one') : t('story.beleg.passages.many', { count: anzahl })
 
   return (
-    <li className="rounded-lg border bg-card p-2.5" data-beleg={beleg.fileId} id={`beleg-${beleg.nummer}`}>
+    <li className="rounded-lg border bg-card p-2.5" data-beleg={beleg.fileId} id={beleg.nummer === undefined ? undefined : `beleg-${beleg.nummer}`}>
       <div className="flex items-start gap-2.5">
-        <Zitatmarke nummer={beleg.nummer} className="mt-0.5" aria-label={t('story.beleg.citedAs', { numbers: beleg.nummer })} />
+        {beleg.nummer !== undefined && (
+          <Zitatmarke nummer={beleg.nummer} className="mt-0.5" aria-label={t('story.beleg.citedAs', { numbers: beleg.nummer })} />
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium leading-snug">{beleg.titel}</h3>
           {kennzeile.length > 0 && <p className="truncate text-xs text-muted-foreground">{kennzeile.join(' · ')}</p>}
