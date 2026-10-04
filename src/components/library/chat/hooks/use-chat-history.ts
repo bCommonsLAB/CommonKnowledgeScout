@@ -3,14 +3,16 @@
  * 
  * Lädt historische Queries für einen Chat und konvertiert sie zu ChatMessages.
  * Filtert TOC-Queries heraus, da diese separat angezeigt werden.
+ *
+ * D6: Eine Anfrage je Sitzung (Liste mit allen Feldern, bis 100 Fragen)
+ * statt eine je Frage; die Umsetzung Liste → Nachrichten liegt als reine
+ * Funktion in `utils/verlauf-utils.ts`.
  */
 
 import { useEffect, useState, useRef } from 'react'
 import type { ChatMessage } from '../utils/chat-utils'
-import { createMessagesFromQueryLog } from '../utils/chat-utils'
 import { useClerkSessionHeaders } from '@/hooks/use-clerk-session-headers'
-import type { ChatResponse } from '@/types/chat-response'
-import type { TargetLanguage } from '@/lib/chat/constants'
+import { VERLAUF_LIMIT, verlaufZuNachrichten, type VerlaufEintrag } from '../utils/verlauf-utils'
 
 interface UseChatHistoryParams {
   libraryId: string
@@ -50,7 +52,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
 
       try {
         const res = await fetch(
-          `/api/chat/${encodeURIComponent(libraryId)}/queries?limit=20&chatId=${encodeURIComponent(activeChatId)}`,
+          `/api/chat/${encodeURIComponent(libraryId)}/queries?limit=${VERLAUF_LIMIT}&chatId=${encodeURIComponent(activeChatId)}`,
           {
             cache: 'no-store',
             headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
@@ -81,124 +83,21 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
         }
 
         // Parse JSON nur wenn Content-Type korrekt ist
-        let data: {
-          items?: Array<{
-            queryId: string
-            createdAt: string
-            question: string
-            mode: string
-            status: string
-          }>
-          error?: unknown
-        }
-        
+        let data: { items?: VerlaufEintrag[]; error?: unknown }
         try {
           data = (await res.json()) as typeof data
         } catch (jsonError) {
           console.error('[useChatHistory] JSON-Parsing-Fehler:', jsonError)
           throw new Error('Fehler beim Parsen der API-Antwort als JSON')
         }
-        
+
         if (!res.ok) {
-          throw new Error(
-            typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Historie'
-          )
+          throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Historie')
         }
 
         if (!cancelled && Array.isArray(data.items)) {
-          // Lade für jede historische Frage die vollständige Antwort
-          // Filtere TOC-Queries heraus - diese werden separat unter der Kontextbar angezeigt
-          const historyMessages: ChatMessage[] = []
-
-          for (const item of data.items) {
-            try {
-              const queryRes = await fetch(
-                `/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(item.queryId)}`,
-                {
-                  cache: 'no-store',
-                  headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
-                }
-              )
-              const queryData = (await queryRes.json()) as {
-                answer?: string
-                queryType?: string
-                references?: unknown[]
-                suggestedQuestions?: unknown[]
-                answerLength?: string
-                retriever?: string
-                targetLanguage?: string
-                character?: import('@/lib/chat/constants').Character[] // Array (kann leer sein)
-                accessPerspective?: import('@/lib/chat/constants').AccessPerspective[]
-                socialContext?: string
-                genderInclusive?: boolean
-                facetsSelected?: Record<string, unknown>
-                cacheParams?: {
-                  queryType?: string
-                  answerLength?: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'
-                  retriever?: 'chunk' | 'doc' | 'summary' | 'auto'
-                  targetLanguage?: TargetLanguage
-                  character?: import('@/lib/chat/constants').Character[]
-                  accessPerspective?: import('@/lib/chat/constants').AccessPerspective[]
-                  socialContext?: 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language'
-                  genderInclusive?: boolean
-                  facetsSelected?: Record<string, unknown>
-                }
-              }
-
-              if (queryRes.ok && typeof queryData?.answer === 'string') {
-                // Überspringe TOC-Queries - diese werden separat angezeigt
-                // Extrahiere queryType aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Feld (alte Einträge)
-                const queryType = queryData.cacheParams?.queryType ?? queryData.queryType
-                if (queryType === 'toc') {
-                  continue
-                }
-
-                // Filtere und typisiere Referenzen korrekt
-                const references: ChatResponse['references'] = Array.isArray(queryData.references)
-                  ? queryData.references.filter(
-                      (r): r is ChatResponse['references'][number] =>
-                        typeof r === 'object' &&
-                        r !== null &&
-                        'number' in r &&
-                        'fileId' in r &&
-                        'description' in r
-                    )
-                  : []
-                const suggestedQuestions: string[] = Array.isArray(queryData.suggestedQuestions)
-                  ? queryData.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-                  : []
-
-                // Verwende gemeinsame Funktion zur Erstellung der Messages
-                // Extrahiere Cache-Felder aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Felder (alte Einträge)
-                const msgs = createMessagesFromQueryLog({
-                  queryId: item.queryId,
-                  question: item.question,
-                  answer: queryData.answer,
-                  references: references.length > 0 ? references : undefined,
-                  suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,
-                  createdAt: item.createdAt,
-                  answerLength: (queryData.cacheParams?.answerLength ?? queryData.answerLength) as 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt' | undefined,
-                  retriever: (queryData.cacheParams?.retriever ?? queryData.retriever) as 'chunk' | 'doc' | 'summary' | 'auto' | undefined,
-                  targetLanguage: (queryData.cacheParams?.targetLanguage ?? queryData.targetLanguage) as TargetLanguage | undefined,
-                  character: queryData.cacheParams?.character ?? queryData.character,
-                  accessPerspective: queryData.cacheParams?.accessPerspective ?? queryData.accessPerspective,
-                  socialContext: (queryData.cacheParams?.socialContext ?? queryData.socialContext) as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,
-                  genderInclusive: queryData.cacheParams?.genderInclusive ?? queryData.genderInclusive,
-                  facetsSelected: (queryData.cacheParams?.facetsSelected ?? queryData.facetsSelected) as import('@ks/contracts').GalleryFilters | undefined,
-                  cacheParams: queryData.cacheParams, // Übergebe cacheParams für Extraktion in createMessagesFromQueryLog
-                })
-                historyMessages.push(...msgs)
-              }
-            } catch (queryError) {
-              // Einzelne Query konnte nicht geladen werden — ueberspringe und fahre mit naechster fort
-              console.warn('[useChatHistory] Fehler beim Laden einer Query:', queryError)
-            }
-          }
-
-          // Sortiere nach Datum (neueste zuerst) und kehre um für chronologische Reihenfolge
-          historyMessages.sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          )
+          // D6: Nachrichten direkt aus der Liste — keine Anfrage je Frage mehr.
+          const historyMessages = verlaufZuNachrichten(data.items)
 
           if (!cancelled) {
             // Merge mit vorhandenen Messages: Behalte neu hinzugefügte Messages (z.B. TOC-Queries)

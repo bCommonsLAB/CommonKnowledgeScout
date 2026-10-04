@@ -50,16 +50,28 @@ export function SpeicherGalleryNavigation({ initialParams, children }: SpeicherG
     const setzen = (next: URLSearchParams) => setParams(new URLSearchParams(next.toString()))
     return {
       params,
-      openDocument: (slug: string) => {
+      openDocument: (slug: string, opts?: { page?: number }) => {
         if (!slug) {
           // Wie in der App gemeldet, nicht verschluckt (document-navigation.ts).
           console.warn('[SpeicherGalleryNavigation] Kein Slug angegeben')
           return
         }
-        setParams((prev) => mit(prev, (next) => next.set('doc', slug)))
+        setParams((prev) =>
+          mit(prev, (next) => {
+            next.set('doc', slug)
+            // D7: Seite mitfuehren oder einen alten Wert loeschen
+            if (typeof opts?.page === 'number' && opts.page > 0) next.set('page', String(opts.page))
+            else next.delete('page')
+          }),
+        )
       },
       closeDocument: () => {
-        setParams((prev) => mit(prev, (next) => next.delete('doc')))
+        setParams((prev) =>
+          mit(prev, (next) => {
+            next.delete('doc')
+            next.delete('page')
+          }),
+        )
       },
       documentShareUrl: () => '',
       replaceParams: setzen,

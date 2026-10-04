@@ -94,14 +94,15 @@ describe('Galerie-Karte ausserhalb der Galerie', () => {
 /**
  * Seit M5 braucht auch `useGalleryData` den Gastgeber: Er holt sich dort die
  * Instanz (`useInstanz()`, Basis-URL). Ausserhalb des Pakets ruft ihn genau
- * eine Stelle — das Chat-Panel, das die Galerie als Story-Slot einhaengt.
- * Dieselbe Pruefung wie oben, damit #248 sich nicht ueber einen Hook wiederholt.
+ * eine Stelle — die Story-Mitte (D6c: `StoryRootMount`), die die Galerie als
+ * Story-Slot einhaengt. Dieselbe Pruefung wie oben, damit #248 sich nicht
+ * ueber einen Hook wiederholt.
  */
 const BEKANNTE_DATEN_NUTZER: Record<string, { anbieterIn: string; warum: string }> = {
-  'src/components/library/chat/chat-panel.tsx': {
+  'src/components/library/story/story-root-mount.tsx': {
     anbieterIn: 'src/app/library/gallery/client.tsx',
     warum:
-      'Das Chat-Panel haengt nur als storyPanel-Slot in der Galerie (LazyChatPanel), ' +
+      'Die Story-Mitte haengt nur als storyPanel-Slot in der Galerie (LazyStoryRoot), ' +
       'also innerhalb von GalleryAppProviders im Galerie-Montagepunkt.',
   },
 }
@@ -134,11 +135,11 @@ describe('Galerie-Daten ausserhalb der Galerie', () => {
     expect(behauptet, `Anbieter behauptet, aber nicht montiert:\n${behauptet.join('\n')}`).toEqual([])
   })
 
-  it('das Chat-Panel wird nirgends sonst montiert', () => {
-    // Die Eintragung oben traegt nur, solange der Chat allein als Galerie-Slot haengt.
+  it('die Story-Mitte wird nirgends sonst montiert', () => {
+    // Die Eintragung oben traegt nur, solange die Story-Mitte allein als Galerie-Slot haengt.
     const montagen = quellen
-      .filter((f) => !f.startsWith('src/components/library/chat/'))
-      .filter((f) => /['"]@\/components\/library\/chat\/chat-panel['"]/.test(readFileSync(join(REPO_ROOT, f), 'utf-8')))
+      .filter((f) => !f.startsWith('src/components/library/story/'))
+      .filter((f) => /['"]@\/components\/library\/story\/story-root-mount['"]/.test(readFileSync(join(REPO_ROOT, f), 'utf-8')))
     expect(montagen).toEqual(['src/app/library/gallery/client.tsx'])
   })
 })

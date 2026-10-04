@@ -8,7 +8,7 @@
  * @module chat
  * 
  * @exports
- * - chatAnswerSchemaJson: JSON Schema für Chat-Antworten (answer, suggestedQuestions, usedReferences)
+ * - chatAnswerSchemaJson: JSON Schema für Chat-Antworten (answer, suggestedQuestions, usedReferences, shortTitle)
  * - chatAnswerZodSchema: Zod Schema für Validierung
  * - storyTopicsSchemaJson: JSON Schema für TOC/StoryTopicsData
  * - storyTopicsZodSchema: Zod Schema für Validierung
@@ -36,6 +36,12 @@ export const chatAnswerZodSchema = z.object({
    * Da wir downstream ohnehin ein Fallback haben, erlauben wir missing und defaulten auf [].
    */
   usedReferences: z.array(z.number().int().positive()).optional().default([]),
+  /**
+   * D5: Kurztitel der Frage (zwei bis vier Worte, Antwortsprache) aus
+   * derselben Antwort — optional, damit ein Modell ohne das Feld nicht die
+   * ganze Antwort verwirft; der Orchestrator bereinigt ihn (`short-title.ts`).
+   */
+  shortTitle: z.string().optional(),
 })
 
 /**
@@ -71,6 +77,10 @@ export const chatAnswerSchemaJson = JSON.stringify({
         minimum: 1,
       },
       description: 'Array of numbers containing the reference numbers of all sources actually used in the answer',
+    },
+    shortTitle: {
+      type: 'string',
+      description: 'Short title of the question in two to four words, in the same language as the answer (no quotation marks, no trailing punctuation)',
     },
   },
   additionalProperties: false,

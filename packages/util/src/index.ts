@@ -50,3 +50,7 @@ export { getFileType } from './file-type'
 
 // Guards fuer eingebettete Video-/Audio-Player (Buch-Ansicht im Paket, Ereignis-Ansicht in der App).
 export { isSafeVideoIframeSrc, isSafeAudioIframeSrc, isDirectAudioFileUrl } from './safe-media-embed'
+
+// Zitatmarken des Story-Modus (D7): Kreiszahl je Beleg, im Text wie an der
+// Karte — reine Zeichenketten-Arbeit, von Chat (App) und Galerie (Paket) genutzt.
+export { dokumentNummern, zitatmarke, zitatmarkenImText, type NummerFuerMarke, type ReferenzNummer } from './zitatmarke'

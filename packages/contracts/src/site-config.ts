@@ -20,6 +20,7 @@
 /** Aktivierbare Module — bestimmt Client-Chunks UND freigeschaltete API-Handler. */
 export type SiteModule =
   | 'explorer'
+  | 'story'
   | 'archive'
   | 'agent-view'
   | 'creation'

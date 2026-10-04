@@ -1,0 +1,216 @@
+// @vitest-environment jsdom
+
+/**
+ * `StoryRoot` (D6b): holt die Themenuebersicht ueber den Stream der Instanz,
+ * zeigt Themen und Themenseite, uebernimmt eine Frage in die Eingabe, sendet
+ * sie und zeigt die Konversation allein in der Mitte — mit Belegen an den
+ * Gastgeber und der Sitzung an die Chronik-Atome. Alles ohne Clerk, ohne
+ * Next, ohne nacktes `fetch`.
+ */
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Provider, createStore } from 'jotai'
+import { createInstanceApi } from '@ks/api-client'
+import { STORY_TOC_QUESTION, STORY_UEBERSICHT_ZEIGEN_EVENT } from '@ks/contracts'
+import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom, storySitzungenStandAtom, type Perspektive } from '@ks/module-story/react'
+
+vi.mock('@ks/i18n/react', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, string | number>) => (params ? `${key}:${Object.values(params).join(',')}` : key),
+    locale: 'de',
+  }),
+}))
+
+const perspektive: Perspektive = { targetLanguage: 'de', character: [], accessPerspective: [], socialContext: 'general', genderInclusive: true, llmModel: 'm' }
+const gliederung = {
+  id: 'lib', title: 'Klima', tagline: '', intro: '',
+  topics: [{ id: 'verkehr', title: 'Verkehr', questions: [{ id: 'q1', text: 'Welche Massnahmen gibt es zum Verkehr?' }] }],
+}
+
+function sse(schritte: unknown[]) {
+  const text = schritte.map((s) => `data: ${JSON.stringify(s)}\n`).join('')
+  let gelesen = false
+  return {
+    ok: true, status: 200, statusText: 'OK',
+    body: { getReader: () => ({ read: async () => (gelesen ? { done: true, value: undefined } : ((gelesen = true), { done: false, value: new TextEncoder().encode(text) })) }) },
+  }
+}
+
+const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+  if (url.includes('/queries?')) return { ok: true, status: 200, json: async () => ({ items: [] }) }
+  if (init?.method === 'DELETE') return { ok: true, status: 200, json: async () => ({}) }
+  if (url.includes('/stream?')) {
+    const body = JSON.parse(String(init?.body)) as { message: string }
+    if (body.message === STORY_TOC_QUESTION) {
+      return sse([{ type: 'complete', answer: 'x', references: [], suggestedQuestions: [], queryId: 'toc', chatId: 'c1', storyTopicsData: gliederung }])
+    }
+    return sse([
+      { type: 'llm_start', model: 'm' },
+      { type: 'complete', answer: 'Es gibt Radwege [1].', references: [{ number: 1, fileId: 'f', fileName: 'Radwege.md', description: 'd', passages: [{ excerpt: 'r' }] }], suggestedQuestions: ['Wie viele?'], queryId: 'q9', chatId: 'c1', shortTitle: 'Radwege' }
+    ])
+  }
+  throw new Error(`Unerwarteter Request: ${url}`)
+})
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', fetchMock)
+  fetchMock.mockClear()
+  localStorage.clear()
+})
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+function montieren(dokumente = 12) {
+  const store = createStore()
+  const onBelege = vi.fn()
+  render(
+    <Provider store={store}>
+      <StoryRoot
+        libraryId="lib"
+        instanz={createInstanceApi({ baseUrl: 'https://ks.example' })}
+        viewer={{ isSignedIn: false }}
+        perspektive={perspektive}
+        kopf={{ themenTitel: 'Themen' }}
+        filterAnzeige={<span data-testid="filter-chips">gefiltert: Energie</span>}
+        dokumente={dokumente}
+        eingabe={{ placeholder: 'Frag mich', maxZeichen: 500 }}
+        onBelege={onBelege}
+        antwortFuss={() => <span data-testid="fuss">KI</span>}
+        uebersichtFuss={({ queryId }) => <span data-testid="uebersicht-fuss">{queryId ?? '—'}</span>}
+        loeschenErlaubt
+      />
+    </Provider>,
+  )
+  return { store, onBelege }
+}
+
+describe('StoryRoot', () => {
+  it('D12o: der Filter-Slot steht in der Uebersicht und auf der Themenseite neben den Kennzahlen', async () => {
+    montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(screen.getByTestId('filter-chips').textContent).toBe('gefiltert: Energie')
+    fireEvent.click(screen.getByText('Verkehr'))
+    expect(screen.getByTestId('filter-chips')).toBeTruthy()
+  })
+
+  it('holt die Themenuebersicht ueber die Instanz und zeigt die Themen; ohne Dokumente nicht', async () => {
+    const { store } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    const tocCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/stream?'))
+    expect(String(tocCall?.[0])).toMatch(/^https:\/\/ks\.example\/api\/chat\/lib\/stream\?.*llmModel=m/)
+    expect(new Headers(tocCall?.[1]?.headers).get('X-Session-ID')).toMatch(/^anon-/)
+    expect(store.get(storyGliederungAtom)).toEqual(gliederung)
+    expect(screen.getByTestId('uebersicht-fuss').textContent).toBe('toc')
+    // Nur einmal geholt, auch nach weiteren Renders.
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))).toHaveLength(1)
+  })
+
+  it('ohne Dokumente keine Anfrage', () => {
+    const { store } = montieren(0)
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))).toHaveLength(0)
+    // D12d: ohne Dokumente auch keine Aktion „neu berechnen" in der Chronik.
+    expect(store.get(storyUebersichtAktionAtom)).toBeNull()
+  })
+
+  it('D12d: „neu berechnen" steht, sobald eine Uebersicht moeglich ist — auch waehrend der Neuberechnung', async () => {
+    const { store } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    const aktion = store.get(storyUebersichtAktionAtom)
+    expect(aktion).toMatchObject({ laeuft: false, gesperrt: false })
+    act(() => aktion?.neuBerechnen())
+    // Die Gliederung ist waehrend der Neuberechnung weg, die Aktion bleibt (mit Spinner).
+    expect(store.get(storyGliederungAtom)).toBeNull()
+    expect(store.get(storyUebersichtAktionAtom)).toMatchObject({ laeuft: true })
+    await waitFor(() => expect(store.get(storyGliederungAtom)).toEqual(gliederung))
+    expect(store.get(storyUebersichtAktionAtom)).toMatchObject({ laeuft: false, gesperrt: false })
+    const streamCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/stream?'))
+    expect(streamCalls).toHaveLength(2)
+    expect(JSON.parse(String(streamCalls[1][1]?.body)).skipQueryCache).toBe(true)
+  })
+
+  it('Thema → Frage uebernehmen → senden: Konversation allein in der Mitte, Belege an den Gastgeber, Sitzung in den Atomen', async () => {
+    const { store, onBelege } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    fireEvent.click(screen.getByText('Verkehr'))
+    expect(store.get(storyAuswahlAtom)).toEqual({ art: 'thema', themaId: 'verkehr' })
+    fireEvent.click(screen.getByText('Welche Massnahmen gibt es zum Verkehr?'))
+    const feld = screen.getByPlaceholderText('Frag mich') as HTMLTextAreaElement
+    expect(feld.value).toBe('Welche Massnahmen gibt es zum Verkehr?')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
+    })
+    // Die Marke „1" ist ein eigener Anker im Absatz (D12k: Zahl statt Kreiszahl) — darum ueber den Absatztext pruefen.
+    await waitFor(() => expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'Es gibt Radwege 1.')).toBeTruthy())
+    expect(screen.queryByText('Verkehr')).toBeNull()
+    expect(screen.getByTestId('fuss')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Wie viele?' })).toBeTruthy()
+    expect(onBelege).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9')
+    const auswahl = store.get(storyAuswahlAtom)
+    expect(auswahl).toMatchObject({ art: 'konversation', queryId: 'q9', themaId: 'verkehr' })
+    expect(store.get(storyAktiveSitzungAtom)).toMatchObject({ chatId: 'c1', fragen: [expect.objectContaining({ queryId: 'q9', kurztitel: 'Radwege', offen: false })] })
+    expect(localStorage.getItem('chat-activeChatId-lib')).toBe('c1')
+    // D12l: Der Gastgeber bittet um die Uebersicht (Katalog-Knopf) — Themen zurueck, Belege leer.
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STORY_UEBERSICHT_ZEIGEN_EVENT))
+    })
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
+    expect(onBelege).toHaveBeenLastCalledWith([], null)
+  })
+
+  it('D12e: die Belege folgen der gezeigten Antwort — Uebersicht leer, Konversation wieder voll', async () => {
+    const { store, onBelege } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    // Einstieg (Uebersicht): keine Antwort gezeigt → leere Belege.
+    expect(onBelege).toHaveBeenLastCalledWith([], null)
+    fireEvent.click(screen.getByText('Verkehr'))
+    fireEvent.click(screen.getByText('Welche Massnahmen gibt es zum Verkehr?'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
+    })
+    await waitFor(() => expect(onBelege).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9'))
+    // Zurueck zur Uebersicht (Chronik, Zurueck-Knopf): leer. Wieder die Konversation: die Belege dieser Antwort.
+    act(() => store.set(storyAuswahlAtom, { art: 'uebersicht' }))
+    await waitFor(() => expect(onBelege).toHaveBeenLastCalledWith([], null))
+    const frageId = store.get(storyAktiveSitzungAtom).fragen[0]?.frageId
+    act(() => store.set(storyAuswahlAtom, { art: 'konversation', frageId: frageId ?? 'question-1', queryId: 'q9' }))
+    await waitFor(() => expect(onBelege).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ fileId: 'f' })]), 'q9'))
+  })
+
+  it('D6c: Frage loeschen fragt nach, loescht ueber die Instanz und kehrt zur Uebersicht zurueck; „neu stellen" fuellt die Eingabe', async () => {
+    const { store } = montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    fireEvent.click(screen.getByText('Verkehr'))
+    fireEvent.click(screen.getByText('Welche Massnahmen gibt es zum Verkehr?'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'story.konversation.delete' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'story.konversation.again' }))
+    expect((screen.getByPlaceholderText('Frag mich') as HTMLTextAreaElement).value).toBe('Welche Massnahmen gibt es zum Verkehr?')
+
+    vi.stubGlobal('confirm', vi.fn(() => false))
+    fireEvent.click(screen.getByRole('button', { name: 'story.konversation.delete' }))
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'story.konversation.delete' }))
+    })
+    const del = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')
+    expect(String(del?.[0])).toBe('https://ks.example/api/chat/lib/queries/q9')
+    expect(new Headers(del?.[1]?.headers).get('X-Session-ID')).toMatch(/^anon-/)
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
+    expect(store.get(storyAktiveSitzungAtom).fragen).toEqual([])
+    // D12f: Es war die letzte Frage — die leere Sitzung wird mitgeloescht, die Mitte beginnt eine neue.
+    const dels = fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE').map(([url]) => String(url))
+    expect(dels).toEqual(['https://ks.example/api/chat/lib/queries/q9', 'https://ks.example/api/chat/lib/chats/c1'])
+    expect(store.get(storyAktiveSitzungAtom).chatId).toBeNull()
+    expect(localStorage.getItem('chat-activeChatId-lib')).toBeNull()
+    expect(store.get(storySitzungenStandAtom)).toBe(1)
+  })
+})

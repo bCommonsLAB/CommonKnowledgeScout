@@ -9,6 +9,8 @@ export interface ChatMessage {
   id: string
   type: 'question' | 'answer'
   content: string
+  /** D5: Kurztitel vom Sprachmodell an der Frage-Nachricht; fehlt → Heuristik in der Chronik. */
+  shortTitle?: string
   references?: ChatResponse['references']
   suggestedQuestions?: string[]
   queryId?: string
@@ -40,6 +42,7 @@ export interface ConversationPair {
 export function createMessagesFromQueryLog(queryLog: {
   queryId: string
   question: string
+  shortTitle?: string
   answer?: string
   references?: ChatResponse['references']
   suggestedQuestions?: string[]
@@ -83,6 +86,7 @@ export function createMessagesFromQueryLog(queryLog: {
     id: `${queryLog.queryId}-question`,
     type: 'question',
     content: queryLog.question,
+    ...(queryLog.shortTitle ? { shortTitle: queryLog.shortTitle } : {}),
     createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
     queryId: queryLog.queryId,
     answerLength,

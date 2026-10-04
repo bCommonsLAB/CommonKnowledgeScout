@@ -32,6 +32,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getLocale } from '@ks/i18n'
 import { startQueryLog } from '@/lib/logging/query-logger'
 import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
+import { eigenesLogFuerCacheTreffer } from '@/lib/chat/cache-treffer-log'
 import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import { appendRetrievalStep } from '@/lib/logging/query-logger'
@@ -43,7 +44,7 @@ import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { applyDraftExclusionToChunkFilter } from '@/lib/chat/publication-filter'
 import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
-import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
+import { createChat, touchChat, getChatById, updateChatTitle } from '@/lib/db/chats-repo'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,
@@ -258,12 +259,22 @@ export async function POST(
         const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
         
         // Schritt 1: Chat-Verwaltung
-        let activeChatId: string
-        if (!chatId) {
+        // D8 (Sitzungsstart): Die Themenuebersicht eroeffnet KEINE Sitzung und
+        // haengt an keiner — ihr Query-Log steht ohne `chatId`. Erst die erste
+        // Frage der Person legt den Chat an (Plan `story-dreiteilung-fragenchronik`,
+        // Figma Schritt 1: „Deine erste Frage eroeffnet eine neue Sitzung").
+        let activeChatId: string | undefined
+        // D6: Hat diese Frage die Sitzung neu angelegt, wird nach der Antwort der
+        // Kurztitel des Sprachmodells (D5) zum Sitzungstitel.
+        let sitzungstitelAusDieserFrage = false
+        if (isTOCQuery) {
+          activeChatId = undefined
+        } else if (!chatId) {
           // Chat-Title direkt aus Frage generieren (erste 60 Zeichen)
           const chatTitle = message.slice(0, 60)
           // Verwende userEmail oder sessionId für Chat-Erstellung
           activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
+          sitzungstitelAusDieserFrage = true
         } else {
           // WICHTIG: Für anonyme Nutzer muss sessionId vorhanden sein, sonst kann Chat nicht gefunden werden
           const userEmailOrSessionId = userEmail || sessionId
@@ -277,6 +288,7 @@ export async function POST(
             // Erstelle neuen Chat statt Fehler
             const chatTitle = message.slice(0, 60)
             activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
+            sitzungstitelAusDieserFrage = true
           } else {
             const existingChat = await getChatById(chatId, userEmailOrSessionId)
             if (!existingChat) {
@@ -290,6 +302,7 @@ export async function POST(
               // Erstelle neuen Chat statt Fehler
               const chatTitle = message.slice(0, 60)
               activeChatId = await createChat(libraryId, userEmailOrSessionId, chatTitle)
+              sitzungstitelAusDieserFrage = true
             } else {
               // Chat gefunden, verwende ihn
               activeChatId = chatId
@@ -350,6 +363,13 @@ export async function POST(
           effectiveChatConfigTargetLanguage: effectiveChatConfig.targetLanguage,
           uiLocale,
         })
+
+        // Konvertiere 'global' targetLanguage zur tatsächlichen Sprache für Query-Log
+        // WICHTIG: Query-Log muss die tatsächliche Sprache enthalten, nicht 'global'
+        // (vor dem Cache-Check, weil auch ein Cache-Treffer ein eigenes Log bekommt, D12b)
+        const effectiveTargetLanguageForLog = effectiveChatConfig.targetLanguage === 'global' && uiLocale
+          ? resolveTargetLanguage('global', uiLocale)
+          : effectiveChatConfig.targetLanguage
 
         // Schritt 1.5: Cache-Check für bestehende Query
         // Prüfe, ob bereits eine identische Query mit Antwort existiert
@@ -462,24 +482,8 @@ export async function POST(
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
           if (cachedQuery && ((cachedQuery.answer && cachedQuery.answer.trim().length > 0) || cachedQuery.storyTopicsData)) {
-            // Verwende die queryId aus dem Cache (falls vorhanden) oder erstelle neue
-            const finalQueryId = cachedQuery.queryId || `cached-${Date.now()}`
-            
-            // Wenn queryId noch nicht gesetzt wurde, setze sie für später
-            queryId = finalQueryId
-            
-            // Sende Cache-Check-Complete-Step (gefunden) mit Debug-Informationen
-            send({
-              type: 'cache_check_complete',
-              found: true,
-              queryId: finalQueryId,
-              cacheHash: cacheHashForLog,
-              documentCount,
-              cachedQueryId: cachedQuery.queryId,
-            })
-            
             // Sammle Cache-Check-Steps für Logs (auch wenn Cache gefunden wurde)
-            const cacheSteps: ChatProcessingStep[] = [
+            const cacheSchritte = (fuerQueryId: string): ChatProcessingStep[] => [
               {
                 type: 'cache_check',
                 parameters: {
@@ -496,12 +500,51 @@ export async function POST(
               {
                 type: 'cache_check_complete',
                 found: true,
-                queryId: finalQueryId,
+                queryId: fuerQueryId,
                 cacheHash: cacheHashForLog,
                 documentCount,
                 cachedQueryId: cachedQuery.queryId,
               },
             ]
+
+            // Kennung fuer den Client: Die Themenuebersicht nimmt die des Treffers
+            // (kein eigenes Log, D8; fuer alle lesbar, D12a). Eine Frage bekommt ein
+            // eigenes Log in der Sitzung der Person (D12b) — sonst fehlt sie nach dem
+            // Neuladen im Verlauf, und `?q=`, Konfig-Anzeige, Protokoll und Debug
+            // laufen auf die fremde Kennung (404).
+            let finalQueryId = cachedQuery.queryId || `cached-${Date.now()}`
+            if (!isTOCQuery) {
+              finalQueryId = await eigenesLogFuerCacheTreffer({
+                rahmen: {
+                  libraryId,
+                  chatId: activeChatId,
+                  userEmail: userEmail || undefined,
+                  sessionId: sessionId || undefined,
+                  question: message,
+                  mode: retrieverForCache === 'summary' ? 'summaries' : 'chunks',
+                  answerLength,
+                  retriever: retrieverForCache === 'summary' ? 'summary' : 'chunk',
+                  targetLanguage: effectiveTargetLanguageForLog,
+                  character: effectiveChatConfig.character,
+                  accessPerspective: effectiveChatConfig.accessPerspective,
+                  socialContext: effectiveChatConfig.socialContext,
+                  genderInclusive: effectiveChatConfig.genderInclusive,
+                  facetsSelected: facetsSelectedForCache,
+                  filtersNormalized: { ...built.normalized },
+                  documentCount,
+                  llmModel: llmModelForCache,
+                },
+                treffer: cachedQuery,
+                cacheHash: cacheHashForLog,
+                documentCount,
+                protokoll: cacheSchritte,
+              })
+            }
+            queryId = finalQueryId
+            const cacheSteps = cacheSchritte(finalQueryId)
+
+            // Sende Cache-Check-Complete-Step (gefunden) mit Debug-Informationen
+            send(cacheSteps[1])
             
             // Speichere Cache-Check-Step auch im retrieval Array (für Debug-Zwecke)
             if (cachedQuery.queryId) {
@@ -529,7 +572,12 @@ export async function POST(
               references: cachedQuery.references || [],
               suggestedQuestions: cachedQuery.suggestedQuestions || [],
               queryId: finalQueryId,
-              chatId: activeChatId,
+              ...(activeChatId ? { chatId: activeChatId } : {}),
+              // D5: Kurztitel aus dem Log; alte Eintraege haben keinen.
+              ...(cachedQuery.shortTitle ? { shortTitle: cachedQuery.shortTitle } : {}),
+            }
+            if (activeChatId && sitzungstitelAusDieserFrage && cachedQuery.shortTitle) {
+              await updateChatTitle(activeChatId, cachedQuery.shortTitle)
             }
             // Setze storyTopicsData explizit, auch wenn es undefined ist (damit Frontend es erkennt)
             if (cachedQuery.storyTopicsData !== undefined && cachedQuery.storyTopicsData !== null) {
@@ -661,12 +709,6 @@ export async function POST(
         // Schritt 3: Query-Log starten
         // Prüfe, ob es eine TOC-Frage ist (bereits oben definiert)
         
-        // Konvertiere 'global' targetLanguage zur tatsächlichen Sprache für Query-Log
-        // WICHTIG: Query-Log muss die tatsächliche Sprache enthalten, nicht 'global'
-        const effectiveTargetLanguageForLog = effectiveChatConfig.targetLanguage === 'global' && uiLocale
-          ? resolveTargetLanguage('global', uiLocale)
-          : effectiveChatConfig.targetLanguage
-        
         queryId = await startQueryLog({
           libraryId,
           chatId: activeChatId,
@@ -730,7 +772,7 @@ export async function POST(
         }
 
         // uiLocale wurde bereits oben definiert, verwende es hier
-        const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({
+        const { answer, references, suggestedQuestions, storyTopicsData, shortTitle } = await runChatOrchestrated({
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           libraryId,
           userEmail: userEmail,
@@ -760,6 +802,11 @@ export async function POST(
           },
         })
 
+        // D6: Kurztitel des Sprachmodells als Sitzungstitel (nur wenn diese Frage die Sitzung benannt hat)
+        if (activeChatId && sitzungstitelAusDieserFrage && shortTitle) {
+          await updateChatTitle(activeChatId, shortTitle)
+        }
+
         // Schritt 10: Complete
         const completeStep: ChatProcessingStep = {
           type: 'complete',
@@ -767,8 +814,9 @@ export async function POST(
           references,
           suggestedQuestions,
           queryId,
-          chatId: activeChatId,
+          ...(activeChatId ? { chatId: activeChatId } : {}),
           ...(storyTopicsData && { storyTopicsData }),
+          ...(shortTitle ? { shortTitle } : {}),
         }
         
         // Füge complete-Step zu den gesammelten Steps hinzu
@@ -794,7 +842,13 @@ export async function POST(
         }
       } catch (error) {
         console.error('[api/chat/stream] Error:', error)
-        const errorStep: ChatProcessingStep = { type: 'error', error: error instanceof Error ? error.message : String(error) }
+        // D10d: Kennung fuer den Klartext der Oberflaeche; die technische Meldung bleibt als Detail.
+        const dienstWeg = error instanceof Error && error.name === 'SecretaryServiceError' && error.message.includes('nicht erreichbar')
+        const errorStep: ChatProcessingStep = {
+          type: 'error',
+          error: error instanceof Error ? error.message : String(error),
+          ...(dienstWeg ? { code: 'dienst_nicht_erreichbar' as const } : {}),
+        }
         
         // Query-Log finalisieren: bisher wurden nur processingLogs geschrieben — ohne status/error
         // blieb der Eintrag dauerhaft "pending" (z. B. bei SchemaValidationError nach dem LLM).

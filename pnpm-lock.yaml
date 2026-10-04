@@ -35,6 +35,9 @@ importers:
       '@ks/module-explorer':
         specifier: workspace:*
         version: link:packages/module-explorer
+      '@ks/module-story':
+        specifier: workspace:*
+        version: link:packages/module-story
       '@ks/shell':
         specifier: workspace:*
         version: link:packages/shell
@@ -421,12 +424,18 @@ importers:
       '@ks/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@ks/i18n':
         specifier: workspace:*
         version: link:../i18n
       '@ks/module-explorer':
         specifier: workspace:*
         version: link:../module-explorer
+      '@ks/module-story':
+        specifier: workspace:*
+        version: link:../module-story
       '@ks/ui':
         specifier: workspace:*
         version: link:../ui
@@ -490,6 +499,39 @@ importers:
       remark-gfm:
         specifier: ^4.0.0
         version: 4.0.1
+
+  packages/module-story:
+    dependencies:
+      '@ks/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ks/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@ks/shell':
+        specifier: workspace:*
+        version: link:../shell
+      '@ks/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@ks/util':
+        specifier: workspace:*
+        version: link:../util
+      '@ks/viewers':
+        specifier: workspace:*
+        version: link:../viewers
+      jotai:
+        specifier: ^2.11.0
+        version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
+      lucide-react:
+        specifier: ^0.312.0
+        version: 0.312.0(react@18.2.0)
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
 
   packages/shell:
     dependencies:
@@ -771,6 +813,7 @@ packages:
   '@clerk/clerk-react@5.31.9':
     resolution: {integrity: sha512-jP+qygYcChVDKM3pMtChOGNrGV4QAOYQvVyiitzQu5xgyVsFN3AnSdIj0u73lxOLZubfv9cOHjFwc41s31f1pA==}
     engines: {node: '>=18.17.0'}
+    deprecated: 'This package is no longer supported. Please use @clerk/react instead. See the upgrade guide for more info: https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3'
     peerDependencies:
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-0
       react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-0
@@ -822,6 +865,7 @@ packages:
   '@clerk/types@4.60.0':
     resolution: {integrity: sha512-60u/Z3VD0lgepsySUPyFM1MV5cwhMwouN63na5g9+qm3PpaTE2kN4DeW9Nq6t1YB0TFpVEKIb1r8U6EOWPa01A==}
     engines: {node: '>=18.17.0'}
+    deprecated: 'This package is no longer supported. Please import types from @clerk/shared/types instead. See the upgrade guide for more info: https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3'
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -4641,6 +4685,7 @@ packages:
   eslint@9.28.0:
     resolution: {integrity: sha512-ocgh41VhRlf9+fVpe7QKzwLj9c92fDiqOj8Y3Sd4/ZmVA4Btx4PlUYPq4pp9JDyupkf1upbEXecxL2mwNV7jPQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -7448,6 +7493,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0

@@ -15,6 +15,8 @@ export default {
     files: [
       './src/**/*.{ts,tsx}',
       '../module-explorer/src/**/*.{ts,tsx}',
+      // D6b: der Story-Modus im Embed
+      '../module-story/src/**/*.{ts,tsx}',
       '../ui/src/**/*.{ts,tsx}',
       // md-renderer setzt Tailwind-Klassen in das gerenderte HTML.
       '../viewers/src/**/*.{ts,tsx}',

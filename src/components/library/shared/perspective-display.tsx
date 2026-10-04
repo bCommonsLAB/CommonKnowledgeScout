@@ -7,6 +7,7 @@ import {
   CHARACTER_LABELS,
   ACCESS_PERSPECTIVE_LABELS,
   SOCIAL_CONTEXT_LABELS,
+  resolveTargetLanguage,
   type Character,
   type AccessPerspective,
   type AnswerLength,
@@ -16,8 +17,7 @@ import {
 } from '@/lib/chat/constants'
 import { useTranslation } from '@ks/i18n/react'
 import { useStoryContext } from '@/hooks/use-story-context'
-import { Info } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
+import { Badge } from '@ks/ui'
 
 interface PerspectiveDisplayProps {
   /** Variante der Anzeige: 'header' zeigt "Deine Perspektive:" mit Labels, 'inline' zeigt kompakt mit · */
@@ -58,13 +58,16 @@ interface PerspectiveDisplayProps {
   llmModel?: string
   /** Padding links (für Header-Variante, um mit Buttons ausgerichtet zu sein) */
   paddingLeft?: string
+  /** D9: Klick auf eine Plakette (Header-Variante), z. B. zur Perspektive-Seite. Ohne Rueckruf sind die Plaketten passiv. */
+  onClick?: () => void
 }
 
 /**
  * Gemeinsame Komponente zur Anzeige der Perspektive/Konfiguration
  * 
  * Unterstützt zwei Varianten:
- * - 'header': Zeigt "Deine Perspektive: Sprache: ..., Interessenprofil: ..." (wie in StoryHeader)
+ * - 'header': eine Plakette je Wert (Sprache, Interessenprofil, Zugang, Sprachstil; D9, Figma Schritt 1),
+ *   anklickbar, wenn `onClick` gesetzt ist — das Modell steht nicht im Kopf, sondern in der Konfig-Anzeige der Antwort
  * - 'inline': Zeigt "Antwortlänge: ... · Methode: ... · Sprache: ..." (wie in ChatConfigDisplay)
  * 
  * Verwendet useStoryContext als Fallback für Parameter, die nicht explizit übergeben werden.
@@ -81,8 +84,9 @@ export function PerspectiveDisplay({
   socialContext: socialContextProp,
   llmModel: llmModelProp,
   paddingLeft,
+  onClick,
 }: PerspectiveDisplayProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const {
     targetLanguage: targetLanguageContext,
     character: characterContext,
@@ -98,18 +102,17 @@ export function PerspectiveDisplay({
   // Verwende Props falls vorhanden, sonst Context als Fallback
   // WICHTIG: Bei 'inline'-Variante (für Antworten) KEIN Fallback auf Context,
   // da die Parameter aus dem QueryLog kommen müssen und unterschiedlich sein können
-  const targetLanguage = variant === 'header' 
-    ? (targetLanguageProp ?? targetLanguageContext)
-    : targetLanguageProp
-  const character = variant === 'header'
-    ? (characterProp ?? characterContext)
-    : characterProp
-  const accessPerspective = variant === 'header'
-    ? (accessPerspectiveProp ?? accessPerspectiveContext)
-    : accessPerspectiveProp
-  const socialContext = variant === 'header'
-    ? (socialContextProp ?? socialContextContext)
-    : socialContextProp
+  // D10b (Owner 02.10., Platz ist wertvoll): Im Kopf nur Gesetztes — „undefined"
+  // (nicht spezifiziert) faellt weg, die Sprache nur, wenn sie von der
+  // Oberflaechensprache abweicht. Die Inline-Variante zeigt weiter alles aus dem Log.
+  const ohneUnspezifiziert = <T extends string>(werte: T[] | undefined): T[] | undefined => werte?.filter((w) => w !== 'undefined')
+  const sprache = variant === 'header' ? (targetLanguageProp ?? targetLanguageContext) : targetLanguageProp
+  const targetLanguage =
+    variant === 'header' && sprache && resolveTargetLanguage(sprache, locale) === resolveTargetLanguage('global', locale) ? undefined : sprache
+  const character = variant === 'header' ? ohneUnspezifiziert(characterProp ?? characterContext) : characterProp
+  const accessPerspective = variant === 'header' ? ohneUnspezifiziert(accessPerspectiveProp ?? accessPerspectiveContext) : accessPerspectiveProp
+  const socialContextRoh = variant === 'header' ? (socialContextProp ?? socialContextContext) : socialContextProp
+  const socialContext = variant === 'header' && socialContextRoh === 'undefined' ? undefined : socialContextRoh
   const llmModelResolved =
     variant === 'header'
       ? (llmModelProp ?? (llmModelContext?.trim() ? llmModelContext : undefined))
@@ -186,14 +189,6 @@ export function PerspectiveDisplay({
       })
     }
 
-    // Header: Modell nach Sprachstil (Transparenz)
-    if (variant === 'header' && llmModelResolved) {
-      result.push({
-        label: t('configDisplay.llmModel'),
-        value: llmModelResolved,
-      })
-    }
-
     return result
   }, [
     variant,
@@ -217,42 +212,34 @@ export function PerspectiveDisplay({
     return null
   }
 
-  // Header-Variante: Info-Icon mit Tooltip
+  // Header-Variante (D9): eine Plakette je Wert, wie im Klickmodell (Figma Schritt 1)
   if (variant === 'header') {
     return (
-      <div 
-        className="flex items-center gap-2 min-w-0"
+      <div
+        className="flex min-w-0 flex-wrap items-center gap-2"
         style={paddingLeft ? { paddingLeft } : undefined}
+        aria-label={t('gallery.storyMode.perspective.title')}
+        data-perspective-plaketten
       >
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                aria-label={t('gallery.storyMode.perspective.title')}
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent 
-              className="text-xs max-w-sm"
-              side="bottom"
-              align="start"
+        {items.map((item) =>
+          onClick ? (
+            <button
+              key={item.label}
+              type="button"
+              onClick={onClick}
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              title={t('gallery.storyMode.perspective.adjustPerspective')}
             >
-              <div className="flex flex-col gap-2">
-                <div className="font-medium mb-1">{t('gallery.storyMode.perspective.title')}</div>
-                <div className="flex flex-col gap-1">
-                  {items.map((item, index) => (
-                    <div key={index} className="break-words">
-                      <span className="font-medium">{item.label}:</span> {item.value}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+              <Badge variant="secondary" className="cursor-pointer whitespace-nowrap font-medium">
+                {item.label}: {item.value}
+              </Badge>
+            </button>
+          ) : (
+            <Badge key={item.label} variant="secondary" className="whitespace-nowrap font-medium">
+              {item.label}: {item.value}
+            </Badge>
+          ),
+        )}
       </div>
     )
   }

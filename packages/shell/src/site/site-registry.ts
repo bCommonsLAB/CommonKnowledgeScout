@@ -32,6 +32,7 @@ export const DEFAULT_SITE_ID = 'default'
  */
 export const FULL_APP_MODULES: readonly SiteModule[] = [
   'explorer',
+  'story',
   'archive',
   'agent-view',
   'creation',

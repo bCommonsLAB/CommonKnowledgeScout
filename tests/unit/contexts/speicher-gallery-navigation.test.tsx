@@ -41,6 +41,19 @@ describe('SpeicherGalleryNavigation', () => {
     expect(result.current.params.toString()).toBe('view=gallery&sort=stars')
   })
 
+  it('D7: openDocument fuehrt page mit, ohne Angabe faellt ein alter Wert weg, closeDocument nimmt beide', () => {
+    const { result } = montieren('view=gallery')
+
+    act(() => result.current.openDocument('buch', { page: 5 }))
+    expect(result.current.params.get('page')).toBe('5')
+    act(() => result.current.openDocument('anderes'))
+    expect(result.current.params.get('doc')).toBe('anderes')
+    expect(result.current.params.has('page')).toBe(false)
+    act(() => result.current.openDocument('buch', { page: 2 }))
+    act(() => result.current.closeDocument())
+    expect(result.current.params.toString()).toBe('view=gallery')
+  })
+
   it('ein leerer Slug aendert nichts und wird gemeldet, nicht verschluckt', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { result } = montieren('view=gallery')

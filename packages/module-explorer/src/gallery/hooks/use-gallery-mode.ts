@@ -28,16 +28,14 @@ export function useGalleryMode(defaultMode: GalleryMode = 'gallery') {
     const updateHeight = () => {
       if (!containerRef.current) return
 
-      const navHeight = document.querySelector('nav')?.offsetHeight || 0
-
-      // Prüfe die Tailwind Media Queries direkt aus CSS
-      // md: 768px, lg: 1024px
-      // Mobile: < 768px, Tablet: 768px - 1023px, Desktop: ≥ 1024px
-      const isDesktop = window.matchMedia('(min-width: 1024px)').matches
-      const isTablet = window.matchMedia('(min-width: 640px) and (max-width: 1023px)').matches
-
-      const safetyMargin = isDesktop ? 115 : isTablet ? 115 : 70
-      const availableHeight = window.innerHeight - navHeight - safetyMargin
+      // D11b (Owner 02.10., „unten bleibt ein Rand"): Die Hoehe wird ab der
+      // tatsaechlichen Oberkante des Rahmens gerechnet, nicht aus Navigation
+      // plus pauschalem Sicherheitsabstand (115 px) — der liess je nach Kopf
+      // bis zu 90 px ungenutzt. Unten bleibt nur der Innenabstand der Seite.
+      const oben = containerRef.current.getBoundingClientRect().top
+      const seite = containerRef.current.parentElement?.parentElement
+      const unten = seite ? parseFloat(getComputedStyle(seite).paddingBottom) || 0 : 0
+      const availableHeight = Math.max(240, Math.floor(window.innerHeight - oben - unten))
 
       containerRef.current.style.height = `${availableHeight}px`
       containerRef.current.style.maxHeight = `${availableHeight}px`
@@ -46,9 +44,27 @@ export function useGalleryMode(defaultMode: GalleryMode = 'gallery') {
     // Initial nach dem Mount und nach Moduswechsel (site/gallery/story) berechnen
     requestAnimationFrame(() => requestAnimationFrame(updateHeight))
 
-    window.addEventListener('resize', updateHeight)
+    // D12w (Owner 04.10., „unten ein Band"): Die Oberkante wandert, wenn die
+    // TopNav beim Scrollen ausblendet (padding-top 64 → 0 mit Transition) —
+    // die beim Laden gerechnete Hoehe blieb stehen, unten fehlten 64 px.
+    // Darum auch beim Scrollen (rAF-gedrosselt) und nach jeder Transition
+    // neu rechnen; `resize` wie bisher.
+    let angefordert = 0
+    const planen = () => {
+      if (angefordert) return
+      angefordert = requestAnimationFrame(() => {
+        angefordert = 0
+        updateHeight()
+      })
+    }
+    window.addEventListener('resize', planen)
+    window.addEventListener('scroll', planen, { passive: true })
+    document.addEventListener('transitionend', planen, true)
     return () => {
-      window.removeEventListener('resize', updateHeight)
+      window.removeEventListener('resize', planen)
+      window.removeEventListener('scroll', planen)
+      document.removeEventListener('transitionend', planen, true)
+      if (angefordert) cancelAnimationFrame(angefordert)
     }
   }, [mode])
 

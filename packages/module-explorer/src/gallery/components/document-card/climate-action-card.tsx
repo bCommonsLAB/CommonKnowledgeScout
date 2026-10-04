@@ -21,9 +21,20 @@ import { useGalleryHost } from '../../contexts/gallery-host-context'
 import { Gauge } from 'lucide-react'
 import { cn } from '@ks/util'
 import type { DocCardMeta } from '../../lib/types'
-import { mapBewertungToStatus, STATUS_CONFIG, STATUS_ICON_MAP } from './status-config'
+import { useTranslation } from '@ks/i18n/react'
+import type { BelegPlakette } from '@ks/contracts'
+import { belegKonfig, plaketteFuer } from '../beleg-liste/helpers'
+import { PLAKETTE_SYMBOL, plaketteLabelKey } from '../beleg-liste/plakette'
 import { SourceStarsBadge } from '../source-stars-badge'
 import { SourceCommentsBadge } from '../source-comments-badge'
+
+/** Farben der Plaketten auf dem Bild (weiss auf Farbe). */
+const PLAKETTE_KARTE: Record<BelegPlakette, string> = {
+  umsetzung: 'bg-green-600/90 text-white',
+  geplant: 'bg-blue-600/90 text-white',
+  pruefung: 'bg-amber-500/90 text-white',
+  abgelehnt: 'bg-red-500/90 text-white',
+}
 
 export interface ClimateActionCardProps {
   doc: DocCardMeta
@@ -39,9 +50,9 @@ export function ClimateActionCard({
   onToggleFavorite,
 }: ClimateActionCardProps) {
   const { Bild } = useGalleryHost()
-  const status = mapBewertungToStatus(doc.lv_bewertung)
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.offen
-  const IconComponent = STATUS_ICON_MAP[config.icon]
+  const { t } = useTranslation()
+  // D6: Status aus der Registry-Konfig (belegKarte) — dieselbe Zuordnung wie Belegkarte und Detailansicht.
+  const plakette = plaketteFuer(belegKonfig('climateAction'), doc)
 
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
@@ -121,18 +132,17 @@ export function ClimateActionCard({
           </div>
 
           {/* Status-Badge als Pill mit backdrop-blur */}
-          <div
-            className={cn(
-              'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm',
-              config.color === 'green' && 'bg-green-600/90 text-white',
-              config.color === 'yellow' && 'bg-amber-500/90 text-white',
-              config.color === 'red' && 'bg-red-500/90 text-white',
-              config.color === 'gray' && 'bg-gray-500/90 text-white'
-            )}
-          >
-            <IconComponent className='w-3.5 h-3.5' />
-            <span className='hidden sm:inline'>{config.shortLabel}</span>
-          </div>
+          {plakette && (
+            <div
+              className={cn(
+                'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm',
+                plakette.art === 'plakette' ? PLAKETTE_KARTE[plakette.plakette] : 'bg-gray-500/90 text-white',
+              )}
+            >
+              {plakette.art === 'plakette' && (() => { const Symbol = PLAKETTE_SYMBOL[plakette.plakette]; return <Symbol className='w-3.5 h-3.5' /> })()}
+              <span className='hidden sm:inline'>{plakette.art === 'plakette' ? t(plaketteLabelKey(plakette.plakette)) : plakette.wert}</span>
+            </div>
+          )}
         </div>
       </div>
 

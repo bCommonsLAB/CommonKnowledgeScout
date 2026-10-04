@@ -1,0 +1,27 @@
+{
+  "name": "@ks/module-story",
+  "version": "0.0.0",
+  "private": true,
+  "description": "KnowledgeScout — Modul Story: Site-Gate und die Bausteine des Story-Modus (Chronik, Themenübersicht, Konversation)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@ks/api-client": "workspace:*",
+    "@ks/contracts": "workspace:*",
+    "@ks/i18n": "workspace:*",
+    "@ks/shell": "workspace:*",
+    "@ks/ui": "workspace:*",
+    "@ks/util": "workspace:*",
+    "@ks/viewers": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react/index.ts"
+  },
+  "peerDependencies": {
+    "jotai": "^2.11.0",
+    "lucide-react": "^0.312.0",
+    "react": "^18.2.0"
+  },
+  "sideEffects": false
+}

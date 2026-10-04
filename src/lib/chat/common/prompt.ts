@@ -27,6 +27,7 @@
  */
 
 import type { RetrievedSource } from '@/types/retriever'
+import { beschreibeDokumente, dokumenteNummerieren, nummerFuerQuelle } from './zitatmarken'
 import type { Character, TargetLanguage, AccessPerspective } from '../constants'
 import {
   CHARACTER_INSTRUCTIONS,
@@ -85,10 +86,19 @@ export function getSourceDescription(source: RetrievedSource): string {
   return 'Unknown source'
 }
 
+/**
+ * D7: Quellen tragen die Nummer ihres DOKUMENTS (Reihenfolge der ersten
+ * Nennung); mehrere Textstellen desselben Dokuments teilen sich eine Nummer
+ * und werden als „passage i/n" ausgewiesen.
+ */
 export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800): string {
+  const gruppen = dokumenteNummerieren(sources)
   return sources
-    .map((s, i) => {
+    .map((s) => {
       const description = getSourceDescription(s)
+      const nummer = nummerFuerQuelle(gruppen, s)
+      const gruppe = gruppen.find((g) => g.nummer === nummer)
+      const stelle = gruppe ? `passage ${gruppe.sources.indexOf(s) + 1}/${gruppe.sources.length}, ` : ''
       
       // Formatierte Metadaten für den Prompt (basierend auf Facetten-Definitionen)
       const metadataParts: string[] = []
@@ -113,7 +123,7 @@ export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800):
       
       const metadataLine = metadataParts.length > 0 ? ` | ${metadataParts.join(' | ')}` : ''
       
-      return `Source [${i + 1}] ${s.fileName ?? s.id} (${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
+      return `Source [${nummer ?? '?'}] ${s.fileName ?? s.id} (${stelle}${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
     })
     .join('\n\n')
 }
@@ -392,11 +402,8 @@ export function buildChatUserMessage(
   const context = buildContext(sources)
   const style = styleInstruction(answerLength)
   
-  // Create mapping from source number to description for better clarity
-  const sourceDescriptions = sources.map((s, i) => {
-    const desc = getSourceDescription(s)
-    return `[${i + 1}] = ${desc}`
-  }).join(', ')
+  // D7: eine Nummer je Dokument — die Beschreibung nennt alle seine Textstellen
+  const sourceDescriptions = beschreibeDokumente(dokumenteNummerieren(sources), getSourceDescription)
   
   // Create filter text for the prompt
   const filterParts = buildFacetFilterText(options?.filters, options?.facetDefs)
@@ -419,16 +426,18 @@ Requirements:
 - ${style}
 - Factually correct, without speculation.
 - Always respond in **Markdown format** with clear formatting (headings, lists, bold).
-- Cite reference numbers of used sources as [n] at the end.
-- IMPORTANT: Use only the numbers, NOT "Chunk X".
+- Cite the document numbers of the sources you used as [n] at the end of the statement they support.
+- One number = one document; several passages of the same document share its number.
+- IMPORTANT: Use only the numbers, NOT "Chunk X" and NOT "passage X".
 - Example: "[1] [2] [5]".
 - Available descriptions: ${sourceDescriptions}${filterText}${spaceConstraintNote}
 
 Output Format:
-Always respond as a JSON object with exactly these three fields:
+Always respond as a JSON object with exactly these four fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
 - "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
-- "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+- "usedReferences": Array of numbers containing the document numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+- "shortTitle": A short title for the question in two to four words, in the same language as your answer, no quotation marks, no trailing punctuation (e.g., "Heating without oil")
 
 Example:
 {
@@ -438,7 +447,8 @@ Example:
     "What are the prerequisites for Y?",
     ...
   ],
-  "usedReferences": [1, 2]
+  "usedReferences": [1, 2],
+  "shortTitle": "How X works"
 }
 
 IMPORTANT: 
@@ -526,11 +536,8 @@ export function buildPrompt(
   const context = buildContext(sources)
   const style = styleInstruction(answerLength)
   
-  // Create mapping from source number to description for better clarity
-  const sourceDescriptions = sources.map((s, i) => {
-    const desc = getSourceDescription(s)
-    return `[${i + 1}] = ${desc}`
-  }).join(', ')
+  // D7: eine Nummer je Dokument — die Beschreibung nennt alle seine Textstellen
+  const sourceDescriptions = beschreibeDokumente(dokumenteNummerieren(sources), getSourceDescription)
   
   // Create system prompt components based on configuration
   const promptComponents = buildSystemPromptComponents(options)
@@ -583,18 +590,20 @@ Requirements:
 - ${style}
 - Factually correct, without speculation.
 - Always respond in **Markdown format** with clear formatting (headings, lists, bold).
-- Cite reference numbers of used sources as [n] at the end.
-- IMPORTANT: Use only the numbers, NOT "Chunk X".
+- Cite the document numbers of the sources you used as [n] at the end of the statement they support.
+- One number = one document; several passages of the same document share its number.
+- IMPORTANT: Use only the numbers, NOT "Chunk X" and NOT "passage X".
 - Example: "[1] [2] [5]".
 - Available descriptions: ${sourceDescriptions}
 ${chatHistoryText ? '\n- Consider the previous conversation and build upon it if relevant.' : ''}
 ${filterText}
 
 Output Format:
-Always respond as a JSON object with exactly these three fields:
+Always respond as a JSON object with exactly these four fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
 - "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
-- "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+- "usedReferences": Array of numbers containing the document numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+- "shortTitle": A short title for the question in two to four words, in the same language as your answer, no quotation marks, no trailing punctuation (e.g., "Heating without oil")
 
 Example:
 {
@@ -604,7 +613,8 @@ Example:
     "What are the prerequisites for Y?",
     ...
   ],
-  "usedReferences": [1, 2]
+  "usedReferences": [1, 2],
+  "shortTitle": "How X works"
 }
 
 IMPORTANT: 

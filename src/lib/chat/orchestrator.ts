@@ -35,6 +35,8 @@ import { normalizeSuggestedQuestionsToSeven } from '@/lib/chat/common/normalize-
 import { getSecretaryConfig } from '@/lib/env'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
+import { normalizeShortTitle } from '@/lib/chat/common/short-title'
+import { belegeAusGruppen, dokumenteNummerieren } from '@/lib/chat/common/zitatmarken'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
 import { summariesMongoRetriever } from '@/lib/chat/retrievers/summaries-mongo'
 import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
@@ -42,7 +44,7 @@ import { chunkSummaryRetriever } from '@/lib/chat/retrievers/chunk-summary'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
 import type { StoryTopicsData } from '@/types/story-topics'
-import { attachViewTypeToReferences, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
+import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
 
 export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'chunkSummary' | 'summary'
@@ -70,6 +72,8 @@ export interface OrchestratorOutput {
   completionTokens?: number
   totalTokens?: number
   storyTopicsData?: StoryTopicsData  // Für TOC-Queries: Strukturierte Themenübersicht
+  /** D5: Kurztitel der Frage aus derselben LLM-Antwort (nur Fragen, nicht TOC); fehlt, wenn das Modell keinen lieferte. */
+  shortTitle?: string
 }
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
@@ -229,6 +233,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   let suggestedQuestions: string[] = []
   let usedReferences: number[] = []
   let storyTopicsData: StoryTopicsData | undefined = undefined
+  let shortTitle: string | undefined = undefined
   
   try {
     if (run.isTOCQuery && run.libraryId) {
@@ -290,6 +295,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         seedQuestion: run.question,
       })
       usedReferences = result.data.usedReferences ?? []
+      shortTitle = normalizeShortTitle(result.data.shortTitle)
       promptTokens = result.usage?.promptTokens
       completionTokens = result.usage?.completionTokens
       totalTokens = result.usage?.totalTokens
@@ -427,6 +433,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             answer = retryResult.data.answer
             suggestedQuestions = retryResult.data.suggestedQuestions
             usedReferences = [...new Set(retryResult.data.usedReferences ?? [])].sort((a, b) => a - b)
+            shortTitle = normalizeShortTitle(retryResult.data.shortTitle)
             promptTokens = retryResult.usage?.promptTokens
             completionTokens = retryResult.usage?.completionTokens
             totalTokens = retryResult.usage?.totalTokens
@@ -476,20 +483,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   // WICHTIG: Bei TOC-Queries keine References erfassen (zu voluminös)
   let references: ChatResponse['references'] = []
   if (!run.isTOCQuery) {
-    const allReferences: ChatResponse['references'] = sources.map((s, index) => {
-      const fileId = s.fileId || s.id.split('-')[0]
-      return {
-        number: index + 1,
-        fileId,
-        fileName: s.fileName,
-        description: getSourceDescription(s),
-      }
-    })
-    
-    // Filter only the actually used references from usedReferences
-    references = usedReferences.length > 0
-      ? allReferences.filter(ref => usedReferences.includes(ref.number))
-      : allReferences // Fallback: If none found, show all
+    // D7: eine Nummer je Dokument (dieselbe Nummerierung wie im Prompt), die
+    // Textstellen haengen als passages unter dem Beleg. Nennt das Modell keine
+    // Nummern, bleiben alle Dokumente (wie bisher: lieber alle als keine).
+    references = belegeAusGruppen(dokumenteNummerieren(sources), usedReferences, getSourceDescription)
   }
 
   // A4: References um den Inhaltstyp (detailViewType) anreichern — fuer
@@ -505,6 +502,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         const { getByFileIds } = await import('@/lib/repositories/vector-repo')
         const metaByFileId = await getByFileIds(collectionName, run.libraryId, uniqueFileIds)
         references = attachViewTypeToReferences(references, buildViewTypeByFileId(metaByFileId))
+        // D12k: Dokumenttitel fuer Tooltip und Belegkarte aus denselben Meta-Dokumenten.
+        references = attachTitleToReferences(references, buildTitleByFileId(metaByFileId))
       } catch (error) {
         console.warn(
           '[orchestrator] detailViewType-Anreicherung der References fehlgeschlagen:',
@@ -524,6 +523,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       ? { promptTokens, completionTokens, totalTokens }
       : undefined,
     storyTopicsData,
+    shortTitle,
   })
 
   return { 
@@ -536,7 +536,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     promptTokens, 
     completionTokens, 
     totalTokens,
-    storyTopicsData 
+    storyTopicsData,
+    shortTitle,
   }
 }
 

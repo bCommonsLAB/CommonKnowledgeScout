@@ -112,3 +112,21 @@ describe('splitByPages — mehrere Marker', () => {
     expect(spans.map((s) => s.page)).toEqual([5, 2])
   })
 })
+
+describe('seiteFuerOffset — Seite je Zeichen-Offset (D7)', async () => {
+  const { seiteFuerOffset } = await import('@/lib/ingestion/page-split')
+  const md = 'Praefix\n--- Seite 1 ---\nEins\n--- Seite 2 ---\nZwei\n--- Seite 3 ---\nDrei'
+  const spans = splitByPages(md)
+
+  it('liefert die Seite der Spanne, Ankerzeilen gehoeren zur folgenden Seite', () => {
+    expect(seiteFuerOffset(spans, md.indexOf('Eins'))).toBe(1)
+    expect(seiteFuerOffset(spans, md.indexOf('Zwei'))).toBe(2)
+    expect(seiteFuerOffset(spans, md.indexOf('--- Seite 3'))).toBe(3)
+    expect(seiteFuerOffset(spans, md.length - 1)).toBe(3)
+  })
+
+  it('vor dem ersten Anker und ohne Spannen keine Seite', () => {
+    expect(seiteFuerOffset(spans, 0)).toBeUndefined()
+    expect(seiteFuerOffset([], 5)).toBeUndefined()
+  })
+})

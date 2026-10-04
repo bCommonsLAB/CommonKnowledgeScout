@@ -2,59 +2,25 @@
 
 import * as React from "react";
 import { Badge, Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@ks/ui'
-import { ArrowLeft, Building2, Tag, Check, X, Clock, HelpCircle, Bug, Brain, Globe, Users } from "lucide-react";
+import { ArrowLeft, Building2, Tag, Bug, Brain, Globe, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { ClimateActionRating } from "./climate-action-rating";
-import { StakeholderPositions, SdgProfile, AiText, OriginalQuote } from "@ks/module-explorer/react";
+import { StakeholderPositions, SdgProfile, AiText, OriginalQuote, belegKonfig, plaketteFuer, PLAKETTE_SYMBOL, plaketteLabelKey } from "@ks/module-explorer/react";
+import type { BelegPlakette } from "@ks/contracts";
+import { useTranslation } from "@ks/i18n/react";
 import type { SdgValue } from "@ks/util";
 import { cn } from "@/lib/utils";
 
-// Status-Mapping (wie im Teaser)
-type StatusKey = 'aktiv' | 'geplant' | 'abgelehnt' | 'offen';
-interface StatusConfig {
-  label: string;
-  color: 'green' | 'yellow' | 'red' | 'gray';
-  icon: 'Check' | 'Clock' | 'X' | 'HelpCircle';
-}
-
-const STATUS_CONFIG: Record<StatusKey, StatusConfig> = {
-  aktiv: { label: 'In Umsetzung', color: 'green', icon: 'Check' },
-  geplant: { label: 'Geplant', color: 'yellow', icon: 'Clock' },
-  abgelehnt: { label: 'Abgelehnt', color: 'red', icon: 'X' },
-  offen: { label: 'Offen', color: 'gray', icon: 'HelpCircle' },
+// D6: Status-Plakette aus der Registry-Konfig `belegKarte` (@ks/contracts) —
+// dieselbe Zuordnung wie Klimakarte und Belegkarte im Story-Modus.
+const PLAKETTE_DETAIL: Record<BelegPlakette, string> = {
+  umsetzung: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  geplant: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  pruefung: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  abgelehnt: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
 };
-
-const iconMap = { Check, Clock, X, HelpCircle };
-
-function mapBewertungToStatus(bewertung?: string): StatusKey {
-  if (!bewertung) return 'offen';
-  const lower = bewertung.toLowerCase();
-  
-  // WICHTIG: "nicht_umsetzbar" muss VOR "umsetzbar" geprüft werden!
-  // Sonst matcht "umsetz" auch "nicht_umsetzbar"
-  if (lower.includes('nicht_umsetzbar') || lower.includes('nicht umsetzbar') || lower === 'abgelehnt') {
-    return 'abgelehnt';
-  }
-  
-  // Positive Bewertungen (Umsetzung aktiv oder geplant)
-  if (lower.includes('in_umsetzung') || lower.includes('bereits') || lower.includes('klimaplan') || lower.includes('fachplänen')) {
-    return 'aktiv';
-  }
-  
-  // Neu und umsetzbar = geplant (nicht aktiv)
-  if (lower.includes('neu_umsetzbar') || lower.includes('neu umsetzbar')) {
-    return 'geplant';
-  }
-  
-  // Noch zu prüfen
-  if (lower.includes('prüf') || lower.includes('vertieft') || lower.includes('unklar')) {
-    return 'geplant';
-  }
-  
-  return 'offen';
-}
 
 /**
  * Datenstruktur für ClimateAction Detail-Ansicht.
@@ -183,6 +149,7 @@ export function ClimateActionDetail({
   backHref = "/library", 
   showBackLink = false 
 }: ClimateActionDetailProps) {
+  const { t } = useTranslation();
   const title = data.title || "—";
   const [debugOpen, setDebugOpen] = React.useState(false);
   // authors und topics sind für zukünftige Erweiterungen reserviert
@@ -229,23 +196,20 @@ export function ClimateActionDetail({
         {/* Titel */}
         <h1 className="text-2xl font-bold text-foreground mb-3 text-balance">{title}</h1>
         
-        {/* Nur Status-Badge (LV-Bewertung) - andere Details sind in Maßnahmen-Details */}
+        {/* Nur Status-Plakette (LV-Bewertung) - andere Details sind in Maßnahmen-Details; ohne Wert keine Plakette */}
         {(() => {
-          const status = mapBewertungToStatus(data.lv_bewertung);
-          const config = STATUS_CONFIG[status];
-          const IconComponent = iconMap[config.icon];
+          const plakette = plaketteFuer(belegKonfig('climateAction'), { id: '', lv_bewertung: data.lv_bewertung });
+          if (!plakette) return null;
+          const Symbol = plakette.art === 'plakette' ? PLAKETTE_SYMBOL[plakette.plakette] : null;
           return (
             <div
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                config.color === 'green' && 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                config.color === 'yellow' && 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-                config.color === 'red' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                config.color === 'gray' && 'bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300'
+                plakette.art === 'plakette' ? PLAKETTE_DETAIL[plakette.plakette] : 'bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300'
               )}
             >
-              <IconComponent className='w-3 h-3' />
-              {config.label}
+              {Symbol && <Symbol className='w-3 h-3' />}
+              {plakette.art === 'plakette' ? t(plaketteLabelKey(plakette.plakette)) : plakette.wert}
             </div>
           );
         })()}

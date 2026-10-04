@@ -25,6 +25,7 @@ export type { StorageCapabilityInfo, StorageCapabilities } from './storage-capab
 export { supportsCapabilities } from './storage-capabilities'
 
 export type { LlmModelDto } from './llm-model'
+export { STORY_BELEG_ZEIGEN_EVENT, STORY_UEBERSICHT_ZEIGEN_EVENT, type StoryBelegZeigenDetail } from './story-events'
 export type { UserInfoDto, UserInfoEmailDto } from './user-info'
 
 export type {
@@ -72,6 +73,9 @@ export {
   getTableColumnsForViewType,
 } from './detail-view-type-registry'
 export type { SumPlaceholderField } from './detail-view-type-registry'
+// D3 (Plan story-dreiteilung-fragenchronik): Belegkarte im Story-Modus je ViewType.
+export type { BelegKarteConfig, BelegPlakette } from './detail-view-type-registry'
+export { BELEG_PLAKETTEN } from './detail-view-type-registry'
 export { VIEW_TYPE_LABELS, getViewTypeLabel, getPresentDetailViewTypes } from './detail-view-type-display'
 export { getDetailViewType } from './resolve-detail-view-type'
 
@@ -90,7 +94,10 @@ export type {
 
 export type { DocCardMeta, DetailDoc, ChapterInfo, FavoriteVoter } from './doc-card-meta'
 
-export type { DocReference, QuerySource } from './doc-reference'
+export type { DocReference, DocPassage, QuerySource } from './doc-reference'
+
+export type { StoryTopicsData, StoryTopic, StoryQuestion } from './story-topics'
+export { STORY_TOC_QUESTION } from './story-topics'
 
 export type { GalleryFilters } from './gallery-filters'
 
@@ -128,3 +135,7 @@ export { isSitePrimaryBySlug } from './site-config'
 // Welle S2: Design-Profil der Website-Landingpage (`publicPublishing.siteTheme`).
 export type { SiteTheme, SiteSurface, SiteSurfaceName, SiteFontName, SiteButtonShape } from './site-theme'
 export { SITE_SURFACES, SITE_FONT_NAMES, SITE_BUTTON_SHAPES } from './site-theme'
+
+// D2 (Plan story-dreiteilung-fragenchronik): Verarbeitungsschritte des
+// Chat-Streams — das Story-Paket zeigt sie in einfachen Worten.
+export type { ChatProcessingStep, StoryFehlerCode } from './chat-processing'

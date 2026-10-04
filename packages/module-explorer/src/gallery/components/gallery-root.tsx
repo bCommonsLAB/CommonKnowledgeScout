@@ -2,6 +2,7 @@
 
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import type { DocReference, QuerySource, DetailViewType } from '@ks/contracts'
+import { STORY_UEBERSICHT_ZEIGEN_EVENT } from '@ks/contracts'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '../atoms/gallery-filters'
@@ -20,6 +21,8 @@ import { useDebouncedValue } from '../hooks/use-debounced-value'
 import { MobileFiltersSheet } from './mobile-filters-sheet'
 import { DetailOverlay, type DetailRenderer } from './detail-overlay'
 import { useGalleryMode } from '../hooks/use-gallery-mode'
+import { useQuellenOffen } from './quellen-leiste'
+import { useBelegSprung } from './beleg-sprung'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { useGalleryConfig } from '../hooks/use-gallery-config'
 import { useGalleryData } from '../hooks/use-gallery-data'
@@ -29,8 +32,15 @@ import { useGallerySums } from '../hooks/use-gallery-sums'
 import { getSummableFields } from '@ks/contracts'
 import { useGalleryEvents } from '../hooks/use-gallery-events'
 import { useTranslation } from '@ks/i18n/react'
+import { LayoutGrid } from 'lucide-react'
 import type { DocCardMeta } from '../lib/types'
 import { ReferencesSheet } from './references-sheet'
+import { StorySpalten } from './story-spalten'
+import { StoryChronikSheet } from './story-chronik-sheet'
+import { BelegListe } from './beleg-liste/beleg-liste'
+import { QuellenListe } from './beleg-liste/quellen-liste'
+import { FilterChips } from './filter-chips'
+import { anzahlBelegDokumente } from './beleg-liste/helpers'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
@@ -48,7 +58,7 @@ import {
   pickFacetsForTableColumns,
   resolveDetailViewTypeForDoc,
 } from './gallery-root/helpers'
-import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
+import { useIsMobile, useIstTelefon } from './gallery-root/hooks/use-is-mobile'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
@@ -63,6 +73,14 @@ export interface GalleryRootProps {
    * in der oeffentlichen Slug-Ansicht kein Galerie-Inhalt.
    */
   hideWebsiteDocs?: boolean
+  /**
+   * D12v: Kopf der Seite (Inhalte) mit Library-Name und oeffentlicher Beschreibung
+   * zeigen. `false`, wenn der Montagepunkt den Namen schon selbst zeigt
+   * (Erkunden-Seite: `ExplorerHeader`) — sonst steht er zweimal; die
+   * Beschreibung der Library und die interne Plakette „Geprueft" gehoeren
+   * nicht in die Inhalte-Ansicht. Die Ansichtszeile sitzt dann oben buendig.
+   */
+  seitenkopf?: boolean
   /**
    * Bedienelemente des Gastgebers im Kopf der Galerie — heute der
    * Erfassungs-Knopf der Voll-App. Als Slot statt als Import, weil Erfassung
@@ -80,7 +98,19 @@ export interface GalleryRootProps {
    * Ohne Slot gibt es auch keinen Knopf in den Story-Modus — das Embed zeigt
    * nur die Galerie (M5, „Story und Chat nicht mitnehmen").
    */
-  storyPanel?: (libraryId: string) => React.ReactNode
+  /** Story-Mitte; `ctx.filterAnzeige` sind die gesetzten Filter als Chips (D12o), damit die Mitte zeigt, dass gefiltert ist. */
+  storyPanel?: (libraryId: string, ctx?: { filterAnzeige: React.ReactNode }) => React.ReactNode
+  /**
+   * Die Fragen-Chronik links neben dem Story-Panel (Plan
+   * `story-dreiteilung-fragenchronik`, D1). Mit Slot wird der Story-Reiter
+   * dreispaltig (15 / 50 / 35 als Startwerte), ohne bleibt die Zweiteilung.
+   * Die Komponente kommt aus `@ks/module-story/react`; die App reicht sie
+   * herein, weil nur sie Anmeldung und aktive Sitzung kennt.
+   *
+   * D4: Mobil liegt die Chronik in einem Sheet; `ctx.schliessen` kommt dann
+   * mit, damit die App es nach einer Auswahl schliessen laesst.
+   */
+  storyChronik?: (libraryId: string, ctx?: { schliessen: () => void }) => React.ReactNode
   /**
    * Welche Detailansicht zu welchem Renderer-Typ gehoert (M4g). Pflicht: Die
    * Galerie kennt die Detail-Komponenten der App nicht mehr, und ohne Tabelle
@@ -92,8 +122,12 @@ export interface GalleryRootProps {
    * (`website/website-landing-live`) und liest dort ihre eigenen APIs.
    */
   siteView?: (opts: { libraryId: string; onShowGallery: () => void }) => React.ReactNode
-  /** Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht mit dem Story-Modus um. */
-  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void }) => React.ReactNode
+  /**
+   * Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht
+   * mit dem Story-Modus um. `onOpenChronik` (D4) gibt es nur mit Chronik-Slot:
+   * der Kopf zeigt dafuer unter `lg` den Menue-Knopf, der das Sheet oeffnet.
+   */
+  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void; onOpenChronik?: () => void; onOpenQuellen?: () => void }) => React.ReactNode
   /** Verifikations-Abzeichen neben der Ueberschrift; kein Slot, kein Abzeichen. */
   verifikationsAbzeichen?: React.ReactNode
 }
@@ -110,8 +144,10 @@ export function GalleryRoot({
   showSiteTab = false,
   defaultToSite = false,
   hideWebsiteDocs = false,
+  seitenkopf = true,
   kopfAktionen,
   storyPanel,
+  storyChronik,
   detailRenderers,
   siteView,
   storyHeader,
@@ -125,6 +161,9 @@ export function GalleryRoot({
   const setLibraries = useSetLibraries()
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
+  // D4: Chronik-Sheet (mobil). Faellt zu, sobald der Story-Modus verlassen
+  // wird oder die Breite auf Desktop springt — dort lebt die Chronik in der Spalte.
+  const [chronikOffen, setChronikOffen] = useState(false)
   const isClosingRef = React.useRef(false)
   const isSwitchingToStoryModeRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -133,6 +172,8 @@ export function GalleryRoot({
   // 2026-07-08). Das Eingabefeld bleibt an `searchQuery` gebunden.
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
   const isMobile = useIsMobile()
+  // D12r: Telefon (< md) — Quellen als Blatt; Tablet und Desktop haben die Leiste rechts.
+  const istTelefon = useIstTelefon()
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const chatReferences = useAtomValue(chatReferencesAtom)
   const [showReferencesSheet, setShowReferencesSheet] = useState(false)
@@ -202,6 +243,25 @@ export function GalleryRoot({
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
+  // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
+  const quellenLeiste = useQuellenOffen()
+  // D12e/D12i: Klick auf eine Zitatmarke bei zugeklappten Quellen — am Desktop die Schicht
+  // oeffnen, auf Mobil das Blatt mit den Belegen (D4); dann zur Karte scrollen.
+  const belegSprungZiel = useMemo(
+    () =>
+      istTelefon
+        ? {
+            offen: showReferencesSheet && referencesSheetMode === 'answer',
+            oeffnen: () => {
+              setShowReferencesSheet(true)
+              setReferencesSheetMode('answer')
+              setReferencesSheetData({ references: chatReferences.references, queryId: chatReferences.queryId })
+            },
+          }
+        : { offen: quellenLeiste.offen, oeffnen: quellenLeiste.oeffnen },
+    [istTelefon, showReferencesSheet, referencesSheetMode, chatReferences, quellenLeiste.offen, quellenLeiste.oeffnen],
+  )
+  useBelegSprung(belegSprungZiel)
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab
@@ -395,6 +455,9 @@ export function GalleryRoot({
   
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
   const docSlug = searchParams?.get('doc')
+  // D7: Seite, an der die Detailansicht aufgehen soll (Zitatmarke → Beleg → Seite)
+  const docPageRaw = searchParams?.get('page')
+  const docPage = docPageRaw && /^\d+$/.test(docPageRaw) ? Number(docPageRaw) : undefined
 
   // Facetten mit demselben Typ-Ausschluss wie die Dokumentliste (oben,
   // excludeDetailViewType): sonst sieht der Server zwei Typen, die Liste
@@ -718,13 +781,18 @@ export function GalleryRoot({
   }
   
   const handleShowReferenceLegend = () => {
-    // Auf Mobile: Öffne Sheet statt Desktop-Panel
-    if (isMobile) {
+    // Telefon: Blatt statt Spalte
+    if (istTelefon) {
       setShowReferencesSheet(true)
       setReferencesSheetMode('answer')
     }
   }
   
+  // D4: Chronik-Sheet nur mobil im Story-Modus; sonst zu (kein zweiter Mount neben der Spalte).
+  useEffect(() => {
+    if (!isMobile || mode !== 'story') setChronikOffen(false)
+  }, [isMobile, mode])
+
   // Koordiniere ReferencesSheet mit DetailOverlay: Schließe Sheet wenn DetailOverlay geöffnet wird (URL-Parameter gesetzt)
   useEffect(() => {
     if (docSlug && showReferencesSheet) {
@@ -736,21 +804,6 @@ export function GalleryRoot({
   
   useGalleryEvents(libraryId, docs, handleOpenDocument, handleShowReferenceLegend)
 
-  // Event-Handler für TOC-Quellenverzeichnis (Mobile)
-  React.useEffect(() => {
-    const handleShowTOCReferences = (event: Event) => {
-      const customEvent = event as CustomEvent<{ libraryId: string }>
-      const { libraryId: eventLibraryId } = customEvent.detail || {}
-      if (eventLibraryId === libraryId) {
-        setShowReferencesSheet(true)
-        setReferencesSheetMode('toc')
-        setReferencesSheetData(null)
-      }
-    }
-    window.addEventListener('show-toc-references', handleShowTOCReferences)
-    return () => window.removeEventListener('show-toc-references', handleShowTOCReferences)
-  }, [libraryId])
-
   // Event-Handler für Antwort-Quellenverzeichnis erweitern (für Mobile)
   // Dieser Handler wird zusätzlich zu useGalleryEvents ausgeführt
   React.useEffect(() => {
@@ -758,8 +811,8 @@ export function GalleryRoot({
       const customEvent = event as CustomEvent<{ references: DocReference[]; libraryId: string; queryId?: string }>
       const { references: refs, queryId: eventQueryId, libraryId: eventLibraryId } = customEvent.detail || {}
       if (eventLibraryId === libraryId && refs && refs.length > 0) {
-        // Auf Mobile: Öffne Sheet mit den Referenzen
-        if (isMobile) {
+        // Telefon: Blatt mit den Belegen
+        if (istTelefon) {
           setShowReferencesSheet(true)
           setReferencesSheetMode('answer')
           setReferencesSheetData({ references: refs, queryId: eventQueryId })
@@ -768,11 +821,11 @@ export function GalleryRoot({
     }
     window.addEventListener('show-reference-legend', handleShowAnswerReferences)
     return () => window.removeEventListener('show-reference-legend', handleShowAnswerReferences)
-  }, [libraryId, isMobile])
+  }, [libraryId, istTelefon])
 
   // Synchronisiere chatReferences mit Sheet-Daten (für Mobile)
   React.useEffect(() => {
-    if (isMobile && chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+    if (istTelefon && chatReferences && chatReferences.references && chatReferences.references.length > 0) {
       // Wenn chatReferences gesetzt ist und Sheet noch nicht geöffnet ist, aktualisiere die Daten
       if (!showReferencesSheet || referencesSheetMode !== 'answer') {
         setReferencesSheetData({
@@ -781,7 +834,7 @@ export function GalleryRoot({
         })
       }
     }
-  }, [isMobile, chatReferences, showReferencesSheet, referencesSheetMode])
+  }, [istTelefon, chatReferences, showReferencesSheet, referencesSheetMode])
 
   // Auto-Close bei Moduswechsel: Schließe Antwort-Quellenverzeichnis wenn Story-Modus verlassen wird
   React.useEffect(() => {
@@ -845,6 +898,15 @@ export function GalleryRoot({
   }, [showReferencesSheet, referencesSheetMode, setChatReferences])
 
   // Filter handlers
+  // D12l: Die Quellen folgen der Mitte. Der Katalog-Knopf der Belegliste bittet
+  // die Story-Mitte um die Themenuebersicht (Ereignis, Mitte und Quellen haengen
+  // in getrennten Slots); die Belege leeren sich dann ueber `onBelege` (D12e),
+  // und die Spalte zeigt den Katalog. Der Filter auf die Antwort faellt mit.
+  const handleZumKatalog = () => {
+    window.dispatchEvent(new CustomEvent(STORY_UEBERSICHT_ZEIGEN_EVENT))
+    window.dispatchEvent(new CustomEvent('clear-gallery-filter', { detail: {} }))
+  }
+
   const handleClearFilters = () => {
     setFilters({} as Record<string, string[]>)
     
@@ -1085,10 +1147,19 @@ export function GalleryRoot({
         {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
-            verifikationsAbzeichen={verifikationsAbzeichen}
-            headline={texts.headline}
-            subtitle={texts.subtitle}
-            description={texts.description}
+            verifikationsAbzeichen={seitenkopf ? verifikationsAbzeichen : undefined}
+            headline={seitenkopf ? activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || '' : ''}
+            description={seitenkopf ? activeLibrary?.config?.publicPublishing?.description || undefined : undefined}
+            ansicht={{
+              name: (
+                <span className="inline-flex items-center gap-1.5">
+                  <LayoutGrid className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  {t('ansicht.inhalte')}
+                </span>
+              ),
+              erklaerung: { titel: texts.headline, text: texts.description },
+              labels: { oeffnen: t('ansicht.erklaerungOeffnen'), schliessen: t('ansicht.erklaerungSchliessen') },
+            }}
             searchPlaceholder={searchPlaceholder}
             onChangeQuery={(value) => {
               // Entferne Refresh-Suffix beim Setzen des Query-Werts
@@ -1211,49 +1282,95 @@ export function GalleryRoot({
         {mode === 'story' && (
         <TabsContent value="story" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden">
           <div className="flex-shrink-0">
-            {storyHeader ? storyHeader({ libraryId: libraryId || '', onBackToGallery: () => setMode('gallery') }) : null}
+            {storyHeader
+              ? storyHeader({
+                  libraryId: libraryId || '',
+                  onBackToGallery: () => setMode('gallery'),
+                  onOpenChronik: storyChronik ? () => setChronikOffen(true) : undefined,
+                  // D12r: Telefon — Quellen als Blatt (Belege der Antwort oder der Bestand).
+                  onOpenQuellen: () => {
+                    const refs = chatReferences?.references ?? []
+                    setShowReferencesSheet(true)
+                    setReferencesSheetMode(refs.length > 0 ? 'answer' : 'toc')
+                    setReferencesSheetData(refs.length > 0 ? { references: refs, queryId: chatReferences.queryId } : null)
+                  },
+                })
+              : null}
           </div>
-          <div className="grid gap-6 lg:grid-cols-[1fr_1fr] flex-1 min-h-0 overflow-hidden">
-            <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
-              {storyPanel ? (
-                storyPanel(libraryId)
-              ) : (
-                // Kein stiller Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das.
-                <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
-              )}
-            </div>
-            {/* Nur auf Desktop mounten — auf Mobil war die Spalte bisher nur
-                CSS-versteckt und hat Liste/Hooks trotzdem doppelt betrieben. */}
-            {!isMobile && (
-            <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
-              {/* FilterContextBar nur anzeigen wenn KEINE Antwort-Referenzen angezeigt werden (Answer-Modus) */}
-              {!(chatReferences && chatReferences.references && chatReferences.references.length > 0) && (
-                <div className="flex-shrink-0">
-                  <FilterContextBar
-                    docCount={effectiveDocCount}
-                    onOpenFilters={() => setShowFilters(true)}
-                    onClear={handleClearFilters}
-                    hideFilterButton={true}
-                    facetDefs={facetDefs}
-                    viewMode={viewMode}
-                    onViewModeChange={setViewMode}
-                    cardDensity={cardDensity}
-                    onCardDensityChange={handleCardDensityChange}
-                    mode="story"
-                    showRatingSort={showRatingSort}
-                  />
-                </div>
-              )}
-              {/* ReferencesLegend wird nicht mehr angezeigt, wenn chatReferences gesetzt ist (wird durch GroupedItemsGrid ersetzt) */}
-              <section
-                className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
-                data-gallery-section
-              >
-                <div>{renderItemsView()}</div>
-              </section>
-            </div>
-            )}
-          </div>
+          {/* Mitte: der Story-Inhalt der App (Chat-Panel). Kein stiller
+              Leerraum: Wer die Galerie ohne Story-Panel montiert, sieht das. */}
+          {(() => {
+            const storyMitte = storyPanel ? (
+              storyPanel(libraryId, { filterAnzeige: <FilterChips facetDefs={facetDefs} onClear={handleClearFilters} /> })
+            ) : (
+              <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
+            )
+            const belegeAktiv = Boolean(chatReferences?.references && chatReferences.references.length > 0)
+            // Rechts (D3): Belege der aktiven Antwort als schmale Liste; ohne
+            // aktive Antwort der gefilterte Bestand als dieselbe kompakte Liste
+            // (D12q) statt des Rasters — Zaehler, Filter-Chips, Nachladen.
+            const storyQuellen = belegeAktiv ? (
+              <BelegListe
+                references={chatReferences.references}
+                usedDocs={usedDocs}
+                unusedDocs={unusedDocs}
+                libraryId={libraryId || ''}
+                libraryDetailViewType={detailViewType}
+                katalogAnzahl={effectiveDocCount}
+                onOpenDocument={handleOpenDocument}
+                onKatalog={handleZumKatalog}
+              />
+            ) : (
+              <QuellenListe
+                docs={filteredFlat}
+                anzahl={effectiveDocCount}
+                loading={loading}
+                error={error}
+                hasMore={anyEngagementFilterActive ? false : hasMore}
+                isLoadingMore={isLoadingMore}
+                onLoadMore={loadMore}
+                libraryId={libraryId || ''}
+                libraryDetailViewType={detailViewType}
+                filterAnzeige={<FilterChips facetDefs={facetDefs} onClear={handleClearFilters} />}
+                onOpenDocument={handleOpenDocument}
+              />
+            )
+            const leiste = {
+              offen: quellenLeiste.offen,
+              onToggle: quellenLeiste.toggle,
+              // D12h: Dokumente zaehlen, nicht Textstellen (alte Antworten nummerieren je Textstelle).
+              zaehler: belegeAktiv ? anzahlBelegDokumente(chatReferences.references) : effectiveDocCount,
+              belege: belegeAktiv,
+            }
+            // Unter lg: Chronik als Blatt (D4), kein zweiter Mount neben einer Spalte
+            // (Lehre aus M4h). D12r: Auf dem Telefon fuellt die Mitte den Schirm, die
+            // Quellen kommen als Blatt; auf dem Tablet steht die Quellen-Leiste rechts
+            // wie am Desktop (Owner 04.10.: rechts hat das noch Platz).
+            if (isMobile) {
+              return (
+                <>
+                  {istTelefon ? (
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-md">{storyMitte}</div>
+                  ) : (
+                    <StorySpalten mitte={storyMitte} quellen={storyQuellen} leiste={leiste} />
+                  )}
+                  {storyChronik && (
+                    <StoryChronikSheet open={chronikOffen} onOpenChange={setChronikOffen}>
+                      {storyChronik(libraryId, { schliessen: () => setChronikOffen(false) })}
+                    </StoryChronikSheet>
+                  )}
+                </>
+              )
+            }
+            return (
+              <StorySpalten
+                chronik={storyChronik ? storyChronik(libraryId) : undefined}
+                mitte={storyMitte}
+                quellen={storyQuellen}
+                leiste={leiste}
+              />
+            )
+          })()}
         </TabsContent>
         )}
       </Tabs>
@@ -1279,6 +1396,7 @@ export function GalleryRoot({
           onClose={handleCloseDocument}
           libraryId={libraryId || ''}
           fileId={selectedDoc.fileId || selectedDoc.id}
+          page={docPage}
           viewType={detailViewTypeForDoc}
           detailRenderers={detailRenderers}
           doc={selectedDoc}
@@ -1308,22 +1426,19 @@ export function GalleryRoot({
           }}
           libraryId={libraryId}
           mode={referencesSheetMode}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          cardDensity={cardDensity}
-          onCardDensityChange={handleCardDensityChange}
-          references={referencesSheetData?.references}
-          queryId={referencesSheetData?.queryId}
+          libraryDetailViewType={detailViewType}
           onOpenDocument={handleOpenDocument}
-          onClearFilters={handleClearFilters}
-          // Props für TOC-Modus
-          filteredDocs={filteredDocs}
-          docsByYear={docsByYear}
-          // Props für Answer-Modus
+          // D12m: dieselben Listen wie die Spalte am Desktop.
+          references={referencesSheetData?.references}
           usedDocs={usedDocs}
           unusedDocs={unusedDocs}
-          sources={sources}
-          // Loading und Error States
+          onKatalog={handleZumKatalog}
+          docs={filteredFlat}
+          anzahl={effectiveDocCount}
+          hasMore={anyEngagementFilterActive ? false : hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMore}
+          filterAnzeige={<FilterChips facetDefs={facetDefs} onClear={handleClearFilters} />}
           loading={loading}
           error={error}
         />

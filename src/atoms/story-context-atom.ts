@@ -211,10 +211,3 @@ storyAccessPerspectiveAtom.debugLabel = 'storyAccessPerspectiveAtom'
 export const storyLlmModelAtom = atom<LlmModelId>(getInitialLlmModel())
 storyLlmModelAtom.debugLabel = 'storyLlmModelAtom'
 
-/**
- * Atom für den Zustand des Perspektive-Popovers im Story-Modus.
- * true = Popover ist geöffnet, false = Popover ist geschlossen
- */
-export const storyPerspectiveOpenAtom = atom<boolean>(false)
-storyPerspectiveOpenAtom.debugLabel = 'storyPerspectiveOpenAtom'
-

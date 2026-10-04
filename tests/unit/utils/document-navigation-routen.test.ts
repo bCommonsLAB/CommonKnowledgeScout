@@ -89,6 +89,16 @@ describe('openDocumentBySlug', () => {
       expect(router.replace).toHaveBeenCalledWith('/explore/klima?doc=neu', { scroll: false })
     })
 
+    it('D7: setzt page mit, ohne Angabe entfernt es einen alten Wert', () => {
+      const router = createRouter()
+      openDocumentBySlug('neu', router as unknown as FakeRouter, '/explore/klima', params('doc=alt&page=4'), { page: 7 })
+      expect(router.replace).toHaveBeenLastCalledWith('/explore/klima?doc=neu&page=7', { scroll: false })
+      openDocumentBySlug('neu', router as unknown as FakeRouter, '/explore/klima', params('doc=alt&page=4'))
+      expect(router.replace).toHaveBeenLastCalledWith('/explore/klima?doc=neu', { scroll: false })
+      closeDocument(router as unknown as FakeRouter, '/explore/klima', params('doc=neu&page=7&view=grid'))
+      expect(router.replace).toHaveBeenLastCalledWith('/explore/klima?view=grid', { scroll: false })
+    })
+
     it('navigiert nicht, wenn der Library-Slug im Pfad fehlt', () => {
       const router = createRouter()
       openDocumentBySlug(

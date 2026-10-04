@@ -36,18 +36,20 @@ import type {
   KnowledgeScoutLocale,
 } from './typen'
 
-type Aufbau = { instanz: InstanceApi; locale: Locale } | { fehler: string }
+type Ansicht = KnowledgeScoutExplorerProps['view']
+const ANSICHTEN: readonly Ansicht[] = ['gallery', 'story']
+type Aufbau = { instanz: InstanceApi; locale: Locale; view: Ansicht } | { fehler: string }
 
 /** Prueft die Props und baut die Instanz — oder sagt, was nicht stimmt. */
 function aufbauen(baseUrl: string, view: string, locale: string): Aufbau {
-  if (view !== 'gallery') {
-    return { fehler: `Ansicht "${view}" gibt es im Embed noch nicht — bisher nur "gallery".` }
+  if (!(ANSICHTEN as readonly string[]).includes(view)) {
+    return { fehler: `Ansicht "${view}" gibt es im Embed nicht — erlaubt: ${ANSICHTEN.join(', ')}.` }
   }
   if (!(SUPPORTED_LOCALES as readonly string[]).includes(locale)) {
     return { fehler: `Sprache "${locale}" wird nicht unterstuetzt — erlaubt: ${SUPPORTED_LOCALES.join(', ')}.` }
   }
   try {
-    return { instanz: createInstanceApi({ baseUrl, acceptLanguage: locale }), locale: locale as Locale }
+    return { instanz: createInstanceApi({ baseUrl, acceptLanguage: locale }), locale: locale as Locale, view: view as Ansicht }
   } catch (e) {
     return { fehler: e instanceof Error ? e.message : String(e) }
   }
@@ -95,8 +97,9 @@ export function KnowledgeScoutExplorer({
         <JotaiProvider store={store}>
           <EmbedLocale locale={aufbau.locale} />
           <PortalContainerProvider container={rahmen}>
-            <EmbedGalleryProviders instanz={aufbau.instanz}>
-              <EmbedGalerie slug={library} instanz={aufbau.instanz} />
+            {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
+            <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
+              <EmbedGalerie slug={library} instanz={aufbau.instanz} view={aufbau.view} locale={aufbau.locale} />
             </EmbedGalleryProviders>
           </PortalContainerProvider>
         </JotaiProvider>

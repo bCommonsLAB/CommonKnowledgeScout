@@ -8,26 +8,26 @@ todos:
     content: "[Drahtgitter angelegt 01.10.2026, Abnahme offen] Layout-Konzept und Klickmodell in Figma: drei Bildschirme Desktop (Start mit Themenübersicht, Frage gewählt, Frage läuft), zwei Bildschirme Mobil (Chronik-Menü zu und auf). Verhältnis 15/50/35 als Startwert, Owner-Abnahme vor Welle D1."
     status: pending
   - id: d1-chronik-lesend
-    content: "[Paket zuerst: packages/module-story anlegen mit Gerüst, Gate und Test gegen fremdes fetch, alle neuen Komponenten dort] Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch claude/zealous-darwin-wvlu4k, Live-Nachweis offen] [Paket zuerst: packages/module-story anlegen mit Gerüst, Gate und Test gegen fremdes fetch, alle neuen Komponenten dort] Linke Spalte lesend, zwei Ebenen: Gliederung aus der berechneten Themenuebersicht (beim Einstieg zu, klappt auf und markiert das aktive Thema sobald in der Mitte eines gewaehlt ist; Fragen nur in der Mitte) und darunter Meine Fragen nach Sitzungen = bestehende Chats mit Titel (umbenennen, fortsetzen); Liste aus allen Chats der Person in dieser Library (Owner 01.10.: auch fruehere Sitzungen; anonym per Sitzungskennung, 30 Tage), je Chat die Fragen chronologisch. Mitte beim Einstieg: Kopf des Ganzen (Titel, Dreizeiler, Kennzahlen) + Themenkarten; Themenseite gleich aufgebaut mit Fragen als Knoepfe, Kurztitel heuristisch (erste Worte), Klick wählt die Konversation. Keine Änderung an Chat-Logik, nur Darstellung."
+    status: done
   - id: d2-auswahl-und-scroll
-    content: "Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1 gestapelt), Live-Nachweis offen] Auswahlmodell: genau eine Konversation ist aktiv (URL-Parameter per nuqs, z. B. q=<queryId>); Mitte zeigt sie oben bündig; neue Frage wird aktiv und erscheint sofort in der Chronik mit Zustand läuft. Scroll-Regel aus dem Fix vom 01.10. übernehmen (Frage oben, Antwort darunter)."
+    status: done
   - id: d3-quellen-spalte
-    content: "Rechte Spalte auf 35 % und schmaler gestalten: Quellenliste der aktiven Antwort statt Galerie-Raster; ohne aktive Antwort die gefilterte Übersicht wie heute. Filterleiste bleibt oben."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1+D2 gestapelt), Live-Nachweis offen] Rechte Spalte auf 35 % und schmaler gestalten: Quellenliste der aktiven Antwort statt Galerie-Raster; ohne aktive Antwort die gefilterte Übersicht wie heute. Filterleiste bleibt oben."
+    status: done
   - id: d4-mobil
-    content: "Mobil (unter lg): Chronik als Sheet hinter einem Menü-Knopf im Story-Kopf; Mitte füllt den Schirm; Quellen wie heute als Overlay. Keine doppelten Mounts (Lehre aus M4h)."
-    status: pending
+    content: "[Gebaut 01.10.2026 in PR zu Branch ccr-72b5c0ce-oj24xu (auf D1–D3 gestapelt), Live-Nachweis offen] Mobil (unter lg): Chronik als Sheet hinter einem Menü-Knopf im Story-Kopf; Mitte füllt den Schirm; Quellen wie heute als Overlay. Keine doppelten Mounts (Lehre aus M4h)."
+    status: done
   - id: d5-kurztitel-llm
-    content: "Kurztitel (zwei bis vier Worte) aus derselben LLM-Antwort wie die Antwort selbst (Prompt-Erweiterung im Orchestrator, Feld shortTitle im QueryLog, Sprache = Zielsprache). Heuristik aus D1 bleibt Fallback für alte Einträge."
-    status: pending
+    content: "[Gebaut 01.10.2026 (auf D1–D4 gestapelt), Live-Nachweis offen] Kurztitel (zwei bis vier Worte) aus derselben LLM-Antwort wie die Antwort selbst (Prompt-Erweiterung im Orchestrator, Feld shortTitle im QueryLog, Sprache = Zielsprache). Heuristik aus D1 bleibt Fallback für alte Einträge."
+    status: done
   - id: d7-zitatmarken
-    content: "Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
-    status: pending
+    content: "[Gebaut 01.10.2026 (auf D1–D6a gestapelt), Live-Nachweis und Backfill-Lauf offen] Zitatmarken je Dokument statt je Textstelle: Belege nach fileId gruppieren, Kreiszahlen im Text = Karte rechts, DocReference um passages (chunkIndex, page, excerpt) erweitern, Seitenzahl je Chunk beim Einlesen speichern + Backfill, Tooltip mit Seiten und Zitaten, Sprung in die Detailansicht auf die Seite."
+    status: done
   - id: d6-aufraeumen
-    content: "chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
-    status: pending
+    content: "[D6a gebaut 01.10.2026 (Entflechten, toter Code, Verlauf, Status, Sitzungstitel); D6b gebaut 01.10.2026 (Konversation im Paket, StoryRoot im Embed, Detailansicht aufgeteilt); D6c gebaut 01.10.2026 (App montiert StoryRoot, eingebettete Chat-Variante zurückgebaut); Live-Nachweis App und Embed offen; Befund: ChatPanel ist nirgends mehr montiert — Rückbau des App-Chats ist D6d] chat-panel.tsx entflechten (1.220 Zeilen): Chronik, Mitte und Quellen als eigene Komponenten unter 200 Zeilen im Paket; StoryRoot in @ks/embed montieren; alte Zweiteilung entfernen; welle-3-iii-galerie-chat-contracts und STAND.md nachziehen."
+    status: done
 ---
 
 # Story-Modus: Dreiteilung mit Fragen-Chronik
@@ -256,13 +256,1251 @@ Nachziehen.
 |---|---|---|
 | D0 | Figma: drei Desktop-Bildschirme, zwei Mobil-Bildschirme, Klickpfade verbunden (angelegt 01.10., Link unter Entscheidungen) | Owner klickt das Modell durch, Abnahme der Verhältnisse |
 | D1 | Chronik lesend, heuristische Kurztitel, Klick wählt Konversation | Live: zehn Fragen, jede per Klick erreichbar |
-| D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ | Live: Neu laden mit `q=` zeigt die richtige Konversation |
-| D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste | Live: Belege wechseln mit der Auswahl |
-| D4 | Mobil: Chronik im Sheet | Browser-Pane mobil, keine Doppel-Mounts |
-| D5 | Kurztitel aus dem LLM, Feld `shortTitle` | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
-| D6 | Entflechten und Doku | `chat-panel.tsx` unter 400 Zeilen, Teile unter 200 |
+| D2 | Auswahl in der URL, Frage oben bündig, Zustand „läuft“ (gebaut 01.10., Stand D2 oben) | Live: Neu laden mit `q=` zeigt die richtige Konversation |
+| D3 | Quellen auf 35 %, Belege der aktiven Antwort als Liste (gebaut 01.10., Stand D3 oben) | Live: Belege wechseln mit der Auswahl |
+| D4 | Mobil: Chronik im Sheet (gebaut 01.10., Stand D4 oben) | Browser-Pane mobil, keine Doppel-Mounts |
+| D5 | Kurztitel aus dem LLM, Feld `shortTitle` (gebaut 01.10., Stand D5 oben) | Live: neue Frage bekommt treffenden Titel in der Zielsprache |
+| D6 | Entflechten und Doku (D6a, D6b, D6c gebaut 01.10.: App und Embed montieren `StoryRoot`; D6d offen: toten App-Chat entfernen) | Story-Mitte in App und Embed aus demselben Paket; Live: Übersicht, Frage mit ①, Chronik, Löschen |
+| D7 | Zitatmarken je Dokument, Seite je Chunk, Sprung auf die Seite (gebaut 01.10., Stand D7 oben) | Live: ① im Text = Karte rechts; Seitenknopf öffnet das PDF an der Seite |
+| D8 | Sitzungsstart: Themenübersicht eröffnet keine Sitzung, erst die erste Frage; Altlasten-Skript (gebaut 02.10., Stand D8 unten) | Live: Übersicht ansehen legt keinen Chat an; „Meine Fragen“ ohne Systemtitel |
+| D9 | Kopf-Plaketten: Perspektive im Story-Kopf als Plaketten statt Info-Symbol, wie Figma Schritt 1; Chronik ohne Aufruf bei leerer Library-Kennung (gebaut 02.10., Stand D9 unten) | Live: Plaketten sichtbar, Klick führt zur Perspektive-Seite; kein 405 beim Start |
+| D10 | Kopf der Seite für beide Ansichten: Titel und Zweizeiler der Library oben, darunter die Ansichtszeile („Inhalte erkunden“ / „Story-Modus“) mit ⓘ-Erklärung zum Auf- und Zuklappen; Mitte ohne Konfig-Kopf, Modelltitel vor den Themen (Figma „6“ und „Schritt 7“ abgenommen 02.10., gebaut als D10 + D10b 02.10., Stand D10 unten) | Live: Erklärung beim ersten Besuch auf, Pfeil klappt zu, ⓘ wieder auf; Kopf zeigt Library in Galerie und Story; Plaketten nur Gesetztes |
 
 Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
+
+### Stand D1 (gebaut 01.10.2026)
+
+Was steht:
+
+- Paket `@ks/module-story` (`packages/module-story`): React-freies
+  Wurzel-Barrel mit `storyGate` (`SiteModule` um `story` erweitert, die
+  Voll-App liefert es aus), React-Einstieg `@ks/module-story/react`. Tests:
+  kein nacktes `fetch`, kein `next/*`, kein Clerk, kein `@/`, keine
+  Adresszeile. Die Chat-Routen bleiben bis D6 unter `explorerGate`.
+- `StoryTopicsData` liegt in `@ks/contracts`; `src/types/story-topics.ts`
+  ist Shim.
+- Linke Spalte (`StoryChronik`): Gliederung (zu beim Einstieg, klappt auf und
+  markiert das Thema der Auswahl) und „Meine Fragen" nach Sitzungen; Fragen
+  der aktiven Sitzung live aus dem Verlauf, ältere Sitzungen laden beim
+  Aufklappen; Umbenennen per PATCH; „Neue Sitzung".
+- Mitte (`StoryUebersicht`, `StoryThema` im Paket; `StoryMitte` in der App
+  hängt Konfig-Texte, Rechen-Status, „neu berechnen", KI-Hinweis an): Kopf des
+  Ganzen (Label, Beschreibung, Zähler) mit Themenkarten; Themenseite mit
+  Fragen als Knöpfen. Gewählte Konversation steht allein in der Mitte.
+- Zustand zwischen den Spalten über drei Jotai-Atome (`storyAuswahlAtom`,
+  `storyGliederungAtom`, `storyAktiveSitzungAtom`); `useActiveChatId` teilt
+  die aktive Sitzung über ein Atom. Die Auswahl ist noch lokal (URL ist D2).
+- `GalleryRoot` hat den Slot `storyChronik`; mit Slot 15 / 50 / 35 als feste
+  Startwerte (Ziehen, Entscheidung 2, kommt mit D3, wenn die Spalten ohnehin
+  angefasst werden). Chronik nur auf Desktop gemountet; Mobil ist D4.
+- Server: `GET …/queries` liefert `queryType` und `chatId` (die Chronik lässt
+  die Themenübersicht weg); eine Sitzung, die die Themenübersicht eröffnet
+  hat, bekommt mit der ersten echten Frage deren Titel.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- Jede erste Anfrage ohne `chatId` legt einen Chat an — im Story-Modus ist das
+  die Themenübersicht. Solche Sitzungen trugen die englische Systemfrage als
+  Titel; die Server-Regel oben behebt das für Sitzungen mit Fragen. Eine
+  Sitzung, in der nie gefragt wurde, bleibt mit Systemtitel sichtbar.
+  Entscheidung offen: ausblenden (braucht Zähler je Sitzung) oder in D5/D6
+  gar keinen Chat für die Themenübersicht anlegen.
+- `publicPublishing.story` (topicsTitle, topicsIntro) erreicht anonyme
+  Betrachter auf `/explore/[slug]` nicht: `GET /api/public/libraries/[slug]`
+  liefert das Feld nicht, `toClientLibrary` kennt es nicht. Die Karten-
+  Überschrift fällt dort auf den Titel der Gliederung zurück. Kandidat für
+  D3 (Konfig-Stellen) oder D6.
+- Toter Code im Chat: `chat-welcome-assistant.tsx` und
+  `hooks/use-chat-config.ts` importiert niemand; `StoryTopics` wird mit D1
+  nur noch von nichts gerendert. Alle drei fallen in D6.
+- `use-chat-history` lädt je Frage eine zweite Anfrage (N+1), um `queryType`
+  zu kennen; mit dem Feld in der Liste kann D6 das streichen.
+- Der Live-Nachweis (zehn Fragen, jede per Klick erreichbar) steht aus; die
+  Welle wurde ohne Mongo nur mit Unit-Tests (Hook, Komponenten, Helfer)
+  belegt.
+
+### Stand D2 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Auswahl in der Adresse:** `q=<queryId>` per `nuqs`. Das Paket bleibt
+  URL-frei (`paket-schnitt.test.ts`): `auswahl-kennung.ts` legt nur fest,
+  welche Auswahl eine Kennung hat (gespeicherte Konversationen) und was eine
+  Kennung von außen ändert — fehlt `q`, gilt die Themenübersicht; ein Thema
+  und eine laufende Frage (noch ohne queryId) stehen nicht in der Adresse
+  und bleiben unberührt. Die App bindet das Atom in `StoryAuswahlUrl`
+  (`src/components/library/story/story-auswahl-url.tsx`, montiert in
+  `client.tsx` neben dem Chat-Panel), wie `NextGalleryNavigation` für die
+  Galerie: Klick schreibt mit Verlaufseintrag, der Nachtrag der queryId an
+  eine laufende Frage ersetzt nur (Zurück führt nicht auf „läuft").
+- **Neu laden / Zurück / geteilter Link:** Kommt `q` von außen, löst die
+  App die Sitzung über `GET …/queries/<queryId>` (liefert `chatId`) auf und
+  stellt den Chat darauf um; sonst bliebe die Mitte leer, wenn die
+  Konversation zu einer anderen als der zuletzt aktiven Sitzung
+  (localStorage) gehört. Nicht auffindbar (404, fremde Sitzung): Auswahl
+  bleibt, Warnung in der Konsole, Mitte meldet „nicht im Verlauf".
+- **Frage oben bündig:** `use-chat-scroll` stellt beim Auswahl-Wechsel
+  (Chronik-Klick, Zurück, Neu laden) die Frage der gewählten Konversation
+  oben bündig — dieselbe Regel wie beim Senden (Fix vom 01.10.,
+  `scrollElementToViewportTop` mit Platzhalter). Der Schlüssel ist die
+  lokale Kennung, damit der Nachtrag der queryId keinen zweiten Sprung
+  auslöst.
+- **Zustand „läuft":** `fragenAusVerlauf` kennt den Stream-Zustand; offen
+  ist nur die letzte Frage ohne Antwort, solange gesendet wird (eine
+  abgebrochene Frage stand sonst ewig als „läuft"). Die erste Frage einer
+  neuen Sitzung erscheint sofort unter einer vorläufigen Sitzung („Neue
+  Sitzung", nicht umbenennbar), bis der Server die Kennung vergibt.
+- **Verarbeitung in einfachen Worten:** `VerarbeitungEinfach` im Paket
+  (`verarbeitungInWorten` als reine Funktion): eine Zeile je Phase
+  (erinnern, verstehen, lesen, zusammenstellen, formulieren, aufbereiten),
+  keine Technikbegriffe; i18n `processing.plain.*` in fünf Sprachen.
+  `ProcessingStatus` hat dafür `einfach`; Story-Mitte und eingebetteter
+  Verlauf nutzen es, Chat-Reiter und Protokoll-Dialog bleiben technisch.
+  Dafür liegt `ChatProcessingStep` jetzt in `@ks/contracts`
+  (`src/types/chat-processing.ts` ist Shim, `formatSSE` bleibt dort).
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- `use-chat-history` lädt je Sitzung nur die letzten 20 Fragen. Ein `q` auf
+  eine ältere Frage derselben Sitzung findet die Konversation nicht und
+  meldet „nicht im Verlauf", obwohl die Chronik (100 je Sitzung) sie
+  listet. Kandidat für D6 zusammen mit dem N+1 aus D1.
+- Der Wechsel in die Galerie-Ansicht trägt `q` mit (`nextParamsForMode`
+  kopiert alle Parameter); zurück im Story-Modus ist die Konversation wieder
+  gewählt. Bewusst so gelassen; wer das anders will, löscht `q` in
+  `nextParamsForMode` für `gallery`/`site`.
+- Contract `welle-3-iii-galerie-chat-contracts` §5 nannte `?q=<query>` als
+  Suchtext — nie gebaut, nirgends gelesen. Die Zeile heißt jetzt
+  `q=<queryId>` (Story: gewählte Konversation).
+- `story-topics/index.tsx` (seit D1 ohne Aufrufer) nutzt weiter die
+  technische Ansicht; fällt in D6.
+- Live-Nachweis (Neu laden mit `q=` zeigt die richtige Konversation) steht
+  aus: ohne Mongo nur per Unit-Tests belegt (URL-Bindung mit
+  `NuqsTestingAdapter`, Kennung-Regeln, Chronik, Verarbeitung in Worten).
+
+### Stand D3 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Spalten per Ziehen:** `StorySpalten` im Explorer-Paket
+  (`gallery/components/story-spalten.tsx`): `ResizablePanelGroup` mit
+  Chronik | Mitte | Quellen, Startwerte 15 / 50 / 35 (Entscheidung 2), Stand
+  im localStorage über `autoSaveId` wie die Archiv-Panels; ohne Chronik-Slot
+  50 / 50 unter eigenem Schlüssel. Mobil wird nur die Mitte gemountet (keine
+  Doppel-Mounts, Lehre aus M4h); Quellen bleiben dort das Overlay.
+- **Belege rechts:** Mit aktiver Antwort zeigt die Spalte `BelegListe` statt
+  des Galerie-Rasters: je Dokument eine Karte mit Fußnoten-Nummern (heute
+  noch je Textstelle, D7 macht sie je Dokument), Titel, Status-Plakette,
+  Kennzeile, Kurztext und „Original ansehen" (Galerie-Adressierung, sonst
+  Rückfall über `open-document-detail`). Darunter „Weitere gefundene
+  Dokumente" zugeklappt und der Weg in den Katalog („Alle n Originalquellen
+  im Katalog"); beides und „Schließen" setzen Referenzen und Antwort-Filter
+  zurück. Ohne aktive Antwort: Filterleiste oben, gefilterte Übersicht wie
+  bisher. Die Filterleiste bleibt in der Beleg-Ansicht ausgeblendet (wie
+  bisher im Raster: sie filtert den Katalog, nicht die Belege).
+- **Konfig je Detailansichtstyp** (Registry `belegKarte` in `@ks/contracts`):
+  Status-Feld mit Zuordnung seiner Werte auf vier generische Plaketten
+  (`umsetzung`, `geplant`, `pruefung`, `abgelehnt`; Labels aus i18n
+  `story.beleg.status.*`) und Kennzeilen-Felder. Fehlt die Konfig oder das
+  Feld, fällt der Block weg; ein Wert ohne Zuordnung erscheint roh als
+  neutrale Plakette (sichtbar, nicht geraten). Kein Code kennt eine Library.
+- **Zuordnung climateAction (festgelegt, Offene Punkte):** in_umsetzung,
+  im_klimaplan, in_fachplaenen → In Umsetzung; neu_umsetzbar → Geplant;
+  vertieft_pruefen, unklar → In Prüfung; nicht_umsetzbar → Abgelehnt.
+  Kennzeile: massnahme_nr · arbeitsgruppe · vorschlag_quelle. book: Autoren,
+  Jahr; session: Vortragende, Track, Datum. Test
+  `beleg-karte-config.test.ts` hält Felder und Plaketten fest.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Kurztext:** `DocCardMeta` (die Galerie-Karte) trägt keine
+  Zusammenfassung — weder `summary` noch `teaser` kommen in der
+  Galerie-Projektion an. Der Kurztext des Belegs ist deshalb die Begründung
+  der ersten Referenz (warum zitiert). Soll die „Beschreibung des
+  Vorschlags" auf die Karte, muss die Galerie-Projektion das Feld liefern
+  (Server, `docs`-Route) — Kandidat für D7 zusammen mit den Zitaten.
+- **Zwei Status-Zuordnungen:** Die Galerie-Karte (`document-card/
+  status-config.ts`: neu_umsetzbar = aktiv, vertieft_pruefen = geplant) und
+  die Detailansicht (`climate-action-detail.tsx`) ordnen `lv_bewertung`
+  anders zu als die Belegkarte. Vereinheitlichen auf die Registry-Konfig ist
+  Kandidat für D6.
+- **Zustimmungsbalken** (Offene Punkte) bleibt weg: kein Feld dafür.
+- Live-Nachweis (Belege wechseln mit der Auswahl, Spalten ziehen und merken)
+  steht aus: ohne Mongo nur per Unit-Tests belegt (Helfer, Belegliste mit
+  Adressierung, Registry-Konfig).
+
+### Stand D4 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Chronik mobil als Sheet:** `StoryChronikSheet` im Explorer-Paket (Sheet
+  von links, Inhalt ist der `storyChronik`-Slot). `GalleryRoot` hält den
+  Zustand und mountet den Slot unter `lg` NUR im Sheet, solange es offen ist
+  (Radix hält geschlossenen Inhalt nicht im DOM); auf dem Desktop nur in der
+  Spalte. Verlässt man den Story-Modus oder springt die Breite auf Desktop,
+  fällt das Sheet zu — nie zwei Mounts (Lehre aus M4h). Mitte füllt den
+  Schirm, Quellen bleiben das Overlay (`ReferencesSheet`).
+- **Menü-Knopf im Story-Kopf:** Der `storyHeader`-Slot bekommt
+  `onOpenChronik` (nur mit Chronik-Slot); `StoryHeader` der App zeigt dafür
+  unter `lg` den Knopf „Themen und Fragen" (`story.chronik.open`, fünf
+  Sprachen). Das Paket kennt keine App-Komponente — der Knopf ist App.
+- **Schließen nach Auswahl:** Der `storyChronik`-Slot bekommt
+  `ctx.schliessen` mit; `StoryChronik` (`@ks/module-story`) meldet jede
+  Auswahl über `onGewaehlt` (Übersicht, Thema, Frage, neue Sitzung), die App
+  reicht beides durch. Nach dem Tipp steht die Mitte frei.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Embed:** `@ks/embed` montiert `GalleryRoot` ohne Story-Slots (M5: Story
+  und Chat nicht mitnehmen); dort gibt es keinen Story-Modus und damit
+  nichts mobil zu prüfen. Sobald D6 `StoryRoot` im Embed montiert, gilt
+  dieselbe Mechanik (Slot + Sheet) ohne weitere Änderung.
+- Live-Nachweis (Browser-Pane mobil: Knopf, Sheet, Auswahl schließt,
+  kein Doppel-Mount) steht aus: ohne Mongo nur per Unit-Tests belegt
+  (Sheet mountet nur offen, Chronik meldet jede Auswahl).
+
+### Stand D5 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Kurztitel aus derselben Antwort:** Das Antwort-Schema
+  (`chatAnswerZodSchema`, JSON-Schema) hat ein optionales Feld `shortTitle`;
+  der Prompt (`buildChatUserMessage` und `buildPrompt`) verlangt es als
+  viertes Feld: zwei bis vier Worte, in der Sprache der Antwort, ohne
+  Anführungszeichen und Satzzeichen. Kein zweiter LLM-Aufruf. Optional,
+  damit ein Modell ohne das Feld nicht die ganze Antwort verwirft.
+- **Bereinigen statt raten:** `normalizeShortTitle` (reine Funktion,
+  `src/lib/chat/common/short-title.ts`) entfernt Anführungszeichen,
+  Satzzeichen am Ende und Mehrfach-Leerzeichen, kürzt über 60 Zeichen an der
+  Wortgrenze; nichts Brauchbares → `undefined`, kein Platzhalter. Der
+  Orchestrator setzt es im Haupt- und im Retry-Pfad, schreibt es über
+  `finalizeQueryLog` ins Log und liefert es im Ergebnis.
+- **Feld und Projektion:** `QueryLog.shortTitle`; `GET …/queries` liefert es
+  in der Liste (Projektion in `listRecentQueries`), der Stream im
+  `complete`-Schritt (frisch und aus dem Cache; `ChatProcessingStep` in
+  `@ks/contracts`).
+- **Cache unberührt:** `createCacheHash` baut aus einer festen Feldliste —
+  `shortTitle` ist nicht dabei, der Query-Log-Vergleich läuft über den Hash.
+  Test in `cache-key-utils.test.ts`; `chat-contracts` §5 nennt die Regel.
+- **Chronik:** `ChronikFrage.kurztitel` (aus `shortTitle` der Liste bzw. der
+  Frage-Nachricht im Verlauf, die der Stream-Hook beim Abschluss ergänzt);
+  `kurztitelFuer` nimmt ihn, sonst die Heuristik `kurztitel(text)` — alte
+  Einträge bleiben lesbar. Sitzungstitel (D1-Serverregel) bleiben, wie sie
+  sind.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- Der Analyse-Schritt (`question-analyzer.ts`) erzeugt schon einen
+  `chatTitle` (bis 60 Zeichen) in einem eigenen LLM-Aufruf, der heute den
+  Sitzungstitel speist. Zwei Titel aus zwei Aufrufen: Kandidat für D6, den
+  Sitzungstitel aus dem `shortTitle` der ersten Frage zu nehmen und den
+  Analyse-Aufruf zu verschlanken.
+- TOC-Antworten (Themenübersicht) bekommen bewusst keinen `shortTitle`; die
+  Chronik lässt sie ohnehin weg.
+- Live-Nachweis (neue Frage bekommt treffenden Titel in der Zielsprache)
+  steht aus: ohne Mongo und Sprachmodell nur per Unit-Tests belegt (Schema,
+  Prompt, Normalisierung, Hash, Verlauf, Chronik).
+
+### Stand D6a (gebaut 01.10.2026) — D6b (Embed) offen
+
+Was steht:
+
+- **chat-panel.tsx entflochten:** 1.220 → 372 Zeilen. Sieben Hooks unter
+  `chat-panel/hooks/` (Perspektive, Aufklappen beim Laden, Story-Brücke
+  D1/D2, Nachladen-Hinweis, Abschluss-Schritt, Autostart der
+  Themenübersicht, Filter-Ereignisse, Aktionen) und zwei Layout-Teile
+  (`panel-header`, `panel-footer`), jede Datei unter 200 Zeilen, Verhalten
+  1:1. Die Varianten `default` und `compact` teilen sich einen Render-Pfad.
+  Der Umbau lief in vier Commits unter 1.000 Zeilen, jeder baut.
+- **Toter Code weg:** `chat-welcome-assistant.tsx`, `hooks/use-chat-config.ts`,
+  `story-topics.tsx` und `story-topics/**` (alte Zweiteilung) samt
+  Export-Vertragstest. `src/types/story-topics.ts` bleibt Shim.
+- **Verlauf ohne N+1:** `GET …/queries` projiziert jetzt auch
+  `accessPerspective`, `genderInclusive`, `facetsSelected` und `cacheParams`;
+  `use-chat-history` lädt eine Liste je Sitzung (bis 100 Fragen) und baut die
+  Nachrichten über die reine Funktion `verlaufZuNachrichten`
+  (`utils/verlauf-utils.ts`). Damit findet `q=` auch ältere Fragen.
+- **Status-Zuordnung vereinheitlicht:** Klimakarte (`climate-action-card`)
+  und Detailansicht (`climate-action-detail`) nehmen die Registry-Konfig
+  `belegKarte` (`plaketteFuer`, Labels `story.beleg.status.*`) wie die
+  Belegkarte; `document-card/status-config.ts` ist weg. Ohne Wert keine
+  Plakette, unbekannter Wert roh.
+- **Sitzungstitel aus dem Kurztitel:** Hat eine Frage die Sitzung benannt
+  (neu angelegt oder Systemtitel der Themenübersicht ersetzt), wird nach der
+  Antwort der `shortTitle` des Sprachmodells (D5) zum Sitzungstitel — frisch
+  wie aus dem Cache. Der Analyse-`chatTitle` bleibt vorerst (Verschlanken des
+  Analyse-Aufrufs ist Server-Arbeit für eine eigene kleine Welle).
+
+Was in D6b bleibt (eigene PR):
+
+- `StoryRoot` mit denselben Montagepunkten wie `ExplorerRoot` und Montage in
+  `@ks/embed` (anonym über die Sitzungskennung); dafür muss die Konversation
+  (`ChatMessagesList`, Stream-Hook, Verlauf) ohne `@/`-Importe im Paket
+  stehen — das ist der große Rest des Monolithen. Die Mitte im Paket ist
+  heute `StoryUebersicht`/`StoryThema` plus App-Glue (`StoryMitte`); die
+  Konversations-Ansicht kommt mit D7 (Zitatmarken), die sie ohnehin neu
+  baut.
+
+### Stand D7 (gebaut 01.10.2026)
+
+Was steht:
+
+- **Eine Nummer je Dokument:** `dokumenteNummerieren` (`src/lib/chat/common/zitatmarken.ts`)
+  gruppiert die Treffer nach `fileId` in Trefferreihenfolge; Prompt
+  (`buildContext`, `beschreibeDokumente`) und Orchestrator
+  (`belegeAusGruppen`) rechnen mit derselben Nummerierung. Das Sprachmodell
+  zitiert Dokument-Nummern („one number = one document“); `usedReferences`
+  meint Dokumente. `DocReference.passages` (`@ks/contracts`, `DocPassage`:
+  `chunkIndex`, `page?`, `excerpt` ≈ 160 Zeichen) hängt die Textstellen an.
+  Cache-Hash unverändert.
+- **Seite je Chunk, nur mit Seitenankern:** `buildVectorDocuments` bekommt die
+  `PageSpan[]` aus `splitByPages(finalMarkdown)` und setzt `page` über die
+  Chunk-Mitte (`seiteFuerOffset`, `page-split.ts`); `vector-repo` schreibt es
+  in die Chunk-Metadaten, der Chunk-Retriever reicht es als
+  `RetrievedSource.page` weiter. Quellen ohne `--- Seite N ---` haben kein
+  Feld — kein Ersatzwert. Bestehende Libraries:
+  `pnpm tsx scripts/backfill-chunk-pages.ts --collection <name> [--apply]`
+  rechnet den eingebetteten Text aus dem Meta-Dokument nach (Trockenlauf
+  ohne `--apply`). **Noch nicht gelaufen** — Owner entscheidet, welche
+  PDF-Libraries nachgezogen werden.
+- **Marken im Text und an der Karte:** `zitatmarkenImText` (`@ks/util`) macht
+  aus `[n]` den Anker `[①](#beleg-n)`; `MarkdownPreview` lässt `#`-Links in
+  der Seite. Die Belegkarte trägt `id="beleg-<n>"`, zeigt ①… statt Zahlen,
+  ein Tooltip „stützt sich auf n Textstellen“ und darunter die Textstellen
+  mit Zitat; die Seite ist ein Knopf („S. 7“), „Original ansehen“ öffnet an
+  der ersten Seite. Ohne Seite nur das Zitat (Audio, Video, Markdown).
+- **Sprung auf die Seite:** `openDocument(slug, { page })` in beiden
+  Adressierungen (App: `openDocumentBySlug` setzt/löscht `page`; Embed:
+  `SpeicherGalleryNavigation`), `closeDocument` räumt `page` mit auf.
+  `GalleryRoot` liest `page` und gibt es an `DetailOverlay`; der Hook
+  `useSeitenSprung` (`detail-overlay/seiten-sprung.ts`) sucht
+  `[data-page-marker]` (Markdown, `injectPageAnchors`) oder `[data-page]`
+  (PDF-Canvas) im Viewport, versucht es bis 3 s nach dem Laden und meldet
+  einen fehlenden Anker einmal.
+
+Was bewusst anders ist als im Zielbild:
+
+- **Kein Tooltip auf der Marke im Text.** Die Marke ist ein Anker auf die
+  Karte; das Tooltip mit Zitaten sitzt an der Karte. Ein Tooltip im
+  Markdown-Text bräuchte einen eigenen Link-Renderer in `MarkdownPreview`
+  (App) und `markdown-body` (Paket) — kommt mit D6b, wenn die Konversation
+  ins Paket zieht und beide Renderer ohnehin zusammenfallen.
+- **Alte Antworten** (Query-Log vor D7) haben Referenzen je Textstelle ohne
+  `passages`; die Karte zeigt dann wie bisher den Kurztext aus der
+  Beschreibung, die Nummern im Text bleiben die alten.
+- `detail-overlay.tsx` ist mit 493 Zeilen weiter über der 200-Zeilen-Grenze
+  (Altlast, +5 Zeilen für den Sprung); das Aufteilen gehört zu D6b.
+
+### Stand D6b (gebaut 01.10.2026) — Konversation im Paket, StoryRoot im Embed
+
+Was steht:
+
+- **Konversation in `@ks/module-story`** (`src/react/konversation/`): Vokabular
+  (`Nachricht`, `Perspektive`, `AntwortLaenge`), SSE-Zeilen, Fragenliste →
+  Nachrichten mit Paaren, Chronik-Fragen und Auswahl (`verlauf.ts`), Verlauf
+  einer Sitzung (`useStoryVerlauf`) und Stream (`useStoryStream`: Frage und
+  Themenübersicht über denselben Weg, `complete` bringt Antwort, Belege,
+  Kurztitel, Sitzung) — alles über die Instanz, ohne Clerk, ohne `@/`,
+  Paket-Schnitt- und Fetch-Tests grün. Die Systemfrage der Themenübersicht
+  liegt als `STORY_TOC_QUESTION` in `@ks/contracts`; die App exportiert sie
+  weiter als `TOC_QUESTION`.
+- **Antworttext mit Zitatmarken** (`AntwortText`): dieselbe Markdown-Engine
+  wie die Buch-Ansicht (`md` aus `@ks/viewers`), Marken ①… als Anker mit
+  `title` „Dokument: stützt sich auf n Textstellen“ (`mitMarkenTiteln`, reine
+  String-Arbeit auf dem HTML). Klick scrollt zur Belegkarte `#beleg-n`, die
+  Adresse bleibt unberührt (Embed). Das ist der Tooltip im Text aus D7 — im
+  Paket; die App zeigt im Chat-Panel weiter nur den Anker (MarkdownPreview
+  rendert HTML aus einem eigenen Pfad).
+- **`StoryRoot`** (Mitte + Eingabe): Themenübersicht, Themenseite oder genau
+  die gewählte Konversation; Anschlussfragen und Themenfragen landen in der
+  aufklappbaren Eingabe; aktive Sitzung je Library über `useStorySitzungId`
+  (Atom + localStorage, derselbe Schlüssel wie `useActiveChatId` der App);
+  Verdrahtung in `useStoryKonversation` (Autostart der Übersicht einmal je
+  Filter- und Perspektiven-Stand, gesendete Frage wird die aktive
+  Konversation per Rückruf `onFrage`, Kennung und Thema werden nachgetragen,
+  Chronik-Atome gefüllt). `StoryKopfzeile` für Montagepunkte ohne eigenen
+  Story-Kopf.
+- **Embed `view="story"`** (`packages/embed/src/embed-story.tsx`): die drei
+  Story-Slots der Galerie mit `StoryRoot`, `StoryChronik` und
+  `StoryKopfzeile`, Start im Story-Modus (`initialParams=mode=story`).
+  Perspektive aus der Chat-Konfig der Library, Sprache = `locale` des
+  Embeds, Modell = erstes öffentlich gelistetes (Regel wie `useStoryContext`),
+  Belege über `chatReferencesAtom` an die Belegliste rechts, Dokumentenzahl
+  aus dem geteilten Galerie-Zustand. Ohne Modell eine sichtbare Meldung.
+  Bündel gebaut und geprüft (`pnpm --filter @ks/embed build`, 1,7 MB ESM).
+- **Detailansicht aufgeteilt**: `detail-overlay.tsx` 493 → 139 Zeilen;
+  Props-Vertrag, Doc-Meta, Bewertungsmodus, Kopf und Inhalt unter
+  `detail-overlay/`, jede Datei unter 200 Zeilen.
+
+Was bewusst (noch) nicht ist:
+
+- **Die App montiert weiter `ChatPanel`** (`variant='embedded'`) als
+  Story-Mitte. Sie trägt, was das Paket nicht hat: Perspektiven-Seite,
+  Konfig-Anzeige, Debug und Protokoll, Löschen und Neu-Stellen,
+  Filter-Ereignisse, Nachladen-Hinweis. Die Umstellung der App auf
+  `StoryRoot` (und der Rückbau von `chat-panel/`, `chat-messages-list`,
+  `use-chat-stream`, `use-chat-history` für die Story-Mitte) ist **D6c** —
+  erst nach dem Live-Nachweis des Embeds, damit beide Wege nicht gleichzeitig
+  kippen.
+- Im Embed gibt es keine Perspektiven-Wahl (ADR 0008: nur Öffentliches, keine
+  Identität); Interessenprofil und Sprachstil kommen aus der Library.
+- `publicPublishing.story` (topicsTitle, topicsIntro) fehlt der öffentlichen
+  Library-Route weiterhin (Befund D1); im Embed heißt die Übersicht nach der
+  Gliederung.
+- Live-Nachweis offen: `view="story"` in einer fremden Next-App — Übersicht
+  entsteht, Frage antwortet mit ① auf der Karte rechts, Chronik listet die
+  Sitzung nach dem Neuladen.
+
+### Stand D6c (gebaut 01.10.2026) — App auf StoryRoot
+
+Was steht:
+
+- **Die App montiert `StoryRoot`** (`story/story-root-mount.tsx`) als
+  Story-Mitte statt `ChatPanel variant="embedded"`. Hereingereicht, was nur
+  die App kennt: Anmeldung (Clerk), Perspektive aus dem Story-Context
+  (Perspektiven-Seite; gendergerechte Sprache aus dem gespeicherten Kontext),
+  Konfig-Texte aus `useLibraries`, Eingabegrenze aus der Chat-Konfig, Filter
+  und Dokumentenzahl der Galerie, Belege an `chatReferencesAtom`. Füße
+  (`story-fuss.tsx`): KI-Hinweis, Konfig-Anzeige (aus dem Query-Log),
+  Quellen-Sheet für Mobil (`show-reference-legend`, `show-toc-references`),
+  Protokoll und Debug für Angemeldete.
+- **Paket-Ergänzungen:** Frage löschen (Rückfrage, `DELETE …/queries/<id>`
+  über die Instanz, zurück zur Übersicht; opt-in `loeschenErlaubt`, die App
+  setzt es, das Embed nicht), „Frage neu stellen“ (Text in die Eingabe),
+  `uebersichtFuss` bekommt die gespeicherte Kennung der Übersicht.
+- **Eine Sitzung für alle:** `useActiveChatId` ist ein Mantel um
+  `useStorySitzungId` — Chronik-Montage, `StoryAuswahlUrl` und Mitte sehen
+  dasselbe Atom und denselben localStorage-Schlüssel.
+- **Rückbau:** `chat-panel.tsx` kennt nur noch `default`/`compact`
+  (265 Zeilen); weg sind `story-mitte.tsx`, `use-story-auswahl-bridge`,
+  `use-story-toc-autostart`, `use-story-filter-events`, `use-toc-reload-hint`,
+  `chronik-utils` (+ Test), der Story-Zweig von `use-chat-perspective-state`,
+  die aufklappbare Variante von `chat-input`/`panel-footer`, der Mobil-
+  Platzhalter und `storyPerspectiveOpenAtom`.
+
+Was bewusst anders ist als vorher:
+
+- **Filter-Ereignisse:** `StoryRoot` holt die Übersicht neu, sobald sich
+  Filter oder Perspektive ändern — über den Server-Cache. Die App erzwang
+  bei `gallery-filters-changed` eine Neuberechnung ohne Cache; das entfällt
+  (Cache-Treffer sind erwünscht, „neu berechnen“ bleibt als Knopf).
+- **Nachladen-Hinweis:** Der Knopf „Übersicht neu berechnen“ steht immer,
+  wenn eine Gliederung da ist, nicht nur bei abweichenden Parametern
+  (`use-toc-reload-hint` verglich dafür den Query-Log).
+- **„Frage neu stellen“** füllt die Eingabe statt sofort zu senden (die alte
+  Variante setzte zugleich die Perspektive der alten Frage zurück).
+- **Scroll:** Jede Auswahl beginnt oben in der Mitte; der Platzhalter für
+  „Frage oben bündig“ ist weg, weil die Konversation allein steht.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **`ChatPanel` ist nirgends mehr montiert.** Der angenommene „Chat-Reiter“
+  existiert nicht: Außer dem eigenen Ordner importiert niemand mehr
+  `chat/chat-panel` (nur der Debug-Footer nennt den Namen als Text). Damit
+  sind `chat-panel.tsx`, `chat-panel/**`, `chat-messages-list`,
+  `chat-conversation-item`, `chat-message`, `chat-input`, `chat-config-bar`,
+  `chat-config-popover`, `chat-selector`, `use-chat-stream`,
+  `use-chat-history`, `use-chat-toc`, `use-chat-scroll` toter Code in der
+  App. Noch gebraucht werden `chat-config-display`, `query-details-dialog`,
+  `processing-logs-dialog`, `processing-status`, `chat-storage` (über die
+  Story-Füße bzw. den Story-Context). **D6d** räumt den toten App-Chat weg —
+  nach dem Live-Nachweis, falls der Owner den Chat-Reiter nicht doch
+  zurückholen will.
+- Live-Nachweis offen (App): Themenübersicht entsteht, Themenfrage →
+  Eingabe → Antwort mit ① und Belegen rechts, `q=` nach dem Neuladen,
+  Chronik-Klick auf eine ältere Sitzung, Löschen einer Frage.
+- **02.10., lokaler Test, Schritt 1 (Kopf):** Figma „1 · Einstieg“ zeigt die
+  Perspektive neben „Perspektive anpassen“ als Plaketten (Sprache,
+  Interessen, Stil). Die App rendert dort `PerspectiveDisplay
+  variant="header"`: ein Info-Symbol, die Werte stehen im Tooltip. Der
+  Story-Kopf (`story-header.tsx`) war in keiner Welle dran. → **D9**.
+- **02.10., lokaler Test, Schritt 9/12 (Chronik):** Unter „Meine Fragen“
+  stehen Sitzungen mit dem Titel „What topics are covered here? …“. Das ist
+  die Systemfrage der Themenübersicht: Der Stream legte für jede Anfrage ohne
+  `chatId` einen Chat an, auch für die Übersicht; wer nur ansah, hinterließ
+  eine Sitzung mit Systemtitel (in der Testlibrary 56 von 59). Figma
+  Schritt 1: „Deine erste Frage eröffnet eine neue Sitzung“. → **D8**.
+- **02.10., lokaler Test, Schritt 2 (Übersicht, Fuß):** Unter der
+  Themenübersicht steht „Keine Konfiguration gefunden“. Netz:
+  `GET …/queries/<Übersichts-Query>` → 404. Ursache: `getQueryLogById`
+  filtert nach `userEmail`/`sessionId`, der Übersichts-Cache ist aber
+  benutzerübergreifend (Hash + Library) — ein Treffer aus fremder Sitzung ist
+  für die Konfig-Anzeige unsichtbar. Vermutung: Lesen einer Query nur noch
+  an Library binden, wenn sie `toc` ist (oder die Konfig aus dem
+  `complete`-Schritt nehmen statt nachzuladen). Noch nicht gebaut.
+- **02.10., lokaler Test, Schritt 1 (Start):** Beim Öffnen der Seite feuert
+  die Chronik `GET /api/chat/chats?limit=50` (ohne Library) → 405, zweimal.
+  `StoryChronikMount` wird mit leerer `libraryId` montiert, bevor die
+  Library geladen ist; `useStorySitzungen` wartet nicht darauf. Vermutung:
+  Laden erst bei nicht-leerer Kennung (kein stiller Fallback, aber auch kein
+  Aufruf ins Leere). Noch nicht gebaut.
+
+### Stand D8 (gebaut 02.10.2026) — Sitzungsstart
+
+Owner-Entscheidung 02.10.: Ein Chat beginnt erst mit einer Frage. Die
+Themenübersicht braucht keine Sitzung — ihr Cache ist benutzerübergreifend
+(Hash + Library), ihre Kennung für Konfig-Anzeige, Logs, Debug und
+Quellen-Sheet hängt an der Query, nicht am Chat. Die einzige Kopplung war
+das Pflichtfeld `chatId` im Query-Log, und das war selbst gemacht.
+
+Was steht:
+
+- **Stream-Route:** Für `isTOCQuery` wird kein Chat angelegt und keiner
+  berührt; `activeChatId` bleibt leer, der `complete`-Schritt trägt dann keine
+  `chatId`. Der Zweig „Systemtitel durch die erste Frage ersetzen“ (D1) ist
+  weg, mit ihm `sitzungstitelAusFrage`. Der Kurztitel des Sprachmodells (D5)
+  wird nur noch gesetzt, wenn die Frage die Sitzung angelegt hat.
+- **Typen:** `chatId` ist optional in `QueryLog`, `startQueryLog` und im
+  `complete`-Schritt (`@ks/contracts`), mit Kommentar: nur die Übersicht hat
+  keine.
+- **Stream-Hook (`use-story-stream`):** `onSitzung` feuert nur aus einer
+  Frage, nie aus der Übersicht — auch wenn ein alter Server eine Kennung
+  mitschickt (Test).
+- **Altlasten:** `scripts/cleanup-toc-chats.ts` (Analyse ohne `--apply`,
+  `--db=` Pflicht, vorher `mongodump` von `chats` und `queries`): über alle
+  Libraries Chats mit Systemtitel (`istThemenuebersichtTitel`); ohne Frage
+  einer Person → löschen, ihre Übersichts-Logs verlieren die `chatId` (wie D8
+  sie heute anlegt); mit Fragen (App-Chat vor D1) → Titel aus der ersten
+  Frage (Kurztitel, sonst 60 Zeichen), wie D1 ihn gegeben hätte.
+- Belege: `sitzungstitel.test.ts`, `use-story-stream.test.tsx` (neuer Fall),
+  tsc-Vergleich leer, Lint 0 Fehler. Live 02.10. (Dev-Server, Prod-DB,
+  Cache-Treffer): der `complete`-Schritt der Übersicht trägt `queryId` und
+  `storyTopicsData`, keine `chatId`; die Übersicht erscheint wie zuvor.
+
+Was bewusst anders ist als vorher:
+
+- Eine neue Sitzung erscheint in der Chronik erst mit der ersten Frage
+  (Figma Schritt 1), nicht schon beim Öffnen des Story-Modus.
+- „Übersicht neu berechnen“ in einer laufenden Sitzung hängt die Übersicht
+  nicht mehr an die Sitzung; `touchChat` entfällt dafür.
+
+### Stand D9 (gebaut 02.10.2026) — Kopf-Plaketten
+
+Owner 02.10. nach dem Vergleich mit Figma Schritt 1: Die Perspektive steht
+neben „Perspektive anpassen“ als Plaketten, nicht als Info-Symbol mit
+Tooltip.
+
+Was steht:
+
+- **`PerspectiveDisplay variant="header"`** rendert je gesetztem Wert eine
+  Plakette „Sprache: Deutsch“, „Interessenprofil: …“, „Zugangsperspektive:
+  …“, „Sprachstil: …“ (Reihenfolge wie bisher im Tooltip). Leere Werte
+  lassen die Plakette weg. Das Modell steht nicht im Kopf — es bleibt in der
+  Konfig-Anzeige unter der Antwort. Mit `onClick` sind die Plaketten Knöpfe;
+  `StoryHeader` reicht denselben Weg wie der Knopf „Perspektive anpassen“
+  herein (Perspektive-Seite, `from=story`). Die Inline-Variante (Antwort-Fuß)
+  ist unverändert.
+- **Chronik ohne Library-Kennung:** `useStorySitzungen` lädt nichts, solange
+  `libraryId` leer ist (die Schale montiert die Chronik vor der Library);
+  kein `GET /api/chat//chats` → 405 mehr. Sobald die Kennung da ist, lädt der
+  Hook wie gewohnt (Test).
+- Belege: `perspective-display-plaketten.test.tsx`,
+  `use-story-sitzungen-leer.test.tsx`, tsc-Vergleich leer, Lint 0 Fehler.
+
+Nicht in D9 (Owner 02.10., Konzept offen):
+
+- **Themenzeile über den Karten:** Fehlt `story.topicsTitle`/`topicsIntro`
+  in der Konfig, zeigt die Übersicht Titel und Einleitung des Sprachmodells
+  als zweiten Kopf unter dem Konfig-Kopf — wirkt doppelt (Befund 02.10.,
+  Schritt 2). Figma hat dort nur eine kleine Zeile „Die vier Themen · wähle
+  eines“. Vorschlag: generische Zeile mit Zahl, Konfig-Felder als
+  Übersteuerung, Modelltext nicht mehr anzeigen. Wartet auf das Konzept zum
+  Kopf.
+- **Kopf der Seite vs. Kopf des Inhalts:** Über den drei Spalten stehen
+  heute Erklärtexte zum Story-Modus (`gallery.storyMode.headline`,
+  `subtitle`, `description` bzw. `publicPublishing.story.headline/subtitle/
+  intro`). Owner 02.10.: Das ist Hilfetext zur Bedienung, kein Kopf des
+  Inhalts. Dort gehören Titel und Zweizeiler der Library hin (heute in der
+  Mitte als „Kopf des Ganzen“); die Erklärung des Story-Modus wird ein
+  einmaliger Hinweis zum Wegklicken. Konzept folgt, generisch für alle
+  Libraries.
+
+### Stand D10 + D10b (Figma abgenommen und gebaut 02.10.2026) — Kopf der Seite für beide Ansichten
+
+Owner 02.10.: Der Kopf über den drei Spalten erklärt heute die Bedienung
+(`gallery.storyMode.headline/subtitle/description` bzw.
+`publicPublishing.story.headline/subtitle/intro`). Das ist Hilfetext, kein
+Kopf des Inhalts. Dort gehören Titel und Zweizeiler der Library hin.
+
+Figma: Bildschirm „6 · Kopf der Seite (D10)“ mit Erklärtext „Schritt 6“ auf
+der maßgeblichen Seite (Node `22-169`), Kopie von „1 · Einstieg“ mit diesen
+Änderungen:
+
+- **Kopf:** Titel der Library (24 px) und Zweizeiler (14 px, gedämpft) über
+  der Knopfzeile; darunter „Zurück“, „Perspektive anpassen“, neu
+  „? So funktioniert der Story-Modus“, dann die Plaketten (D9).
+- **Mitte:** oben ein einmaliger Hinweis (ⓘ, Erklärtext, „Verstanden ✕“),
+  gemerkt im Browser wie die Perspektive; „?“ im Kopf holt ihn zurück. Dann
+  Kennzahlen, die Themenzeile „Die vier Themen · wähle eines“ und die
+  Karten. Der „Kopf des Ganzen“ in der Mitte und der Modelltitel entfallen.
+- **Generisch:** Titel und Zweizeiler aus den Library-Einstellungen
+  (`publicPublishing` Titel/Beschreibung, wie heute der Kopf in der Mitte);
+  die Erklärung aus den Übersetzungen oder `publicPublishing.story`; die
+  Themenzeile aus der Übersetzung mit Zahl, `story.topicsTitle/topicsIntro`
+  bleiben als Übersteuerung. Kein Library-Wissen im Code.
+
+Was steht (gebaut 02.10., Owner „passt“ zum Figma-Bildschirm):
+
+- **Kopf der Seite (`StoryModeHeader`):** Titel (`publicName`, sonst Label)
+  und Zweizeiler (`description`) der Library, beim Scrollen ausgeblendet wie
+  bisher; darunter die Knopfzeile mit neuem „?“-Knopf (`StoryHeader`,
+  `onHilfe`). Die drei Erklärzeilen oben sind weg.
+- **Hinweis (`StoryHinweis`, Paket):** ⓘ, Titel, Text, Zusatzzeile
+  „Erscheint nur beim ersten Besuch …“, Knopf „Verstanden ✕“. Die App
+  (`useStoryHinweis`, Jotai-Atom + `localStorage` `story-hinweis-gesehen`)
+  zeigt ihn beim ersten Besuch, „Verstanden“ merkt es im Browser, „?“ holt
+  ihn zurück. Texte: `publicPublishing.story.headline/intro` der Library,
+  sonst `story.hinweis.titel` bzw. `gallery.storyMode.description`. Das Feld
+  `story.subtitle` wird nicht mehr angezeigt.
+- **Mitte (`StoryUebersicht`):** kein Kopf des Inhalts mehr; oben der
+  Hinweis-Slot, dann Kennzahlen mit „neu berechnen“ rechts, dann die
+  Themenzeile „7 Themen · wähle eines“ (`story.uebersicht.themenzeile`,
+  Konfig `topicsTitle` ersetzt sie, `topicsIntro` ergänzt) und die Karten.
+  Titel und Einleitung des Sprachmodells werden nicht mehr angezeigt.
+- **Paket-API:** `StoryRoot.kopf` ist jetzt optional und trägt nur
+  `themenTitel`/`themenIntro` (`StoryKopf`); neuer Slot `uebersichtHinweis`.
+  `StoryHinweis` exportiert.
+- **Embed:** `EmbedStoryKopfzeile` bekommt Label und Beschreibung der
+  Library als Überschrift und Einleitung — der Kopf wandert auch dort nach
+  oben. Kein Hinweis im Embed (kein „?“-Knopf; später opt-in).
+- Übersetzungen de/en/it/es/fr. Belege: `story-mitte.test.tsx` (angepasst),
+  `story-root.test.tsx`, `story-root-mount.test.tsx` (Hinweis, Verstanden),
+  `story-hinweis.test.tsx`, `use-story-hinweis.test.tsx`; tsc-Vergleich
+  leer, Lint 0 Fehler.
+
+**D10b (Owner-Rückmeldung 02.10. nach dem Live-Blick auf D10):** „Gar kein
+Titel mehr in der Mitte, das war vorher besser“ und „die Hilfe gehört in eine
+Ansichtszeile über den Knöpfen, gleich für Galerie und Story“. Figma
+„Schritt 7 · Kopf für beide Ansichten“ (Node `23-2`, vier Köpfe: Galerie und
+Story, Erklärung zu und auf), abgenommen mit der Auflage, dass das Einklappen
+ohne Lesen erkennbar ist (runder Pfeil nach oben im Kasten).
+
+Was seit D10b steht (ersetzt den Hinweis in der Mitte und den „?“-Knopf):
+
+- **`AnsichtsZeile` + `useAnsichtErklaerung` (`@ks/ui`, generisch):** links
+  der Name der Ansicht mit rundem ⓘ-Knopf, rechts die Werkzeuge; ⓘ klappt die
+  Erklärung der Ansicht darunter auf, im Kasten rechts oben klappt ein
+  runder Pfeil sie ein. Beim ersten Besuch offen, der Browser merkt sich „zu“
+  je Ansicht (`ansicht-erklaerung-zu:<ansicht>`). Beim Scrollen bleibt die
+  Zeile, die Erklärung geht zu.
+- **Galerie-Kopf (`GalleryStickyHeader`):** Kopf der Seite = `publicName`
+  (sonst Label) und `publicPublishing.description`; Ansichtszeile „Inhalte
+  erkunden“ mit Suche, Ansichtswahl, Aktionen; Erklärung aus
+  `publicPublishing.gallery.headline/description` (sonst Übersetzung
+  `gallery.texts.*`). `gallery.subtitle` wird nicht mehr angezeigt.
+- **Story-Kopf (`StoryModeHeader`, App) und `StoryKopfzeile` (Embed):**
+  gleicher Kopf der Seite; Ansichtszeile „Story-Modus“ mit Zurück,
+  Perspektive anpassen, Plaketten; Erklärung aus `story.headline/intro`
+  (sonst Übersetzung). `story.subtitle` wird nicht mehr angezeigt.
+- **Mitte (`StoryUebersicht`):** Titel und Einleitung des Sprachmodells
+  stehen wieder vor den Karten (h2 + Absatz), darunter die Themenzeile
+  „7 Themen · wähle eines“ (h3). Kein Hinweis-Slot mehr; `StoryHinweis` und
+  `useStoryHinweis` sind weg.
+- **Plaketten (`PerspectiveDisplay` header, Owner 02.10.: Platz ist
+  wertvoll):** nur Gesetztes — „nicht spezifiziert“ fällt weg, die Sprache
+  nur, wenn sie von der Oberflächensprache abweicht (`resolveTargetLanguage`
+  gegen `locale`). Die Inline-Variante unter der Antwort zeigt weiter alles.
+- Übersetzungen: neuer Block `ansicht.*` (de/en/it/es/fr), `story.hinweis.*`
+  entfernt. Belege: `ansichts-zeile.test.tsx`,
+  `use-ansicht-erklaerung.test.tsx`, `perspective-display-plaketten.test.tsx`
+  (D10b-Regeln), `story-mitte.test.tsx` (Kopf der Gliederung zurück); tsc-
+  Vergleich leer, Lint 0 Fehler.
+
+**D10c (Owner 02.10., Startansicht):** „Links scheint der erste Eintrag von
+„Meine Fragen“ selektiert zu sein, obwohl in der Mitte die Themenübersicht
+steht — irreführend. Der sollte am Anfang zugeklappt und nicht selektiert
+sein.“ Ursache: Die Chronik hob die aktive Sitzung (gemerkte Kennung aus dem
+Browser) hervor und klappte sie auf, unabhängig davon, was in der Mitte
+steht. Seit D10c ist eine Sitzung nur hervorgehoben und von selbst offen,
+wenn eine ihrer Fragen in der Mitte steht oder gerade läuft
+(`istHervorgehoben` in `sitzungen-liste.tsx`, `istGewaehlt` aus
+`sitzung-eintrag.tsx`); die aktive Sitzung bleibt im Hintergrund die, in der
+die nächste Frage landet. Von Hand Auf- und Zuklappen geht weiter. Beleg:
+`story-chronik.test.tsx` (Einstieg zu und unmarkiert, Auswahl klappt auf).
+
+**D10d (Owner 02.10., Testplan Schritt 5, „bitte bessere Fehlermeldung“):**
+Ohne laufenden Secretary stand unter der Konversation die technische
+Meldung „Secretary Service nicht erreichbar (http://127.0.0.1:5001/api/rag/
+embed-text) … fetch failed“. Seit D10d gibt der Stream dem `error`-Schritt
+eine Kennung (`code: 'dienst_nicht_erreichbar'`, Vertrag `StoryFehlerCode`
+in `@ks/contracts`), wenn der Secretary nicht antwortet. Die Oberfläche
+zeigt dann Klartext („Die Antwort kann gerade nicht erstellt werden: Der
+Sprachdienst ist nicht erreichbar. Bitte in ein paar Minuten noch einmal
+versuchen.“, `story.fehler.dienstNichtErreichbar`, de/en/it/es/fr) und die
+technische Meldung klein darunter als „Technische Angabe“ — nichts
+verschwindet. Unbekannte Fehler bleiben wie bisher (`fehlerText`). Beleg:
+`use-story-stream.test.tsx` (Kennung → Klartext + Detail). Weitere Kennungen
+(Modell fehlt, Schlüssel ungültig) folgen bei Bedarf nach demselben Muster.
+
+**D11a (Owner 02.10., „der Knopf oben stört“):** „Übersicht neu berechnen“
+stand als Knopf in der Mitte neben den Kennzahlen. Jetzt steht er als
+dezentes Symbol (Pfeilkreis, beim Rechnen Spinner) rechts in der
+Chronik-Zeile „Themenübersicht“, mit Tooltip „Themenübersicht neu berechnen“
+(`story.recompute`, de/en/it/es/fr). Technik: `StoryRoot` stellt die Aktion
+über `storyUebersichtAktionAtom` bereit (`null` ohne Gliederung), die
+Chronik (`Gliederung`) zeigt den Knopf nur dann. Die Mitte beginnt damit
+direkt mit den Kennzahlen. Beleg: `story-chronik.test.tsx` (Knopf erscheint
+mit der Aktion, ruft sie, ist beim Rechnen gesperrt).
+
+**Neu dazugekommen (Owner 02.10., noch Konzept):**
+
+- **Quellenverzeichnis rechts** nimmt ungefragt Platz; Wunsch: anders
+  formatieren und als „fliegendes Verzeichnis“ einblenden, wenn es jemand
+  braucht. Vorschlag: rechte Spalte einklappbar auf eine schmale Leiste mit
+  „Quellen (610)“ bzw. „Belege (4)“, Aufklappen als Spalte (Desktop) oder
+  Sheet (mobil, gibt es seit D4); nach einer Antwort kurz aufmerksam machen
+  (Zähler), nicht aufdrängen. Figma zuerst (D11b).
+- **KI-Hinweis für Laien** (Owner 02.10., Variante 2 gewählt): Antwort
+  „Eine KI hat die Antwort aus den Quellen rechts zusammengestellt. Die
+  Quellen kannst du dort nachlesen.“, Übersicht „Eine KI hat diese Übersicht
+  aus den Quellen rechts erstellt. …“ (`common.aiGenerated.contentAutoGenerated`
+  / `overviewGenerated`, de/en/it/es/fr; `AIGeneratedNotice variant`).
+  Gebaut 02.10. auf dem D11b-Branch.
+- **Rand unten (Owner 02.10., „die Anwendung ist nicht voll nutzbar“):**
+  `useGalleryMode` rechnete die Rahmenhöhe aus Fensterhöhe minus Navigation
+  minus pauschal 115 px (mobil 70) — je nach Kopf blieben bis zu 90 px
+  ungenutzt. Jetzt ab der tatsächlichen Oberkante des Rahmens, unten nur der
+  Innenabstand der Seite (Desktop gemessen: 981 statt 894 px Höhe). Gebaut
+  02.10. auf dem D11b-Branch.
+- **D11b Quellen als fliegendes Verzeichnis:** Figma „Schritt 8“ (Node
+  `27-557`): 8a Einstieg mit eingeklappter Leiste (56 px, Pfeil, Symbol,
+  „610 Quellen“), 8b Antwort mit aufgeklappten Belegen (Chip „Belege · 4“,
+  Pfeil › klappt ein), 8c Antwort eingeklappt mit blauem Zähler „4“ auf der
+  Leiste. Browser merkt sich auf/zu; mobil bleibt das Blatt aus D4.
+  Abgenommen und gebaut 02.10.: `QuellenLeiste` + `useQuellenOffen`
+  (`story-quellen-offen`, Einstieg zu) in `quellen-leiste.tsx`;
+  `StorySpalten` bekommt `leiste` (ohne Angabe wie bisher, Embed) und
+  rendert zu die Leiste (Zähler = Belege der Antwort, blau, sonst Quellen
+  im Bestand) statt der Spalte, auf die Spalte mit Pfeil zum Einklappen;
+  Owner-Korrektur nach dem ersten Live-Blick: Die Quellen legen sich als
+  **Schicht** über den rechten Teil der Mitte (480 px, max. 55 %), die
+  Breiten von Chronik und Mitte ändern sich dabei nicht (die Leiste bleibt
+  unsichtbar stehen); zugeklappt ist die Chronik breiter (22 % statt 15 %),
+  damit die Fragen lesbar sind. Eigene Breiten-Schlüssel
+  `story-spalten-fliegend-*`; ohne `leiste` (Embed) die alte Dreiteilung.
+  Beleg: `story-spalten.test.tsx`; live: Chronik 260 px und Mitte 923 px vor
+  und nach dem Aufklappen identisch, keine neuen Aufrufe. Übersetzungen
+  `story.leiste.*`.
+
+### Stand D12a (gebaut 02.10.2026, Cloud) — Übersichts-Log lesbar für alle
+
+Befund aus dem lokalen Test (Schritt 2, „Keine Konfiguration gefunden“,
+`GET …/queries/<Übersichts-Query>` → 404): `getQueryLogById` band jedes Log
+an `userEmail` bzw. `sessionId`, der Übersichts-Cache ist aber
+benutzerübergreifend (Hash + Library) — der `complete`-Schritt trägt deshalb
+oft die Kennung eines Logs, das eine andere Person angelegt hat.
+
+Was steht:
+
+- **Regel in `src/lib/db/query-log-zugriff.ts`** (`logFuerLeser`): Eigene
+  Logs (E-Mail bzw. anonyme Sitzung) wie bisher; ein `toc`-Log ist innerhalb
+  seiner Library für alle lesbar, kommt aber **ohne `userEmail` und
+  `sessionId` des Erstellers**, wenn es nicht das eigene ist. Fremde Fragen
+  bleiben unsichtbar. Ohne Leser-Kennung wirft die Regel wie bisher.
+- `getQueryLogById` sucht nach `queryId` + `libraryId` und legt die Regel an;
+  die Routen `GET`/`DELETE …/queries/<id>` sind unverändert. Folge für
+  `DELETE` einer fremden Übersicht: 403 statt 404 (das Log existiert, gehört
+  aber nicht der Person) — gewollt.
+- Beleg: `tests/unit/chat/query-log-zugriff.test.ts`; tsc-Vergleich leer,
+  Lint 0 Fehler. Kein Live-Nachweis (Cloud-Session ohne DB und Secretary) —
+  im nächsten lokalen Test Schritt 2 prüfen: Konfig-Anzeige unter der
+  Übersicht steht, Netz `GET …/queries/<id>` → 200.
+
+### Stand D12b (gebaut 02.10.2026, Cloud) — Cache-Treffer einer Frage im eigenen Verlauf
+
+Befund aus dem Schreibtischtest (Cloud, am Code): Trifft eine Frage den
+benutzerübergreifenden Antwort-Cache (Hash + Library), schickte die
+Stream-Route die Kennung des **fremden** Logs im `complete`-Schritt und
+legte für die Person nichts an — der Chat wurde angelegt oder berührt, das
+Query-Log nicht. Folgen in der Fragen-Chronik: Die Frage fehlte nach dem
+Neuladen im Verlauf der Sitzung (`GET …/queries?chatId=` filtert nach
+Person), `?q=<id>` lief auf 404, ebenso Konfig-Anzeige, Protokoll und Debug
+unter der Antwort; eine mit dieser Frage eröffnete Sitzung stand ohne Frage
+in der Chronik. Trifft vor allem die vorgeschlagenen Fragen der Themenseite,
+die mehrere Personen wortgleich stellen. Vor D1 unsichtbar, weil der alte
+App-Chat den Verlauf aus dem Browser nahm.
+
+Was steht:
+
+- **`src/lib/chat/cache-treffer-log.ts`** (`eigenesLogFuerCacheTreffer`):
+  legt über `startQueryLog` ein Frage-Log im Rahmen der Person an (Sitzung,
+  Perspektive, Filter, Modell, Dokumentenzahl — dieselben Felder wie beim
+  regulären Lauf), hängt einen `cache_check`-Schritt mit der Kennung des
+  Treffers an und setzt Antwort, Belege, Vorschläge, Kurztitel (nur wenn
+  vorhanden) und die Cache-Schritte als Protokoll, Status `ok`. Der
+  Cache-Hash entsteht wie immer in `insertQueryLog`; das eigene Log ist damit
+  selbst ein gültiger Treffer für die nächste gleiche Frage.
+- **Stream-Route:** Im Treffer-Zweig bekommt eine Frage (nicht die
+  Übersicht, D8/D12a) das eigene Log; `cache_check_complete` und `complete`
+  tragen die eigene Kennung, `cachedQueryId` weiter die des Treffers.
+  `effectiveTargetLanguageForLog` steht jetzt vor dem Cache-Check. Der
+  Sitzungstitel aus dem Kurztitel des Treffers (D6) bleibt wie er war.
+- Belege: `tests/unit/chat/cache-treffer-log.test.ts`; tsc-Vergleich leer,
+  Lint 0 Fehler. Kein Live-Nachweis — im nächsten lokalen Test: dieselbe
+  Frage zweimal in zwei Sitzungen stellen; die zweite Antwort kommt aus dem
+  Cache, die Frage steht nach dem Neuladen trotzdem in der Chronik, `?q=`
+  und Debug zeigen das eigene Log mit `cachedQueryId`.
+
+### Stand D12c (gebaut 02.10.2026, Cloud) — Verlauf beim Sitzungswechsel
+
+Befund aus dem Schreibtischtest (Schritte 10, 11, 12, 16): `useStoryVerlauf`
+leerte die Nachrichten nur beim Wechsel auf `null` („Neue Sitzung“). Beim
+Wechsel von Sitzung A nach B (Chronik-Klick, `?q=` aus anderer Sitzung,
+Zurück-Knopf) mischte `verlaufMischen` die Nachrichten von A unter B: Die
+Chronik listete unter B auch die Fragen von A, und die nächste Frage schickte
+Paare aus A als `chatHistory` an das Sprachmodell.
+
+Was steht: Beim Wechsel auf eine andere Kennung fallen die gespeicherten
+Nachrichten (mit `queryId`) weg; Lokales ohne Kennung (eine gerade laufende
+Frage) bleibt. Von `null` auf die erste Kennung (die erste Frage hat die
+Sitzung eröffnet) bleibt alles stehen — sonst flackerte die eröffnende
+Frage, bis der Verlauf geladen ist. Beleg: `use-story-verlauf.test.tsx`
+(A→B, `null`→erste Kennung); tsc-Vergleich leer, Lint 0 Fehler.
+
+### Stand D12d (gebaut 02.10.2026, Cloud) — „Neu berechnen“ bleibt stehen
+
+Befund aus dem Schreibtischtest (Schritt 18): Die Aktion „Themenübersicht
+neu berechnen“ (D11a) hing an der Gliederung; `uebersichtNeu` setzte die
+Gliederung sofort auf `null`, damit verschwand der Knopf während der
+Neuberechnung (kein Spinner) und nach einem Fehler ganz — ohne Weg zum
+erneuten Versuch außer Neuladen. Während einer Frage zeigte er den
+irreführenden Hinweis „Neuberechnung …“.
+
+Was steht: `StoryRoot` stellt die Aktion bereit, sobald eine Übersicht
+möglich ist (Dokumente und Modell), unabhängig von der Gliederung.
+`laeuft` meint jetzt nur die Neuberechnung der Übersicht (Spinner,
+Hinweis), neu `gesperrt` sperrt den Knopf, solange eine Frage läuft
+(`UebersichtAktion` in `@ks/module-story`). Belege: `story-root.test.tsx`
+(Aktion bleibt mit Spinner während der Neuberechnung, zweite Anfrage mit
+`skipQueryCache`; ohne Dokumente keine Aktion), `story-chronik.test.tsx`
+(gesperrt ohne Spinner); tsc-Vergleich leer, Lint 0 Fehler.
+
+### Stand D12e (gebaut 02.10.2026, Cloud) — Belege folgen der Auswahl, Markenklick öffnet die Quellen
+
+Befund aus dem Schreibtischtest (Schritte 6, 7, 12, 13, 14, 21):
+`chatReferencesAtom` wurde nur aus dem Stream gesetzt (`onBelege` bei einer
+frischen Antwort). Jede über Chronik, `?q=` oder Zurück-Knopf gewählte
+ältere Antwort ließ rechts die Belege der zuletzt frisch beantworteten Frage
+stehen; „Neue Sitzung“ und Löschen ließen sie ebenfalls stehen. Dazu: Seit
+D11b steht die Belegliste nur im DOM, wenn die Quellen-Schicht offen ist —
+der Klick auf eine Zitatmarke fand bei zugeklappter Schicht keine Karte und
+tat nichts (nur `console.warn`). Bei alten Antworten (Nummern je Textstelle)
+trug eine Karte nur den Anker der ersten Nummer.
+
+Was steht:
+
+- **Belege folgen der gezeigten Antwort** (`useStoryKonversation`): ein
+  Effekt auf Auswahl und Nachrichten meldet `onBelege(belege, queryId)` der
+  gezeigten Antwort; Übersicht, Themenseite und eine noch laufende Frage
+  melden leer (`[]`, `null`) — rechts steht dann der Katalog (Figma
+  Schritt 5: „leer bis Antwort“). Der Stream-Hook meldet nicht mehr selbst.
+  `StoryRoot.onBelege` bekommt `queryId: string | null`; App-Montage und
+  Embed setzen `undefined` ins Atom.
+- **Markenklick öffnet die Schicht:** Findet `AntwortText` keine Karte,
+  sendet es `STORY_BELEG_ZEIGEN_EVENT` (`@ks/contracts`, mit `marke`).
+  `useBelegSprung` (`@ks/module-explorer`, in `GalleryRoot`) öffnet die
+  Quellen (`useQuellenOffen.oeffnen`, merkt „auf“) und scrollt zur Karte,
+  sobald sie gerendert ist; ohne Karte (Mobil, alte Antwort ohne diese Marke)
+  eine Warnung, kein Schweigen.
+- **Anker je Nummer:** `BelegKarte` rendert für weitere Nummern desselben
+  Dokuments unsichtbare Anker `#beleg-n`.
+- Belege: `story-root.test.tsx` (Übersicht leer → Antwort → Übersicht leer →
+  Konversation wieder voll), `antwort-text.test.tsx` (Ereignis statt
+  Warnung), `story-spalten.test.tsx` (`oeffnen`, `useBelegSprung`),
+  `beleg-liste.test.tsx` (Anker je Nummer); Paket-Tests 183 grün,
+  tsc-Vergleich leer, Lint 0 Fehler. Kein Live-Nachweis — lokal Schritte 6,
+  7, 12: Marke klicken bei zugeklappten Quellen, ältere Antwort wählen.
+
+Neu dazugekommen (Schreibtischtest Cloud 02.10., am Code belegt, nicht
+gebaut):
+
+- **Schritt 14, letzte Frage löschen:** `DELETE …/queries/<id>` löscht nur
+  das Log; der Chat bleibt leer mit dem Kurztitel der gelöschten Frage, die
+  nächste Frage landet darin und behält den alten Titel
+  (`sitzungstitelAusDieserFrage` ist dann `false`). Vorschlag: Route oder
+  Hook löscht einen leer gewordenen Chat mit, oder die Stream-Route benennt
+  einen Chat ohne Fragen wie einen neuen.
+- **Schritt 12, Fragenliste veraltet:** `useStorySitzungen.fragenLaden`
+  lädt je Sitzung nur einmal (`geladeneFragen`); eine einmal aufgeklappte
+  Sitzung, die danach aktiv war und Fragen bekam oder verlor, zeigt nach dem
+  Zurückwechseln die alte Liste. Vorschlag: beim Wechsel der aktiven Sitzung
+  die vorherige aus `geladeneFragen` streichen.
+- **Schritt 21, Zähler der Leiste:** `chatReferences.references.length`
+  zählt bei alten Antworten Textstellen statt Dokumente. Vorschlag: Zähler
+  aus den gebündelten Belegen (`belegeAusReferenzen`) nehmen.
+- **Mobil (< lg), Markenklick:** Die Belege liegen im Blatt (D4);
+  `useBelegSprung` öffnet die Desktop-Schicht, die dort nicht gerendert ist
+  (Warnung). Vorschlag: auf Mobil das Ereignis `show-reference-legend`
+  auslösen.
+- **Konfig-Felder ohne Anzeige** (`gallery.subtitle`, `story.subtitle`,
+  seit D10b) und **D6d** (toter App-Chat) warten weiter auf den Owner.
+
+### Stand D12f (gebaut 03.10.2026, Cloud) — Letzte Frage löschen räumt die Sitzung weg
+
+Befund (Schreibtischtest, Schritt 14): `DELETE …/queries/<id>` löschte nur
+das Log; der Chat blieb leer mit dem Kurztitel der gelöschten Frage stehen,
+die nächste Frage landete darin und behielt den alten Titel.
+
+Was steht: `frageLoeschen` (`useStoryKonversation`) löscht nach der letzten
+gespeicherten Frage auch die Sitzung (`DELETE …/chats/<chatId>`), setzt die
+aktive Sitzung auf `null` (die nächste Frage eröffnet eine neue, mit eigenem
+Titel) und erhöht `storySitzungenStandAtom`; `useStorySitzungen` lädt die
+Liste bei jedem neuen Stand neu, die Chronik zeigt die Sitzung nicht mehr.
+Ein Fehler beim Löschen der Sitzung bleibt sichtbar. Belege:
+`story-root.test.tsx` (zweiter DELETE auf die Sitzung, Kennung leer, Stand
+1), `use-story-sitzungen.test.tsx` (neuer Stand lädt neu); tsc-Vergleich
+leer, Lint 0 Fehler.
+
+### Stand D12g (gebaut 03.10.2026, Cloud) — Fragenliste der verlassenen Sitzung
+
+Befund (Schreibtischtest, Schritt 12): `useStorySitzungen.fragenLaden` lud
+je Sitzung nur einmal (`geladeneFragen`); eine einmal aufgeklappte Sitzung,
+die danach aktiv war und Fragen bekam oder verlor, zeigte nach dem
+Zurückwechseln die alte Liste.
+
+Was steht: Die Chronik reicht die live gesehenen Fragen der aktiven Sitzung
+an `useStorySitzungen` (`aktiveFragen`). Beim Wechsel der aktiven Sitzung
+behält die verlassene Sitzung diesen Stand (nur gespeicherte Fragen, keine
+als „läuft“) und fällt aus dem Lade-Cache — das nächste Aufklappen holt den
+Stand vom Server. Beleg: `use-story-sitzungen.test.tsx` (Stand bleibt, dann
+neu geladen); `story-chronik.test.tsx` unverändert grün; tsc-Vergleich leer,
+Lint 0 Fehler.
+
+### Stand D12h (gebaut 03.10.2026, Cloud) — Zähler der Quellen-Leiste
+
+Befund (Schreibtischtest, Schritt 21): Der blaue Zähler der eingeklappten
+Leiste nahm `references.length`; alte Antworten (vor D7) nummerieren je
+Textstelle, der Zähler zeigte dann Textstellen statt Dokumente — die
+aufgeklappte Liste sagt „n Belege“ je Dokument.
+
+Was steht: `anzahlBelegDokumente` (`beleg-liste/helpers.ts`) zählt die
+verschiedenen `fileId`s; `GalleryRoot` gibt diese Zahl an die Leiste. Beleg:
+`beleg-liste.test.tsx`; tsc-Vergleich leer, Lint 0 Fehler.
+
+### Stand D12i (gebaut 03.10.2026, Cloud) — Markenklick auf Mobil
+
+Befund (Schreibtischtest, Schritt 6 mobil): `useBelegSprung` (D12e) öffnete
+immer die Desktop-Schicht; unter `lg` liegen die Belege im Blatt (D4), die
+Schicht ist dort nicht gerendert — der Klick auf eine Zitatmarke warnte nur.
+
+Was steht: `useBelegSprung` nimmt ein Ziel (`offen`, `oeffnen`); `GalleryRoot`
+reicht auf Mobil das Belege-Blatt herein (öffnet es im Modus „answer“ mit
+den Belegen der gezeigten Antwort), am Desktop wie bisher die Schicht. Der
+Sprung scrollt, sobald das Ziel offen ist und die Karte im DOM steht. Beleg:
+`story-spalten.test.tsx` (beliebiges Ziel); tsc-Vergleich leer, Lint 0 Fehler.
+
+Damit sind die vier Befunde aus dem Schreibtischtest (D12e „Neu
+dazugekommen“) gebaut: Schritt 14 (D12f), Schritt 12 (D12g), Schritt 21
+(D12h), Mobil (D12i). Offen bleiben die Owner-Entscheide D6d und
+`gallery.subtitle`/`story.subtitle` sowie der Live-Nachweis aller Wellen.
+
+Neu dazugekommen (Live-Test Owner 03.10., Punkt E, noch Konzept):
+
+- **Zitatmarken und Belege sind für Laien zu klein und zu voll.** Gesehen an
+  einer Antwort mit Marken bis 56 für 18 Dokumente: Der Server nummeriert
+  ALLE gefundenen Dokumente (`dokumenteNummerieren`), das Modell zitiert
+  nur einige — die Nummern sind lückig und laufen hoch (Live-Blick 03.10.:
+  20 Marken, 18 Dokumente, Nummern bis 56; die Antwort hat Textstellen, ist
+  also nach D7). Antworten vor D7 nummerieren zusätzlich je Textstelle. Ab
+  21 fällt `zitatmarke()` auf „(n)“ zurück, im selben Text stehen also ⑳
+  und (56) nebeneinander. Die Kreiszahl läuft in
+  Fließtextgröße mit, auf der Karte 11 px in einem 20-px-Kreis — beides
+  schwer lesbar.
+- **Tooltip der Marke nennt den Dateinamen** („page-017.de: stützt sich auf
+  4 Textstellen“): `AntwortText` bekommt `DocReference` (`fileName`), nicht
+  den `Beleg` mit `titel`. Laien lesen dort nichts.
+- **Textstellen zeigen den Rohauszug des Chunks** samt Frontmatter-Markdown
+  (`**Tags:**`, `# Dokument-Metadaten`, „Dokument-Body beginnt hier“): Der
+  Server schneidet die ersten 160 Zeichen ab (`zitatmarken.ts excerpt`),
+  ohne den Metadaten-Block zu überspringen. Die Karte wird lang und sagt
+  nichts.
+- **Wunsch Owner:** Die Legende ist ein Verzeichnis der Dokumente, nicht
+  der Textstellen. Je Dokument eine kompakte Zeile: große, gut lesbare
+  Marke, Titel, Status-Plakette, „Original ansehen“. Textstellen und Seiten
+  sind Expertenwissen — höchstens aufklappbar („n Textstellen“), nie
+  voreingestellt offen. Je kompakter, desto besser.
+
+Vorschlag (D12k, Figma zuerst wie bei D11b):
+
+1. Marke als eigenes Element statt Unicode-Glyphe: `[n]` → `<a class="zitat">n</a>`,
+   per CSS als Kreis in fester Größe; dieselbe Form für 1 und 56, größer als
+   heute, auf der Karte gleich. `zitatmarke()` bleibt nur für reine Textstellen
+   (aria-label, Tests).
+2. Alte Antworten je Dokument durchnummerieren: Beim Rendern die Marke nicht
+   als `number`, sondern als Position des Dokuments in der Belegliste zeigen
+   (`belegeNachNummer` kennt das Dokument). Aus (56) wird ⑫, aus ⑭ ⑮ wird
+   ⑪ ⑪ → dieselbe Marke mehrfach, oder nur die erste Nennung je Satz. Erst
+   prüfen, wie viele Prod-Antworten vor D7 liegen (Backfill ist ohnehin
+   Abschnitt 4 des Handovers).
+3. Tooltip: `Beleg.titel` statt `fileName` — `AntwortText` bekommt die
+   gruppierten Belege oder eine Titel-Map.
+4. Karte kompakt: Kopfzeile (Marke, Titel, Kennzeile, Plakette) + „Original
+   ansehen“; Textstellen hinter einem Aufklapper mit Zähler. Serverseitig den
+   Auszug erst ab dem Dokument-Body nehmen (Marker im Chunk-Text), damit
+   das Zitat, wenn es jemand aufklappt, auch ein Zitat ist.
+
+### Stand D12k (gebaut 03.10.2026, lokal) — Belege kompakt, Marken je Dokument
+
+Owner-Entscheid 03.10.: alte Antworten umnummerieren, keine Doppelmarke
+hintereinander, direkt bauen ohne Figma.
+
+Was steht:
+
+- **Nummer je Dokument, lückenlos ab 1, auch für alte Antworten.**
+  `dokumentNummern` (`@ks/util`) bildet jede Referenznummer auf die Position
+  ihres Dokuments unter den zitierten ab (die Servernummern bleiben im Log); `zitatmarkenImText` schreibt die Marken damit und lässt von Marken
+  desselben Dokuments direkt hintereinander (`[14] [15]`) eine stehen. Die
+  Belegliste nummeriert mit derselben Funktion — Text und Karte stimmen
+  überein, Anker `beleg-<dokumentnummer>`.
+- **Marke als Element** (`Zitatmarke`, `zitatmarkeKlasse` in `@ks/ui`): ein
+  Kreis in fester Größe, im Text 20 px mit 12-px-Zahl, auf der Karte 28 px;
+  dieselbe Form für 1 und 56. Die Kreiszahl-Glyphen bleiben nur für reinen
+  Text (`zitatmarke`).
+- **Tooltip mit Dokumenttitel:** `DocReference.title` (neu, optional) füllt
+  der Orchestrator aus denselben Meta-Dokumenten wie den `detailViewType`
+  (`buildTitleByFileId`); die Mitte zeigt Titel, sonst Dateiname, sonst
+  Begründung (`belegTitel`). Alte Antworten im Cache tragen keinen Titel —
+  dort bleibt bis zum Backfill der Dateiname.
+- **Karte kompakt:** Marke, Titel, Kennzeile, Plakette, „Original ansehen";
+  Textstellen und Kurztext hinter einem Aufklapper („stützt sich auf n
+  Textstellen" bzw. „Mehr dazu"), zu beim Start.
+- **Zitat-Auszug ab Dokument-Body:** `excerpt` überspringt den
+  Metadaten-Vorspann der Ingestion (`DOKUMENT_BODY_MARKER` in
+  `metadata-formatter.ts`, dort auch vom Ingestion-Service genutzt). Gilt
+  für neue Antworten; alte Auszüge liegen im Cache.
+
+Belege: `zitatmarke.test.ts` (Util), `antwort-text.test.tsx`,
+`beleg-liste.test.tsx`, `zitatmarken.test.ts`, `reference-view-type.test.ts`;
+`story-root.test.tsx` angepasst (Marke ist die Zahl).
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Mobil-Blatt zeigt die alte Referenzliste** (`GroupedItemsView` →
+  `ReferenceList`): Dateiname statt Titel, Nummern als `[14-56]`, keine
+  Anker `beleg-<n>` — der Sprung von D12i findet dort keine Karte, und nach
+  D12k stehen im Text andere Nummern als im Blatt. → Gebaut als D12m
+  (04.10.), beide Modi.
+- Live gesehen 03.10. (Antwort „Schwerverkehr auf Schiene verlagern“,
+  Servernummern bis 56): 20 Marken, Nummern 1–18, Karten `beleg-1` bis
+  `beleg-18`, Marke 20 px / 12 px, Textstellen zu. Tooltip dort noch der
+  Dateiname — die Antwort liegt im Cache ohne `title`.
+
+### Stand D12l (gebaut 03.10.2026, lokal) — Quellen folgen der Mitte
+
+Befund Owner (Live-Test 03.10.): Das X an den Belegen leerte die
+Referenzen; rechts erschien der Katalog mit 606 Quellen, links stand noch
+die Antwort — zwei Kontexte nebeneinander. Owner: Die Spalte rechts wird
+nur ein- und ausgeblendet und speist sich immer aus dem, was links steht;
+der Katalog gehört zur Themenübersicht.
+
+Was steht: Das X klappt die Spalte zu (`quellenLeiste.toggle`, D11b-Leiste
+mit Zähler), die Belege bleiben die der gezeigten Antwort. „Alle n
+Originalquellen im Katalog" sendet `STORY_UEBERSICHT_ZEIGEN_EVENT`
+(`@ks/contracts`); `StoryRoot` setzt die Auswahl auf die Übersicht, die
+Belege leeren sich über `onBelege` (D12e), die Spalte zeigt den Katalog;
+der Filter auf die Antwort fällt mit (`clear-gallery-filter` wie bisher).
+`BelegListe` hat dafür zwei Wege (`onZuklappen`, `onKatalog`) statt einem
+`onSchliessen`. Belege: `beleg-liste.test.tsx`, `story-root.test.tsx`.
+
+### Stand D12n (gebaut 03.10.2026, lokal) — Facettenfilter ohne Typwahl griff nicht
+
+Befund Owner (Live-Test 03.10.): Facettenfilter „Arbeitsgruppe: Energie"
+(80) gesetzt, Zähler sagt weiter „606 Quellen", die Galerie zeigt gemischte
+Arbeitsgruppen; im Story-Modus „606 Dokumente" und 606 im Quellenverzeichnis.
+
+Ursache (am Netz belegt): `GET …/docs?arbeitsgruppe=Energie` lieferte 610
+ungefiltert, mit `detailViewType=climateAction` 80 gefiltert. Ohne Typwahl
+nimmt die Dokumente-Route die Facetten, die ALLE vorhandenen Typen teilen
+(`commonFacetDefs`, A4a); die Library hat neben `climateAction` auch
+`website`-Dokumente, gemeinsam ist nichts — `buildFilterFromQuery` kannte
+`arbeitsgruppe` nicht, der Filter fiel still weg. Die Facetten-Route nahm
+den `excludeDetailViewType` schon aus den vorhandenen Typen heraus, die
+Dokumente-Route nicht: Facettenleiste und Liste rechneten mit zwei Scopes.
+
+Was steht: Die Dokumente-Route liest `excludeDetailViewType` vor dem Scope
+und filtert ihn aus den vorhandenen Typen (wie die Facetten-Route). Live:
+mit Ausschluss + Filter 80 (nur Energie), ohne Filter 606. Kein Unit-Test
+(Route gegen Mongo); Beleg ist der Netz-Vergleich.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Ohne Ausschluss bleibt die Lücke:** `…/docs?arbeitsgruppe=Energie`
+  ohne `excludeDetailViewType` liefert weiter 610 ungefiltert, weil
+  `website` zu den vorhandenen Typen zählt. Strukturelle Typen (Website,
+  Landingpage) sollten bei `commonFacetDefs` nicht mitzählen — oder ein
+  Facettenfilter, den der Scope nicht kennt, muss laut fehlschlagen statt
+  still wegzufallen (`no-silent-fallbacks`). Owner-Entscheid.
+
+Neu dazugekommen (Live-Test Owner 03.10., Remote, noch Konzept):
+
+- **Aktiver Filter im Story-Modus unsichtbar.** Die Filter-Chips
+  („gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen", `FilterContextBar`
+  mit `mode="story"`) stehen in der rechten Quellen-Spalte — die ist seit
+  D11b beim Einstieg zu. Die Mitte zeigt nur „120 Dokumente · 8 Themen ·
+  46 Fragen"; wer gefiltert hat, sieht es nicht und kann es dort nicht
+  lösen. Vorschlag D12o: die Chips mit Zurücksetzen in die Mitte neben die
+  Kennzahlen (`StoryKopfzeile`/`Kennzahlen`), als Slot vom Gastgeber
+  (`GalleryRoot` kennt `filters` und `facetDefs`; `StoryRoot` bekommt nur
+  die Werte). Die Leiste rechts behält ihre Chips.
+- **Überschrift doppelt** auf der öffentlichen Erkunden-Seite:
+  `ExplorerHeader` zeigt Library-Name + „Öffentliche Wissensbibliothek",
+  darunter der Kopf der Seite (D10) mit `headline` (fällt ohne eigene
+  Galerie-Überschrift auf den Library-Namen zurück) + Beschreibung. In
+  der App-Galerie (`/library/gallery`) gibt es den ExplorerHeader nicht.
+  Vorschlag D12p: auf der Erkunden-Seite den D10-Kopf ohne Titel rendern,
+  wenn `headline` gleich dem Library-Namen ist, oder den ExplorerHeader
+  dort auf die Hinweiszeile reduzieren. Owner-Entscheid, welche Zeile
+  bleibt.
+
+### Stand D12o (gebaut 03.10.2026, lokal) — Filter-Chips in der Story-Mitte
+
+Owner 03.10.: „Wie weiß ich, dass ich in der Filteransicht bin?" — die
+Chips lagen in der zugeklappten Quellen-Spalte. Was steht: `FilterChips`
+(`module-explorer`, aus der `FilterContextBar` herausgelöst, dort weiter
+genutzt) rendert „gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen" aus
+`galleryFiltersAtom` und den Facetten-Labels. `GalleryRoot` reicht sie als
+`ctx.filterAnzeige` an den `storyPanel`-Slot; App (`client.tsx` →
+`StoryRootMount`) und Embed (`embed-galerie` → `EmbedStoryPanel`) geben
+sie an `StoryRoot.filterAnzeige` weiter, das sie in der Übersicht und auf
+der Themenseite neben die Kennzahlen stellt. Zurücksetzen ist
+`handleClearFilters` der Galerie (löst auch die Neuberechnung aus). Belege:
+`filter-chips.test.tsx`, `story-root.test.tsx`. Die doppelte Überschrift
+(D12p) wartet auf Owner-Entscheid.
+
+### Stand D12q (gebaut 03.10.2026, lokal) — Quellen der Übersicht so kompakt wie die Belege
+
+Owner 03.10.: Bei einer Antwort sind die Quellen kompakt, bei der
+Themenübersicht nicht (Galerie-Raster mit Bildern, Ansichts-Umschalter,
+Sortierknöpfe) — vereinheitlichen. Was steht: `QuellenListe`
+(`beleg-liste/quellen-liste.tsx`) zeigt den gefilterten Bestand mit
+denselben Karten wie die Belege (`BelegKarte` ohne Marke und Anker,
+`Beleg.nummer` optional, `belegAusDokument`): Kopf mit Zähler und
+Zuklappen, darunter die Filter-Chips (D12o), Karten mit Titel, Kennzeile,
+Plakette, „Original ansehen"; ein Fühler lädt weitere Seiten nach (Knopf
+„Weitere laden" als Rückfall). `GalleryRoot` setzt sie im Story-Modus ohne
+Antwort statt `FilterContextBar` + Raster ein; Belegliste und Quellenliste
+öffnen Dokumente über denselben Hook (`useDokumentOeffnen`). Neue
+i18n-Schlüssel `story.quellen.more`/`.none` (5 Sprachen). Live: 606 Quellen,
+50 Karten der ersten Seite, keine Bilder. Belege: `quellen-liste.test.tsx`.
+Weg gefallen im Story-Modus: Umschalter Galerie/Tabelle/Graph und die
+Sortierknöpfe der rechten Spalte — die gibt es in „Inhalte" weiterhin.
+Owner 04.10. (Live über WLAN): Der Knopf heißt in beiden Listen
+„Detailansicht öffnen" (`story.beleg.original` umbenannt, Seitenknopf
+„Detailansicht auf Seite n öffnen"). Ein „Original" gibt es nur als Link
+in der Detailansicht selbst (PDF, Quelle); die Listen zeigen interpretierte
+Daten. Zweiter Befund 04.10.: Die Status-Plakette ist eine Sache der
+Klimamaßnahmen, nicht des Bestands; die Quellenliste muss generisch sein
+(Buch, Veranstaltung, Maßnahme). Was steht: eigene `QuellenKarte` — Titel,
+Kennzeile aus der Typ-Konfig, rechts der Knopf zur Detailansicht als
+Symbol; keine Plakette, keine untere Zeile, eine Zeile hoch. Die
+`BelegKarte` unter einer Antwort bleibt wie in D12k.
+
+### Stand D12m (gebaut 04.10.2026, lokal) — Quellen-Blatt der schmalen Ansicht zeigt dieselben Listen
+
+Owner 04.10. (schmale Breite): „Quellenverzeichnis Themenübersicht" unter
+den Karten öffnete das Blatt von D4 mit dem alten Galerie-Raster (Bilder,
+Ansichts-Umschalter, Dichte) — „im Source-Code doppelt". Was steht:
+`ReferencesSheet` rendert `QuellenListe` (Modus `toc`) bzw. `BelegListe`
+(Modus `answer`) — exakt die Listen der Desktop-Spalte, mit Zähler,
+Filter-Chips, Nachladen, Marken und Ankern (der Sprung aus D12i findet
+jetzt auch im Blatt seine Karte). Das X der Listen schließt das Blatt; der
+Katalog-Weg schließt es und schickt die Mitte zur Übersicht (D12l).
+Weggefallen im Blatt: `ItemsView`, `GroupedItemsView`, `ViewModeToggle`,
+Dichte-Umschalter. Belege: `references-sheet.test.tsx`. Live (800 px):
+Blatt mit 50 Karten, keine Bilder.
+
+### Stand D12r (gebaut 04.10.2026, lokal) — Quellen-Leiste ab Tablet, Knopf oben am Telefon
+
+Owner 04.10.: Den Knopf ganz unten findet niemand; bei dieser Breite hat
+die Leiste rechts noch Platz, nur am Telefon braucht es einen Zugang oben.
+Was steht, drei Breiten: **Desktop (≥ lg)** unverändert drei Spalten.
+**Tablet (md ≤ Breite < lg)** Mitte + fliegende Quellen-Leiste wie am
+Desktop (`StorySpalten` ohne Chronik), die Chronik bleibt ein Blatt
+(„Themen und Fragen"). **Telefon (< md, `useIstTelefon`)** Mitte allein;
+Quellen über den neuen Knopf „Quellen" in der Story-Zeile neben „Themen
+und Fragen" (`onOpenQuellen` durch `storyHeader` → `StoryHeader` der App
+und `StoryKopfzeile` im Embed, `md:hidden`), er öffnet das Blatt mit den
+Belegen der Antwort oder dem Bestand. Der Markenklick (D12e/D12i) nimmt am
+Telefon das Blatt, sonst die Leiste. Weg: die Knöpfe „Quellenverzeichnis"
+unter Antwort und Übersicht (`story-fuss.tsx`) und das Ereignis
+`show-toc-references`. Nicht gebaut: der Eintrag im Hamburger-Menü — das
+ist die Seiten-Navigation der Schale (`top-nav.tsx`), ein Story-Eintrag
+dort bräuchte Story-Zustand in der Schale; der Knopf in der Story-Zeile
+ist der Ort, an dem schon die Chronik liegt. Live: 800 px Leiste „606
+Quellen", kein Knopf unten; 600 px Knopf „Quellen" → Blatt mit 50 Karten.
+
+### Stand D12p (gebaut 04.10.2026, lokal) — Kopf der Seite im Story-Modus weg
+
+Owner 04.10.: Drei Überschriften übereinander (Erkunden-Kopf, Kopf der
+Seite aus D10, Titel der Themenübersicht); die zweite Ebene kann im
+Story-Modus weg, die Übersicht bringt ihren Titel mit. Was steht:
+`StoryModeHeader` (App) und `StoryKopfzeile` (Embed) rendern nur noch die
+Ansichtszeile mit ⓘ und den Knöpfen; der Seitenkopf (Titel, Zweizeiler)
+und sein Ein-/Ausblenden beim Scrollen sind weg (auch der Rand unten, den
+der Effekt hinterließ). Die ⓘ-Erklärung aus `story.headline/intro` bleibt.
+Live: Überschriften nur noch Erkunden-Kopf + Übersichtstitel.
+
+### Stand D12s + D12t (gebaut 04.10.2026, lokal) — Knopfzeile schmal, Chronik-Einträge zweizeilig
+
+- **D12s:** Unter `md` zeigt die Story-Zeile (App `StoryHeader`, Embed
+  `StoryKopfzeile`) nur Symbole, der Text steht als Tooltip (`title`) und
+  `aria-label`; die Zeile wurde am Telefon rechts abgeschnitten. Live bei
+  600 px: alle fünf Knöpfe sichtbar, rechter Rand bei 357 von 584 px.
+- **D12t:** Themen, Sitzungstitel und Fragen in der Chronik laufen auf zwei
+  Zeilen mit „…" (`line-clamp-2`) statt hart abgeschnitten — `truncate` auf
+  dem Span griff in der Flex-Zeile nicht (kein `min-w-0`). Live: Einträge
+  40 px hoch, zwei Zeilen.
+
+### Stand D12u (gebaut 04.10.2026, lokal) — Belegkarte wie Quellenkarte, X nur im Blatt
+
+Owner 04.10.: Beleg- und Quellenkarte sahen verschieden aus; und in der
+Spalte gab es Einklapp-Pfeil UND X. Was steht: `BelegKarte` hat das Symbol
+„Detailansicht öffnen" rechts außen wie die `QuellenKarte`; darunter nur
+noch der Aufklapper für Textstellen/Kurztext, falls vorhanden. `onZuklappen`
+ist in `BelegListe` und `QuellenListe` optional: Die Spalte am Desktop/Tablet
+gibt es nicht mehr an (der Pfeil der Leiste reicht), das Blatt am Telefon
+schon (dort ist das X der einzige Weg). Live: Belegkarte mit Marke, Titel,
+Kennzeile, Plakette, Symbol rechts; kein X in der Spalte.
+
+### Stand D12v (gebaut 04.10.2026, lokal) — Titel im Galerie-Kopf der Erkunden-Seite weg
+
+Owner 04.10.: Auch in „Inhalte" steht der Name zweimal (ExplorerHeader
+oben, Kopf der Seite aus D10 darunter). Dieselbe Quelle: oben
+`library.label`, unten `publicPublishing.publicName`, der ohne Wert auf
+`label` zurückfällt. Der Zweizeiler darunter ist `publicPublishing.description`,
+die Beschreibung der Library (wie auf der Startseite) — nicht die der
+Inhalte-Ansicht (die sitzt hinter ⓘ). Was steht: `GalleryRoot.seitenkopf`
+(Standard `true`); die Erkunden-Seite setzt `false`, dann gibt es den
+Kopf-Block gar nicht — auch die Plakette „Geprüft" nicht (interner Stand,
+Owner: gehört in die Einstellungen) und keinen Scroll-Effekt; die
+Ansichtszeile sitzt oben bündig wie im Story-Modus. Die App-Galerie
+(`/library/gallery`, ohne ExplorerHeader) behält Titel, Plakette und
+Beschreibung. Live: eine Überschrift, direkt darunter die Ansichtszeile. Nachgeprüft
+04.10.: Die Erkunden-API (`explore-by-slug`) liefert als `label` bereits
+`publicName || label` — der öffentliche Name steht damit oben im
+ExplorerHeader, nichts fehlt.
+
+### Stand D12w (gebaut 04.10.2026, lokal) — Band unten: Galerie-Höhe folgt der Navigation
+
+Owner 04.10.: „Gefühlt unten immer ein Band, die volle Höhe wird nicht
+genutzt." Befund (gemessen): `useGalleryMode` setzt dem Galerie-Rahmen
+beim Laden eine feste Höhe in Pixeln (Fensterhöhe minus Oberkante minus
+Seitenabstand) und rechnete nur bei `resize` neu. Das Layout lässt die
+TopNav beim Scrollen ausblenden (`padding-top` 64 → 0 mit Transition);
+der Rahmen rückt dann 64 px nach oben, behielt aber die alte Höhe — unten
+fehlten 64 px (plus je nach Kopf mehr). Was steht: Neu rechnen auch bei
+`scroll` (rAF-gedrosselt) und nach jeder `transitionend` im Dokument.
+Live: Navigation weg → Rahmen 723 → 787 px, Unterkante bleibt 16 px über
+dem Fensterrand. Kein Unit-Test (Layout-Maße brauchen einen Browser).
+
+### Stand D12x (gebaut 04.10.2026, lokal) — keine „0 Dokumente" beim Laden
+
+Beim Laden stand in der Mitte kurz „0 Dokumente", weil die Montagepunkte
+`0` übergaben, solange die Galerie lud. `StoryRoot.dokumente` ist jetzt
+`number | null`; App und Embed geben `null` beim Laden, die Übersicht lässt
+die Kennzahl dann weg, und die Übersicht wird erst geholt, wenn die Zahl da
+ist (wie bisher bei `0`). „Generiere Themenübersicht…" beim Laden ist der
+laufende Abruf, auch bei Cache-Treffer; bleibt.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
@@ -272,7 +1510,7 @@ Jede Welle eine PR, lokal `pnpm build` grün vor dem Merge.
   Umsetzung“ unter den Belegen) oder weglassen.
 - **Status-Plakette am Beleg:** aus `lv_bewertung` abbildbar (in_umsetzung,
   nicht_umsetzbar, neu_umsetzbar, vertieft_pruefen …). Zuordnung auf vier
-  Plaketten in D3 festlegen.
+  Plaketten in D3 festgelegt (siehe Stand D3, Registry `belegKarte`).
 - **Kurztext je Beleg:** vorhanden (Beschreibung des Vorschlags). „Original
   ansehen“ öffnet die Detailansicht.
 - **Zusammenfassung je Thema:** gibt es nur als Kurzbeschreibung aus der
