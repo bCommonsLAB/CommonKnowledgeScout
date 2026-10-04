@@ -151,7 +151,8 @@ D12r Leiste ab Tablet + Knopf „Quellen" am Telefon, D12p Kopf der Seite im
 Story-Modus weg, D12s Knopfzeile schmal nur Symbole, D12t Chronik-Einträge
 zweizeilig, D12u Belegkarte wie Quellenkarte + X nur im Blatt, D12v
 Erkunden-Seite ohne Kopf-Block in „Inhalte", D12w Galerie-Höhe folgt der
-Navigation. Je Welle ein Stand-Abschnitt im Plan.
+Navigation, D12x keine „0 Dokumente" beim Laden. Je Welle ein
+Stand-Abschnitt im Plan.
 
 **Merge-Weg, zum zweiten Mal falsch gelaufen:** Die PRs #339–#343 waren
 gestapelt und wurden wieder von unten nach oben in ihre Basis gemergt. ccr
@@ -161,21 +162,26 @@ Merge von #343). Die Spitze hat ccr hereingemergt; von ihr geht **eine PR
 nach ccr**, danach **eine PR ccr → master**. Nur so, keine Teilmerges.
 
 **Gates auf der Spitze (mit ccr gemergt):** Tests, Lint, tsc-Vergleich,
-Paket-Typecheck je Welle grün; `pnpm build`: BUILD_ERGEBNIS.
+Paket-Typecheck je Welle grün; `pnpm build` grün auf dem Endstand (04.10., 101 statische Seiten, nur
+alte Warnungen); ein erster Lauf vor D12x war ebenfalls grün.
 
 **Nicht geprüft, obwohl im Plan:** Live-Nachweis B, C, D, G, H (Cache-
 Treffer, Sitzungswechsel, Neu-berechnen, letzte Frage löschen, Fragenliste
-nach Wechsel) — der Owner hat frei geklickt, nicht nach Liste. Vor dem
-Merge nach master reicht dem Owner der Test auf master.
+nach Wechsel). Der Owner hat frei geklickt, nicht nach Liste; der Versuch
+des Agenten am 04.10. scheiterte, weil der Secretary nicht lief (keine neue
+Antwort) und die Perspektive des Agenten-Browsers (Kinder/Lernen) den
+Cache der vorhandenen Antworten nicht trifft — und das Löschen echter
+Fragen des Owners kam nicht in Frage. Der Owner testet auf master.
 
 **Offen (Owner-Entscheide):** Facettenfilter ohne Website-Ausschluss fällt
 weiter still weg (Struktur-Typen bei `commonFacetDefs` ausnehmen oder laut
 fehlschlagen); D6d toter App-Chat; `gallery.subtitle`/`story.subtitle`.
-**Kanten, notiert:** eigener `publicName` einer Library erscheint auf der
-Erkunden-Seite nirgends (gehört in den ExplorerHeader); Quellen-Eintrag im
-Hamburger-Menü nicht gebaut; beim Laden kurz „0 Dokumente" und „Generiere
-Themenübersicht…" trotz Cache. Abschnitt 4 (Embed in Partner-App, Backfill
-Seite je Chunk) unverändert offen.
+**Kanten, notiert:** Quellen-Eintrag im Hamburger-Menü nicht gebaut (die
+Story-Zeile hat den Knopf); „Generiere Themenübersicht…" beim Laden ist der
+laufende Abruf, auch bei Cache-Treffer. `publicName` erledigt (die
+Erkunden-API liefert ihn als Label), „0 Dokumente" erledigt (D12x).
+Abschnitt 4 (Embed in Partner-App, Backfill Seite je Chunk) unverändert
+offen.
 
 **Hand-off:** Nächste Welle ist der Merge (Spitze → ccr → master, Owner
 testet auf master), danach Abschnitt 4 und die Owner-Entscheide. Modell für
