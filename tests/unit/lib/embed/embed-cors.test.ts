@@ -4,7 +4,8 @@
  *
  * Owner-Entscheidung 2026-09-10: jede Herkunft, nur oeffentliche Libraries.
  * Ob eine Library oeffentlich ist, pruefen die Routen selbst; dieser Test haelt
- * fest, dass keine schreibende oder angemeldete Route in die Liste rutscht.
+ * fest, dass keine angemeldete oder loeschende Route in die Liste rutscht;
+ * seit D12y ist der Antwort-Stream (POST) die eine schreibende Ausnahme.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -39,8 +40,6 @@ describe('embedCorsHeaders', () => {
     ['PATCH', '/api/diva-texture/material-classification'],
     // Nur angemeldet oder nicht Teil des Embeds
     ['GET', '/api/library/explore-by-slug/aeced'],
-    ['GET', '/api/chat/lib-1/docs/by-fileids'],
-    ['GET', '/api/chat/lib-1/queries/q1'],
     ['GET', '/api/storage/streaming-url'],
     // Falsche Methode auf einer Lese-Route
     ['POST', '/api/chat/lib-1/docs'],
@@ -53,7 +52,7 @@ describe('embedCorsHeaders', () => {
     expect(embedCorsHeaders('OPTIONS', '/api/library/lib-1/doc-relations')).toMatchObject({
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Accept-Language',
+      'Access-Control-Allow-Headers': 'Content-Type, Accept-Language, X-Session-ID',
     })
     expect(embedCorsHeaders('OPTIONS', '/api/chat/lib-1/doc-meta')?.['Access-Control-Allow-Methods']).toBe('GET, OPTIONS')
     expect(embedCorsHeaders('OPTIONS', '/api/library/lib-1/doc-relations/recompute')).toBeNull()
@@ -97,5 +96,35 @@ describe('Middleware und Embed-CORS', () => {
     const oeffentlich = quelle.indexOf('if (isPublic) return response')
     expect(kopf).toBeGreaterThan(-1)
     expect(kopf).toBeLessThan(oeffentlich)
+  })
+})
+
+describe('embedCorsHeaders — Story-Modus (D12y, Owner 04.10.2026)', () => {
+  it.each([
+    ['GET', '/api/public/llm-models'],
+    ['GET', '/api/chat/lib-1/chats'],
+    ['GET', '/api/chat/lib-1/queries'],
+    ['GET', '/api/chat/lib-1/queries/q-1'],
+    ['GET', '/api/chat/lib-1/docs/by-fileids'],
+    ['POST', '/api/chat/lib-1/stream'],
+  ])('gibt %s %s frei', (method, path) => {
+    expect(embedCorsHeaders(method, path)).toEqual({ 'Access-Control-Allow-Origin': '*' })
+  })
+
+  it.each([
+    ['DELETE', '/api/chat/lib-1/queries/q-1'],
+    ['DELETE', '/api/chat/lib-1/chats/c-1'],
+    ['PATCH', '/api/chat/lib-1/chats/c-1'],
+    ['GET', '/api/chat/lib-1/chats/c-1'],
+    ['GET', '/api/llm-models'],
+    ['POST', '/api/chat/lib-1/chats'],
+  ])('laesst Loeschen, Umbenennen und die angemeldete Modell-Liste zu: %s %s', (method, path) => {
+    expect(embedCorsHeaders(method, path)).toBeNull()
+  })
+
+  it('der Preflight des Streams erlaubt POST und die anonyme Sitzungskennung', () => {
+    const vorab = embedCorsHeaders('OPTIONS', '/api/chat/lib-1/stream')
+    expect(vorab?.['Access-Control-Allow-Methods']).toBe('POST, OPTIONS')
+    expect(vorab?.['Access-Control-Allow-Headers']).toContain('X-Session-ID')
   })
 })

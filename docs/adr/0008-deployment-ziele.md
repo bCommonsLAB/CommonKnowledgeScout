@@ -213,3 +213,18 @@ wem man auch Schreibzugriff anvertraut.**
 Das Embed (P2) ist davon unberührt: Es liefert nur öffentliche Inhalte und
 braucht überhaupt keinen Schlüssel (siehe vorheriger Nachtrag). Schlüssel
 gibt es ausschließlich für Fremdanwendungen ohne KnowledgeScout-Oberfläche.
+
+## Nachtrag 2026-10-04 (Owner-Entscheidung, bindend): Story-Modus im Embed darf fragen
+
+Seit D6b steht der Story-Modus im Embed (`@ks/embed`, `view="story"`). Die
+CORS-Liste (`src/lib/embed/embed-cors.ts`) kannte bis D12x nur die
+Lese-Routen der Galerie — Sprachmodelle, Sitzungen, Fragen und der
+Antwort-Stream fehlten, auf einer fremden Seite blieb der Story-Modus ein
+leeres Geruest (Nachweis 04.10. in `commoning-methods`). Entscheidung: Das
+Embed darf von jeder Herkunft aus Fragen stellen — bei oeffentlichen
+Libraries, anonym per `X-Session-ID`, mit Kosten beim Sprachmodell der
+Instanz. Begruendung: Anonyme Besucher der Instanz duerfen das seit je, und
+ausserhalb des Browsers kann es ohnehin jeder; die Freigabe aendert nur, dass
+auch der Browser auf einer fremden Seite es darf. Nachtrag (a) oben gilt
+weiter: keine Anmeldung, nichts Geschuetztes; Loeschen und Umbenennen bleiben
+der eigenstaendigen Anwendung.
