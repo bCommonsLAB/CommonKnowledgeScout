@@ -1,6 +1,7 @@
-# Handover: Story-Dreiteilung lokal testen — Wellen D8 bis D12i
+# Handover: Story-Dreiteilung lokal testen — Wellen D8 bis D12w
 
-Stand: 03.10.2026, Ende der zweiten Cloud-Session. Plan:
+Stand: 04.10.2026, Ende der lokalen Session (Nachtrag unten in Abschnitt 7).
+Ursprünglich 03.10.2026, Ende der zweiten Cloud-Session. Plan:
 [`../plans/story-dreiteilung-fragenchronik.plan.md`](../plans/story-dreiteilung-fragenchronik.plan.md)
 („Stand D12a" bis „Stand D12i"). Vorgänger:
 [`2026-10-02-story-online-d12.md`](2026-10-02-story-online-d12.md) (Schreibtischtest,
@@ -60,9 +61,8 @@ pnpm --filter @ks/embed build           # D12e ändert embed-story.tsx und @ks/c
 Ergebnis 03.10. (lokal, Worktree auf ccr nach #336): Tests grün (zweiter
 Lauf; der erste im kalten Worktree hatte sechs Timeouts), Lint grün,
 Embed-Build grün. `pnpm typecheck:packages` war rot — die Embed-tsconfig
-kannte `@ks/module-story` nicht, Fix in #338. `pnpm build` und der
-tsc-Vergleich stehen noch aus (Build abgebrochen, damit `.next` für den
-Dev-Server frei war).
+kannte `@ks/module-story` nicht, Fix in #338. Der tsc-Vergleich lief je
+Welle (38 Altdateien, keine neue). `pnpm build`: siehe Abschnitt 7.
 
 ## 3. Live-Nachweis je Welle (Dev-Server, Secretary erreichbar)
 
@@ -140,3 +140,52 @@ als kleine PRs gegen ccr; Tests, tsc-Vergleich, Lint je PR.
    > meine Freigabe.
 
 6. **Kosten:** Gates und Live-Sitzung 3–6 USD; je Befund-Fix 0,5–1,5 USD.
+
+## 7. Nachtrag 04.10.: Stand nach der lokalen Session
+
+**Gebaut** (03./04.10., Owner live über WLAN und Remote, Befunde direkt
+umgesetzt): D12k Belege kompakt + Marken je Dokument, D12l X klappt nur zu,
+D12n Facettenfilter ohne Typwahl, D12o Filter-Chips in der Mitte, D12q
+Quellenliste der Übersicht, D12m Blatt am Telefon mit denselben Listen,
+D12r Leiste ab Tablet + Knopf „Quellen" am Telefon, D12p Kopf der Seite im
+Story-Modus weg, D12s Knopfzeile schmal nur Symbole, D12t Chronik-Einträge
+zweizeilig, D12u Belegkarte wie Quellenkarte + X nur im Blatt, D12v
+Erkunden-Seite ohne Kopf-Block in „Inhalte", D12w Galerie-Höhe folgt der
+Navigation. Je Welle ein Stand-Abschnitt im Plan.
+
+**Merge-Weg, zum zweiten Mal falsch gelaufen:** Die PRs #339–#343 waren
+gestapelt und wurden wieder von unten nach oben in ihre Basis gemergt. ccr
+bekam nur D12k (#339), alles Weitere liegt auf der Spitze
+`claude/story-d12q-quellen-kompakt` (D12l–D12w, auch die Commits nach dem
+Merge von #343). Die Spitze hat ccr hereingemergt; von ihr geht **eine PR
+nach ccr**, danach **eine PR ccr → master**. Nur so, keine Teilmerges.
+
+**Gates auf der Spitze (mit ccr gemergt):** Tests, Lint, tsc-Vergleich,
+Paket-Typecheck je Welle grün; `pnpm build`: BUILD_ERGEBNIS.
+
+**Nicht geprüft, obwohl im Plan:** Live-Nachweis B, C, D, G, H (Cache-
+Treffer, Sitzungswechsel, Neu-berechnen, letzte Frage löschen, Fragenliste
+nach Wechsel) — der Owner hat frei geklickt, nicht nach Liste. Vor dem
+Merge nach master reicht dem Owner der Test auf master.
+
+**Offen (Owner-Entscheide):** Facettenfilter ohne Website-Ausschluss fällt
+weiter still weg (Struktur-Typen bei `commonFacetDefs` ausnehmen oder laut
+fehlschlagen); D6d toter App-Chat; `gallery.subtitle`/`story.subtitle`.
+**Kanten, notiert:** eigener `publicName` einer Library erscheint auf der
+Erkunden-Seite nirgends (gehört in den ExplorerHeader); Quellen-Eintrag im
+Hamburger-Menü nicht gebaut; beim Laden kurz „0 Dokumente" und „Generiere
+Themenübersicht…" trotz Cache. Abschnitt 4 (Embed in Partner-App, Backfill
+Seite je Chunk) unverändert offen.
+
+**Hand-off:** Nächste Welle ist der Merge (Spitze → ccr → master, Owner
+testet auf master), danach Abschnitt 4 und die Owner-Entscheide. Modell für
+Befund-Fixes mit klarer Stelle: Sonnet; für Live-Sitzungen mit Layout-
+Urteil: Opus mit Thinking. Start-Prompt für die nächste lokale Session:
+
+   > Lies CLAUDE.md, AGENTS.md und
+   > docs/handover/2026-10-03-story-lokaler-test-d12.md (Abschnitt 7). Basis
+   > ist master nach dem Merge von ccr. Arbeite Abschnitt 4 ab und hole dir
+   > die drei Owner-Entscheide; Fixes als kleine PRs gegen master mit Tests,
+   > tsc-Vergleich und Lint. Nie gestapelte PRs von unten nach oben mergen.
+
+Kosten dieser Session: 13 Wellen mit Live-Prüfung, grob 15–25 USD.

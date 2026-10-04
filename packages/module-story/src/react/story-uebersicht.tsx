@@ -22,7 +22,8 @@ import { Kennzahlen, zaehlerText } from './kennzahlen'
 export interface StoryUebersichtProps {
   /** `null`, solange die Themenuebersicht noch berechnet wird. */
   gliederung: StoryTopicsData | null
-  dokumente: number
+  /** `null`, solange der Bestand noch laedt — dann fehlt die Kennzahl statt „0 Dokumente" (D12x). */
+  dokumente: number | null
   /** D12o: gesetzter Filter als Chips, neben den Kennzahlen. */
   filterAnzeige?: ReactNode
   /** Ueberschrift ueber den Karten (Konfig `story.topicsTitle`); sonst die Themenzeile mit Zahl. */
@@ -51,7 +52,7 @@ export function StoryUebersicht({ gliederung, dokumente, filterAnzeige, themenTi
         <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
           <Kennzahlen
             werte={[
-              { art: 'documents', wert: dokumente },
+              ...(dokumente === null ? [] : [{ art: 'documents' as const, wert: dokumente }]),
               ...(gliederung ? [{ art: 'topics' as const, wert: themen.length }, { art: 'questions' as const, wert: fragen }] : []),
             ]}
           />

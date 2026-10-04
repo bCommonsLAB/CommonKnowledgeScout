@@ -1475,10 +1475,10 @@ Kopf-Block gar nicht — auch die Plakette „Geprüft" nicht (interner Stand,
 Owner: gehört in die Einstellungen) und keinen Scroll-Effekt; die
 Ansichtszeile sitzt oben bündig wie im Story-Modus. Die App-Galerie
 (`/library/gallery`, ohne ExplorerHeader) behält Titel, Plakette und
-Beschreibung. Live: eine Überschrift, direkt darunter die Ansichtszeile. Hinweis: Setzt eine Library `publicName`, zeigt
-der ExplorerHeader weiterhin `label` — der öffentliche Name wäre dann auf
-der Erkunden-Seite nirgends zu sehen; falls gewollt, gehört `publicName`
-in den ExplorerHeader (nicht gebaut).
+Beschreibung. Live: eine Überschrift, direkt darunter die Ansichtszeile. Nachgeprüft
+04.10.: Die Erkunden-API (`explore-by-slug`) liefert als `label` bereits
+`publicName || label` — der öffentliche Name steht damit oben im
+ExplorerHeader, nichts fehlt.
 
 ### Stand D12w (gebaut 04.10.2026, lokal) — Band unten: Galerie-Höhe folgt der Navigation
 
@@ -1492,6 +1492,15 @@ fehlten 64 px (plus je nach Kopf mehr). Was steht: Neu rechnen auch bei
 `scroll` (rAF-gedrosselt) und nach jeder `transitionend` im Dokument.
 Live: Navigation weg → Rahmen 723 → 787 px, Unterkante bleibt 16 px über
 dem Fensterrand. Kein Unit-Test (Layout-Maße brauchen einen Browser).
+
+### Stand D12x (gebaut 04.10.2026, lokal) — keine „0 Dokumente" beim Laden
+
+Beim Laden stand in der Mitte kurz „0 Dokumente", weil die Montagepunkte
+`0` übergaben, solange die Galerie lud. `StoryRoot.dokumente` ist jetzt
+`number | null`; App und Embed geben `null` beim Laden, die Übersicht lässt
+die Kennzahl dann weg, und die Übersicht wird erst geholt, wenn die Zahl da
+ist (wie bisher bei `0`). „Generiere Themenübersicht…" beim Laden ist der
+laufende Abruf, auch bei Cache-Treffer; bleibt.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

@@ -103,7 +103,7 @@ export function EmbedStoryPanel({ library, instanz, locale, filterAnzeige }: Emb
       instanz={instanz}
       viewer={ANONYM}
       perspektive={perspektive}
-      dokumente={galerie.loading ? 0 : galerie.totalCount || 0}
+      dokumente={galerie.loading ? null : galerie.totalCount || 0}
       filter={filter}
       filterAnzeige={filterAnzeige}
       eingabe={{ placeholder: chat?.placeholder, maxZeichen: chat?.maxChars, maxZeichenHinweis: chat?.maxCharsWarningMessage }}

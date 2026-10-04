@@ -82,7 +82,8 @@ export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string
       viewer={{ isSignedIn: isSignedIn === true }}
       perspektive={perspektive}
       kopf={kopf}
-      dokumente={galerie.loading ? 0 : galerie.totalCount || 0}
+      // D12x: solange die Galerie laedt, keine Zahl (sonst stand kurz „0 Dokumente").
+      dokumente={galerie.loading ? null : galerie.totalCount || 0}
       filter={filter}
       filterAnzeige={filterAnzeige}
       eingabe={{ placeholder: cfg.config.placeholder, maxZeichen: cfg.config.maxChars, maxZeichenHinweis: cfg.config.maxCharsWarningMessage }}
