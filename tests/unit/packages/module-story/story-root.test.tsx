@@ -132,8 +132,8 @@ describe('StoryRoot', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'chat.input.ask' }))
     })
-    // Die Marke ① ist ein eigener Anker im Absatz — darum ueber den Absatztext pruefen.
-    await waitFor(() => expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'Es gibt Radwege ①.')).toBeTruthy())
+    // Die Marke „1" ist ein eigener Anker im Absatz (D12k: Zahl statt Kreiszahl) — darum ueber den Absatztext pruefen.
+    await waitFor(() => expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'Es gibt Radwege 1.')).toBeTruthy())
     expect(screen.queryByText('Verkehr')).toBeNull()
     expect(screen.getByTestId('fuss')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Wie viele?' })).toBeTruthy()

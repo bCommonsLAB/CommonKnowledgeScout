@@ -10,7 +10,7 @@ import { getRetrieverContext } from '@/lib/chat/retriever-context'
 import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ImageProcessor } from '@/lib/ingestion/image-processor'
-import { buildMetadataPrefix } from '@/lib/ingestion/metadata-formatter'
+import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
 import { extractFacetValues, buildVectorDocuments } from '@/lib/ingestion/vector-builder'
 import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
 import { hashId } from '@/lib/utils/string-utils'
@@ -1294,7 +1294,7 @@ export class IngestionService {
       
       // Metadaten als Text-Präfix vor das Markdown setzen, um Embedding-Qualität zu verbessern
       const metadataPrefix = buildMetadataPrefix(docMetaJsonObj)
-      const finalMarkdown = metadataPrefix ? `${metadataPrefix}\n\n--- Dokument-Body beginnt hier ---\n\n${baseMarkdown}` : baseMarkdown
+      const finalMarkdown = metadataPrefix ? `${metadataPrefix}\n\n${DOKUMENT_BODY_MARKER}\n\n${baseMarkdown}` : baseMarkdown
       
       // Secretary Service RAG Embedding aufrufen
       FileLogger.info('ingestion', 'Starte RAG Embedding über Secretary Service', { fileId, markdownLength: finalMarkdown.length, metadataPrefixLength: metadataPrefix?.length || 0 })

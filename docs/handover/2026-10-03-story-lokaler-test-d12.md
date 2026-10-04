@@ -57,6 +57,13 @@ npx tsc --noEmit -p tsconfig.json 2>&1 | grep 'error TS' | sed 's/(.*//' | sort 
 pnpm --filter @ks/embed build           # D12e ändert embed-story.tsx und @ks/contracts
 ```
 
+Ergebnis 03.10. (lokal, Worktree auf ccr nach #336): Tests grün (zweiter
+Lauf; der erste im kalten Worktree hatte sechs Timeouts), Lint grün,
+Embed-Build grün. `pnpm typecheck:packages` war rot — die Embed-tsconfig
+kannte `@ks/module-story` nicht, Fix in #338. `pnpm build` und der
+tsc-Vergleich stehen noch aus (Build abgebrochen, damit `.next` für den
+Dev-Server frei war).
+
 ## 3. Live-Nachweis je Welle (Dev-Server, Secretary erreichbar)
 
 Voraussetzungen wie im Testplan vom 02.10.: `pnpm dev`, Secretary, eine
@@ -76,6 +83,7 @@ schreibt Chats und Query-Logs. Je Punkt: Aktion, Erwartung, wo nachschauen.
 | I | D12h | Alte Antwort (vor D7) wählen, Quellen zu | Zähler = Zahl der Dokumente, nicht der Textstellen | `gallery-root.tsx` Leiste, `helpers.ts anzahlBelegDokumente` |
 | J | D12i | Fenster < lg, Antwort mit Belegen, Marke klicken | Blatt „Quellenverzeichnis" öffnet sich mit den Belegen und scrollt zur Karte | `gallery-root.tsx belegSprungZiel`, `references-sheet.tsx` |
 | K | D8–D11b | Testplan 02.10. Schritte 1–21 noch einmal zügig | wie dort; bekannte Lücken Abschnitt 6 dort | — |
+| L | D12k | Alte Antwort (vor D7, viele Marken) und neue Antwort ansehen, Quellen auf | Marken sind Kreise mit Zahl, je Dokument eine Nummer, keine Doppelmarke hintereinander; Karte kompakt (Marke, Titel, Status, Original), Textstellen erst nach Aufklappen; Tooltip nennt bei neuen Antworten den Titel | `zitatmarke.ts` (util), `antwort-text.tsx`, `beleg-karte.tsx`, `zitatmarken.ts excerpt` |
 
 Befunde: unter „Neu dazugekommen" im Plan (jüngster Stand-Abschnitt), Fixes
 als kleine PRs gegen ccr; Tests, tsc-Vergleich, Lint je PR.

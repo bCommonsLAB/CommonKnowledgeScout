@@ -36,7 +36,7 @@ export { useStoryStream, type UseStoryStreamParams, type UseStoryStreamResult } 
 export { streamAdresse, streamKoerper, gespraechsverlauf, fehlerText } from './konversation/anfrage'
 export { sseSchritte } from './konversation/sse'
 export { AntwortText, type AntwortTextProps } from './konversation/antwort-text'
-export { mitMarkenTiteln, belegeNachNummer } from './konversation/zitat-titel'
+export { mitMarkenTiteln, belegeNachDokument, belegTitel } from './konversation/zitat-titel'
 export { StoryKonversation, type StoryKonversationProps } from './konversation/story-konversation'
 export { StoryEingabe, type StoryEingabeProps } from './konversation/story-eingabe'
 export { useStorySitzungId, type UseStorySitzungIdResult } from './story-root/use-story-sitzung-id'

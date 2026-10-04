@@ -1194,6 +1194,97 @@ dazugekommen“) gebaut: Schritt 14 (D12f), Schritt 12 (D12g), Schritt 21
 (D12h), Mobil (D12i). Offen bleiben die Owner-Entscheide D6d und
 `gallery.subtitle`/`story.subtitle` sowie der Live-Nachweis aller Wellen.
 
+Neu dazugekommen (Live-Test Owner 03.10., Punkt E, noch Konzept):
+
+- **Zitatmarken und Belege sind für Laien zu klein und zu voll.** Gesehen an
+  einer Antwort mit Marken bis 56 für 18 Dokumente: Der Server nummeriert
+  ALLE gefundenen Dokumente (`dokumenteNummerieren`), das Modell zitiert
+  nur einige — die Nummern sind lückig und laufen hoch (Live-Blick 03.10.:
+  20 Marken, 18 Dokumente, Nummern bis 56; die Antwort hat Textstellen, ist
+  also nach D7). Antworten vor D7 nummerieren zusätzlich je Textstelle. Ab
+  21 fällt `zitatmarke()` auf „(n)“ zurück, im selben Text stehen also ⑳
+  und (56) nebeneinander. Die Kreiszahl läuft in
+  Fließtextgröße mit, auf der Karte 11 px in einem 20-px-Kreis — beides
+  schwer lesbar.
+- **Tooltip der Marke nennt den Dateinamen** („page-017.de: stützt sich auf
+  4 Textstellen“): `AntwortText` bekommt `DocReference` (`fileName`), nicht
+  den `Beleg` mit `titel`. Laien lesen dort nichts.
+- **Textstellen zeigen den Rohauszug des Chunks** samt Frontmatter-Markdown
+  (`**Tags:**`, `# Dokument-Metadaten`, „Dokument-Body beginnt hier“): Der
+  Server schneidet die ersten 160 Zeichen ab (`zitatmarken.ts excerpt`),
+  ohne den Metadaten-Block zu überspringen. Die Karte wird lang und sagt
+  nichts.
+- **Wunsch Owner:** Die Legende ist ein Verzeichnis der Dokumente, nicht
+  der Textstellen. Je Dokument eine kompakte Zeile: große, gut lesbare
+  Marke, Titel, Status-Plakette, „Original ansehen“. Textstellen und Seiten
+  sind Expertenwissen — höchstens aufklappbar („n Textstellen“), nie
+  voreingestellt offen. Je kompakter, desto besser.
+
+Vorschlag (D12k, Figma zuerst wie bei D11b):
+
+1. Marke als eigenes Element statt Unicode-Glyphe: `[n]` → `<a class="zitat">n</a>`,
+   per CSS als Kreis in fester Größe; dieselbe Form für 1 und 56, größer als
+   heute, auf der Karte gleich. `zitatmarke()` bleibt nur für reine Textstellen
+   (aria-label, Tests).
+2. Alte Antworten je Dokument durchnummerieren: Beim Rendern die Marke nicht
+   als `number`, sondern als Position des Dokuments in der Belegliste zeigen
+   (`belegeNachNummer` kennt das Dokument). Aus (56) wird ⑫, aus ⑭ ⑮ wird
+   ⑪ ⑪ → dieselbe Marke mehrfach, oder nur die erste Nennung je Satz. Erst
+   prüfen, wie viele Prod-Antworten vor D7 liegen (Backfill ist ohnehin
+   Abschnitt 4 des Handovers).
+3. Tooltip: `Beleg.titel` statt `fileName` — `AntwortText` bekommt die
+   gruppierten Belege oder eine Titel-Map.
+4. Karte kompakt: Kopfzeile (Marke, Titel, Kennzeile, Plakette) + „Original
+   ansehen“; Textstellen hinter einem Aufklapper mit Zähler. Serverseitig den
+   Auszug erst ab dem Dokument-Body nehmen (Marker im Chunk-Text), damit
+   das Zitat, wenn es jemand aufklappt, auch ein Zitat ist.
+
+### Stand D12k (gebaut 03.10.2026, lokal) — Belege kompakt, Marken je Dokument
+
+Owner-Entscheid 03.10.: alte Antworten umnummerieren, keine Doppelmarke
+hintereinander, direkt bauen ohne Figma.
+
+Was steht:
+
+- **Nummer je Dokument, lückenlos ab 1, auch für alte Antworten.**
+  `dokumentNummern` (`@ks/util`) bildet jede Referenznummer auf die Position
+  ihres Dokuments unter den zitierten ab (die Servernummern bleiben im Log); `zitatmarkenImText` schreibt die Marken damit und lässt von Marken
+  desselben Dokuments direkt hintereinander (`[14] [15]`) eine stehen. Die
+  Belegliste nummeriert mit derselben Funktion — Text und Karte stimmen
+  überein, Anker `beleg-<dokumentnummer>`.
+- **Marke als Element** (`Zitatmarke`, `zitatmarkeKlasse` in `@ks/ui`): ein
+  Kreis in fester Größe, im Text 20 px mit 12-px-Zahl, auf der Karte 28 px;
+  dieselbe Form für 1 und 56. Die Kreiszahl-Glyphen bleiben nur für reinen
+  Text (`zitatmarke`).
+- **Tooltip mit Dokumenttitel:** `DocReference.title` (neu, optional) füllt
+  der Orchestrator aus denselben Meta-Dokumenten wie den `detailViewType`
+  (`buildTitleByFileId`); die Mitte zeigt Titel, sonst Dateiname, sonst
+  Begründung (`belegTitel`). Alte Antworten im Cache tragen keinen Titel —
+  dort bleibt bis zum Backfill der Dateiname.
+- **Karte kompakt:** Marke, Titel, Kennzeile, Plakette, „Original ansehen";
+  Textstellen und Kurztext hinter einem Aufklapper („stützt sich auf n
+  Textstellen" bzw. „Mehr dazu"), zu beim Start.
+- **Zitat-Auszug ab Dokument-Body:** `excerpt` überspringt den
+  Metadaten-Vorspann der Ingestion (`DOKUMENT_BODY_MARKER` in
+  `metadata-formatter.ts`, dort auch vom Ingestion-Service genutzt). Gilt
+  für neue Antworten; alte Auszüge liegen im Cache.
+
+Belege: `zitatmarke.test.ts` (Util), `antwort-text.test.tsx`,
+`beleg-liste.test.tsx`, `zitatmarken.test.ts`, `reference-view-type.test.ts`;
+`story-root.test.tsx` angepasst (Marke ist die Zahl).
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Mobil-Blatt zeigt die alte Referenzliste** (`GroupedItemsView` →
+  `ReferenceList`): Dateiname statt Titel, Nummern als `[14-56]`, keine
+  Anker `beleg-<n>` — der Sprung von D12i findet dort keine Karte, und nach
+  D12k stehen im Text andere Nummern als im Blatt. Vorschlag D12l: das Blatt
+  im Modus „answer" auf `BelegListe` umstellen.
+- Live gesehen 03.10. (Antwort „Schwerverkehr auf Schiene verlagern“,
+  Servernummern bis 56): 20 Marken, Nummern 1–18, Karten `beleg-1` bis
+  `beleg-18`, Marke 20 px / 12 px, Textstellen zu. Tooltip dort noch der
+  Dateiname — die Antwort liegt im Cache ohne `title`.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

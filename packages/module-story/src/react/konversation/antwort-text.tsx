@@ -2,10 +2,15 @@
 
 /**
  * Der Antworttext einer Konversation (D6b): Markdown mit derselben Engine wie
- * die Buch-Ansicht (`md` aus `@ks/viewers`), Zitatmarken ①… als Anker auf die
- * Belegkarte (D7) mit Titel („Dokument: stützt sich auf n Textstellen").
+ * die Buch-Ansicht (`md` aus `@ks/viewers`), Zitatmarken als Anker auf die
+ * Belegkarte (D7) mit Titel („Dokumenttitel: stützt sich auf n Textstellen").
  *
- * Ein Klick auf eine Marke scrollt zur Karte `#beleg-n` im Dokument, statt die
+ * D12k: Die Marken tragen die Dokumentnummer, auch bei alten Antworten, die je
+ * Textstelle nummerieren (`dokumentNummern`); mehrere Marken desselben
+ * Dokuments hintereinander werden eine. Form und Groesse der Marke kommen aus
+ * `@ks/ui` (`zitatmarkeKlasse`).
+ *
+ * Ein Klick auf eine Marke scrollt zur Karte `#beleg-k` im Dokument, statt die
  * Adresse zu aendern — im Embed gehoert die Adresszeile der fremden Seite.
  * Steht die Karte nicht im DOM (die Quellen-Schicht ist zu, D11b), bittet die
  * Mitte den Gastgeber per `STORY_BELEG_ZEIGEN_EVENT`, sie zu oeffnen und zur
@@ -15,10 +20,11 @@
 
 import { useCallback, useMemo, type MouseEvent } from 'react'
 import { md } from '@ks/viewers'
-import { zitatmarkenImText } from '@ks/util'
+import { zitatmarkeKlasse } from '@ks/ui'
+import { dokumentNummern, zitatmarkenImText } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
 import { STORY_BELEG_ZEIGEN_EVENT, type DocReference, type StoryBelegZeigenDetail } from '@ks/contracts'
-import { mitMarkenTiteln } from './zitat-titel'
+import { belegeNachDokument, belegTitel, mitMarkenTiteln } from './zitat-titel'
 
 export interface AntwortTextProps {
   text: string
@@ -34,13 +40,22 @@ function belegKarte(nummer: string): HTMLElement | null {
 export function AntwortText({ text, belege = [], className }: AntwortTextProps) {
   const { t } = useTranslation()
   const html = useMemo(() => {
-    const roh = md.render(zitatmarkenImText(text))
-    return mitMarkenTiteln(roh, belege, (b) => {
-      const n = b.passages?.length ?? 0
-      const stellen = n === 1 ? t('story.beleg.passages.one') : t('story.beleg.passages.many', { count: n })
-      const dokument = b.fileName ?? b.description
-      return n > 0 ? t('story.zitat.marke', { document: dokument, passages: stellen }) : dokument
-    })
+    const nummern = dokumentNummern(belege)
+    const nachDokument = belegeNachDokument(belege)
+    const roh = md.render(zitatmarkenImText(text, (n) => nummern.get(n)))
+    return mitMarkenTiteln(
+      roh,
+      (k) => {
+        const gruppe = nachDokument.get(k)
+        if (!gruppe) return undefined
+        const n = gruppe.reduce((summe, b) => summe + (b.passages?.length ?? 0), 0)
+        const dokument = belegTitel(gruppe[0])
+        if (n === 0) return dokument
+        const stellen = n === 1 ? t('story.beleg.passages.one') : t('story.beleg.passages.many', { count: n })
+        return t('story.zitat.marke', { document: dokument, passages: stellen })
+      },
+      zitatmarkeKlasse('text'),
+    )
   }, [text, belege, t])
 
   const onClick = useCallback((e: MouseEvent<HTMLDivElement>) => {

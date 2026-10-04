@@ -45,6 +45,8 @@ export interface DocReference {
   number: number
   fileId: string
   fileName?: string
+  /** D12k: Titel des Dokuments, serverseitig aus dem Meta-Dokument angereichert; fehlt bei aelteren Antworten. */
+  title?: string
   description: string
   /** Inhaltstyp des referenzierten Dokuments (A4: formatgerechte Story-Verweise). */
   detailViewType?: string

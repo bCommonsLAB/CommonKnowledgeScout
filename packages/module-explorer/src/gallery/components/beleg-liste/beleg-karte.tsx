@@ -1,19 +1,21 @@
 'use client'
 
 /**
- * Eine Belegkarte (D3): Nummer(n), Titel, Status-Plakette, Kennzeile, Kurztext
- * und „Original ansehen". Plakette und Kennzeile kommen aus der Konfig des
- * Detailansichtstyps; fehlt sie, faellt der Block weg.
+ * Eine Belegkarte (D3, D12k): Marke, Titel, Kennzeile, Status-Plakette und
+ * „Original ansehen" — eine kompakte Zeile je Dokument. Plakette und
+ * Kennzeile kommen aus der Konfig des Detailansichtstyps; fehlt sie, faellt
+ * der Block weg.
  *
- * D7: Die Nummern erscheinen als Zitatmarken (①…), die Karte traegt den Anker
- * `beleg-<n>`, auf den die Marke im Antworttext zeigt. Darunter die zitierten
- * Textstellen mit Seite (nur bei Quellen mit Seitenankern) — die Seite oeffnet
- * das Original dort.
+ * D12k: Die Marke ist die Dokumentnummer (dieselbe wie im Antworttext), die
+ * Karte traegt den Anker `beleg-<nummer>`. Textstellen mit Seite (D7) und
+ * der Kurztext sind Expertenwissen und liegen hinter einem Aufklapper
+ * („stützt sich auf n Textstellen" bzw. „Mehr dazu"), zu beim Start.
  */
 
-import { ExternalLink } from 'lucide-react'
-import { Badge, Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
-import { cn, zitatmarke } from '@ks/util'
+import { useState } from 'react'
+import { ChevronDown, ExternalLink } from 'lucide-react'
+import { Badge, Zitatmarke } from '@ks/ui'
+import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
 import type { BelegPlakette } from '@ks/contracts'
 import { belegKonfig, kennzeileFuer, plaketteFuer, type Beleg } from './helpers'
@@ -35,47 +37,51 @@ export interface BelegKarteProps {
 
 export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
   const { t } = useTranslation()
+  const [offen, setOffen] = useState(false)
   const konfig = belegKonfig(beleg.typ)
   const plakette = plaketteFuer(konfig, beleg.doc)
   const kennzeile = kennzeileFuer(konfig, beleg.doc)
   const anzahl = beleg.passages.length
-  const textstellenText = anzahl === 1 ? t('story.beleg.passages.one') : t('story.beleg.passages.many', { count: anzahl })
-
-  const marken = (
-    <span className="flex shrink-0 gap-0.5 pt-0.5" aria-label={t('story.beleg.citedAs', { numbers: beleg.nummern.join(', ') })}>
-      {beleg.nummern.map((n) => (
-        <span
-          key={n}
-          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
-        >
-          {zitatmarke(n)}
-        </span>
-      ))}
-    </span>
-  )
+  const hatDetails = anzahl > 0 || Boolean(beleg.kurztext)
+  const detailsText =
+    anzahl === 0 ? t('story.beleg.more') : anzahl === 1 ? t('story.beleg.passages.one') : t('story.beleg.passages.many', { count: anzahl })
 
   return (
-    <li className="rounded-lg border bg-card p-3 space-y-2" data-beleg={beleg.fileId} id={`beleg-${beleg.nummern[0]}`}>
-      {/* D12e: Auch die weiteren Marken dieses Dokuments (alte Antworten je Textstelle) finden die Karte. */}
-      {beleg.nummern.slice(1).map((n) => (
-        <span key={n} id={`beleg-${n}`} className="sr-only" aria-hidden="true" />
-      ))}
-      <div className="flex items-start gap-2">
-        {anzahl > 0 ? (
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>{marken}</TooltipTrigger>
-              <TooltipContent side="left" className="max-w-xs">
-                {textstellenText}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          marken
-        )}
+    <li className="rounded-lg border bg-card p-2.5" data-beleg={beleg.fileId} id={`beleg-${beleg.nummer}`}>
+      <div className="flex items-start gap-2.5">
+        <Zitatmarke nummer={beleg.nummer} className="mt-0.5" aria-label={t('story.beleg.citedAs', { numbers: beleg.nummer })} />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium leading-snug">{beleg.titel}</h3>
           {kennzeile.length > 0 && <p className="truncate text-xs text-muted-foreground">{kennzeile.join(' · ')}</p>}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              onClick={() => onOriginal(beleg)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {t('story.beleg.original')}
+            </button>
+            {hatDetails && (
+              <button
+                type="button"
+                aria-expanded={offen}
+                onClick={() => setOffen((o) => !o)}
+                className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {detailsText}
+                <ChevronDown className={cn('h-3 w-3 transition-transform', offen && 'rotate-180')} />
+              </button>
+            )}
+          </div>
+          {offen &&
+            (anzahl > 0 ? (
+              <div className="mt-1.5">
+                <BelegTextstellen passages={beleg.passages} onSeite={(page) => onOriginal(beleg, page)} />
+              </div>
+            ) : (
+              <p className="mt-1.5 text-xs text-muted-foreground">{beleg.kurztext}</p>
+            ))}
         </div>
         {plakette && (
           <Badge
@@ -86,15 +92,6 @@ export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
           </Badge>
         )}
       </div>
-      {anzahl > 0 ? (
-        <BelegTextstellen passages={beleg.passages} onSeite={(page) => onOriginal(beleg, page)} />
-      ) : (
-        beleg.kurztext && <p className="line-clamp-3 text-xs text-muted-foreground">{beleg.kurztext}</p>
-      )}
-      <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => onOriginal(beleg)}>
-        <ExternalLink className="h-3 w-3" />
-        {t('story.beleg.original')}
-      </Button>
     </li>
   )
 }

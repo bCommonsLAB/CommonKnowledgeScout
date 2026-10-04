@@ -2,7 +2,8 @@
 
 /**
  * Belegliste (D3, Plan `story-dreiteilung-fragenchronik`): aus den Referenzen
- * einer Antwort wird je Dokument ein Beleg mit Nummern, Titel, Kurztext;
+ * einer Antwort wird je Dokument ein Beleg mit Dokumentnummer (D12k), Titel,
+ * Kurztext (hinter dem Aufklapper);
  * Plakette und Kennzeile kommen aus der Konfig des Detailansichtstyps und
  * fallen weg, wenn der Typ keine hat. „Original ansehen" oeffnet ueber die
  * Adressierung der Galerie.
@@ -44,11 +45,11 @@ const docs: DocCardMeta[] = [
 afterEach(cleanup)
 
 describe('belegeAusReferenzen', () => {
-  it('ein Beleg je Dokument, Nummern gesammelt, Titel aus dem Dokument, Kurztext aus der ersten Referenz', () => {
+  it('ein Beleg je Dokument mit Dokumentnummer, Titel aus dem Dokument, Kurztext aus der ersten Referenz', () => {
     const belege = belegeAusReferenzen(references, docs)
-    expect(belege.map((b) => [b.fileId, b.nummern, b.titel])).toEqual([
-      ['f-a', [1, 3], 'Radwege ausbauen'],
-      ['f-b', [2], 'Heizen.md'],
+    expect(belege.map((b) => [b.fileId, b.nummer, b.titel])).toEqual([
+      ['f-a', 1, 'Radwege ausbauen'],
+      ['f-b', 2, 'Heizen.md'],
     ])
     expect(belege[0].kurztext).toBe('Markdown-Body: Radwege ausbauen')
     expect(belegeAusReferenzen([{ number: 1, fileId: 'f-a', description: '   ' }], docs)[0].kurztext).toBeUndefined()
@@ -61,9 +62,10 @@ describe('belegeAusReferenzen', () => {
     expect(anzahlBelegDokumente([{ fileId: 'x' }, { fileId: 'x' }, { fileId: 'y' }])).toBe(2)
   })
 
-  it('ohne geladenes Dokument: Dateiname als Titel, Typ aus der Library-Konfig', () => {
+  it('ohne geladenes Dokument: Titel der Referenz (D12k), sonst Dateiname; Typ aus der Library-Konfig', () => {
     const [, b] = belegeAusReferenzen(references, docs, 'book')
     expect(b.titel).toBe('Heizen.md')
+    expect(belegeAusReferenzen([{ ...references[1], title: 'Fernwärme ausbauen' }], [])[0].titel).toBe('Fernwärme ausbauen')
     expect(b.typ).toBe('book')
     expect(belegeAusReferenzen(references, [], 'kein-typ')[1].typ).toBeNull()
   })
@@ -119,19 +121,28 @@ describe('BelegListe', () => {
     return { openDocument, onSchliessen, onOpenDocument }
   }
 
-  it('zeigt je Dokument eine Karte mit Nummern, Plakette, Kennzeile und Kurztext', () => {
+  it('zeigt je Dokument eine kompakte Karte mit Marke, Plakette, Kennzeile; Kurztext erst nach „Mehr dazu"', () => {
     renderListe()
     expect(screen.getByText('story.beleg.count.many:2')).toBeTruthy()
     expect(screen.getByText('Radwege ausbauen')).toBeTruthy()
     expect(screen.getByText('story.beleg.status.umsetzung')).toBeTruthy()
     expect(screen.getByText('12 · Mobilität')).toBeTruthy()
+    // D12k: Kurztext ist Expertenwissen — zu beim Start, hinter dem Aufklapper.
+    expect(screen.queryByText('Markdown-Body: Radwege ausbauen')).toBeNull()
+    const mehr = screen.getAllByRole('button', { name: 'story.beleg.more' })
+    expect(mehr).toHaveLength(2)
+    expect(mehr[0].getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(mehr[0])
+    fireEvent.click(mehr[1])
     expect(screen.getByText('Markdown-Body: Radwege ausbauen')).toBeTruthy()
     // Zweites Dokument ohne Bestand: keine Plakette, keine Kennzeile — Titel und Kurztext bleiben.
     expect(screen.getByText('Heizen.md')).toBeTruthy()
     expect(screen.getByText('Kapitel 2: Fernwaerme')).toBeTruthy()
     expect(screen.getAllByText('story.beleg.status.umsetzung')).toHaveLength(1)
-    // D12e: jede Marke der Antwort findet ihre Karte, auch die zweite desselben Dokuments.
-    for (const r of references) expect(document.getElementById(`beleg-${r.number}`)).not.toBeNull()
+    // D12k: Die Karten tragen die Dokumentnummer — die dritte Referenz ist das erste Dokument.
+    expect(document.getElementById('beleg-1')?.getAttribute('data-beleg')).toBe('f-a')
+    expect(document.getElementById('beleg-2')?.getAttribute('data-beleg')).toBe('f-b')
+    expect(document.getElementById('beleg-3')).toBeNull()
   })
 
   it('„Original ansehen" oeffnet ueber die Adressierung (Slug), sonst ueber den Rueckfall', () => {
@@ -206,11 +217,15 @@ describe('BelegListe mit Textstellen (D7)', () => {
     expect(belegeAusReferenzen(references, docs)[0].passages).toEqual([])
   })
 
-  it('Zitatmarke statt Zahl, Anker beleg-<n>, Textstellen mit Seite als Knopf', () => {
+  it('Marke mit Dokumentnummer, Anker beleg-<n>, Textstellen mit Seite als Knopf hinter dem Aufklapper', () => {
     renderListe()
-    expect(screen.getByText('①')).toBeTruthy()
+    expect(screen.getByLabelText('story.beleg.citedAs:1').textContent).toBe('1')
     expect(document.getElementById('beleg-1')?.getAttribute('data-beleg')).toBe('f-a')
     expect(document.getElementById('beleg-2')).toBeTruthy()
+    // D12k: Textstellen zu beim Start; der Aufklapper nennt ihre Zahl.
+    expect(screen.queryByText('Der Ausbau der Radwege beginnt 2027.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'story.beleg.passages.many:2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'story.beleg.passages.one' }))
     expect(screen.getByText('Der Ausbau der Radwege beginnt 2027.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'story.beleg.openAtPage:7' })).toBeTruthy()
     // Ohne Seite: Zitat, aber kein Seitenknopf
@@ -220,6 +235,7 @@ describe('BelegListe mit Textstellen (D7)', () => {
 
   it('Seitenknopf oeffnet an der Seite, „Original ansehen" an der ersten Seite, ohne Seite am Anfang', () => {
     const { openDocument } = renderListe()
+    fireEvent.click(screen.getByRole('button', { name: 'story.beleg.passages.many:2' }))
     fireEvent.click(screen.getByRole('button', { name: 'story.beleg.openAtPage:7' }))
     expect(openDocument).toHaveBeenLastCalledWith('radwege', { page: 7 })
     const original = screen.getAllByRole('button', { name: /story.beleg.original/ })

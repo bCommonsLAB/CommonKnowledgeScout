@@ -31,6 +31,13 @@ describe('excerpt', () => {
     expect(lang.length).toBeLessThanOrEqual(161)
     expect(lang.endsWith('…')).toBe(true)
   })
+
+  it('D12k: beginnt hinter dem Metadaten-Vorspann der Ingestion; ohne Body bleibt der ganze Text', () => {
+    const chunk = '# Dokument-Metadaten **Titel:** Bahn **Tags:** verkehr\n\n--- Dokument-Body beginnt hier ---\n\n## Ausbau\nDie Strecke wird zweigleisig.'
+    expect(excerpt(chunk)).toBe('## Ausbau Die Strecke wird zweigleisig.')
+    expect(excerpt('**Tags:** nur Vorspann\n\n--- Dokument-Body beginnt hier ---\n\n')).toBe('**Tags:** nur Vorspann --- Dokument-Body beginnt hier ---')
+    expect(excerpt('Ohne Marker bleibt alles.')).toBe('Ohne Marker bleibt alles.')
+  })
 })
 
 describe('belegeAusGruppen', () => {

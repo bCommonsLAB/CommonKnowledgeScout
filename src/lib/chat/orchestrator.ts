@@ -44,7 +44,7 @@ import { chunkSummaryRetriever } from '@/lib/chat/retrievers/chunk-summary'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
 import type { StoryTopicsData } from '@/types/story-topics'
-import { attachViewTypeToReferences, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
+import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
 
 export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'chunkSummary' | 'summary'
@@ -502,6 +502,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         const { getByFileIds } = await import('@/lib/repositories/vector-repo')
         const metaByFileId = await getByFileIds(collectionName, run.libraryId, uniqueFileIds)
         references = attachViewTypeToReferences(references, buildViewTypeByFileId(metaByFileId))
+        // D12k: Dokumenttitel fuer Tooltip und Belegkarte aus denselben Meta-Dokumenten.
+        references = attachTitleToReferences(references, buildTitleByFileId(metaByFileId))
       } catch (error) {
         console.warn(
           '[orchestrator] detailViewType-Anreicherung der References fehlgeschlagen:',
