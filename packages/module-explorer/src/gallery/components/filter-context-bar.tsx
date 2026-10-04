@@ -1,7 +1,7 @@
 'use client'
 
-import { Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
-import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
+import { Filter, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '../atoms/gallery-filters'
 import { useTranslation } from '@ks/i18n/react'
@@ -10,6 +10,7 @@ import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
 import type { ViewMode } from './gallery-sticky-header'
 import type { GalleryCardDensity } from '../lib/gallery-card-density'
 import { BulkDeleteButton } from './bulk-delete-button'
+import { FilterChips } from './filter-chips'
 import { BulkPublishButton } from './bulk-publish-button'
 import { RecomputeAllRelationsButton } from './recompute-all-relations-button'
 import type { DocCardMeta } from '../lib/types'
@@ -142,28 +143,6 @@ export function FilterContextBar({
     pushParams(params)
   }
   
-  // Erstelle eine Map für schnelles Label-Lookup
-  const labelMap = new Map<string, string>()
-  facetDefs.forEach(def => {
-    labelMap.set(def.metaKey, def.label || def.metaKey)
-  })
-  
-  // Extrahiere alle gesetzten Filter-Werte (Facetten-Filter und shortTitle-Filter)
-  const activeFilters: Array<{ key: string; value: string }> = []
-  Object.entries(filters as Record<string, string[] | undefined>).forEach(([key, values]) => {
-    if (Array.isArray(values) && values.length > 0) {
-      // Verwende Label aus facetDefs, falls verfügbar, sonst metaKey
-      // Für shortTitle verwenden wir ein benutzerfreundliches Label
-      const displayKey = key === 'shortTitle' 
-        ? t('gallery.document') 
-        : (labelMap.get(key) || key)
-      values.forEach(value => {
-        activeFilters.push({ key: displayKey, value: String(value) })
-      })
-    }
-  })
-
-  const hasActiveFilters = activeFilters.length > 0
 
   return (
     <div className="border-b py-2 lg:py-1 flex flex-col gap-2 lg:gap-1">
@@ -298,40 +277,8 @@ export function FilterContextBar({
             </span>
           </Button>
         )}
-      {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
-      {hasActiveFilters && (
-        <div className="text-sm text-muted-foreground shrink-0">
-          {t('gallery.filtered')}:
-        </div>
-      )}
-
-      {/* Gesetzte Filter als Badges */}
-      {hasActiveFilters && (
-        <>
-          {activeFilters.map((filter, index) => (
-            <Badge
-              key={`${filter.key}-${filter.value}-${index}`}
-              variant="secondary"
-              className="text-xs shrink-0"
-            >
-              {filter.key}: {filter.value}
-            </Badge>
-          ))}
-        </>
-      )}
-
-      {/* Button zum Zurücksetzen */}
-      {hasActiveFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClear}
-          className="h-7 px-2 shrink-0"
-        >
-          <X className="h-3 w-3 mr-1" />
-          {t('gallery.reset')}
-        </Button>
-      )}
+      {/* D12o: gesetzte Filter als Chips mit Zuruecksetzen — dieselbe Anzeige steht im Story-Modus in der Mitte. */}
+      <FilterChips facetDefs={facetDefs} onClear={onClear} />
 
       {/* Galerie/Tabellen-Umschalter + optional Karten-Dichte (nur Grid) */}
       {viewMode !== undefined && onViewModeChange && (

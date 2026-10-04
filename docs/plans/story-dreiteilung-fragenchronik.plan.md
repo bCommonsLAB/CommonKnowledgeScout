@@ -1278,12 +1278,229 @@ Neu dazugekommen (beim Bauen gesehen):
 - **Mobil-Blatt zeigt die alte Referenzliste** (`GroupedItemsView` →
   `ReferenceList`): Dateiname statt Titel, Nummern als `[14-56]`, keine
   Anker `beleg-<n>` — der Sprung von D12i findet dort keine Karte, und nach
-  D12k stehen im Text andere Nummern als im Blatt. Vorschlag D12l: das Blatt
-  im Modus „answer" auf `BelegListe` umstellen.
+  D12k stehen im Text andere Nummern als im Blatt. → Gebaut als D12m
+  (04.10.), beide Modi.
 - Live gesehen 03.10. (Antwort „Schwerverkehr auf Schiene verlagern“,
   Servernummern bis 56): 20 Marken, Nummern 1–18, Karten `beleg-1` bis
   `beleg-18`, Marke 20 px / 12 px, Textstellen zu. Tooltip dort noch der
   Dateiname — die Antwort liegt im Cache ohne `title`.
+
+### Stand D12l (gebaut 03.10.2026, lokal) — Quellen folgen der Mitte
+
+Befund Owner (Live-Test 03.10.): Das X an den Belegen leerte die
+Referenzen; rechts erschien der Katalog mit 606 Quellen, links stand noch
+die Antwort — zwei Kontexte nebeneinander. Owner: Die Spalte rechts wird
+nur ein- und ausgeblendet und speist sich immer aus dem, was links steht;
+der Katalog gehört zur Themenübersicht.
+
+Was steht: Das X klappt die Spalte zu (`quellenLeiste.toggle`, D11b-Leiste
+mit Zähler), die Belege bleiben die der gezeigten Antwort. „Alle n
+Originalquellen im Katalog" sendet `STORY_UEBERSICHT_ZEIGEN_EVENT`
+(`@ks/contracts`); `StoryRoot` setzt die Auswahl auf die Übersicht, die
+Belege leeren sich über `onBelege` (D12e), die Spalte zeigt den Katalog;
+der Filter auf die Antwort fällt mit (`clear-gallery-filter` wie bisher).
+`BelegListe` hat dafür zwei Wege (`onZuklappen`, `onKatalog`) statt einem
+`onSchliessen`. Belege: `beleg-liste.test.tsx`, `story-root.test.tsx`.
+
+### Stand D12n (gebaut 03.10.2026, lokal) — Facettenfilter ohne Typwahl griff nicht
+
+Befund Owner (Live-Test 03.10.): Facettenfilter „Arbeitsgruppe: Energie"
+(80) gesetzt, Zähler sagt weiter „606 Quellen", die Galerie zeigt gemischte
+Arbeitsgruppen; im Story-Modus „606 Dokumente" und 606 im Quellenverzeichnis.
+
+Ursache (am Netz belegt): `GET …/docs?arbeitsgruppe=Energie` lieferte 610
+ungefiltert, mit `detailViewType=climateAction` 80 gefiltert. Ohne Typwahl
+nimmt die Dokumente-Route die Facetten, die ALLE vorhandenen Typen teilen
+(`commonFacetDefs`, A4a); die Library hat neben `climateAction` auch
+`website`-Dokumente, gemeinsam ist nichts — `buildFilterFromQuery` kannte
+`arbeitsgruppe` nicht, der Filter fiel still weg. Die Facetten-Route nahm
+den `excludeDetailViewType` schon aus den vorhandenen Typen heraus, die
+Dokumente-Route nicht: Facettenleiste und Liste rechneten mit zwei Scopes.
+
+Was steht: Die Dokumente-Route liest `excludeDetailViewType` vor dem Scope
+und filtert ihn aus den vorhandenen Typen (wie die Facetten-Route). Live:
+mit Ausschluss + Filter 80 (nur Energie), ohne Filter 606. Kein Unit-Test
+(Route gegen Mongo); Beleg ist der Netz-Vergleich.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Ohne Ausschluss bleibt die Lücke:** `…/docs?arbeitsgruppe=Energie`
+  ohne `excludeDetailViewType` liefert weiter 610 ungefiltert, weil
+  `website` zu den vorhandenen Typen zählt. Strukturelle Typen (Website,
+  Landingpage) sollten bei `commonFacetDefs` nicht mitzählen — oder ein
+  Facettenfilter, den der Scope nicht kennt, muss laut fehlschlagen statt
+  still wegzufallen (`no-silent-fallbacks`). Owner-Entscheid.
+
+Neu dazugekommen (Live-Test Owner 03.10., Remote, noch Konzept):
+
+- **Aktiver Filter im Story-Modus unsichtbar.** Die Filter-Chips
+  („gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen", `FilterContextBar`
+  mit `mode="story"`) stehen in der rechten Quellen-Spalte — die ist seit
+  D11b beim Einstieg zu. Die Mitte zeigt nur „120 Dokumente · 8 Themen ·
+  46 Fragen"; wer gefiltert hat, sieht es nicht und kann es dort nicht
+  lösen. Vorschlag D12o: die Chips mit Zurücksetzen in die Mitte neben die
+  Kennzahlen (`StoryKopfzeile`/`Kennzahlen`), als Slot vom Gastgeber
+  (`GalleryRoot` kennt `filters` und `facetDefs`; `StoryRoot` bekommt nur
+  die Werte). Die Leiste rechts behält ihre Chips.
+- **Überschrift doppelt** auf der öffentlichen Erkunden-Seite:
+  `ExplorerHeader` zeigt Library-Name + „Öffentliche Wissensbibliothek",
+  darunter der Kopf der Seite (D10) mit `headline` (fällt ohne eigene
+  Galerie-Überschrift auf den Library-Namen zurück) + Beschreibung. In
+  der App-Galerie (`/library/gallery`) gibt es den ExplorerHeader nicht.
+  Vorschlag D12p: auf der Erkunden-Seite den D10-Kopf ohne Titel rendern,
+  wenn `headline` gleich dem Library-Namen ist, oder den ExplorerHeader
+  dort auf die Hinweiszeile reduzieren. Owner-Entscheid, welche Zeile
+  bleibt.
+
+### Stand D12o (gebaut 03.10.2026, lokal) — Filter-Chips in der Story-Mitte
+
+Owner 03.10.: „Wie weiß ich, dass ich in der Filteransicht bin?" — die
+Chips lagen in der zugeklappten Quellen-Spalte. Was steht: `FilterChips`
+(`module-explorer`, aus der `FilterContextBar` herausgelöst, dort weiter
+genutzt) rendert „gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen" aus
+`galleryFiltersAtom` und den Facetten-Labels. `GalleryRoot` reicht sie als
+`ctx.filterAnzeige` an den `storyPanel`-Slot; App (`client.tsx` →
+`StoryRootMount`) und Embed (`embed-galerie` → `EmbedStoryPanel`) geben
+sie an `StoryRoot.filterAnzeige` weiter, das sie in der Übersicht und auf
+der Themenseite neben die Kennzahlen stellt. Zurücksetzen ist
+`handleClearFilters` der Galerie (löst auch die Neuberechnung aus). Belege:
+`filter-chips.test.tsx`, `story-root.test.tsx`. Die doppelte Überschrift
+(D12p) wartet auf Owner-Entscheid.
+
+### Stand D12q (gebaut 03.10.2026, lokal) — Quellen der Übersicht so kompakt wie die Belege
+
+Owner 03.10.: Bei einer Antwort sind die Quellen kompakt, bei der
+Themenübersicht nicht (Galerie-Raster mit Bildern, Ansichts-Umschalter,
+Sortierknöpfe) — vereinheitlichen. Was steht: `QuellenListe`
+(`beleg-liste/quellen-liste.tsx`) zeigt den gefilterten Bestand mit
+denselben Karten wie die Belege (`BelegKarte` ohne Marke und Anker,
+`Beleg.nummer` optional, `belegAusDokument`): Kopf mit Zähler und
+Zuklappen, darunter die Filter-Chips (D12o), Karten mit Titel, Kennzeile,
+Plakette, „Original ansehen"; ein Fühler lädt weitere Seiten nach (Knopf
+„Weitere laden" als Rückfall). `GalleryRoot` setzt sie im Story-Modus ohne
+Antwort statt `FilterContextBar` + Raster ein; Belegliste und Quellenliste
+öffnen Dokumente über denselben Hook (`useDokumentOeffnen`). Neue
+i18n-Schlüssel `story.quellen.more`/`.none` (5 Sprachen). Live: 606 Quellen,
+50 Karten der ersten Seite, keine Bilder. Belege: `quellen-liste.test.tsx`.
+Weg gefallen im Story-Modus: Umschalter Galerie/Tabelle/Graph und die
+Sortierknöpfe der rechten Spalte — die gibt es in „Inhalte" weiterhin.
+Owner 04.10. (Live über WLAN): Der Knopf heißt in beiden Listen
+„Detailansicht öffnen" (`story.beleg.original` umbenannt, Seitenknopf
+„Detailansicht auf Seite n öffnen"). Ein „Original" gibt es nur als Link
+in der Detailansicht selbst (PDF, Quelle); die Listen zeigen interpretierte
+Daten. Zweiter Befund 04.10.: Die Status-Plakette ist eine Sache der
+Klimamaßnahmen, nicht des Bestands; die Quellenliste muss generisch sein
+(Buch, Veranstaltung, Maßnahme). Was steht: eigene `QuellenKarte` — Titel,
+Kennzeile aus der Typ-Konfig, rechts der Knopf zur Detailansicht als
+Symbol; keine Plakette, keine untere Zeile, eine Zeile hoch. Die
+`BelegKarte` unter einer Antwort bleibt wie in D12k.
+
+### Stand D12m (gebaut 04.10.2026, lokal) — Quellen-Blatt der schmalen Ansicht zeigt dieselben Listen
+
+Owner 04.10. (schmale Breite): „Quellenverzeichnis Themenübersicht" unter
+den Karten öffnete das Blatt von D4 mit dem alten Galerie-Raster (Bilder,
+Ansichts-Umschalter, Dichte) — „im Source-Code doppelt". Was steht:
+`ReferencesSheet` rendert `QuellenListe` (Modus `toc`) bzw. `BelegListe`
+(Modus `answer`) — exakt die Listen der Desktop-Spalte, mit Zähler,
+Filter-Chips, Nachladen, Marken und Ankern (der Sprung aus D12i findet
+jetzt auch im Blatt seine Karte). Das X der Listen schließt das Blatt; der
+Katalog-Weg schließt es und schickt die Mitte zur Übersicht (D12l).
+Weggefallen im Blatt: `ItemsView`, `GroupedItemsView`, `ViewModeToggle`,
+Dichte-Umschalter. Belege: `references-sheet.test.tsx`. Live (800 px):
+Blatt mit 50 Karten, keine Bilder.
+
+### Stand D12r (gebaut 04.10.2026, lokal) — Quellen-Leiste ab Tablet, Knopf oben am Telefon
+
+Owner 04.10.: Den Knopf ganz unten findet niemand; bei dieser Breite hat
+die Leiste rechts noch Platz, nur am Telefon braucht es einen Zugang oben.
+Was steht, drei Breiten: **Desktop (≥ lg)** unverändert drei Spalten.
+**Tablet (md ≤ Breite < lg)** Mitte + fliegende Quellen-Leiste wie am
+Desktop (`StorySpalten` ohne Chronik), die Chronik bleibt ein Blatt
+(„Themen und Fragen"). **Telefon (< md, `useIstTelefon`)** Mitte allein;
+Quellen über den neuen Knopf „Quellen" in der Story-Zeile neben „Themen
+und Fragen" (`onOpenQuellen` durch `storyHeader` → `StoryHeader` der App
+und `StoryKopfzeile` im Embed, `md:hidden`), er öffnet das Blatt mit den
+Belegen der Antwort oder dem Bestand. Der Markenklick (D12e/D12i) nimmt am
+Telefon das Blatt, sonst die Leiste. Weg: die Knöpfe „Quellenverzeichnis"
+unter Antwort und Übersicht (`story-fuss.tsx`) und das Ereignis
+`show-toc-references`. Nicht gebaut: der Eintrag im Hamburger-Menü — das
+ist die Seiten-Navigation der Schale (`top-nav.tsx`), ein Story-Eintrag
+dort bräuchte Story-Zustand in der Schale; der Knopf in der Story-Zeile
+ist der Ort, an dem schon die Chronik liegt. Live: 800 px Leiste „606
+Quellen", kein Knopf unten; 600 px Knopf „Quellen" → Blatt mit 50 Karten.
+
+### Stand D12p (gebaut 04.10.2026, lokal) — Kopf der Seite im Story-Modus weg
+
+Owner 04.10.: Drei Überschriften übereinander (Erkunden-Kopf, Kopf der
+Seite aus D10, Titel der Themenübersicht); die zweite Ebene kann im
+Story-Modus weg, die Übersicht bringt ihren Titel mit. Was steht:
+`StoryModeHeader` (App) und `StoryKopfzeile` (Embed) rendern nur noch die
+Ansichtszeile mit ⓘ und den Knöpfen; der Seitenkopf (Titel, Zweizeiler)
+und sein Ein-/Ausblenden beim Scrollen sind weg (auch der Rand unten, den
+der Effekt hinterließ). Die ⓘ-Erklärung aus `story.headline/intro` bleibt.
+Live: Überschriften nur noch Erkunden-Kopf + Übersichtstitel.
+
+### Stand D12s + D12t (gebaut 04.10.2026, lokal) — Knopfzeile schmal, Chronik-Einträge zweizeilig
+
+- **D12s:** Unter `md` zeigt die Story-Zeile (App `StoryHeader`, Embed
+  `StoryKopfzeile`) nur Symbole, der Text steht als Tooltip (`title`) und
+  `aria-label`; die Zeile wurde am Telefon rechts abgeschnitten. Live bei
+  600 px: alle fünf Knöpfe sichtbar, rechter Rand bei 357 von 584 px.
+- **D12t:** Themen, Sitzungstitel und Fragen in der Chronik laufen auf zwei
+  Zeilen mit „…" (`line-clamp-2`) statt hart abgeschnitten — `truncate` auf
+  dem Span griff in der Flex-Zeile nicht (kein `min-w-0`). Live: Einträge
+  40 px hoch, zwei Zeilen.
+
+### Stand D12u (gebaut 04.10.2026, lokal) — Belegkarte wie Quellenkarte, X nur im Blatt
+
+Owner 04.10.: Beleg- und Quellenkarte sahen verschieden aus; und in der
+Spalte gab es Einklapp-Pfeil UND X. Was steht: `BelegKarte` hat das Symbol
+„Detailansicht öffnen" rechts außen wie die `QuellenKarte`; darunter nur
+noch der Aufklapper für Textstellen/Kurztext, falls vorhanden. `onZuklappen`
+ist in `BelegListe` und `QuellenListe` optional: Die Spalte am Desktop/Tablet
+gibt es nicht mehr an (der Pfeil der Leiste reicht), das Blatt am Telefon
+schon (dort ist das X der einzige Weg). Live: Belegkarte mit Marke, Titel,
+Kennzeile, Plakette, Symbol rechts; kein X in der Spalte.
+
+### Stand D12v (gebaut 04.10.2026, lokal) — Titel im Galerie-Kopf der Erkunden-Seite weg
+
+Owner 04.10.: Auch in „Inhalte" steht der Name zweimal (ExplorerHeader
+oben, Kopf der Seite aus D10 darunter). Dieselbe Quelle: oben
+`library.label`, unten `publicPublishing.publicName`, der ohne Wert auf
+`label` zurückfällt. Der Zweizeiler darunter ist `publicPublishing.description`,
+die Beschreibung der Library (wie auf der Startseite) — nicht die der
+Inhalte-Ansicht (die sitzt hinter ⓘ). Was steht: `GalleryRoot.seitenkopf`
+(Standard `true`); die Erkunden-Seite setzt `false`, dann gibt es den
+Kopf-Block gar nicht — auch die Plakette „Geprüft" nicht (interner Stand,
+Owner: gehört in die Einstellungen) und keinen Scroll-Effekt; die
+Ansichtszeile sitzt oben bündig wie im Story-Modus. Die App-Galerie
+(`/library/gallery`, ohne ExplorerHeader) behält Titel, Plakette und
+Beschreibung. Live: eine Überschrift, direkt darunter die Ansichtszeile. Nachgeprüft
+04.10.: Die Erkunden-API (`explore-by-slug`) liefert als `label` bereits
+`publicName || label` — der öffentliche Name steht damit oben im
+ExplorerHeader, nichts fehlt.
+
+### Stand D12w (gebaut 04.10.2026, lokal) — Band unten: Galerie-Höhe folgt der Navigation
+
+Owner 04.10.: „Gefühlt unten immer ein Band, die volle Höhe wird nicht
+genutzt." Befund (gemessen): `useGalleryMode` setzt dem Galerie-Rahmen
+beim Laden eine feste Höhe in Pixeln (Fensterhöhe minus Oberkante minus
+Seitenabstand) und rechnete nur bei `resize` neu. Das Layout lässt die
+TopNav beim Scrollen ausblenden (`padding-top` 64 → 0 mit Transition);
+der Rahmen rückt dann 64 px nach oben, behielt aber die alte Höhe — unten
+fehlten 64 px (plus je nach Kopf mehr). Was steht: Neu rechnen auch bei
+`scroll` (rAF-gedrosselt) und nach jeder `transitionend` im Dokument.
+Live: Navigation weg → Rahmen 723 → 787 px, Unterkante bleibt 16 px über
+dem Fensterrand. Kein Unit-Test (Layout-Maße brauchen einen Browser).
+
+### Stand D12x (gebaut 04.10.2026, lokal) — keine „0 Dokumente" beim Laden
+
+Beim Laden stand in der Mitte kurz „0 Dokumente", weil die Montagepunkte
+`0` übergaben, solange die Galerie lud. `StoryRoot.dokumente` ist jetzt
+`number | null`; App und Embed geben `null` beim Laden, die Übersicht lässt
+die Kennzahl dann weg, und die Übersicht wird erst geholt, wenn die Zahl da
+ist (wie bisher bei `0`). „Generiere Themenübersicht…" beim Laden ist der
+laufende Abruf, auch bei Cache-Treffer; bleibt.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

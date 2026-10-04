@@ -35,7 +35,7 @@ export interface UseStoryKonversationParams {
   perspektive: Perspektive
   filter?: GalleryFilters
   /** Dokumente im (gefilterten) Bestand; ohne Dokumente keine Uebersicht. */
-  dokumente: number
+  dokumente: number | null
   /** Belege der gezeigten Antwort; leer (und `queryId` null), wenn keine Antwort gezeigt wird. */
   onBelege?: (belege: DocReference[], queryId: string | null) => void
   maxZeichen?: number
@@ -102,7 +102,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   // Themenuebersicht einmal je Stand holen — erst mit Dokumenten und Modell.
   const stand = JSON.stringify({ filter: filter ?? {}, perspektive })
   useEffect(() => {
-    if (dokumente < 1 || !perspektive.llmModel || laeuft) return
+    if (dokumente === null || dokumente < 1 || !perspektive.llmModel || laeuft) return
     if (uebersichtStand.current === stand) return
     uebersichtStand.current = stand
     setGliederung(null)

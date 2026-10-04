@@ -93,7 +93,8 @@ export function Gliederung({ gliederung, auswahl, onUebersicht, onThema, neuBere
                       onClick={() => onThema(thema.id)}
                       aria-current={istAktiv ? 'true' : undefined}
                       className={cn(
-                        'w-full truncate rounded-md px-2 py-1 text-left text-sm hover:bg-muted',
+                        // D12t: zwei Zeilen mit „…" statt hart abgeschnitten (Owner 04.10.)
+                        'line-clamp-2 w-full break-words rounded-md px-2 py-1 text-left text-sm hover:bg-muted',
                         istAktiv ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground',
                       )}
                       title={thema.title}

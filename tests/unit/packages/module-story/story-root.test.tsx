@@ -11,7 +11,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import { createInstanceApi } from '@ks/api-client'
-import { STORY_TOC_QUESTION } from '@ks/contracts'
+import { STORY_TOC_QUESTION, STORY_UEBERSICHT_ZEIGEN_EVENT } from '@ks/contracts'
 import { StoryRoot, storyAktiveSitzungAtom, storyAuswahlAtom, storyGliederungAtom, storyUebersichtAktionAtom, storySitzungenStandAtom, type Perspektive } from '@ks/module-story/react'
 
 vi.mock('@ks/i18n/react', () => ({
@@ -73,6 +73,7 @@ function montieren(dokumente = 12) {
         viewer={{ isSignedIn: false }}
         perspektive={perspektive}
         kopf={{ themenTitel: 'Themen' }}
+        filterAnzeige={<span data-testid="filter-chips">gefiltert: Energie</span>}
         dokumente={dokumente}
         eingabe={{ placeholder: 'Frag mich', maxZeichen: 500 }}
         onBelege={onBelege}
@@ -86,6 +87,14 @@ function montieren(dokumente = 12) {
 }
 
 describe('StoryRoot', () => {
+  it('D12o: der Filter-Slot steht in der Uebersicht und auf der Themenseite neben den Kennzahlen', async () => {
+    montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(screen.getByTestId('filter-chips').textContent).toBe('gefiltert: Energie')
+    fireEvent.click(screen.getByText('Verkehr'))
+    expect(screen.getByTestId('filter-chips')).toBeTruthy()
+  })
+
   it('holt die Themenuebersicht ueber die Instanz und zeigt die Themen; ohne Dokumente nicht', async () => {
     const { store } = montieren()
     await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
@@ -142,6 +151,13 @@ describe('StoryRoot', () => {
     expect(auswahl).toMatchObject({ art: 'konversation', queryId: 'q9', themaId: 'verkehr' })
     expect(store.get(storyAktiveSitzungAtom)).toMatchObject({ chatId: 'c1', fragen: [expect.objectContaining({ queryId: 'q9', kurztitel: 'Radwege', offen: false })] })
     expect(localStorage.getItem('chat-activeChatId-lib')).toBe('c1')
+    // D12l: Der Gastgeber bittet um die Uebersicht (Katalog-Knopf) — Themen zurueck, Belege leer.
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STORY_UEBERSICHT_ZEIGEN_EVENT))
+    })
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(store.get(storyAuswahlAtom)).toEqual({ art: 'uebersicht' })
+    expect(onBelege).toHaveBeenLastCalledWith([], null)
   })
 
   it('D12e: die Belege folgen der gezeigten Antwort — Uebersicht leer, Konversation wieder voll', async () => {

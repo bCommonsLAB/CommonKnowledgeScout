@@ -18,6 +18,7 @@ import { ScrollArea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocReference, GalleryFilters } from '@ks/contracts'
+import { STORY_UEBERSICHT_ZEIGEN_EVENT } from '@ks/contracts'
 import { StoryUebersicht } from './story-uebersicht'
 import { StoryThema } from './story-thema'
 import { VerarbeitungEinfach } from './verarbeitung-einfach'
@@ -35,9 +36,11 @@ export interface StoryRootProps {
   perspektive: Perspektive
   /** Konfig-Texte ueber den Karten; ohne Angabe die Themenzeile mit Zahl. */
   kopf?: StoryKopf
-  /** Dokumente im (gefilterten) Bestand. */
-  dokumente: number
+  /** Dokumente im (gefilterten) Bestand; `null`, solange der Gastgeber sie noch laedt (D12x: dann keine „0 Dokumente"). */
+  dokumente: number | null
   filter?: GalleryFilters
+  /** D12o: der gesetzte Filter als Chips (vom Gastgeber), neben den Kennzahlen — sonst sieht niemand, dass gefiltert ist. */
+  filterAnzeige?: ReactNode
   eingabe?: { placeholder?: string; maxZeichen?: number; maxZeichenHinweis?: string }
   /** Belege der gezeigten Antwort — der Gastgeber zeigt sie (Galerie rechts); leer ohne Antwort (D12e). */
   onBelege?: (belege: DocReference[], queryId: string | null) => void
@@ -65,7 +68,7 @@ export function StoryRoot(p: StoryRootProps) {
   // D12d: sobald eine Uebersicht moeglich ist (Dokumente und Modell) — nicht erst mit der
   // Gliederung, die beim Neuberechnen und nach einem Fehler `null` ist (sonst verschwand der Knopf).
   const setUebersichtAktion = useSetAtom(storyUebersichtAktionAtom)
-  const uebersichtMoeglich = p.dokumente >= 1 && !!p.perspektive.llmModel
+  const uebersichtMoeglich = p.dokumente !== null && p.dokumente >= 1 && !!p.perspektive.llmModel
   useEffect(() => {
     setUebersichtAktion(uebersichtMoeglich ? { neuBerechnen: k.uebersichtNeu, laeuft: k.uebersichtLaeuft, gesperrt: k.laeuft } : null)
     return () => setUebersichtAktion(null)
@@ -77,6 +80,14 @@ export function StoryRoot(p: StoryRootProps) {
   useEffect(() => {
     if (k.auswahl.art === 'thema' && k.gliederung && !thema) k.setAuswahl(STORY_UEBERSICHT)
   }, [k, thema])
+
+  // D12l: Der Gastgeber (Katalog-Knopf in der Belegliste) bittet um die Uebersicht;
+  // die Belege rechts folgen der Auswahl (D12e) und machen dem Katalog Platz.
+  useEffect(() => {
+    const zurUebersicht = () => k.setAuswahl(STORY_UEBERSICHT)
+    window.addEventListener(STORY_UEBERSICHT_ZEIGEN_EVENT, zurUebersicht)
+    return () => window.removeEventListener(STORY_UEBERSICHT_ZEIGEN_EVENT, zurUebersicht)
+  }, [k])
 
   // Jede Auswahl beginnt oben — die Konversation steht allein in der Mitte.
   useEffect(() => {
@@ -100,7 +111,7 @@ export function StoryRoot(p: StoryRootProps) {
       <div className="text-sm text-muted-foreground">{t('gallery.storyMode.generatingTopics')}</div>
       {k.schritte.length > 0 && <div className="mt-3 border-t border-border/50 pt-3"><VerarbeitungEinfach schritte={k.schritte} /></div>}
     </div>
-  ) : !k.gliederung && p.dokumente >= 1 && !k.fehler ? (
+  ) : !k.gliederung && p.dokumente !== null && p.dokumente >= 1 && !k.fehler ? (
     <p className="text-sm text-muted-foreground">{t('story.uebersicht.empty')}</p>
   ) : undefined
 
@@ -125,13 +136,21 @@ export function StoryRoot(p: StoryRootProps) {
         />
       )
   } else if (thema) {
-    mitte = <StoryThema thema={thema} onFrageWaehlen={(frage) => frageUebernehmen(frage.text)} onZurueck={() => k.setAuswahl(STORY_UEBERSICHT)} />
+    mitte = (
+      <StoryThema
+        thema={thema}
+        filterAnzeige={p.filterAnzeige}
+        onFrageWaehlen={(frage) => frageUebernehmen(frage.text)}
+        onZurueck={() => k.setAuswahl(STORY_UEBERSICHT)}
+      />
+    )
   } else {
     mitte = (
       <>
         <StoryUebersicht
           gliederung={k.gliederung}
           dokumente={p.dokumente}
+          filterAnzeige={p.filterAnzeige}
           themenTitel={p.kopf?.themenTitel}
           themenIntro={p.kopf?.themenIntro}
           onThemaWaehlen={(themaId) => k.setAuswahl({ art: 'thema', themaId })}

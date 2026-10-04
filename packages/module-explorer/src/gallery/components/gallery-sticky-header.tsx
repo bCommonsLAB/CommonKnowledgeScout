@@ -94,34 +94,42 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     </>
   )
 
+  // D12v: Ohne Kopf (Erkunden-Seite: Name steht im ExplorerHeader, die Library-
+  // Beschreibung und die interne Plakette gehoeren nicht in die Inhalte-Ansicht)
+  // gibt es den Block samt Scroll-Effekt nicht — die Ansichtszeile sitzt oben
+  // buendig wie im Story-Modus.
+  const mitKopf = Boolean(headline || description)
+
   return (
     <div className="sticky top-0 z-20 bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-b">
-      <div
-        className={`transition-all duration-300 overflow-hidden ${
-          isCondensed ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-96 opacity-100'
-        }`}
-        style={{
-          willChange: isCondensed ? 'max-height, opacity' : 'auto',
-          // Verhindere Layout-Shifts während Transition (robuster für ältere Geräte)
-          contain: 'layout style paint',
-        }}
-      >
-        <div className="py-4 space-y-1" data-seitenkopf>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-2xl font-bold leading-tight">{headline}</h2>
-            {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2); kommt vom Montagepunkt. */}
-            {verifikationsAbzeichen}
+      {mitKopf && (
+        <div
+          className={`transition-all duration-300 overflow-hidden ${
+            isCondensed ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-96 opacity-100'
+          }`}
+          style={{
+            willChange: isCondensed ? 'max-height, opacity' : 'auto',
+            // Verhindere Layout-Shifts während Transition (robuster für ältere Geräte)
+            contain: 'layout style paint',
+          }}
+        >
+          <div className="py-4 space-y-1" data-seitenkopf>
+            <div className="flex items-center gap-2 flex-wrap">
+              {headline ? <h2 className="text-2xl font-bold leading-tight">{headline}</h2> : null}
+              {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2); kommt vom Montagepunkt. */}
+              {verifikationsAbzeichen}
+            </div>
+            {description ? <p className="line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
           </div>
-          {description ? <p className="line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
         </div>
-      </div>
+      )}
 
       <AnsichtsZeile
         className="py-2 lg:py-1"
         name={ansicht.name}
         erklaerung={{ ...ansicht.erklaerung, offen: erklaerung.offen, onToggle: erklaerung.toggle, labels: ansicht.labels }}
         werkzeuge={werkzeuge}
-        eingeklappt={isCondensed}
+        eingeklappt={mitKopf && isCondensed}
       />
     </div>
   )

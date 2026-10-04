@@ -61,10 +61,10 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
       <GalleryRoot
         {...props}
         kopfAktionen={(libraryId) => <CaptureContentButton libraryId={libraryId} />}
-        storyPanel={(libraryId) => (
+        storyPanel={(libraryId, ctx) => (
           <>
             <StoryAuswahlUrl libraryId={libraryId} />
-            <LazyStoryRoot libraryId={libraryId} />
+            <LazyStoryRoot libraryId={libraryId} filterAnzeige={ctx?.filterAnzeige} />
           </>
         )}
         storyChronik={(libraryId, ctx) => <StoryChronikMount libraryId={libraryId} onGewaehlt={ctx?.schliessen} />}
@@ -72,8 +72,8 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
         siteView={({ libraryId, onShowGallery }) => (
           <WebsiteLandingLive libraryId={libraryId} onShowGallery={onShowGallery} />
         )}
-        storyHeader={({ libraryId, onBackToGallery, onOpenChronik }) => (
-          <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} />
+        storyHeader={({ libraryId, onBackToGallery, onOpenChronik, onOpenQuellen }) => (
+          <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} />
         )}
         verifikationsAbzeichen={<LibraryVerificationBadge />}
       />

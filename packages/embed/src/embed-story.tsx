@@ -12,7 +12,7 @@
  * Atom der Galerie, Dokumentenzahl aus dem geteilten Galerie-Zustand.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { fetchLlmModels, type InstanceApi } from '@ks/api-client'
 import { useTranslation } from '@ks/i18n/react'
@@ -71,7 +71,7 @@ export interface EmbedStoryProps {
 }
 
 /** Slot `storyPanel`: die Mitte. */
-export function EmbedStoryPanel({ library, instanz, locale }: EmbedStoryProps) {
+export function EmbedStoryPanel({ library, instanz, locale, filterAnzeige }: EmbedStoryProps & { filterAnzeige?: ReactNode }) {
   const { t } = useTranslation()
   const modell = useOeffentlichesModell(instanz)
   const filter = useAtomValue(galleryFiltersAtom)
@@ -103,8 +103,9 @@ export function EmbedStoryPanel({ library, instanz, locale }: EmbedStoryProps) {
       instanz={instanz}
       viewer={ANONYM}
       perspektive={perspektive}
-      dokumente={galerie.loading ? 0 : galerie.totalCount || 0}
+      dokumente={galerie.loading ? null : galerie.totalCount || 0}
       filter={filter}
+      filterAnzeige={filterAnzeige}
       eingabe={{ placeholder: chat?.placeholder, maxZeichen: chat?.maxChars, maxZeichenHinweis: chat?.maxCharsWarningMessage }}
       onBelege={(references, queryId) => setBelege({ references, queryId: queryId ?? undefined })}
       antwortFuss={() => <AIGeneratedNotice compact className="mt-3" hinweisHref={instanz.url(HINWEIS_PFAD)} Link={InstanzLink} />}

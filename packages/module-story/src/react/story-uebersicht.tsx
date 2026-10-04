@@ -22,7 +22,10 @@ import { Kennzahlen, zaehlerText } from './kennzahlen'
 export interface StoryUebersichtProps {
   /** `null`, solange die Themenuebersicht noch berechnet wird. */
   gliederung: StoryTopicsData | null
-  dokumente: number
+  /** `null`, solange der Bestand noch laedt — dann fehlt die Kennzahl statt „0 Dokumente" (D12x). */
+  dokumente: number | null
+  /** D12o: gesetzter Filter als Chips, neben den Kennzahlen. */
+  filterAnzeige?: ReactNode
   /** Ueberschrift ueber den Karten (Konfig `story.topicsTitle`); sonst die Themenzeile mit Zahl. */
   themenTitel?: string
   /** Einleitung zu den Karten (Konfig `story.topicsIntro`); ohne Konfig keine. */
@@ -36,7 +39,7 @@ export interface StoryUebersichtProps {
   fuss?: ReactNode
 }
 
-export function StoryUebersicht({ gliederung, dokumente, themenTitel, themenIntro, onThemaWaehlen, status, aktionen, fuss }: StoryUebersichtProps) {
+export function StoryUebersicht({ gliederung, dokumente, filterAnzeige, themenTitel, themenIntro, onThemaWaehlen, status, aktionen, fuss }: StoryUebersichtProps) {
   const { t } = useTranslation()
   const themen = gliederung?.topics ?? []
   const fragen = themen.reduce((summe, thema) => summe + thema.questions.length, 0)
@@ -46,12 +49,15 @@ export function StoryUebersicht({ gliederung, dokumente, themenTitel, themenIntr
   return (
     <div className="space-y-6" data-story-uebersicht>
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <Kennzahlen
-          werte={[
-            { art: 'documents', wert: dokumente },
-            ...(gliederung ? [{ art: 'topics' as const, wert: themen.length }, { art: 'questions' as const, wert: fragen }] : []),
-          ]}
-        />
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+          <Kennzahlen
+            werte={[
+              ...(dokumente === null ? [] : [{ art: 'documents' as const, wert: dokumente }]),
+              ...(gliederung ? [{ art: 'topics' as const, wert: themen.length }, { art: 'questions' as const, wert: fragen }] : []),
+            ]}
+          />
+          {filterAnzeige}
+        </div>
         {aktionen && <div className="shrink-0">{aktionen}</div>}
       </header>
 

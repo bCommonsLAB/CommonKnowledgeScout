@@ -875,7 +875,7 @@
         "many": "{count} sources for this answer"
       },
       "citedAs": "Cited as {numbers}",
-      "original": "View original",
+      "original": "Open details",
       "moreFound": "Other documents found ({count})",
       "catalog": "All {count} original sources in the catalogue",
       "close": "Close evidence",
@@ -893,7 +893,11 @@
       "more": "More",
       "page": "Page {page}",
       "pageShort": "p. {page}",
-      "openAtPage": "Open original at page {page}"
+      "openAtPage": "Open details at page {page}"
+    },
+    "quellen": {
+      "more": "Load more",
+      "none": "No documents match this filter."
     },
     "chronik": {
       "title": "Chronicle",
