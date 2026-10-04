@@ -1440,6 +1440,17 @@ und sein Ein-/Ausblenden beim Scrollen sind weg (auch der Rand unten, den
 der Effekt hinterließ). Die ⓘ-Erklärung aus `story.headline/intro` bleibt.
 Live: Überschriften nur noch Erkunden-Kopf + Übersichtstitel.
 
+### Stand D12s + D12t (gebaut 04.10.2026, lokal) — Knopfzeile schmal, Chronik-Einträge zweizeilig
+
+- **D12s:** Unter `md` zeigt die Story-Zeile (App `StoryHeader`, Embed
+  `StoryKopfzeile`) nur Symbole, der Text steht als Tooltip (`title`) und
+  `aria-label`; die Zeile wurde am Telefon rechts abgeschnitten. Live bei
+  600 px: alle fünf Knöpfe sichtbar, rechter Rand bei 357 von 584 px.
+- **D12t:** Themen, Sitzungstitel und Fragen in der Chronik laufen auf zwei
+  Zeilen mit „…" (`line-clamp-2`) statt hart abgeschnitten — `truncate` auf
+  dem Span griff in der Flex-Zeile nicht (kein `min-w-0`). Live: Einträge
+  40 px hoch, zwei Zeilen.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

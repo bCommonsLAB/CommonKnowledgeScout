@@ -63,6 +63,7 @@ export function SitzungEintrag({
     }
   }
 
+  // D12t: Titel und Fragen laufen auf zwei Zeilen mit „…" statt hart abgeschnitten (Owner 04.10.).
   return (
     <li className="group">
       <div className={cn('flex items-center gap-1 rounded-md px-1 py-1', hervorgehoben && 'bg-muted')} data-hervorgehoben={hervorgehoben || undefined}>
@@ -70,10 +71,10 @@ export function SitzungEintrag({
           type="button"
           onClick={() => onOeffnen(sitzung.chatId, !offen)}
           aria-expanded={offen}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm hover:text-foreground"
+          className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-sm hover:text-foreground"
           title={sitzung.titel}
         >
-          <Pfeil className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <Pfeil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           {bearbeiten ? (
             <Input
               autoFocus
@@ -92,7 +93,7 @@ export function SitzungEintrag({
               aria-label={t('story.renameSession')}
             />
           ) : (
-            <span className={cn('truncate', hervorgehoben ? 'font-medium' : 'text-muted-foreground')}>{sitzung.titel}</span>
+            <span className={cn('line-clamp-2 min-w-0 break-words', hervorgehoben ? 'font-medium' : 'text-muted-foreground')}>{sitzung.titel}</span>
           )}
         </button>
         {umbenennbar && !bearbeiten && (
@@ -132,12 +133,12 @@ export function SitzungEintrag({
                   aria-current={gewaehlt ? 'true' : undefined}
                   title={frage.text}
                   className={cn(
-                    'flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-muted',
+                    'flex w-full items-start gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-muted',
                     gewaehlt ? 'bg-primary/10 font-medium text-primary' : 'text-foreground/80',
                   )}
                 >
-                  {frage.offen && <Loader2 className="h-3 w-3 shrink-0 animate-spin" />}
-                  <span className="truncate">{frage.offen ? t('story.running') : kurztitelFuer(frage)}</span>
+                  {frage.offen && <Loader2 className="mt-1 h-3 w-3 shrink-0 animate-spin" />}
+                  <span className="line-clamp-2 min-w-0 break-words">{frage.offen ? t('story.running') : kurztitelFuer(frage)}</span>
                 </button>
               </li>
             )

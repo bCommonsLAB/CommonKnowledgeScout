@@ -28,20 +28,20 @@ export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, 
   const werkzeuge = (
     <>
       {onOpenChronik && (
-        <Button variant="outline" size="sm" onClick={onOpenChronik} className="gap-2 lg:hidden" aria-label={t('story.chronik.open')}>
+        <Button variant="outline" size="sm" onClick={onOpenChronik} className="gap-2 lg:hidden" aria-label={t('story.chronik.open')} title={t('story.chronik.open')}>
           <PanelLeft className="h-4 w-4" />
-          <span className="whitespace-nowrap">{t('story.chronik.open')}</span>
+          <span className="hidden whitespace-nowrap md:inline">{t('story.chronik.open')}</span>
         </Button>
       )}
       {onOpenQuellen && (
-        <Button variant="outline" size="sm" onClick={onOpenQuellen} className="gap-2 md:hidden" aria-label={t('gallery.sources')}>
+        <Button variant="outline" size="sm" onClick={onOpenQuellen} className="gap-2 md:hidden" aria-label={t('gallery.sources')} title={t('gallery.sources')}>
           <BookOpen className="h-4 w-4" />
-          <span className="whitespace-nowrap">{t('gallery.sources')}</span>
+          <span className="hidden whitespace-nowrap md:inline">{t('gallery.sources')}</span>
         </Button>
       )}
-      <Button variant="outline" size="sm" onClick={onBackToGallery} className="gap-2">
+      <Button variant="outline" size="sm" onClick={onBackToGallery} className="gap-2" aria-label={t('gallery.backToGallery')} title={t('gallery.backToGallery')}>
         <ChevronLeft className="h-4 w-4" />
-        <span className="whitespace-nowrap">{t('gallery.backToGallery')}</span>
+        <span className="hidden whitespace-nowrap md:inline">{t('gallery.backToGallery')}</span>
       </Button>
     </>
   )
