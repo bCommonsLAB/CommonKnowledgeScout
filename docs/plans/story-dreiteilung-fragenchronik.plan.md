@@ -1352,6 +1352,21 @@ Neu dazugekommen (Live-Test Owner 03.10., Remote, noch Konzept):
   dort auf die Hinweiszeile reduzieren. Owner-Entscheid, welche Zeile
   bleibt.
 
+### Stand D12o (gebaut 03.10.2026, lokal) — Filter-Chips in der Story-Mitte
+
+Owner 03.10.: „Wie weiß ich, dass ich in der Filteransicht bin?" — die
+Chips lagen in der zugeklappten Quellen-Spalte. Was steht: `FilterChips`
+(`module-explorer`, aus der `FilterContextBar` herausgelöst, dort weiter
+genutzt) rendert „gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen" aus
+`galleryFiltersAtom` und den Facetten-Labels. `GalleryRoot` reicht sie als
+`ctx.filterAnzeige` an den `storyPanel`-Slot; App (`client.tsx` →
+`StoryRootMount`) und Embed (`embed-galerie` → `EmbedStoryPanel`) geben
+sie an `StoryRoot.filterAnzeige` weiter, das sie in der Übersicht und auf
+der Themenseite neben die Kennzahlen stellt. Zurücksetzen ist
+`handleClearFilters` der Galerie (löst auch die Neuberechnung aus). Belege:
+`filter-chips.test.tsx`, `story-root.test.tsx`. Die doppelte Überschrift
+(D12p) wartet auf Owner-Entscheid.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

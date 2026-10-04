@@ -12,7 +12,7 @@
  * aktive Sitzung teilen App und Paket ueber `useStorySitzungId`.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { SAME_ORIGIN_API } from '@ks/api-client'
@@ -25,7 +25,7 @@ import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
 import { StoryAntwortFuss, StoryUebersichtFuss } from './story-fuss'
 
-export function StoryRootMount({ libraryId }: { libraryId: string }) {
+export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string; filterAnzeige?: ReactNode }) {
   const { isSignedIn } = useUser()
   const story = useStoryContext()
   const libraries = useLibraries()
@@ -84,6 +84,7 @@ export function StoryRootMount({ libraryId }: { libraryId: string }) {
       kopf={kopf}
       dokumente={galerie.loading ? 0 : galerie.totalCount || 0}
       filter={filter}
+      filterAnzeige={filterAnzeige}
       eingabe={{ placeholder: cfg.config.placeholder, maxZeichen: cfg.config.maxChars, maxZeichenHinweis: cfg.config.maxCharsWarningMessage }}
       onBelege={onBelege}
       antwortFuss={antwortFuss}

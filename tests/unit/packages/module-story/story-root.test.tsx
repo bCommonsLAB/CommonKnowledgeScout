@@ -73,6 +73,7 @@ function montieren(dokumente = 12) {
         viewer={{ isSignedIn: false }}
         perspektive={perspektive}
         kopf={{ themenTitel: 'Themen' }}
+        filterAnzeige={<span data-testid="filter-chips">gefiltert: Energie</span>}
         dokumente={dokumente}
         eingabe={{ placeholder: 'Frag mich', maxZeichen: 500 }}
         onBelege={onBelege}
@@ -86,6 +87,14 @@ function montieren(dokumente = 12) {
 }
 
 describe('StoryRoot', () => {
+  it('D12o: der Filter-Slot steht in der Uebersicht und auf der Themenseite neben den Kennzahlen', async () => {
+    montieren()
+    await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())
+    expect(screen.getByTestId('filter-chips').textContent).toBe('gefiltert: Energie')
+    fireEvent.click(screen.getByText('Verkehr'))
+    expect(screen.getByTestId('filter-chips')).toBeTruthy()
+  })
+
   it('holt die Themenuebersicht ueber die Instanz und zeigt die Themen; ohne Dokumente nicht', async () => {
     const { store } = montieren()
     await waitFor(() => expect(screen.getByText('Verkehr')).toBeTruthy())

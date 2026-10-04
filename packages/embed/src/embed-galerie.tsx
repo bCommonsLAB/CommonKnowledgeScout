@@ -9,7 +9,7 @@
  * (ADR 0008). Eine geschuetzte Library wird ausdruecklich abgelehnt.
  */
 
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { Locale } from '@ks/i18n'
 import { useTranslation } from '@ks/i18n/react'
@@ -65,7 +65,9 @@ export function EmbedGalerie({ slug, instanz, view, locale }: EmbedGalerieProps)
   const story =
     view === 'story'
       ? {
-          storyPanel: () => <EmbedStoryPanel library={geladen} instanz={instanz} locale={locale} />,
+          storyPanel: (_libraryId: string, ctx?: { filterAnzeige: ReactNode }) => (
+            <EmbedStoryPanel library={geladen} instanz={instanz} locale={locale} filterAnzeige={ctx?.filterAnzeige} />
+          ),
           storyChronik: (libraryId: string, ctx?: { schliessen: () => void }) => (
             <EmbedStoryChronik libraryId={libraryId} instanz={instanz} onGewaehlt={ctx?.schliessen} />
           ),

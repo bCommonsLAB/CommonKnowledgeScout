@@ -61,10 +61,10 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
       <GalleryRoot
         {...props}
         kopfAktionen={(libraryId) => <CaptureContentButton libraryId={libraryId} />}
-        storyPanel={(libraryId) => (
+        storyPanel={(libraryId, ctx) => (
           <>
             <StoryAuswahlUrl libraryId={libraryId} />
-            <LazyStoryRoot libraryId={libraryId} />
+            <LazyStoryRoot libraryId={libraryId} filterAnzeige={ctx?.filterAnzeige} />
           </>
         )}
         storyChronik={(libraryId, ctx) => <StoryChronikMount libraryId={libraryId} onGewaehlt={ctx?.schliessen} />}
