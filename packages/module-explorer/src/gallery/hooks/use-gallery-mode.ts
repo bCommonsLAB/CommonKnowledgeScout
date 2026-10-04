@@ -44,9 +44,27 @@ export function useGalleryMode(defaultMode: GalleryMode = 'gallery') {
     // Initial nach dem Mount und nach Moduswechsel (site/gallery/story) berechnen
     requestAnimationFrame(() => requestAnimationFrame(updateHeight))
 
-    window.addEventListener('resize', updateHeight)
+    // D12w (Owner 04.10., „unten ein Band"): Die Oberkante wandert, wenn die
+    // TopNav beim Scrollen ausblendet (padding-top 64 → 0 mit Transition) —
+    // die beim Laden gerechnete Hoehe blieb stehen, unten fehlten 64 px.
+    // Darum auch beim Scrollen (rAF-gedrosselt) und nach jeder Transition
+    // neu rechnen; `resize` wie bisher.
+    let angefordert = 0
+    const planen = () => {
+      if (angefordert) return
+      angefordert = requestAnimationFrame(() => {
+        angefordert = 0
+        updateHeight()
+      })
+    }
+    window.addEventListener('resize', planen)
+    window.addEventListener('scroll', planen, { passive: true })
+    document.addEventListener('transitionend', planen, true)
     return () => {
-      window.removeEventListener('resize', updateHeight)
+      window.removeEventListener('resize', planen)
+      window.removeEventListener('scroll', planen)
+      document.removeEventListener('transitionend', planen, true)
+      if (angefordert) cancelAnimationFrame(angefordert)
     }
   }, [mode])
 

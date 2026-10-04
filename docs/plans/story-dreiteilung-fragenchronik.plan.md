@@ -1480,6 +1480,19 @@ der ExplorerHeader weiterhin `label` — der öffentliche Name wäre dann auf
 der Erkunden-Seite nirgends zu sehen; falls gewollt, gehört `publicName`
 in den ExplorerHeader (nicht gebaut).
 
+### Stand D12w (gebaut 04.10.2026, lokal) — Band unten: Galerie-Höhe folgt der Navigation
+
+Owner 04.10.: „Gefühlt unten immer ein Band, die volle Höhe wird nicht
+genutzt." Befund (gemessen): `useGalleryMode` setzt dem Galerie-Rahmen
+beim Laden eine feste Höhe in Pixeln (Fensterhöhe minus Oberkante minus
+Seitenabstand) und rechnete nur bei `resize` neu. Das Layout lässt die
+TopNav beim Scrollen ausblenden (`padding-top` 64 → 0 mit Transition);
+der Rahmen rückt dann 64 px nach oben, behielt aber die alte Höhe — unten
+fehlten 64 px (plus je nach Kopf mehr). Was steht: Neu rechnen auch bei
+`scroll` (rAF-gedrosselt) und nach jeder `transitionend` im Dokument.
+Live: Navigation weg → Rahmen 723 → 787 px, Unterkante bleibt 16 px über
+dem Fensterrand. Kein Unit-Test (Layout-Maße brauchen einen Browser).
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
