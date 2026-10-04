@@ -2,7 +2,8 @@
 
 /**
  * Eine Belegkarte (D3, D12k): Marke, Titel, Kennzeile, Status-Plakette und
- * „Original ansehen" — eine kompakte Zeile je Dokument. Plakette und
+ * rechts aussen das Symbol zur Detailansicht — dieselbe Form wie die
+ * Quellenkarte (Owner 04.10.). Plakette und
  * Kennzeile kommen aus der Konfig des Detailansichtstyps; fehlt sie, faellt
  * der Block weg. Der Knopf heisst „Detailansicht oeffnen" (Owner 04.10.):
  * Ein „Original" gibt es nur als Link in der Detailansicht selbst, hier sind
@@ -17,7 +18,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ExternalLink } from 'lucide-react'
-import { Badge, Zitatmarke } from '@ks/ui'
+import { Badge, Button, Zitatmarke } from '@ks/ui'
 import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
 import type { BelegPlakette } from '@ks/contracts'
@@ -58,27 +59,17 @@ export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium leading-snug">{beleg.titel}</h3>
           {kennzeile.length > 0 && <p className="truncate text-xs text-muted-foreground">{kennzeile.join(' · ')}</p>}
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {hatDetails && (
             <button
               type="button"
-              onClick={() => onOriginal(beleg)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              aria-expanded={offen}
+              onClick={() => setOffen((o) => !o)}
+              className="mt-1 inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
             >
-              <ExternalLink className="h-3 w-3" />
-              {t('story.beleg.original')}
+              {detailsText}
+              <ChevronDown className={cn('h-3 w-3 transition-transform', offen && 'rotate-180')} />
             </button>
-            {hatDetails && (
-              <button
-                type="button"
-                aria-expanded={offen}
-                onClick={() => setOffen((o) => !o)}
-                className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                {detailsText}
-                <ChevronDown className={cn('h-3 w-3 transition-transform', offen && 'rotate-180')} />
-              </button>
-            )}
-          </div>
+          )}
           {offen &&
             (anzahl > 0 ? (
               <div className="mt-1.5">
@@ -96,6 +87,17 @@ export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
             {plakette.art === 'plakette' ? t(`story.beleg.status.${plakette.plakette}`) : plakette.wert}
           </Badge>
         )}
+        {/* Dieselbe Stelle wie in der Quellenkarte (Owner 04.10.): rechts aussen, nur das Symbol. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => onOriginal(beleg)}
+          aria-label={t('story.beleg.original')}
+          title={t('story.beleg.original')}
+        >
+          <ExternalLink className="h-4 w-4" />
+        </Button>
       </div>
     </li>
   )

@@ -1309,7 +1309,6 @@ export function GalleryRoot({
                 libraryDetailViewType={detailViewType}
                 katalogAnzahl={effectiveDocCount}
                 onOpenDocument={handleOpenDocument}
-                onZuklappen={quellenLeiste.toggle}
                 onKatalog={handleZumKatalog}
               />
             ) : (
@@ -1325,7 +1324,6 @@ export function GalleryRoot({
                 libraryDetailViewType={detailViewType}
                 filterAnzeige={<FilterChips facetDefs={facetDefs} onClear={handleClearFilters} />}
                 onOpenDocument={handleOpenDocument}
-                onZuklappen={quellenLeiste.toggle}
               />
             )
             const leiste = {

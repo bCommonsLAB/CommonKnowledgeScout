@@ -94,6 +94,11 @@ describe('QuellenListe', () => {
     expect(onLoadMore).toHaveBeenCalledTimes(1)
   })
 
+  it('ohne onZuklappen kein X (Spalte am Desktop hat den Einklapp-Pfeil)', () => {
+    montieren({ onZuklappen: undefined })
+    expect(screen.queryByRole('button', { name: 'story.beleg.close' })).toBeNull()
+  })
+
   it('leer, ladend und Fehler sind sichtbar; ohne weitere Seiten kein Nachladen', () => {
     montieren({ docs: [], hasMore: false })
     expect(screen.getByText('story.quellen.none')).toBeTruthy()

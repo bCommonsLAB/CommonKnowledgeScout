@@ -32,8 +32,8 @@ export interface QuellenListeProps {
   /** Gesetzte Filter als Chips (D12o), unter dem Kopf. */
   filterAnzeige?: ReactNode
   onOpenDocument?: (doc: DocCardMeta) => void
-  /** Spalte zuklappen (D11b-Leiste). */
-  onZuklappen: () => void
+  /** X zum Schliessen — nur im Blatt (Telefon); in der Spalte gibt es den Einklapp-Pfeil. */
+  onZuklappen?: () => void
 }
 
 export function QuellenListe({
@@ -80,9 +80,11 @@ export function QuellenListe({
             <h2 className="text-sm font-semibold">{t('gallery.tocReferences')}</h2>
             <p className="text-xs text-muted-foreground">{anzahlText}</p>
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
-            <X className="h-4 w-4" />
-          </Button>
+          {onZuklappen && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         {filterAnzeige}
       </div>

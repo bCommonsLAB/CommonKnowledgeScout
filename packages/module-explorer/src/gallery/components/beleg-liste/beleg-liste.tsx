@@ -34,8 +34,8 @@ export interface BelegListeProps {
   katalogAnzahl: number
   /** Dokument ohne Adresse oeffnen (Rueckfall der Galerie). */
   onOpenDocument?: (doc: DocCardMeta) => void
-  /** Spalte zuklappen (D11b-Leiste); die Belege bleiben. */
-  onZuklappen: () => void
+  /** X zum Schliessen — nur im Blatt (Telefon). In der Spalte gibt es den Einklapp-Pfeil, das X waere doppelt (Owner 04.10.). */
+  onZuklappen?: () => void
   /** In den Katalog: die Mitte geht zur Themenuebersicht, die Quellen folgen. */
   onKatalog: () => void
 }
@@ -66,9 +66,11 @@ export function BelegListe({
           <h2 className="text-sm font-semibold">{t('story.beleg.title')}</h2>
           <p className="text-xs text-muted-foreground">{anzahlText}</p>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
-          <X className="h-4 w-4" />
-        </Button>
+        {onZuklappen && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">

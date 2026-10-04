@@ -1451,6 +1451,17 @@ Live: Überschriften nur noch Erkunden-Kopf + Übersichtstitel.
   dem Span griff in der Flex-Zeile nicht (kein `min-w-0`). Live: Einträge
   40 px hoch, zwei Zeilen.
 
+### Stand D12u (gebaut 04.10.2026, lokal) — Belegkarte wie Quellenkarte, X nur im Blatt
+
+Owner 04.10.: Beleg- und Quellenkarte sahen verschieden aus; und in der
+Spalte gab es Einklapp-Pfeil UND X. Was steht: `BelegKarte` hat das Symbol
+„Detailansicht öffnen" rechts außen wie die `QuellenKarte`; darunter nur
+noch der Aufklapper für Textstellen/Kurztext, falls vorhanden. `onZuklappen`
+ist in `BelegListe` und `QuellenListe` optional: Die Spalte am Desktop/Tablet
+gibt es nicht mehr an (der Pfeil der Leiste reicht), das Blatt am Telefon
+schon (dort ist das X der einzige Weg). Live: Belegkarte mit Marke, Titel,
+Kennzeile, Plakette, Symbol rechts; kein X in der Spalte.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
