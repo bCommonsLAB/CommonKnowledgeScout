@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
 /**
- * `QuellenListe` (D12q): der gefilterte Bestand als dieselbe kompakte
- * Kartenliste wie die Belege — ohne Marke und Anker, mit Zaehler,
- * Filter-Slot, Zuklappen, „Original ansehen" und Nachladen.
+ * `QuellenListe` (D12q): der gefilterte Bestand als einzeilige Karten
+ * (Titel, Kennzeile, Knopf zur Detailansicht) — ohne Marke, Anker, Plakette
+ * und Textstellen; mit Zaehler, Filter-Slot, Zuklappen und Nachladen.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -69,18 +69,19 @@ describe('QuellenListe', () => {
     return { openDocument, onLoadMore, onZuklappen }
   }
 
-  it('Kopf mit Zaehler und Filter-Slot, je Dokument eine kompakte Karte ohne Marke und Anker, Plakette aus der Konfig', () => {
+  it('Kopf mit Zaehler und Filter-Slot, je Dokument eine einzeilige Karte: Titel, Kennzeile, kein Status, keine Marke', () => {
     montieren()
     expect(screen.getByText('gallery.tocReferences')).toBeTruthy()
     expect(screen.getByText('120 gallery.sources')).toBeTruthy()
     expect(screen.getByTestId('chips')).toBeTruthy()
     expect(screen.getByText('Radwege ausbauen')).toBeTruthy()
     expect(screen.getByText('Heizen.md')).toBeTruthy()
-    expect(screen.getByText('story.beleg.status.umsetzung')).toBeTruthy()
+    expect(screen.getByText('12')).toBeTruthy()
+    expect(screen.queryByText('story.beleg.status.umsetzung')).toBeNull()
     expect(document.querySelector('li[id^="beleg-"]')).toBeNull()
     expect(screen.queryByLabelText(/story.beleg.citedAs/)).toBeNull()
-    // Ohne Textstellen und Kurztext kein Aufklapper.
     expect(screen.queryByRole('button', { name: 'story.beleg.more' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'story.beleg.original' })).toHaveLength(2)
   })
 
   it('„Detailansicht oeffnen" oeffnet ueber die Adressierung; Zuklappen und Nachladen rufen ihre Wege', () => {

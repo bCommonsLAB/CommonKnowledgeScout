@@ -1388,7 +1388,12 @@ Owner 04.10. (Live über WLAN): Der Knopf heißt in beiden Listen
 „Detailansicht öffnen" (`story.beleg.original` umbenannt, Seitenknopf
 „Detailansicht auf Seite n öffnen"). Ein „Original" gibt es nur als Link
 in der Detailansicht selbst (PDF, Quelle); die Listen zeigen interpretierte
-Daten.
+Daten. Zweiter Befund 04.10.: Die Status-Plakette ist eine Sache der
+Klimamaßnahmen, nicht des Bestands; die Quellenliste muss generisch sein
+(Buch, Veranstaltung, Maßnahme). Was steht: eigene `QuellenKarte` — Titel,
+Kennzeile aus der Typ-Konfig, rechts der Knopf zur Detailansicht als
+Symbol; keine Plakette, keine untere Zeile, eine Zeile hoch. Die
+`BelegKarte` unter einer Antwort bleibt wie in D12k.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 

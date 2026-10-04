@@ -2,9 +2,9 @@
 
 /**
  * Rechte Spalte des Story-Modus OHNE aktive Antwort (D12q): der gefilterte
- * Bestand als dieselbe kompakte Kartenliste wie die Belege (D12k) — Titel,
- * Kennzeile, Plakette, „Original ansehen" — statt des Galerie-Rasters mit
- * Bildern und Ansichts-Umschaltern. Oben Zaehler, Zuklappen und die
+ * Bestand als kompakte Kartenliste (`QuellenKarte`: Titel, Kennzeile, Knopf
+ * zur Detailansicht — eine Zeile) statt des Galerie-Rasters mit Bildern und
+ * Ansichts-Umschaltern. Oben Zaehler, Zuklappen und die
  * Filter-Chips; unten laedt ein Fuehler weitere Dokumente nach (Fallback ein
  * Knopf, falls der Beobachter nicht feuert, z. B. in verborgenen Tabs).
  */
@@ -14,7 +14,7 @@ import { X } from 'lucide-react'
 import { Button, ScrollArea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
-import { BelegKarte } from './beleg-karte'
+import { QuellenKarte } from './quellen-karte'
 import { belegAusDokument, type Beleg } from './helpers'
 import { useDokumentOeffnen } from './oeffnen'
 
@@ -53,7 +53,7 @@ export function QuellenListe({
   const { t } = useTranslation()
   const oeffnen = useDokumentOeffnen(libraryId, onOpenDocument)
   const belege = useMemo(() => docs.map((doc) => belegAusDokument(doc, libraryDetailViewType)), [docs, libraryDetailViewType])
-  const original = (beleg: Beleg) => oeffnen(beleg.doc, beleg.fileId, beleg.doc?.fileName ?? beleg.titel)
+  const detail = (beleg: Beleg) => oeffnen(beleg.doc, beleg.fileId, beleg.doc?.fileName ?? beleg.titel)
 
   // Nachladen, sobald der Fuehler sichtbar wird (wie das Galerie-Raster).
   const fuehler = useRef<HTMLDivElement>(null)
@@ -98,7 +98,7 @@ export function QuellenListe({
           ) : (
             <ul className="space-y-2">
               {belege.map((beleg) => (
-                <BelegKarte key={beleg.fileId} beleg={beleg} onOriginal={original} />
+                <QuellenKarte key={beleg.fileId} beleg={beleg} onOeffnen={detail} />
               ))}
             </ul>
           )}
