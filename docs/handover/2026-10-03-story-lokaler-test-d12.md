@@ -183,8 +183,21 @@ Erkunden-API liefert ihn als Label), „0 Dokumente" erledigt (D12x).
 Abschnitt 4 (Embed in Partner-App, Backfill Seite je Chunk) unverändert
 offen.
 
-**Hand-off:** Nächste Welle ist der Merge (Spitze → ccr → master, Owner
-testet auf master), danach Abschnitt 4 und die Owner-Entscheide. Modell für
+**Nachtrag 04.10., nachmittags (master):** #344 und #345 gemergt, master
+trägt D8–D12x. Live-Nachweis B, C, D, G, H auf master mit laufendem
+Secretary abgehakt (Cache-Treffer 1,5 s mit `cachedQueryId`; Anschlussfrage
+mit Verlauf nur aus der Sitzung; Neu berechnen mit Drehkreis und Sperre;
+Löschen der letzten Frage räumt die Sitzung weg, nächste Frage eröffnet eine
+neue; verlassene Sitzung behält die Frage, Aufklappen lädt nach). Test-
+Sitzungen danach gelöscht. **Plugin:** Story-Modus im Embed war auf fremder
+Domain ein leeres Gerüst (CORS nur für Galerie-Routen) → D12y (#347,
+Owner „freigeben"): Story-Routen frei, Nachweis in `commoning-methods`
+gegen den Dev-Server mit Antwort und Belegen. #347 wartet auf den Merge
+durch den Owner (Branch-Regel), danach Deploy und Test im Client gegen
+knowledgescout.org.
+
+**Hand-off:** Nächste Welle nach dem Merge von #347: Abschnitt 4 und die
+Owner-Entscheide. Modell für
 Befund-Fixes mit klarer Stelle: Sonnet; für Live-Sitzungen mit Layout-
 Urteil: Opus mit Thinking. Start-Prompt für die nächste lokale Session:
 

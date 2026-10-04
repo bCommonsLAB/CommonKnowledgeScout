@@ -1502,6 +1502,36 @@ die Kennzahl dann weg, und die Übersicht wird erst geholt, wenn die Zahl da
 ist (wie bisher bei `0`). „Generiere Themenübersicht…" beim Laden ist der
 laufende Abruf, auch bei Cache-Treffer; bleibt.
 
+### Stand D12y (gebaut 04.10.2026, lokal) — CORS für den Story-Modus im Embed
+
+Nachweis in der Partner-App `commoning-methods` (Seite mit `view="story"`
+gegen knowledgescout.org): Oberfläche komplett, aber „Kein Sprachmodell
+verfügbar" und „Sitzungen konnten nicht geladen werden" — die CORS-Liste
+(`embed-cors.ts`, Owner 10.09.: nur Lese-Routen der Galerie) kannte die
+Story-Routen nicht. Owner-Entscheidung 04.10. („freigeben"): Sprachmodelle,
+Sitzungen, Fragen und Protokoll (anonym per `X-Session-ID`), Belege
+nachladen und der Antwort-Stream (POST) sind frei; Löschen, Umbenennen und
+Angemeldetes bleiben draußen. ADR 0008 Nachtrag. Live (Partner-App auf
+:3001 gegen Dev-Server auf :3000): Übersicht, Sitzungen, Frage mit Antwort
+(4.398 Zeichen, 29 Marken), Belegliste. Belege: `embed-cors.test.ts` (39).
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Paket-Austausch bei gleicher Version:** npm lehnt das neue
+  `ks-embed-0.1.0.tgz` ab, weil die Prüfsumme in der `package-lock.json`
+  der Partner-App nicht mehr stimmt (`integrity checksum failed`). Weg:
+  `npm install @ks/embed@file:vendor/ks-embed-0.1.0.tgz` — oder die Version
+  im Paket hochzählen. Gehört in die README des Embeds.
+- **Marke ohne Karte:** In der Embed-Antwort stand eine Marke „35" ohne
+  Beleg — das Modell zitierte ein Dokument, das der Server nicht in die
+  Belege aufnahm (`belegeAusGruppen` filtert auf die erkannten Nummern).
+  Die Marke bleibt sichtbar, der Klick meldet „keine Karte" (D12e). Prüfen,
+  ob die Erkennung der zitierten Nummern (`benutzt`) Marken am Satzende oder
+  in Klammern übersieht. Selten, nicht blockierend.
+- In `commoning-methods` liegen ungesichert: neues Paket im `vendor`-Ordner,
+  angepasste Lock-Datei, temporäre Seite `src/app/ks-embed-story-nachweis`
+  (mit `?baseUrl=` für eine Dev-Instanz). Owner entscheidet, was bleibt.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

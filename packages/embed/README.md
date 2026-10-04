@@ -8,6 +8,8 @@ Instanz — keine Anmeldung, kein Token.
 
 ```bash
 npm install ./ks-embed-0.1.0.tgz
+# Austausch bei gleicher Version: npm install @ks/embed@file:./ks-embed-0.1.0.tgz
+# (sonst passt die Pruefsumme in package-lock.json nicht mehr)
 ```
 
 ```tsx
