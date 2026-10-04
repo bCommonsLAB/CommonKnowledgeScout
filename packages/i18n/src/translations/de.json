@@ -922,7 +922,7 @@
         "many": "{count} Belege zu dieser Antwort"
       },
       "citedAs": "Zitiert als {numbers}",
-      "original": "Original ansehen",
+      "original": "Detailansicht öffnen",
       "moreFound": "Weitere gefundene Dokumente ({count})",
       "catalog": "Alle {count} Originalquellen im Katalog",
       "close": "Belege schließen",
@@ -940,11 +940,10 @@
       "more": "Mehr dazu",
       "page": "Seite {page}",
       "pageShort": "S. {page}",
-      "openAtPage": "Original auf Seite {page} öffnen"
+      "openAtPage": "Detailansicht auf Seite {page} öffnen"
     },
     "quellen": {
       "more": "Weitere laden",
-      "open": "Detailansicht öffnen",
       "none": "Keine Dokumente zu diesem Filter."
     },
     "chronik": {

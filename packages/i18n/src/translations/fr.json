@@ -875,7 +875,7 @@
         "many": "{count} sources pour cette réponse"
       },
       "citedAs": "Citée comme {numbers}",
-      "original": "Voir l'original",
+      "original": "Ouvrir la fiche",
       "moreFound": "Autres documents trouvés ({count})",
       "catalog": "Les {count} sources originales dans le catalogue",
       "close": "Fermer les sources",
@@ -893,11 +893,10 @@
       "more": "Plus",
       "page": "Page {page}",
       "pageShort": "p. {page}",
-      "openAtPage": "Ouvrir l'original à la page {page}"
+      "openAtPage": "Ouvrir la fiche à la page {page}"
     },
     "quellen": {
       "more": "Charger plus",
-      "open": "Ouvrir la fiche",
       "none": "Aucun document ne correspond à ce filtre."
     },
     "chronik": {

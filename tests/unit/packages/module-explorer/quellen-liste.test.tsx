@@ -83,10 +83,9 @@ describe('QuellenListe', () => {
     expect(screen.queryByRole('button', { name: 'story.beleg.more' })).toBeNull()
   })
 
-  it('„Detailansicht oeffnen" (nicht „Original ansehen") oeffnet ueber die Adressierung; Zuklappen und Nachladen rufen ihre Wege', () => {
+  it('„Detailansicht oeffnen" oeffnet ueber die Adressierung; Zuklappen und Nachladen rufen ihre Wege', () => {
     const { openDocument, onLoadMore, onZuklappen } = montieren()
-    expect(screen.queryByRole('button', { name: /story.beleg.original/ })).toBeNull()
-    fireEvent.click(screen.getAllByRole('button', { name: 'story.quellen.open' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /story.beleg.original/ })[0])
     expect(openDocument).toHaveBeenCalledWith('radwege')
     fireEvent.click(screen.getByRole('button', { name: 'story.beleg.close' }))
     expect(onZuklappen).toHaveBeenCalledTimes(1)

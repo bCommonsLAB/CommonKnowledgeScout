@@ -4,7 +4,9 @@
  * Eine Belegkarte (D3, D12k): Marke, Titel, Kennzeile, Status-Plakette und
  * „Original ansehen" — eine kompakte Zeile je Dokument. Plakette und
  * Kennzeile kommen aus der Konfig des Detailansichtstyps; fehlt sie, faellt
- * der Block weg.
+ * der Block weg. Der Knopf heisst „Detailansicht oeffnen" (Owner 04.10.):
+ * Ein „Original" gibt es nur als Link in der Detailansicht selbst, hier sind
+ * interpretierte Daten.
  *
  * D12k: Die Marke ist die Dokumentnummer (dieselbe wie im Antworttext), die
  * Karte traegt den Anker `beleg-<nummer>`. Ohne Nummer (D12q, Bestand ohne
@@ -34,11 +36,9 @@ export interface BelegKarteProps {
   beleg: Beleg
   /** Original oeffnen; `page` nur, wenn eine Textstelle angeklickt wurde. */
   onOriginal: (beleg: Beleg, page?: number) => void
-  /** Beschriftung des Oeffnen-Knopfs; Standard „Original ansehen" (Belege). Die Quellenliste sagt „Detailansicht oeffnen" (Owner 04.10.). */
-  originalText?: string
 }
 
-export function BelegKarte({ beleg, onOriginal, originalText }: BelegKarteProps) {
+export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
   const { t } = useTranslation()
   const [offen, setOffen] = useState(false)
   const konfig = belegKonfig(beleg.typ)
@@ -65,7 +65,7 @@ export function BelegKarte({ beleg, onOriginal, originalText }: BelegKarteProps)
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              {originalText ?? t('story.beleg.original')}
+              {t('story.beleg.original')}
             </button>
             {hatDetails && (
               <button

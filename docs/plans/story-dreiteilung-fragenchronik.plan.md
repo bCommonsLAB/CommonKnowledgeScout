@@ -1384,9 +1384,11 @@ i18n-Schlüssel `story.quellen.more`/`.none` (5 Sprachen). Live: 606 Quellen,
 50 Karten der ersten Seite, keine Bilder. Belege: `quellen-liste.test.tsx`.
 Weg gefallen im Story-Modus: Umschalter Galerie/Tabelle/Graph und die
 Sortierknöpfe der rechten Spalte — die gibt es in „Inhalte" weiterhin.
-Owner 04.10. (Live über WLAN): In der Quellenliste heißt der Knopf
-„Detailansicht öffnen" (`story.quellen.open`), nicht „Original ansehen" —
-das meint bei den Belegen den Sprung auf die zitierte Seite.
+Owner 04.10. (Live über WLAN): Der Knopf heißt in beiden Listen
+„Detailansicht öffnen" (`story.beleg.original` umbenannt, Seitenknopf
+„Detailansicht auf Seite n öffnen"). Ein „Original" gibt es nur als Link
+in der Detailansicht selbst (PDF, Quelle); die Listen zeigen interpretierte
+Daten.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
