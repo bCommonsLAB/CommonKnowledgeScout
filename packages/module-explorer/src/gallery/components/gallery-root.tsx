@@ -74,11 +74,13 @@ export interface GalleryRootProps {
    */
   hideWebsiteDocs?: boolean
   /**
-   * D12v: Titel im Kopf der Seite (Inhalte) zeigen. `false`, wenn der Montagepunkt
-   * den Library-Namen schon selbst zeigt (Erkunden-Seite: `ExplorerHeader`) —
-   * sonst steht derselbe Name zweimal untereinander. Plakette und Zweizeiler bleiben.
+   * D12v: Kopf der Seite (Inhalte) mit Library-Name und oeffentlicher Beschreibung
+   * zeigen. `false`, wenn der Montagepunkt den Namen schon selbst zeigt
+   * (Erkunden-Seite: `ExplorerHeader`) — sonst steht er zweimal; die
+   * Beschreibung der Library und die interne Plakette „Geprueft" gehoeren
+   * nicht in die Inhalte-Ansicht. Die Ansichtszeile sitzt dann oben buendig.
    */
-  seitenkopfTitel?: boolean
+  seitenkopf?: boolean
   /**
    * Bedienelemente des Gastgebers im Kopf der Galerie — heute der
    * Erfassungs-Knopf der Voll-App. Als Slot statt als Import, weil Erfassung
@@ -142,7 +144,7 @@ export function GalleryRoot({
   showSiteTab = false,
   defaultToSite = false,
   hideWebsiteDocs = false,
-  seitenkopfTitel = true,
+  seitenkopf = true,
   kopfAktionen,
   storyPanel,
   storyChronik,
@@ -1145,9 +1147,9 @@ export function GalleryRoot({
         {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
-            verifikationsAbzeichen={verifikationsAbzeichen}
-            headline={seitenkopfTitel ? activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || '' : ''}
-            description={activeLibrary?.config?.publicPublishing?.description || undefined}
+            verifikationsAbzeichen={seitenkopf ? verifikationsAbzeichen : undefined}
+            headline={seitenkopf ? activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || '' : ''}
+            description={seitenkopf ? activeLibrary?.config?.publicPublishing?.description || undefined : undefined}
             ansicht={{
               name: (
                 <span className="inline-flex items-center gap-1.5">

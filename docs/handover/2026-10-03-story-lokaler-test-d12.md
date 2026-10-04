@@ -83,7 +83,7 @@ schreibt Chats und Query-Logs. Je Punkt: Aktion, Erwartung, wo nachschauen.
 | I | D12h | Alte Antwort (vor D7) wählen, Quellen zu | Zähler = Zahl der Dokumente, nicht der Textstellen | `gallery-root.tsx` Leiste, `helpers.ts anzahlBelegDokumente` |
 | J | D12i | Fenster < lg, Antwort mit Belegen, Marke klicken | Blatt „Quellenverzeichnis" öffnet sich mit den Belegen und scrollt zur Karte | `gallery-root.tsx belegSprungZiel`, `references-sheet.tsx` |
 | K | D8–D11b | Testplan 02.10. Schritte 1–21 noch einmal zügig | wie dort; bekannte Lücken Abschnitt 6 dort | — |
-| W | D12v | Erkunden-Seite, Inhalte | Ein Library-Name oben; darunter nur „Geprüft" und Zweizeiler, dann die Ansichtszeile | `gallery-root.tsx seitenkopfTitel`, `explore/[slug]/page.tsx` |
+| W | D12v | Erkunden-Seite, Inhalte | Ein Library-Name oben, direkt darunter die Ansichtszeile wie im Story-Modus; keine Plakette, keine Library-Beschreibung, kein Scroll-Effekt | `gallery-root.tsx seitenkopf`, `explore/[slug]/page.tsx` |
 | V | D12u | Antwort, Quellen auf | Belegkarte wie Quellenkarte (Symbol rechts), nur der Einklapp-Pfeil, kein X; im Blatt am Telefon bleibt das X | `beleg-karte.tsx`, `beleg-liste.tsx`, `quellen-liste.tsx` |
 | U | D12s/t | Fenster 600 px: Story-Zeile; Desktop: Chronik mit langen Fragen | Zeile zeigt nur Symbole, Tooltip nennt den Text, nichts abgeschnitten; Chronik-Einträge zweizeilig mit „…" | `story-header.tsx`, `story-kopfzeile.tsx`, `sitzung-eintrag.tsx`, `gliederung.tsx` |
 | T | D12p | Story-Modus öffnen, scrollen | Nur Erkunden-Kopf und Übersichtstitel; Knopfzeile direkt unter dem Kopf, nichts blendet beim Scrollen aus, kein Rand unten | `story-mode-header.tsx`, `story-kopfzeile.tsx` |

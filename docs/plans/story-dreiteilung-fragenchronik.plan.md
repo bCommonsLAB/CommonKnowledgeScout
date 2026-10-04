@@ -1467,11 +1467,15 @@ Kennzeile, Plakette, Symbol rechts; kein X in der Spalte.
 Owner 04.10.: Auch in „Inhalte" steht der Name zweimal (ExplorerHeader
 oben, Kopf der Seite aus D10 darunter). Dieselbe Quelle: oben
 `library.label`, unten `publicPublishing.publicName`, der ohne Wert auf
-`label` zurückfällt. Was steht: `GalleryRoot.seitenkopfTitel` (Standard
-`true`); die Erkunden-Seite setzt `false`, dann zeigt der Kopf nur noch
-Plakette „Geprüft" und Zweizeiler. Die App-Galerie (`/library/gallery`,
-ohne ExplorerHeader) behält den Titel. Live: eine Überschrift, darunter
-Plakette und Zweizeiler. Hinweis: Setzt eine Library `publicName`, zeigt
+`label` zurückfällt. Der Zweizeiler darunter ist `publicPublishing.description`,
+die Beschreibung der Library (wie auf der Startseite) — nicht die der
+Inhalte-Ansicht (die sitzt hinter ⓘ). Was steht: `GalleryRoot.seitenkopf`
+(Standard `true`); die Erkunden-Seite setzt `false`, dann gibt es den
+Kopf-Block gar nicht — auch die Plakette „Geprüft" nicht (interner Stand,
+Owner: gehört in die Einstellungen) und keinen Scroll-Effekt; die
+Ansichtszeile sitzt oben bündig wie im Story-Modus. Die App-Galerie
+(`/library/gallery`, ohne ExplorerHeader) behält Titel, Plakette und
+Beschreibung. Live: eine Überschrift, direkt darunter die Ansichtszeile. Hinweis: Setzt eine Library `publicName`, zeigt
 der ExplorerHeader weiterhin `label` — der öffentliche Name wäre dann auf
 der Erkunden-Seite nirgends zu sehen; falls gewollt, gehört `publicName`
 in den ExplorerHeader (nicht gebaut).
