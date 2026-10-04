@@ -85,8 +85,9 @@ function textOderNull(wert: unknown): string | null {
  * Ein Kurations-Stempel ist genauso Meta.
  *
  * Faellt die letzte Aenderung mit einem Kurations-Stempel zusammen, zaehlt
- * darum `generated_at`. Handkorrekturen am Twin (Cowork korrigiert Transkripte
- * im `_`-Ordner, Zyklus Schritt 3) bleiben Inhalts-Aenderungen — sie tragen
+ * darum `generated_at` — bzw. `revised_at`, wenn `transkript_korrigieren` den
+ * Wortlaut spaeter geaendert hat (Wunschliste 7). Handkorrekturen im Spiegel
+ * (Zyklus Schritt 3, importiert) bleiben Inhalts-Aenderungen — sie tragen
  * keinen Stempel.
  */
 export function inhaltsZeitpunkt(artifact: TwinArtifactView): string {
@@ -100,9 +101,19 @@ export function inhaltsZeitpunkt(artifact: TwinArtifactView): string {
   if (Number.isNaN(abstand) || abstand > KURATIONS_FENSTER_MS) return artifact.updatedAt
 
   // Der letzte Write war die Kuration — der Inhalt ist so alt wie seine
-  // Erzeugung. Fehlt `generated_at`, bleibt es beim Write-Zeitpunkt; das
-  // fehlende Feld meldet `twin_core_missing` als eigener Befund.
-  return textOderNull(fm['generated_at']) ?? artifact.updatedAt
+  // Erzeugung ODER seine letzte Wortlaut-Revision (`transkript_korrigieren`,
+  // Wunschliste 7): max(generated_at, revised_at). Fehlen beide, bleibt es beim
+  // Write-Zeitpunkt; das fehlende `generated_at` meldet `twin_core_missing`.
+  return juengerer(textOderNull(fm['generated_at']), textOderNull(fm['revised_at'])) ?? artifact.updatedAt
+}
+
+/** Der juengere von zwei ISO-Zeitpunkten; unlesbare Werte zaehlen nicht. */
+function juengerer(a: string | null, b: string | null): string | null {
+  const aMs = a === null ? NaN : Date.parse(a)
+  const bMs = b === null ? NaN : Date.parse(b)
+  if (Number.isNaN(aMs)) return Number.isNaN(bMs) ? null : b
+  if (Number.isNaN(bMs)) return a
+  return bMs > aMs ? b : a
 }
 
 function familyGapBase(family: TwinFamilyView) {

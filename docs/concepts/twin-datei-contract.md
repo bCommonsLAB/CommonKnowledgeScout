@@ -189,6 +189,24 @@ setzt `generated_at` neu und `twin_status: draft` — die alte Verifikation wird
 dadurch sichtbar ungültig, bleibt aber als Historie stehen. Die Verifikation von
 gestern gilt nicht für den Text von heute.
 
+**Revisions-Felder (Wunschliste 7, 2026-10-04):** Korrigiert die Brücke den
+Wortlaut eines Transkripts (`transkript_korrigieren`, Hörfehler), bleibt die
+Herkunft stehen und die Revision kommt dazu:
+
+```yaml
+revised_by: claude/cowork         # Actor der Wortlaut-Korrektur
+revised_at: 2026-10-04T09:12:00Z  # wann der Body zuletzt geändert wurde
+revision_note: Hörfehler laut Diktat korrigiert   # die begruendung des Aufrufs
+```
+
+`generated_by`/`generated_at` werden dabei NICHT angefasst. Der Inhalts-Zeitpunkt
+eines Artefakts ist seither `max(generated_at, revised_at)`: `transformation_stale`
+vergleicht dagegen, und die temporale Regel lautet
+`verified_at >= max(generated_at, revised_at)` — die Verifikation von gestern
+gilt auch nicht für den korrigierten Text von heute. Die Felder entstehen nur
+am Transkript; der Body einer Transformation wird nie von Hand geändert, sie
+wird neu erzeugt.
+
 **Invariante:** `generated_by` ≠ `verified_by` auf Actor-Ebene — niemand
 verifiziert die eigene Generierung (prüfbar; Gap-Typ `self_verified`).
 

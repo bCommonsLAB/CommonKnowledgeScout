@@ -100,7 +100,8 @@ Schreiboperation auf der Datei, sonst greifen die Schutzstufen nicht.
 **1a. Seit Werkzeugsatz 2.9.0 gibt es dafür keinen Grund mehr.** KnowledgeScout
 bringt die Speicherschicht selbst mit: `ordner_listen`, `pfad_aufloesen`,
 `stat`, `datei_lesen`, `datei_anlegen`, `datei_schreiben`, `datei_patchen`,
-`ordner_anlegen`, `verschieben`, `loeschen`, `speicher_info`. Damit ist
+`ordner_anlegen`, `verschieben`, `loeschen`, `speicher_info`; seit 2.37.0 dazu
+`transkript_korrigieren` für Hörfehler im Transkript (siehe 1c). Damit ist
 `device_*` für Archivarbeit **nicht mehr nötig** — weder zum Lesen noch zum
 Schreiben. Nimm die KS-Werkzeuge, dann steht jede Aktion mit Begründung im
 Protokoll.
@@ -179,6 +180,26 @@ Daraus folgt eine praktische und eine unpraktische Hälfte:
   über die Fachwerkzeuge, auch wenn `datei_patchen` dich liesse. Dort sitzen
   die Riegel gegen konkurrierende Schreiber, und die umgeht man nicht, nur
   weil es geht.
+
+**1c. Hörfehler im Transkript korrigiert `transkript_korrigieren`** (ab
+Werkzeugsatz 2.37.0). Die Korrektur-Ordnung will Wortlautfehler „immer im
+Transkript" — aber der `_`-Ordner ist für `datei_patchen`/`datei_schreiben`
+gesperrt, und das bleibt so. Der eine Schreibweg hinein ist dieses
+Fachwerkzeug: adressiert wird die **Quelle** (`sourceId` oder `pfad` der
+`.m4a`/`.pdf`), nicht der Twin; `ersetzungen: [{alt, neu, alle?}]` (1–50),
+jedes `alt` muss **genau einmal** vorkommen (sonst `nicht_eindeutig` mit allen
+Stellen), `alle: true` nur für wiederkehrende Hörfehler; `ifVersion` ist die
+Version des Transkript-Spiegels aus `datei_lesen`/`stat`. Erst mit
+`nurVorschau: true` den Diff ansehen, dann der echte Lauf. MongoDB ist führend:
+weicht der Spiegel ab (Handkorrektur) oder ist `ifVersion` veraltet, kommt
+`konflikt` und nichts wird geschrieben — dann `twins_synchronisieren import`
+bzw. neu lesen. Das Werkzeug setzt `revised_by`/`revised_at`/`revision_note`
+(die `begruendung`) und lässt `generated_*` stehen; jede Transformation der
+Familie ist danach `transformation_stale` — neu transformieren nur bewusst
+per `transformation_starten` (kostet). Einen offenen Korrekturauftrag nennt
+die Antwort, meldet ihn aber **nicht**: Vollzug bleibt `korrektur_melden`.
+**FELDER in `_`-Ordnern nachtragen bleibt gesperrt** — Kurations-Felder gehen
+über `korrektur_melden` und die Werkbank, nicht über dieses Werkzeug.
 
 **1b. Jede schreibende Aktion braucht eine `begruendung`.** Pflichtfeld ab
 Werkzeugsatz 2.6.0 — ein Satz, WARUM die Aktion nötig ist („Transkript nach
@@ -846,6 +867,7 @@ und die übrige Speicherschicht, ist sie älter als 2.9.0. Fehlt
 `vorlagen_auflisten` oder liefert `job_status` bei einem Fehlschlag keine
 `fehlerDetails`, ist sie älter als 2.12.0. Weiter (Stand 03.09.2026):
 
+- Fehlt `transkript_korrigieren` → älter als **2.37.0**
 - Fehlen `korrekturen_lesen`/`korrektur_melden` → älter als **2.26.0**
 - Fehlen `datei_binaer_lesen`/`datei_binaer_anlegen` → älter als **2.25.0**
 - Liefert `job_status` bei einem Fehlschlag keine `fehlerDeutung` → älter als **2.24.0**

@@ -17,6 +17,7 @@ import {
   parseTwinCoreTimestamp,
   isVerificationValid,
   selectLeadingArtifact,
+  TWIN_REVISION_FIELDS,
 } from '@/lib/shadow-twin/twin-core-fields'
 
 describe('Twin-Kern — Feldlisten (Contract §3)', () => {
@@ -160,5 +161,40 @@ describe('selectLeadingArtifact — fuehrendes Artefakt (Contract §2b)', () => 
   it('weder passende Transformation noch Transkript → null', () => {
     expect(selectLeadingArtifact([other], 'pdfanalyse')).toBeNull()
     expect(selectLeadingArtifact([], null)).toBeNull()
+  })
+})
+
+describe('isVerificationValid mit revised_at (Wunschliste 7, transkript_korrigieren)', () => {
+  it('eine Verifikation VOR der Wortlaut-Revision gilt nicht mehr', () => {
+    expect(
+      isVerificationValid({
+        generatedAt: '2026-08-17T10:00:00Z',
+        verifiedAt: '2026-09-01T09:00:00Z',
+        revisedAt: '2026-10-04T09:00:00Z',
+      }),
+    ).toBe(false)
+  })
+
+  it('eine Verifikation NACH der Revision zaehlt', () => {
+    expect(
+      isVerificationValid({
+        generatedAt: '2026-08-17T10:00:00Z',
+        verifiedAt: '2026-10-05T09:00:00Z',
+        revisedAt: '2026-10-04T09:00:00Z',
+      }),
+    ).toBe(true)
+  })
+
+  it('Hand-Verifikation mit reinem Datum zaehlt am Tag der Revision (Tagesende)', () => {
+    expect(isVerificationValid({ generatedAt: '2026-08-17', verifiedAt: '2026-10-04', revisedAt: '2026-10-04T09:00:00Z' })).toBe(true)
+  })
+
+  it('ohne generated_at zaehlt revised_at allein; fehlen beide, bleibt Legacy gueltig', () => {
+    expect(isVerificationValid({ generatedAt: undefined, verifiedAt: '2026-09-01', revisedAt: '2026-10-04T09:00:00Z' })).toBe(false)
+    expect(isVerificationValid({ generatedAt: undefined, verifiedAt: '2026-09-01', revisedAt: undefined })).toBe(true)
+  })
+
+  it('TWIN_REVISION_FIELDS benennt genau die drei Revisions-Felder', () => {
+    expect([...TWIN_REVISION_FIELDS]).toEqual(['revised_by', 'revised_at', 'revision_note'])
   })
 })

@@ -36,7 +36,14 @@ function stringOrNull(value: unknown): string | null {
 export function verificationStateOf(frontmatter: Record<string, unknown>): VerificationState {
   const verifiedBy = stringOrNull(frontmatter['verified_by'])
   if (verifiedBy === null) return 'unverifiziert'
-  if (!isVerificationValid({ generatedAt: frontmatter['generated_at'], verifiedAt: frontmatter['verified_at'] })) {
+  // Wunschliste 7: Nach `transkript_korrigieren` zaehlt `verified_at` nur, wenn
+  // es >= `revised_at` ist — das Feld steht nur am Transkript, und die Regel
+  // greift genau dann, wenn das Transkript das fuehrende Artefakt ist.
+  if (!isVerificationValid({
+    generatedAt: frontmatter['generated_at'],
+    verifiedAt: frontmatter['verified_at'],
+    revisedAt: frontmatter['revised_at'],
+  })) {
     return 'ungueltig'
   }
   return actorLevel(verifiedBy)?.startsWith('human:') ? 'mensch' : 'maschinell'
