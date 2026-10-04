@@ -12,6 +12,8 @@ interface StoryModeHeaderProps {
   onBackToGallery?: () => void
   /** D4: oeffnet mobil die Chronik (Sheet); ohne Rueckruf kein Knopf. */
   onOpenChronik?: () => void
+  /** D12r: oeffnet auf dem Telefon die Quellen (Blatt). */
+  onOpenQuellen?: () => void
 }
 
 /**
@@ -25,7 +27,7 @@ interface StoryModeHeaderProps {
  *   Ansicht auf (Konfig `story.headline/intro`, sonst Uebersetzung); beim
  *   ersten Besuch ist sie offen, der Browser merkt sich „zu".
  */
-export function StoryModeHeader({ libraryId, onBackToGallery, onOpenChronik }: StoryModeHeaderProps) {
+export function StoryModeHeader({ libraryId, onBackToGallery, onOpenChronik, onOpenQuellen }: StoryModeHeaderProps) {
   const { t } = useTranslation()
   const libraries = useLibraries()
   const erklaerung = useAnsichtErklaerung('story')
@@ -79,7 +81,7 @@ export function StoryModeHeader({ libraryId, onBackToGallery, onOpenChronik }: S
           onToggle: erklaerung.toggle,
           labels: { oeffnen: t('ansicht.erklaerungOeffnen'), schliessen: t('ansicht.erklaerungSchliessen') },
         }}
-        werkzeuge={<StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} libraryId={libraryId} />}
+        werkzeuge={<StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} libraryId={libraryId} />}
         eingeklappt={isCondensed}
       />
     </div>

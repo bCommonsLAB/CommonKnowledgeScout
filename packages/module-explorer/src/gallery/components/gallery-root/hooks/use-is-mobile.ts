@@ -37,3 +37,22 @@ export function useIsMobile(): boolean {
 
   return isMobile
 }
+
+/** Tailwind `md` = 768px: darunter ist es ein Telefon — kein Platz fuer die Quellen-Leiste. */
+const TELEFON_BREAKPOINT_PX = 768
+
+/**
+ * D12r: `true` unter 768px (Telefon). Dort fuellt die Mitte den Schirm, Quellen
+ * und Chronik kommen als Blatt. Zwischen 768 und 1024 (Tablet) steht die
+ * Quellen-Leiste rechts wie am Desktop, nur die Chronik bleibt ein Blatt.
+ */
+export function useIstTelefon(): boolean {
+  const [telefon, setTelefon] = useState(false)
+  useEffect(() => {
+    const check = () => setTelefon(window.innerWidth < TELEFON_BREAKPOINT_PX)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return telefon
+}

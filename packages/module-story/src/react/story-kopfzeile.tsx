@@ -9,20 +9,22 @@
  * kommt sie aus der Konfig der Library.
  */
 
-import { ChevronLeft, PanelLeft, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronLeft, PanelLeft, Sparkles } from 'lucide-react'
 import { AnsichtsZeile, Button, useAnsichtErklaerung } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 
 export interface StoryKopfzeileProps {
   onBackToGallery: () => void
   onOpenChronik?: () => void
+  /** D12r: oeffnet auf dem Telefon die Quellen (Blatt); ab md steht die Leiste rechts. */
+  onOpenQuellen?: () => void
   ueberschrift?: string
   einleitung?: string
   /** Erklaerung der Ansicht (Konfig `story.headline/intro` der Library); sonst die Uebersetzung. */
   erklaerung?: { titel?: string; text?: string }
 }
 
-export function StoryKopfzeile({ onBackToGallery, onOpenChronik, ueberschrift, einleitung, erklaerung }: StoryKopfzeileProps) {
+export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, ueberschrift, einleitung, erklaerung }: StoryKopfzeileProps) {
   const { t } = useTranslation()
   const zustand = useAnsichtErklaerung('story')
   const werkzeuge = (
@@ -31,6 +33,12 @@ export function StoryKopfzeile({ onBackToGallery, onOpenChronik, ueberschrift, e
         <Button variant="outline" size="sm" onClick={onOpenChronik} className="gap-2 lg:hidden" aria-label={t('story.chronik.open')}>
           <PanelLeft className="h-4 w-4" />
           <span className="whitespace-nowrap">{t('story.chronik.open')}</span>
+        </Button>
+      )}
+      {onOpenQuellen && (
+        <Button variant="outline" size="sm" onClick={onOpenQuellen} className="gap-2 md:hidden" aria-label={t('gallery.sources')}>
+          <BookOpen className="h-4 w-4" />
+          <span className="whitespace-nowrap">{t('gallery.sources')}</span>
         </Button>
       )}
       <Button variant="outline" size="sm" onClick={onBackToGallery} className="gap-2">

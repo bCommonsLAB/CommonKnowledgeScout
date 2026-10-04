@@ -58,7 +58,7 @@ import {
   pickFacetsForTableColumns,
   resolveDetailViewTypeForDoc,
 } from './gallery-root/helpers'
-import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
+import { useIsMobile, useIstTelefon } from './gallery-root/hooks/use-is-mobile'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
@@ -119,7 +119,7 @@ export interface GalleryRootProps {
    * mit dem Story-Modus um. `onOpenChronik` (D4) gibt es nur mit Chronik-Slot:
    * der Kopf zeigt dafuer unter `lg` den Menue-Knopf, der das Sheet oeffnet.
    */
-  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void; onOpenChronik?: () => void }) => React.ReactNode
+  storyHeader?: (opts: { libraryId: string; onBackToGallery: () => void; onOpenChronik?: () => void; onOpenQuellen?: () => void }) => React.ReactNode
   /** Verifikations-Abzeichen neben der Ueberschrift; kein Slot, kein Abzeichen. */
   verifikationsAbzeichen?: React.ReactNode
 }
@@ -163,6 +163,8 @@ export function GalleryRoot({
   // 2026-07-08). Das Eingabefeld bleibt an `searchQuery` gebunden.
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
   const isMobile = useIsMobile()
+  // D12r: Telefon (< md) — Quellen als Blatt; Tablet und Desktop haben die Leiste rechts.
+  const istTelefon = useIstTelefon()
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const chatReferences = useAtomValue(chatReferencesAtom)
   const [showReferencesSheet, setShowReferencesSheet] = useState(false)
@@ -238,7 +240,7 @@ export function GalleryRoot({
   // oeffnen, auf Mobil das Blatt mit den Belegen (D4); dann zur Karte scrollen.
   const belegSprungZiel = useMemo(
     () =>
-      isMobile
+      istTelefon
         ? {
             offen: showReferencesSheet && referencesSheetMode === 'answer',
             oeffnen: () => {
@@ -248,7 +250,7 @@ export function GalleryRoot({
             },
           }
         : { offen: quellenLeiste.offen, oeffnen: quellenLeiste.oeffnen },
-    [isMobile, showReferencesSheet, referencesSheetMode, chatReferences, quellenLeiste.offen, quellenLeiste.oeffnen],
+    [istTelefon, showReferencesSheet, referencesSheetMode, chatReferences, quellenLeiste.offen, quellenLeiste.oeffnen],
   )
   useBelegSprung(belegSprungZiel)
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
@@ -770,8 +772,8 @@ export function GalleryRoot({
   }
   
   const handleShowReferenceLegend = () => {
-    // Auf Mobile: Öffne Sheet statt Desktop-Panel
-    if (isMobile) {
+    // Telefon: Blatt statt Spalte
+    if (istTelefon) {
       setShowReferencesSheet(true)
       setReferencesSheetMode('answer')
     }
@@ -793,21 +795,6 @@ export function GalleryRoot({
   
   useGalleryEvents(libraryId, docs, handleOpenDocument, handleShowReferenceLegend)
 
-  // Event-Handler für TOC-Quellenverzeichnis (Mobile)
-  React.useEffect(() => {
-    const handleShowTOCReferences = (event: Event) => {
-      const customEvent = event as CustomEvent<{ libraryId: string }>
-      const { libraryId: eventLibraryId } = customEvent.detail || {}
-      if (eventLibraryId === libraryId) {
-        setShowReferencesSheet(true)
-        setReferencesSheetMode('toc')
-        setReferencesSheetData(null)
-      }
-    }
-    window.addEventListener('show-toc-references', handleShowTOCReferences)
-    return () => window.removeEventListener('show-toc-references', handleShowTOCReferences)
-  }, [libraryId])
-
   // Event-Handler für Antwort-Quellenverzeichnis erweitern (für Mobile)
   // Dieser Handler wird zusätzlich zu useGalleryEvents ausgeführt
   React.useEffect(() => {
@@ -815,8 +802,8 @@ export function GalleryRoot({
       const customEvent = event as CustomEvent<{ references: DocReference[]; libraryId: string; queryId?: string }>
       const { references: refs, queryId: eventQueryId, libraryId: eventLibraryId } = customEvent.detail || {}
       if (eventLibraryId === libraryId && refs && refs.length > 0) {
-        // Auf Mobile: Öffne Sheet mit den Referenzen
-        if (isMobile) {
+        // Telefon: Blatt mit den Belegen
+        if (istTelefon) {
           setShowReferencesSheet(true)
           setReferencesSheetMode('answer')
           setReferencesSheetData({ references: refs, queryId: eventQueryId })
@@ -825,11 +812,11 @@ export function GalleryRoot({
     }
     window.addEventListener('show-reference-legend', handleShowAnswerReferences)
     return () => window.removeEventListener('show-reference-legend', handleShowAnswerReferences)
-  }, [libraryId, isMobile])
+  }, [libraryId, istTelefon])
 
   // Synchronisiere chatReferences mit Sheet-Daten (für Mobile)
   React.useEffect(() => {
-    if (isMobile && chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+    if (istTelefon && chatReferences && chatReferences.references && chatReferences.references.length > 0) {
       // Wenn chatReferences gesetzt ist und Sheet noch nicht geöffnet ist, aktualisiere die Daten
       if (!showReferencesSheet || referencesSheetMode !== 'answer') {
         setReferencesSheetData({
@@ -838,7 +825,7 @@ export function GalleryRoot({
         })
       }
     }
-  }, [isMobile, chatReferences, showReferencesSheet, referencesSheetMode])
+  }, [istTelefon, chatReferences, showReferencesSheet, referencesSheetMode])
 
   // Auto-Close bei Moduswechsel: Schließe Antwort-Quellenverzeichnis wenn Story-Modus verlassen wird
   React.useEffect(() => {
@@ -1291,6 +1278,13 @@ export function GalleryRoot({
                   libraryId: libraryId || '',
                   onBackToGallery: () => setMode('gallery'),
                   onOpenChronik: storyChronik ? () => setChronikOffen(true) : undefined,
+                  // D12r: Telefon — Quellen als Blatt (Belege der Antwort oder der Bestand).
+                  onOpenQuellen: () => {
+                    const refs = chatReferences?.references ?? []
+                    setShowReferencesSheet(true)
+                    setReferencesSheetMode(refs.length > 0 ? 'answer' : 'toc')
+                    setReferencesSheetData(refs.length > 0 ? { references: refs, queryId: chatReferences.queryId } : null)
+                  },
                 })
               : null}
           </div>
@@ -1302,20 +1296,6 @@ export function GalleryRoot({
             ) : (
               <div className='text-sm text-muted-foreground p-4'>Kein Story-Panel montiert.</div>
             )
-            // Mobil: nur die Mitte mounten — Chronik (D4: Sheet) und Quellen
-            // (Overlay) duerfen nicht als zweiter Mount laufen (Lehre aus M4h).
-            if (isMobile) {
-              return (
-                <>
-                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-md">{storyMitte}</div>
-                  {storyChronik && (
-                    <StoryChronikSheet open={chronikOffen} onOpenChange={setChronikOffen}>
-                      {storyChronik(libraryId, { schliessen: () => setChronikOffen(false) })}
-                    </StoryChronikSheet>
-                  )}
-                </>
-              )
-            }
             const belegeAktiv = Boolean(chatReferences?.references && chatReferences.references.length > 0)
             // Rechts (D3): Belege der aktiven Antwort als schmale Liste; ohne
             // aktive Antwort der gefilterte Bestand als dieselbe kompakte Liste
@@ -1348,18 +1328,39 @@ export function GalleryRoot({
                 onZuklappen={quellenLeiste.toggle}
               />
             )
+            const leiste = {
+              offen: quellenLeiste.offen,
+              onToggle: quellenLeiste.toggle,
+              // D12h: Dokumente zaehlen, nicht Textstellen (alte Antworten nummerieren je Textstelle).
+              zaehler: belegeAktiv ? anzahlBelegDokumente(chatReferences.references) : effectiveDocCount,
+              belege: belegeAktiv,
+            }
+            // Unter lg: Chronik als Blatt (D4), kein zweiter Mount neben einer Spalte
+            // (Lehre aus M4h). D12r: Auf dem Telefon fuellt die Mitte den Schirm, die
+            // Quellen kommen als Blatt; auf dem Tablet steht die Quellen-Leiste rechts
+            // wie am Desktop (Owner 04.10.: rechts hat das noch Platz).
+            if (isMobile) {
+              return (
+                <>
+                  {istTelefon ? (
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-md">{storyMitte}</div>
+                  ) : (
+                    <StorySpalten mitte={storyMitte} quellen={storyQuellen} leiste={leiste} />
+                  )}
+                  {storyChronik && (
+                    <StoryChronikSheet open={chronikOffen} onOpenChange={setChronikOffen}>
+                      {storyChronik(libraryId, { schliessen: () => setChronikOffen(false) })}
+                    </StoryChronikSheet>
+                  )}
+                </>
+              )
+            }
             return (
               <StorySpalten
                 chronik={storyChronik ? storyChronik(libraryId) : undefined}
                 mitte={storyMitte}
                 quellen={storyQuellen}
-                leiste={{
-                  offen: quellenLeiste.offen,
-                  onToggle: quellenLeiste.toggle,
-                  // D12h: Dokumente zaehlen, nicht Textstellen (alte Antworten nummerieren je Textstelle).
-                  zaehler: belegeAktiv ? anzahlBelegDokumente(chatReferences.references) : effectiveDocCount,
-                  belege: belegeAktiv,
-                }}
+                leiste={leiste}
               />
             )
           })()}

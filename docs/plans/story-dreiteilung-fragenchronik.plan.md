@@ -1409,6 +1409,26 @@ Weggefallen im Blatt: `ItemsView`, `GroupedItemsView`, `ViewModeToggle`,
 Dichte-Umschalter. Belege: `references-sheet.test.tsx`. Live (800 px):
 Blatt mit 50 Karten, keine Bilder.
 
+### Stand D12r (gebaut 04.10.2026, lokal) — Quellen-Leiste ab Tablet, Knopf oben am Telefon
+
+Owner 04.10.: Den Knopf ganz unten findet niemand; bei dieser Breite hat
+die Leiste rechts noch Platz, nur am Telefon braucht es einen Zugang oben.
+Was steht, drei Breiten: **Desktop (≥ lg)** unverändert drei Spalten.
+**Tablet (md ≤ Breite < lg)** Mitte + fliegende Quellen-Leiste wie am
+Desktop (`StorySpalten` ohne Chronik), die Chronik bleibt ein Blatt
+(„Themen und Fragen"). **Telefon (< md, `useIstTelefon`)** Mitte allein;
+Quellen über den neuen Knopf „Quellen" in der Story-Zeile neben „Themen
+und Fragen" (`onOpenQuellen` durch `storyHeader` → `StoryHeader` der App
+und `StoryKopfzeile` im Embed, `md:hidden`), er öffnet das Blatt mit den
+Belegen der Antwort oder dem Bestand. Der Markenklick (D12e/D12i) nimmt am
+Telefon das Blatt, sonst die Leiste. Weg: die Knöpfe „Quellenverzeichnis"
+unter Antwort und Übersicht (`story-fuss.tsx`) und das Ereignis
+`show-toc-references`. Nicht gebaut: der Eintrag im Hamburger-Menü — das
+ist die Seiten-Navigation der Schale (`top-nav.tsx`), ein Story-Eintrag
+dort bräuchte Story-Zustand in der Schale; der Knopf in der Story-Zeile
+ist der Ort, an dem schon die Chronik liegt. Live: 800 px Leiste „606
+Quellen", kein Knopf unten; 600 px Knopf „Quellen" → Blatt mit 50 Karten.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
