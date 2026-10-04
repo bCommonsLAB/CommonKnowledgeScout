@@ -2,6 +2,7 @@
 
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import type { DocReference, QuerySource, DetailViewType } from '@ks/contracts'
+import { STORY_UEBERSICHT_ZEIGEN_EVENT } from '@ks/contracts'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { galleryFiltersAtom } from '../atoms/gallery-filters'
@@ -898,10 +899,12 @@ export function GalleryRoot({
   }, [showReferencesSheet, referencesSheetMode, setChatReferences])
 
   // Filter handlers
-  // D3: Belege schliessen → Referenzen zurueck, Filter auf die Antwort loesen;
-  // dieselben zwei Schritte wie bisher der Schliessen-Knopf im Raster.
-  const handleBelegeSchliessen = () => {
-    setChatReferences({ references: [] })
+  // D12l: Die Quellen folgen der Mitte. Der Katalog-Knopf der Belegliste bittet
+  // die Story-Mitte um die Themenuebersicht (Ereignis, Mitte und Quellen haengen
+  // in getrennten Slots); die Belege leeren sich dann ueber `onBelege` (D12e),
+  // und die Spalte zeigt den Katalog. Der Filter auf die Antwort faellt mit.
+  const handleZumKatalog = () => {
+    window.dispatchEvent(new CustomEvent(STORY_UEBERSICHT_ZEIGEN_EVENT))
     window.dispatchEvent(new CustomEvent('clear-gallery-filter', { detail: {} }))
   }
 
@@ -1322,7 +1325,8 @@ export function GalleryRoot({
                 libraryDetailViewType={detailViewType}
                 katalogAnzahl={effectiveDocCount}
                 onOpenDocument={handleOpenDocument}
-                onSchliessen={handleBelegeSchliessen}
+                onZuklappen={quellenLeiste.toggle}
+                onKatalog={handleZumKatalog}
               />
             ) : (
               <>

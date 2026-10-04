@@ -7,6 +7,10 @@
  *
  * Ersetzt in der Spalte `GroupedItemsView`; das Mobil-Sheet behaelt die
  * gruppierte Ansicht (D4 ordnet Mobil neu).
+ *
+ * D12l: Die Quellen folgen der Mitte. Das X klappt die Spalte nur zu (die
+ * Belege bleiben die der gezeigten Antwort); der Weg in den Katalog schickt
+ * die Mitte zur Themenuebersicht, dann zeigt die Spalte den Katalog.
  */
 
 import { useMemo } from 'react'
@@ -31,8 +35,10 @@ export interface BelegListeProps {
   katalogAnzahl: number
   /** Dokument ohne Adresse oeffnen (Rueckfall der Galerie). */
   onOpenDocument?: (doc: DocCardMeta) => void
-  /** Belege schliessen → zurueck zur gefilterten Uebersicht. */
-  onSchliessen: () => void
+  /** Spalte zuklappen (D11b-Leiste); die Belege bleiben. */
+  onZuklappen: () => void
+  /** In den Katalog: die Mitte geht zur Themenuebersicht, die Quellen folgen. */
+  onKatalog: () => void
 }
 
 export function BelegListe({
@@ -43,7 +49,8 @@ export function BelegListe({
   libraryDetailViewType,
   katalogAnzahl,
   onOpenDocument,
-  onSchliessen,
+  onZuklappen,
+  onKatalog,
 }: BelegListeProps) {
   const { t } = useTranslation()
   const { openDocument } = useGalleryNavigation()
@@ -69,7 +76,7 @@ export function BelegListe({
           <h2 className="text-sm font-semibold">{t('story.beleg.title')}</h2>
           <p className="text-xs text-muted-foreground">{anzahlText}</p>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onSchliessen} aria-label={t('story.beleg.close')}>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -115,7 +122,7 @@ export function BelegListe({
       </ScrollArea>
 
       <div className="shrink-0 border-t p-3">
-        <Button variant="outline" size="sm" className="w-full" onClick={onSchliessen}>
+        <Button variant="outline" size="sm" className="w-full" onClick={onKatalog}>
           {t('story.beleg.catalog', { count: katalogAnzahl })}
         </Button>
       </div>
