@@ -1302,6 +1302,56 @@ der Filter auf die Antwort fällt mit (`clear-gallery-filter` wie bisher).
 `BelegListe` hat dafür zwei Wege (`onZuklappen`, `onKatalog`) statt einem
 `onSchliessen`. Belege: `beleg-liste.test.tsx`, `story-root.test.tsx`.
 
+### Stand D12n (gebaut 03.10.2026, lokal) — Facettenfilter ohne Typwahl griff nicht
+
+Befund Owner (Live-Test 03.10.): Facettenfilter „Arbeitsgruppe: Energie"
+(80) gesetzt, Zähler sagt weiter „606 Quellen", die Galerie zeigt gemischte
+Arbeitsgruppen; im Story-Modus „606 Dokumente" und 606 im Quellenverzeichnis.
+
+Ursache (am Netz belegt): `GET …/docs?arbeitsgruppe=Energie` lieferte 610
+ungefiltert, mit `detailViewType=climateAction` 80 gefiltert. Ohne Typwahl
+nimmt die Dokumente-Route die Facetten, die ALLE vorhandenen Typen teilen
+(`commonFacetDefs`, A4a); die Library hat neben `climateAction` auch
+`website`-Dokumente, gemeinsam ist nichts — `buildFilterFromQuery` kannte
+`arbeitsgruppe` nicht, der Filter fiel still weg. Die Facetten-Route nahm
+den `excludeDetailViewType` schon aus den vorhandenen Typen heraus, die
+Dokumente-Route nicht: Facettenleiste und Liste rechneten mit zwei Scopes.
+
+Was steht: Die Dokumente-Route liest `excludeDetailViewType` vor dem Scope
+und filtert ihn aus den vorhandenen Typen (wie die Facetten-Route). Live:
+mit Ausschluss + Filter 80 (nur Energie), ohne Filter 606. Kein Unit-Test
+(Route gegen Mongo); Beleg ist der Netz-Vergleich.
+
+Neu dazugekommen (beim Bauen gesehen):
+
+- **Ohne Ausschluss bleibt die Lücke:** `…/docs?arbeitsgruppe=Energie`
+  ohne `excludeDetailViewType` liefert weiter 610 ungefiltert, weil
+  `website` zu den vorhandenen Typen zählt. Strukturelle Typen (Website,
+  Landingpage) sollten bei `commonFacetDefs` nicht mitzählen — oder ein
+  Facettenfilter, den der Scope nicht kennt, muss laut fehlschlagen statt
+  still wegzufallen (`no-silent-fallbacks`). Owner-Entscheid.
+
+Neu dazugekommen (Live-Test Owner 03.10., Remote, noch Konzept):
+
+- **Aktiver Filter im Story-Modus unsichtbar.** Die Filter-Chips
+  („gefiltert: Arbeitsgruppe: Energie ✕ Zurücksetzen", `FilterContextBar`
+  mit `mode="story"`) stehen in der rechten Quellen-Spalte — die ist seit
+  D11b beim Einstieg zu. Die Mitte zeigt nur „120 Dokumente · 8 Themen ·
+  46 Fragen"; wer gefiltert hat, sieht es nicht und kann es dort nicht
+  lösen. Vorschlag D12o: die Chips mit Zurücksetzen in die Mitte neben die
+  Kennzahlen (`StoryKopfzeile`/`Kennzahlen`), als Slot vom Gastgeber
+  (`GalleryRoot` kennt `filters` und `facetDefs`; `StoryRoot` bekommt nur
+  die Werte). Die Leiste rechts behält ihre Chips.
+- **Überschrift doppelt** auf der öffentlichen Erkunden-Seite:
+  `ExplorerHeader` zeigt Library-Name + „Öffentliche Wissensbibliothek",
+  darunter der Kopf der Seite (D10) mit `headline` (fällt ohne eigene
+  Galerie-Überschrift auf den Library-Namen zurück) + Beschreibung. In
+  der App-Galerie (`/library/gallery`) gibt es den ExplorerHeader nicht.
+  Vorschlag D12p: auf der Erkunden-Seite den D10-Kopf ohne Titel rendern,
+  wenn `headline` gleich dem Library-Namen ist, oder den ExplorerHeader
+  dort auf die Hinweiszeile reduzieren. Owner-Entscheid, welche Zeile
+  bleibt.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die
