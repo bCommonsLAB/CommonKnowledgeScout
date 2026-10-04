@@ -74,6 +74,12 @@ export interface GalleryRootProps {
    */
   hideWebsiteDocs?: boolean
   /**
+   * D12v: Titel im Kopf der Seite (Inhalte) zeigen. `false`, wenn der Montagepunkt
+   * den Library-Namen schon selbst zeigt (Erkunden-Seite: `ExplorerHeader`) —
+   * sonst steht derselbe Name zweimal untereinander. Plakette und Zweizeiler bleiben.
+   */
+  seitenkopfTitel?: boolean
+  /**
    * Bedienelemente des Gastgebers im Kopf der Galerie — heute der
    * Erfassungs-Knopf der Voll-App. Als Slot statt als Import, weil Erfassung
    * ein anderes Modul ist (Galerie-Audit, Gruppe B).
@@ -136,6 +142,7 @@ export function GalleryRoot({
   showSiteTab = false,
   defaultToSite = false,
   hideWebsiteDocs = false,
+  seitenkopfTitel = true,
   kopfAktionen,
   storyPanel,
   storyChronik,
@@ -1139,7 +1146,7 @@ export function GalleryRoot({
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
             verifikationsAbzeichen={verifikationsAbzeichen}
-            headline={activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || ''}
+            headline={seitenkopfTitel ? activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || '' : ''}
             description={activeLibrary?.config?.publicPublishing?.description || undefined}
             ansicht={{
               name: (

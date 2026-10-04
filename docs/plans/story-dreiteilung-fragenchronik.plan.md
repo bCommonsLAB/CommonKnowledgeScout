@@ -1462,6 +1462,20 @@ gibt es nicht mehr an (der Pfeil der Leiste reicht), das Blatt am Telefon
 schon (dort ist das X der einzige Weg). Live: Belegkarte mit Marke, Titel,
 Kennzeile, Plakette, Symbol rechts; kein X in der Spalte.
 
+### Stand D12v (gebaut 04.10.2026, lokal) — Titel im Galerie-Kopf der Erkunden-Seite weg
+
+Owner 04.10.: Auch in „Inhalte" steht der Name zweimal (ExplorerHeader
+oben, Kopf der Seite aus D10 darunter). Dieselbe Quelle: oben
+`library.label`, unten `publicPublishing.publicName`, der ohne Wert auf
+`label` zurückfällt. Was steht: `GalleryRoot.seitenkopfTitel` (Standard
+`true`); die Erkunden-Seite setzt `false`, dann zeigt der Kopf nur noch
+Plakette „Geprüft" und Zweizeiler. Die App-Galerie (`/library/gallery`,
+ohne ExplorerHeader) behält den Titel. Live: eine Überschrift, darunter
+Plakette und Zweizeiler. Hinweis: Setzt eine Library `publicName`, zeigt
+der ExplorerHeader weiterhin `label` — der öffentliche Name wäre dann auf
+der Erkunden-Seite nirgends zu sehen; falls gewollt, gehört `publicName`
+in den ExplorerHeader (nicht gebaut).
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

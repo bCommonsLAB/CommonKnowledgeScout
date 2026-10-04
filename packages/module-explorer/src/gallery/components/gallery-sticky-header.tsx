@@ -108,7 +108,8 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
       >
         <div className="py-4 space-y-1" data-seitenkopf>
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-2xl font-bold leading-tight">{headline}</h2>
+            {/* D12v: ohne Titel (Erkunden-Seite zeigt den Namen schon oben) bleiben Plakette und Zweizeiler. */}
+            {headline ? <h2 className="text-2xl font-bold leading-tight">{headline}</h2> : null}
             {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2); kommt vom Montagepunkt. */}
             {verifikationsAbzeichen}
           </div>
