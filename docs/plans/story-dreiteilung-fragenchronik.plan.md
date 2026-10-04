@@ -1429,6 +1429,17 @@ dort bräuchte Story-Zustand in der Schale; der Knopf in der Story-Zeile
 ist der Ort, an dem schon die Chronik liegt. Live: 800 px Leiste „606
 Quellen", kein Knopf unten; 600 px Knopf „Quellen" → Blatt mit 50 Karten.
 
+### Stand D12p (gebaut 04.10.2026, lokal) — Kopf der Seite im Story-Modus weg
+
+Owner 04.10.: Drei Überschriften übereinander (Erkunden-Kopf, Kopf der
+Seite aus D10, Titel der Themenübersicht); die zweite Ebene kann im
+Story-Modus weg, die Übersicht bringt ihren Titel mit. Was steht:
+`StoryModeHeader` (App) und `StoryKopfzeile` (Embed) rendern nur noch die
+Ansichtszeile mit ⓘ und den Knöpfen; der Seitenkopf (Titel, Zweizeiler)
+und sein Ein-/Ausblenden beim Scrollen sind weg (auch der Rand unten, den
+der Effekt hinterließ). Die ⓘ-Erklärung aus `story.headline/intro` bleibt.
+Live: Überschriften nur noch Erkunden-Kopf + Übersichtstitel.
+
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
 - **Zustimmungsbalken** („Ø 78 % Konsens“): Dafür gibt es heute kein Feld. Die

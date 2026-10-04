@@ -76,8 +76,6 @@ export function EmbedGalerie({ slug, instanz, view, locale }: EmbedGalerieProps)
               onBackToGallery={onBackToGallery}
               onOpenChronik={onOpenChronik}
               onOpenQuellen={onOpenQuellen}
-              ueberschrift={geladen.label}
-              einleitung={geladen.description || undefined}
             />
           ),
         }

@@ -2,11 +2,11 @@
 
 /**
  * Kopf des Story-Modus fuer Montagepunkte ohne eigenen Story-Kopf (D6b, Embed;
- * D10b nach Figma „Schritt 7"): Kopf der Seite (Ueberschrift und Einleitung
- * der Library aus der Konfig), darunter die Ansichtszeile „Story-Modus" mit
- * ⓘ-Erklaerung, rechts „Zurueck zu den Inhalten" und mobil der Knopf fuer
- * die Chronik (Sheet, D4). Die Perspektive hat hier keinen Knopf — im Embed
- * kommt sie aus der Konfig der Library.
+ * D10b nach Figma „Schritt 7"; D12p): nur die Ansichtszeile „Story-Modus"
+ * mit ⓘ-Erklaerung, rechts „Zurueck zu den Inhalten", die Knoepfe fuer
+ * Chronik (Sheet, D4) und Quellen (Telefon, D12r). Kein Kopf der Seite mehr:
+ * Die Themenuebersicht bringt ihren eigenen Titel mit (Owner 04.10.). Die
+ * Perspektive hat hier keinen Knopf — im Embed kommt sie aus der Konfig.
  */
 
 import { BookOpen, ChevronLeft, PanelLeft, Sparkles } from 'lucide-react'
@@ -18,13 +18,11 @@ export interface StoryKopfzeileProps {
   onOpenChronik?: () => void
   /** D12r: oeffnet auf dem Telefon die Quellen (Blatt); ab md steht die Leiste rechts. */
   onOpenQuellen?: () => void
-  ueberschrift?: string
-  einleitung?: string
   /** Erklaerung der Ansicht (Konfig `story.headline/intro` der Library); sonst die Uebersetzung. */
   erklaerung?: { titel?: string; text?: string }
 }
 
-export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, ueberschrift, einleitung, erklaerung }: StoryKopfzeileProps) {
+export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, erklaerung }: StoryKopfzeileProps) {
   const { t } = useTranslation()
   const zustand = useAnsichtErklaerung('story')
   const werkzeuge = (
@@ -48,13 +46,7 @@ export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, 
     </>
   )
   return (
-    <div className="space-y-2 border-b py-2" data-story-kopfzeile>
-      {(ueberschrift || einleitung) && (
-        <div className="space-y-1" data-seitenkopf>
-          {ueberschrift && <h2 className="text-2xl font-bold leading-tight">{ueberschrift}</h2>}
-          {einleitung && <p className="line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{einleitung}</p>}
-        </div>
-      )}
+    <div className="border-b py-2" data-story-kopfzeile>
       <AnsichtsZeile
         name={
           <span className="inline-flex items-center gap-1.5">
