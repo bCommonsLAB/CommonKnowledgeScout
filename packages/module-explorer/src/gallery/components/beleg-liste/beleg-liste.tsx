@@ -17,11 +17,10 @@ import { useMemo } from 'react'
 import { ChevronRight, X } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Button, ScrollArea } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
-import { useGalleryNavigation } from '../../contexts/gallery-navigation-context'
 import { BelegKarte } from './beleg-karte'
 import { belegeAusReferenzen, ersteSeite, type Beleg } from './helpers'
+import { useDokumentOeffnen } from './oeffnen'
 
 export interface BelegListeProps {
   references: DocReference[]
@@ -35,8 +34,8 @@ export interface BelegListeProps {
   katalogAnzahl: number
   /** Dokument ohne Adresse oeffnen (Rueckfall der Galerie). */
   onOpenDocument?: (doc: DocCardMeta) => void
-  /** Spalte zuklappen (D11b-Leiste); die Belege bleiben. */
-  onZuklappen: () => void
+  /** X zum Schliessen — nur im Blatt (Telefon). In der Spalte gibt es den Einklapp-Pfeil, das X waere doppelt (Owner 04.10.). */
+  onZuklappen?: () => void
   /** In den Katalog: die Mitte geht zur Themenuebersicht, die Quellen folgen. */
   onKatalog: () => void
 }
@@ -53,17 +52,8 @@ export function BelegListe({
   onKatalog,
 }: BelegListeProps) {
   const { t } = useTranslation()
-  const { openDocument } = useGalleryNavigation()
+  const oeffnen = useDokumentOeffnen(libraryId, onOpenDocument)
   const belege = useMemo(() => belegeAusReferenzen(references, usedDocs, libraryDetailViewType), [references, usedDocs, libraryDetailViewType])
-
-  function oeffnen(doc: DocCardMeta | undefined, fileId: string, fileName?: string, page?: number) {
-    const slug = doc ? getEffectiveDocumentNavigationSlug(doc) : undefined
-    // D7: Nur die Adressierung kennt die Seite; die Rueckfaelle oeffnen am Anfang.
-    if (slug && page !== undefined) openDocument(slug, { page })
-    else if (slug) openDocument(slug)
-    else if (doc && onOpenDocument) onOpenDocument(doc)
-    else window.dispatchEvent(new CustomEvent('open-document-detail', { detail: { fileId, fileName, libraryId } }))
-  }
 
   const original = (beleg: Beleg, page?: number) =>
     oeffnen(beleg.doc, beleg.fileId, beleg.doc?.fileName ?? beleg.titel, page ?? ersteSeite(beleg))
@@ -76,9 +66,11 @@ export function BelegListe({
           <h2 className="text-sm font-semibold">{t('story.beleg.title')}</h2>
           <p className="text-xs text-muted-foreground">{anzahlText}</p>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
-          <X className="h-4 w-4" />
-        </Button>
+        {onZuklappen && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onZuklappen} aria-label={t('story.beleg.close')}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">

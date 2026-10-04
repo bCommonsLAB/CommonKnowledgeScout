@@ -54,6 +54,8 @@ export default function ExplorePage() {
           showSiteTab={showSiteTab}
           defaultToSite={showSiteTab}
           hideWebsiteDocs={true}
+          // D12v: der ExplorerHeader zeigt den Namen schon; die Library-Beschreibung gehoert nicht in die Inhalte-Ansicht.
+          seitenkopf={false}
         />
       )}
     />

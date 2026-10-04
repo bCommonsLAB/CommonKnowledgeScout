@@ -2,16 +2,16 @@
 
 /**
  * Die App-Stuecke unter Antwort und Themenuebersicht im Story-Modus (D6c):
- * KI-Hinweis, Konfig-Anzeige, Quellenverzeichnis (Mobil-Sheet der Galerie),
- * Protokoll und Debug fuer Angemeldete. Kommen als Slots `antwortFuss` und
+ * KI-Hinweis, Konfig-Anzeige, Protokoll und Debug fuer Angemeldete. Die
+ * Quellen-Knoepfe unten sind seit D12r weg: Die Quellen stehen rechts als
+ * Leiste, auf dem Telefon oben in der Story-Zeile. Kommen als Slots `antwortFuss` und
  * `uebersichtFuss` in `StoryRoot` — das Paket kennt sie nicht.
  */
 
 import { useState } from 'react'
-import { BookOpen, Bug, FileText } from 'lucide-react'
+import { Bug, FileText } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import { Button } from '@ks/ui'
-import { useTranslation } from '@ks/i18n/react'
 import type { Nachricht } from '@ks/module-story/react'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
@@ -25,7 +25,6 @@ export interface StoryAntwortFussProps {
 }
 
 export function StoryAntwortFuss({ libraryId, antwort, llmModel }: StoryAntwortFussProps) {
-  const { t } = useTranslation()
   const { isSignedIn } = useUser()
   const [details, setDetails] = useState(false)
   const [protokoll, setProtokoll] = useState(false)
@@ -42,18 +41,6 @@ export function StoryAntwortFuss({ libraryId, antwort, llmModel }: StoryAntwortF
           </div>
         )}
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {/* Quellenverzeichnis — oeffnet das Sheet der Galerie (mobil; am Desktop stehen die Belege rechts). */}
-          {belege.length > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              className="h-9 gap-2 px-4 font-medium lg:hidden"
-              onClick={() => window.dispatchEvent(new CustomEvent('show-reference-legend', { detail: { references: belege, libraryId, queryId } }))}
-            >
-              <BookOpen className="h-4 w-4" />
-              {t('gallery.references')}
-            </Button>
-          )}
           {queryId && isSignedIn && (
             <>
               <Button variant="ghost" size="sm" onClick={() => setProtokoll(true)} className="h-6 text-xs text-muted-foreground hover:text-foreground" title="Zeigt die Verarbeitungsschritte dieser Antwort">
@@ -81,7 +68,6 @@ export interface StoryUebersichtFussProps {
 }
 
 export function StoryUebersichtFuss({ libraryId, queryId, llmModel }: StoryUebersichtFussProps) {
-  const { t } = useTranslation()
   return (
     <div className="space-y-4" data-story-uebersicht-fuss>
       <AIGeneratedNotice compact variant="uebersicht" />
@@ -90,13 +76,6 @@ export function StoryUebersichtFuss({ libraryId, queryId, llmModel }: StoryUeber
           <ChatConfigDisplay libraryId={libraryId} queryId={queryId} llmModel={llmModel} />
         </div>
       )}
-      {/* Quellenverzeichnis der Uebersicht — nur auf Mobil, die Spalte rechts gibt es dort nicht. */}
-      <div className="lg:hidden">
-        <Button variant="default" size="sm" className="w-full gap-2" onClick={() => window.dispatchEvent(new CustomEvent('show-toc-references', { detail: { libraryId } }))}>
-          <BookOpen className="h-4 w-4" />
-          {t('gallery.tocReferences')}
-        </Button>
-      </div>
     </div>
   )
 }

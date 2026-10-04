@@ -72,8 +72,8 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
         siteView={({ libraryId, onShowGallery }) => (
           <WebsiteLandingLive libraryId={libraryId} onShowGallery={onShowGallery} />
         )}
-        storyHeader={({ libraryId, onBackToGallery, onOpenChronik }) => (
-          <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} />
+        storyHeader={({ libraryId, onBackToGallery, onOpenChronik, onOpenQuellen }) => (
+          <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} />
         )}
         verifikationsAbzeichen={<LibraryVerificationBadge />}
       />
