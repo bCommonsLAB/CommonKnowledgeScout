@@ -113,3 +113,35 @@ describe('transformation_stale: das Transkript altert die Zusammenfassung nicht 
     expect(gaps.map((g) => g.type)).toEqual(['transformation_stale'])
   })
 })
+
+describe('inhaltsZeitpunkt nach transkript_korrigieren (Wunschliste 7)', () => {
+  const REVIDIERT = '2026-10-04T09:00:00.000Z'
+  const SPAETER_GEPRUEFT = '2026-10-05T07:00:00.000Z'
+
+  it('zaehlt revised_at als Inhalts-Zeitpunkt, wenn der letzte Write eine spaetere Kuration war', () => {
+    // Korrektur am 04.10., Verifikation am 05.10. — der Inhalt ist vom 04.10., nicht vom 20.08.
+    const korrigiertUndGeprueft = artefakt(
+      { updatedAt: SPAETER_GEPRUEFT },
+      { verified_at: SPAETER_GEPRUEFT, verified_by: 'human:peter', revised_at: REVIDIERT, revised_by: 'claude/cowork' },
+    )
+    expect(inhaltsZeitpunkt(korrigiertUndGeprueft)).toBe(REVIDIERT)
+  })
+
+  it('bleibt bei generated_at, wenn revised_at aelter ist (nicht plausibel, aber nicht geraten)', () => {
+    const alt = artefakt({ updatedAt: GEPRUEFT }, { verified_at: GEPRUEFT, revised_at: '2026-08-01T00:00:00.000Z' })
+    expect(inhaltsZeitpunkt(alt)).toBe(ERZEUGT)
+  })
+
+  it('macht die Zusammenfassung ueberholt (transformation_stale), auch wenn das Transkript danach verifiziert wurde', () => {
+    const transkript = artefakt(
+      { updatedAt: SPAETER_GEPRUEFT },
+      { verified_at: SPAETER_GEPRUEFT, verified_by: 'human:peter', revised_at: REVIDIERT },
+    )
+    const transformation = artefakt(
+      { kind: 'transformation', templateName: 'zusammenfassung', targetLanguage: 'de', updatedAt: ERZEUGT },
+    )
+    const gaps = checkTransformationState(familie([transkript, transformation]), 'zusammenfassung')
+    expect(gaps.map((gap) => gap.type)).toEqual(['transformation_stale'])
+    expect(gaps[0].detail).toContain(REVIDIERT)
+  })
+})
