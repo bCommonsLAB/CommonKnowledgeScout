@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.36.0'
+export const TOOLSET_VERSION = '2.37.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -51,6 +51,8 @@ export const TOOL_NAMES = [
   // K4 — Peters Korrekturauftraege (Rueckkanal Mensch → Agent).
   'korrekturen_lesen',
   'korrektur_melden',
+  // Wunschliste 7, B1 — Wortlautkorrektur im Transkript, der einzige Schreibweg in den `_`-Ordner.
+  'transkript_korrigieren',
   'vorlagen_auflisten',
   'transformation_starten',
   'dokument_publizieren',
@@ -81,6 +83,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.37.0: transkript_korrigieren — Hoerfehler im Transkript-Body per Ersetzungen (alt muss genau einmal vorkommen, sonst nicht_eindeutig; alle: true fuer wiederkehrende), adressiert ueber die QUELLE (sourceId/pfad), ifVersion des Spiegels Pflicht, nurVorschau fuer den Diff; setzt revised_by/revised_at/revision_note, laesst generated_* stehen, schreibt MongoDB zuerst und exportiert nur diese Familie versioniert in den Spiegel; Spiegel ≠ MongoDB oder veraltetes ifVersion → konflikt ohne Schreiben. transformation_stale und die Abnahme (verified_at) rechnen jetzt mit max(generated_at, revised_at). Die _-Sperre von datei_patchen/datei_schreiben bleibt',
   '2.36.0: siteTheme in veroeffentlichung_setzen als explizites Objekt-Schema (vorher anyOf mit null, das der Client nicht anzeigte und als Text schickte); loeschen jetzt ueber siteThemeLoeschen: true',
   '2.35.0: veroeffentlichung_setzen nimmt siteTheme, das Design-Profil der Website (Welle S2): Schriften per Name (geist, newsreader, plus-jakarta), Akzent, Buttonform und Farben je Flaeche als #rrggbb; geprueft in site-theme.ts, null loescht; veroeffentlichung_lesen zeigt es. Ohne Profil rendert die Vorlage unveraendert',
   '2.34.0: veroeffentlichung_lesen zeigt publicPublishing der Library (Slug, isPublic, siteEnabled, Logo, Galerie-Texte; API-Schluessel nur als gesetzt/nicht gesetzt) samt Adresse /explore/<slug>; veroeffentlichung_setzen aendert nur genannte Felder mit derselben Validierung und demselben Merge wie das Formular (public-publishing-validation.ts, jetzt von Route UND Bruecke genutzt), prueft Slug-Eindeutigkeit, nur Owner, nie den API-Schluessel; isPublic: true wird als Aktion mit Aussenwirkung benannt',

@@ -37,6 +37,7 @@ import {
 } from './tool-shared'
 import { registerErschliessenTools } from './tools-erschliessen'
 import { registerKorrekturTools } from './tools-korrekturen'
+import { registerTranskriptKorrigierenTool } from './tools-transkript-korrigieren'
 import { registerJobTools } from './tools-jobs'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
@@ -62,6 +63,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerStorageTools(server)
   registerErschliessenTools(server)
   registerKorrekturTools(server)
+  registerTranskriptKorrigierenTool(server)
   registerVorlagenTool(server)
   registerWebsitePublizierenTools(server)
   registerWebsiteFelderTool(server)

@@ -92,7 +92,9 @@ export interface CurationPatchResult {
     korrekturAt: string | null
     /** Von einem Agenten gemeldete Erledigung (K4); null = noch offen. */
     korrekturErledigtAt: string | null
-    /** Temporale Regel §3.2: `verified_at >= generated_at`. */
+    /** Letzte Wortlaut-Revision ueber die Bruecke (Wunschliste 7); null = keine. */
+    revisedAt: string | null
+    /** Temporale Regel §3.2: `verified_at >= max(generated_at, revised_at)`. */
     verificationValid: boolean
   }
   mirror: CurationMirrorTarget
@@ -241,11 +243,13 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
       korrekturVon: stringOrNull(patchedMeta['korrektur_von']),
       korrekturAt: stringOrNull(patchedMeta['korrektur_at']),
       korrekturErledigtAt: stringOrNull(patchedMeta['korrektur_erledigt_at']),
+      revisedAt: stringOrNull(patchedMeta['revised_at']),
       verificationValid:
         stringOrNull(patchedMeta['verified_by']) !== null &&
         isVerificationValid({
           generatedAt: patchedMeta['generated_at'],
           verifiedAt: patchedMeta['verified_at'],
+          revisedAt: patchedMeta['revised_at'],
         }),
     },
     mirror,

@@ -28,6 +28,7 @@ interface CurationRouteResponse {
     generatedAt: string | null
     verifiedBy: string | null
     verifiedAt: string | null
+    revisedAt: string | null
     verificationValid: boolean
   }
 }
@@ -68,6 +69,7 @@ function mergeLeading(
       generated_at: curation.generatedAt ?? undefined,
       verified_by: curation.verifiedBy ?? undefined,
       verified_at: curation.verifiedAt ?? undefined,
+      revised_at: curation.revisedAt ?? undefined,
     }),
   }
 }

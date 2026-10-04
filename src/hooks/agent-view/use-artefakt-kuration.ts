@@ -34,6 +34,7 @@ interface CurationRouteResponse {
     generatedAt: string | null
     verifiedBy: string | null
     verifiedAt: string | null
+    revisedAt: string | null
     flaggedBy: string | null
     flaggedAt: string | null
     flaggedNote: string | null
@@ -119,6 +120,7 @@ function mergeArtefakt(
       generated_at: curation.generatedAt ?? undefined,
       verified_by: curation.verifiedBy ?? undefined,
       verified_at: curation.verifiedAt ?? undefined,
+      revised_at: curation.revisedAt ?? undefined,
     }),
   }
 }

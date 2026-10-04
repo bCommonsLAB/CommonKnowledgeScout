@@ -48,6 +48,15 @@ export const TWIN_CURATION_FIELDS = [
 
 export type TwinCurationField = (typeof TWIN_CURATION_FIELDS)[number]
 
+/**
+ * Revisions-Felder (Wunschliste 7): eine Wortlaut-Korrektur am Transkript ueber
+ * die Bruecke (`transkript_korrigieren`). Der Inhalt ist danach so alt wie
+ * `revised_at`, nicht wie `generated_at` — `generated_*` bleibt die Herkunft.
+ */
+export const TWIN_REVISION_FIELDS = ['revised_by', 'revised_at', 'revision_note'] as const
+
+export type TwinRevisionField = (typeof TWIN_REVISION_FIELDS)[number]
+
 /** Erlaubte Werte fuer `twin_status` (Const-Array statt Enum, siehe .cursorrules). */
 /**
  * `flagged` = ein Mensch hat das Artefakt als fehlerhaft markiert (ADR 0006,
@@ -135,20 +144,27 @@ export function parseTwinCoreTimestamp(
 
 /**
  * Temporale Gueltigkeitsregel (Contract §3.2): Eine Verifikation zaehlt nur,
- * wenn `verified_at >= generated_at`.
+ * wenn `verified_at >= max(generated_at, revised_at)`.
  *
  * - Fehlendes/unlesbares `verified_at` → false (unverifiziert).
- * - Fehlendes `generated_at` → true: Legacy-Twins ohne Writer-Stempel werden
- *   nicht abgewertet; das fehlende Feld meldet separat `missingTwinCoreFields`.
- * - Reine Datumsangaben werden grosszuegig gelesen (generated: Tagesanfang,
- *   verified: Tagesende), damit eine Hand-Verifikation am selben Tag zaehlt.
+ * - Fehlendes `generated_at` UND `revised_at` → true: Legacy-Twins ohne
+ *   Writer-Stempel werden nicht abgewertet; das fehlende Feld meldet separat
+ *   `missingTwinCoreFields`.
+ * - `revised_at` (Wunschliste 7, `transkript_korrigieren`): Der Text von heute
+ *   ist nicht der Text von gestern — eine Verifikation VOR der Revision gilt
+ *   nicht mehr. Wer `revisedAt` nicht uebergibt, prueft nur gegen `generated_at`.
+ * - Reine Datumsangaben werden grosszuegig gelesen (generated/revised:
+ *   Tagesanfang, verified: Tagesende), damit eine Hand-Verifikation am selben
+ *   Tag zaehlt.
  */
-export function isVerificationValid(args: { generatedAt: unknown; verifiedAt: unknown }): boolean {
+export function isVerificationValid(args: { generatedAt: unknown; verifiedAt: unknown; revisedAt?: unknown }): boolean {
   const verifiedMs = parseTwinCoreTimestamp(args.verifiedAt, 'day-end')
   if (verifiedMs === null) return false
   const generatedMs = parseTwinCoreTimestamp(args.generatedAt, 'day-start')
-  if (generatedMs === null) return true
-  return verifiedMs >= generatedMs
+  const revisedMs = parseTwinCoreTimestamp(args.revisedAt, 'day-start')
+  const inhaltMs = Math.max(generatedMs ?? Number.NEGATIVE_INFINITY, revisedMs ?? Number.NEGATIVE_INFINITY)
+  if (inhaltMs === Number.NEGATIVE_INFINITY) return true
+  return verifiedMs >= inhaltMs
 }
 
 /** Kandidat fuer die Wahl des fuehrenden Artefakts (Teilmenge des ArtifactKey). */
