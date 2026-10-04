@@ -98,7 +98,7 @@ export function QuellenListe({
           ) : (
             <ul className="space-y-2">
               {belege.map((beleg) => (
-                <BelegKarte key={beleg.fileId} beleg={beleg} onOriginal={original} />
+                <BelegKarte key={beleg.fileId} beleg={beleg} onOriginal={original} originalText={t('story.quellen.open')} />
               ))}
             </ul>
           )}

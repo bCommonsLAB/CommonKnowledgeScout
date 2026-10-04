@@ -897,6 +897,7 @@
     },
     "quellen": {
       "more": "Load more",
+      "open": "Open details",
       "none": "No documents match this filter."
     },
     "chronik": {

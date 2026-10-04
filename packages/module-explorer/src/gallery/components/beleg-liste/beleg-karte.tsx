@@ -34,9 +34,11 @@ export interface BelegKarteProps {
   beleg: Beleg
   /** Original oeffnen; `page` nur, wenn eine Textstelle angeklickt wurde. */
   onOriginal: (beleg: Beleg, page?: number) => void
+  /** Beschriftung des Oeffnen-Knopfs; Standard „Original ansehen" (Belege). Die Quellenliste sagt „Detailansicht oeffnen" (Owner 04.10.). */
+  originalText?: string
 }
 
-export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
+export function BelegKarte({ beleg, onOriginal, originalText }: BelegKarteProps) {
   const { t } = useTranslation()
   const [offen, setOffen] = useState(false)
   const konfig = belegKonfig(beleg.typ)
@@ -63,7 +65,7 @@ export function BelegKarte({ beleg, onOriginal }: BelegKarteProps) {
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              {t('story.beleg.original')}
+              {originalText ?? t('story.beleg.original')}
             </button>
             {hatDetails && (
               <button
