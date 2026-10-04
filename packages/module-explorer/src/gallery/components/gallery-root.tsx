@@ -1418,22 +1418,19 @@ export function GalleryRoot({
           }}
           libraryId={libraryId}
           mode={referencesSheetMode}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          cardDensity={cardDensity}
-          onCardDensityChange={handleCardDensityChange}
-          references={referencesSheetData?.references}
-          queryId={referencesSheetData?.queryId}
+          libraryDetailViewType={detailViewType}
           onOpenDocument={handleOpenDocument}
-          onClearFilters={handleClearFilters}
-          // Props für TOC-Modus
-          filteredDocs={filteredDocs}
-          docsByYear={docsByYear}
-          // Props für Answer-Modus
+          // D12m: dieselben Listen wie die Spalte am Desktop.
+          references={referencesSheetData?.references}
           usedDocs={usedDocs}
           unusedDocs={unusedDocs}
-          sources={sources}
-          // Loading und Error States
+          onKatalog={handleZumKatalog}
+          docs={filteredFlat}
+          anzahl={effectiveDocCount}
+          hasMore={anyEngagementFilterActive ? false : hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMore}
+          filterAnzeige={<FilterChips facetDefs={facetDefs} onClear={handleClearFilters} />}
           loading={loading}
           error={error}
         />

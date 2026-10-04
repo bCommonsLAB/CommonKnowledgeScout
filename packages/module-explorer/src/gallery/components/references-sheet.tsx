@@ -1,223 +1,107 @@
 'use client'
 
-import React from 'react'
-import type { DocReference, QuerySource } from '@ks/contracts'
-import { Sheet, SheetContent, SheetTitle, ScrollArea, Button } from '@ks/ui'
-import { X } from 'lucide-react'
-import type { DocCardMeta } from '../lib/types'
-import { GroupedItemsView } from './grouped-items-view'
-import { ItemsView } from './items-view'
-import { ViewModeToggle } from './view-mode-toggle'
-import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
-import { useTranslation } from '@ks/i18n/react'
-import type { ViewMode } from './gallery-sticky-header'
-import type { GalleryCardDensity } from '../lib/gallery-card-density'
+/**
+ * Quellen-Blatt der schmalen Ansicht (D4, D12m): unter `lg` gibt es keine
+ * rechte Spalte, die Quellen kommen als Blatt von rechts. Seit D12m zeigt es
+ * DIESELBEN Listen wie die Spalte am Desktop — `QuellenListe` fuer die
+ * Themenuebersicht, `BelegListe` fuer eine Antwort — statt des alten
+ * Galerie-Rasters mit Bildern, Ansichts-Umschaltern und Dichte (Owner
+ * 04.10.: „im Source-Code doppelt"). Das X der Listen schliesst das Blatt;
+ * der Weg in den Katalog schliesst es und bittet die Mitte um die Uebersicht.
+ */
 
-interface ReferencesSheetProps {
-  /** Sheet geöffnet/geschlossen */
+import type { ReactNode } from 'react'
+import type { DocReference } from '@ks/contracts'
+import { Sheet, SheetContent, SheetTitle } from '@ks/ui'
+import { useTranslation } from '@ks/i18n/react'
+import type { DocCardMeta } from '../lib/types'
+import { BelegListe } from './beleg-liste/beleg-liste'
+import { QuellenListe } from './beleg-liste/quellen-liste'
+
+export interface ReferencesSheetProps {
   open: boolean
-  /** Callback für Öffnen/Schließen */
   onOpenChange: (open: boolean) => void
-  /** Library ID */
   libraryId: string
-  /** Modus: 'answer' für Antwort-Quellenverzeichnis (GroupedItemsView), 'toc' für TOC-Quellenverzeichnis (ItemsView) */
+  /** `answer`: Belege der gezeigten Antwort; `toc`: der gefilterte Bestand der Uebersicht. */
   mode: 'answer' | 'toc'
-  /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
-  viewMode?: ViewMode
-  /** Callback für View-Mode-Änderung */
-  onViewModeChange?: (mode: ViewMode) => void
-  /** Gleiche effektive Dichte wie in GalleryRoot (inkl. Session-Override). */
-  cardDensity?: GalleryCardDensity
-  onCardDensityChange?: (density: GalleryCardDensity) => void
-  /** Referenzen für Antwort-Modus */
-  references?: DocReference[]
-  /** QueryId für Antwort-Modus */
-  queryId?: string
-  /** Callback für Dokument-Öffnen (optional: Fallback für Dokumente ohne slug) */
+  libraryDetailViewType?: string
   onOpenDocument?: (doc: DocCardMeta) => void
-  /** Callback für Filter zurücksetzen */
-  onClearFilters?: () => void
-  /** Props für TOC-Modus: Gefilterte Dokumente und Jahrgangs-Gruppierung */
-  filteredDocs?: DocCardMeta[]
-  docsByYear?: Array<[number | string, DocCardMeta[]]>
-  /** Props für Answer-Modus: Gruppierte Dokumente */
+  /** Antwort-Modus */
+  references?: DocReference[]
   usedDocs?: DocCardMeta[]
   unusedDocs?: DocCardMeta[]
-  /** Sources für Answer-Modus */
-  sources?: QuerySource[]
-  /** Loading-State */
+  /** In den Katalog (Mitte zur Uebersicht); das Blatt schliesst dabei. */
+  onKatalog?: () => void
+  /** Uebersichts-Modus */
+  docs?: DocCardMeta[]
+  anzahl?: number
+  hasMore?: boolean
+  isLoadingMore?: boolean
+  onLoadMore?: () => void
+  filterAnzeige?: ReactNode
   loading?: boolean
-  /** Error-State */
   error?: string | null
 }
 
-/**
- * Fullscreen-Sheet für Mobile, das das Quellenverzeichnis anzeigt
- * 
- * - Modus 'answer': Zeigt GroupedItemsGrid mit verwendeten und nicht verwendeten Dokumenten
- * - Modus 'toc': Zeigt ItemsGrid mit allen Dokumenten (normale Jahres-Gruppierung)
- */
 export function ReferencesSheet({
   open,
   onOpenChange,
   libraryId,
   mode,
-  viewMode = 'grid',
-  onViewModeChange,
-  cardDensity = 'comfortable',
-  onCardDensityChange,
-  references,
-  queryId,
+  libraryDetailViewType,
   onOpenDocument,
-  filteredDocs = [],
-  docsByYear = [],
+  references = [],
   usedDocs = [],
   unusedDocs = [],
-  sources = [],
+  onKatalog,
+  docs = [],
+  anzahl = 0,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
+  filterAnzeige,
   loading = false,
   error = null,
 }: ReferencesSheetProps) {
   const { t } = useTranslation()
-  const [localViewMode, setLocalViewMode] = React.useState<ViewMode>(viewMode)
-
-  // Synchronisiere lokalen View-Mode mit Prop
-  React.useEffect(() => {
-    if (viewMode !== undefined) {
-      setLocalViewMode(viewMode)
-    }
-  }, [viewMode])
-
-  // Handler für View-Mode-Änderung
-  const handleViewModeChange = (mode: ViewMode) => {
-    setLocalViewMode(mode)
-    if (onViewModeChange) {
-      onViewModeChange(mode)
-    }
-  }
-
-  // Aktueller View-Mode (verwende Prop falls vorhanden, sonst lokalen State)
-  const currentViewMode = viewMode !== undefined ? viewMode : localViewMode
-
-  // Handler für Schließen im Answer-Modus (wird an GroupedItemsView übergeben)
-  const handleCloseAnswer = () => {
-    onOpenChange(false)
-  }
-
-  // Handler für Schließen im TOC-Modus
-  const handleCloseTOC = () => {
-    onOpenChange(false)
-  }
+  const schliessen = () => onOpenChange(false)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
-        side="right" 
-        className="w-full sm:max-w-2xl overflow-hidden flex flex-col p-0"
-        hideCloseButton={true}
-      >
-        {/* SheetTitle für Barrierefreiheit */}
+      <SheetContent side="right" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-2xl" hideCloseButton={true}>
         <SheetTitle className="sr-only">{mode === 'toc' ? t('gallery.tocReferences') : t('gallery.references')}</SheetTitle>
-        
-        {/* Header mit Titel, View-Mode-Toggle und Schließen-Button nur im TOC-Modus (im Answer-Modus hat GroupedItemsView bereits einen Header) */}
-        {mode === 'toc' && (
-          <div className="flex flex-col gap-2 mb-2 pb-2 px-6 pt-6 border-b flex-shrink-0">
-            {/* Titel und Close-Button in einer Zeile */}
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">{t('gallery.tocReferences')}</h2>
-              <div className="flex items-center gap-2">
-                {/* View-Mode-Toggle - nur auf Desktop neben dem Close-Button */}
-                {onViewModeChange && (
-                  <div className="hidden lg:flex items-center gap-2">
-                    {currentViewMode === 'grid' && onCardDensityChange && (
-                      <GalleryCardDensityToggle
-                        cardDensity={cardDensity}
-                        onCardDensityChange={onCardDensityChange}
-                        compact
-                      />
-                    )}
-                    <ViewModeToggle viewMode={currentViewMode} onViewModeChange={handleViewModeChange} compact />
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCloseTOC}
-                  className="gap-2"
-                  aria-label={t('gallery.closeReferences')}
-                >
-                  <X className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t('gallery.closeReferences')}</span>
-                </Button>
-              </div>
-            </div>
-            {/* View-Mode-Toggle - unterhalb des Close-Buttons auf Mobile */}
-            {onViewModeChange && (
-              <div className="flex items-center justify-end gap-2 lg:hidden">
-                {currentViewMode === 'grid' && onCardDensityChange && (
-                  <GalleryCardDensityToggle
-                    cardDensity={cardDensity}
-                    onCardDensityChange={onCardDensityChange}
-                    compact
-                  />
-                )}
-                <ViewModeToggle viewMode={currentViewMode} onViewModeChange={handleViewModeChange} compact />
-              </div>
-            )}
-          </div>
+        {mode === 'answer' ? (
+          <BelegListe
+            references={references}
+            usedDocs={usedDocs}
+            unusedDocs={unusedDocs}
+            libraryId={libraryId}
+            libraryDetailViewType={libraryDetailViewType}
+            katalogAnzahl={anzahl}
+            onOpenDocument={onOpenDocument}
+            onZuklappen={schliessen}
+            onKatalog={() => {
+              schliessen()
+              onKatalog?.()
+            }}
+          />
+        ) : (
+          <QuellenListe
+            docs={docs}
+            anzahl={anzahl}
+            loading={loading}
+            error={error}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={onLoadMore ?? (() => undefined)}
+            libraryId={libraryId}
+            libraryDetailViewType={libraryDetailViewType}
+            filterAnzeige={filterAnzeige}
+            onOpenDocument={onOpenDocument}
+            onZuklappen={schliessen}
+          />
         )}
-
-        <ScrollArea className={`flex-1 px-6`}>
-          {mode === 'answer' ? (
-            <>
-              {loading ? (
-                <div className="text-sm text-muted-foreground py-8">Lade Dokumente…</div>
-              ) : error ? (
-                <div className="text-sm text-destructive py-8">{error}</div>
-              ) : references && references.length > 0 && (usedDocs.length > 0 || unusedDocs.length > 0) ? (
-                <GroupedItemsView
-                  viewMode={currentViewMode}
-                  onViewModeChange={handleViewModeChange}
-                  usedDocs={usedDocs}
-                  unusedDocs={unusedDocs}
-                  references={references}
-                  sources={sources}
-                  queryId={queryId}
-                  libraryId={libraryId}
-                  onOpenDocument={onOpenDocument}
-                  onClose={handleCloseAnswer}
-                  cardDensity={cardDensity}
-                  onCardDensityChange={onCardDensityChange}
-                />
-              ) : (
-                <div className="text-sm text-muted-foreground py-8">
-                  Keine Referenzen verfügbar.
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {loading ? (
-                <div className="text-sm text-muted-foreground py-8">Lade Dokumente…</div>
-              ) : error ? (
-                <div className="text-sm text-destructive py-8">{error}</div>
-              ) : filteredDocs.length === 0 ? (
-                <div className="text-sm text-muted-foreground py-8">
-                  Keine Dokumente gefunden.
-                </div>
-              ) : (
-                <ItemsView
-                  viewMode={currentViewMode}
-                  docsByYear={docsByYear}
-                  onOpen={onOpenDocument}
-                  libraryId={libraryId}
-                  cardDensity={cardDensity}
-                />
-              )}
-            </>
-          )}
-        </ScrollArea>
       </SheetContent>
     </Sheet>
   )
 }
-

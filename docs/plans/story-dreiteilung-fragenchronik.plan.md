@@ -1278,8 +1278,8 @@ Neu dazugekommen (beim Bauen gesehen):
 - **Mobil-Blatt zeigt die alte Referenzliste** (`GroupedItemsView` →
   `ReferenceList`): Dateiname statt Titel, Nummern als `[14-56]`, keine
   Anker `beleg-<n>` — der Sprung von D12i findet dort keine Karte, und nach
-  D12k stehen im Text andere Nummern als im Blatt. Vorschlag D12m: das Blatt
-  im Modus „answer" auf `BelegListe` umstellen.
+  D12k stehen im Text andere Nummern als im Blatt. → Gebaut als D12m
+  (04.10.), beide Modi.
 - Live gesehen 03.10. (Antwort „Schwerverkehr auf Schiene verlagern“,
   Servernummern bis 56): 20 Marken, Nummern 1–18, Karten `beleg-1` bis
   `beleg-18`, Marke 20 px / 12 px, Textstellen zu. Tooltip dort noch der
@@ -1394,6 +1394,20 @@ Klimamaßnahmen, nicht des Bestands; die Quellenliste muss generisch sein
 Kennzeile aus der Typ-Konfig, rechts der Knopf zur Detailansicht als
 Symbol; keine Plakette, keine untere Zeile, eine Zeile hoch. Die
 `BelegKarte` unter einer Antwort bleibt wie in D12k.
+
+### Stand D12m (gebaut 04.10.2026, lokal) — Quellen-Blatt der schmalen Ansicht zeigt dieselben Listen
+
+Owner 04.10. (schmale Breite): „Quellenverzeichnis Themenübersicht" unter
+den Karten öffnete das Blatt von D4 mit dem alten Galerie-Raster (Bilder,
+Ansichts-Umschalter, Dichte) — „im Source-Code doppelt". Was steht:
+`ReferencesSheet` rendert `QuellenListe` (Modus `toc`) bzw. `BelegListe`
+(Modus `answer`) — exakt die Listen der Desktop-Spalte, mit Zähler,
+Filter-Chips, Nachladen, Marken und Ankern (der Sprung aus D12i findet
+jetzt auch im Blatt seine Karte). Das X der Listen schließt das Blatt; der
+Katalog-Weg schließt es und schickt die Mitte zur Übersicht (D12l).
+Weggefallen im Blatt: `ItemsView`, `GroupedItemsView`, `ViewModeToggle`,
+Dichte-Umschalter. Belege: `references-sheet.test.tsx`. Live (800 px):
+Blatt mit 50 Karten, keine Bilder.
 
 ## Offene Punkte aus dem Designkonzept (01.10.)
 
