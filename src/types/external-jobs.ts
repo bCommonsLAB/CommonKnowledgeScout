@@ -161,6 +161,28 @@ export interface ImagesResult {
 }
 
 // --- Ingestion ---
+/** Ein Kapitel des unsichtbaren Ingest-Anhangs (Transkript einer verbundenen Quelle). */
+export interface SourceAppendixSection {
+  /** Laufende Nummer, 1-basiert — erscheint als „Anhang N" in der Quellenangabe. */
+  index: number
+  /** Kapitelueberschrift, z. B. „Anhang 2: Folien.pdf (Transkript)". */
+  title: string
+  sourceName: string
+  art: 'Transkript' | 'Transformation' | 'Markdown'
+  /** Zeichen-Offsets des Kapitels innerhalb von `SourceAppendix.markdown`. */
+  start: number
+  end: number
+}
+
+/**
+ * Unsichtbarer letzter Abschnitt fuer die Ingestion: wird nur an den
+ * eingebetteten Text gehaengt, nie an `docMetaJson.markdown` (Anzeige).
+ */
+export interface SourceAppendix {
+  markdown: string
+  sections: SourceAppendixSection[]
+}
+
 export interface IngestArgs {
   ctx: RequestContext
   savedItemId: string
@@ -171,6 +193,8 @@ export interface IngestArgs {
   shadowTwinFolderId?: string
   /** Parent-Ordner der Quelldatei — ermöglicht Sibling-Suche für Medien (Bilder im selben Verzeichnis) */
   sourceParentId?: string
+  /** Transkripte der verbundenen Quellen als unsichtbarer Anhang (siehe ingest-source-appendix.ts). */
+  sourceAppendix?: SourceAppendix
 }
 
 export interface IngestResult {

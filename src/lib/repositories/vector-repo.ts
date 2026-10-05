@@ -816,10 +816,23 @@ export async function queryVectors(
           speakers: 1,
           date: 1,
           shortTitle: 1,
+          // Herkunft des Chunks (Retriever-Quellenangabe): Seite, Kapitel,
+          // Slide und der unsichtbare Ingest-Anhang. Ohne diese Felder kamen
+          // sourceType & Co. nie beim Retriever an (chunks.ts liest sie aus meta).
+          page: 1,
+          sourceType: 1,
+          slidePageNum: 1,
+          slideTitle: 1,
+          chapterTitle: 1,
+          chapterOrder: 1,
+          chapterId: 1,
+          anhangIndex: 1,
+          anhangTitle: 1,
+          anhangQuelle: 1,
         },
       },
   ]
-  
+
   let results: Document[]
   try {
     results = await col
@@ -914,6 +927,16 @@ Siehe: docs/mongodb-vector-search-index.md für Details.`
       metadata.endChar = typeof doc.endChar === 'number' ? doc.endChar : undefined
       // D7: Seite der Textstelle (nur Quellen mit Seitenankern)
       metadata.page = typeof doc.page === 'number' ? doc.page : undefined
+      // Herkunft des Chunks fuer die Quellenangabe (chunks.ts liest sie aus meta)
+      metadata.sourceType = typeof doc.sourceType === 'string' ? doc.sourceType : undefined
+      metadata.slidePageNum = typeof doc.slidePageNum === 'number' ? doc.slidePageNum : undefined
+      metadata.slideTitle = typeof doc.slideTitle === 'string' ? doc.slideTitle : undefined
+      metadata.chapterTitle = typeof doc.chapterTitle === 'string' ? doc.chapterTitle : undefined
+      metadata.chapterOrder = typeof doc.chapterOrder === 'number' ? doc.chapterOrder : undefined
+      metadata.chapterId = typeof doc.chapterId === 'string' ? doc.chapterId : undefined
+      metadata.anhangIndex = typeof doc.anhangIndex === 'number' ? doc.anhangIndex : undefined
+      metadata.anhangTitle = typeof doc.anhangTitle === 'string' ? doc.anhangTitle : undefined
+      metadata.anhangQuelle = typeof doc.anhangQuelle === 'string' ? doc.anhangQuelle : undefined
     }
     
     // Meta-Dokument-spezifische Felder

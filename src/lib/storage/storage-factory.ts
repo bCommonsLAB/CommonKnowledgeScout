@@ -667,6 +667,27 @@ export class StorageFactory {
     }
   }
 
+  /**
+   * Eine einzelne Library nach dem Speichern (PATCH) in der Factory nachziehen.
+   *
+   * Hintergrund: Der Jotai-Zustand wird nach dem Speichern aktualisiert, die
+   * Factory hielt aber weiter die alte Kopie (z. B. Typ `local` statt
+   * `nextcloud`) und baute daraus den falschen Provider — der Verzeichnis-
+   * Picker rief dann `/api/storage/filesystem` fuer eine Nextcloud-Library.
+   * Der gecachte Provider wird verworfen; `getProvider` baut ihn aus der
+   * neuen Config neu.
+   */
+  updateLibrary(library: ClientLibrary): void {
+    const index = this.libraries.findIndex(lib => lib.id === library.id);
+    if (index >= 0) {
+      this.libraries[index] = library;
+    } else {
+      this.libraries.push(library);
+    }
+    this.providers.delete(library.id);
+    this.providerConfigKeys.delete(library.id);
+  }
+
   // Löscht einen bestimmten Provider aus dem Cache, um eine Neuinitialisierung zu erzwingen
   async clearProvider(libraryId: string): Promise<void> {
     console.log(`StorageFactory: Lösche Provider für Bibliothek ${libraryId} aus dem Cache`);

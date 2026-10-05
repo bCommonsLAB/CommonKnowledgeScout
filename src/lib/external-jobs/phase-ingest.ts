@@ -14,6 +14,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { gateIngestRag } from '@/lib/processing/gates'
 import { runIngestion } from '@/lib/external-jobs/ingest'
+import { buildSourceAppendix } from '@/lib/external-jobs/ingest-source-appendix'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
@@ -331,6 +332,33 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
 
   let res
   try {
+    // Unsichtbarer Anhang: Transkripte der verbundenen Quellen (Sammeldatei)
+    // bzw. das eigene Transkript (Einzelquelle mit Transformation). Fehlt eine
+    // gelistete Quelle, wirft der Builder — der Ingest scheitert laut.
+    const sourceItemId = (job.correlation.source?.itemId as string | undefined) || fileId
+    const sourceName = (job.correlation.source?.name as string | undefined) || fileName
+    // Elternordner nur fuer Sammeldateien noetig (Pfade in `_source_files`);
+    // der Builder wirft, wenn er fehlt und gebraucht wird.
+    const appendixParentId = sourceParentId
+      || (await ingestionProvider.getItemById(sourceItemId).catch(() => null))?.parentId
+    const sourceAppendix = await buildSourceAppendix({
+      libraryId: job.libraryId,
+      sourceId: sourceItemId,
+      sourceName,
+      parentId: appendixParentId,
+      targetLanguage: (job.correlation.options?.targetLanguage as string | undefined) || 'de',
+      provider: ingestionProvider,
+      meta: metaForIngestWithSource,
+      ingestedIsTransformation: typeof metaForIngestWithSource.template === 'string'
+        && (metaForIngestWithSource.template as string).trim().length > 0,
+    })
+    if (sourceAppendix) {
+      bufferLog(jobId, {
+        phase: 'ingest_anhang',
+        message: `Anhang gebaut: ${sourceAppendix.sections.length} Quelle(n), ${sourceAppendix.markdown.length} Zeichen — ${sourceAppendix.sections.map((s) => s.title).join(' | ')}`,
+      })
+    }
+
     res = await runIngestion({
       ctx,
       savedItemId: fileId,
@@ -340,6 +368,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       provider: ingestionProvider,
       shadowTwinFolderId,
       sourceParentId,
+      sourceAppendix: sourceAppendix ?? undefined,
     })
   } catch (err) {
     // Ingestion fehlgeschlagen → Step/Job als failed markieren
