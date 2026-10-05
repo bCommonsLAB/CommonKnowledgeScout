@@ -463,8 +463,11 @@ export function useStorageForm(): UseStorageFormResult {
 
       if (!response.ok) throw new Error(`Fehler beim Speichern: ${response.statusText}`);
 
-      const updatedLibrary = await response.json();
+      const updatedLibrary = await response.json() as ClientLibrary;
       setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
+      // Factory nachziehen, sonst baut der Verzeichnis-Picker den Provider
+      // weiter aus der alten Kopie (Typ/Config von vor dem Speichern).
+      StorageFactory.getInstance().updateLibrary(updatedLibrary);
       toast.success("Erfolg", { description: "Die Einstellungen wurden gespeichert." });
       console.log('[StorageForm] === SUBMIT END ===');
     } catch (error) {
