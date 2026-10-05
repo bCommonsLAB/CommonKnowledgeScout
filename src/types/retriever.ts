@@ -20,7 +20,9 @@ export interface RetrievedSource {
   text: string
   /** D7: Seite der Textstelle — nur bei Quellen mit Seitenankern (`--- Seite N ---`), sonst fehlt das Feld. */
   page?: number
-  sourceType?: 'slides' | 'body' | 'video_transcript' | 'chapter' // Quelle des Chunks
+  sourceType?: 'slides' | 'body' | 'video_transcript' | 'chapter' | 'anhang' // Quelle des Chunks
+  anhangIndex?: number // Für Anhang: laufende Nummer des Quellen-Kapitels im unsichtbaren Ingest-Anhang
+  anhangQuelle?: string // Für Anhang: Dateiname der verbundenen Quelle (Audio, PDF, …)
   // Zusätzliche Metadaten für benutzerfreundliche Beschreibungen
   slidePageNum?: number // Für Slides: Seiten-Nummer
   slideTitle?: string // Für Slides: Titel der Slide

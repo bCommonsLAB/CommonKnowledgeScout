@@ -455,13 +455,16 @@ export const chunksRetriever: ChatRetriever = {
       }
       
       // Extrahiere sourceType und zusätzliche Metadaten für benutzerfreundliche Beschreibungen
-      const sourceType = typeof meta.sourceType === 'string' 
-        ? meta.sourceType as 'slides' | 'body' | 'video_transcript' | 'chapter'
+      const sourceType = typeof meta.sourceType === 'string'
+        ? meta.sourceType as 'slides' | 'body' | 'video_transcript' | 'chapter' | 'anhang'
         : undefined
       const slidePageNum = typeof meta.slidePageNum === 'number' ? meta.slidePageNum : undefined
       const slideTitle = typeof meta.slideTitle === 'string' ? meta.slideTitle : undefined
       const chapterTitle = typeof meta.chapterTitle === 'string' ? meta.chapterTitle : undefined
       const chapterOrder = typeof meta.chapterOrder === 'number' ? meta.chapterOrder : undefined
+      // Unsichtbarer Ingest-Anhang: Nummer und Quelle des Kapitels
+      const anhangIndex = typeof meta.anhangIndex === 'number' ? meta.anhangIndex : undefined
+      const anhangQuelle = typeof meta.anhangQuelle === 'string' ? meta.anhangQuelle : undefined
       // D7: Seite der Textstelle, nur bei Quellen mit Seitenankern
       const page = typeof meta.page === 'number' ? meta.page : undefined
       
@@ -481,6 +484,8 @@ export const chunksRetriever: ChatRetriever = {
         slideTitle,
         chapterTitle,
         chapterOrder,
+        anhangIndex,
+        anhangQuelle,
         metadata: Object.keys(facetMetadata).length > 0 ? facetMetadata : undefined, // Nur wenn Werte vorhanden sind
       }
       

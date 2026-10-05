@@ -70,7 +70,14 @@ export function getSourceDescription(source: RetrievedSource): string {
   if (source.sourceType === 'chapter' && source.chapterTitle) {
     return `Chapter "${source.chapterTitle}"${source.chapterOrder !== undefined ? ` (${source.chapterOrder})` : ''}`
   }
-  
+  if (source.sourceType === 'anhang') {
+    // Unsichtbarer Ingest-Anhang: Transkript einer verbundenen Quelle (Audio, PDF, …)
+    const nr = source.anhangIndex !== undefined ? ` ${source.anhangIndex}` : ''
+    const quelle = source.anhangQuelle ? `: ${source.anhangQuelle}` : ''
+    const seite = source.page !== undefined ? `, Seite ${source.page}` : ''
+    return `Anhang${nr}${quelle}${seite}`
+  }
+
   // Fallback: Check metadata even without sourceType (for older documents)
   if (source.chapterTitle) {
     return `Chapter "${source.chapterTitle}"${source.chapterOrder !== undefined ? ` (${source.chapterOrder})` : ''}`

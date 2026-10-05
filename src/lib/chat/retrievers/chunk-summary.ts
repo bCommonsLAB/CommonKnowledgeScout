@@ -173,6 +173,8 @@ export const chunkSummaryRetriever: ChatRetriever = {
         chapterTitle: doc.chapterTitle as string | undefined,
         chapterOrder: doc.chapterOrder as number | undefined,
         chapterId: doc.chapterId as string | undefined,
+        anhangIndex: doc.anhangIndex as number | undefined,
+        anhangQuelle: doc.anhangQuelle as string | undefined,
       },
     }))
     
@@ -220,7 +222,7 @@ export const chunkSummaryRetriever: ChatRetriever = {
       
       // Extrahiere sourceType und zusätzliche Metadaten
       const sourceType = typeof meta.sourceType === 'string' 
-        ? meta.sourceType as 'slides' | 'body' | 'video_transcript' | 'chapter'
+        ? meta.sourceType as 'slides' | 'body' | 'video_transcript' | 'chapter' | 'anhang'
         : undefined
       const slidePageNum = typeof meta.slidePageNum === 'number' 
         ? meta.slidePageNum 
@@ -231,10 +233,13 @@ export const chunkSummaryRetriever: ChatRetriever = {
       const chapterTitle = typeof meta.chapterTitle === 'string' 
         ? meta.chapterTitle 
         : undefined
-      const chapterOrder = typeof meta.chapterOrder === 'number' 
-        ? meta.chapterOrder 
+      const chapterOrder = typeof meta.chapterOrder === 'number'
+        ? meta.chapterOrder
         : undefined
-      
+      // Unsichtbarer Ingest-Anhang: Nummer und Quelle des Kapitels
+      const anhangIndex = typeof meta.anhangIndex === 'number' ? meta.anhangIndex : undefined
+      const anhangQuelle = typeof meta.anhangQuelle === 'string' ? meta.anhangQuelle : undefined
+
       // Extrahiere Metadaten basierend auf Facetten-Definitionen
       const facetMetadata = extractFacetMetadata(meta, facetDefs)
       
@@ -253,6 +258,8 @@ export const chunkSummaryRetriever: ChatRetriever = {
         slideTitle,
         chapterTitle,
         chapterOrder,
+        anhangIndex,
+        anhangQuelle,
         metadata: Object.keys(facetMetadata).length > 0 ? facetMetadata : undefined,
       })
       
