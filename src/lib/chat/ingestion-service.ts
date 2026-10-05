@@ -10,6 +10,9 @@ import { getRetrieverContext } from '@/lib/chat/retriever-context'
 import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ImageProcessor } from '@/lib/ingestion/image-processor'
+import { resolveSlideImagesFromTwinFragments } from '@/lib/ingestion/slide-image-resolver'
+import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
+import type { SourceAppendix } from '@/types/external-jobs'
 import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
 import { extractFacetValues, buildVectorDocuments } from '@/lib/ingestion/vector-builder'
 import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
@@ -102,6 +105,8 @@ export class IngestionService {
     provider?: StorageProvider,
     shadowTwinFolderId?: string,
     sourceParentId?: string,
+    /** Transkripte der verbundenen Quellen — nur fuer den eingebetteten Text, nie fuer die Anzeige. */
+    sourceAppendix?: SourceAppendix,
   ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string; imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }> }> {
     const repo = new ExternalJobsRepository()
     const retrieverCtx = await getRetrieverContext(userEmail, libraryId)
@@ -215,8 +220,18 @@ export class IngestionService {
           }
           
           try {
+            // Nackte Dateinamen (wie bei galleryImageUrls) zuerst ueber die
+            // Fragmente des eigenen Twins heben — die Seitenbilder einer
+            // Sammeldatei liegen dort schon im Blob. Rest geht in den Pfad-Upload.
+            const viaFragments = await resolveSlideImagesFromTwinFragments(libraryId, fileId, slidesInput)
+            if (jobId && viaFragments.unresolved.length > 0) {
+              bufferLog(jobId, {
+                phase: 'slide_images_processing',
+                message: `${viaFragments.unresolved.length} Slide-Bild(er) ohne Twin-Fragment: ${viaFragments.unresolved.join(', ')}`,
+              })
+            }
             const result = await ImageProcessor.processSlideImages(
-              slidesInput,
+              viaFragments.slides,
               provider,
               libraryId,
               fileId,
@@ -308,7 +323,13 @@ export class IngestionService {
       let coverImageUrl: string | null = null
       const isSessionMode = chaptersInput.length === 0 && Array.isArray((metaEffective as { slides?: unknown }).slides) && ((metaEffective as { slides?: unknown }).slides as Array<unknown>).length > 0
       
-      if (provider && !isSessionMode && body && typeof body === 'string' && body.trim().length > 0) {
+      // Die Medien-Aufloesung (Cover, Anhaenge, Galerie, Markdown-Bilder) laeuft
+      // auch im Session-Modus: Vortrags-Sammeldateien tragen Cover und Anhaenge
+      // als Dateinamen UND Slides. Frueher war der Block mit `!isSessionMode`
+      // gesperrt (Sessions kamen fertig aus dem Secretary-Archiv), dann blieb
+      // `coverImageUrl: preview_002.jpg` als nackter Name stehen. `isSessionMode`
+      // steuert weiterhin nur den Blob-Bereich (`sessions`/`books`).
+      if (provider && body && typeof body === 'string' && body.trim().length > 0) {
         // Lokale Referenz: In verschachtelten async-Closures bleibt `provider` sonst `| undefined` (TS)
         const storageProvider: StorageProvider = provider
         try {
@@ -864,7 +885,7 @@ export class IngestionService {
           }
         }
       } else {
-        // Kein Provider oder Session-Modus: Markdown unverändert verwenden
+        // Kein Provider oder kein Body: Markdown unverändert verwenden
         if (body && typeof body === 'string' && body.trim().length > 0) {
           docMetaJsonObj.markdown = body.trim()
         }
@@ -1294,11 +1315,18 @@ export class IngestionService {
       
       // Metadaten als Text-Präfix vor das Markdown setzen, um Embedding-Qualität zu verbessern
       const metadataPrefix = buildMetadataPrefix(docMetaJsonObj)
-      const finalMarkdown = metadataPrefix ? `${metadataPrefix}\n\n${DOKUMENT_BODY_MARKER}\n\n${baseMarkdown}` : baseMarkdown
-      
+      const bodyMarkdown = metadataPrefix ? `${metadataPrefix}\n\n${DOKUMENT_BODY_MARKER}\n\n${baseMarkdown}` : baseMarkdown
+      // Unsichtbarer Anhang (Transkripte der verbundenen Quellen) nur im
+      // eingebetteten Text; `docMetaJsonObj.markdown` (Anzeige) bleibt der Body.
+      const anhangOffset = bodyMarkdown.length + 2
+      const finalMarkdown = sourceAppendix ? `${bodyMarkdown}\n\n${sourceAppendix.markdown}` : bodyMarkdown
+
       // Secretary Service RAG Embedding aufrufen
-      FileLogger.info('ingestion', 'Starte RAG Embedding über Secretary Service', { fileId, markdownLength: finalMarkdown.length, metadataPrefixLength: metadataPrefix?.length || 0 })
-      if (jobId) bufferLog(jobId, { phase: 'ingest_rag_start', message: `RAG Embedding gestartet: ${finalMarkdown.length} Zeichen (${metadataPrefix?.length || 0} Zeichen Metadaten-Präfix)` })
+      FileLogger.info('ingestion', 'Starte RAG Embedding über Secretary Service', {
+        fileId, markdownLength: finalMarkdown.length, metadataPrefixLength: metadataPrefix?.length || 0,
+        anhangLength: sourceAppendix?.markdown.length || 0, anhangKapitel: sourceAppendix?.sections.length || 0,
+      })
+      if (jobId) bufferLog(jobId, { phase: 'ingest_rag_start', message: `RAG Embedding gestartet: ${finalMarkdown.length} Zeichen (${metadataPrefix?.length || 0} Zeichen Metadaten-Präfix, ${sourceAppendix?.markdown.length || 0} Zeichen Anhang in ${sourceAppendix?.sections.length || 0} Kapiteln)` })
       
       let ragResult
       try {
@@ -1323,9 +1351,15 @@ export class IngestionService {
       const facetValues = extractFacetValues(mongoDoc, docMetaJsonObj, facetDefs)
       // D7: Seite je Chunk aus den Ankern DESSELBEN Textes, der eingebettet wurde
       // (Chunk-Offsets beziehen sich auf finalMarkdown); ohne Anker keine Seiten.
-      const pageSpans = splitByPages(finalMarkdown)
+      // Mit Anhang: Body-Anker und Anhang-Anker getrennt, sonst faerben PDF-Seiten des Anhangs auf den Body ab.
+      const pageSpans = anhangPageSpans(bodyMarkdown, sourceAppendix, anhangOffset)
       const vectors = buildVectorDocuments(ragResult, fileId, fileName, libraryId, userEmail, facetValues, pageSpans)
-      
+      const anhangChunks = markiereAnhangChunks(vectors, sourceAppendix, anhangOffset)
+      if (sourceAppendix) {
+        FileLogger.info('ingestion', 'Anhang-Chunks markiert', { fileId, anhangChunks, gesamt: vectors.length })
+        if (jobId) bufferLog(jobId, { phase: 'ingest_anhang', message: `${anhangChunks} von ${vectors.length} Chunks stammen aus dem Anhang (${sourceAppendix.sections.length} Quellen)` })
+      }
+
       // Aktualisiere chunksUpserted mit der tatsächlichen Anzahl der Vektoren
       chunksUpserted = vectors.length
       
