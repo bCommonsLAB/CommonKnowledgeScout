@@ -122,6 +122,8 @@ export interface PreviewViewProps {
     coverImage?: CoverImageOptions
     llmModel?: string
     customHint?: string
+    slidesAsTable?: boolean
+    appendixInSearch?: boolean
   }) => Promise<void>
   pipelineDefaultSteps: { extract: boolean; metadata: boolean; ingest: boolean } | undefined
   pipelineDefaultForce: boolean

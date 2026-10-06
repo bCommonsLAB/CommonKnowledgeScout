@@ -50,6 +50,7 @@ import { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 import { dateFehlt, datumAusPfad } from './datum-aus-pfad'
 import { datumAusZeitstempel } from './datum-aus-datei'
 import { getMediaKind } from '@/lib/media-types'
+import { applySlidesOption } from '@/lib/external-jobs/template-slides-option'
 export { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 
 export interface TemplatePhaseArgs {
@@ -739,8 +740,20 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     preferredTemplate = picked.templateName
     
     // Template wurde erfolgreich geladen
-    const templateContent = picked.templateContent
     await repo.appendMeta(jobId, { template_used: picked.templateName }, 'template_pick')
+
+    // P6 „Slides als Tabelle fuehren": ohne Haken wird `slides` fuer diesen Lauf
+    // aus der Vorlage genommen (Lauf-Parameter, Vorlage in MongoDB bleibt).
+    // Jede Ausprägung landet im Trace — kein stiller Default.
+    const slidesOption = applySlidesOption(picked.templateContent, job.parameters?.slidesAsTable)
+    const templateContent = slidesOption.content
+    try {
+      await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_slides_option', attributes: slidesOption.trace })
+    } catch (traceError) {
+      FileLogger.warn('phase-template', 'Trace-Event template_slides_option konnte nicht geschrieben werden', {
+        jobId, error: traceError instanceof Error ? traceError.message : String(traceError),
+      })
+    }
     
     // Warnung, wenn Preferred Template nicht gefunden wurde (sollte nicht passieren, da Fehler geworfen wird)
     if (!picked.isPreferred && preferredTemplate) {

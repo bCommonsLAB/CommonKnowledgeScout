@@ -17,6 +17,11 @@ Die Dokumentenverarbeitung erfolgt in drei Phasen, die über External Jobs orche
 └──────────────────┴──────────────────────┴──────────────────────────────┘
 ```
 
+Wie Sammeldatei, Vorlage, Folien-Tabelle (`slides`) und der unsichtbare
+Ingest-Anhang zusammenspielen, steht in
+[sammeldatei-vorlage-slides-anhang.md](sammeldatei-vorlage-slides-anhang.md)
+(inkl. der beiden Lauf-Optionen `slidesAsTable` und `appendixInSearch`).
+
 ## Unified Pipeline Endpoint
 
 Alle Pipeline-Operationen laufen über einen zentralen Endpoint:

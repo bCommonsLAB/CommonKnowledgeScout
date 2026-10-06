@@ -150,8 +150,12 @@ export async function runPipelineForFile(args: {
   customHint?: string
   /** LLM-Modell für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
   llmModel?: string
+  /** P6: „Slides als Tabelle fuehren" (nur wenn die Vorlage das Feld hat) */
+  slidesAsTable?: boolean
+  /** P6: „Anhaenge als Text in die Suche" (nur wenn Ingest aktiv) */
+  appendixInSearch?: boolean
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel, slidesAsTable, appendixInSearch } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
@@ -184,6 +188,9 @@ export async function runPipelineForFile(args: {
     customHint,
     // LLM-Modell für Template-Transformation
     llmModel,
+    // Idee-F-Optionen (P6): nur explizit gesetzte Werte
+    ...(typeof slidesAsTable === 'boolean' ? { slidesAsTable } : {}),
+    ...(typeof appendixInSearch === 'boolean' ? { appendixInSearch } : {}),
   }
 
   FileLogger.info('run-pipeline', 'Pipeline starten (Unified Endpoint)', {

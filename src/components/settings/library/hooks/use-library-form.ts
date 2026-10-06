@@ -72,6 +72,8 @@ export const libraryFormSchema = z.object({
   extractionKnownNames: z.string().default(""),
   // P3a: Sprecher-Erkennung als Voreinstellung fuer Audio-Transkriptionen. Default false.
   transcriptionSpeakerMode: z.boolean().default(false),
+  // P6: Voreinstellung „Anhaenge als Text in die Suche". Default AN (Owner 05.10.2026).
+  ingestSourceAppendix: z.boolean().default(true),
   // Agentensicht (Welle 1/3): Archiv-Konventionen der Library. Das Muster wird
   // clientseitig als Regex validiert — sonst wirft erst der Scan (laut, aber spaet).
   agentViewVorhabenPattern: z
@@ -303,6 +305,7 @@ export function useLibraryForm(createNew: boolean) {
       scanExcludeGlobs: "",
       extractionKnownNames: "",
       transcriptionSpeakerMode: false,
+      ingestSourceAppendix: true,
       agentViewEnabled: false,
       agentViewVorhabenPattern: "",
       agentViewIndexDepth: "",
@@ -413,6 +416,7 @@ export function useLibraryForm(createNew: boolean) {
         scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
         extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
         transcriptionSpeakerMode: activeLibrary.config?.transcriptionSpeakerMode === true,
+        ingestSourceAppendix: activeLibrary.config?.ingestSourceAppendix !== false,
         ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
         captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
@@ -451,6 +455,7 @@ export function useLibraryForm(createNew: boolean) {
         scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
         extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
         transcriptionSpeakerMode: activeLibrary.config?.transcriptionSpeakerMode === true,
+        ingestSourceAppendix: activeLibrary.config?.ingestSourceAppendix !== false,
         ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
         captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
@@ -545,6 +550,7 @@ export function useLibraryForm(createNew: boolean) {
             scanExcludeGlobs: data.scanExcludeGlobs.split(/\r?\n/).map((g) => g.trim()).filter(Boolean),
             extractionKnownNames: data.extractionKnownNames.split(/\r?\n/).map((n) => n.trim()).filter(Boolean),
             transcriptionSpeakerMode: data.transcriptionSpeakerMode,
+            ingestSourceAppendix: data.ingestSourceAppendix,
             agentView: {
               enabled: data.agentViewEnabled,
               ...(data.agentViewVorhabenPattern.trim() !== ""
@@ -761,6 +767,7 @@ export function useLibraryForm(createNew: boolean) {
           scanExcludeGlobs: (((importedLibrary as { config?: Record<string, unknown> }).config?.scanExcludeGlobs as string[] | undefined) ?? []).join("\n"),
           extractionKnownNames: (((importedLibrary as { config?: Record<string, unknown> }).config?.extractionKnownNames as string[] | undefined) ?? []).join("\n"),
           transcriptionSpeakerMode: ((importedLibrary as { config?: Record<string, unknown> }).config?.transcriptionSpeakerMode as boolean | undefined) === true,
+          ingestSourceAppendix: ((importedLibrary as { config?: Record<string, unknown> }).config?.ingestSourceAppendix as boolean | undefined) !== false,
           ...readAgentViewForm((importedLibrary as { config?: Record<string, unknown> }).config),
           captureWizards: (importedLibrary as { config?: Record<string, unknown> }).config?.captureWizards as CaptureWizardsConfig | undefined,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
