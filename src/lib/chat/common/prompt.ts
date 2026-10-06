@@ -43,9 +43,22 @@ import {
   AnswerLength,
   SocialContext,
 } from '../constants'
+import type { FacetWert } from '../facet-werte'
+import { formatiereQuellenMetadaten, type KontextFacette } from '../quellen-kontext'
 
 /** Überschrift der Regel-Sektion in der System-Message (Chat und TOC). */
 export const ANTWORTREGELN_UEBERSCHRIFT = 'Library Rules (how to speak about these contents — binding):'
+
+/**
+ * Facetten-Definition, wie der Prompt sie braucht: Label für Filter-Text und
+ * Quellen-Header, Wörterbuch (`werte`) für den Bedeutungskontext je Textstelle (m3).
+ */
+export interface PromptFacetDef {
+  metaKey: string
+  label?: string
+  type: string
+  werte?: FacetWert[]
+}
 
 /**
  * Erstellt eine benutzerfreundliche Beschreibung für eine Quelle
@@ -101,7 +114,12 @@ export function getSourceDescription(source: RetrievedSource): string {
  * Nennung); mehrere Textstellen desselben Dokuments teilen sich eine Nummer
  * und werden als „passage i/n" ausgewiesen.
  */
-export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800): string {
+export function buildContext(
+  sources: RetrievedSource[],
+  perSnippetLimit = 800,
+  /** m3: Labels und Wörterbuch für den Bedeutungskontext je Textstelle; ohne Defs Rohwerte. */
+  facetDefs?: ReadonlyArray<KontextFacette>,
+): string {
   const gruppen = dokumenteNummerieren(sources)
   return sources
     .map((s) => {
@@ -109,28 +127,9 @@ export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800):
       const nummer = nummerFuerQuelle(gruppen, s)
       const gruppe = gruppen.find((g) => g.nummer === nummer)
       const stelle = gruppe ? `passage ${gruppe.sources.indexOf(s) + 1}/${gruppe.sources.length}, ` : ''
-      
-      // Formatierte Metadaten für den Prompt (basierend auf Facetten-Definitionen)
-      const metadataParts: string[] = []
-      if (s.metadata && typeof s.metadata === 'object') {
-        for (const [key, value] of Object.entries(s.metadata)) {
-          if (value === undefined || value === null) continue
-          
-          // Formatierung basierend auf Werttyp
-          if (Array.isArray(value)) {
-            if (value.length > 0) {
-              // Array-Werte: Komma-separiert
-              const arrayStr = value.map(v => String(v)).join(', ')
-              metadataParts.push(`${key}: ${arrayStr}`)
-            }
-          } else if (typeof value === 'string' || typeof value === 'number') {
-            metadataParts.push(`${key}: ${String(value)}`)
-          } else if (typeof value === 'boolean') {
-            metadataParts.push(`${key}: ${value ? 'true' : 'false'}`)
-          }
-        }
-      }
-      
+
+      // Facettenwerte der Textstelle als Klartext mit Bedeutung (quellen-kontext.ts)
+      const metadataParts = formatiereQuellenMetadaten(s.metadata, facetDefs)
       const metadataLine = metadataParts.length > 0 ? ` | ${metadataParts.join(' | ')}` : ''
       
       return `Source [${nummer ?? '?'}] ${s.fileName ?? s.id} (${stelle}${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
@@ -413,12 +412,12 @@ export function buildChatUserMessage(
   answerLength: AnswerLength,
   options?: {
     filters?: Record<string, unknown>
-    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    facetDefs?: PromptFacetDef[]
     candidatesCount?: number
     usedInPrompt?: number
   }
 ): ChatMessage {
-  const context = buildContext(sources)
+  const context = buildContext(sources, undefined, options?.facetDefs)
   const style = styleInstruction(answerLength)
   
   // D7: eine Nummer je Dokument — die Beschreibung nennt alle seine Textstellen
@@ -501,7 +500,7 @@ export function buildChatMessages(
     genderInclusive?: boolean
     chatHistory?: Array<{ question: string; answer: string }>
     filters?: Record<string, unknown>
-    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    facetDefs?: PromptFacetDef[]
     uiLocale?: string
     candidatesCount?: number
     usedInPrompt?: number
@@ -550,11 +549,11 @@ export function buildPrompt(
     genderInclusive?: boolean
     chatHistory?: Array<{ question: string; answer: string }>
     filters?: Record<string, unknown>
-    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    facetDefs?: PromptFacetDef[]
     uiLocale?: string
   }
 ): string {
-  const context = buildContext(sources)
+  const context = buildContext(sources, undefined, options?.facetDefs)
   const style = styleInstruction(answerLength)
   
   // D7: eine Nummer je Dokument — die Beschreibung nennt alle seine Textstellen
@@ -704,10 +703,10 @@ export function buildTOCUserMessage(
   sources: RetrievedSource[],
   options?: {
     filters?: Record<string, unknown>
-    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    facetDefs?: PromptFacetDef[]
   }
 ): ChatMessage {
-  const context = buildContext(sources)
+  const context = buildContext(sources, undefined, options?.facetDefs)
   
   // Create filter text for the prompt
   const filterParts = buildFacetFilterText(options?.filters, options?.facetDefs)
@@ -835,7 +834,7 @@ export function buildTOCMessages(
     socialContext?: SocialContext
     genderInclusive?: boolean
     filters?: Record<string, unknown>
-    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    facetDefs?: PromptFacetDef[]
     uiLocale?: string
     antwortregeln?: string
   }
@@ -882,11 +881,11 @@ export function buildTOCPrompt(
     socialContext?: SocialContext
     genderInclusive?: boolean
     filters?: Record<string, unknown>
-    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    facetDefs?: PromptFacetDef[]
     uiLocale?: string
   }
 ): string {
-  const context = buildContext(sources)
+  const context = buildContext(sources, undefined, options?.facetDefs)
   
   // Create system prompt components based on configuration
   const promptComponents = buildSystemPromptComponents(options)

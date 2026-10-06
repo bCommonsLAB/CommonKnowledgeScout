@@ -54,6 +54,8 @@ interface InsertQueryLogInput
   llmModel?: string
   /** Aufgelöste Antwortregeln der Library (m2) — Teil des Cache-Hashes */
   antwortregeln?: string
+  /** Labels und Wörterbuch der Facetten (m3) — Teil des Cache-Hashes */
+  facettenKontext?: string
 }
 
 /**
@@ -195,6 +197,7 @@ export async function insertQueryLog(doc: InsertQueryLogInput): Promise<string> 
     // Damit Cache-Hash und Cache-Parameter konsistent sind, muss es bei der Berechnung hier bekannt sein.
     llmModel: doc.llmModel,
     antwortregeln: doc.antwortregeln,
+    facettenKontext: doc.facettenKontext,
   })
   
   // Erstelle cacheParams-Objekt für einfaches Debugging (kann einfach kopiert werden)
@@ -214,6 +217,7 @@ export async function insertQueryLog(doc: InsertQueryLogInput): Promise<string> 
     // Speichere llmModel nur als string; vermeide null/'' für saubere Debug-Ausgaben.
     llmModel: cacheHashParams.llmModel || undefined,
     antwortregeln: cacheHashParams.antwortregeln || undefined,
+    facettenKontext: cacheHashParams.facettenKontext || undefined,
   }
   
   // Berechne cacheHash für schnelle Cache-Lookups
@@ -400,6 +404,7 @@ export async function findQueryByQuestionAndContext(args: {
   facetsSelected?: Record<string, unknown> // Optional: Filter nach Facetten
   llmModel?: string // Optional: LLM-Modell-ID (Teil des Cache-Hashes)
   antwortregeln?: string // Optional: aufgelöste Antwortregeln (Teil des Cache-Hashes, m2)
+  facettenKontext?: string // Optional: Labels und Wörterbuch der Facetten (Teil des Cache-Hashes, m3)
 }): Promise<QueryLog | null> {
   const col = await getQueriesCollection()
   
@@ -433,6 +438,7 @@ export async function findQueryByQuestionAndContext(args: {
     facetsSelected: args.facetsSelected,
     llmModel: args.llmModel,
     antwortregeln: args.antwortregeln,
+    facettenKontext: args.facettenKontext,
     library: libraryContext.library, // Verwende Library-Objekt für DocumentCount-Berechnung
   })
   

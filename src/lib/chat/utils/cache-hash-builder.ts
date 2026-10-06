@@ -35,6 +35,8 @@ export interface CacheHashInputParams {
   llmModel?: string
   /** Aufgelöste Antwortregeln der Library (m2), siehe antwortregeln.ts */
   antwortregeln?: string
+  /** Labels und Wörterbuch der Facetten (m3), siehe quellen-kontext.ts */
+  facettenKontext?: string
 }
 
 /**
@@ -137,6 +139,7 @@ export async function buildCacheHashParams(
     documentCount,
     llmModel: params.llmModel,
     antwortregeln: params.antwortregeln,
+    facettenKontext: params.facettenKontext,
   }
 }
 

@@ -77,6 +77,7 @@ export interface CacheParams {
   documentCount?: number; // Anzahl Dokumente zum Zeitpunkt der Query
   llmModel?: string; // LLM-Modell-ID für Cache-Key
   antwortregeln?: string; // Aufgelöste Antwortregeln der Library (m2) — Teil des Cache-Hashes
+  facettenKontext?: string; // Labels und Wörterbuch der Facetten (m3) — Teil des Cache-Hashes
 }
 
 export interface QueryLog {

@@ -36,6 +36,7 @@ import { eigenesLogFuerCacheTreffer } from '@/lib/chat/cache-treffer-log'
 import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import { loeseAntwortregelnAuf } from '@/lib/chat/antwortregeln'
+import { facettenKontextFuerCache } from '@/lib/chat/quellen-kontext'
 import { appendRetrievalStep } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { LlmProviderError } from '@/lib/chat/common/llm'
@@ -359,6 +360,8 @@ export async function POST(
         // Antwortregeln (m2) einmal auflösen: gehen in den Cache-Hash (geänderte
         // Regeln = andere Antwort) und über chatConfig in den Prompt.
         const antwortregelnAufgeloest = loeseAntwortregelnAuf(effectiveChatConfig.antwortregeln, facetDefs)
+        // Labels und Wörterbuch bestimmen den Quellen-Header (m3) — ebenfalls Cache-Kontext.
+        const facettenKontext = facettenKontextFuerCache(facetDefs)
 
         console.log('[Chat API] effectiveChatConfig bestimmt:', {
           targetLanguageParam,
@@ -441,7 +444,7 @@ export async function POST(
             library: ctx.library, // Verwende Library-Objekt für DocumentCount-Berechnung
             uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage Konvertierung
             llmModel: llmModelForCache,
-            antwortregeln: antwortregelnAufgeloest,
+            antwortregeln: antwortregelnAufgeloest, facettenKontext,
           })
 
           documentCount = cacheHashParamsForLog.documentCount
@@ -484,7 +487,7 @@ export async function POST(
                   retriever: retrieverForCache,
                   facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
                   llmModel: llmModelForCache,
-                  antwortregeln: antwortregelnAufgeloest,
+                  antwortregeln: antwortregelnAufgeloest, facettenKontext,
                 })
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
@@ -540,7 +543,7 @@ export async function POST(
                   filtersNormalized: { ...built.normalized },
                   documentCount,
                   llmModel: llmModelForCache,
-                  antwortregeln: antwortregelnAufgeloest,
+                  antwortregeln: antwortregelnAufgeloest, facettenKontext,
                 },
                 treffer: cachedQuery,
                 cacheHash: cacheHashForLog,
@@ -736,7 +739,7 @@ export async function POST(
           filtersNormalized: { ...built.normalized },
           documentCount, // Übergebe bereits berechnete documentCount (verhindert fehlerhafte Neuberechnung)
           llmModel: llmModelForCache, // Cache-Kontext (Modell)
-          antwortregeln: antwortregelnAufgeloest, // Cache-Kontext (Regeln, m2)
+          antwortregeln: antwortregelnAufgeloest, facettenKontext, // Cache-Kontext (Regeln, m2)
         })
         
         // Speichere Cache-Check-Step auch im retrieval Array (auch wenn kein Cache gefunden wurde)

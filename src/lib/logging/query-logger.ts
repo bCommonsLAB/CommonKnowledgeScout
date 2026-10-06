@@ -32,6 +32,7 @@ export async function startQueryLog(context: {
   documentCount?: number // Optional: Bereits berechnete Dokumentenanzahl (wird sonst in insertQueryLog berechnet)
   llmModel?: string // Optional: Teil des Cache-Kontexts
   antwortregeln?: string // Optional: aufgelöste Antwortregeln der Library, Teil des Cache-Kontexts (m2)
+  facettenKontext?: string // Optional: Labels und Wörterbuch der Facetten, Teil des Cache-Kontexts (m3)
 }): Promise<string> {
   // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
   if (!context.userEmail && !context.sessionId) {

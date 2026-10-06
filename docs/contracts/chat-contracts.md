@@ -28,6 +28,10 @@ um Wrapper-/Helper-spezifische Vertraege.
     Vertrag (unbekannt = Zod-Fehler beim Speichern, Exception zur Laufzeit).
     Der aufgelöste Text ist Teil des Cache-Hashes (§5) — Regel- oder
     Wörterbuch-Änderung darf keine alten Antworten liefern (m2)
+  - `quellen-kontext.ts` — Quellen-Header je Textstelle: Facettenwerte als
+    `Label: Wertlabel — Bedeutung` aus dem Wörterbuch; ohne Eintrag Label +
+    Rohwert, ohne Definition metaKey + Rohwert (kein Raten). Labels und
+    Wörterbuch gehen als `facettenKontext` in den Cache-Hash (m3)
   - `publication-filter.ts`
   - `utils/cache-key-utils.ts`, `utils/cache-hash-builder.ts`
   - `vector-stats.ts`
