@@ -23,6 +23,8 @@ import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-lo
 import { pruefeJobNichtAbgebrochen } from '@/lib/external-jobs/job-abbruch-waechter'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { INGEST_META_SOURCE_FILE_NAME_KEY } from '@/lib/ingestion/ingest-meta-keys'
+import { APPENDIX_IN_SEARCH_PARAMETER, resolveAppendixDecision } from '@/lib/external-jobs/ingest-appendix-decision'
+import type { Library } from '@/types/library'
 
 export interface IngestPhaseArgs {
   ctx: RequestContext
@@ -33,6 +35,23 @@ export interface IngestPhaseArgs {
   savedItemId: string
   policies: { ingest: 'force' | 'skip' | 'auto' | 'ignore' | 'do' }
   extractedText?: string
+}
+
+/**
+ * Library nur laden, wenn der Lauf die Anhang-Frage NICHT selbst beantwortet
+ * (sonst unnoetiger Mongo-Zugriff). Ladefehler: laut, denn ohne Library
+ * waere die Voreinstellung geraten.
+ */
+async function ladeLibraryFuerAnhang(
+  userEmail: string,
+  libraryId: string,
+  parameters: Record<string, unknown> | undefined,
+): Promise<Pick<Library, 'config'> | undefined> {
+  if (typeof parameters?.[APPENDIX_IN_SEARCH_PARAMETER] === 'boolean') return undefined
+  const { LibraryService } = await import('@/lib/services/library-service')
+  const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+  if (!library) throw new Error(`phase-ingest: Library ${libraryId} nicht ladbar — Anhang-Voreinstellung unbekannt`)
+  return library
 }
 
 export interface IngestPhaseResult {
@@ -341,17 +360,38 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     // der Builder wirft, wenn er fehlt und gebraucht wird.
     const appendixParentId = sourceParentId
       || (await ingestionProvider.getItemById(sourceItemId).catch(() => null))?.parentId
-    const sourceAppendix = await buildSourceAppendix({
-      libraryId: job.libraryId,
-      sourceId: sourceItemId,
-      sourceName,
-      parentId: appendixParentId,
-      targetLanguage: (job.correlation.options?.targetLanguage as string | undefined) || 'de',
-      provider: ingestionProvider,
-      meta: metaForIngestWithSource,
-      ingestedIsTransformation: typeof metaForIngestWithSource.template === 'string'
-        && (metaForIngestWithSource.template as string).trim().length > 0,
+    // P6 „Anhaenge als Text in die Suche": Lauf vor Library vor Standard (AN);
+    // die entscheidende Ebene steht im Trace.
+    const anhangEntscheidung = resolveAppendixDecision({
+      parameters: job.parameters,
+      library: await ladeLibraryFuerAnhang(job.userEmail, job.libraryId, job.parameters),
     })
+    try {
+      await repo.traceAddEvent(jobId, {
+        spanId: 'ingest', name: 'ingest_anhang_entscheidung',
+        attributes: { anhang: anhangEntscheidung.anhang, quelle: anhangEntscheidung.quelle },
+      })
+    } catch (traceError) {
+      FileLogger.warn('phase-ingest', 'Trace-Event ingest_anhang_entscheidung konnte nicht geschrieben werden', {
+        jobId, error: traceError instanceof Error ? traceError.message : String(traceError),
+      })
+    }
+    const sourceAppendix = anhangEntscheidung.anhang
+      ? await buildSourceAppendix({
+        libraryId: job.libraryId,
+        sourceId: sourceItemId,
+        sourceName,
+        parentId: appendixParentId,
+        targetLanguage: (job.correlation.options?.targetLanguage as string | undefined) || 'de',
+        provider: ingestionProvider,
+        meta: metaForIngestWithSource,
+        ingestedIsTransformation: typeof metaForIngestWithSource.template === 'string'
+          && (metaForIngestWithSource.template as string).trim().length > 0,
+      })
+      : null
+    if (!anhangEntscheidung.anhang) {
+      bufferLog(jobId, { phase: 'ingest_anhang', message: `Kein Anhang (Entscheidung: ${anhangEntscheidung.quelle})` })
+    }
     if (sourceAppendix) {
       bufferLog(jobId, {
         phase: 'ingest_anhang',

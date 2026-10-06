@@ -78,6 +78,18 @@ export interface PipelineConfig {
   // --- LLM-Modell ---
   /** LLM-Modell für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
   llmModel?: string
+
+  // --- Idee-F-Optionen (P6) ---
+  /**
+   * „Slides als Tabelle fuehren": false = das Feld `slides` wird fuer diesen
+   * Lauf aus der Vorlage genommen. Nur gesetzt, wenn die Vorlage das Feld hat.
+   */
+  slidesAsTable?: boolean
+  /**
+   * „Anhaenge als Text in die Suche": steuert den unsichtbaren Ingest-Anhang.
+   * Fehlt der Wert, gilt die Library-Voreinstellung (`ingestSourceAppendix`).
+   */
+  appendixInSearch?: boolean
 }
 
 // =============================================================================
@@ -209,5 +221,8 @@ export function configToJobParameters(config: PipelineConfig): Record<string, un
     customHint: config.customHint,
     // LLM-Modell für Template-Transformation
     llmModel: config.llmModel,
+    // Idee-F-Optionen (P6): nur explizite Booleans, nie ein geratener Wert
+    ...(typeof config.slidesAsTable === 'boolean' ? { slidesAsTable: config.slidesAsTable } : {}),
+    ...(typeof config.appendixInSearch === 'boolean' ? { appendixInSearch: config.appendixInSearch } : {}),
   }
 }

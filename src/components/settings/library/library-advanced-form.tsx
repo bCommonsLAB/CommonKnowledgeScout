@@ -197,6 +197,27 @@ export function LibraryAdvancedForm() {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="ingestSourceAppendix"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Anhaenge als Text in die Suche</FormLabel>
+                    <FormDescription>
+                      Voreinstellung fuer &bdquo;Aufbereiten &amp; Publizieren&ldquo;, pro Lauf
+                      uebersteuerbar. An: die Transkripte der verbundenen Quellen (Audio,
+                      Folien, Unterlagen) werden unsichtbar mit eingebettet &mdash; der Chat
+                      findet Details, der Index waechst deutlich (Prueffall: 17 Chunks ohne,
+                      239 mit Anhang). Aus: nur der Text der Vorlage.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 

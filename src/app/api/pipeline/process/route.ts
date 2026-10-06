@@ -151,6 +151,10 @@ async function createJobForItem(args: {
         ...(typeof config.customHint === 'string' ? { customHint: config.customHint } : {}),
         // LLM-Modell für Template-Transformation
         ...(config.llmModel ? { llmModel: config.llmModel } : {}),
+        // Idee-F-Optionen (P6): nur explizite Booleans durchreichen; fehlt der
+        // Wert, entscheidet die Library-Voreinstellung bzw. die Vorlage bleibt unveraendert.
+        ...(typeof config.slidesAsTable === 'boolean' ? { slidesAsTable: config.slidesAsTable } : {}),
+        ...(typeof config.appendixInSearch === 'boolean' ? { appendixInSearch: config.appendixInSearch } : {}),
         // PDF-spezifische Optionen.
         // Hard-Rename: getrennte Flags fuer Preview (~360 px) und HighRes (200 DPI).
         ...(mediaKind === 'pdf' ? {

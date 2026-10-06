@@ -497,6 +497,8 @@ export class LibraryService {
         analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,
         scanExcludeGlobs: Array.isArray(lib.config?.scanExcludeGlobs) ? lib.config.scanExcludeGlobs : [],
         extractionKnownNames: Array.isArray(lib.config?.extractionKnownNames) ? lib.config.extractionKnownNames : [],
+        // P6: Voreinstellung des Ingest-Anhangs; fehlt = AN (dokumentierter Standard), kein Secret.
+        ingestSourceAppendix: lib.config?.ingestSourceAppendix !== false,
         // Agentensicht-Konventionen (Welle 1/3): reine Scan-/Anzeige-Regeln, kein Secret.
         agentView: lib.config?.agentView,
         // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret).

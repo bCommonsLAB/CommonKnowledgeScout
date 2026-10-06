@@ -177,6 +177,16 @@ export interface StorageConfig {
   extractionKnownNames?: string[];
 
   /**
+   * P6 (Plan „Von Menschen gepruefte Veranstaltung"): Voreinstellung der
+   * Option „Anhaenge als Text in die Suche" im Dialog „Aufbereiten &
+   * Publizieren". true/fehlt = der Ingest haengt die Transkripte der
+   * verbundenen Quellen an den eingebetteten Text (Standard seit Owner-
+   * Entscheidung 05.10.2026); false = nur der Body der Transformation.
+   * Pro Lauf uebersteuerbar (`parameters.appendixInSearch`). KEIN Secret.
+   */
+  ingestSourceAppendix?: boolean;
+
+  /**
    * Agentensicht (Welle 1): Archiv-Konventionen sind ARCHIV-Wissen, nicht
    * Plattform-Wissen — deshalb pro Library konfigurierbar statt hartkodiert
    * (Projektauftrag F2). Fehlt das Feld, gelten die dokumentierten Defaults:
