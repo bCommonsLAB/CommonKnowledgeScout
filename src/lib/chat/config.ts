@@ -28,6 +28,7 @@ import * as z from 'zod'
 import { LibraryChatConfig } from '@/types/library'
 import { BASE_FACET_DEFS } from '@/lib/detail-view-types/base-fields'
 import { detailViewTypeSchema } from '@/lib/detail-view-types/registry'
+import { facetWerteSchema, pruefeWerteZuTyp } from './facet-werte'
 import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
@@ -138,7 +139,12 @@ export const chatConfigSchema = z.object({
       // Verbindliche Basis-Facette (nicht entfernbar); wird beim Parsen erzwungen.
       mandatory: z.boolean().optional(),
       buckets: z.array(z.object({ label: z.string(), min: z.number().int(), max: z.number().int() })).optional(),
-    })).default(getDefaultFacets())
+      // Plan story-status-modalitaet (m1): Ingest-Kontext und Bedeutungs-Wörterbuch.
+      // Zod strippt unbekannte Schlüssel — ohne Eintrag hier kämen die Felder nie
+      // bei parseFacetDefs an.
+      ingestKontext: z.boolean().optional(),
+      werte: facetWerteSchema.optional(),
+    }).superRefine(pruefeWerteZuTyp)).default(getDefaultFacets())
   }).default({
     detailViewType: 'book',
     facets: getDefaultFacets()

@@ -176,6 +176,22 @@ export interface LibraryChatConfig {
       multi?: boolean;
       visible?: boolean;
       buckets?: Array<{ label: string; min: number; max: number }>;
+      /**
+       * Wenn true, geht die Facette als Klartext in den Metadaten-Vorspann
+       * der Chunks und in den Dokument-Embedding-Text (wirkt beim Ingest).
+       */
+      ingestKontext?: boolean;
+      /**
+       * Bedeutungs-Wörterbuch je Wert (nur Typ string/string[]): Label für
+       * UI und Prompt, Bedeutung als Retriever-Kontext, Verbotsliste für
+       * die Nachprüfung. Quelle: `src/lib/chat/facet-werte.ts`.
+       */
+      werte?: Array<{
+        wert: string;
+        label: string;
+        bedeutung?: string;
+        verboten?: string[];
+      }>;
     }>;
     /**
      * Generische Graph-Modus-Konfiguration (Zielbild §8). Liegt unter

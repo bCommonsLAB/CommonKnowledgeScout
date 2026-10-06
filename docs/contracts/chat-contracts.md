@@ -19,6 +19,10 @@ um Wrapper-/Helper-spezifische Vertraege.
   - `common/filters.ts`
   - `facets.ts` (deprecated, nutzt `dynamic-facets`)
   - `dynamic-facets.ts`
+  - `facet-werte.ts` — Bedeutungs-Wörterbuch je Facettenwert (`werte`) und
+    `ingestKontext`; EINE Zod-Quelle für `config.ts` und das Settings-Formular.
+    Wörterbuch nur für `string`/`string[]`, doppelte Werte sind ein Fehler
+    (Plan `story-status-modalitaet`, m1)
   - `publication-filter.ts`
   - `utils/cache-key-utils.ts`, `utils/cache-hash-builder.ts`
   - `vector-stats.ts`

@@ -22,6 +22,8 @@ import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2, RotateCcw, Lo
 import { toast } from 'sonner'
 import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/lib/detail-view-types'
 import { isBaseFacetField, BASE_FACET_DEFS } from '@/lib/detail-view-types/base-fields'
+import { facetWerteSchema, WERTE_FAEHIGE_TYPEN, type FacetWert } from '@/lib/chat/facet-werte'
+import { FacetWerteDialog } from '@/components/settings/FacetWerteDialog'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STANDARD-FACETTEN AUS REGISTRY GENERIEREN
@@ -200,6 +202,10 @@ export interface FacetDefUi {
   sort?: 'alpha' | 'count'
   max?: number
   columns?: number
+  /** Facette geht als Klartext in Chunk-Vorspann und Dokument-Embedding (Ingest) */
+  ingestKontext?: boolean
+  /** Bedeutungs-Wörterbuch je Wert (nur string/string[]) */
+  werte?: FacetWert[]
 }
 
 export interface FacetDefsEditorProps {
@@ -286,6 +292,9 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
   const [importJson, setImportJson] = useState('')
   const [importError, setImportError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  // Bedeutungs-Wörterbuch: Index der Facette, deren Dialog offen ist (null = zu)
+  const [werteIndex, setWerteIndex] = useState<number | null>(null)
+  const werteFacette = werteIndex !== null ? defs[werteIndex] : undefined
 
   // Export: JSON in Zwischenablage kopieren
   const handleExport = useCallback(() => {
@@ -326,6 +335,9 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
           sort: obj.sort === 'count' ? 'count' : 'alpha',
           max: typeof obj.max === 'number' ? obj.max : undefined,
           columns: typeof obj.columns === 'number' ? obj.columns : 1,
+          ingestKontext: obj.ingestKontext === true ? true : undefined,
+          // Wörterbuch strikt prüfen: ungültige Einträge brechen den Import mit Meldung ab.
+          werte: Array.isArray(obj.werte) ? facetWerteSchema.parse(obj.werte) : undefined,
         }
       })
       onChange(validated)
@@ -397,6 +409,8 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
               <th className="px-1 py-2 w-[10%]">Multi</th>
               <th className="px-1 py-2 w-[10%]">Sichtbar</th>
               <th className="px-1 py-2 w-[10%]" title="Spalte in der Tabellenansicht anzeigen">In Tabelle</th>
+              <th className="px-1 py-2 w-[10%]" title="Als Klartext in Chunk-Vorspann und Dokument-Embedding (wirkt beim Ingest)">Kontext</th>
+              <th className="px-1 py-2 w-[90px]" title="Bedeutungs-Wörterbuch je Wert (nur string/string[])">Werte</th>
               <th className="px-1 py-2 w-[100px]">Aktionen</th>
             </tr>
           </thead>
@@ -505,6 +519,23 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
                 <td className="px-1 py-2 align-middle" title="Als Spalte in der Galerie-Tabellenansicht anzeigen">
                   <Switch checked={!!d.showInTable} onCheckedChange={(v) => update(i, { showInTable: v })} />
                 </td>
+                <td className="px-1 py-2 align-middle" title="Als Klartext in Chunk-Vorspann und Dokument-Embedding (wirkt erst nach erneutem Ingest)">
+                  <Switch checked={d.ingestKontext === true} onCheckedChange={(v) => update(i, { ingestKontext: v ? true : undefined })} />
+                </td>
+                <td className="px-0 py-2 align-middle">
+                  {/* Wörterbuch nur für kategoriale Typen — bei Zahl/Datum/Bool bewusst gesperrt */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!WERTE_FAEHIGE_TYPEN.has(d.type)}
+                    onClick={() => setWerteIndex(i)}
+                    className="h-8 w-full px-2 text-xs"
+                    title={WERTE_FAEHIGE_TYPEN.has(d.type) ? 'Bedeutungs-Wörterbuch bearbeiten' : 'Nur für Typ string oder string[]'}
+                  >
+                    {d.werte && d.werte.length > 0 ? `${d.werte.length} Werte` : 'Werte…'}
+                  </Button>
+                </td>
                 <td className="px-0 py-2 align-middle">
                   <div className="flex items-center gap-0">
                     <Button type="button" variant="outline" size="sm" onClick={() => move(i, -1)} disabled={locked || i === 0} className="h-8 w-8 p-0">↑</Button>
@@ -594,6 +625,17 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bedeutungs-Wörterbuch der gewählten Facette */}
+      {werteFacette && werteIndex !== null && (
+        <FacetWerteDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) setWerteIndex(null) }}
+          metaKey={werteFacette.metaKey || '(ohne metaKey)'}
+          value={werteFacette.werte ?? []}
+          onSave={(werte) => update(werteIndex, { werte: werte.length > 0 ? werte : undefined })}
+        />
+      )}
     </div>
   )
 }

@@ -38,6 +38,7 @@ import {
 import { useTranslation } from '@ks/i18n/react'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
+import { facetWerteSchema, pruefeWerteZuTyp } from '@/lib/chat/facet-werte'
 import { normalizeGalleryCardDensity } from '@ks/module-explorer/react'
 
 // Zod-Schema für Chat-Konfiguration
@@ -121,7 +122,11 @@ export const chatFormSchema = z.object({
       sort: z.enum(['alpha','count']).optional(),
       max: z.coerce.number().int().positive().optional(),
       columns: z.coerce.number().int().min(1).max(2).optional(),
-    })).default(getDefaultFacets().slice(0, 6)),
+      /** Facette geht als Klartext in Chunk-Vorspann und Dokument-Embedding (Ingest) */
+      ingestKontext: z.boolean().optional(),
+      /** Bedeutungs-Wörterbuch je Wert — Schema geteilt mit dem Server (facet-werte.ts) */
+      werte: facetWerteSchema.optional(),
+    }).superRefine(pruefeWerteZuTyp)).default(getDefaultFacets().slice(0, 6)),
     galleryCardDensity: z.preprocess(
       (val) => {
         if (val === '' || val === undefined || val === null) return 'comfortable'
