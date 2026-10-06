@@ -5,22 +5,22 @@ vorhaben: [Klimamaßnahmen Südtirol]
 status: konzept
 todos:
   - id: m0-golden-set
-    content: "Golden-Set anlegen: pro Status 2–3 Maßnahmen, je Maßnahme drei Fragetypen (direkt, Themenfrage mit gemischten Status, Frage mit falscher Unterstellung). Erwartung als Kriterien (Pflicht-Status, Pflicht-Modalität, Verbotsliste), nicht als Wortlaut. Fixture-Format siehe §5."
+    content: "Golden-Set anlegen: pro Status 2–3 Maßnahmen, je Maßnahme drei Fragetypen (direkt, Themenfrage mit gemischten Status, Frage mit falscher Unterstellung). Erwartung als Kriterien (Pflicht-Status, Pflicht-Modalität, Verbotsliste), nicht als Wortlaut. Das echte Set liegt BEI DER LIBRARY (Storage über Provider oder MongoDB je Library), nicht im Repo; ins Repo kommen Zod-Schema, Läufer und ein synthetisches Beispiel. Format siehe §5."
     status: pending
   - id: m0-baseline
     content: "Baseline gegen den heutigen Stand fahren und Trefferquote festhalten (deterministische Checks + Richter-Rubrik). Ergebnis in den Plan eintragen, bevor ein Hebel gebaut wird."
     status: pending
   - id: m1-registry-vokabular
-    content: "Registry (`packages/contracts/src/detail-view-type-registry.ts`): neben `belegKarte.status` ein `statusVokabular` je Detailansichtstyp — Klartext-Label, erlaubte Sprechweise, Verbotsliste je Statuswert. Für `climateAction` die sieben Werte von `lv_bewertung` belegen. Unit-Test: jeder Plaketten-Schlüssel hat ein Vokabular (kein stiller Default)."
+    content: "Registry (`packages/contracts/src/detail-view-type-registry.ts`): neben `belegKarte.status` ein `statusVokabular` je Detailansichtstyp — je Statuswert Klartext-Label, Wirkungsart (formulieren | hinweis | ausschliessen), erlaubte Sprechweise, Verbotsliste. Für `climateAction` die sieben Werte von `lv_bewertung` belegen (alle: formulieren). Unit-Test: jeder Plaketten-Schlüssel hat ein Vokabular (kein stiller Default). Andere Typen (commoning `bearbeitungsstatus`, DIVA `review_status`) bekommen KEIN Vokabular in diesem Plan, nur die Struktur, die sie aufnehmen kann."
     status: pending
   - id: m2-prompt
-    content: "Prompt (`src/lib/chat/common/prompt.ts`): im Quellen-Header Klartext-Label statt Schlüssel; Legende + Modalitäts-Tabelle aus dem Vokabular in die System-Message; bei mehreren Dokumenten Gruppierung nach Status verlangen. Vokabular über den Retriever-Kontext (`retriever-context.ts`) aus dem Detailansichtstyp der Library auflösen; ohne Vokabular keine Status-Sektion (explizit, kein leerer Text)."
+    content: "Prompt (`src/lib/chat/common/prompt.ts`): im Quellen-Header Klartext-Label statt Schlüssel; Legende + Modalitäts-Tabelle aus dem Vokabular in die System-Message; bei mehreren Dokumenten Gruppierung nach Status verlangen. Vokabular JE QUELLDOKUMENT auflösen (fileId → detailViewType wie in `reference-view-type.ts`, Library-Default nur als Rückfall für Dokumente ohne eigenen Typ), weil eine Library gemischte Typen enthalten kann; die System-Sektion vereinigt die Vokabulare der tatsächlich getroffenen Typen. Ohne Vokabular keine Status-Sektion (explizit, kein leerer Text)."
     status: pending
   - id: m3-nachpruefung
     content: "Deterministische Nachprüfung im Orchestrator: Status jeder zitierten Quelle [n] aus den Metadaten lesen, Fußnote „Stand laut Landesverwaltung: …" an die Antwort anhängen, Verbotsliste je Status gegen den Antworttext prüfen und Treffer im Query-Log vermerken. Keine stillschweigende Korrektur des Texts."
     status: pending
   - id: m4-daten
-    content: "Ingestion: `lv_bewertung` (bzw. das Statusfeld des Vokabulars) in den Metadaten-Vorspann (`metadata-formatter.ts`) und in den Dokument-Embedding-Text (`document-text-builder.ts`); Template `klimamassnahme-detail1-de.md`: `summary` muss den Status in einem Satz nennen; Facette `lv_bewertung` in der Library-Config prüfen. Danach Re-Ingest der Library und Golden-Set erneut fahren."
+    content: "Ingestion: Statusfeld und Label aus der Registry des Dokumenttyps (`belegKarte.status.field` + Vokabular, NICHT hartkodiert `lv_bewertung`) in den Metadaten-Vorspann (`metadata-formatter.ts`) und in den Dokument-Embedding-Text (`document-text-builder.ts`); Template der Library (Muster `klimamassnahme-detail1-de.md`): `summary` muss den Status in einem Satz nennen — das pflegt die Library in ihrem Template, das Repo-Muster wird nachgezogen; Facette `lv_bewertung` in der Library-Config prüfen. Danach Re-Ingest der Library und Golden-Set erneut fahren."
     status: pending
   - id: m5-kontrolldurchlauf
     content: "Nur wenn m2+m3 (+m4) die Baseline nicht ausreichend heben: zweiter, kleiner Modellaufruf, der die Antwort gegen die Status-Liste der zitierten Dokumente prüft und beanstandete Sätze meldet. Kosten je Frage messen, Entscheidung Owner."
@@ -102,6 +102,40 @@ Kartenfarbe in `document-card/status-config.ts` ab (Kommentar in der Registry,
 Kandidat D6). Das Vokabular hängt an den Schlüsseln, nicht an den Plaketten,
 und ist von dieser Vereinheitlichung unabhängig.
 
+## 3a. Wo welches Wissen gepflegt wird (Generik)
+
+Die Mechanik ist generisch; das Wissen liegt auf drei Ebenen, und jede
+Ebene hat einen Ort und einen Pfleger:
+
+| Ebene | Gilt für | Ort | Wer pflegt | Inhalt in diesem Plan |
+|---|---|---|---|---|
+| Template | einen Dokumenttyp in einer Library | Template-Ordner der Library (Repo hält nur Muster unter `template-samples/`) | Library-Kurator | Welche Felder beim Ingest entstehen; `summary` nennt den Status in einem Satz |
+| Registry | einen Detailansichtstyp, über alle Libraries | `packages/contracts/src/detail-view-type-registry.ts` | Entwicklung | Statusfeld, Plakette, **Vokabular** (Label, Wirkungsart, Sprechweise, Verbotsliste) |
+| Library-Config | eine Library | `chat.gallery` (Default-Typ, Facetten, Charakter, Sprache) | Owner in den Settings | Facette für das Statusfeld; **kein** Freitext-Prompt; typisierter Override je Statuswert erst, wenn ein Fall es verlangt |
+
+Drei Folgerungen:
+
+- **Der Typ hängt am Dokument, nicht an der Library.** Jedes Dokument trägt
+  `docMetaJson.detailViewType`; die Library-Config liefert nur den Default.
+  Der Retriever löst heute schon je zitiertem Dokument den Typ auf
+  (`reference-view-type.ts`). Vokabular und Status-Vorspann werden deshalb je
+  Dokument aufgelöst, nie „aus der Library". Gemischte Libraries funktionieren
+  damit ohne Sonderfall.
+- **Andere Libraries, andere Wirkung.** Im Repo gibt es drei
+  Status-Konzepte: `lv_bewertung` (Klima, Aussage über die Welt, muss
+  formuliert werden), `bearbeitungsstatus` fertig / in-arbeit (Commoning,
+  redaktioneller Zustand, eher Frage des Ausschlusses), `review_status`
+  (DIVA, Lebenszyklus). Deshalb trägt jeder Vokabular-Eintrag eine
+  **Wirkungsart**: `formulieren` (Modalität im Text), `hinweis` (nur Fußnote),
+  `ausschliessen` (Dokument nicht zitieren). Dieser Plan belegt nur
+  `climateAction`; die anderen Typen bekommen die Struktur, nicht den Inhalt.
+- **Fragen und Erwartungen sind Library-Wissen.** Ein Golden-Set mit echten
+  Maßnahmen-Nummern gehört nach der Repo-Regel (AGENTS.md, öffentliches Repo)
+  nicht ins Repo. Es liegt bei der Library: als Datei im Storage, über den
+  Provider gelesen, oder in MongoDB je Library; gepflegt über Settings oder
+  die MCP-Brücke. Im Repo liegen das Zod-Schema des Formats, der Läufer und
+  ein synthetisches Beispiel mit erfundener Maßnahme.
+
 ## 4. Vier Hebel, von billig nach aufwändig
 
 **Hebel A, Prompt (m1, m2).** Vokabular in die Registry; der Retriever-Kontext
@@ -152,8 +186,8 @@ nebeneinander liegen (z. B. Schwerverkehr, Heizen, Ernährung).
    deutlichsten.
 
 **Erwartung als Kriterien, nicht als Wortlaut.** Vorschlag für das
-Fixture-Format (JSON, ein Eintrag je Frage; echte Maßnahmen-Nummern werden
-beim Anlegen eingesetzt):
+Format (JSON, ein Eintrag je Frage). Das Set mit echten Maßnahmen-Nummern
+liegt bei der Library (§3a); im Repo steht nur ein synthetisches Beispiel:
 
 ```json
 {
@@ -210,4 +244,5 @@ vorhanden, Label statt Schlüssel im Header).
   `src/lib/ingestion/document-text-builder.ts` — Status im Vorspann (Hebel C)
 - `template-samples/klimamassnahme-detail1-de.md` — `summary` mit Status-Satz
 - `tests/unit/chat/` — Vokabular-Vollständigkeit, Prompt-Sektion,
-  deterministische Prüfung; Golden-Set-Fixtures daneben
+  deterministische Prüfung, Zod-Schema des Golden-Set-Formats mit einem
+  synthetischen Beispiel; das echte Set liegt bei der Library (§3a)
