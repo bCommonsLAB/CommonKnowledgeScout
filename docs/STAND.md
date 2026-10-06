@@ -98,7 +98,12 @@ Bekannte Punkte:
    Wochen aus. Teilfortschritt 27.08. (Netzwerkfehler löschen die Anmeldung
    nicht mehr) ist drin.
 2. Anpassungen an der Library „Klimamaßnahmen" (Umfang aus dem Konzept im
-   Archiv; noch nicht festgelegt).
+   Archiv; noch nicht festgelegt). **Plan seit 06.10.:**
+   [`plans/story-status-modalitaet.plan.md`](plans/story-status-modalitaet.plan.md)
+   — der Story-Modus ignoriert den Status der Maßnahme (`lv_bewertung`) und
+   formuliert Abgelehntes wie Beschlossenes; Status wird zur Modalität der
+   Antwort (Vokabular in der Registry), geprüft über ein Golden-Set je
+   Status (m0 messen, dann Prompt + Nachprüfung, dann Daten).
 3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
    Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
    im Konzept). **Bau-Plan seit 26.09.:**
