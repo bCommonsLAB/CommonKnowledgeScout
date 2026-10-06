@@ -32,6 +32,10 @@ um Wrapper-/Helper-spezifische Vertraege.
     `Label: Wertlabel — Bedeutung` aus dem Wörterbuch; ohne Eintrag Label +
     Rohwert, ohne Definition metaKey + Rohwert (kein Raten). Labels und
     Wörterbuch gehen als `facettenKontext` in den Cache-Hash (m3)
+  - `nachpruefung.ts` — deterministische Nachprüfung der Antwort gegen die
+    Facettenwerte der zitierten Dokumente: Verteilung als Fußnote unter der
+    Antwort, Verbotslisten-Treffer als Befund im Query-Log
+    (`nachpruefung`). Der Antworttext wird NIE umgeschrieben (m4)
   - `publication-filter.ts`
   - `utils/cache-key-utils.ts`, `utils/cache-hash-builder.ts`
   - `vector-stats.ts`

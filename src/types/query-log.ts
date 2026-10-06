@@ -131,6 +131,12 @@ export interface QueryLog {
   storyTopicsData?: StoryTopicsData;
   /** User-freundliche Processing-Logs (nicht zu verwechseln mit internen Debug-Logs) */
   processingLogs?: import('./chat-processing').ChatProcessingStep[];
+  /**
+   * Deterministische Nachprüfung (m4): Verteilung der Facettenwerte der
+   * zitierten Dokumente und Verstöße gegen Verbotslisten. Nur gesetzt, wenn
+   * es einen Befund gab; der Antworttext wird nie umgeschrieben.
+   */
+  nachpruefung?: import('./nachpruefung').NachpruefungErgebnis;
   /** SHA-256 Hash der Cache-relevanten Parameter für schnelle Cache-Lookups */
   cacheHash?: string;
   /** Cache-Parameter zusammengefasst (für einfaches Debugging - einfach kopieren und posten) */

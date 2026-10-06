@@ -77,18 +77,20 @@ export async function setPrompt(
   })
 }
 
-export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage']; storyTopicsData?: QueryLog['storyTopicsData']; shortTitle?: QueryLog['shortTitle'] }): Promise<void> {
-  await updateQueryLogPartial(queryId, { 
-    status: 'ok', 
-    answer: payload.answer, 
-    sources: payload.sources, 
+export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage']; storyTopicsData?: QueryLog['storyTopicsData']; shortTitle?: QueryLog['shortTitle']; nachpruefung?: QueryLog['nachpruefung'] }): Promise<void> {
+  await updateQueryLogPartial(queryId, {
+    status: 'ok',
+    answer: payload.answer,
+    sources: payload.sources,
     references: payload.references,
     suggestedQuestions: payload.suggestedQuestions,
-    timing: payload.timing, 
+    timing: payload.timing,
     tokenUsage: payload.tokenUsage,
     storyTopicsData: payload.storyTopicsData,
     // D5: nur setzen, wenn vorhanden — sonst bliebe ein leeres Feld im Log stehen.
     ...(payload.shortTitle !== undefined ? { shortTitle: payload.shortTitle } : {}),
+    // m4: Nachprüfung nur mit Befund ablegen.
+    ...(payload.nachpruefung !== undefined ? { nachpruefung: payload.nachpruefung } : {}),
   })
 }
 

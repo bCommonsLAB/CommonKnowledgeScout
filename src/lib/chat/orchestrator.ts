@@ -45,6 +45,8 @@ import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
 import type { FacetWert } from '@/lib/chat/facet-werte'
 import { loeseAntwortregelnAuf } from '@/lib/chat/antwortregeln'
+import { pruefeAntwort, hatBefund, fussnoteAnhaengen } from '@/lib/chat/nachpruefung'
+import type { NachpruefungErgebnis } from '@/types/nachpruefung'
 import type { StoryTopicsData } from '@/types/story-topics'
 import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
 
@@ -77,6 +79,8 @@ export interface OrchestratorOutput {
   storyTopicsData?: StoryTopicsData  // Für TOC-Queries: Strukturierte Themenübersicht
   /** D5: Kurztitel der Frage aus derselben LLM-Antwort (nur Fragen, nicht TOC); fehlt, wenn das Modell keinen lieferte. */
   shortTitle?: string
+  /** m4: deterministische Nachprüfung (Verteilung der Facettenwerte, Verstöße); nur mit Befund. */
+  nachpruefung?: NachpruefungErgebnis
 }
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
@@ -524,6 +528,26 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     }
   }
 
+  // m4: deterministische Nachprüfung gegen die Facettenwerte der zitierten
+  // Dokumente (dieselbe Nummerierung wie Prompt und Belege). Verstöße werden
+  // gemeldet und protokolliert, der Text wird NICHT umgeschrieben; die Fußnote
+  // mit der Verteilung hängt unter der Antwort und landet so auch im Cache.
+  // Nicht für die Themenübersicht (dort gibt es keine zitierten Dokumente).
+  let nachpruefung: NachpruefungErgebnis | undefined
+  if (!run.isTOCQuery) {
+    const ergebnis = pruefeAntwort(answer, dokumenteNummerieren(sources), usedReferences, run.facetDefs ?? [])
+    if (hatBefund(ergebnis)) {
+      nachpruefung = ergebnis
+      if (ergebnis.verstoesse.length > 0) {
+        console.warn(
+          '[orchestrator] Nachprüfung: Formulierungen gegen Verbotsliste in der Antwort:',
+          ergebnis.verstoesse.map((v) => `„${v.formulierung}" bei ${v.wertLabel} [${v.nummern.join(', ')}]`).join('; '),
+        )
+      }
+      answer = fussnoteAnhaengen(answer, ergebnis)
+    }
+  }
+
   await finalizeQueryLog(run.queryId, {
     answer,
     sources: sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score })),
@@ -535,6 +559,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       : undefined,
     storyTopicsData,
     shortTitle,
+    nachpruefung,
   })
 
   return { 
@@ -549,6 +574,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     totalTokens,
     storyTopicsData,
     shortTitle,
+    nachpruefung,
   }
 }
 
