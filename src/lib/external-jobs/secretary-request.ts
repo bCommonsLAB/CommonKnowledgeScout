@@ -11,6 +11,8 @@
 import type { ExternalJob } from '@/types/external-job'
 import { getSecretaryConfig } from '@/lib/env'
 import { FileLogger } from '@/lib/debug/logger'
+import { buildAudioSecretaryRequest } from './secretary-request-audio'
+import type { AudioJobContext } from './audio-context'
 
 export interface SecretaryRequestConfig {
   url: string
@@ -26,6 +28,11 @@ export interface SecretaryRequestOptions {
   overrideBaseUrl?: string
   /** Library-spezifischer API-Key (überschreibt ENV-Variable SECRETARY_SERVICE_API_KEY) */
   overrideApiKey?: string
+  /**
+   * Aufgeloester Kontext fuer Audio-Jobs (P3a): prompt, keywords, Sprecher-Modus.
+   * Quelle: `resolveAudioJobContext(job, library)` im Start-Pfad.
+   */
+  audioContext?: AudioJobContext
 }
 
 /**
@@ -81,49 +88,16 @@ export function prepareSecretaryRequest(
 
   const normalizedBaseUrl = baseUrl.replace(/\/$/, '')
 
-  // --- Audio / Video (Secretary-only) ---
+  // --- Audio (eigenes Modul: Kontext + Sprecher-Endpunkt, P3a) ---
   if (job.job_type === 'audio') {
-    const endpoint = normalizedBaseUrl.endsWith('/api') ? '/audio/process' : '/api/audio/process'
-    url = `${normalizedBaseUrl}${endpoint}`
-
-    const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
-    const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
-    // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
-    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
-    // Template gehoert zur Transformations-Phase (Phase 2), nicht zur
-    // Extract-Phase (Phase 1). Extract liefert IMMER nur das rohe Transkript;
-    // Template-Transformation erfolgt LOKAL in phase-template.ts. Der Secretary
-    // bekommt deshalb NIE ein Template-Feld — auch nicht als "extract-only
-    // shortcut" (frueheres Verhalten). Begruendung: Template-Files leben im
-    // UI/DB, nicht im Secretary. Der Shortcut war Quelle eines Mix-State-Bugs
-    // (Secretary scheitert an fehlendem Template, Worker markiert Step
-    // trotzdem als completed). Siehe Job ae632f5c-... 2026-04-30.
-    formData = new FormData()
-    formData.append('file', file)
-    formData.append('target_language', targetLanguage)
-    formData.append('source_language', sourceLanguage)
-    // Secretary uses `useCache` (see existing Next proxy routes)
-    formData.append('useCache', String(useCache))
-    // Im Offline-Modus (Electron): callback_url weglassen → Secretary antwortet synchron
-    if (!offline) {
-      formData.append('callback_url', callbackUrl)
-      formData.append('callback_token', secret)
-    }
-
-    FileLogger.info('secretary-request', 'Audio FormData erstellt', {
-      jobId: job.jobId,
-      url,
-      fileName: file.name,
-      fileSize: file.size,
-      targetLanguage,
-      sourceLanguage,
-      useCache: String(useCache),
-      callbackUrl: offline ? '(offline-mode)' : callbackUrl,
+    const audio = buildAudioSecretaryRequest({
+      job, file, callbackUrl, secret, offline, normalizedBaseUrl,
+      audioContext: options?.audioContext,
     })
-
-    return { url, formData, headers }
+    return { url: audio.url, formData: audio.formData, headers }
   }
 
+  // --- Video (Secretary-only) ---
   if (job.job_type === 'video') {
     const endpoint = normalizedBaseUrl.endsWith('/api') ? '/video/process' : '/api/video/process'
     url = `${normalizedBaseUrl}${endpoint}`

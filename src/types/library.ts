@@ -177,6 +177,16 @@ export interface StorageConfig {
   extractionKnownNames?: string[];
 
   /**
+   * P3a (Plan „Von Menschen gepruefte Veranstaltung"): Voreinstellung fuer die
+   * Sprecher-Erkennung bei Audio-Transkriptionen im Datei-Weg. true = der
+   * Secretary-Endpunkt `audio/process-diarized` (Sprecher-Labels je Absatz,
+   * KEIN Kontext-Prompt); false/fehlt = `audio/process` mit Kontext
+   * (prompt + keywords aus `extractionKnownNames`). Pro Datei im
+   * Transkriptions-Dialog uebersteuerbar. KEIN Secret.
+   */
+  transcriptionSpeakerMode?: boolean;
+
+  /**
    * Agentensicht (Welle 1): Archiv-Konventionen sind ARCHIV-Wissen, nicht
    * Plattform-Wissen — deshalb pro Library konfigurierbar statt hartkodiert
    * (Projektauftrag F2). Fehlt das Feld, gelten die dokumentierten Defaults:

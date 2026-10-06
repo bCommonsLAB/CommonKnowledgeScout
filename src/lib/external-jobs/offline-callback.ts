@@ -45,6 +45,10 @@ export function mapSyncResponseToCallbackBody(
         transcription: transcription ?? undefined,
         result: result ?? undefined,
         metadata: respData.metadata ?? undefined,
+        // P3a: Sprecher-Segmente und -Liste (process-diarized) muessen die
+        // Callback-Route erreichen, sonst gingen die Praefixe im Offline-Modus verloren.
+        segments: respData.segments ?? undefined,
+        speakers: respData.speakers ?? undefined,
       },
     }
   }

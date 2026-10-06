@@ -210,6 +210,63 @@ describe('prepareSecretaryRequest', () => {
     expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
 
+  // P3a: Kontext im Datei-Weg + Sprecher-Endpunkt
+  it('Audio normal: prompt und keywords (JSON-Liste) gehen an /audio/process', () => {
+    const job = createJob({
+      job_type: 'audio',
+      correlation: {
+        jobId: 'job-audio-ctx', libraryId: 'lib-1',
+        source: { mediaType: 'audio', name: 'a.m4a', itemId: 'it2', parentId: 'p1' },
+        options: { targetLanguage: 'de', sourceLanguage: 'auto', useCache: true },
+      },
+    })
+    const cfg = prepareSecretaryRequest(job, createFile('a.m4a', 'audio/mp4'), 'https://app/cb', 'secret', {
+      audioContext: { prompt: 'Vortrag zu Armut', keywords: ['Peter Aichner', 'Caritas'], speakerMode: false, speakerModeSource: 'library' },
+    })
+    expect(cfg.url).toBe('http://127.0.0.1:5001/api/audio/process')
+    expect(getStringField(cfg.formData, 'prompt')).toBe('Vortrag zu Armut')
+    expect(JSON.parse(getStringField(cfg.formData, 'keywords') ?? '[]')).toEqual(['Peter Aichner', 'Caritas'])
+    expect(getStringField(cfg.formData, 'template')).toBeNull()
+  })
+
+  it('Audio Sprecher-Modus: /audio/process-diarized, Kontext wird NICHT gesendet', () => {
+    const job = createJob({
+      job_type: 'audio',
+      correlation: {
+        jobId: 'job-audio-diar', libraryId: 'lib-1',
+        source: { mediaType: 'audio', name: 'a.m4a', itemId: 'it2', parentId: 'p1' },
+        options: { targetLanguage: 'de', sourceLanguage: 'auto', useCache: false },
+      },
+    })
+    const cfg = prepareSecretaryRequest(job, createFile('a.m4a', 'audio/mp4'), 'https://app/cb', 'secret', {
+      audioContext: { prompt: 'Vortrag', keywords: ['X'], speakerMode: true, speakerModeSource: 'job' },
+    })
+    expect(cfg.url).toBe('http://127.0.0.1:5001/api/audio/process-diarized')
+    expect(getStringField(cfg.formData, 'prompt')).toBeNull()
+    expect(getStringField(cfg.formData, 'keywords')).toBeNull()
+    // Der Sprecher-Endpunkt kennt kein target_language (Dienst-Doku); source_language bleibt.
+    expect(getStringField(cfg.formData, 'target_language')).toBeNull()
+    expect(getStringField(cfg.formData, 'source_language')).toBe('auto')
+    expect(getStringField(cfg.formData, 'callback_url')).toBe('https://app/cb')
+  })
+
+  it('Audio ohne aufgeloesten Kontext: Bestandsverhalten (nur Datei + Sprachen, normaler Endpunkt)', () => {
+    const job = createJob({
+      job_type: 'audio',
+      correlation: {
+        jobId: 'job-audio-plain', libraryId: 'lib-1',
+        source: { mediaType: 'audio', name: 'a.mp3', itemId: 'it2', parentId: 'p1' },
+        options: { targetLanguage: 'en' },
+      },
+    })
+    const cfg = prepareSecretaryRequest(job, createFile('a.mp3', 'audio/mpeg'), 'https://app/cb', 'secret')
+    expect(cfg.url).toContain('/audio/process')
+    expect(cfg.url).not.toContain('diarized')
+    expect(getStringField(cfg.formData, 'prompt')).toBeNull()
+    expect(getStringField(cfg.formData, 'keywords')).toBeNull()
+    expect(getStringField(cfg.formData, 'useCache')).toBe('false')
+  })
+
   it('wirft bei job_type image (Bildanalyse läuft nicht über PDF-Endpoints)', () => {
     const job = createJob({
       job_type: 'image',

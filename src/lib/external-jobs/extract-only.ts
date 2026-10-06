@@ -37,6 +37,7 @@ import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-wr
 import { FileLogger } from '@/lib/debug/logger'
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { resolveSecretaryUrl, getSecretaryAuthHeaders, type SecretaryUrlConfig } from './secretary-url'
+import { applySpeakersFrontmatter, readAudioSpeakersFromCallback } from './audio-speakers'
 
 /**
  * Runs extract-only mode processing. This mode is activated when both template
@@ -158,7 +159,8 @@ export async function runExtractOnly(
       // Frontmatter wird erst bei Template-Phase hinzugefügt
       // Die Job-Informationen sind bereits in der Job-Datenbank gespeichert
       const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
-      const cleanText = stripAllFrontmatter(extractedText)
+      // P3a: Sprecherliste (`speakers`) ueberlebt den Strip als flaches Frontmatter-Feld.
+      const cleanText = applySpeakersFrontmatter(stripAllFrontmatter(extractedText), readAudioSpeakersFromCallback(body))
       
       // WICHTIG: Wenn shadowTwinFolderId vorhanden ist, ist parentId bereits das Shadow-Twin-Verzeichnis.
       // In diesem Fall sollte createFolder false sein, da das Verzeichnis bereits existiert.
@@ -403,7 +405,7 @@ export async function runExtractOnly(
       }
       
       const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
-      const cleanText = stripAllFrontmatter(markdownToSave)
+      const cleanText = applySpeakersFrontmatter(stripAllFrontmatter(markdownToSave), readAudioSpeakersFromCallback(body))
       
       const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
       const artifactKey: ArtifactKey = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from '@ks/ui'
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
@@ -16,6 +16,7 @@ import { getUserFriendlyAudioErrorMessage } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger";
 import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
+import { AudioTransformContext, parseKeywordsText } from "@/components/library/audio-transform-context";
 
 interface AudioTransformProps {
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
@@ -56,6 +57,18 @@ export function AudioTransform({
     createShadowTwin: true,
     fileExtension: "md"
   });
+
+  // P3a: Kontext fuer die Transkription. Sprecher-Modus ist mit der
+  // Library-Voreinstellung vorbelegt und gilt uebersteuert nur fuer diesen Lauf.
+  const librarySpeakerMode = activeLibrary?.config?.transcriptionSpeakerMode === true;
+  const [speakerMode, setSpeakerMode] = useState<boolean>(librarySpeakerMode);
+  const [audioPrompt, setAudioPrompt] = useState("");
+  const [audioKeywordsText, setAudioKeywordsText] = useState("");
+  const knownNamesCount = activeLibrary?.config?.extractionKnownNames?.length ?? 0;
+  useEffect(() => {
+    // Library laedt asynchron: Voreinstellung nachziehen, sobald sie da ist.
+    setSpeakerMode(librarySpeakerMode);
+  }, [librarySpeakerMode, activeLibrary?.id]);
   
   // Prüfe ob item vorhanden ist
   if (!item) {
@@ -101,6 +114,10 @@ export function AudioTransform({
           mimeType: item.metadata.mimeType,
           targetLanguage: saveOptions.targetLanguage,
           useCache: true,
+          // P3a: Kontext + Sprecher-Modus (explizit, kein stiller Default im Server)
+          speakerMode,
+          audioPrompt: audioPrompt.trim() || undefined,
+          audioKeywords: parseKeywordsText(audioKeywordsText),
           policies: {
             extract: 'do',
             // Transcript-only: keine Template- oder Ingest-Phase
@@ -179,6 +196,17 @@ export function AudioTransform({
                 showUseCache={true}
                 defaultUseCache={true}
                 showCreateShadowTwin={false}
+              />
+
+              <AudioTransformContext
+                speakerMode={speakerMode}
+                onSpeakerModeChange={setSpeakerMode}
+                prompt={audioPrompt}
+                onPromptChange={setAudioPrompt}
+                keywordsText={audioKeywordsText}
+                onKeywordsTextChange={setAudioKeywordsText}
+                knownNamesCount={knownNamesCount}
+                disabled={isLoading || isProcessingResult}
               />
               
               <Button 
