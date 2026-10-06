@@ -246,3 +246,29 @@ Verworfene Felder werden im Dienst als Warnung protokolliert, nicht stillschweig
 geschluckt. Der Kontext geht in den Cache-Schlüssel ein — anderer Kontext heißt also
 neue Transkription, nicht das alte Ergebnis.
 
+
+### Wie KnowledgeScout die Felder befuellt (Datei-Weg, P3a)
+
+Der Datei-Weg (`external-jobs`) loest den Kontext je Audio-Job in
+`src/lib/external-jobs/audio-context.ts` auf und baut den Request in
+`secretary-request-audio.ts`:
+
+| Feld | Quelle |
+|---|---|
+| `prompt` | Freitext „Kontext (Thema, Anlass)" aus dem Transkriptions-Dialog (`audioPrompt`) |
+| `keywords` | `extractionKnownNames` der Library + „Begriffe" aus dem Dialog (`audioKeywords`), dedupliziert, als JSON-Liste |
+| Endpunkt | `audio/process` (Kontext) oder `audio/process-diarized` (Sprecher) |
+
+Der Sprecher-Modus kommt aus der Job-Option `speakerMode` (Dialog, pro Datei),
+sonst aus dem Library-Feld `transcriptionSpeakerMode`, sonst aus. Welche Ebene
+entschieden hat, steht im Job-Trace (`audio_context_resolved`). Im Sprecher-Modus
+sendet KnowledgeScout keinen Kontext (Warnung im Log) — er wirkt dann erst im
+Korrektur-Schritt.
+
+## POST /api/audio/process-diarized (Sprecher-Erkennung)
+
+Gleiche Parameter wie `/api/audio/process`, ohne `prompt`/`keywords`. Antwort
+wie oben, zusaetzlich `speakers` (Liste) und `segments[].speaker`.
+KnowledgeScout baut daraus einen Absatz je Sprecherwechsel
+(`**Sprecher A:** …`, `src/lib/secretary/extract-audio-text.ts`) und legt die
+Sprecherliste flach als `speakers` im Frontmatter des Transkripts ab.

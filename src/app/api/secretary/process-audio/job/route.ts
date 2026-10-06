@@ -17,6 +17,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import type { ExternalJob } from '@/types/external-job'
 import type { PhasePolicies } from '@/lib/processing/phase-policy'
+import { AUDIO_CONTEXT_OPTION_KEYS } from '@/lib/external-jobs/audio-context'
 
 interface Body {
   originalItemId: string
@@ -30,6 +31,35 @@ interface Body {
   policies?: PhasePolicies
   batchId?: string
   batchName?: string
+  /** P3a: Thema/Anlass als Freitext fuer die Transkription. */
+  audioPrompt?: string
+  /** P3a: Begriffe fuer diese Datei (zusaetzlich zu `extractionKnownNames` der Library). */
+  audioKeywords?: string[]
+  /** P3a: Sprecher-Erkennung fuer diesen Lauf (uebersteuert die Library-Voreinstellung). */
+  speakerMode?: boolean
+}
+
+function readAudioContextOptions(
+  body: Partial<Body>,
+): { options: Record<string, unknown> } | { error: string } {
+  const options: Record<string, unknown> = {}
+  if (body.audioPrompt !== undefined) {
+    if (typeof body.audioPrompt !== 'string') return { error: 'audioPrompt muss ein String sein' }
+    const prompt = body.audioPrompt.trim()
+    if (prompt) options[AUDIO_CONTEXT_OPTION_KEYS.prompt] = prompt
+  }
+  if (body.audioKeywords !== undefined) {
+    if (!Array.isArray(body.audioKeywords) || body.audioKeywords.some((k) => typeof k !== 'string')) {
+      return { error: 'audioKeywords muss eine Liste von Strings sein' }
+    }
+    const keywords = body.audioKeywords.map((k) => k.trim()).filter(Boolean)
+    if (keywords.length > 0) options[AUDIO_CONTEXT_OPTION_KEYS.keywords] = keywords
+  }
+  if (body.speakerMode !== undefined) {
+    if (typeof body.speakerMode !== 'boolean') return { error: 'speakerMode muss ein Boolean sein' }
+    options[AUDIO_CONTEXT_OPTION_KEYS.speakerMode] = body.speakerMode
+  }
+  return { options }
 }
 
 export async function POST(request: NextRequest) {
@@ -51,6 +81,14 @@ export async function POST(request: NextRequest) {
     if (!originalItemId || !parentId || !fileName) {
       return NextResponse.json({ error: 'originalItemId, parentId, fileName erforderlich' }, { status: 400 })
     }
+
+    // P3a: Kontext-Felder nur typgeprueft uebernehmen — falsche Typen sind ein
+    // Client-Fehler (400), kein stilles Weglassen.
+    const audioContextResult = readAudioContextOptions(body)
+    if ('error' in audioContextResult) {
+      return NextResponse.json({ error: audioContextResult.error }, { status: 400 })
+    }
+    const audioContextOptions = audioContextResult.options
 
     const repo = new ExternalJobsRepository()
     const jobId = crypto.randomUUID()
@@ -88,6 +126,7 @@ export async function POST(request: NextRequest) {
         targetLanguage,
         sourceLanguage,
         useCache,
+        ...audioContextOptions,
       },
       batchId: typeof body.batchId === 'string' ? body.batchId : undefined,
       batchName: typeof body.batchName === 'string' ? body.batchName : undefined,

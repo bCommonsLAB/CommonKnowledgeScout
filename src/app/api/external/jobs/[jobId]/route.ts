@@ -39,6 +39,7 @@ import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 // Modularisierte Orchestrator-Module
 import { readContext } from '@/lib/external-jobs/context'
+import { applySpeakersFrontmatter, extractSpeakerTranscript, readAudioSpeakersFromCallback } from '@/lib/external-jobs/audio-speakers'
 import { authorizeCallback, hasInternalTokenBypass } from '@/lib/external-jobs/auth'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
@@ -474,6 +475,9 @@ export async function POST(
       if (!(job.job_type === 'audio' || job.job_type === 'video')) return undefined
       const data = body?.data as Record<string, unknown> | undefined
       if (!data) return undefined
+      // P3a: Sprecher-Segmente (audio/process-diarized) → ein Absatz je Sprecherwechsel.
+      const speakerTranscript = extractSpeakerTranscript(body)
+      if (speakerTranscript) return speakerTranscript.text
       const directText = typeof data['text'] === 'string' ? String(data['text']) : undefined
       const transcriptionText =
         typeof transcriptionTextRaw === 'string' ? transcriptionTextRaw : undefined
@@ -727,7 +731,8 @@ export async function POST(
             
             // Speichere Markdown OHNE Frontmatter (reines Transcript)
             // Frontmatter wird erst bei Template-Phase hinzugefügt
-            const cleanText = stripAllFrontmatter(extractedText)
+            // Ausnahme P3a: die Sprecherliste (`speakers`) ueberlebt den Strip als flaches Feld.
+            const cleanText = applySpeakersFrontmatter(stripAllFrontmatter(extractedText), readAudioSpeakersFromCallback(body))
             
             // Sammle ZIP-Daten für direkten Upload (wenn persistToFilesystem=false)
             // WICHTIG: Bilder müssen hier gesammelt werden, damit sie mit dem Transcript in MongoDB gespeichert werden

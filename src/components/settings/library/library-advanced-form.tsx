@@ -197,6 +197,26 @@ export function LibraryAdvancedForm() {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="transcriptionSpeakerMode"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Sprecher erkennen (Audio-Transkription)</FormLabel>
+                    <FormDescription>
+                      Voreinstellung fuer den Transkriptions-Dialog, pro Datei uebersteuerbar.
+                      An: Sprecher-Labels je Absatz (&bdquo;Sprecher A&ldquo;), dafuer ohne
+                      Kontext-Hinweise an die Transkription. Aus: Kontext (Thema, bekannte
+                      Namen) geht an die Transkription, keine Sprecher-Zuordnung.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
