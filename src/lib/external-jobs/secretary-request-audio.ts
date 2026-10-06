@@ -56,7 +56,8 @@ export function buildAudioSecretaryRequest(args: AudioRequestArgs): { url: strin
 
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('target_language', targetLanguage)
+  // process-diarized kennt weder target_language noch template (Dienst-Doku audio.md).
+  if (!speakerMode) formData.append('target_language', targetLanguage)
   formData.append('source_language', sourceLanguage)
   // Secretary uses `useCache` (see existing Next proxy routes)
   formData.append('useCache', String(useCache))

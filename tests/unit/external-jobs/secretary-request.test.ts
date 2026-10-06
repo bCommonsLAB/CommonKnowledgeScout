@@ -244,7 +244,9 @@ describe('prepareSecretaryRequest', () => {
     expect(cfg.url).toBe('http://127.0.0.1:5001/api/audio/process-diarized')
     expect(getStringField(cfg.formData, 'prompt')).toBeNull()
     expect(getStringField(cfg.formData, 'keywords')).toBeNull()
-    expect(getStringField(cfg.formData, 'target_language')).toBe('de')
+    // Der Sprecher-Endpunkt kennt kein target_language (Dienst-Doku); source_language bleibt.
+    expect(getStringField(cfg.formData, 'target_language')).toBeNull()
+    expect(getStringField(cfg.formData, 'source_language')).toBe('auto')
     expect(getStringField(cfg.formData, 'callback_url')).toBe('https://app/cb')
   })
 
