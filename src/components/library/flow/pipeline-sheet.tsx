@@ -52,6 +52,9 @@ import {
   TRANSFORMATION_TARGET_LANGUAGES,
   isNonEmptyString,
 } from './pipeline-sheet/helpers'
+import { useTemplateHasField } from './pipeline-sheet/use-template-has-field'
+import { IdeeFOptionen } from './pipeline-sheet/idee-f-optionen'
+import { useActiveLibrary } from '@ks/shell/react'
 
 interface PipelineSheetProps {
   isOpen: boolean
@@ -77,7 +80,7 @@ interface PipelineSheetProps {
   llmModels?: LlmModelOption[]
   /** Ladezustand für LLM-Modelle */
   isLoadingLlmModels?: boolean
-  onStart: (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => Promise<void>
+  onStart: (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string; slidesAsTable?: boolean; appendixInSearch?: boolean }) => Promise<void>
   /**
    * Optionale Default-Werte fuer die Pipeline-Schritte.
    * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
@@ -149,6 +152,19 @@ export function PipelineSheet(props: PipelineSheetProps) {
   const [customHint, setCustomHint] = React.useState(props.defaultCustomHint ?? '')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
+  // Idee-F-Optionen (P6): „Slides als Tabelle fuehren" nur, wenn die Vorlage
+  // das Feld hat; „Anhaenge als Text in die Suche" mit Library-Voreinstellung.
+  const activeLibrary = useActiveLibrary()
+  const libraryAppendixDefault = activeLibrary?.config?.ingestSourceAppendix !== false
+  const [slidesAsTable, setSlidesAsTable] = React.useState(true)
+  const [appendixInSearch, setAppendixInSearch] = React.useState(libraryAppendixDefault)
+  const templateHasSlides = useTemplateHasField({
+    libraryId: props.libraryId,
+    templateName: props.templateName,
+    field: 'slides',
+    enabled: props.isOpen && shouldTransform,
+  })
+
   // Beim Oeffnen des Sheets: Initialisiere basierend auf defaultSteps und existingArtifacts
   React.useEffect(() => {
     if (!props.isOpen) return
@@ -159,6 +175,8 @@ export function PipelineSheet(props: PipelineSheetProps) {
     setShouldGenerateCoverImage(props.defaultGenerateCoverImage ?? false)
     const hintValue = props.defaultCustomHint ?? ''
     setCustomHint(hintValue)
+    setSlidesAsTable(true)
+    setAppendixInSearch(libraryAppendixDefault)
     // DEBUG: Protokollieren ob defaultCustomHint korrekt in PipelineSheet ankommt
     console.log('[PipelineSheet] useEffect (Beim Öffnen) – defaultCustomHint:', {
       received: props.defaultCustomHint,
@@ -186,7 +204,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       setShouldTransform(false)
       setShouldIngest(false)
     }
-  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, skipExtract, entryRank, hasTranscript, hasTransformed, hasIngested])
+  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, skipExtract, entryRank, hasTranscript, hasTransformed, hasIngested, libraryAppendixDefault])
 
   // Separater Effect: Cover-Bild-Generierung aktualisieren, wenn der Wert spaeter verfuegbar wird
   // (activeLibrary wird asynchron geladen, deshalb kann der Wert beim ersten Oeffnen noch undefined sein)
@@ -271,11 +289,15 @@ export function PipelineSheet(props: PipelineSheetProps) {
         llmModel: shouldTransform && isNonEmptyString(props.llmModel) ? props.llmModel : undefined,
         // Korrekturhinweis: leeren String bei explizitem Löschen übergeben, damit Server keinen Fallback nutzt
         customHint: resolvedCustomHint,
+        // Idee-F (P6): Slides-Option nur, wenn Transform aktiv UND die Vorlage das Feld hat;
+        // Anhang-Option nur, wenn Ingest aktiv. Sonst undefined = Server nimmt Vorlage/Library-Voreinstellung.
+        slidesAsTable: shouldTransform && templateHasSlides === true ? slidesAsTable : undefined,
+        appendixInSearch: shouldIngest ? appendixInSearch : undefined,
       })
     } finally {
       setIsSubmitting(false)
     }
-  }, [props, plan.policies, shouldExtract, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint])
+  }, [props, plan.policies, shouldExtract, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, templateHasSlides, slidesAsTable, appendixInSearch])
 
   // Start-Geste: validieren, dann starten. Der Ueberschreiben-Status ist bereits
   // direkt an den Schritten sichtbar (Badge "wird ueberschrieben") — kein
@@ -340,6 +362,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       enabled: shouldIngest,
       setEnabled: setShouldIngest,
       disabled: ingestDisabled,
+      hasOptions: true,
       hasExisting: hasIngested,
       willOverwrite: plan.policies.ingest === 'force',
     },
@@ -609,6 +632,11 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                   Cover-Bild generieren
                                 </Label>
                               </div>
+                              <IdeeFOptionen.Slides
+                                visible={templateHasSlides === true}
+                                checked={slidesAsTable}
+                                onChange={setSlidesAsTable}
+                              />
                               {/* Korrekturhinweise – mehrzeiliges Textfeld mit Diktierfunktion */}
                               <div className="ml-[76px] pr-4 pt-1">
                                 <DictationTextarea
@@ -621,6 +649,15 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                 />
                               </div>
                             </>
+                          )}
+
+                          {/* === Ingest-Optionen: Anhang in die Suche (P6) === */}
+                          {step.key === "ingest" && (
+                            <IdeeFOptionen.Anhang
+                              checked={appendixInSearch}
+                              onChange={setAppendixInSearch}
+                              libraryDefault={libraryAppendixDefault}
+                            />
                           )}
                         </div>
                       </CollapsibleContent>

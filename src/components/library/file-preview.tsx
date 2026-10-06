@@ -754,7 +754,7 @@ function PreviewContent({
 
   // Pipeline starten
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
+    async (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string; slidesAsTable?: boolean; appendixInSearch?: boolean }) => {
       if (!activeLibraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -789,6 +789,9 @@ function PreviewContent({
           customHint: args.customHint,
           // LLM-Modell für Template-Transformation
           llmModel: args.llmModel,
+          // Idee-F-Optionen (P6)
+          slidesAsTable: args.slidesAsTable,
+          appendixInSearch: args.appendixInSearch,
         })
 
         // Korrekturhinweis für Re-Open in localStorage speichern
