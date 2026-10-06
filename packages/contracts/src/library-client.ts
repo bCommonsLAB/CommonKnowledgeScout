@@ -85,6 +85,8 @@ export interface ClientLibrary {
     scanExcludeGlobs?: string[];
     /** E1: Bekannte Namen fuer die Extraktion (kein Secret). */
     extractionKnownNames?: string[];
+    /** P3a: Sprecher-Erkennung als Voreinstellung fuer Audio-Transkriptionen (kein Secret). */
+    transcriptionSpeakerMode?: boolean;
     /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */
     agentView?: {
       enabled?: boolean;

@@ -41,6 +41,7 @@ import { isInternalAuthorized } from '@/lib/external-jobs/auth'
 import { FileLogger } from '@/lib/debug/logger'
 import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
+import { resolveAudioJobContext } from '@/lib/external-jobs/audio-context'
 import { resolveLibrarySecretaryConfig } from '@/lib/external-jobs/secretary-url'
 import { tracePreprocessEvents } from '@/lib/external-jobs/trace-helpers'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
@@ -1924,10 +1925,32 @@ export async function POST(
     }
 
     // Bereite Secretary-Service-Request vor (Library-Config hat Vorrang vor ENV)
+    // Audio-Kontext (P3a): Uebersteuerung pro Datei vor Library-Voreinstellung;
+    // Entscheidung landet sichtbar im Trace.
+    const audioContext = job.job_type === 'audio' ? resolveAudioJobContext(job, library) : undefined
+    if (audioContext) {
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'preprocess',
+          name: 'audio_context_resolved',
+          attributes: {
+            speakerMode: audioContext.speakerMode,
+            speakerModeSource: audioContext.speakerModeSource,
+            hasPrompt: Boolean(audioContext.prompt),
+            keywordCount: audioContext.keywords.length,
+          },
+        })
+      } catch (traceError) {
+        FileLogger.warn('start-route', 'Trace-Event audio_context_resolved konnte nicht geschrieben werden', {
+          jobId, error: traceError instanceof Error ? traceError.message : String(traceError),
+        })
+      }
+    }
     const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret, {
       offlineMode: offline,
       overrideBaseUrl: libraryConfig?.apiUrl || undefined,
       overrideApiKey: libraryConfig?.apiKey || undefined,
+      audioContext,
     })
     const { url, formData: formForRequest, headers } = requestConfig
     const submitAtIso = new Date().toISOString()

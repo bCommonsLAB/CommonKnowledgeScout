@@ -247,6 +247,27 @@ geschluckt. Der Kontext geht in den Cache-Schlüssel ein — anderer Kontext hei
 neue Transkription, nicht das alte Ergebnis.
 
 
+### Wie KnowledgeScout die Felder befüllt (Datei-Weg, P3a)
+
+Der Datei-Weg (`external-jobs`) löst den Kontext je Audio-Job in
+`src/lib/external-jobs/audio-context.ts` auf und baut den Request in
+`secretary-request-audio.ts`:
+
+| Feld | Quelle |
+|---|---|
+| `prompt` | Freitext „Kontext (Thema, Anlass)" aus dem Transkriptions-Dialog (`audioPrompt`) |
+| `keywords` | `extractionKnownNames` der Library + „Begriffe" aus dem Dialog (`audioKeywords`), dedupliziert, als JSON-Liste |
+| Endpunkt | `audio/process` (Kontext) oder `audio/process-diarized` (Sprecher, s. u.) |
+
+Der Sprecher-Modus kommt aus der Job-Option `speakerMode` (Dialog, pro Datei),
+sonst aus dem Library-Feld `transcriptionSpeakerMode`, sonst aus. Welche Ebene
+entschieden hat, steht im Job-Trace (`audio_context_resolved`). Im Sprecher-Modus
+sendet KnowledgeScout weder `prompt`/`keywords` noch `target_language` (Warnung im
+Log, wenn Kontext vorlag) — der Kontext wirkt dann erst im Korrektur-Schritt.
+Aus der Antwort baut KnowledgeScout die Absätze selbst aus `segments[].speaker`
+(`src/lib/secretary/extract-audio-text.ts`, gleiche Form wie `output_text`) und
+legt `speakers` flach im Frontmatter des Transkripts ab.
+
 ---
 
 ## POST /api/audio/process-diarized
