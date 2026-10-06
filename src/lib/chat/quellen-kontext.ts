@@ -32,6 +32,22 @@ function einzelwertAlsText(wert: unknown, facette: KontextFacette | undefined): 
 }
 
 /**
+ * Ein Facettenwert als Text mit Bedeutung (Wörterbuch) — Arrays je Element,
+ * Komma-getrennt. `undefined` für leer, null, undefined und Objekte (kein Raten).
+ * Gemeinsame Grundlage für Quellen-Header (m3) und Ingest-Kontext (m5).
+ */
+export function formatiereFacettenwert(value: unknown, facette: KontextFacette | undefined): string | undefined {
+  if (value === undefined || value === null) return undefined
+  if (Array.isArray(value)) {
+    if (value.length === 0) return undefined
+    return value.map((v) => einzelwertAlsText(v, facette)).join(', ')
+  }
+  if (typeof value === 'string' || typeof value === 'number') return einzelwertAlsText(value, facette)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  return undefined
+}
+
+/**
  * Formatiert die Facettenwerte einer Textstelle als Header-Teile
  * (`Label: Wert`), in der Reihenfolge der Metadaten. Leere Arrays, null und
  * undefined entfallen; Objekte werden nicht geraten und entfallen ebenfalls.
@@ -44,17 +60,10 @@ export function formatiereQuellenMetadaten(
   const byKey = new Map((facetDefs ?? []).map((f) => [f.metaKey, f]))
   const parts: string[] = []
   for (const [key, value] of Object.entries(metadata)) {
-    if (value === undefined || value === null) continue
     const facette = byKey.get(key)
-    const label = facette?.label || key
-    if (Array.isArray(value)) {
-      if (value.length === 0) continue
-      parts.push(`${label}: ${value.map((v) => einzelwertAlsText(v, facette)).join(', ')}`)
-    } else if (typeof value === 'string' || typeof value === 'number') {
-      parts.push(`${label}: ${einzelwertAlsText(value, facette)}`)
-    } else if (typeof value === 'boolean') {
-      parts.push(`${label}: ${value ? 'true' : 'false'}`)
-    }
+    const text = formatiereFacettenwert(value, facette)
+    if (text === undefined) continue
+    parts.push(`${facette?.label || key}: ${text}`)
   }
   return parts
 }

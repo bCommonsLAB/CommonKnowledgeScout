@@ -28,6 +28,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { getEmbeddingDimensionForModel } from '@/lib/chat/config'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
+import type { FacetWert } from '@/lib/chat/facet-werte'
 import { getEmbeddingConfig } from '@/lib/chat/rag-embeddings'
 
 /**
@@ -47,6 +48,10 @@ export interface RetrieverContext {
     type: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
     multi: boolean
     visible: boolean
+    /** m5: Facette geht als Klartext in Chunk-Vorspann und Dokument-Embedding */
+    ingestKontext?: boolean
+    /** m1: Bedeutungs-Wörterbuch je Wert (Header, Legende, Nachprüfung, Ingest-Kontext) */
+    werte?: FacetWert[]
   }>
   /** Embedding-Konfiguration (Model, ChunkSize, ChunkOverlap, Dimensions) */
   embeddingConfig: {
@@ -92,6 +97,8 @@ export async function getRetrieverContext(
     type: f.type,
     multi: f.multi ?? true,
     visible: f.visible ?? true,
+    ...(f.ingestKontext === true ? { ingestKontext: true } : {}),
+    ...(f.werte && f.werte.length > 0 ? { werte: f.werte } : {}),
   }))
   
   // Embedding-Config extrahieren

@@ -40,6 +40,12 @@ gleiche Eingabe:
 
 - `splitByPages(markdown)` ist deterministisch: gleiche Input-Seiten →
   gleiche `PageSpan[]`-Ausgabe.
+- m5 (Plan `story-status-modalitaet`): `buildMetadataPrefix` und
+  `buildDocumentTextForEmbedding` nehmen optional die Facetten-Definitionen;
+  Facetten mit `ingestKontext: true` kommen als `Label: Wertlabel — Bedeutung`
+  (Wörterbuch `werte`) dazu, Felder des festen Teils werden nicht doppelt
+  geschrieben (`src/lib/ingestion/ingest-kontext.ts`). Ohne Defs unverändert.
+  Eine Änderung an Flag, Label oder Wörterbuch wirkt erst nach Re-Ingest.
 - `buildMetadataPrefix(docMetaJsonObj)` ist deterministisch: gleiche
   Felder → gleicher Praefix-String.
 - `buildDocumentTextForEmbedding(...)` ist deterministisch.
