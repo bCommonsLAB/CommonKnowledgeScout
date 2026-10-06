@@ -6,10 +6,10 @@ status: abgenommen
 todos:
   - id: p1-secretary-sprecher
     content: "Secretary (Repo CommonSecretaryServices): Endpunkt POST /audio/process-diarized nach den Wellen B1 und B2 des Plans audio-namensraum-und-diarisierung (Use-Case diarized_transcription in der Modell-Maske, response_format diarized_json, chunking_strategy auto). Stücke bis 20 Minuten, an Sprechpausen geschnitten statt hart nach Zeit; Sprecher-Labels je Stück eindeutig benannt (Stück 1 Sprecher A). Antwort: segments mit speaker, start, end, text; speakers; output_text mit Präfix je Absatz. Cache-Schlüssel kennt den Modus. KEINE Stimmproben, KEIN Namensraum-Umzug (A1/A2 bleiben im alten Plan). Kontext (prompt, keywords) wird für dieses Modell verworfen und als dropped gemeldet, nicht still. Grenzen laut OpenAI-Doku 06.10.2026: 25 MB und 1500 s je Anfrage. Prüffall: 48-Minuten-Diskussion mit zwei Sprecherinnen und Publikum liefert drei Stücke mit lesbaren Sprecherwechseln."
-    status: pending
+    status: done
   - id: p2-secretary-korrekturvorschlag
     content: "Secretary: Dienst POST /transcript/korrekturvorschlag. Eingabe: Audio-Transkript (Markdown, optional mit Sprecher-Präfixen), Begleittexte mit Name und Text (Einladung mit Sprecherliste, Folien-Transkripte), Zielsprache. Ausgabe nur Vorschläge: ersetzungen [{alt, neu, zeile, kontext, begruendung, beleg}] für Hörfehler bei Namen, Zahlen, Fachbegriffen; sprecher [{label, name, begruendung, beleg}] für Label-zu-Person; beleg aus einladung, folie <N>, selbstvorstellung, unsicher. Nur Namen aus den Begleittexten; alles andere bleibt Rolle. alt muss genau einmal vorkommen, damit KnowledgeScout die Liste unverändert an transkript_korrigieren (Wunschliste 7) übergeben kann. Antwortschema explizit im Prompt-Text (Secretary erzwingt schema_json nicht). Prüffall: Diskussion der Journalistenschulung mit Flyer und zwei Folien-Transkripten; Antworten den richtigen Referentinnen zugeordnet, unsichere Fälle als unsicher."
-    status: pending
+    status: done
   - id: p3a-scout-kontext-datei-weg
     content: "KnowledgeScout, Teil A: Der Datei-Weg schickt heute keinen Kontext (src/lib/external-jobs/secretary-request.ts sendet nur Datei und Sprachen). prompt (Thema, Anlass) und keywords (Namen, Begriffe) für Audio-Jobs ergänzen; Quellen: Library-Feld extractionKnownNames plus optionaler Freitext im Transformations-Dialog (audio-transform.tsx). Sprecher-Modus als Per-Library-Feld nach docs/contracts/library-config-field.md plus Übersteuerung pro Datei, bis in secretary-request.ts durchgereicht (Plan audio-namensraum C0, C1). extract-audio-text.ts: Sprecher-Präfixe je Absatz, speakers flach im Frontmatter (C2)."
     status: pending
@@ -89,6 +89,18 @@ Der Wizard darüber hat sieben Schritte; alle Presets außer Schritt 3
 (`reviewTranscript`) gibt es. Schemata, Drehbuch mit Soll-Zeiten und
 kopierbare Start-Prompts je Paket liegen im Archiv-Ordner (siehe
 `overview`); FigJam: https://www.figma.com/board/MTsQK3yNMcbRKSoqnshb3c.
+
+## Stand (06.10.2026)
+
+P1 und P2 sind im Secretary gebaut (Branch
+`claude/p1-p2-diarisierung-korrekturvorschlag`, Repo CommonSecretaryServices):
+`POST /audio/process-diarized` (Use-Case `diarized_transcription`, Stücke bis 20 min an
+Sprechpausen, Labels je Stück eindeutig, Cache-Schlüssel mit Modus, `prompt`/`keywords`
+als `dropped_context`) und `POST /transcript/korrekturvorschlag` (nur Vorschläge, `alt`
+genau einmal, Namen nur aus Begleittexten, `beleg` fest). Dienst-Doku hier:
+`docs/_secretary-service-docu/audio.md` und `transcript.md`. Vor dem Prüffall: Seed-Skript
+laufen lassen und in der Maske `diarized_transcription` → `gpt-4o-transcribe-diarize`
+zuordnen. Der Prüffall gegen die echte API steht noch aus.
 
 ## Reihenfolge
 

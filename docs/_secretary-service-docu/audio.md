@@ -247,9 +247,9 @@ geschluckt. Der Kontext geht in den Cache-Schlüssel ein — anderer Kontext hei
 neue Transkription, nicht das alte Ergebnis.
 
 
-### Wie KnowledgeScout die Felder befuellt (Datei-Weg, P3a)
+### Wie KnowledgeScout die Felder befüllt (Datei-Weg, P3a)
 
-Der Datei-Weg (`external-jobs`) loest den Kontext je Audio-Job in
+Der Datei-Weg (`external-jobs`) löst den Kontext je Audio-Job in
 `src/lib/external-jobs/audio-context.ts` auf und baut den Request in
 `secretary-request-audio.ts`:
 
@@ -257,18 +257,75 @@ Der Datei-Weg (`external-jobs`) loest den Kontext je Audio-Job in
 |---|---|
 | `prompt` | Freitext „Kontext (Thema, Anlass)" aus dem Transkriptions-Dialog (`audioPrompt`) |
 | `keywords` | `extractionKnownNames` der Library + „Begriffe" aus dem Dialog (`audioKeywords`), dedupliziert, als JSON-Liste |
-| Endpunkt | `audio/process` (Kontext) oder `audio/process-diarized` (Sprecher) |
+| Endpunkt | `audio/process` (Kontext) oder `audio/process-diarized` (Sprecher, s. u.) |
 
 Der Sprecher-Modus kommt aus der Job-Option `speakerMode` (Dialog, pro Datei),
 sonst aus dem Library-Feld `transcriptionSpeakerMode`, sonst aus. Welche Ebene
 entschieden hat, steht im Job-Trace (`audio_context_resolved`). Im Sprecher-Modus
-sendet KnowledgeScout keinen Kontext (Warnung im Log) — er wirkt dann erst im
-Korrektur-Schritt.
+sendet KnowledgeScout weder `prompt`/`keywords` noch `target_language` (Warnung im
+Log, wenn Kontext vorlag) — der Kontext wirkt dann erst im Korrektur-Schritt.
+Aus der Antwort baut KnowledgeScout die Absätze selbst aus `segments[].speaker`
+(`src/lib/secretary/extract-audio-text.ts`, gleiche Form wie `output_text`) und
+legt `speakers` flach im Frontmatter des Transkripts ab.
 
-## POST /api/audio/process-diarized (Sprecher-Erkennung)
+---
 
-Gleiche Parameter wie `/api/audio/process`, ohne `prompt`/`keywords`. Antwort
-wie oben, zusaetzlich `speakers` (Liste) und `segments[].speaker`.
-KnowledgeScout baut daraus einen Absatz je Sprecherwechsel
-(`**Sprecher A:** …`, `src/lib/secretary/extract-audio-text.ts`) und legt die
-Sprecherliste flach als `speakers` im Frontmatter des Transkripts ab.
+## POST /api/audio/process-diarized
+
+Datei-Transkription **mit Sprecher-Erkennung** (Secretary, Paket P1 des Plans
+`von-menschen-gepruefte-veranstaltung`). Eigener Endpunkt statt Schalter, weil es ein
+anderer Vertrag ist:
+
+| | `/audio/process` | `/audio/process-diarized` |
+|---|---|---|
+| Antwortformat beim Anbieter | `verbose_json` / `json` | `diarized_json` |
+| Antwortform | ein Volltext | `segments` mit `speaker`, `start`, `end`, `text` |
+| `prompt`, `keywords` | ja | **nein** — werden als `dropped_context` gemeldet |
+| Übersetzung, `template` | ja | nein |
+| Stücke | 300 s hart nach Zeit | bis 20 Minuten, an Sprechpausen |
+| Modell | Use-Case `transcription` | Use-Case `diarized_transcription` |
+
+Grenzen laut Anbieter (06.10.2026): 25 MB und 1500 s je Anfrage. Sprecher-Labels gelten
+nur innerhalb einer Anfrage, deshalb heißen sie bei mehreren Stücken
+`Stück 1 Sprecher A`, `Stück 2 Sprecher A` … (bei einem Stück `Sprecher A`). Die
+Zuordnung über Stückgrenzen macht der Korrektur-Schritt mit dem Menschen
+(`transcript/korrekturvorschlag`, siehe [transcript.md](transcript.md)). Keine Stimmproben.
+
+### Request
+
+`multipart/form-data` wie `/audio/process`, ohne `target_language` und `template`:
+`file`, `source_language` (Default `auto`), `languages`, `prompt`, `keywords`
+(beide nur gemeldet), `useCache`, `callback_url`, `callback_token`, `jobId`.
+Mit `callback_url` asynchron (202, Job `audio` mit `mode=diarized`); der Webhook
+`phase=completed` trägt den Text unter `data.transcription.text`.
+
+### Response (Success), `data`
+
+```json
+{
+  "output_text": "**Stück 1 Sprecher A:** Guten Morgen …\n\n**Stück 1 Sprecher B:** Danke …",
+  "original_text": "…identisch…",
+  "speakers": ["Stück 1 Sprecher A", "Stück 1 Sprecher B"],
+  "segments": [ { "speaker": "Stück 1 Sprecher A", "start": 0.0, "end": 3.2, "text": "Guten Morgen …" } ],
+  "detected_language": "de",
+  "duration": 2880.5,
+  "llm_model": "gpt-4o-transcribe-diarize",
+  "chunk_count": 3,
+  "dropped_context": ["prompt: 'gpt-4o-transcribe-diarize' erkennt Sprecher und nimmt dafuer keinen Freitext-Kontext"],
+  "transcription": { "text": "…wie output_text…", "source_language": "de", "segments": [] },
+  "from_cache": false
+}
+```
+
+`output_text` ist Markdown: ein Absatz je Sprecherwechsel, Folge-Segmente desselben
+Sprechers zusammengefasst, Zeitmarken nur in `segments`. `extractSecretaryAudioText`
+liest `output_text` als erstes — der KnowledgeScout bekommt also ohne Anpassung
+lesbaren Text; `speakers` flach ins Frontmatter ist Welle C2 (P3a).
+
+### Fehler
+
+| HTTP | `error.code` | Ursache |
+|------|--------------|---------|
+| 400 | `CHUNK_TOO_LARGE`, `CHUNK_TOO_LONG`, `CHUNK_TIMEOUT`, `EMPTY_TRANSCRIPTION` | Anbieter-Grenze oder -Fehler, kein Fehlertext als Ergebnis |
+| 503 | `NO_MODEL_CONFIGURED` | In der Secretary-Maske ist `diarized_transcription` kein Modell zugeordnet |
+| 503 | `PROVIDER_UNSUPPORTED` | Zugeordneter Provider kann keine Sprecher-Erkennung |

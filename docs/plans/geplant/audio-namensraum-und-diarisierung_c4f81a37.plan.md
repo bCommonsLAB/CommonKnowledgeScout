@@ -10,16 +10,16 @@ todos:
     status: pending
   - id: b1-use-case-diarisiert
     content: "Secretary: Use-Case 'diarized_transcription' im Enum, in der Maske (Label, Default) und in available_models; Seed-Skript ergänzt gpt-4o-transcribe-diarize für diesen Use-Case."
-    status: pending
+    status: done
   - id: b2-endpunkt-diarisiert
     content: "Secretary: POST /audio/process-diarized mit response_format=diarized_json und chunking_strategy (ab 30 s Pflicht); Antwort mit Sprecher-Segmenten statt einem Block."
-    status: pending
+    status: done
   - id: b3-sprecher-ueber-segmentgrenzen
-    content: "Secretary: Entscheiden und umsetzen, wie Sprecher-Kennungen über mehrere Datei-Segmente hinweg zusammengeführt werden (siehe Risiko 2). Ohne diesen Schritt ist Diarisierung auf Material unter 25 Minuten begrenzt."
-    status: pending
+    content: "Secretary: Entscheiden und umsetzen, wie Sprecher-Kennungen über mehrere Datei-Segmente hinweg zusammengeführt werden (siehe Risiko 2). Entschieden 06.10.2026 (Owner): KEINE Zusammenführung im Dienst, keine Stimmproben — Labels je Stück eindeutig (Stück 1 Sprecher A), Zuordnung über Stückgrenzen im Korrektur-Schritt mit dem Menschen (Plan von-menschen-gepruefte-veranstaltung, P2/P3b). Mit B2 umgesetzt."
+    status: done
   - id: b4-doku-endpunkt
     content: "Dienst-Doku aktualisieren: docs/_secretary-service-docu/audio.md (KnowledgeScout) und die Secretary-Doku um den neuen Endpunkt, sein Antwortformat und den Zielkonflikt prompt/Diarisierung."
-    status: pending
+    status: done
   - id: c0-library-voreinstellung
     content: "KnowledgeScout: Per-Library-Feld 'transkription_mit_sprechern' nach der Checkliste docs/contracts/library-config-field.md (Typen, toClientLibraries, Form-Schema, ALLE form.reset-Stellen, Submit, FormField)."
     status: pending
@@ -35,6 +35,13 @@ todos:
 ---
 
 # Audio-Namensraum und Sprecher-Erkennung
+
+## Stand (06.10.2026)
+
+B1 und B2 sind gebaut (Secretary-Branch `claude/p1-p2-diarisierung-korrekturvorschlag`),
+B3 ist per Owner-Entscheidung erledigt (Labels je Stück, Mensch führt zusammen), B4 ist
+mit den Dienst-Dokus beider Repos erledigt. A1/A2 (Namensraum-Umzug) und C/D bleiben
+offen; C0–C2 sind in P3a des Plans `von-menschen-gepruefte-veranstaltung` aufgegangen.
 
 ## Warum
 
