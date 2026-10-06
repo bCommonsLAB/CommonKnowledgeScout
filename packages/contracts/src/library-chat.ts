@@ -88,6 +88,15 @@ export interface LibraryChatConfig {
   /** Footer-Text unterhalb des Chats */
   footerText?: string;
 
+  /**
+   * Antwortregeln der Library (Markdown): wie das Modell über die Inhalte
+   * sprechen darf. Platzhalter `{{facette:<metaKey>}}` (Label) und
+   * `{{legende:<metaKey>}}` (Wert → Label → Bedeutung aus `werte`) binden den
+   * Text an `gallery.facets`; unbekannte Platzhalter sind ein Fehler.
+   * Quelle: `src/lib/chat/antwortregeln.ts`.
+   */
+  antwortregeln?: string;
+
   /** Link im Footer (z. B. Firmen-/Projektlink) */
   companyLink?: string;
 

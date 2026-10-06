@@ -44,6 +44,9 @@ import {
   SocialContext,
 } from '../constants'
 
+/** Überschrift der Regel-Sektion in der System-Message (Chat und TOC). */
+export const ANTWORTREGELN_UEBERSCHRIFT = 'Library Rules (how to speak about these contents — binding):'
+
 /**
  * Erstellt eine benutzerfreundliche Beschreibung für eine Quelle
  * Statt "Chunk 18" → "Slide-Seite 2" oder "Videotranskript Textchunk 5" etc.
@@ -358,11 +361,20 @@ export function buildSystemMessage(options?: {
   socialContext?: SocialContext
   genderInclusive?: boolean
   uiLocale?: string
+  /** Aufgelöste Antwortregeln der Library (Markdown), siehe antwortregeln.ts */
+  antwortregeln?: string
 }): ChatMessage {
   const promptComponents = buildSystemPromptComponents(options)
   const { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction, languageInstruction } = promptComponents
-  
+
   const systemParts: string[] = ['You are a precise assistant. Answer the question exclusively based on the provided sources.']
+
+  // Regeln dieser Library zuerst nach der Rolle: sie bestimmen, WIE über die
+  // Inhalte gesprochen werden darf (z. B. Status als Zuschreibung), und gehen
+  // Sprach-/Charakter-Anweisungen voraus.
+  if (options?.antwortregeln) {
+    systemParts.push(`\n\n${ANTWORTREGELN_UEBERSCHRIFT}\n${options.antwortregeln}`)
+  }
   
   if (languageInstruction) {
     systemParts.push(`\nLanguage Instructions:\n${languageInstruction}`)
@@ -493,10 +505,11 @@ export function buildChatMessages(
     uiLocale?: string
     candidatesCount?: number
     usedInPrompt?: number
+    antwortregeln?: string
   }
 ): ChatMessage[] {
   const messages: ChatMessage[] = []
-  
+
   // System-Message zuerst
   messages.push(buildSystemMessage({
     targetLanguage: options?.targetLanguage,
@@ -505,6 +518,7 @@ export function buildChatMessages(
     socialContext: options?.socialContext,
     genderInclusive: options?.genderInclusive,
     uiLocale: options?.uiLocale,
+    antwortregeln: options?.antwortregeln,
   }))
   
   // Chat-Historie als echte Messages
@@ -642,11 +656,18 @@ export function buildTOCSystemMessage(options?: {
   socialContext?: SocialContext
   genderInclusive?: boolean
   uiLocale?: string
+  /** Aufgelöste Antwortregeln der Library (Markdown), siehe antwortregeln.ts */
+  antwortregeln?: string
 }): ChatMessage {
   const promptComponents = buildSystemPromptComponents(options)
   const { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction, languageInstruction } = promptComponents
-  
+
   const systemParts: string[] = ['You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.']
+
+  // Auch die Themenübersicht beschreibt Inhalte — dieselben Regeln wie im Chat.
+  if (options?.antwortregeln) {
+    systemParts.push(`\n\n${ANTWORTREGELN_UEBERSCHRIFT}\n${options.antwortregeln}`)
+  }
   
   if (languageInstruction) {
     systemParts.push(`\nLanguage Instructions:\n${languageInstruction}`)
@@ -816,10 +837,11 @@ export function buildTOCMessages(
     filters?: Record<string, unknown>
     facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
     uiLocale?: string
+    antwortregeln?: string
   }
 ): ChatMessage[] {
   const messages: ChatMessage[] = []
-  
+
   // System-Message zuerst
   messages.push(buildTOCSystemMessage({
     targetLanguage: options?.targetLanguage,
@@ -828,6 +850,7 @@ export function buildTOCMessages(
     socialContext: options?.socialContext,
     genderInclusive: options?.genderInclusive,
     uiLocale: options?.uiLocale,
+    antwortregeln: options?.antwortregeln,
   }))
   
   // User-Message mit Task + Sources + Requirements

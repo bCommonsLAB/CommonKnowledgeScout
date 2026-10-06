@@ -39,6 +39,7 @@ import { useTranslation } from '@ks/i18n/react'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
 import { facetWerteSchema, pruefeWerteZuTyp } from '@/lib/chat/facet-werte'
+import { pruefeAntwortregelnZuFacetten } from '@/lib/chat/antwortregeln'
 import { normalizeGalleryCardDensity } from '@ks/module-explorer/react'
 
 // Zod-Schema für Chat-Konfiguration
@@ -47,6 +48,8 @@ export const chatFormSchema = z.object({
   maxChars: z.coerce.number().int().positive().max(4000).optional(),
   maxCharsWarningMessage: z.string().optional(),
   footerText: z.string().optional(),
+  /** Antwortregeln der Library (Markdown mit {{facette:…}} / {{legende:…}}); Platzhalter-Prüfung im superRefine unten */
+  antwortregeln: z.string().optional(),
   companyLink: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
   embeddings: z.object({
     embeddingModel: z.string().optional(),
@@ -176,6 +179,9 @@ export const chatFormSchema = z.object({
   ingestionConnectionString: z.string().optional(),
   ingestionContainerName: z.string().optional(),
 })
+  // Platzhalter in antwortregeln müssen auf gallery.facets zeigen (Legende nur
+  // mit Wörterbuch) — dieselbe Regel wie im Server-Schema (config.ts).
+  .superRefine(pruefeAntwortregelnZuFacetten)
 
 export type ChatFormValues = z.infer<typeof chatFormSchema>
 
@@ -278,6 +284,7 @@ export function useChatForm(): UseChatFormResult {
       maxCharsWarningMessage: t('settings.chatForm.maxCharsWarningDefault'),
       footerText: "",
       companyLink: "",
+      antwortregeln: "",
       embeddings: defaultEmbeddings,
       targetLanguage: TARGET_LANGUAGE_DEFAULT,
       character: CHARACTER_DEFAULT,
@@ -349,6 +356,7 @@ export function useChatForm(): UseChatFormResult {
         maxChars: typeof c.maxChars === 'number' ? c.maxChars : 500,
         maxCharsWarningMessage: typeof c.maxCharsWarningMessage === 'string' ? c.maxCharsWarningMessage : t('settings.chatForm.maxCharsWarningDefault'),
         footerText: typeof c.footerText === 'string' ? c.footerText : "",
+        antwortregeln: typeof c.antwortregeln === 'string' ? c.antwortregeln : "",
         companyLink: typeof c.companyLink === 'string' ? c.companyLink : "",
         embeddings: {
           embeddingModel: typeof (c.embeddings as { embeddingModel?: string })?.embeddingModel === 'string'

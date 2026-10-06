@@ -43,6 +43,8 @@ import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
 import { chunkSummaryRetriever } from '@/lib/chat/retrievers/chunk-summary'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
+import type { FacetWert } from '@/lib/chat/facet-werte'
+import { loeseAntwortregelnAuf } from '@/lib/chat/antwortregeln'
 import type { StoryTopicsData } from '@/types/story-topics'
 import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
 
@@ -51,7 +53,8 @@ export interface OrchestratorInput extends RetrieverInput {
   chatConfig?: NormalizedChatConfig
   chatHistory?: Array<{ question: string; answer: string }>
   facetsSelected?: Record<string, unknown>  // Facetten-Filter für Prompt
-  facetDefs?: Array<{ metaKey: string; label?: string; type: string }>  // Facetten-Definitionen für Prompt
+  // Facetten-Definitionen für Prompt; `werte` für die Legende der Antwortregeln (m2)
+  facetDefs?: Array<{ metaKey: string; label?: string; type: string; werte?: FacetWert[] }>
   onProcessingStep?: (step: import('@/types/chat-processing').ChatProcessingStep) => void
   apiKey?: string  // Optional: API-Key für öffentliche Libraries
   isTOCQuery?: boolean  // Wenn true, verwende TOC-Prompt und parse StoryTopicsData
@@ -167,6 +170,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   const { apiKey: configApiKey } = getSecretaryConfig()
   const apiKey = run.apiKey || configApiKey || ''
   const providerForLogging = getLlmProviderForLogging()
+
+  // Antwortregeln der Library auflösen (m2). Wirft bei ungültigen Platzhaltern:
+  // dann ist die gespeicherte Konfiguration kaputt — kein stilles Weglassen.
+  const antwortregeln = loeseAntwortregelnAuf(run.chatConfig?.antwortregeln, run.facetDefs ?? [])
   
   // Erstelle Messages-Array (System + History + User)
   let messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
@@ -180,6 +187,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       accessPerspective: run.chatConfig?.accessPerspective,
       socialContext: run.chatConfig?.socialContext,
       genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
       uiLocale: run.uiLocale,
@@ -194,6 +202,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       accessPerspective: run.chatConfig?.accessPerspective,
       socialContext: run.chatConfig?.socialContext,
       genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
       chatHistory: run.chatHistory,
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
@@ -369,6 +378,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               accessPerspective: run.chatConfig?.accessPerspective,
               socialContext: run.chatConfig?.socialContext,
               genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
             })
@@ -378,6 +388,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               accessPerspective: run.chatConfig?.accessPerspective,
               socialContext: run.chatConfig?.socialContext,
               genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
               chatHistory: run.chatHistory,
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,

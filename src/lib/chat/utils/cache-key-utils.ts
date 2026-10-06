@@ -87,6 +87,8 @@ export interface CacheHashParams {
   facetsSelected?: Record<string, unknown>
   documentCount?: number // Anzahl der Dokumente in der Library (für Cache-Invalidierung bei neuen Dokumenten)
   llmModel?: string
+  /** Aufgelöste Antwortregeln der Library (m2) — Teil des Prompts, also Teil des Hashes */
+  antwortregeln?: string
 }
 
 /**
@@ -197,7 +199,13 @@ export function createCacheHash(params: CacheHashParams): string {
   if (params.documentCount !== undefined) {
     normalized.documentCount = String(params.documentCount)
   }
-  
+  // Antwortregeln (m2): geänderte Regeln oder geändertes Wörterbuch (aufgelöste
+  // Legende) dürfen keine alten Antworten aus dem Cache holen. Der aufgelöste
+  // Text geht als Ganzes ein; Leerstring zählt wie „keine Regeln".
+  if (params.antwortregeln && params.antwortregeln.trim().length > 0) {
+    normalized.antwortregeln = params.antwortregeln.trim()
+  }
+
   // Normalisiere Arrays (sortiert, lowercase)
   // WICHTIG: Leere Arrays werden nicht hinzugefügt (konsistent mit undefined)
   if (params.character && Array.isArray(params.character) && params.character.length > 0) {

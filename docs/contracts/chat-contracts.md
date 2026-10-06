@@ -23,6 +23,11 @@ um Wrapper-/Helper-spezifische Vertraege.
     `ingestKontext`; EINE Zod-Quelle für `config.ts` und das Settings-Formular.
     Wörterbuch nur für `string`/`string[]`, doppelte Werte sind ein Fehler
     (Plan `story-status-modalitaet`, m1)
+  - `antwortregeln.ts` — Antwortregeln pro Library mit Platzhaltern
+    `{{facette:…}}`/`{{legende:…}}` auf `gallery.facets`; Platzhalter sind
+    Vertrag (unbekannt = Zod-Fehler beim Speichern, Exception zur Laufzeit).
+    Der aufgelöste Text ist Teil des Cache-Hashes (§5) — Regel- oder
+    Wörterbuch-Änderung darf keine alten Antworten liefern (m2)
   - `publication-filter.ts`
   - `utils/cache-key-utils.ts`, `utils/cache-hash-builder.ts`
   - `vector-stats.ts`
