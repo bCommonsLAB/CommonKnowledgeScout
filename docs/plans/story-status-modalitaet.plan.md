@@ -1,29 +1,32 @@
 ---
 name: story-status-modalitaet
-overview: "Der Story-Modus der Library Klimamaßnahmen formuliert Antworten so, als wären alle Maßnahmen beschlossen oder in Umsetzung — auch wenn die Landesverwaltung sie als nicht umsetzbar bewertet hat. Ursache: der Status (`lv_bewertung`) erreicht das Sprachmodell nicht oder nur als rohes Token ohne Bedeutung. Dieser Plan macht den Status zur Modalität der Antwort (was darf wie gesagt werden), generisch über die Registry des Detailansichtstyps, und prüft das über ein Golden-Set aus Use Cases je Status. Owner 06.10.2026: erst messen, dann Hebel in der Reihenfolge Prompt + Nachprüfung, dann Daten, Kontroll-Durchlauf nur bei Bedarf."
+overview: "Der Story-Modus der Library Klimamaßnahmen formuliert Antworten so, als wären alle Maßnahmen beschlossen oder in Umsetzung — auch wenn die Landesverwaltung sie als nicht umsetzbar bewertet hat. Ursache: der Status (`lv_bewertung`) erreicht das Sprachmodell nicht oder nur als rohes Token ohne Bedeutung. Lösung (Owner 06.10.2026, zweite Fassung): kein Code pro Dokumenttyp. Das Facetten-Schema der Library bekommt je Facette ein Bedeutungs-Wörterbuch (Wert → Label → Bedeutung) und ein Flag, ob das Feld in den Ingest-Kontext gehört; die Library bekommt einen Antwortregeln-Text mit Platzhaltern auf diese Facetten. Der Retriever reicht gefundene Texte mit ihrem Bedeutungskontext weiter, der Server prüft deterministisch nach. Geprüft über ein Golden-Set je Library: erst messen, dann Regeln + Nachprüfung, dann Ingest-Kontext."
 vorhaben: [Klimamaßnahmen Südtirol]
 status: konzept
 todos:
   - id: m0-golden-set
-    content: "Golden-Set anlegen: pro Status 2–3 Maßnahmen, je Maßnahme drei Fragetypen (direkt, Themenfrage mit gemischten Status, Frage mit falscher Unterstellung). Erwartung als Kriterien (Pflicht-Status, Pflicht-Modalität, Verbotsliste), nicht als Wortlaut. Das echte Set liegt BEI DER LIBRARY (Storage über Provider oder MongoDB je Library), nicht im Repo; ins Repo kommen Zod-Schema, Läufer und ein synthetisches Beispiel. Format siehe §5."
+    content: "Golden-Set anlegen: pro Status 2–3 Maßnahmen, je Maßnahme drei Fragetypen (direkt, Themenfrage mit gemischten Status, Frage mit falscher Unterstellung). Erwartung als Kriterien (Pflicht-Status, Pflicht-Modalität, Verbotsliste), nicht als Wortlaut. Das Set liegt BEI DER LIBRARY (neben Facetten und Antwortregeln in der Library-Konfiguration bzw. als Datei im Storage über den Provider), nicht im Repo; ins Repo kommen Zod-Schema, Läufer und ein synthetisches Beispiel. Format siehe §5."
     status: pending
   - id: m0-baseline
     content: "Baseline gegen den heutigen Stand fahren und Trefferquote festhalten (deterministische Checks + Richter-Rubrik). Ergebnis in den Plan eintragen, bevor ein Hebel gebaut wird."
     status: pending
-  - id: m1-registry-vokabular
-    content: "Registry (`packages/contracts/src/detail-view-type-registry.ts`): neben `belegKarte.status` ein `statusVokabular` je Detailansichtstyp — je Statuswert Klartext-Label, Wirkungsart (formulieren | hinweis | ausschliessen), erlaubte Sprechweise, Verbotsliste. Für `climateAction` die sieben Werte von `lv_bewertung` belegen (alle: formulieren). Unit-Test: jeder Plaketten-Schlüssel hat ein Vokabular (kein stiller Default). Andere Typen (commoning `bearbeitungsstatus`, DIVA `review_status`) bekommen KEIN Vokabular in diesem Plan, nur die Struktur, die sie aufnehmen kann."
+  - id: m1-facetten-schema
+    content: "Facetten-Schema (`chatConfigSchema.gallery.facets` in `src/lib/chat/config.ts`, `FacetDef` in `dynamic-facets.ts`, `LibraryChatConfig` in `@ks/contracts`) um zwei Felder erweitern: `ingestKontext: boolean` (Feld geht als Klartext in den Metadaten-Vorspann der Chunks und in den Dokument-Embedding-Text) und `werte: Array<{ wert, label, bedeutung?, verboten?: string[] }>` (Bedeutungs-Wörterbuch je Wert). Beides optional, kein Default-Raten; Zod validiert, dass `werte` nur bei Typ string/string[] steht. Facetten-Editor (`FacetDefsEditor.tsx`) um die beiden Eingaben erweitern."
     status: pending
-  - id: m2-prompt
-    content: "Prompt (`src/lib/chat/common/prompt.ts`): im Quellen-Header Klartext-Label statt Schlüssel; Legende + Modalitäts-Tabelle aus dem Vokabular in die System-Message; bei mehreren Dokumenten Gruppierung nach Status verlangen. Vokabular JE QUELLDOKUMENT auflösen (fileId → detailViewType wie in `reference-view-type.ts`, Library-Default nur als Rückfall für Dokumente ohne eigenen Typ), weil eine Library gemischte Typen enthalten kann; die System-Sektion vereinigt die Vokabulare der tatsächlich getroffenen Typen. Ohne Vokabular keine Status-Sektion (explizit, kein leerer Text)."
+  - id: m2-antwortregeln
+    content: "Neues Library-Feld `chat.antwortregeln` (Markdown, Freitext) mit Platzhaltern `{{facette:<metaKey>}}` (Label) und `{{legende:<metaKey>}}` (Tabelle Wert-Label → Bedeutung aus `werte`). Platzhalter werden beim Speichern gegen das Facetten-Schema validiert; unbekannter Platzhalter = Fehler, nie stilles Leerlassen (no-silent-fallbacks). Aufgelöster Text wird als Sektion „Regeln dieser Library" in die System-Message gesetzt (`prompt.ts buildSystemMessage`). Checkliste `library-config-field.md` abarbeiten (Typ, Service, Settings-UI, Maskierung entfällt: kein Secret)."
     status: pending
-  - id: m3-nachpruefung
-    content: "Deterministische Nachprüfung im Orchestrator: Status jeder zitierten Quelle [n] aus den Metadaten lesen, Fußnote „Stand laut Landesverwaltung: …" an die Antwort anhängen, Verbotsliste je Status gegen den Antworttext prüfen und Treffer im Query-Log vermerken. Keine stillschweigende Korrektur des Texts."
+  - id: m3-quellen-header
+    content: "Quellen-Header im Prompt (`prompt.ts buildContext`): je Facettenwert mit Wörterbuch-Eintrag `Label: Wertlabel — Bedeutung` statt `metaKey: rohwert`; ohne Eintrag wie bisher Label: Wert. Wirkt typübergreifend: Dokumente ohne das Feld zeigen nichts. Cache-Schlüssel (`cache-hash-builder.ts`) um `antwortregeln` und `werte` erweitern, sonst alte Antworten nach Regeländerung."
     status: pending
-  - id: m4-daten
-    content: "Ingestion: Statusfeld und Label aus der Registry des Dokumenttyps (`belegKarte.status.field` + Vokabular, NICHT hartkodiert `lv_bewertung`) in den Metadaten-Vorspann (`metadata-formatter.ts`) und in den Dokument-Embedding-Text (`document-text-builder.ts`); Template der Library (Muster `klimamassnahme-detail1-de.md`): `summary` muss den Status in einem Satz nennen — das pflegt die Library in ihrem Template, das Repo-Muster wird nachgezogen; Facette `lv_bewertung` in der Library-Config prüfen. Danach Re-Ingest der Library und Golden-Set erneut fahren."
+  - id: m4-nachpruefung
+    content: "Deterministische Nachprüfung im Orchestrator: für jede zitierte Quelle [n] die Facettenwerte mit Wörterbuch lesen, Fußnote mit Statusverteilung anhängen (Labels aus `werte`), `verboten`-Listen der getroffenen Werte gegen den Antworttext prüfen und Treffer im Query-Log vermerken. Keine stillschweigende Korrektur des Texts."
     status: pending
-  - id: m5-kontrolldurchlauf
-    content: "Nur wenn m2+m3 (+m4) die Baseline nicht ausreichend heben: zweiter, kleiner Modellaufruf, der die Antwort gegen die Status-Liste der zitierten Dokumente prüft und beanstandete Sätze meldet. Kosten je Frage messen, Entscheidung Owner."
+  - id: m5-ingest-kontext
+    content: "Ingestion: `buildMetadataPrefix` (`metadata-formatter.ts`) und `buildDocumentTextForEmbedding` (`document-text-builder.ts`) bekommen die Facetten-Definitionen und schreiben jede Facette mit `ingestKontext: true` als `Label: Wertlabel` in Vorspann und Embedding-Text (`ingestion-service.ts` hat die Defs bereits für `extractFacetValues`). Template der Library: `summary` nennt den Status in einem Satz (Repo-Muster `klimamassnahme-detail1-de.md` nachziehen). Danach Re-Ingest der Library und Golden-Set erneut fahren."
+    status: pending
+  - id: m6-kontrolldurchlauf
+    content: "Nur wenn m2–m5 die Baseline nicht ausreichend heben: zweiter, kleiner Modellaufruf, der die Antwort gegen die Bedeutungen der zitierten Dokumente prüft und beanstandete Sätze meldet. Kosten je Frage messen, Entscheidung Owner."
     status: pending
 ---
 
@@ -59,118 +62,119 @@ Geprüft am 06.10.2026 im Code, vier Lücken:
 | Chunk-Text | Der eingebettete Metadaten-Vorspann enthält Titel, Autoren, Jahr, Region, Dokumenttyp, Zusammenfassung, Tags, Themen. Keinen Status. Nur der Chunk, der zufällig die Body-Zeile `> **Bewertung:** …` enthält, trägt ihn. | `src/lib/ingestion/metadata-formatter.ts` |
 | Zusammenfassung | Das Template beschreibt `summary` als „Zusammenfassung der Maßnahme (2–3 Sätze)". Die Summary liest sich wie eine beschlossene Sache. Der Summary-Retriever liefert genau diesen Text. | `template-samples/klimamassnahme-detail1-de.md`, `src/lib/chat/retrievers/summaries-mongo.ts` |
 | Quellen-Header | Ist `lv_bewertung` als Facette konfiguriert, steht im Prompt-Kontext `lv_bewertung: nicht_umsetzbar`. Ein rohes Token ohne Legende, ohne Anweisung, es zu beachten. | `src/lib/chat/common/prompt.ts` (`buildContext`) |
-| System-Prompt | „You are a precise assistant. Answer exclusively based on the sources." Es gibt kein Feld pro Library oder Detailansichtstyp für fachliche Formulierungsregeln. | `src/lib/chat/common/prompt.ts` (`buildSystemMessage`), `packages/contracts/src/library-chat.ts` |
+| System-Prompt | „You are a precise assistant. Answer exclusively based on the sources." Es gibt kein Feld pro Library für fachliche Formulierungsregeln. | `src/lib/chat/common/prompt.ts` (`buildSystemMessage`), `packages/contracts/src/library-chat.ts` |
 
 Das Dokument-Embedding (`document-text-builder.ts`) hat dieselbe Lücke wie
 der Chunk-Vorspann.
 
-Was schon da ist und genutzt werden soll: Die Registry kennt für
-`climateAction` die Zuordnung `lv_bewertung` → Plakette
-(`belegKarte.status.plaketten`). Die Facetten-Mechanik transportiert
-Metadaten bis in den Prompt-Kontext (`metadata-extractor.ts`). Der
-Orchestrator weiß nach der Antwort, welche Dokumente [n] zitiert wurden
-(`usedReferences`).
+Was schon da ist und getragen wird: Facetten sind pro Library
+konfigurierbar (`chat.gallery.facets`, Editor in den Settings), gelten
+typübergreifend über alle Dokumente der Library, und ihre Werte landen
+heute schon auf jedem Vektor-Dokument (`extractFacetValues`) und im
+Quellen-Header des Prompts (`extractFacetMetadata`). Der Orchestrator weiß
+nach der Antwort, welche Dokumente [n] zitiert wurden (`usedReferences`).
+Es fehlt nur die **Bedeutung** der Werte und eine **Regel**, wie damit zu
+formulieren ist.
 
 ## 3. Prinzip: Status ist eine Modalität, kein Thema
 
 Der Status legt fest, mit welchem Modalverb und welcher Zuschreibung über die
-Maßnahme gesprochen werden darf. Das ist Wissen des Detailansichtstyps, nicht
-der Library und nicht des Klima-Codes. Es gehört deshalb als Vokabular in die
-Registry neben die Plaketten-Zuordnung:
+Maßnahme gesprochen werden darf. Für Klimamaßnahmen sieht das so aus:
 
-| Status | Plakette | Erlaubte Sprechweise | Verboten |
+| Wert | Label | Bedeutung (geht als Kontext mit) | Verboten |
 |---|---|---|---|
-| `in_umsetzung` | umsetzung | „Laut Landesverwaltung ist … in Umsetzung." Kein Urteil über Erfolg oder Umfang. | „ist umgesetzt", „wurde erreicht", „gibt es seit" |
-| `im_klimaplan`, `in_fachplaenen` | umsetzung | „… ist im Klimaplan bzw. in Fachplänen vorgesehen." | „wird gemacht", „ist umgesetzt" |
-| `neu_umsetzbar` | geplant | „… wird von der Landesverwaltung als machbar eingestuft, ist aber nicht beschlossen." | „wird umgesetzt", „ist geplant" (ohne Zusatz) |
-| `vertieft_pruefen`, `unklar` | pruefung | „… wird noch geprüft / ist offen." | „wird gemacht", „ist vorgesehen" |
-| `nicht_umsetzbar` | abgelehnt | „… wurde als nicht umsetzbar bewertet und wird nicht umgesetzt." | „wird gemacht", „ist geplant", „könnte" ohne Hinweis auf die Ablehnung |
+| `in_umsetzung` | in Umsetzung | Laut Landesverwaltung in Umsetzung. Kein Urteil über Erfolg oder Umfang. | „ist umgesetzt", „wurde erreicht", „gibt es seit" |
+| `im_klimaplan` | im Klimaplan | Im Klimaplan vorgesehen, nicht als umgesetzt gemeldet. | „wird gemacht", „ist umgesetzt" |
+| `in_fachplaenen` | in Fachplänen | In Fachplänen vorgesehen, nicht als umgesetzt gemeldet. | „wird gemacht", „ist umgesetzt" |
+| `neu_umsetzbar` | machbar, nicht beschlossen | Von der Landesverwaltung als machbar eingestuft, aber nicht beschlossen. | „wird umgesetzt", „ist geplant" |
+| `vertieft_pruefen` | in Prüfung | Wird noch geprüft, Ergebnis offen. | „wird gemacht", „ist vorgesehen" |
+| `unklar` | offen | Bewertung unklar. | „wird gemacht" |
+| `nicht_umsetzbar` | nicht umsetzbar | Als nicht umsetzbar bewertet; wird nicht umgesetzt. | „wird gemacht", „ist geplant", „könnte" ohne Hinweis auf die Ablehnung |
 
-Zwei Regeln gelten für alle Werte:
+Zwei Regeln gelten darüber:
 
 1. **Zuschreibung statt Behauptung.** Jede Statusaussage wird der
-   Landesverwaltung zugeschrieben („laut Rückmeldung", „nach Einschätzung der
-   Landesverwaltung"). Die Antwort spricht nie in eigener Autorität über den
-   Stand.
+   Landesverwaltung zugeschrieben („laut Rückmeldung"). Die Antwort spricht
+   nie in eigener Autorität über den Stand.
 2. **Gruppierung bei Mehrfach-Treffern.** Trifft eine Frage mehrere
-   Maßnahmen mit verschiedenem Status, gliedert die Antwort nach Status
-   (umgesetzt oder vorgesehen / machbar, nicht beschlossen / in Prüfung /
-   abgelehnt), statt alles in einen Fluss zu packen.
+   Maßnahmen mit verschiedenem Status, gliedert die Antwort nach Status.
 
-Die Plaketten-Zuordnung in der Registry weicht heute noch von der
-Kartenfarbe in `document-card/status-config.ts` ab (Kommentar in der Registry,
-Kandidat D6). Das Vokabular hängt an den Schlüsseln, nicht an den Plaketten,
-und ist von dieser Vereinheitlichung unabhängig.
+Entscheidend ist, **wo** das steht: Die Tabelle ist das Bedeutungs-Wörterbuch
+der Facette `lv_bewertung` in der Library-Konfiguration. Die zwei Regeln
+sind der Antwortregeln-Text derselben Library. Nichts davon ist Code.
 
-## 3a. Wo welches Wissen gepflegt wird (Generik)
+## 3a. Wo gepflegt wird: ein Ort, die Library-Konfiguration
 
-Die Mechanik ist generisch; das Wissen liegt auf drei Ebenen, und jede
-Ebene hat einen Ort und einen Pfleger:
+Owner-Entscheidung 06.10.: **Kein Code pro Dokumenttyp.** Eine Library
+mischt Typen (Maßnahme, Event, PDF, …), die in der Ansicht verschieden
+wirken, im Retriever aber übergreifend funktionieren müssen. Deshalb hängt
+alles am Facetten-Schema der Library und an einem Regeltext der Library,
+beides dynamisch pflegbar in den Settings:
 
-| Ebene | Gilt für | Ort | Wer pflegt | Inhalt in diesem Plan |
-|---|---|---|---|---|
-| Template | einen Dokumenttyp in einer Library | Template-Ordner der Library (Repo hält nur Muster unter `template-samples/`) | Library-Kurator | Welche Felder beim Ingest entstehen; `summary` nennt den Status in einem Satz |
-| Registry | einen Detailansichtstyp, über alle Libraries | `packages/contracts/src/detail-view-type-registry.ts` | Entwicklung | Statusfeld, Plakette, **Vokabular** (Label, Wirkungsart, Sprechweise, Verbotsliste) |
-| Library-Config | eine Library | `chat.gallery` (Default-Typ, Facetten, Charakter, Sprache) | Owner in den Settings | Facette für das Statusfeld; **kein** Freitext-Prompt; typisierter Override je Statuswert erst, wenn ein Fall es verlangt |
+| Baustein | Wo | Was | Wirkt auf |
+|---|---|---|---|
+| `facets[].werte` | Facetten-Schema (`chat.gallery.facets`) | Wörterbuch je Wert: `wert`, `label`, `bedeutung`, optional `verboten[]` | Quellen-Header (Bedeutungskontext je Textstelle), Fußnote, Nachprüfung, Galerie-Labels |
+| `facets[].ingestKontext` | Facetten-Schema | Flag: Feld geht als Klartext in Chunk-Vorspann und Dokument-Embedding | Ingestion (Re-Ingest nötig) |
+| `chat.antwortregeln` | Library-Konfiguration, neues Feld | Markdown mit `{{facette:…}}` und `{{legende:…}}` | System-Message |
+| Golden-Set | bei der Library (Konfiguration oder Datei im Storage) | Fragen, erwartete Werte, Kriterien | Messung |
+| Template | Template-Ordner der Library | `summary` nennt den Status in einem Satz | Summary-Retriever (Re-Ingest nötig) |
 
 Drei Folgerungen:
 
-- **Der Typ hängt am Dokument, nicht an der Library.** Jedes Dokument trägt
-  `docMetaJson.detailViewType`; die Library-Config liefert nur den Default.
-  Der Retriever löst heute schon je zitiertem Dokument den Typ auf
-  (`reference-view-type.ts`). Vokabular und Status-Vorspann werden deshalb je
-  Dokument aufgelöst, nie „aus der Library". Gemischte Libraries funktionieren
-  damit ohne Sonderfall.
-- **Andere Libraries, andere Wirkung.** Im Repo gibt es drei
-  Status-Konzepte: `lv_bewertung` (Klima, Aussage über die Welt, muss
-  formuliert werden), `bearbeitungsstatus` fertig / in-arbeit (Commoning,
-  redaktioneller Zustand, eher Frage des Ausschlusses), `review_status`
-  (DIVA, Lebenszyklus). Deshalb trägt jeder Vokabular-Eintrag eine
-  **Wirkungsart**: `formulieren` (Modalität im Text), `hinweis` (nur Fußnote),
-  `ausschliessen` (Dokument nicht zitieren). Dieser Plan belegt nur
-  `climateAction`; die anderen Typen bekommen die Struktur, nicht den Inhalt.
-- **Fragen und Erwartungen sind Library-Wissen.** Ein Golden-Set mit echten
-  Maßnahmen-Nummern gehört nach der Repo-Regel (AGENTS.md, öffentliches Repo)
-  nicht ins Repo. Es liegt bei der Library: als Datei im Storage, über den
-  Provider gelesen, oder in MongoDB je Library; gepflegt über Settings oder
-  die MCP-Brücke. Im Repo liegen das Zod-Schema des Formats, der Läufer und
-  ein synthetisches Beispiel mit erfundener Maßnahme.
+- **Typübergreifend ohne Sonderfall.** Der Quellen-Header einer Textstelle
+  zeigt die Bedeutungen der Facettenwerte, die das Dokument hat. Ein Event
+  ohne `lv_bewertung` zeigt dort nichts. Die Antwortregeln formulieren
+  entsprechend „wo vorhanden".
+- **Bedingung als Wörterbuch, nicht als Syntax.** „Wenn Status X, dann
+  Bedeutung Y" sitzt am Wert der Facette. Der Regeltext braucht deshalb
+  keine Wenn-dann-Syntax und keinen Parser; `{{legende:lv_bewertung}}` setzt
+  die ganze Tabelle ein. Eine Bedingungssyntax bleibt im Vorrat, falls ein
+  Fall sie wirklich braucht.
+- **Platzhalter sind Vertrag.** Ein Platzhalter auf eine Facette, die es im
+  Schema nicht gibt, wird beim Speichern abgelehnt. Kein stilles Leerlassen
+  (no-silent-fallbacks).
 
-## 4. Vier Hebel, von billig nach aufwändig
+Die Registry der Detailansichtstypen bleibt, was sie ist: UI-Wissen
+(Plakette, Kennzeile, Default-Facetten). Sie darf das Wörterbuch für neue
+Libraries **vorbelegen** (für `climateAction` aus der bestehenden
+Plaketten-Zuordnung), die Library-Konfiguration ist die Wahrheit.
 
-**Hebel A, Prompt (m1, m2).** Vokabular in die Registry; der Retriever-Kontext
-löst es über den Detailansichtstyp der Library auf. Im Quellen-Header steht
-`Bewertung Landesverwaltung: nicht umsetzbar` statt
-`lv_bewertung: nicht_umsetzbar`. Die System-Message bekommt eine Sektion
-„Status der Dokumente": Legende, Modalitäts-Tabelle, die beiden Regeln aus
-§3. Ohne Vokabular (andere Detailansichtstypen) entfällt die Sektion
-explizit. Wirkt sofort, ohne Re-Ingest.
+Ehrliche Kosten dieses Wegs: Freitext ist nicht typgeprüft, die Qualität
+hängt an der Autorin der Regeln. Dagegen stehen die Platzhalter-Validierung,
+die `verboten`-Listen und das Golden-Set pro Library. Zweitens muss der
+Antwort-Cache Regeln und Wörterbuch im Schlüssel tragen (m3), sonst
+überleben alte Antworten eine Regeländerung.
 
-**Hebel B, deterministische Nachprüfung (m3).** Der Server kennt für jede
-zitierte Quelle den Status aus den Metadaten. Er hängt eine Fußnote an die
-Antwort („Stand laut Landesverwaltung: 2 Maßnahmen in Umsetzung, 1 in
-Prüfung, 1 als nicht umsetzbar bewertet") und prüft den Antworttext gegen die
-Verbotsliste der zitierten Status. Treffer werden im Query-Log vermerkt, der
-Text wird nicht stillschweigend umgeschrieben (no-silent-fallbacks). Das ist
-der einzige Hebel, der nie halluziniert, und die Grundlage der Messung.
+## 4. Hebel, von billig nach aufwändig
 
-**Hebel C, Daten (m4).** Status in den Metadaten-Vorspann jedes Chunks und in
-den Dokument-Embedding-Text; Template-Anweisung für `summary` um einen
-Status-Satz ergänzen; Facette `lv_bewertung` in der Library-Config
-sicherstellen. Braucht Re-Ingest der Library, deshalb erst, wenn die Library
-ohnehin neu ingestiert wird oder wenn A+B in der Messung nicht reichen.
+**Hebel A, Regeln und Kontext (m1, m2, m3).** Wörterbuch und Regeltext in
+der Konfiguration; der Quellen-Header trägt je Textstelle `Bewertung
+Landesverwaltung: nicht umsetzbar — als nicht umsetzbar bewertet; wird nicht
+umgesetzt`; die System-Message bekommt die aufgelösten Antwortregeln. Wirkt
+sofort, ohne Re-Ingest.
 
-**Hebel D, Kontroll-Durchlauf (m5).** Zweiter, kleiner Modellaufruf, der die
-Antwort gegen die Status-Liste prüft. Kostet je Frage; nur bauen, wenn die
-Messung nach A+B+C noch Lücken zeigt.
+**Hebel B, deterministische Nachprüfung (m4).** Der Server kennt für jede
+zitierte Quelle die Facettenwerte. Er hängt eine Fußnote an („Stand laut
+Landesverwaltung: 2 in Umsetzung, 1 in Prüfung, 1 nicht umsetzbar") und
+prüft den Text gegen die `verboten`-Listen der getroffenen Werte. Treffer
+landen im Query-Log, der Text wird nicht umgeschrieben. Der einzige Hebel,
+der nie halluziniert, und die Grundlage der Messung.
 
-Reihenfolge (Owner 06.10.): m0 Golden-Set und Baseline, dann A und B
-zusammen, dann C, D nur bei Bedarf.
+**Hebel C, Ingest-Kontext (m5).** Facetten mit `ingestKontext` in
+Chunk-Vorspann und Dokument-Embedding; Template-Anweisung für `summary`.
+Braucht Re-Ingest, deshalb erst, wenn A+B in der Messung nicht reichen oder
+die Library ohnehin neu ingestiert wird.
+
+**Hebel D, Kontroll-Durchlauf (m6).** Zweiter Modellaufruf gegen die
+Bedeutungen der zitierten Dokumente. Nur bei Bedarf.
+
+Reihenfolge: m0 Golden-Set und Baseline, dann A und B zusammen, dann C,
+D nur bei Bedarf.
 
 ## 5. Systemisch prüfen: Golden-Set aus Use Cases
 
 Die Prüfung ist Teil des Plans, nicht Nacharbeit. Ohne Baseline weiß niemand,
-ob der Prompt allein reicht.
+ob die Regeln allein reichen.
 
 **Korpus.** Pro Status zwei bis drei echte Maßnahmen aus der Library. Dazu
 bewusst Handlungsfelder, in denen Maßnahmen mit verschiedenem Status
@@ -185,9 +189,10 @@ nebeneinander liegen (z. B. Schwerverkehr, Heizen, Ernährung).
    oder erst geprüften Maßnahme. Der härteste Typ; er zeigt den Shift am
    deutlichsten.
 
-**Erwartung als Kriterien, nicht als Wortlaut.** Vorschlag für das
-Format (JSON, ein Eintrag je Frage). Das Set mit echten Maßnahmen-Nummern
-liegt bei der Library (§3a); im Repo steht nur ein synthetisches Beispiel:
+**Erwartung als Kriterien, nicht als Wortlaut.** Format (JSON, ein Eintrag
+je Frage). Das Set mit echten Maßnahmen-Nummern liegt bei der Library (§3a);
+im Repo steht nur ein synthetisches Beispiel. Die Verbotsliste muss nicht
+wiederholt werden, sie kommt aus dem Wörterbuch der Facette:
 
 ```json
 {
@@ -195,54 +200,58 @@ liegt bei der Library (§3a); im Repo steht nur ein synthetisches Beispiel:
   "frage": "Was tut Südtirol beim Schwerverkehr?",
   "typ": "themenfrage",
   "erwarteteDokumente": [
-    { "massnahme_nr": "…", "status": "in_umsetzung" },
-    { "massnahme_nr": "…", "status": "nicht_umsetzbar" }
+    { "massnahme_nr": "…", "lv_bewertung": "in_umsetzung" },
+    { "massnahme_nr": "…", "lv_bewertung": "nicht_umsetzbar" }
   ],
   "pflicht": {
-    "statusGenannt": ["in_umsetzung", "nicht_umsetzbar"],
+    "werteGenannt": { "lv_bewertung": ["in_umsetzung", "nicht_umsetzbar"] },
     "zuschreibung": true,
     "gruppierung": true
-  },
-  "verboten": ["wird umgesetzt", "ist umgesetzt", "gibt es seit"]
+  }
 }
 ```
 
 **Zwei Prüfebenen:**
 
-- **Deterministisch** (Unit-/Integrationstest, ohne Modell bewertbar):
-  zitierte Dokumente gegen `erwarteteDokumente`; Verbotsliste je Status gegen
-  den Antworttext; Pflicht-Status als Label im Text vorhanden. Dieselbe Logik
-  wie Hebel B, deshalb wird sie als wiederverwendbare Funktion gebaut.
+- **Deterministisch** (ohne Modell bewertbar): zitierte Dokumente gegen
+  `erwarteteDokumente`; `verboten`-Listen der getroffenen Werte gegen den
+  Antworttext; Pflicht-Labels im Text vorhanden. Dieselbe Logik wie Hebel B,
+  deshalb eine wiederverwendbare Funktion.
 - **Qualitativ** (Richter-Modell mit fester Rubrik): Modalität korrekt,
   Zuschreibung vorhanden, keine Erfolgsbehauptung, Gruppierung bei
-  Mehrfach-Treffern. Rubrik mit vier Ja/Nein-Fragen, kein Freitext-Urteil.
+  Mehrfach-Treffern. Vier Ja/Nein-Fragen, kein Freitext-Urteil.
 
-**Ablauf.** Golden-Set einmal gegen den heutigen Stand fahren
-(Baseline), Trefferquote je Fragetyp und je Status festhalten. Nach jedem
-Hebel wiederholen. Die Läufe landen ohnehin im Query-Log und bleiben dort
-nachvollziehbar. Läuft das Set gegen die echte Library, kostet es
-Modell-Aufrufe; die Prompt-Ebene (Hebel A) lässt sich zusätzlich mit
-Fixture-Chunks und einem Mock-Modell unit-testen (Legende im Prompt
-vorhanden, Label statt Schlüssel im Header).
+**Ablauf.** Golden-Set einmal gegen den heutigen Stand fahren (Baseline),
+Trefferquote je Fragetyp und je Wert festhalten. Nach jedem Hebel
+wiederholen. Die Läufe landen im Query-Log. Die Prompt-Ebene (Hebel A) lässt
+sich zusätzlich mit Fixture-Chunks und Mock-Modell unit-testen (Legende in
+der System-Message, Bedeutung im Header, abgelehnter Platzhalter).
 
 ## 6. Was nicht in diesen Plan gehört
 
 - Vereinheitlichung Plakette vs. Kartenfarbe (D6-Kandidat) — eigene Aufgabe.
-- Ein freies „Zusatz-Prompt"-Feld pro Library. Bewusst nicht: Das Vokabular
-  hängt am Detailansichtstyp und ist typisiert; ein Freitext-Feld würde die
-  Prüfung unmöglich machen.
+- Wenn-dann-Syntax im Regeltext — Vorrat, erst bei nachgewiesenem Bedarf
+  (§3a).
 - Datum der Rückmeldung als eigenes Feld (die Bewertung gilt „zu einem
-  Zeitpunkt"). Sinnvoll, aber Template-Änderung mit Re-Ingest; in den Vorrat.
+  Zeitpunkt"). Sinnvoll, aber Template-Änderung mit Re-Ingest; Vorrat.
 
 ## 7. Betroffene Dateien
 
-- `packages/contracts/src/detail-view-type-registry.ts` — `statusVokabular`
-- `src/lib/chat/retriever-context.ts` — Vokabular je Library auflösen
-- `src/lib/chat/common/prompt.ts` — Header-Label, Status-Sektion, Gruppierung
+- `packages/contracts/src/library-chat.ts`, `src/lib/chat/config.ts`,
+  `src/lib/chat/dynamic-facets.ts` — `werte`, `ingestKontext`,
+  `antwortregeln`
+- `src/components/settings/FacetDefsEditor.tsx`, Settings-Chat-Tab —
+  Eingaben für Wörterbuch, Flag und Regeltext
+- `src/lib/chat/common/prompt.ts` — Header mit Bedeutung, Regeln in der
+  System-Message, Platzhalter-Auflösung
+- `src/lib/chat/utils/cache-hash-builder.ts` — Regeln und Wörterbuch im
+  Cache-Schlüssel
 - `src/lib/chat/orchestrator.ts` — Nachprüfung und Fußnote nach der Antwort
 - `src/lib/ingestion/metadata-formatter.ts`,
-  `src/lib/ingestion/document-text-builder.ts` — Status im Vorspann (Hebel C)
+  `src/lib/ingestion/document-text-builder.ts`,
+  `src/lib/chat/ingestion-service.ts` — Facetten mit `ingestKontext` im
+  Vorspann (Hebel C)
 - `template-samples/klimamassnahme-detail1-de.md` — `summary` mit Status-Satz
-- `tests/unit/chat/` — Vokabular-Vollständigkeit, Prompt-Sektion,
-  deterministische Prüfung, Zod-Schema des Golden-Set-Formats mit einem
-  synthetischen Beispiel; das echte Set liegt bei der Library (§3a)
+- `tests/unit/chat/` — Schema-Validierung, Platzhalter-Ablehnung,
+  Header-Bedeutung, deterministische Prüfung, Zod-Schema des Golden-Set-
+  Formats mit synthetischem Beispiel

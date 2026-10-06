@@ -102,8 +102,10 @@ Bekannte Punkte:
    [`plans/story-status-modalitaet.plan.md`](plans/story-status-modalitaet.plan.md)
    — der Story-Modus ignoriert den Status der Maßnahme (`lv_bewertung`) und
    formuliert Abgelehntes wie Beschlossenes; Status wird zur Modalität der
-   Antwort (Vokabular in der Registry), geprüft über ein Golden-Set je
-   Status (m0 messen, dann Prompt + Nachprüfung, dann Daten).
+   Antwort — Bedeutungs-Wörterbuch je Facettenwert und Antwortregeln-Text
+   in der Library-Konfiguration, kein Code pro Typ (Owner 06.10.); geprüft
+   über ein Golden-Set je Library (m0 messen, dann Regeln + Nachprüfung,
+   dann Ingest-Kontext).
 3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
    Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
    im Konzept). **Bau-Plan seit 26.09.:**
