@@ -10,4 +10,5 @@ von hier nach `docs/plans/`, sobald ein Vorhaben ihn aufnimmt.
 | Plan | Warum geplant, nicht aktiv | Seit |
 |---|---|---|
 | `audio-namensraum-und-diarisierung_c4f81a37` | Owner-Entscheidung 2026-09-09: Sprecher-Erkennung wird später umgesetzt; kein Vorhaben braucht sie jetzt. Der Plan ist vollständig und die Marker stimmen (0 von 10). | 2026-09-09 |
+| `veranstaltungen-ueber-die-bruecke` | Konzept-Entwurf aus der Journalistenschulung (P3a bis P4): sieben Werkzeug-Wellen für die MCP-Brücke plus Skill als Drehbuch, damit ein Agent Ordner mit Audio, PDF, Video und Bildern bis zur Veröffentlichung begleitet. Ausführliche Fassung gehört ins Archiv; wartet auf Merge von P3b (#357) und auf den Heartbeat-Prüffall. | 2026-10-08 |
 | `bruecke-library-betrieb` | Abgeleitet aus dem Live-Test der Status-Modalität (07./08.10.2026): fünf wiederkehrende Use Cases (Konfigurieren, Messen, Index nachziehen, Bestand prüfen, Läufe bilanzieren) als Brücken-Werkzeuge. Wartet, bis der Owner es in ein Vorhaben holt. | 2026-10-08 |
