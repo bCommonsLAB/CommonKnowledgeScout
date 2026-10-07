@@ -5,7 +5,7 @@ vorhaben: [Klimamaßnahmen Südtirol]
 status: konzept
 todos:
   - id: m0-golden-set
-    content: "Golden-Set anlegen: pro Status 2–3 Maßnahmen, je Maßnahme drei Fragetypen (direkt, Themenfrage mit gemischten Status, Frage mit falscher Unterstellung). Erwartung als Kriterien (Pflicht-Status, Pflicht-Modalität, Verbotsliste), nicht als Wortlaut. Das Set liegt BEI DER LIBRARY (neben Facetten und Antwortregeln in der Library-Konfiguration bzw. als Datei im Storage über den Provider), nicht im Repo; ins Repo kommen Zod-Schema, Läufer und ein synthetisches Beispiel. Format siehe §5."
+    content: "Golden-Set anlegen: pro Status 2–3 Maßnahmen, je Maßnahme drei Fragetypen (direkt, Themenfrage mit gemischten Status, Frage mit falscher Unterstellung). Erwartung als Kriterien (Pflicht-Status, Pflicht-Modalität, Verbotsliste), nicht als Wortlaut. Das Set liegt BEI DER LIBRARY (neben Facetten und Antwortregeln in der Library-Konfiguration bzw. als Datei im Storage über den Provider), nicht im Repo; ins Repo kommen Zod-Schema, Läufer und ein synthetisches Beispiel. Format siehe §5. ERLEDIGT 07.10. (Code-Teil): `src/lib/chat/golden-set/` (schema, pruefung, richter, bericht), Läufer `scripts/golden-set-run.ts`, synthetisches Beispiel `tests/unit/chat/golden-set/beispiel.json`, Test `tests/unit/chat/golden-set.test.ts`. OFFEN (Owner): das echte Set mit Maßnahmen-Nummern bei der Library anlegen (§5a)."
     status: pending
   - id: m0-baseline
     content: "Baseline gegen den heutigen Stand fahren und Trefferquote festhalten (deterministische Checks + Richter-Rubrik). Ergebnis in den Plan eintragen, bevor ein Hebel gebaut wird."
@@ -226,6 +226,33 @@ Trefferquote je Fragetyp und je Wert festhalten. Nach jedem Hebel
 wiederholen. Die Läufe landen im Query-Log. Die Prompt-Ebene (Hebel A) lässt
 sich zusätzlich mit Fixture-Chunks und Mock-Modell unit-testen (Legende in
 der System-Message, Bedeutung im Header, abgelehnter Platzhalter).
+
+### 5a. Läufer (gebaut 07.10.)
+
+Das Set ist eine JSON-Datei nach dem Format oben, mit einem Feld
+`kennungFeld` auf oberster Ebene (z. B. `massnahme_nr`): der Schlüssel in
+`erwarteteDokumente`, der das Dokument benennt; die übrigen Schlüssel sind
+Facetten mit erwartetem Wert. Beim Start prüft der Läufer das Set gegen das
+Facetten-Schema der Library (unbekannte Facette, Wert nicht im Wörterbuch,
+Kennung ohne Meta-Dokument sind Fehler, kein stilles Nicht-Gefunden).
+
+```bash
+pnpm tsx scripts/golden-set-run.ts --libraryId=<id> --userEmail=<owner> \
+  --set=<pfad/golden-set.json> --titel=Baseline [--richterModel=<llm-id>]
+```
+
+Jede Frage geht ohne Antwort-Cache durch denselben Weg wie die Stream-Route
+(Filter, Retriever-Entscheidung, Antwortregeln, Nachprüfung) und bekommt
+einen Query-Log-Eintrag (`filtersNormalized.goldenSet`). Ergebnis in
+`golden-set-laeufe/` (gitignoriert): JSON mit allen Antworten und ein
+Markdown-Bericht mit Quote je Fragetyp und je Facettenwert — diese Tabelle
+kommt in §5b. Ohne `--richterModel` läuft nur die deterministische Ebene.
+
+### 5b. Messungen
+
+| Lauf | Datum | Stand | Ergebnis |
+|---|---|---|---|
+| Baseline | offen | vor Wörterbuch, Regeln, Re-Ingest | (Bericht des Läufers hier einfügen) |
 
 ## 6. Was nicht in diesen Plan gehört
 

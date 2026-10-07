@@ -60,3 +60,6 @@ packages/embed/*.tgz
 # Chat-Exporte und Sperrliste bleiben lokal bzw. im Archiv (oeffentliches Repo)
 docs/_chats/
 .sperrliste.local
+
+# Golden-Set-Läufe (Plan story-status-modalitaet, m0): Antworten einer echten Library, nicht ins Repo
+golden-set-laeufe/
