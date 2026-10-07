@@ -27,6 +27,9 @@
  *
  *   Ohne `--model` gilt das Standard-Modell der App (`getDefaultLlmModel`);
  *   ohne `--richterModel` läuft nur die deterministische Ebene.
+ *   `--baseline` nimmt dem Modell Wörterbuch und Antwortregeln weg (Stand vor
+ *   m1–m4), die Prüfung nutzt weiter das volle Schema — so lässt sich der
+ *   Vorher-Wert auch mit gefüllten Settings messen.
  */
 
 import * as dotenv from 'dotenv'
@@ -104,6 +107,9 @@ async function main(): Promise<void> {
   if (!Number.isFinite(temperature)) throw new Error('--temperature ist keine Zahl')
   const nur = arg('nur')?.split(',').map((s) => s.trim()).filter(Boolean)
   const richterModel = arg('richterModel')
+  // --baseline: das Modell bekommt weder Wörterbuch (Header, Fußnote) noch Antwortregeln —
+  // Stand „vor m1–m4", auch wenn die Settings schon gefüllt sind. Die Prüfung nutzt das volle Schema.
+  const baseline = process.argv.includes('--baseline')
 
   const set = parseGoldenSet(JSON.parse(await readFile(setPfad, 'utf8')))
   const ctx = await loadLibraryChatContext(userEmail, libraryId)
@@ -116,12 +122,16 @@ async function main(): Promise<void> {
   if (!model) throw new Error('Kein Modell: --model fehlt und die App hat kein Standard-Modell')
   const libraryKey = getCollectionNameForLibrary(ctx.library)
   const kennungZuFileId = await loeseKennungenAuf(set, libraryKey, libraryId)
-  const antwortregeln = loeseAntwortregelnAuf(ctx.chat.antwortregeln, facetDefs)
-  const facettenKontext = facettenKontextFuerCache(facetDefs)
+  const facetDefsFuerModell = baseline
+    ? facetDefs.map((f) => { const ohne = { ...f }; delete ohne.werte; return ohne })
+    : facetDefs
+  const chatConfig = baseline ? { ...ctx.chat, antwortregeln: undefined } : ctx.chat
+  const antwortregeln = loeseAntwortregelnAuf(chatConfig.antwortregeln, facetDefsFuerModell)
+  const facettenKontext = facettenKontextFuerCache(facetDefsFuerModell)
   const apiKey = ctx.library.config?.publicPublishing?.apiKey
   const fragen = nur ? set.fragen.filter((f) => nur.includes(f.id)) : set.fragen
   if (fragen.length === 0) throw new Error('Keine Fragen ausgewählt (--nur passt auf keine ID)')
-  console.log(`[golden-set] ${titel}: ${fragen.length} Fragen, Modell ${model}, Richter ${richterModel ?? 'keiner'}, Regeln ${antwortregeln ? 'ja' : 'nein'}`)
+  console.log(`[golden-set] ${titel}: ${fragen.length} Fragen, Modell ${model}, Richter ${richterModel ?? 'keiner'}, Regeln ${antwortregeln ? 'ja' : 'nein'}${baseline ? ', BASELINE (ohne Wörterbuch und Regeln)' : ''}`)
 
   const eintraege: GoldenSetLaufEintrag[] = []
   for (const frage of fragen) {
@@ -137,7 +147,7 @@ async function main(): Promise<void> {
     })
     const output = await runChatOrchestrated({
       retriever, libraryId, userEmail, question: frage.frage, answerLength: ANSWER_LENGTH_DEFAULT, filters: built.mongo,
-      queryId, context: {}, chatConfig: ctx.chat, facetDefs, apiKey, llmModel: model, temperature,
+      queryId, context: {}, chatConfig, facetDefs: facetDefsFuerModell, apiKey, llmModel: model, temperature,
     })
     const antwort = antwortOhneFussnote(output.answer, output.nachpruefung)
     const gruppen = dokumenteNummerieren(output.sources)

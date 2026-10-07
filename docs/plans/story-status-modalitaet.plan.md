@@ -67,6 +67,16 @@ Geprüft am 06.10.2026 im Code, vier Lücken:
 Das Dokument-Embedding (`document-text-builder.ts`) hat dieselbe Lücke wie
 der Chunk-Vorspann.
 
+**Nachtrag 07.10. (Live-Test):** Die Facettenwerte landen beim Ingest nur
+für Facetten auf den Chunks, die zu diesem Zeitpunkt konfiguriert waren. In
+der Klima-Library kam `lv_bewertung` nach dem letzten Ingest dazu, die Chunks
+tragen nur `tags`/`shortTitle` — Quellen-Header (m3) und Nachprüfung (m4)
+sahen keinen Status. Der Orchestrator zieht fehlende Facettenwerte jetzt
+nach dem Retrieval aus den Meta-Dokumenten nach
+(`src/lib/chat/facetten-aus-meta.ts`, eine Abfrage je Antwort, nur Lücken).
+Damit wirken m2–m4 ohne Re-Ingest; m5 (Vorspann im Chunk-Text) braucht ihn
+weiterhin.
+
 Was schon da ist und getragen wird: Facetten sind pro Library
 konfigurierbar (`chat.gallery.facets`, Editor in den Settings), gelten
 typübergreifend über alle Dokumente der Library, und ihre Werte landen
@@ -253,6 +263,17 @@ kommt in §5b. Ohne `--richterModel` läuft nur die deterministische Ebene.
 | Lauf | Datum | Stand | Ergebnis |
 |---|---|---|---|
 | Baseline | offen | vor Wörterbuch, Regeln, Re-Ingest | (Bericht des Läufers hier einfügen) |
+
+Live-Test 07.10. (ohne Golden-Set, drei Fragen von Hand, Hebel A+B aktiv,
+kein Re-Ingest): direkte Frage zu Nr. 38 (nicht umsetzbar) → „laut
+Rückmeldung der Landesverwaltung … als nicht umsetzbar bewertet"; Themenfrage
+Schwerverkehr → Gliederung nach Status, Fußnote `12 × nicht umsetzbar, 5 ×
+in Umsetzung, 1 × in Fachplänen, 1 × in Prüfung`; falsche Unterstellung zu
+Nr. 36 → „gibt es derzeit keine Regelung". Keine Verbotslisten-Treffer. Cache:
+gleiche Frage = Treffer, nach Regeländerung = neuer Hash, neue Antwort.
+Hinweis: Wörterbuch und Regeln wurden im Test vor einer Baseline gesetzt —
+für die Baseline den Läufer mit `--baseline` fahren (Modell ohne Wörterbuch
+und Regeln, Prüfung mit vollem Schema).
 
 ## 6. Was nicht in diesen Plan gehört
 
