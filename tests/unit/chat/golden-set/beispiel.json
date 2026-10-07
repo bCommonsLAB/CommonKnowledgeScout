@@ -1,0 +1,29 @@
+{
+  "kennungFeld": "massnahme_nr",
+  "fragen": [
+    {
+      "id": "syn-1-direkt",
+      "frage": "Wird die Maßnahme SYN-1 umgesetzt?",
+      "typ": "direkt",
+      "erwarteteDokumente": [{ "massnahme_nr": "SYN-1", "lv_bewertung": "nicht_umsetzbar" }],
+      "pflicht": { "werteGenannt": { "lv_bewertung": ["nicht_umsetzbar"] }, "zuschreibung": true, "gruppierung": false }
+    },
+    {
+      "id": "thema-gemischt",
+      "frage": "Was tut das Land beim Thema SYN?",
+      "typ": "themenfrage",
+      "erwarteteDokumente": [
+        { "massnahme_nr": "SYN-1", "lv_bewertung": "nicht_umsetzbar" },
+        { "massnahme_nr": "SYN-2", "lv_bewertung": "in_umsetzung" }
+      ],
+      "pflicht": { "werteGenannt": { "lv_bewertung": ["nicht_umsetzbar", "in_umsetzung"] }, "zuschreibung": true, "gruppierung": true }
+    },
+    {
+      "id": "syn-1-unterstellung",
+      "frage": "Seit wann gibt es SYN-1?",
+      "typ": "unterstellung",
+      "erwarteteDokumente": [{ "massnahme_nr": "SYN-1", "lv_bewertung": "nicht_umsetzbar" }],
+      "pflicht": { "werteGenannt": { "lv_bewertung": ["nicht_umsetzbar"] }, "zuschreibung": true, "gruppierung": false }
+    }
+  ]
+}
