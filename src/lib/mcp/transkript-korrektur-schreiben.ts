@@ -21,18 +21,16 @@
  */
 
 import { sammleKorrekturen } from '@/lib/agent-view/korrekturen'
-import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
-import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { parseFrontmatter as parseFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
-import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { hasMirrorDrift } from '@/lib/shadow-twin/curation-plan'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isVersionConflict, supportsVersioning, type StorageProvider } from '@/lib/storage/types'
 import type { Library } from '@/types/library'
 import { normalisiere } from './storage/adressierung'
-import { wendeErsetzungenAn } from './transkript-korrektur'
+import { wendeKorrekturAn } from '@/lib/transkript-korrektur/anwenden'
+import { schreibeTranskriptKorrektur, transformationenVon } from '@/lib/transkript-korrektur/schreiben'
 import {
   KeinSpiegelError,
   KeinTranskriptError,
@@ -40,24 +38,7 @@ import {
   TranskriptKonfliktError,
   type KorrekturErgebnis,
   type KorrekturLauf,
-  type TransformationZeile,
 } from './transkript-korrektur-typen'
-
-/** Transformationen der Familie — nach der Korrektur ALLE ueberholt (sie entstanden vorher). */
-function transformationenVon(doc: ShadowTwinDocument, twinOrdnerPfad: string): TransformationZeile[] {
-  const zeilen: TransformationZeile[] = []
-  for (const [template, sprachen] of Object.entries(doc.artifacts?.transformation ?? {})) {
-    for (const [sprache, record] of Object.entries(sprachen ?? {})) {
-      if (typeof record?.markdown !== 'string') continue
-      const name = buildArtifactName(
-        { sourceId: doc.sourceId, kind: 'transformation', targetLanguage: sprache, templateName: template },
-        doc.sourceName,
-      )
-      zeilen.push({ pfad: `${twinOrdnerPfad}/${name}`, template, sprache, jetztUeberholt: true })
-    }
-  }
-  return zeilen
-}
 
 /** Spiegel-Datei des Transkripts aufloesen — oder sagen, warum es keine gibt. */
 async function spiegelAufloesen(args: {
@@ -131,12 +112,13 @@ export async function korrigiereTranskript(args: KorrekturLauf): Promise<Korrekt
     )
   }
 
-  const { meta, body } = parseFrontmatter(record.markdown)
-  const { body: neuerBody, belege } = wendeErsetzungenAn(body, args.ersetzungen)
   const revision = { revised_by: REVISED_BY_BRUECKE, revised_at: now(), revision_note: args.begruendung }
-  // `generated_by`/`generated_at` bleiben, wie sie in `meta` stehen — nur die
-  // drei Revisions-Felder kommen dazu bzw. werden ueberschrieben.
-  const markdownNeu = createMarkdownWithFrontmatter(neuerBody, { ...meta, ...revision })
+  // Kern (P3b, gemeinsam mit dem Reiter „Korrektur"): `generated_*` bleibt,
+  // die drei Revisions-Felder kommen dazu. Die Bruecke kennt keine Sprecher-Zuordnung.
+  const { markdownNeu, belege } = wendeKorrekturAn({
+    markdown: record.markdown, ersetzungen: args.ersetzungen, sprecher: [], revision,
+  })
+  const { meta } = parseFrontmatterMeta(record.markdown)
 
   const twinOrdnerPfad = spiegel.pfad.split('/').slice(0, -1).join('/')
   const offene = sammleKorrekturen([{ sourceId: doc.sourceId, sourceName: doc.sourceName, parentId: doc.parentId, transkript: meta }])
@@ -150,10 +132,9 @@ export async function korrigiereTranskript(args: KorrekturLauf): Promise<Korrekt
 
   // 1. MongoDB (fuehrend) — ohne den Spiegel-Write des Services: der ist
   //    unversioniert und verschluckt Fehler; der Export folgt gleich versioniert.
-  const service = new ShadowTwinService({
-    library, userEmail, sourceId: doc.sourceId, sourceName: doc.sourceName, parentId: doc.parentId, provider,
+  await schreibeTranskriptKorrektur({
+    library, userEmail, provider, doc, markdownNeu, skipFilesystemMirror: true,
   })
-  await service.upsertMarkdown({ kind: 'transcript', targetLanguage: '', markdown: markdownNeu, skipFilesystemMirror: true })
 
   // 2. Nur diese Familie in den Spiegel — mit ifVersion als Riegel.
   let ergebnis
