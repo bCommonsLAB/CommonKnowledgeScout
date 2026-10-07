@@ -43,6 +43,21 @@ export interface TranskriptZustand {
   hatPraefixe: boolean
   zeichen: number
   transformationen: TransformationZeile[]
+  /** true, wenn das Transkript nach mindestens einer Transformation korrigiert wurde (abgeleitet, kein Feld). */
+  ueberholt: boolean
+}
+
+/** Juengster Stand je Transformations-Record — unabhaengig vom Dokument-`updatedAt`, das jeder Write bewegt. */
+export function transformationUeberholt(doc: ShadowTwinDocument, revisedAt: string | null): boolean {
+  if (!revisedAt) return false
+  for (const sprachen of Object.values(doc.artifacts?.transformation ?? {})) {
+    for (const record of Object.values(sprachen ?? {})) {
+      if (typeof record?.markdown !== 'string') continue
+      const stand = typeof record.updatedAt === 'string' ? record.updatedAt : record.createdAt
+      if (typeof stand === 'string' && stand < revisedAt) return true
+    }
+  }
+  return false
 }
 
 function stringListe(value: unknown): string[] {
@@ -67,18 +82,20 @@ export async function ladeTranskript(args: { libraryId: string; sourceId: string
 export function transkriptZustand(stand: TranskriptStand): TranskriptZustand {
   const { doc, record, meta, body } = stand
   const speakers = stringListe(meta['speakers'])
+  const revisedAt = textOderNull(meta['revised_at'])
   return {
     sourceId: doc.sourceId,
     sourceName: doc.sourceName,
     updatedAt: record.updatedAt,
     speakers,
     speakerNames: [...parseSpeakerNames(meta['speaker_names']).entries()].map(([l, n]) => `${l}: ${n}`),
-    revisedAt: textOderNull(meta['revised_at']),
+    revisedAt,
     revisedBy: textOderNull(meta['revised_by']),
     revisionNote: textOderNull(meta['revision_note']),
     hatPraefixe: speakers.some((label) => body.includes(sprecherPraefix(label))),
     zeichen: body.length,
     transformationen: transformationenVon(doc, ''),
+    ueberholt: transformationUeberholt(doc, revisedAt),
   }
 }
 

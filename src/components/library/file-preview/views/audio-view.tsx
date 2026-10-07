@@ -92,7 +92,8 @@ export function AudioView(props: PreviewViewProps) {
 
   // P3b: Reiter „Korrektur" nur mit Transkript; Hook VOR dem fruehen return (rules-of-hooks).
   const hasTranscriptItem = !!transcript.transcriptItem
-  const revisedAt = useTranscriptRevision(activeLibraryId, item.id, hasTranscriptItem && !!transformItem)
+  const [revisionTick, setRevisionTick] = React.useState(0)
+  const revision = useTranscriptRevision(activeLibraryId, item.id, hasTranscriptItem && !!transformItem, revisionTick)
 
   if (!provider) {
     return <div className="text-sm text-muted-foreground">Kein Provider verfuegbar.</div>
@@ -101,8 +102,10 @@ export function AudioView(props: PreviewViewProps) {
   const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
     ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
     : undefined
-  // „ueberholt" = Transkript nach der Transformation korrigiert (abgeleitet, kein Feld).
-  const transformUeberholt = !!(revisedAt && docModifiedAt && revisedAt > docModifiedAt)
+  // „ueberholt" = Transkript nach der Transformation korrigiert; der Server leitet es aus den
+  // Transformations-Records ab (das Dokument-updatedAt bewegt jeder Write, taugt also nicht).
+  const transformUeberholt = revision.ueberholt
+  const revisedAt = revision.revisedAt
   const textStep = getStoryStep(storySteps, 'text')
   const transformStep = getStoryStep(storySteps, 'transform')
   const publishStep = getStoryStep(storySteps, 'publish')
@@ -204,7 +207,10 @@ export function AudioView(props: PreviewViewProps) {
               parentId={item.parentId || 'root'}
               provider={provider}
               enabled={true}
-              onGeschrieben={(ueberholt) => { if (ueberholt > 0) setInfoTab('transform') }}
+              onGeschrieben={(ueberholt) => {
+                setRevisionTick((t) => t + 1)
+                if (ueberholt > 0) setInfoTab('transform')
+              }}
             />
           ) : null}
         </TabsContent>

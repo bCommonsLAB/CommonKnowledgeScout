@@ -110,8 +110,10 @@ describe('transcript-correction Route (P3b)', () => {
     expect(h.schreibe).not.toHaveBeenCalled()
   })
 
-  it('400 ohne begruendung oder ifUpdatedAt', async () => {
+  it('400 ohne begruendung (nur beim Schreiben) oder ohne ifUpdatedAt', async () => {
     expect((await post({ ...basis, begruendung: '' })).status).toBe(400)
+    expect((await post({ ...basis, begruendung: '', nurVorschau: true })).status).toBe(200)
     expect((await post({ ...basis, ifUpdatedAt: undefined })).status).toBe(400)
+    expect(h.schreibe).not.toHaveBeenCalled()
   })
 })

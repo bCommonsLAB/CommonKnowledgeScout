@@ -107,11 +107,12 @@ export async function POST(
     if (typeof ersetzungen === 'string') return NextResponse.json({ error: ersetzungen }, { status: 400 })
     const sprecher = sprecherLesen(body?.sprecher)
     if (typeof sprecher === 'string') return NextResponse.json({ error: sprecher }, { status: 400 })
+    const nurVorschau = body?.nurVorschau === true
     const begruendung = typeof body?.begruendung === 'string' ? body.begruendung.trim() : ''
-    if (!begruendung) return NextResponse.json({ error: 'begruendung erforderlich' }, { status: 400 })
+    // Die Vorschau schreibt nichts — sie braucht keine Begruendung; der Stempel ist dann nur Platzhalter.
+    if (!begruendung && !nurVorschau) return NextResponse.json({ error: 'begruendung erforderlich' }, { status: 400 })
     const ifUpdatedAt = typeof body?.ifUpdatedAt === 'string' ? body.ifUpdatedAt : ''
     if (!ifUpdatedAt) return NextResponse.json({ error: 'ifUpdatedAt erforderlich (Stand aus GET)' }, { status: 400 })
-    const nurVorschau = body?.nurVorschau === true
 
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
@@ -125,7 +126,7 @@ export async function POST(
       )
     }
 
-    const revision = { revised_by: userEmail, revised_at: new Date().toISOString(), revision_note: begruendung }
+    const revision = { revised_by: userEmail, revised_at: new Date().toISOString(), revision_note: begruendung || '(Vorschau)' }
     let anwendung
     try {
       anwendung = wendeKorrekturAn({ markdown: stand.record.markdown, ersetzungen, sprecher, revision })

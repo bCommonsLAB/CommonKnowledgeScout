@@ -142,6 +142,20 @@ Secretary-Repo unter `docs/handover-heartbeat-je-stueck.md`), zurückgestellt.
 **P3b, Entscheidung 08.10.2026:** eigener Reiter „Korrektur" am
 Audio-Transkript, gebaut wie der Reiter „Transformation". Brief:
 [`AGENT-BRIEF-P3b-korrektur-reiter.md`](AGENT-BRIEF-P3b-korrektur-reiter.md).
+**Gebaut 08.10.** (Branch `claude/p3b-korrektur-reiter`): Kern in
+`src/lib/transkript-korrektur/` (gemeinsam mit der Brücke), Routen
+`api/library/[libraryId]/transcript-correction` (GET Zustand, POST Schreiben
+mit `updatedAt`-Riegel) und `…/suggest` (Secretary P2), Reiter unter
+`file-preview/views/audio-correction/`, Badge „überholt" aus den
+Transformations-Records abgeleitet. Prüffall an Teil 1 (Einführung, Sprecher-
+Transkript vom 07.10.): 12 Vorschläge und 6 Sprecher vom Secretary (Gemini,
+45k Tokens, 10 s), `unsicher` vorab abgewählt; nach „Bestätigen und schreiben"
+stehen `revised_by/at`, `revision_note` und `speaker_names` (5 Labels) im
+Frontmatter, die Präfixe im Text sind ersetzt, drei nicht zugeordnete Labels
+bleiben, 7 Hörfehler korrigiert; zweiter Schreibversuch mit altem Stand gibt
+409; Reiter Transformation zeigt „überholt". Offen: Teil 4 (Diskussion)
+braucht zuerst ein Sprecher-Transkript mit `speakers` (06.10. ohne), dann der
+P4-Lauf.
 
 ## Reihenfolge
 

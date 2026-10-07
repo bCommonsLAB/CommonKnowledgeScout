@@ -8,6 +8,7 @@
  */
 
 import * as React from 'react'
+import { FileLogger } from '@/lib/debug/logger'
 import { getMediaKind } from '@/lib/media-types'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { TranskriptZustand } from '@/lib/transkript-korrektur/laden'
@@ -71,6 +72,9 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
     })
     const json = await lesen<{ transcripts?: Record<string, unknown>; artifacts?: Record<string, unknown> }>(res)
     const transkripte = json.transcripts ?? json.artifacts ?? {}
+    FileLogger.debug('audio-correction', 'Begleitquellen geladen', {
+      parentId, items: items.length, kandidaten: kandidaten.length, mitTranskript: Object.values(transkripte).filter(Boolean).length,
+    })
     setQuellen(kandidaten.map((it) => {
       const hat = !!transkripte[it.id]
       return { id: it.id, name: it.metadata.name, hatTranskript: hat, gewaehlt: hat && getMediaKind(it) === 'pdf' }
@@ -141,17 +145,27 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
 
 export type AudioCorrectionState = ReturnType<typeof useAudioCorrection>
 
-/** Nur der Zustand (fuer das Badge „ueberholt" im Reiter Transformation). */
-export function useTranscriptRevision(libraryId: string, sourceId: string, enabled: boolean): string | null {
-  const [revisedAt, setRevisedAt] = React.useState<string | null>(null)
+/** Revisionsstand fuer das Badge „ueberholt" im Reiter Transformation (Server leitet ab, kein Feld). */
+export interface TranscriptRevisionInfo {
+  revisedAt: string | null
+  ueberholt: boolean
+}
+
+export function useTranscriptRevision(libraryId: string, sourceId: string, enabled: boolean, tick = 0): TranscriptRevisionInfo {
+  const [info, setInfo] = React.useState<TranscriptRevisionInfo>({ revisedAt: null, ueberholt: false })
   React.useEffect(() => {
-    if (!enabled) { setRevisedAt(null); return }
+    if (!enabled) { setInfo({ revisedAt: null, ueberholt: false }); return }
     let aktiv = true
     fetch(`/api/library/${libraryId}/transcript-correction?sourceId=${encodeURIComponent(sourceId)}`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((z: { revisedAt?: string | null } | null) => { if (aktiv) setRevisedAt(z?.revisedAt ?? null) })
-      .catch(() => { if (aktiv) setRevisedAt(null) })
+      .then((z: { revisedAt?: string | null; ueberholt?: boolean } | null) => {
+        if (aktiv) setInfo({ revisedAt: z?.revisedAt ?? null, ueberholt: z?.ueberholt === true })
+      })
+      .catch((e: unknown) => {
+        FileLogger.warn('audio-correction', 'Revisionsstand nicht lesbar', { sourceId, error: e instanceof Error ? e.message : String(e) })
+        if (aktiv) setInfo({ revisedAt: null, ueberholt: false })
+      })
     return () => { aktiv = false }
-  }, [libraryId, sourceId, enabled])
-  return revisedAt
+  }, [libraryId, sourceId, enabled, tick])
+  return info
 }
