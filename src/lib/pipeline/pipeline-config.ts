@@ -90,6 +90,20 @@ export interface PipelineConfig {
    * Fehlt der Wert, gilt die Library-Voreinstellung (`ingestSourceAppendix`).
    */
   appendixInSearch?: boolean
+
+  // --- Audio-Kontext (P3a) ---
+  /**
+   * Thema/Anlass als Freitext fuer die Transkription (nur Audio-Quellen).
+   * Fehlt der Wert, bleibt die Job-Option weg.
+   */
+  audioPrompt?: string
+  /** Begriffe (Namen, Fachwoerter) fuer diese Datei; die Library-Namen ergaenzt der Server. */
+  audioKeywords?: string[]
+  /**
+   * Sprecher-Erkennung fuer diesen Lauf. Fehlt der Wert, entscheidet der
+   * Server sichtbar ueber die Library-Voreinstellung (`transcriptionSpeakerMode`).
+   */
+  speakerMode?: boolean
 }
 
 // =============================================================================

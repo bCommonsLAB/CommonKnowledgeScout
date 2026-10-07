@@ -34,6 +34,50 @@ export const AUDIO_CONTEXT_OPTION_KEYS = {
 
 export type SpeakerModeSource = 'job' | 'library' | 'default'
 
+/**
+ * Kontext-Felder, wie sie ein Client im Request-Body schickt. Beide Wege
+ * (Pipeline-Sheet ueber `/api/pipeline/process`, Erfassungs-Wizard ueber
+ * `/api/secretary/process-audio/job`) nutzen dieselben Namen.
+ */
+export interface AudioContextRequestFields {
+  /** Thema/Anlass als Freitext fuer die Transkription. */
+  audioPrompt?: string
+  /** Begriffe fuer diese Datei (zusaetzlich zu `extractionKnownNames` der Library). */
+  audioKeywords?: string[]
+  /** Sprecher-Erkennung fuer diesen Lauf (uebersteuert die Library-Voreinstellung). */
+  speakerMode?: boolean
+}
+
+/**
+ * Liest die Kontext-Felder typgeprueft aus einem Request-Body und bildet sie
+ * auf die Job-Optionen (`AUDIO_CONTEXT_OPTION_KEYS`) ab. Falsche Typen sind
+ * ein Client-Fehler (Ergebnis `{ error }`), kein stilles Weglassen. Fehlt ein
+ * Feld, bleibt die Option weg — der Server faellt dann sichtbar auf die
+ * Library-Voreinstellung zurueck (`speakerModeSource: 'library'`).
+ */
+export function readAudioContextOptions(
+  body: Partial<AudioContextRequestFields>,
+): { options: Record<string, unknown> } | { error: string } {
+  const options: Record<string, unknown> = {}
+  if (body.audioPrompt !== undefined) {
+    if (typeof body.audioPrompt !== 'string') return { error: 'audioPrompt muss ein String sein' }
+    const prompt = body.audioPrompt.trim()
+    if (prompt) options[AUDIO_CONTEXT_OPTION_KEYS.prompt] = prompt
+  }
+  if (body.audioKeywords !== undefined) {
+    if (!Array.isArray(body.audioKeywords) || body.audioKeywords.some((k) => typeof k !== 'string')) {
+      return { error: 'audioKeywords muss eine Liste von Strings sein' }
+    }
+    const keywords = body.audioKeywords.map((k) => k.trim()).filter(Boolean)
+    if (keywords.length > 0) options[AUDIO_CONTEXT_OPTION_KEYS.keywords] = keywords
+  }
+  if (body.speakerMode !== undefined) {
+    if (typeof body.speakerMode !== 'boolean') return { error: 'speakerMode muss ein Boolean sein' }
+    options[AUDIO_CONTEXT_OPTION_KEYS.speakerMode] = body.speakerMode
+  }
+  return { options }
+}
+
 export interface AudioJobContext {
   /** Thema/Anlass als Freitext; `undefined`, wenn nichts angegeben. */
   prompt: string | undefined
