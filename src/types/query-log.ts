@@ -76,6 +76,8 @@ export interface CacheParams {
   facetsSelected?: Record<string, unknown>;
   documentCount?: number; // Anzahl Dokumente zum Zeitpunkt der Query
   llmModel?: string; // LLM-Modell-ID für Cache-Key
+  antwortregeln?: string; // Aufgelöste Antwortregeln der Library (m2) — Teil des Cache-Hashes
+  facettenKontext?: string; // Labels und Wörterbuch der Facetten (m3) — Teil des Cache-Hashes
 }
 
 export interface QueryLog {
@@ -129,6 +131,12 @@ export interface QueryLog {
   storyTopicsData?: StoryTopicsData;
   /** User-freundliche Processing-Logs (nicht zu verwechseln mit internen Debug-Logs) */
   processingLogs?: import('./chat-processing').ChatProcessingStep[];
+  /**
+   * Deterministische Nachprüfung (m4): Verteilung der Facettenwerte der
+   * zitierten Dokumente und Verstöße gegen Verbotslisten. Nur gesetzt, wenn
+   * es einen Befund gab; der Antworttext wird nie umgeschrieben.
+   */
+  nachpruefung?: import('./nachpruefung').NachpruefungErgebnis;
   /** SHA-256 Hash der Cache-relevanten Parameter für schnelle Cache-Lookups */
   cacheHash?: string;
   /** Cache-Parameter zusammengefasst (für einfaches Debugging - einfach kopieren und posten) */

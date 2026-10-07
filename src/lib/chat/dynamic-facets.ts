@@ -2,6 +2,7 @@ import { normalizeChatConfig } from '@/lib/chat/config'
 import { Library } from '@/types/library'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { BASE_FACET_DEFS, isBaseFacetField } from '@/lib/detail-view-types/base-fields'
+import type { FacetWert } from './facet-werte'
 
 export type FacetType = 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
 
@@ -25,6 +26,10 @@ export interface FacetDef {
   max?: number
   columns?: number
   buckets?: Array<{ label: string; min: number; max: number }>
+  /** Facette geht als Klartext in Chunk-Vorspann und Dokument-Embedding (Ingest). */
+  ingestKontext?: boolean
+  /** Bedeutungs-Wörterbuch je Wert (nur string/string[]). Siehe facet-werte.ts. */
+  werte?: FacetWert[]
 }
 
 export function parseFacetDefs(library: Library): FacetDef[] {
@@ -56,6 +61,10 @@ export function parseFacetDefs(library: Library): FacetDef[] {
       max: typeof (d as { max?: unknown }).max === 'number' ? Math.max(1, Math.floor((d as { max: number }).max)) : undefined,
       columns: typeof (d as { columns?: unknown }).columns === 'number' ? Math.min(3, Math.max(1, Math.floor((d as { columns: number }).columns))) : 1,
       buckets: Array.isArray(d.buckets) ? d.buckets.filter(b => b && typeof b.min === 'number' && typeof b.max === 'number') : undefined,
+      // Bereits durch chatConfigSchema validiert (Typ-Kopplung, Eindeutigkeit);
+      // hier nur durchreichen — nicht erneut raten oder filtern.
+      ...(d.ingestKontext === true ? { ingestKontext: true } : {}),
+      ...(Array.isArray(d.werte) && d.werte.length > 0 ? { werte: d.werte } : {}),
     })
   }
   

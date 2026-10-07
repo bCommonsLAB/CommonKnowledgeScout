@@ -9,6 +9,12 @@
  */
 
 import type { DocMeta } from '@ks/contracts'
+import { ingestKontextPaare, type IngestFacette } from './ingest-kontext'
+
+/** Felder, die der Embedding-Text selbst schreibt — nicht doppelt aus den Facetten. */
+const EMBEDDING_FESTE_FELDER: ReadonlySet<string> = new Set([
+  'title', 'shortTitle', 'authors', 'year', 'summary', 'teaser', 'tags', 'topics', 'region', 'docType',
+])
 
 /**
  * Erstellt einen kombinierten Text aus Dokument-Metadaten für Embedding.
@@ -22,7 +28,9 @@ import type { DocMeta } from '@ks/contracts'
  */
 export function buildDocumentTextForEmbedding(
   docMetaJsonObj: Record<string, unknown>,
-  mongoDoc: DocMeta
+  mongoDoc: DocMeta,
+  /** m5: Facetten mit `ingestKontext` kommen als Klartext (mit Bedeutung) dazu; ohne Defs wie bisher. */
+  facetDefs?: ReadonlyArray<IngestFacette>,
 ): string {
   const parts: string[] = []
   
@@ -86,6 +94,12 @@ export function buildDocumentTextForEmbedding(
     parts.push(`Dokumenttyp: ${docType.trim()}`)
   }
   
+  // m5: Facetten mit Ingest-Kontext (z. B. Status mit Bedeutung) — vor den Kapiteln,
+  // damit die Dokumentsuche den Stand kennt, nicht nur das Thema.
+  for (const p of ingestKontextPaare(docMetaJsonObj, facetDefs, EMBEDDING_FESTE_FELDER)) {
+    parts.push(`${p.label}: ${p.text}`)
+  }
+
   // Chapter Summaries (wenn vorhanden)
   const chapters = docMetaJsonObj.chapters as Array<{ title?: string; summary?: string }> | undefined
   if (chapters && Array.isArray(chapters) && chapters.length > 0) {

@@ -1314,7 +1314,8 @@ export class IngestionService {
       }
       
       // Metadaten als Text-Präfix vor das Markdown setzen, um Embedding-Qualität zu verbessern
-      const metadataPrefix = buildMetadataPrefix(docMetaJsonObj)
+      // m5: Facetten mit Ingest-Kontext (z. B. Status mit Bedeutung) in jeden Chunk
+      const metadataPrefix = buildMetadataPrefix(docMetaJsonObj, facetDefs)
       const bodyMarkdown = metadataPrefix ? `${metadataPrefix}\n\n${DOKUMENT_BODY_MARKER}\n\n${baseMarkdown}` : baseMarkdown
       // Unsichtbarer Anhang (Transkripte der verbundenen Quellen) nur im
       // eingebetteten Text; `docMetaJsonObj.markdown` (Anzeige) bleibt der Body.
@@ -1388,7 +1389,7 @@ export class IngestionService {
         const { buildDocumentTextForEmbedding } = await import('@/lib/ingestion/document-text-builder')
         const { embedQuestionWithSecretary } = await import('@/lib/chat/rag-embeddings')
         
-        const documentText = buildDocumentTextForEmbedding(docMetaJsonObj, mongoDoc)
+        const documentText = buildDocumentTextForEmbedding(docMetaJsonObj, mongoDoc, facetDefs)
         if (documentText.trim().length > 0) {
           FileLogger.info('ingestion', 'Erstelle Dokument-Embedding für globale Suche', { fileId, textLength: documentText.length })
           if (jobId) bufferLog(jobId, { phase: 'doc_embedding_start', message: 'Erstelle Dokument-Embedding für globale Suche' })

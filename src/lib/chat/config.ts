@@ -28,6 +28,8 @@ import * as z from 'zod'
 import { LibraryChatConfig } from '@/types/library'
 import { BASE_FACET_DEFS } from '@/lib/detail-view-types/base-fields'
 import { detailViewTypeSchema } from '@/lib/detail-view-types/registry'
+import { facetWerteSchema, pruefeWerteZuTyp } from './facet-werte'
+import { pruefeAntwortregelnZuFacetten } from './antwortregeln'
 import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
@@ -79,11 +81,14 @@ export function getDefaultFacets(): DefaultFacet[] {
  * Zod-Schema für Chat-Konfiguration mit Defaults.
  * Achtung: Keine Secrets hier speichern.
  */
-export const chatConfigSchema = z.object({
+const chatConfigObjectSchema = z.object({
   placeholder: z.string().default('Schreibe deine Frage...'),
   maxChars: z.number().int().positive().max(4000).default(500),
   maxCharsWarningMessage: z.string().default('Deine Frage ist zu lang, bitte kürze sie.'),
   footerText: z.string().default(''),
+  // Plan story-status-modalitaet (m2): Antwortregeln mit Platzhaltern auf gallery.facets.
+  // Die Platzhalter-Prüfung hängt am Gesamtobjekt (superRefine unten).
+  antwortregeln: z.string().optional(),
   companyLink: z.string().url().optional(),
   vectorStore: z.object({
     collectionName: z.string().min(1).optional(),
@@ -138,12 +143,23 @@ export const chatConfigSchema = z.object({
       // Verbindliche Basis-Facette (nicht entfernbar); wird beim Parsen erzwungen.
       mandatory: z.boolean().optional(),
       buckets: z.array(z.object({ label: z.string(), min: z.number().int(), max: z.number().int() })).optional(),
-    })).default(getDefaultFacets())
+      // Plan story-status-modalitaet (m1): Ingest-Kontext und Bedeutungs-Wörterbuch.
+      // Zod strippt unbekannte Schlüssel — ohne Eintrag hier kämen die Felder nie
+      // bei parseFacetDefs an.
+      ingestKontext: z.boolean().optional(),
+      werte: facetWerteSchema.optional(),
+    }).superRefine(pruefeWerteZuTyp)).default(getDefaultFacets())
   }).default({
     detailViewType: 'book',
     facets: getDefaultFacets()
   }),
 })
+
+/**
+ * Chat-Konfiguration inkl. Querprüfung: Platzhalter in `antwortregeln` müssen
+ * auf Facetten in `gallery.facets` zeigen (Legende nur mit Wörterbuch).
+ */
+export const chatConfigSchema = chatConfigObjectSchema.superRefine(pruefeAntwortregelnZuFacetten)
 
 export type NormalizedChatConfig = z.infer<typeof chatConfigSchema>
 
