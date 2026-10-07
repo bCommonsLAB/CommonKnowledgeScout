@@ -67,15 +67,19 @@ Geprüft am 06.10.2026 im Code, vier Lücken:
 Das Dokument-Embedding (`document-text-builder.ts`) hat dieselbe Lücke wie
 der Chunk-Vorspann.
 
-**Nachtrag 07.10. (Live-Test):** Die Facettenwerte landen beim Ingest nur
-für Facetten auf den Chunks, die zu diesem Zeitpunkt konfiguriert waren. In
-der Klima-Library kam `lv_bewertung` nach dem letzten Ingest dazu, die Chunks
-tragen nur `tags`/`shortTitle` — Quellen-Header (m3) und Nachprüfung (m4)
-sahen keinen Status. Der Orchestrator zieht fehlende Facettenwerte jetzt
-nach dem Retrieval aus den Meta-Dokumenten nach
-(`src/lib/chat/facetten-aus-meta.ts`, eine Abfrage je Antwort, nur Lücken).
-Damit wirken m2–m4 ohne Re-Ingest; m5 (Vorspann im Chunk-Text) braucht ihn
-weiterhin.
+**Nachtrag 07.10. (Live-Test):** Im Story-Modus kamen dynamische Facetten
+wie `lv_bewertung` nie beim Retriever an, obwohl die Chunks sie tragen —
+Quellen-Header (m3) und Nachprüfung (m4) sahen keinen Status. Drei feste
+Feldlisten waren die Ursache: die `$project`-Stufe der Vektorsuche und das
+Ergebnis-Mapping in `vector-repo.ts` sowie die Nachbar-Chunk-Projektion in
+`chunks.ts` kannten nur die Basisfelder (`year`, `authors`, …, `tags`,
+`shortTitle`). Alle drei reichen jetzt alle Felder außer dem Embedding durch.
+Dazu liest `extractFacetValues` (Ingest) dynamische Facetten auch aus dem
+Frontmatter, und der Orchestrator zieht als Sicherheitsnetz fehlende Werte
+aus den Meta-Dokumenten nach (`src/lib/chat/facetten-aus-meta.ts`, eine
+Abfrage je Antwort, nur bei Lücke). Damit wirken m2–m4 ohne Re-Ingest; m5
+(Vorspann im Chunk-Text) braucht ihn weiterhin — für Nr. 38 am 07.10. gemacht
+und im Chunk-Text belegt (`**Bewertung Landesverwaltung:** nicht umsetzbar — …`).
 
 Was schon da ist und getragen wird: Facetten sind pro Library
 konfigurierbar (`chat.gallery.facets`, Editor in den Settings), gelten

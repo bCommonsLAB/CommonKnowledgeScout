@@ -1,4 +1,4 @@
-import type { FacetDef } from '@/lib/chat/dynamic-facets'
+import { getTopLevelValue, type FacetDef } from '@/lib/chat/dynamic-facets'
 import type { DocMeta } from '@ks/contracts'
 import { safeText } from '@/lib/utils/string-utils'
 import { seiteFuerOffset, type PageSpan } from './page-split'
@@ -58,11 +58,19 @@ export function extractFacetValues(
 ): Record<string, unknown> {
   const facetValues: Record<string, unknown> = {}
   
-  // Facetten aus mongoDoc extrahieren
+  // Facetten aus mongoDoc (feste Basisfelder) extrahieren; dynamische Facetten
+  // der Library (z. B. lv_bewertung) stehen nur im Frontmatter (docMetaJsonObj)
+  // und werden typgerecht wie bei der Galerie gelesen (getTopLevelValue).
+  // Bis 07.10.2026 fehlte der zweite Schritt: Chunks trugen nur Basisfelder.
   for (const def of facetDefs) {
     const v = (mongoDoc as Record<string, unknown>)[def.metaKey]
     if (v !== undefined && v !== null) {
       facetValues[def.metaKey] = v
+      continue
+    }
+    const ausFrontmatter = getTopLevelValue(docMetaJsonObj, def)
+    if (ausFrontmatter !== undefined && ausFrontmatter !== null) {
+      facetValues[def.metaKey] = ausFrontmatter
     }
   }
   

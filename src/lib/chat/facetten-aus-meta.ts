@@ -3,16 +3,18 @@
  *
  * Die Facettenwerte landen beim Ingest auf jedem Chunk (`extractFacetValues`),
  * aber nur für Facetten, die ZU DIESEM ZEITPUNKT konfiguriert waren. Wird eine
- * Facette später angelegt (Klimamaßnahmen: `lv_bewertung` nach dem letzten
- * Ingest), tragen die Chunks sie nicht — Quellen-Header (m3) und Nachprüfung
- * (m4) sehen den Status dann nicht, obwohl das Meta-Dokument ihn hat.
+ * Facette später angelegt, tragen ältere Chunks sie nicht — Quellen-Header
+ * (m3) und Nachprüfung (m4) sehen den Status dann nicht, obwohl das
+ * Meta-Dokument ihn hat. (Im Live-Test 07.10. lag die Hauptursache woanders:
+ * feste Feldlisten in Projektion und Mapping der Vektorsuche, inzwischen
+ * behoben. Dieses Sicherheitsnetz bleibt für Libraries ohne Re-Ingest.)
  *
- * Deshalb zieht der Orchestrator nach dem Retrieval fehlende Facettenwerte
- * aus den Meta-Dokumenten nach: eine Abfrage je Antwort, nur Dokumente mit
- * Lücke, nur fehlende Schlüssel (Chunk-Werte haben Vorrang). Das ist kein
- * stiller Fallback: ohne Meta-Dokument bleibt die Lücke, und der Aufrufer
- * bekommt die Zahlen zum Protokollieren. Für den Galerie-/Facetten-Pfad ist
- * das Meta-Dokument in Mongo ohnehin die Quelle der Wahrheit.
+ * Der Orchestrator zieht nach dem Retrieval fehlende Facettenwerte aus den
+ * Meta-Dokumenten nach: eine Abfrage je Antwort, nur Dokumente mit Lücke,
+ * nur fehlende Schlüssel (Chunk-Werte haben Vorrang). Das ist kein stiller
+ * Fallback: ohne Meta-Dokument bleibt die Lücke, und der Aufrufer bekommt die
+ * Zahlen zum Protokollieren. Für den Galerie-/Facetten-Pfad ist das
+ * Meta-Dokument in Mongo ohnehin die Quelle der Wahrheit.
  */
 
 import type { Document } from 'mongodb'
