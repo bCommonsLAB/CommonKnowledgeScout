@@ -46,6 +46,8 @@ import type { NormalizedChatConfig } from '@/lib/chat/config'
 import type { FacetWert } from '@/lib/chat/facet-werte'
 import { loeseAntwortregelnAuf } from '@/lib/chat/antwortregeln'
 import { pruefeAntwort, hatBefund, fussnoteAnhaengen } from '@/lib/chat/nachpruefung'
+import { ergaenzeFacettenAusMeta } from '@/lib/chat/facetten-aus-meta'
+import { getRetrieverContext } from '@/lib/chat/retriever-context'
 import type { NachpruefungErgebnis } from '@/types/nachpruefung'
 import type { StoryTopicsData } from '@/types/story-topics'
 import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
@@ -103,7 +105,18 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   // Pass API key to retriever for embeddings (if available)
   const retrieverOutput = await retrieverImpl.retrieve({ ...run, apiKey: run.apiKey })
   const { sources, stats, warning } = retrieverOutput
-  
+
+  // Facettenwerte, die auf älteren Chunks fehlen (Facette nach dem Ingest
+  // angelegt), aus dem Meta-Dokument nachziehen — Quellen-Header (m3) und
+  // Nachprüfung (m4) brauchen sie je Textstelle. Eine Abfrage, nur bei Lücke.
+  if (sources.length > 0) {
+    const rc = await getRetrieverContext(run.userEmail || '', run.libraryId)
+    const ergaenzung = await ergaenzeFacettenAusMeta(sources, rc.facetDefs, rc.libraryKey, run.libraryId)
+    if (ergaenzung.dokumenteMitLuecke > 0) {
+      console.info('[orchestrator] Facettenwerte aus Meta-Dokumenten ergänzt:', ergaenzung)
+    }
+  }
+
   // User-Status-Update mit Mode-Information (für Summary-Retriever)
   if (run.retriever === 'summary' && stats?.decision) {
     const modeLabel = stats.decision === 'chapters' ? 'Kapitel-Summaries' 
