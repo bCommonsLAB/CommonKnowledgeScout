@@ -25,8 +25,11 @@ Sie ergaenzt:
 - Detail-Komponenten: `src/components/library/{name}-detail.tsx` (book,
   testimonial, climate-action, diva-document, diva-texture, session) und
   `src/components/library/ingestion-{name}-detail.tsx`
-- Media-Renderer: `audio-player.tsx`, `audio-transform.tsx`, `video-player.tsx`,
+- Media-Renderer: `video-player.tsx`,
   `video-transform.tsx`, `image-preview.tsx`, `image-transform.tsx`,
+  (`audio-player.tsx` und `audio-transform.tsx` sind am 07.10.2026 geloescht:
+  seit 01/2026 ohne Importeur; der Audio-Weg ist `file-preview/views/audio-view.tsx`
+  mit dem Pipeline-Sheet, dessen Transkript-Optionen die P3a-Felder tragen),
   `pdf-canvas-viewer.tsx`, `pdf-phases-view.tsx`, `pdf-phase-settings.tsx`,
   `pdf-transform.tsx`
 - Detail-Tab-Helper: `cover-image-generator-dialog.tsx`,

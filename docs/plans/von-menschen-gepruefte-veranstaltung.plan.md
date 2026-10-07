@@ -102,6 +102,25 @@ genau einmal, Namen nur aus Begleittexten, `beleg` fest). Dienst-Doku hier:
 laufen lassen und in der Maske `diarized_transcription` → `gpt-4o-transcribe-diarize`
 zuordnen. Der Prüffall gegen die echte API steht noch aus.
 
+**P3a, Nachtrag 07.10.2026 (Befund vom Prüffall 06.10.):** Der Dialog aus dem
+ersten P3a-Commit (`audio-transform.tsx` im `AudioPlayer`) war seit Commit
+`10ca2a58` (09.01.2026) nirgends mehr eingebunden; der einzige erreichbare Weg
+war Datei-Vorschau → Reiter „Transkript" → „Transkript neu generieren" →
+Pipeline-Sheet → `POST /api/pipeline/process`, und der kannte weder
+`speakerMode` noch `audioPrompt`/`audioKeywords` (Trace zeigte
+`speakerModeSource: 'library'`, `hasPrompt: false`). Seit 07.10.: Die drei
+Felder (`audio-transform-context.tsx`, unverändert wiederverwendet) liegen im
+Optionen-Block des Schritts „Transkript erstellen" des Pipeline-Sheets, nur für
+Audio-Quellen (Video geht über `video/process` ohne Kontext-Felder; dort würde
+ein Schalter nichts bewirken). Durchreichung: `PipelineStartArgs` →
+`runPipelineForFile` → `PipelineConfig` → `/api/pipeline/process` →
+`correlation.options` unter `AUDIO_CONTEXT_OPTION_KEYS`; der typgeprüfte Leser
+`readAudioContextOptions` liegt jetzt in `src/lib/external-jobs/audio-context.ts`
+und wird von beiden Routen genutzt. Fehlt ein Feld im Request, bleibt die
+Option weg (Server fällt sichtbar auf das Library-Feld zurück).
+`audio-player.tsx` und `audio-transform.tsx` sind gelöscht, nicht wieder
+eingehängt: Der Audio-Player lebt in `file-preview/views/audio-view.tsx`.
+
 ## Reihenfolge
 
 ```
