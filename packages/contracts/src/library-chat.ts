@@ -88,6 +88,15 @@ export interface LibraryChatConfig {
   /** Footer-Text unterhalb des Chats */
   footerText?: string;
 
+  /**
+   * Antwortregeln der Library (Markdown): wie das Modell über die Inhalte
+   * sprechen darf. Platzhalter `{{facette:<metaKey>}}` (Label) und
+   * `{{legende:<metaKey>}}` (Wert → Label → Bedeutung aus `werte`) binden den
+   * Text an `gallery.facets`; unbekannte Platzhalter sind ein Fehler.
+   * Quelle: `src/lib/chat/antwortregeln.ts`.
+   */
+  antwortregeln?: string;
+
   /** Link im Footer (z. B. Firmen-/Projektlink) */
   companyLink?: string;
 
@@ -176,6 +185,22 @@ export interface LibraryChatConfig {
       multi?: boolean;
       visible?: boolean;
       buckets?: Array<{ label: string; min: number; max: number }>;
+      /**
+       * Wenn true, geht die Facette als Klartext in den Metadaten-Vorspann
+       * der Chunks und in den Dokument-Embedding-Text (wirkt beim Ingest).
+       */
+      ingestKontext?: boolean;
+      /**
+       * Bedeutungs-Wörterbuch je Wert (nur Typ string/string[]): Label für
+       * UI und Prompt, Bedeutung als Retriever-Kontext, Verbotsliste für
+       * die Nachprüfung. Quelle: `src/lib/chat/facet-werte.ts`.
+       */
+      werte?: Array<{
+        wert: string;
+        label: string;
+        bedeutung?: string;
+        verboten?: string[];
+      }>;
     }>;
     /**
      * Generische Graph-Modus-Konfiguration (Zielbild §8). Liegt unter

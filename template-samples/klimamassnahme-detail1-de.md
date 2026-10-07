@@ -8,7 +8,7 @@ category: {{category|Handlungsfeld (extraktiv, z.B. "Schwerverkehr und Warentran
 lv_zustaendigkeit: {{lv_zustaendigkeit|ARRAY der zuständigen Stellen. Jede Stelle EXAKT aus der kanonischen Liste im systemprompt (Zeichen für Zeichen, vollständiger Name). Mehrere Zuständigkeiten = mehrere Array-Einträge, NIEMALS mit ";" oder "," zu einem String verketten}}
 lv_bewertung: {{lv_bewertung|EXAKT EINER dieser 7 Schlüssel (snake_case, nichts anderes): im_klimaplan | in_fachplaenen | in_umsetzung | neu_umsetzbar | nicht_umsetzbar | vertieft_pruefen | unklar — Mapping vom Originaltext s. systemprompt}}
 teaser: {{teaser|Kurzer Einleitungstext (1-2 Sätze, max. 200 Zeichen) für Vorschauansichten}}
-summary: {{summary|Zusammenfassung der Maßnahme (2-3 Sätze) für Übersichtsansichten}}
+summary: {{summary|Zusammenfassung der Maßnahme (2-3 Sätze) für Übersichtsansichten. Der LETZTE Satz nennt den Stand laut Rückmeldung der Landesverwaltung als Zuschreibung (z. B. „Laut Landesverwaltung in Umsetzung." / „Die Landesverwaltung bewertet die Maßnahme als nicht umsetzbar."), nie als eigene Behauptung und nie als Erfolgsmeldung}}
 vorschlag_quelle: {{vorschlag_quelle|Klimabürgerrat | Stakeholder Forum Klima}}
 vorschlag_text: {{vorschlag_text|Originaltext des Vorschlags (extraktiv, 1:1 aus "Vorschlag Klimabürgerrat")}}
 lv_rueckmeldung: {{lv_rueckmeldung|Originaltext der Landesverwaltung (extraktiv, 1:1 aus "Rückmeldung Landesverwaltung")}}

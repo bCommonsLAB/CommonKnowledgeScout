@@ -19,6 +19,23 @@ um Wrapper-/Helper-spezifische Vertraege.
   - `common/filters.ts`
   - `facets.ts` (deprecated, nutzt `dynamic-facets`)
   - `dynamic-facets.ts`
+  - `facet-werte.ts` — Bedeutungs-Wörterbuch je Facettenwert (`werte`) und
+    `ingestKontext`; EINE Zod-Quelle für `config.ts` und das Settings-Formular.
+    Wörterbuch nur für `string`/`string[]`, doppelte Werte sind ein Fehler
+    (Plan `story-status-modalitaet`, m1)
+  - `antwortregeln.ts` — Antwortregeln pro Library mit Platzhaltern
+    `{{facette:…}}`/`{{legende:…}}` auf `gallery.facets`; Platzhalter sind
+    Vertrag (unbekannt = Zod-Fehler beim Speichern, Exception zur Laufzeit).
+    Der aufgelöste Text ist Teil des Cache-Hashes (§5) — Regel- oder
+    Wörterbuch-Änderung darf keine alten Antworten liefern (m2)
+  - `quellen-kontext.ts` — Quellen-Header je Textstelle: Facettenwerte als
+    `Label: Wertlabel — Bedeutung` aus dem Wörterbuch; ohne Eintrag Label +
+    Rohwert, ohne Definition metaKey + Rohwert (kein Raten). Labels und
+    Wörterbuch gehen als `facettenKontext` in den Cache-Hash (m3)
+  - `nachpruefung.ts` — deterministische Nachprüfung der Antwort gegen die
+    Facettenwerte der zitierten Dokumente: Verteilung als Fußnote unter der
+    Antwort, Verbotslisten-Treffer als Befund im Query-Log
+    (`nachpruefung`). Der Antworttext wird NIE umgeschrieben (m4)
   - `publication-filter.ts`
   - `utils/cache-key-utils.ts`, `utils/cache-hash-builder.ts`
   - `vector-stats.ts`

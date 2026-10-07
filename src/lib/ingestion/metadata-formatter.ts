@@ -1,3 +1,5 @@
+import { ingestKontextPaare, type IngestFacette } from './ingest-kontext'
+
 /**
  * Erstellt einen Metadaten-Präfix als strukturierten Text aus docMetaJsonObj.
  * Dieser Präfix wird vor das Markdown-Body gesetzt, um die Embedding-Qualität zu verbessern.
@@ -11,7 +13,16 @@
  */
 export const DOKUMENT_BODY_MARKER = '--- Dokument-Body beginnt hier ---'
 
-export function buildMetadataPrefix(docMetaJsonObj: Record<string, unknown>): string {
+/** Felder, die der feste Teil des Vorspanns selbst schreibt — nicht doppelt aus den Facetten. */
+const VORSPANN_FESTE_FELDER: ReadonlySet<string> = new Set([
+  'title', 'authors', 'year', 'region', 'docType', 'summary', 'teaser', 'tags', 'topics',
+])
+
+export function buildMetadataPrefix(
+  docMetaJsonObj: Record<string, unknown>,
+  /** m5: Facetten mit `ingestKontext` kommen als Klartext (mit Bedeutung) dazu; ohne Defs wie bisher. */
+  facetDefs?: ReadonlyArray<IngestFacette>,
+): string {
   const parts: string[] = []
   
   // Dokument-Titel
@@ -88,6 +99,12 @@ export function buildMetadataPrefix(docMetaJsonObj: Record<string, unknown>): st
     parts.push(`**Themen:** ${topics.join(', ')}`)
   }
   
+  // m5: Facetten mit Ingest-Kontext (z. B. Status mit Bedeutung) — jeder Chunk trägt sie.
+  const kontext = ingestKontextPaare(docMetaJsonObj, facetDefs, VORSPANN_FESTE_FELDER)
+  if (kontext.length > 0) {
+    parts.push(`\n${kontext.map((p) => `**${p.label}:** ${p.text}`).join('\n')}`)
+  }
+
   // Nur zurückgeben, wenn Metadaten vorhanden sind
   return parts.length > 0 ? parts.join('\n') : ''
 }

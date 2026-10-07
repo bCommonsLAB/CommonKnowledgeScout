@@ -25,6 +25,7 @@ import {
 import { useTranslation } from '@ks/i18n/react'
 import { useChatForm } from './hooks/use-chat-form'
 import { ModelConfigSection } from './model-config-section'
+import { AntwortregelnSection } from './antwortregeln-section'
 
 export function ChatForm() {
   const { t } = useTranslation()
@@ -122,6 +123,9 @@ export function ChatForm() {
 
         {/* ===== Eigene Perspektive ===== */}
         <ModelConfigSection form={form} />
+
+        {/* ===== Antwortregeln (Plan story-status-modalitaet, m2) ===== */}
+        <AntwortregelnSection form={form} />
 
         <div className="flex justify-end">
           <Button type="submit" disabled={isLoading || !form.formState.isDirty}>

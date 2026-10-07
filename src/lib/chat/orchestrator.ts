@@ -43,6 +43,10 @@ import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
 import { chunkSummaryRetriever } from '@/lib/chat/retrievers/chunk-summary'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
+import type { FacetWert } from '@/lib/chat/facet-werte'
+import { loeseAntwortregelnAuf } from '@/lib/chat/antwortregeln'
+import { pruefeAntwort, hatBefund, fussnoteAnhaengen } from '@/lib/chat/nachpruefung'
+import type { NachpruefungErgebnis } from '@/types/nachpruefung'
 import type { StoryTopicsData } from '@/types/story-topics'
 import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
 
@@ -51,7 +55,8 @@ export interface OrchestratorInput extends RetrieverInput {
   chatConfig?: NormalizedChatConfig
   chatHistory?: Array<{ question: string; answer: string }>
   facetsSelected?: Record<string, unknown>  // Facetten-Filter für Prompt
-  facetDefs?: Array<{ metaKey: string; label?: string; type: string }>  // Facetten-Definitionen für Prompt
+  // Facetten-Definitionen für Prompt; `werte` für die Legende der Antwortregeln (m2)
+  facetDefs?: Array<{ metaKey: string; label?: string; type: string; werte?: FacetWert[] }>
   onProcessingStep?: (step: import('@/types/chat-processing').ChatProcessingStep) => void
   apiKey?: string  // Optional: API-Key für öffentliche Libraries
   isTOCQuery?: boolean  // Wenn true, verwende TOC-Prompt und parse StoryTopicsData
@@ -74,6 +79,8 @@ export interface OrchestratorOutput {
   storyTopicsData?: StoryTopicsData  // Für TOC-Queries: Strukturierte Themenübersicht
   /** D5: Kurztitel der Frage aus derselben LLM-Antwort (nur Fragen, nicht TOC); fehlt, wenn das Modell keinen lieferte. */
   shortTitle?: string
+  /** m4: deterministische Nachprüfung (Verteilung der Facettenwerte, Verstöße); nur mit Befund. */
+  nachpruefung?: NachpruefungErgebnis
 }
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
@@ -167,6 +174,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   const { apiKey: configApiKey } = getSecretaryConfig()
   const apiKey = run.apiKey || configApiKey || ''
   const providerForLogging = getLlmProviderForLogging()
+
+  // Antwortregeln der Library auflösen (m2). Wirft bei ungültigen Platzhaltern:
+  // dann ist die gespeicherte Konfiguration kaputt — kein stilles Weglassen.
+  const antwortregeln = loeseAntwortregelnAuf(run.chatConfig?.antwortregeln, run.facetDefs ?? [])
   
   // Erstelle Messages-Array (System + History + User)
   let messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
@@ -180,6 +191,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       accessPerspective: run.chatConfig?.accessPerspective,
       socialContext: run.chatConfig?.socialContext,
       genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
       uiLocale: run.uiLocale,
@@ -194,6 +206,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       accessPerspective: run.chatConfig?.accessPerspective,
       socialContext: run.chatConfig?.socialContext,
       genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
       chatHistory: run.chatHistory,
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
@@ -369,6 +382,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               accessPerspective: run.chatConfig?.accessPerspective,
               socialContext: run.chatConfig?.socialContext,
               genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
             })
@@ -378,6 +392,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               accessPerspective: run.chatConfig?.accessPerspective,
               socialContext: run.chatConfig?.socialContext,
               genderInclusive: run.chatConfig?.genderInclusive,
+      antwortregeln,
               chatHistory: run.chatHistory,
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
@@ -513,6 +528,26 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     }
   }
 
+  // m4: deterministische Nachprüfung gegen die Facettenwerte der zitierten
+  // Dokumente (dieselbe Nummerierung wie Prompt und Belege). Verstöße werden
+  // gemeldet und protokolliert, der Text wird NICHT umgeschrieben; die Fußnote
+  // mit der Verteilung hängt unter der Antwort und landet so auch im Cache.
+  // Nicht für die Themenübersicht (dort gibt es keine zitierten Dokumente).
+  let nachpruefung: NachpruefungErgebnis | undefined
+  if (!run.isTOCQuery) {
+    const ergebnis = pruefeAntwort(answer, dokumenteNummerieren(sources), usedReferences, run.facetDefs ?? [])
+    if (hatBefund(ergebnis)) {
+      nachpruefung = ergebnis
+      if (ergebnis.verstoesse.length > 0) {
+        console.warn(
+          '[orchestrator] Nachprüfung: Formulierungen gegen Verbotsliste in der Antwort:',
+          ergebnis.verstoesse.map((v) => `„${v.formulierung}" bei ${v.wertLabel} [${v.nummern.join(', ')}]`).join('; '),
+        )
+      }
+      answer = fussnoteAnhaengen(answer, ergebnis)
+    }
+  }
+
   await finalizeQueryLog(run.queryId, {
     answer,
     sources: sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score })),
@@ -524,6 +559,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       : undefined,
     storyTopicsData,
     shortTitle,
+    nachpruefung,
   })
 
   return { 
@@ -538,6 +574,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     totalTokens,
     storyTopicsData,
     shortTitle,
+    nachpruefung,
   }
 }
 
