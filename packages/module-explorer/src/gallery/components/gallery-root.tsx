@@ -836,11 +836,18 @@ export function GalleryRoot({
     }
   }, [istTelefon, chatReferences, showReferencesSheet, referencesSheetMode])
 
+  const setChatReferences = useSetAtom(chatReferencesAtom)
+
   // Auto-Close bei Moduswechsel: Schließe Antwort-Quellenverzeichnis wenn Story-Modus verlassen wird
   React.useEffect(() => {
     if (mode !== 'story') {
-      // Setze chatReferences zurück
+      // Setze chatReferences zurück — daran hängt auf dem Desktop die
+      // GroupedItemsView („In der Antwort zitierte Dokumente"). Bis 08.10.2026
+      // wurde hier nur der shortTitle-Filter geleert, das Quellenverzeichnis
+      // blieb nach „Zurück zu den Inhalten" stehen. `q=` bleibt in der Adresse,
+      // damit die Story beim Zurückwechseln dieselbe Antwort zeigt.
       if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+        setChatReferences({ references: [] })
         const event = new CustomEvent('clear-gallery-filter', {
           detail: {},
         })
@@ -853,7 +860,7 @@ export function GalleryRoot({
         setReferencesSheetData(null)
       }
     }
-  }, [mode, chatReferences, showReferencesSheet, referencesSheetMode])
+  }, [mode, chatReferences, showReferencesSheet, referencesSheetMode, setChatReferences])
 
   // Auto-Close bei neuer Frage: Schließe Quellenverzeichnis wenn sich queryId ändert (neue Frage wurde beantwortet)
   React.useEffect(() => {
@@ -875,8 +882,6 @@ export function GalleryRoot({
   }, [chatReferences?.queryId, showReferencesSheet, referencesSheetMode])
 
   // Auto-Close bei neuer Frage: Schließe Quellenverzeichnis wenn eine neue Frage gesendet wird (Event-basiert)
-  const setChatReferences = useSetAtom(chatReferencesAtom)
-  
   React.useEffect(() => {
     const handleNewQuestion = () => {
       // Schließe Sheet falls geöffnet (Mobile)
