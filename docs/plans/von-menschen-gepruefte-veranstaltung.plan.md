@@ -121,6 +121,22 @@ Option weg (Server fällt sichtbar auf das Library-Feld zurück).
 `audio-player.tsx` und `audio-transform.tsx` sind gelöscht, nicht wieder
 eingehängt: Der Audio-Player lebt in `file-preview/views/audio-view.tsx`.
 
+**Prüffall 07.10.2026 abends (KS PR #356 + Secretary PR #29, Teil 1, 20:23 min):**
+Trace `audio_context_resolved` mit `speakerModeSource: 'job'`, `hasPrompt: true`,
+13 Begriffen; Secretary-Fortschritt „Stück n/m transkribiert" kommt als
+`phase=progress` an; der Abschluss-Webhook trägt `speakers`, `segments`,
+`dropped_context`, `output_text`; im Transkript-Frontmatter steht `speakers`
+flach (8 Labels, „Stück 1 Sprecher A" bis „Stück 2 Sprecher B"), die Absätze
+tragen die Präfixe. Lücke 2 ist damit geschlossen.
+**Neuer Befund dabei:** Der KS-Watchdog (`start/route.ts`, fest `600_000`)
+setzt den Job auf `failed`, wenn 10 Minuten kein Callback kommt. Ein
+20-Minuten-Stück braucht bei OpenAI manchmal länger (erster Lauf 06.10. abends:
+Stück 1 nie fertig, zweiter Lauf 8,5 min). Zwischen „Sprecher-Transkription
+gestartet" und „Stück n/m transkribiert" meldet der Secretary nichts. Zu
+entscheiden: Heartbeat je Stück alle 2–3 Minuten im Secretary, oder kleinere
+Stücke (z. B. 10 min) im Sprecher-Weg, oder längerer Watchdog nur für
+`mode=diarized`. Bis dahin scheitern lange Stücke zufällig.
+
 ## Reihenfolge
 
 ```
