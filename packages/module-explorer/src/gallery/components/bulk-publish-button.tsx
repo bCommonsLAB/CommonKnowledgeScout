@@ -177,11 +177,20 @@ export function BulkPublishButton({
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="default" size="sm" disabled={isPublishing}>
-          <Send className="h-4 w-4 mr-2" />
-          {isPublishing
-            ? t('gallery.publishAll.button.busy')
-            : t('gallery.publishAll.button.label', { count: documentCount })}
+        <Button
+          variant="default"
+          size="sm"
+          disabled={isPublishing}
+          title={isPublishing ? t('gallery.publishAll.button.busy') : t('gallery.publishAll.button.label', { count: documentCount })}
+          aria-label={t('gallery.publishAll.button.label', { count: documentCount })}
+        >
+          <Send className="h-4 w-4 lg:mr-2" />
+          {/* Owner-Regel 08.10.2026: unter lg nur Symbol, Text im Tooltip — Knopfzeilen brechen nie um */}
+          <span className="hidden lg:inline">
+            {isPublishing
+              ? t('gallery.publishAll.button.busy')
+              : t('gallery.publishAll.button.label', { count: documentCount })}
+          </span>
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

@@ -43,7 +43,9 @@ export function AnsichtsZeile({ name, erklaerung, werkzeuge, eingeklappt = false
   const offen = erklaerung.offen && !eingeklappt
   return (
     <div className={cn('space-y-2', className)} data-ansichts-zeile>
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Owner-Regel 08.10.2026: Werkzeugzeilen brechen nie um — fehlt Platz,
+          zeigen Knöpfe nur ihr Symbol (Text im Tooltip). Deshalb kein flex-wrap. */}
+      <div className="flex items-center gap-3">
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-sm font-semibold">{name}</span>
           <button
@@ -60,7 +62,7 @@ export function AnsichtsZeile({ name, erklaerung, werkzeuge, eingeklappt = false
             <Info className="h-4 w-4" />
           </button>
         </div>
-        {werkzeuge && <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{werkzeuge}</div>}
+        {werkzeuge && <div className="flex min-w-0 flex-1 items-center gap-2">{werkzeuge}</div>}
       </div>
       {offen && (
         <section className="rounded-lg bg-muted/40 px-4 py-3" aria-label={erklaerung.titel} data-ansicht-erklaerung>

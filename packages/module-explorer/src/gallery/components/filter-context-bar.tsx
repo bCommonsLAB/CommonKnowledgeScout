@@ -146,10 +146,11 @@ export function FilterContextBar({
 
   return (
     <div className="border-b py-2 lg:py-1 flex flex-col gap-2 lg:gap-1">
-      {/* Filter-Bar mit Icons, Badges und Buttons */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Filter-Bar mit Icons, Badges und Buttons. Owner-Regel 08.10.2026: die
+          Zeile bricht nie um — Knöpfe zeigen unter lg nur ihr Symbol (Text im Tooltip). */}
+      <div className="flex items-center gap-2 min-w-0">
         {/* Titel mit Dokumentenanzahl - nur im Story-Modus */}
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-lg font-semibold shrink-0 whitespace-nowrap">
           {mode === 'story' ? t('gallery.tocReferences') + ": " : ''}
           {docCount} {docCount === 1 ? t('gallery.source') : t('gallery.sources')}
         </h2>
@@ -352,18 +353,18 @@ export function FilterContextBar({
                   variant="default"
                   size="sm"
                   onClick={onCta}
-                  className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 sm:px-4 text-xs sm:text-sm h-7 sm:h-8"
+                  aria-label={ctaLabel}
+                  className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 lg:px-4 text-xs sm:text-sm h-7 sm:h-8"
                 >
                   <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span>{ctaLabel}</span>
-                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                  {/* Owner-Regel 08.10.2026: unter lg nur Symbol, Text im Tooltip */}
+                  <span className="hidden lg:inline">{ctaLabel}</span>
+                  <ArrowRight className="hidden lg:inline h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </TooltipTrigger>
-              {tooltip && (
-                <TooltipContent>
-                  <p>{tooltip}</p>
-                </TooltipContent>
-              )}
+              <TooltipContent>
+                <p>{tooltip ?? ctaLabel}</p>
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

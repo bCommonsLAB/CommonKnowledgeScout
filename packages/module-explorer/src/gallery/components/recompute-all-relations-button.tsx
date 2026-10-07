@@ -91,10 +91,12 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
       className="h-8 gap-1"
       disabled={isLoading || docCount === 0}
       onClick={recompute}
-      title={`Berechnet die Beziehungen für ${docCount} Maßnahmen (serverseitig in Batches).`}
+      title={`${label} (${docCount}) — berechnet die Beziehungen serverseitig in Batches.`}
+      aria-label={`${label} (${docCount})`}
     >
       <Waypoints className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden />
-      {label} ({docCount})
+      {/* Owner-Regel 08.10.2026: unter lg nur Symbol, Text im Tooltip — Knopfzeilen brechen nie um */}
+      <span className="hidden lg:inline">{label} ({docCount})</span>
     </Button>
   )
 }

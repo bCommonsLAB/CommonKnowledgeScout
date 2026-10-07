@@ -175,9 +175,16 @@ export function BulkDeleteButton({
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant={variant} size={size} disabled={isDeleting}>
-          <Trash2 className="h-4 w-4 mr-2" />
-          {isDeleting ? 'Löschen...' : `${documentCount} löschen`}
+        <Button
+          variant={variant}
+          size={size}
+          disabled={isDeleting}
+          title={isDeleting ? 'Löschen...' : `${documentCount} löschen`}
+          aria-label={`${documentCount} löschen`}
+        >
+          <Trash2 className="h-4 w-4 lg:mr-2" />
+          {/* Owner-Regel 08.10.2026: unter lg nur Symbol, Text im Tooltip — Knopfzeilen brechen nie um */}
+          <span className="hidden lg:inline">{isDeleting ? 'Löschen...' : `${documentCount} löschen`}</span>
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
