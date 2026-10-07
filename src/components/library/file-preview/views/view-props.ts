@@ -20,7 +20,7 @@ import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { ClientLibrary } from '@/types/library'
 import type { FrontendShadowTwinState } from '@/atoms/shadow-twin-atom'
 import type { StoryStepStatus } from '@/components/library/shared/story-status'
-import type { LlmModelOption, PipelinePolicies, CoverImageOptions } from '@/components/library/flow/pipeline-sheet'
+import type { LlmModelOption, PipelineStartArgs } from '@/components/library/flow/pipeline-sheet'
 import type { ResolvedTranscriptItemResult } from '@/components/library/shared/use-resolved-transcript-item'
 import type { CompositeWikiPreviewOptions } from '@/components/library/markdown-preview'
 
@@ -114,17 +114,7 @@ export interface PreviewViewProps {
   setLlmModel: React.Dispatch<React.SetStateAction<string>>
   llmModels: LlmModelOption[]
   isLoadingLlmModels: boolean
-  runPipeline: (args: {
-    templateName?: string
-    targetLanguage: string
-    sourceLanguage?: string
-    policies: PipelinePolicies
-    coverImage?: CoverImageOptions
-    llmModel?: string
-    customHint?: string
-    slidesAsTable?: boolean
-    appendixInSearch?: boolean
-  }) => Promise<void>
+  runPipeline: (args: PipelineStartArgs) => Promise<void>
   pipelineDefaultSteps: { extract: boolean; metadata: boolean; ingest: boolean } | undefined
   pipelineDefaultForce: boolean
   savedCustomHint: string

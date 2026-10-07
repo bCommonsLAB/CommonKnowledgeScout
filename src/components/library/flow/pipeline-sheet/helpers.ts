@@ -26,6 +26,27 @@ export interface CoverImageOptions {
  * Informationen ueber bereits vorhandene Artefakte.
  * Ermoeglicht intelligente Vorauswahl und Abhaengigkeits-Logik.
  */
+/**
+ * Argumente, mit denen das Sheet den Pipeline-Start meldet (`onStart`).
+ * Eine Definition fuer PipelineSheet, view-props und file-preview — kein
+ * dreifach gepflegter Inline-Typ.
+ */
+export interface PipelineStartArgs {
+  templateName?: string
+  targetLanguage: string
+  sourceLanguage?: string
+  policies: PipelinePolicies
+  coverImage?: CoverImageOptions
+  llmModel?: string
+  customHint?: string
+  slidesAsTable?: boolean
+  appendixInSearch?: boolean
+  /** P3a (nur Audio, nur wenn „Transkript erstellen" aktiv) */
+  audioPrompt?: string
+  audioKeywords?: string[]
+  speakerMode?: boolean
+}
+
 export interface ExistingArtifacts {
   /** Transcript/Extraktion ist vorhanden */
   hasTranscript: boolean

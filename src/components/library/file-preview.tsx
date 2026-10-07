@@ -40,7 +40,7 @@ import { useResolvedTranscriptItem } from "@/components/library/shared/use-resol
 import { useStoryStatus } from "@/components/library/shared/use-story-status"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import type { StoryStepStatus } from "@/components/library/shared/story-status"
-import type { PipelinePolicies, CoverImageOptions, LlmModelOption } from "@/components/library/flow/pipeline-sheet"
+import type { PipelineStartArgs, LlmModelOption } from "@/components/library/flow/pipeline-sheet"
 import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
@@ -754,7 +754,7 @@ function PreviewContent({
 
   // Pipeline starten
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string; slidesAsTable?: boolean; appendixInSearch?: boolean }) => {
+    async (args: PipelineStartArgs) => {
       if (!activeLibraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -792,6 +792,10 @@ function PreviewContent({
           // Idee-F-Optionen (P6)
           slidesAsTable: args.slidesAsTable,
           appendixInSearch: args.appendixInSearch,
+          // Audio-Kontext (P3a): nur wenn das Sheet sie gesetzt hat
+          audioPrompt: args.audioPrompt,
+          audioKeywords: args.audioKeywords,
+          speakerMode: args.speakerMode,
         })
 
         // Korrekturhinweis für Re-Open in localStorage speichern
