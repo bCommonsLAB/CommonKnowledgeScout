@@ -31,7 +31,7 @@ import type { CompositeWikiPreviewOptions } from '@/components/library/markdown-
  * View-Komponenten (`*-view.tsx`) gerendert, NICHT in `file-preview.tsx`.
  * Details: `docs/architecture/file-preview-tab-architecture.md`.
  */
-export type PreviewInfoTab = 'original' | 'transcript' | 'transform' | 'story' | 'overview' | 'diva-info'
+export type PreviewInfoTab = 'original' | 'transcript' | 'correction' | 'transform' | 'story' | 'overview' | 'diva-info'
 
 /** Pipeline-Phasen-Trigger fuer "Jetzt erstellen"/"Neu generieren"/"Erneut publizieren". */
 export type PreviewPipelinePhase = 'transcript' | 'transform' | 'story'

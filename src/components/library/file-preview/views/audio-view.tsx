@@ -4,7 +4,7 @@
  * file-preview/views/audio-view.tsx
  *
  * Detail-View fuer Audio-Dateien (Player + Tabs Original/Transcript/
- * Transformation/Story/Uebersicht + Pipeline-Sheet).
+ * Korrektur (P3b)/Transformation/Story/Uebersicht + Pipeline-Sheet).
  *
  * Aus `file-preview.tsx` PreviewContent-Switch ausgegliedert
  * (Welle 3-II-a Phase 2a, Schritt 4b).
@@ -13,7 +13,7 @@
  */
 
 import * as React from 'react'
-import { FileText, Sparkles, Upload, RefreshCw } from 'lucide-react'
+import { FileText, Sparkles, Upload, RefreshCw, ListChecks } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertDescription, Button } from '@ks/ui'
 import { FileLogger } from '@/lib/debug/logger'
 import { SourceAndTranscriptPane } from '@/components/library/shared/source-and-transcript-pane'
@@ -33,6 +33,8 @@ import {
   wrapTranscriptTabWithReviewSplit,
 } from '@/components/library/file-preview/review-split'
 import { TranscriptToolbarActions } from '@/components/library/file-preview/transcript-toolbar-actions'
+import { AudioCorrectionTab } from './audio-correction/audio-correction-tab'
+import { useTranscriptRevision } from './audio-correction/use-audio-correction'
 import type { PreviewViewProps } from './view-props'
 
 export function AudioView(props: PreviewViewProps) {
@@ -88,6 +90,10 @@ export function AudioView(props: PreviewViewProps) {
     itemName: item.metadata.name,
   })
 
+  // P3b: Reiter „Korrektur" nur mit Transkript; Hook VOR dem fruehen return (rules-of-hooks).
+  const hasTranscriptItem = !!transcript.transcriptItem
+  const revisedAt = useTranscriptRevision(activeLibraryId, item.id, hasTranscriptItem && !!transformItem)
+
   if (!provider) {
     return <div className="text-sm text-muted-foreground">Kein Provider verfuegbar.</div>
   }
@@ -95,6 +101,8 @@ export function AudioView(props: PreviewViewProps) {
   const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
     ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
     : undefined
+  // „ueberholt" = Transkript nach der Transformation korrigiert (abgeleitet, kein Feld).
+  const transformUeberholt = !!(revisedAt && docModifiedAt && revisedAt > docModifiedAt)
   const textStep = getStoryStep(storySteps, 'text')
   const transformStep = getStoryStep(storySteps, 'transform')
   const publishStep = getStoryStep(storySteps, 'publish')
@@ -122,6 +130,11 @@ export function AudioView(props: PreviewViewProps) {
           <TabsTrigger value="transcript">
             <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
           </TabsTrigger>
+          {hasTranscriptItem && (
+            <TabsTrigger value="correction">
+              <ListChecks className="h-3.5 w-3.5 mr-1" /> Korrektur
+            </TabsTrigger>
+          )}
           <TabsTrigger value="transform">
             <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStep?.state || null} />
           </TabsTrigger>
@@ -183,11 +196,29 @@ export function AudioView(props: PreviewViewProps) {
           )}
         </TabsContent>
 
+        <TabsContent value="correction" className="min-h-0 flex-1 overflow-auto p-3">
+          {infoTab === 'correction' ? (
+            <AudioCorrectionTab
+              libraryId={activeLibraryId}
+              sourceId={item.id}
+              parentId={item.parentId || 'root'}
+              provider={provider}
+              enabled={true}
+              onGeschrieben={(ueberholt) => { if (ueberholt > 0) setInfoTab('transform') }}
+            />
+          ) : null}
+        </TabsContent>
+
         <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-xs text-muted-foreground">
                 Story-Inhalte und Metadaten (aus dem Transkript transformiert)
+                {transformUeberholt && revisedAt && (
+                  <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    ueberholt — Transkript korrigiert am {new Date(revisedAt).toLocaleString('de-DE')}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {transformHeaderExtra}
