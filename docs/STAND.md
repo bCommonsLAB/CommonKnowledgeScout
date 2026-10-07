@@ -114,6 +114,12 @@ Bekannte Punkte:
    [`plans/mcp-bruecke-website-publizieren.plan.md`](plans/mcp-bruecke-website-publizieren.plan.md)
    (B1 publizieren, B2 Felder setzen, B3 Bilder in den Blob, B4
    Veröffentlichung lesen/setzen, B5 Seite prüfen, B6 Skill).
+5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
+   06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
+   der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):
+   [`plans/website-unveraendert-publizieren.plan.md`](plans/website-unveraendert-publizieren.plan.md)
+   (P1 Route auf der B1-Funktion, P2 Knopf im Story-Tab, P3 `seite_pruefen`
+   meldet verwaiste Einträge, P4 Doku).
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294
 Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
