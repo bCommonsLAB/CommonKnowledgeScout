@@ -35,17 +35,17 @@ export {
   type CoverImageOptions,
   type ExistingArtifacts,
   type LlmModelOption,
+  type PipelineStartArgs,
   TRANSCRIPTION_SOURCE_LANGUAGES,
   TRANSFORMATION_TARGET_LANGUAGES,
   isNonEmptyString,
 } from './pipeline-sheet/helpers'
 
 import {
-  type PipelinePolicies,
-  type CoverImageOptions,
   type ExistingArtifacts,
   type LlmModelOption,
   type PipelinePhase,
+  type PipelineStartArgs,
   PHASE_RANK,
   buildPipelinePlan,
   TRANSCRIPTION_SOURCE_LANGUAGES,
@@ -54,6 +54,8 @@ import {
 } from './pipeline-sheet/helpers'
 import { useTemplateHasField } from './pipeline-sheet/use-template-has-field'
 import { IdeeFOptionen } from './pipeline-sheet/idee-f-optionen'
+import { useAudioContextOptions } from './pipeline-sheet/use-audio-context-options'
+import { AudioTransformContext } from '@/components/library/audio-transform-context'
 import { useActiveLibrary } from '@ks/shell/react'
 
 interface PipelineSheetProps {
@@ -80,7 +82,7 @@ interface PipelineSheetProps {
   llmModels?: LlmModelOption[]
   /** Ladezustand für LLM-Modelle */
   isLoadingLlmModels?: boolean
-  onStart: (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string; slidesAsTable?: boolean; appendixInSearch?: boolean }) => Promise<void>
+  onStart: (args: PipelineStartArgs) => Promise<void>
   /**
    * Optionale Default-Werte fuer die Pipeline-Schritte.
    * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
@@ -164,6 +166,11 @@ export function PipelineSheet(props: PipelineSheetProps) {
     field: 'slides',
     enabled: props.isOpen && shouldTransform,
   })
+
+  // Audio-Kontext (P3a): Sprecher erkennen, Thema/Anlass, Begriffe — nur fuer
+  // Audio-Quellen; Video geht ueber einen Secretary-Endpunkt ohne Kontext.
+  const isAudioSource = props.kind === 'audio'
+  const audioContext = useAudioContextOptions({ library: activeLibrary, isOpen: props.isOpen })
 
   // Beim Oeffnen des Sheets: Initialisiere basierend auf defaultSteps und existingArtifacts
   React.useEffect(() => {
@@ -293,11 +300,14 @@ export function PipelineSheet(props: PipelineSheetProps) {
         // Anhang-Option nur, wenn Ingest aktiv. Sonst undefined = Server nimmt Vorlage/Library-Voreinstellung.
         slidesAsTable: shouldTransform && templateHasSlides === true ? slidesAsTable : undefined,
         appendixInSearch: shouldIngest ? appendixInSearch : undefined,
+        // Audio-Kontext (P3a): nur bei Audio-Quelle UND aktivem Transkript-Schritt;
+        // sonst bleiben die Felder weg und der Server nimmt die Library-Voreinstellung.
+        ...audioContext.toStartArgs(isAudioSource && shouldExtract),
       })
     } finally {
       setIsSubmitting(false)
     }
-  }, [props, plan.policies, shouldExtract, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, templateHasSlides, slidesAsTable, appendixInSearch])
+  }, [props, plan.policies, shouldExtract, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, templateHasSlides, slidesAsTable, appendixInSearch, audioContext, isAudioSource])
 
   // Start-Geste: validieren, dann starten. Der Ueberschreiben-Status ist bereits
   // direkt an den Schritten sichtbar (Badge "wird ueberschrieben") — kein
@@ -534,6 +544,21 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                   </SelectContent>
                                 </Select>
                               </div>
+                              {/* Audio-Kontext (P3a): Sprecher erkennen, Thema/Anlass, Begriffe */}
+                              {isAudioSource && (
+                                <div className="ml-[76px] pr-4 pt-1">
+                                  <AudioTransformContext
+                                    speakerMode={audioContext.speakerMode}
+                                    onSpeakerModeChange={audioContext.setSpeakerMode}
+                                    prompt={audioContext.prompt}
+                                    onPromptChange={audioContext.setPrompt}
+                                    keywordsText={audioContext.keywordsText}
+                                    onKeywordsTextChange={audioContext.setKeywordsText}
+                                    knownNamesCount={audioContext.knownNamesCount}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                              )}
                             </>
                           )}
 

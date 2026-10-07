@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAudioJobContext } from '@/lib/external-jobs/audio-context'
+import { readAudioContextOptions, resolveAudioJobContext } from '@/lib/external-jobs/audio-context'
 import type { ExternalJob } from '@/types/external-job'
 import type { Library } from '@/types/library'
 
@@ -48,5 +48,30 @@ describe('resolveAudioJobContext (P3a)', () => {
     const ctx = resolveAudioJobContext(job({ audioKeywords: ['A', 3, null], audioPrompt: '' }), undefined)
     expect(ctx.keywords).toEqual(['A'])
     expect(ctx.prompt).toBeUndefined()
+  })
+})
+
+describe('readAudioContextOptions (P3a, gemeinsamer Leser beider Routen)', () => {
+  it('leeres Body: keine Optionen', () => {
+    expect(readAudioContextOptions({})).toEqual({ options: {} })
+  })
+
+  it('trimmt Prompt und Begriffe, laesst Leeres weg, nimmt speakerMode als Boolean', () => {
+    const result = readAudioContextOptions({
+      audioPrompt: '  Vortrag  ',
+      audioKeywords: [' A ', '', 'B'],
+      speakerMode: false,
+    })
+    expect(result).toEqual({ options: { audioPrompt: 'Vortrag', audioKeywords: ['A', 'B'], speakerMode: false } })
+  })
+
+  it('leerer Prompt und leere Liste erzeugen keine Option', () => {
+    expect(readAudioContextOptions({ audioPrompt: '   ', audioKeywords: [] })).toEqual({ options: {} })
+  })
+
+  it('falsche Typen liefern einen Fehler statt stiller Korrektur', () => {
+    expect(readAudioContextOptions({ speakerMode: 'ja' as unknown as boolean })).toEqual({ error: 'speakerMode muss ein Boolean sein' })
+    expect(readAudioContextOptions({ audioKeywords: 'A' as unknown as string[] })).toEqual({ error: 'audioKeywords muss eine Liste von Strings sein' })
+    expect(readAudioContextOptions({ audioPrompt: 1 as unknown as string })).toEqual({ error: 'audioPrompt muss ein String sein' })
   })
 })

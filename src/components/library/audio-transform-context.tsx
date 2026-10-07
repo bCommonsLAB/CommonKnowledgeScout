@@ -1,11 +1,14 @@
 "use client";
 
 /**
- * Kontext-Felder des Transkriptions-Dialogs (P3a): Sprecher-Erkennung,
+ * Kontext-Felder der Audio-Transkription (P3a): Sprecher-Erkennung,
  * Thema/Anlass und Begriffe fuer diese Datei. Reine Eingabe-Komponente —
- * die Werte gehen als `speakerMode`, `audioPrompt`, `audioKeywords` an
- * `/api/secretary/process-audio/job`; die bekannten Namen der Library
- * ergaenzt der Server (`resolveAudioJobContext`).
+ * eingebunden im Dialog „Aufbereiten & Publizieren" (Schritt „Transkript
+ * erstellen", Optionen; `flow/pipeline-sheet.tsx`). Die Werte gehen als
+ * `speakerMode`, `audioPrompt`, `audioKeywords` ueber `/api/pipeline/process`
+ * an den Job; die bekannten Namen der Library ergaenzt der Server
+ * (`resolveAudioJobContext`). Dieselben Feldnamen versteht
+ * `/api/secretary/process-audio/job` (Erfassungs-Wizard).
  */
 
 import { Label, Switch, Textarea } from '@ks/ui'
