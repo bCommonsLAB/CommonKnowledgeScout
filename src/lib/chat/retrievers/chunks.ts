@@ -329,26 +329,9 @@ export const chunksRetriever: ChatRetriever = {
           libraryId: input.libraryId,
           // user-Filter entfernt: libraryId ist ausreichend für Filterung
         } as Partial<Document>,
-        {
-          projection: {
-            _id: 1,
-            text: 1,
-            chunkIndex: 1,
-            fileId: 1,
-            fileName: 1,
-            headingContext: 1,
-            startChar: 1,
-            endChar: 1,
-            page: 1,
-            year: 1,
-            authors: 1,
-            region: 1,
-            docType: 1,
-            source: 1,
-            tags: 1,
-            shortTitle: 1,
-          },
-        }
+        // Nur das Embedding ausblenden: dynamische Facetten der Library müssen
+        // auch an Nachbar-Chunks hängen (Quellen-Header, Nachprüfung).
+        { projection: { embedding: 0 } }
       ).toArray()
       
       neighbors = neighborDocs.map(doc => ({
@@ -373,6 +356,8 @@ export const chunksRetriever: ChatRetriever = {
           source: doc.source as string | undefined,
           tags: doc.tags as string[] | undefined,
           shortTitle: doc.shortTitle as string | undefined,
+          // Dynamische Facetten der Library (z. B. lv_bewertung) wie beim Treffer selbst
+          ...extractFacetMetadata(doc as Record<string, unknown>, facetDefs),
         },
       }))
     }

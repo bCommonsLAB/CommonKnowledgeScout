@@ -229,3 +229,26 @@ describe('seiteFuerChunk / buildVectorDocuments — Seite je Chunk (D7)', async 
     expect(ohne.every((v) => !('page' in v))).toBe(true)
   })
 })
+
+describe('extractFacetValues — dynamische Facetten aus dem Frontmatter (Befund 07.10.2026)', () => {
+  const dyn = (metaKey: string, type: FacetDef['type']): FacetDef => ({ metaKey, type, multi: false, visible: true })
+
+  it('liest Facetten, die nicht im mongoDoc stehen, typgerecht aus docMetaJsonObj', () => {
+    const facets = extractFacetValues(
+      baseMongoDoc,
+      { lv_bewertung: 'nicht_umsetzbar', arbeitsgruppe: ['Mobilität'], kosten_eur: '150000', massnahme_nr: 38 },
+      [dyn('lv_bewertung', 'string'), dyn('arbeitsgruppe', 'string[]'), dyn('kosten_eur', 'number'), dyn('massnahme_nr', 'number')],
+    )
+    expect(facets.lv_bewertung).toBe('nicht_umsetzbar')
+    expect(facets.arbeitsgruppe).toEqual(['Mobilität'])
+    expect(facets.kosten_eur).toBe(150000)
+    expect(facets.massnahme_nr).toBe(38)
+  })
+
+  it('mongoDoc hat Vorrang; falscher Typ im Frontmatter wird nicht geraten', () => {
+    const mongoDoc: DocMeta = { ...baseMongoDoc, region: 'Tirol' }
+    const facets = extractFacetValues(mongoDoc, { region: 'Südtirol', lv_bewertung: 42 }, [dyn('region', 'string'), dyn('lv_bewertung', 'string')])
+    expect(facets.region).toBe('Tirol')
+    expect(facets.lv_bewertung).toBeUndefined()
+  })
+})

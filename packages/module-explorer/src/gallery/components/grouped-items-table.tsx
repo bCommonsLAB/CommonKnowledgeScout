@@ -226,9 +226,10 @@ export function GroupedItemsTable({
   return (
     <div className="space-y-8">
       {/* Überschrift "Quellenverzeichnis" mit Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 pb-2 px-0 py-2">
-        <h2 className="text-lg font-semibold">{t('gallery.references')}</h2>
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* Owner-Regel 08.10.2026: eine Zeile, kein Umbruch — unter lg nur Symbole, Text im Tooltip */}
+      <div className="flex items-center justify-between gap-2 mb-2 pb-2 px-0 py-2">
+        <h2 className="text-lg font-semibold truncate">{t('gallery.references')}</h2>
+        <div className="flex shrink-0 items-center gap-2">
           {/* View-Mode-Toggle - nur anzeigen wenn Props gesetzt sind */}
           {viewMode !== undefined && onViewModeChange && (
             <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
@@ -238,21 +239,24 @@ export function GroupedItemsTable({
               variant="outline"
               size="sm"
               onClick={handleScrollToQuestion}
-              className="gap-2"
+              className="lg:gap-2"
+              title={t('gallery.scrollToQuestion')}
+              aria-label={t('gallery.scrollToQuestion')}
             >
               <ArrowLeft className="h-4 w-4" />
-              {t('gallery.scrollToQuestion')}
+              <span className="hidden lg:inline">{t('gallery.scrollToQuestion')}</span>
             </Button>
           )}
           <Button
             variant="outline"
             size="sm"
             onClick={handleCloseReferences}
-            className="gap-2"
+            className="lg:gap-2"
+            title={t('gallery.closeReferences')}
             aria-label={t('gallery.closeReferences')}
           >
             <X className="h-4 w-4" />
-            {t('gallery.closeReferences')}
+            <span className="hidden lg:inline">{t('gallery.closeReferences')}</span>
           </Button>
         </div>
       </div>

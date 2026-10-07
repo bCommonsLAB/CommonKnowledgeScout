@@ -60,12 +60,15 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
       variant="outline"
       size="sm"
       className="shrink-0"
+      title="Inhalte erfassen"
+      aria-label="Inhalte erfassen"
       // from=gallery: die Übersicht reicht es an den gewählten Wizard weiter,
       // damit dessen Zurück-Link nach Erkunden (Galerie) führt.
       onClick={() => router.push('/library/create?from=gallery')}
     >
-      <FilePlus2 className="mr-2 h-4 w-4" />
-      Inhalte erfassen
+      <FilePlus2 className="h-4 w-4 lg:mr-2" />
+      {/* Owner-Regel 08.10.2026: unter lg nur Symbol, Text im Tooltip — Knopfzeilen brechen nie um */}
+      <span className="hidden lg:inline">Inhalte erfassen</span>
     </Button>
   );
 }

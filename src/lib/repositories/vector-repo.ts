@@ -782,55 +782,13 @@ export async function queryVectors(
         filter: vectorSearchFilter,
       },
     },
-      {
-        $project: {
-          _id: 1,
-          score: { $meta: 'vectorSearchScore' },
-          libraryId: 1,
-          user: 1,
-          fileId: 1,
-          fileName: 1,
-          kind: 1,
-          // Chunk-spezifische Felder
-          chunkIndex: 1,
-          text: 1,
-          headingContext: 1,
-          startChar: 1,
-          endChar: 1,
-          // Meta-Dokument-spezifische Felder
-          title: 1,
-          summary: 1,
-          teaser: 1,
-          chunkCount: 1,
-          chaptersCount: 1,
-          upsertedAt: 1,
-          // Facetten-Metadaten
-          year: 1,
-          authors: 1,
-          region: 1,
-          docType: 1,
-          source: 1,
-          tags: 1,
-          topics: 1,
-          track: 1,
-          speakers: 1,
-          date: 1,
-          shortTitle: 1,
-          // Herkunft des Chunks (Retriever-Quellenangabe): Seite, Kapitel,
-          // Slide und der unsichtbare Ingest-Anhang. Ohne diese Felder kamen
-          // sourceType & Co. nie beim Retriever an (chunks.ts liest sie aus meta).
-          page: 1,
-          sourceType: 1,
-          slidePageNum: 1,
-          slideTitle: 1,
-          chapterTitle: 1,
-          chapterOrder: 1,
-          chapterId: 1,
-          anhangIndex: 1,
-          anhangTitle: 1,
-          anhangQuelle: 1,
-        },
-      },
+      // Score anhängen und nur das Embedding ausblenden. Bis 07.10.2026 stand
+      // hier eine feste Einschlussliste (year, authors, …, tags, shortTitle):
+      // dynamische Facetten der Library (z. B. lv_bewertung) kamen dadurch nie
+      // beim Retriever an — Quellen-Header, Nachprüfung und Facetten-Metadaten
+      // je Textstelle blieben leer, obwohl die Chunks die Werte trugen.
+      { $addFields: { score: { $meta: 'vectorSearchScore' } } },
+      { $project: { embedding: 0 } },
   ]
 
   let results: Document[]
@@ -954,7 +912,17 @@ Siehe: docs/mongodb-vector-search-index.md für Details.`
         delete metadata[key]
       }
     })
-    
+
+    // Dynamische Facetten der Library (z. B. lv_bewertung, arbeitsgruppe):
+    // alle übrigen Top-Level-Felder des Chunks durchreichen, die oben nicht
+    // abgebildet sind. Bis 07.10.2026 blieben sie hier hängen — der Retriever
+    // sah nur die festen Basisfelder (Quellen-Header, Nachprüfung ohne Status).
+    for (const [key, value] of Object.entries(doc)) {
+      if (key === '_id' || key === 'score' || key === 'embedding' || key in metadata) continue
+      if (value === undefined || value === null) continue
+      metadata[key] = value
+    }
+
     return {
       id: String(doc._id),
       score,

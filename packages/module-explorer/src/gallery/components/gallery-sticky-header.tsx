@@ -71,7 +71,8 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
 
   const werkzeuge = (
     <>
-      <div className="relative min-w-[12rem] flex-1">
+      {/* Suchfeld schrumpft zuerst, damit die Werkzeugzeile einzeilig bleibt (Owner-Regel 08.10.2026) */}
+      <div className="relative min-w-[6rem] flex-1">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="text"
