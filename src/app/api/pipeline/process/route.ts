@@ -26,6 +26,7 @@ import type { MediaKind, JobType } from '@/lib/media-types'
 import type { PipelineRequest, PipelineResponse, PipelineItem } from '@/lib/pipeline/pipeline-config'
 import type { ExternalJob } from '@/types/external-job'
 import { FileLogger } from '@/lib/debug/logger'
+import { readAudioContextOptions } from '@/lib/external-jobs/audio-context'
 
 // =============================================================================
 // HILFSFUNKTIONEN
@@ -61,8 +62,10 @@ async function createJobForItem(args: {
   request: PipelineRequest
   repo: ExternalJobsRepository
   batchId?: string
+  /** P3a: typgepruefte Audio-Kontext-Optionen (nur fuer Audio-Quellen am Job abgelegt). */
+  audioContextOptions: Record<string, unknown>
 }): Promise<{ jobId: string; mediaKind: MediaKind; jobType: JobType } | { error: string }> {
-  const { item, libraryId, userEmail, request, repo, batchId } = args
+  const { item, libraryId, userEmail, request, repo, batchId, audioContextOptions } = args
   const { config } = request
   
   // Medientyp erkennen
@@ -101,6 +104,9 @@ async function createJobForItem(args: {
       targetLanguage: config.targetLanguage,
       // Quellsprache für Transkription (Whisper) – nur setzen wenn explizit angegeben
       ...(config.sourceLanguage ? { sourceLanguage: config.sourceLanguage } : {}),
+      // Audio-Kontext (P3a): Sprecher-Modus, Thema, Begriffe — nur, was der
+      // Client explizit gesetzt hat; der Rest entscheidet `resolveAudioJobContext`.
+      ...(mediaKind === 'audio' ? audioContextOptions : {}),
       // Office-spezifische Optionen (Secretary /api/office/process)
       ...((mediaKind === 'docx' || mediaKind === 'xlsx' || mediaKind === 'pptx') ? {
         useCache: request.useCache ?? true,
@@ -263,6 +269,12 @@ export async function POST(request: NextRequest) {
     if (!item && (!items || items.length === 0)) {
       return NextResponse.json({ error: 'item oder items erforderlich' }, { status: 400 })
     }
+
+    // P3a: Audio-Kontext typgeprueft lesen — falsche Typen sind ein Client-Fehler (400).
+    const audioContextResult = readAudioContextOptions(config)
+    if ('error' in audioContextResult) {
+      return NextResponse.json({ error: audioContextResult.error }, { status: 400 })
+    }
     
     // Library prüfen
     const lib = await LibraryService.getInstance().getLibrary(userEmail, libraryId).catch(() => undefined)
@@ -296,6 +308,7 @@ export async function POST(request: NextRequest) {
         request: body,
         repo,
         batchId,
+        audioContextOptions: audioContextResult.options,
       })
       
       if ('error' in result) {

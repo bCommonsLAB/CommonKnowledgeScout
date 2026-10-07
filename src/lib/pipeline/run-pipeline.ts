@@ -154,8 +154,14 @@ export async function runPipelineForFile(args: {
   slidesAsTable?: boolean
   /** P6: „Anhaenge als Text in die Suche" (nur wenn Ingest aktiv) */
   appendixInSearch?: boolean
+  /** P3a: Thema/Anlass fuer die Transkription (nur Audio, nur wenn Extract aktiv) */
+  audioPrompt?: string
+  /** P3a: Begriffe fuer diese Datei (nur Audio, nur wenn Extract aktiv) */
+  audioKeywords?: string[]
+  /** P3a: Sprecher-Erkennung fuer diesen Lauf; undefined = Library-Voreinstellung */
+  speakerMode?: boolean
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel, slidesAsTable, appendixInSearch } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel, slidesAsTable, appendixInSearch, audioPrompt, audioKeywords, speakerMode } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
@@ -191,6 +197,10 @@ export async function runPipelineForFile(args: {
     // Idee-F-Optionen (P6): nur explizit gesetzte Werte
     ...(typeof slidesAsTable === 'boolean' ? { slidesAsTable } : {}),
     ...(typeof appendixInSearch === 'boolean' ? { appendixInSearch } : {}),
+    // Audio-Kontext (P3a): nur explizit gesetzte Werte, kein geratener Default
+    ...(typeof audioPrompt === 'string' ? { audioPrompt } : {}),
+    ...(Array.isArray(audioKeywords) ? { audioKeywords } : {}),
+    ...(typeof speakerMode === 'boolean' ? { speakerMode } : {}),
   }
 
   FileLogger.info('run-pipeline', 'Pipeline starten (Unified Endpoint)', {
