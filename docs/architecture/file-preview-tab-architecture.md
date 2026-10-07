@@ -39,5 +39,13 @@ file-preview.tsx (PreviewContent)
 
 - DIVA-Info-Tab: `image-view.tsx` (Trigger + `TabsContent`), Daten via
   `use-diva-supplier-data.ts`, Inhalt in `views/diva-supplier-data-view.tsx`.
+- Korrektur-Tab (P3b, nur Audio mit Transkript): `audio-view.tsx` (Trigger +
+  `TabsContent value="correction"`), Inhalt in `views/audio-correction/`
+  (`audio-correction-tab.tsx`, Listen, Begleitquellen, Hook
+  `use-audio-correction.ts`). Routen: `api/library/[libraryId]/transcript-correction`
+  (GET Zustand, POST Schreiben) und `…/suggest` (Secretary P2). Kern in
+  `src/lib/transkript-korrektur/`, gemeinsam mit der Bruecke
+  `transkript_korrigieren`. „ueberholt" im Reiter Transformation wird aus
+  `revised_at` gegen den Stand der Transformation abgeleitet, kein Feld.
 - Reset-Verhalten: `PreviewContent` setzt `infoTab` bei `item.id`-Wechsel zurueck
   auf `"original"` — verschwindende Tabs bleiben so nicht „haengen".

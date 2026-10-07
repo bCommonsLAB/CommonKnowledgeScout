@@ -121,6 +121,42 @@ Option weg (Server fällt sichtbar auf das Library-Feld zurück).
 `audio-player.tsx` und `audio-transform.tsx` sind gelöscht, nicht wieder
 eingehängt: Der Audio-Player lebt in `file-preview/views/audio-view.tsx`.
 
+**Prüffall 07.10.2026 abends (KS PR #356 + Secretary PR #29, Teil 1, 20:23 min):**
+Trace `audio_context_resolved` mit `speakerModeSource: 'job'`, `hasPrompt: true`,
+13 Begriffen; Secretary-Fortschritt „Stück n/m transkribiert" kommt als
+`phase=progress` an; der Abschluss-Webhook trägt `speakers`, `segments`,
+`dropped_context`, `output_text`; im Transkript-Frontmatter steht `speakers`
+flach (8 Labels, „Stück 1 Sprecher A" bis „Stück 2 Sprecher B"), die Absätze
+tragen die Präfixe. Lücke 2 ist damit geschlossen.
+**Neuer Befund dabei:** Der KS-Watchdog (`start/route.ts`, fest `600_000`)
+setzt den Job auf `failed`, wenn 10 Minuten kein Callback kommt. Ein
+20-Minuten-Stück braucht bei OpenAI manchmal länger (erster Lauf 06.10. abends:
+Stück 1 nie fertig, zweiter Lauf 8,5 min). Zwischen „Sprecher-Transkription
+gestartet" und „Stück n/m transkribiert" meldet der Secretary nichts. Zu
+entscheiden: Heartbeat je Stück alle 2–3 Minuten im Secretary, oder kleinere
+Stücke (z. B. 10 min) im Sprecher-Weg, oder längerer Watchdog nur für
+`mode=diarized`. Bis dahin scheitern lange Stücke zufällig.
+**Entscheidung 08.10.:** Heartbeat je Stück im Secretary (Hand-off liegt im
+Secretary-Repo unter `docs/handover-heartbeat-je-stueck.md`), zurückgestellt.
+
+**P3b, Entscheidung 08.10.2026:** eigener Reiter „Korrektur" am
+Audio-Transkript, gebaut wie der Reiter „Transformation". Brief:
+[`AGENT-BRIEF-P3b-korrektur-reiter.md`](AGENT-BRIEF-P3b-korrektur-reiter.md).
+**Gebaut 08.10.** (Branch `claude/p3b-korrektur-reiter`): Kern in
+`src/lib/transkript-korrektur/` (gemeinsam mit der Brücke), Routen
+`api/library/[libraryId]/transcript-correction` (GET Zustand, POST Schreiben
+mit `updatedAt`-Riegel) und `…/suggest` (Secretary P2), Reiter unter
+`file-preview/views/audio-correction/`, Badge „überholt" aus den
+Transformations-Records abgeleitet. Prüffall an Teil 1 (Einführung, Sprecher-
+Transkript vom 07.10.): 12 Vorschläge und 6 Sprecher vom Secretary (Gemini,
+45k Tokens, 10 s), `unsicher` vorab abgewählt; nach „Bestätigen und schreiben"
+stehen `revised_by/at`, `revision_note` und `speaker_names` (5 Labels) im
+Frontmatter, die Präfixe im Text sind ersetzt, drei nicht zugeordnete Labels
+bleiben, 7 Hörfehler korrigiert; zweiter Schreibversuch mit altem Stand gibt
+409; Reiter Transformation zeigt „überholt". Offen: Teil 4 (Diskussion)
+braucht zuerst ein Sprecher-Transkript mit `speakers` (06.10. ohne), dann der
+P4-Lauf.
+
 ## Reihenfolge
 
 ```
