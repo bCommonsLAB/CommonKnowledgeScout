@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.39.0'
+export const TOOLSET_VERSION = '2.40.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -75,6 +75,9 @@ export const TOOL_NAMES = [
   'index_aktualisieren',
   'index_entfernen',
   'batch_neustart',
+  // Welle D — Konfiguration ist Vertrag.
+  'konfiguration_lesen',
+  'konfiguration_setzen',
   'sichten_regenerieren',
   'aenderungen_seit',
   'erschliessung_block_schreiben',
@@ -91,6 +94,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.40.0: Welle D Konfiguration ist Vertrag — konfiguration_lesen (Bereiche facetten | antwortregeln | chat | galerie | veroeffentlichung; ohne bereich alle), konfiguration_setzen (facetten ersetzt gallery.facets in der JSON-Form des Editor-Exports, antwortregeln als Text mit Platzhalter-Querpruefung, chat und galerie als Teil-Update; Embeddings/Vektor-Store/Modelle nur lesbar; nur Owner). Pruefung mit demselben Schema wie das Formular (chat-config-validation.ts) — die PATCH-Route /api/libraries/[id] prueft config.chat jetzt ebenfalls und antwortet 400 statt eine ungueltige Konfiguration zu speichern',
   '2.39.0: Welle C Index folgt dem Twin — index_aktualisieren (nur Phase 3: vorhandene Transformation neu in den Index, sourceIds bis 30 ODER ordner/ordnerId + rekursiv bis 200, liefert batchId; Twin-Ordner _… und test/ werden hinter demselben Zaun wie im Batch-Dialog uebersprungen und genannt), index_entfernen (Stapel-Form von dokument_depublizieren, bis 30), batch_neustart (gescheiterte Jobs eines Batches oder eine jobIds-Liste zurueck in die Warteschlange, laufende ausgelassen — wie der Knopf im Job-Monitor). dokument_felder_setzen zieht die geaenderten Felder jetzt auch an den Chunks nach (zeilen[].chunks). Der Batch-Dialog „Verzeichnis verarbeiten" laeuft hinter demselben Zaun und zeigt ausgelassene Ordner',
   '2.38.0: Welle A Library-Betrieb — dokumente_auflisten (Galerie-Eintraege als Feldzeilen mit demselben Filter wie die Galerie-Route: Typ, Facettenwerte, Suche, Seiten), bestand_pruefen (Befundliste mit sourceIds: doppelte Kennung per kennungsfeld, Werte ausserhalb des Facetten-Woerterbuchs, fehlende Pflichtfelder des Typs, Eintraege aus Twin-/test-Ordnern; nennt uebersprungene Regeln), batch_bilanz (Zaehler je Batch, gescheiterte Jobs nach letzter Fehlerursache gruppiert mit Deutung, jobIds und Quellen). Alle drei lesen nur',
   '2.37.0: transkript_korrigieren — Hoerfehler im Transkript-Body per Ersetzungen (alt muss genau einmal vorkommen, sonst nicht_eindeutig; alle: true fuer wiederkehrende), adressiert ueber die QUELLE (sourceId/pfad), ifVersion des Spiegels Pflicht, nurVorschau fuer den Diff; setzt revised_by/revised_at/revision_note, laesst generated_* stehen, schreibt MongoDB zuerst und exportiert nur diese Familie versioniert in den Spiegel; Spiegel ≠ MongoDB oder veraltetes ifVersion → konflikt ohne Schreiben. transformation_stale und die Abnahme (verified_at) rechnen jetzt mit max(generated_at, revised_at). Die _-Sperre von datei_patchen/datei_schreiben bleibt',

@@ -43,6 +43,7 @@ import { registerBatchBilanzTool } from './tools-batch-bilanz'
 import { registerBestandTools } from './tools-bestand'
 import { registerIndexTools } from './tools-index'
 import { registerBatchNeustartTool } from './tools-batch-neustart'
+import { registerKonfigurationTools } from './tools-konfiguration'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -83,6 +84,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   // Welle C (Library-Betrieb): Index folgt dem Twin.
   registerIndexTools(server)
   registerBatchNeustartTool(server)
+  // Welle D (Library-Betrieb): Konfiguration ist Vertrag.
+  registerKonfigurationTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
