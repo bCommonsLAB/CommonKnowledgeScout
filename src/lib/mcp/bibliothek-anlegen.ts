@@ -137,7 +137,9 @@ export function uebernimmKonfiguration(vorlage: Library, neueId: string): Uebern
 /** Speicher-Teil der Config, wie ihn der Speicher-Schritt der Oberflaeche schreibt. */
 function speicherConfig(speicher: SpeicherAngaben): Record<string, unknown> {
   if (speicher.typ !== 'nextcloud') return {}
-  return { nextcloud: { webdavUrl: speicher.webdavUrl?.trim(), username: speicher.benutzer?.trim() } }
+  // appPassword als leeres Feld (Owner 09.10.): das Feld ist in MongoDB
+  // sichtbar, und Settings → Archive bietet die Eingabe an, solange es leer ist.
+  return { nextcloud: { webdavUrl: speicher.webdavUrl?.trim(), username: speicher.benutzer?.trim(), appPassword: '' } }
 }
 
 /** Die neue Library, bereit fuer `LibraryService.updateLibrary`. */

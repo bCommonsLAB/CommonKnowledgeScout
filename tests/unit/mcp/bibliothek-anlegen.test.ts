@@ -65,7 +65,7 @@ describe('baueLibrary', () => {
   it('setzt Typ, Pfad, Nextcloud ohne Passwort und Shadow-Twin v2', () => {
     const lib = baueLibrary({ id: 'n', name: ' Neu ', inhaltstyp: 'session', speicher: nextcloud })
     expect(lib).toMatchObject({ id: 'n', label: 'Neu', path: '/Archiv - Kopie', type: 'nextcloud', isEnabled: true })
-    expect(lib.config?.nextcloud).toEqual({ webdavUrl: nextcloud.webdavUrl, username: 'u' })
+    expect(lib.config?.nextcloud).toEqual({ webdavUrl: nextcloud.webdavUrl, username: 'u', appPassword: '' })
     expect(lib.config?.chat?.gallery?.detailViewType).toBe('session')
     expect(lib.config?.shadowTwin).toMatchObject({ mode: 'v2', primaryStore: 'mongo' })
   })

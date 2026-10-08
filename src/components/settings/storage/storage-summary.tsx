@@ -35,6 +35,7 @@ import {
 } from '@ks/ui'
 import { AlertTriangle, Check, Cloud, FolderOpen, Server } from "lucide-react"
 import { TestResultTable } from "./test-result-table"
+import { AppPasswortNachtragen } from "./app-passwort-nachtragen"
 import type { UseStorageFormResult } from "./hooks/use-storage-form"
 
 const PROVIDER_LABELS: Record<string, { label: string; icon: typeof Cloud }> = {
@@ -96,6 +97,8 @@ export function StorageSummary({ hook, onChangeStorage }: StorageSummaryProps) {
           </AlertDescription>
         </Alert>
       )}
+
+      {type === "nextcloud" && !nc?.appPassword && <AppPasswortNachtragen hook={hook} />}
 
       <Card>
         <CardContent className="pt-6">
