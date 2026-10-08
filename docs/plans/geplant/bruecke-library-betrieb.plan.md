@@ -2,23 +2,23 @@
 name: bruecke-library-betrieb
 overview: "Eine Library über die MCP-Brücke betreiben, nicht nur ihr Archiv pflegen. Abgeleitet aus dem Live-Test der Status-Modalität (07./08.10.2026): Konfiguration setzen, Antwortqualität messen, Index nachziehen, Bestand prüfen, Läufe bilanzieren. Fünf wiederkehrende Use Cases, je ein bis zwei Werkzeuge, alle als Hülle um Funktionen, die das UI schon nutzt."
 vorhaben: []
-status: geplant
+status: gebaut
 todos:
   - id: welle-a-sehen
-    content: "Welle A Sehen (Use Case 4 und 5, rein lesend): `dokumente_auflisten` (Galerie-Sicht über findDocs mit Facettenwerten, Filter, Suche, Seiten), `batch_bilanz` (Zähler je Batch aus ExternalJobsRepository, Fehler nach letztem Fehlergrund gruppiert, betroffene Quellen) und `bestand_pruefen` (doppelte Kennung nach Feld aus der Konfiguration, Werte außerhalb des Facetten-Wörterbuchs, fehlende Pflichtfelder des Typs, Einträge aus Twin-/Testordnern; Befundliste mit sourceIds, direkt an index_entfernen oder dokument_felder_setzen weiterreichbar). Dient auch dem Plan veranstaltungen-ueber-die-bruecke (Station 7)."
-    status: pending
+    content: "Welle A Sehen (Use Case 4 und 5, rein lesend): `dokumente_auflisten` (Galerie-Sicht über findDocs mit Facettenwerten, Filter, Suche, Seiten), `batch_bilanz` (Zähler je Batch aus ExternalJobsRepository, Fehler nach letztem Fehlergrund gruppiert, betroffene Quellen) und `bestand_pruefen` (doppelte Kennung nach Feld aus der Konfiguration, Werte außerhalb des Facetten-Wörterbuchs, fehlende Pflichtfelder des Typs, Einträge aus Twin-/Testordnern; Befundliste mit sourceIds, direkt an index_entfernen oder dokument_felder_setzen weiterreichbar). Dient auch dem Plan veranstaltungen-ueber-die-bruecke (Station 7). ERLEDIGT 08.10.: tools-bestand.ts, tools-batch-bilanz.ts, bestand-pruefung.ts, batch-bilanz.ts, bestand-filter.ts, doc-meta-liste.ts, docs-suchfilter.ts (Route und Brücke), 2.38.0."
+    status: completed
   - id: welle-c-index
-    content: "Welle C Index folgt dem Twin (Use Case 3): Zaun als GEMEINSAME Funktion (Twin-Ordner `_…` und `test/` ausschließen, nennt Übersprungenes), die der Batch-Dialog „Verzeichnis verarbeiten“ UND die Brücke aufrufen (Owner 08.10.; heute hat keiner von beiden einen Zaun); `index_aktualisieren` in Job-Form (nur Phase 3 mit vorhandener Transformation; sourceIds bis 30 ODER ordner + rekursiv; batchId zurück); `index_entfernen` als Stapel-Form von dokument_depublizieren; `dokument_felder_setzen` zieht die Chunk-Felder nach (Wiederverwendung: Nachzug der Facettenwerte aus dem Meta-Dokument, Commit cf25f18); `batch_neustart` über start-batch mit Filter Status/batchId (retry-batch antwortet 410)."
-    status: pending
+    content: "Welle C Index folgt dem Twin (Use Case 3): Zaun als GEMEINSAME Funktion (Twin-Ordner `_…` und `test/` ausschließen, nennt Übersprungenes), die der Batch-Dialog „Verzeichnis verarbeiten“ UND die Brücke aufrufen (Owner 08.10.; heute hat keiner von beiden einen Zaun); `index_aktualisieren` in Job-Form (nur Phase 3 mit vorhandener Transformation; sourceIds bis 30 ODER ordner + rekursiv; batchId zurück); `index_entfernen` als Stapel-Form von dokument_depublizieren; `dokument_felder_setzen` zieht die Chunk-Felder nach (Wiederverwendung: Nachzug der Facettenwerte aus dem Meta-Dokument, Commit cf25f18); `batch_neustart` über start-batch mit Filter Status/batchId (retry-batch antwortet 410). ERLEDIGT 08.10.: batch-zaun.ts (Dialog und Brücke), enqueue-ingest-job.ts, ordner-quellen.ts, tools-index.ts, tools-batch-neustart.ts, requeueForRestart, patchChunkFelder, 2.39.0."
+    status: completed
   - id: welle-d-konfiguration
-    content: "Welle D Konfiguration (Use Case 1): Validierung der Chat-Konfiguration (chatConfigSchema mit Platzhalter-Querprüfung aus src/lib/chat/config.ts) in ein Modul ziehen, das PATCH-Route UND Brücke nutzen (Muster public-publishing-validation.ts, 2.34.0) — heute prüft nur das Formular im Browser, die PATCH-Route parst ungeprüft; dann `konfiguration_lesen` und `konfiguration_setzen` (Bereiche facetten | antwortregeln | chat | galerie | veroeffentlichung, Teil-Update; Facetten in der JSON-Form des Import/Export)."
-    status: pending
+    content: "Welle D Konfiguration (Use Case 1): Validierung der Chat-Konfiguration (chatConfigSchema mit Platzhalter-Querprüfung aus src/lib/chat/config.ts) in ein Modul ziehen, das PATCH-Route UND Brücke nutzen (Muster public-publishing-validation.ts, 2.34.0) — heute prüft nur das Formular im Browser, die PATCH-Route parst ungeprüft; dann `konfiguration_lesen` und `konfiguration_setzen` (Bereiche facetten | antwortregeln | chat | galerie | veroeffentlichung, Teil-Update; Facetten in der JSON-Form des Import/Export). ERLEDIGT 08.10.: chat-config-validation.ts (PATCH-Route antwortet 400), konfiguration-bereiche.ts, tools-konfiguration.ts, 2.40.0."
+    status: completed
   - id: welle-f-messen
-    content: "Welle F Messen (Use Case 2, nach D): `golden_set_fahren` und `frage_stellen` mit Richter als JOB (Kern aus scripts/golden-set-run.ts in eine Service-Funktion ziehen; rund 36 s je Frage sprengen die 60-Sekunden-Grenze der Brücke; Start liefert jobId, Bericht als Markdown über job_status), Schalter ohneCache und baseline; `frage_log_lesen` über die Query-Route api/chat/[libraryId]/queries/[queryId]. Setzt das echte Golden-Set bei der Library voraus (Owner, Plan story-status-modalitaet §5a)."
-    status: pending
+    content: "Welle F Messen (Use Case 2, nach D): `golden_set_fahren` und `frage_stellen` mit Richter als JOB (Kern aus scripts/golden-set-run.ts in eine Service-Funktion ziehen; rund 36 s je Frage sprengen die 60-Sekunden-Grenze der Brücke; Start liefert jobId, Bericht als Markdown über job_status), Schalter ohneCache und baseline; `frage_log_lesen` über die Query-Route api/chat/[libraryId]/queries/[queryId]. Setzt das echte Golden-Set bei der Library voraus (Owner, Plan story-status-modalitaet §5a). ERLEDIGT 08.10.: golden-set/kontext.ts + lauf.ts (Skript nutzt den Service), bruecke-frage.ts, enqueue-golden-set.ts + phase-golden-set.ts (Start-Route 202 + detached, pushLog), tools-messen.ts, job_status.ergebnis, 2.41.0."
+    status: completed
   - id: querschnitt-regeln
-    content: "Querschnitt je Welle: dieselbe Service-Funktion wie das UI (ADR 0007), schreibende Werkzeuge nur nach Bestätigung mit Protokoll-Eintrag (protokoll.ts), Stapelgrenze 30, Fehler je Zeile statt Abbruch; TOOLSET_VERSION, TOOL_NAMES und NEU_IN_VERSION in tools-info.ts; Tests unter tests/unit/mcp/; neue Funktionen in eigene Module (vector-repo.ts hat 2.026 Zeilen); Zeile für src/lib/mcp/** im Routing-Index von CLAUDE.md; Konzept-Doku in einer neuen Datei docs/concepts/mcp-library-betrieb.md statt in mcp-storage-stand.md (Befund-Dokument der Versionen 2.10/2.11)."
-    status: pending
+    content: "Querschnitt je Welle: dieselbe Service-Funktion wie das UI (ADR 0007), schreibende Werkzeuge nur nach Bestätigung mit Protokoll-Eintrag (protokoll.ts), Stapelgrenze 30, Fehler je Zeile statt Abbruch; TOOLSET_VERSION, TOOL_NAMES und NEU_IN_VERSION in tools-info.ts; Tests unter tests/unit/mcp/; neue Funktionen in eigene Module (vector-repo.ts hat 2.026 Zeilen); Zeile für src/lib/mcp/** im Routing-Index von CLAUDE.md; Konzept-Doku in einer neuen Datei docs/concepts/mcp-library-betrieb.md statt in mcp-storage-stand.md (Befund-Dokument der Versionen 2.10/2.11). ERLEDIGT 08.10.: Konzept docs/concepts/mcp-library-betrieb.md, Zeile im Routing-Index, 21 Testdateien unter tests/unit/; Live-Nachweis gegen eine echte Library OFFEN."
+    status: completed
 ---
 
 # Library-Betrieb über die MCP-Brücke
@@ -142,3 +142,19 @@ mit Integrationstest gegen die Test-Library
   (`frage_log_lesen`), `src/lib/repositories/vector-repo.ts`
   (`findDocs`, `deleteVectorsByFileId`; neue Funktionen in eigene Module),
   `src/lib/repositories/doc-meta-felder.ts`, Chunk-Nachzug aus Commit cf25f18
+
+## 6. Stand 08.10.2026
+
+Alle vier Wellen dieses Plans sind gebaut und mit Unit-Tests belegt
+(Werkzeugsatz 2.38.0 bis 2.41.0, 15 neue Werkzeuge; Konzept in
+[`docs/concepts/mcp-library-betrieb.md`](../../concepts/mcp-library-betrieb.md)).
+Der Owner hat am 08.10. entschieden, die Wellen in einer Session
+durchzuziehen und das Ergebnis danach zu prüfen. Offen:
+
+- **Live-Nachweis** gegen eine echte Library über die Brücke (Desktop-App
+  neu verbinden, `bruecke_info` muss 2.41.0 zeigen): `bestand_pruefen` mit
+  `kennungsfeld`, `index_aktualisieren` auf einen kleinen Ordner,
+  `golden_set_fahren` mit dem echten Set der Library (das Set selbst ist
+  Owner-Arbeit, Plan story-status-modalitaet §5a).
+- Die Wellen B, E, G, H liegen im Plan
+  [`veranstaltungen-ueber-die-bruecke.plan.md`](veranstaltungen-ueber-die-bruecke.plan.md).
