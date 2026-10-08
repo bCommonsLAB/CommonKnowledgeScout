@@ -22,13 +22,32 @@ import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import type { StorageProvider } from '@/lib/storage/types'
 import { baueBestandFilter } from './bestand-filter'
 import { pruefeBestand, type BestandEintrag } from './bestand-pruefung'
-import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+import { sammleOrdnerQuellen } from './ordner-quellen'
+import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
 
 const FACETTEN_WERTE = z.record(z.array(z.string().min(1)).min(1)).optional()
   .describe('Facettenfilter: metaKey → Werte (ODER innerhalb einer Facette, UND zwischen Facetten)')
 const TYP = z.string().min(1).optional().describe('detailViewType als Leitfilter; ohne Angabe alle Typen')
 const SUCHE = z.string().min(1).optional().describe('Teilstring-Suche in Titel und String-/Zahl-Facetten')
 const MAX_PRUEFUNG = 2000
+const ORDNER = z.string().min(1).optional()
+  .describe('Nur Quellen unter diesem library-relativen Ordner (rekursiv; Twin-/test-Ordner zaehlen nicht) — trennt Alt- und Neubestand einer Library')
+/** Obergrenze der Quellen, die ein Ordner-Filter einsammelt. */
+const MAX_ORDNER_QUELLEN = 2000
+
+/**
+ * Storage-Ids aller Quellen unter einem Ordner (Handover W5). Meta-Dokumente
+ * tragen keinen Pfad; der Ordner wird deshalb im Storage abgegangen und als
+ * fileId-Liste in den Filter gegeben. Abgeschnitten = Fehler, nicht stilles Weniger.
+ */
+async function quellIdsImOrdner(args: { userEmail: string; libraryId: string; ordner: string }): Promise<string[]> {
+  const provider = await requireProvider(args.userEmail, args.libraryId)
+  const folderId = await resolveScope({ userEmail: args.userEmail, libraryId: args.libraryId, pfad: args.ordner })
+  if (!folderId) throw new Error(`Ordner "${args.ordner}" nicht aufloesbar`)
+  const gesammelt = await sammleOrdnerQuellen({ provider, folderId, rekursiv: true, maxQuellen: MAX_ORDNER_QUELLEN })
+  if (gesammelt.abgeschnitten) throw new Error(`Ordner "${args.ordner}" hat mehr als ${MAX_ORDNER_QUELLEN} Quellen — enger fassen`)
+  return gesammelt.quellen.map((q) => q.itemId)
+}
 
 /** Pfad des Quellordners je Twin — ein Aufruf je Ordner, nicht je Quelle. */
 async function ordnerPfade(provider: StorageProvider, parentIds: Iterable<string>): Promise<Map<string, string | null>> {
@@ -70,29 +89,32 @@ export function registerBestandTools(server: McpServer): void {
       title: 'Galerie-Eintraege als Feldzeilen',
       description:
         'Listet die publizierten Dokumente (Meta-Dokumente des Index) einer Library mit demselben ' +
-        'Filter wie die Galerie: Typ, Facettenwerte, Suche, Seiten. Je Eintrag sourceId, Quelle, Typ, ' +
+        'Filter wie die Galerie: Typ, Facettenwerte, Suche, Seiten, optional ordner. Je Eintrag sourceId, Quelle, Typ, ' +
         'Veroeffentlichungs-Stand und die Werte der Facetten — Felder, keine Karten. Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         detailViewType: TYP,
         facettenWerte: FACETTEN_WERTE,
         suche: SUCHE,
+        ordner: ORDNER,
         seite: z.number().int().min(1).optional().describe('Seite (1-basiert, Default 1)'),
         proSeite: z.number().int().min(1).max(META_LISTE_MAX).optional().describe(`Eintraege je Seite (Default 50, max ${META_LISTE_MAX})`),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, detailViewType, facettenWerte, suche, seite, proSeite }) => {
+    async ({ libraryId, detailViewType, facettenWerte, suche, ordner, seite, proSeite }) => {
       try {
-        const library = await requireLibrary(mcpUserEmail(), libraryId)
-        const { filter, defs, typ, libraryKey } = await baueBestandFilter({ library, detailViewType, facettenWerte, suche })
+        const userEmail = mcpUserEmail()
+        const library = await requireLibrary(userEmail, libraryId)
+        const fileIds = ordner ? await quellIdsImOrdner({ userEmail, libraryId, ordner }) : undefined
+        const { filter, defs, typ, libraryKey } = await baueBestandFilter({ library, detailViewType, facettenWerte, suche, fileIds })
         const limit = proSeite ?? 50
         const skip = ((seite ?? 1) - 1) * limit
         const galleryCfg = library.config?.chat?.gallery as { defaultSortField?: string; defaultSortDirection?: 'asc' | 'desc' } | undefined
         const sort = buildGallerySort({ rawSort: null, isMember: true, config: galleryCfg, facetDefs: defs })
         const { zeilen, total } = await findeMetaFelder(libraryKey, library.id, filter, { skip, limit, sort })
         return jsonResult({
-          total, seite: seite ?? 1, proSeite: limit, typ, facetten: defs.map((d) => d.metaKey),
+          total, seite: seite ?? 1, proSeite: limit, typ, ordner: ordner ?? null, facetten: defs.map((d) => d.metaKey),
           dokumente: zeilen.map((z) => ({
             sourceId: z.fileId, quelle: z.fileName, titel: z.title, kurztitel: z.shortTitle,
             detailViewType: z.detailViewType, publikation: z.publikation, aktualisiert: z.upsertedAt,
@@ -119,22 +141,24 @@ export function registerBestandTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         detailViewType: TYP,
         facettenWerte: FACETTEN_WERTE,
+        ordner: ORDNER,
         kennungsfeld: z.string().min(1).optional().describe('Feld, das je Dokument eindeutig sein muss (z. B. massnahme_nr); ohne Angabe entfaellt die Dublettenpruefung'),
         maxDokumente: z.number().int().min(1).max(MAX_PRUEFUNG).optional().describe(`Obergrenze (Default ${MAX_PRUEFUNG})`),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, detailViewType, facettenWerte, kennungsfeld, maxDokumente }) => {
+    async ({ libraryId, detailViewType, facettenWerte, ordner, kennungsfeld, maxDokumente }) => {
       try {
         const userEmail = mcpUserEmail()
         const library = await requireLibrary(userEmail, libraryId)
         const provider = await requireProvider(userEmail, libraryId)
-        const { filter, defs, typ, standardTyp, libraryKey } = await baueBestandFilter({ library, detailViewType, facettenWerte })
+        const fileIds = ordner ? await quellIdsImOrdner({ userEmail, libraryId, ordner }) : undefined
+        const { filter, defs, typ, standardTyp, libraryKey } = await baueBestandFilter({ library, detailViewType, facettenWerte, fileIds })
         const { zeilen, total, abgeschnitten } = await alleMetaFelder(libraryKey, library.id, filter, maxDokumente ?? MAX_PRUEFUNG)
         const eintraege = await alsEintraege(zeilen, { libraryId: library.id, provider })
         const pruefung = pruefeBestand(eintraege, { defs, kennungsfeld, standardTyp, pflichtfelder: getRequiredFields })
         return jsonResult({
-          geprueft: eintraege.length, total, typ,
+          geprueft: eintraege.length, total, typ, ordner: ordner ?? null,
           ...(abgeschnitten ? { hinweis: `Nur ${eintraege.length} von ${total} Dokumenten geprueft — maxDokumente erhoehen oder nach Typ/Facette einschraenken` } : {}),
           zaehler: pruefung.zaehler,
           uebersprungen: pruefung.uebersprungen,

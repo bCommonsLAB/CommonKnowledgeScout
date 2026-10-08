@@ -21,7 +21,29 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { TemplateDocument } from '@/lib/templates/template-types'
 import { listTemplatesFromMongoDB } from '@/lib/templates/template-service-mongodb'
-import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
+import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+
+/**
+ * Dateien in `templates/` der Library (Handover W2): Vorlagen leben in MongoDB,
+ * eine Datei wirkt erst nach dem Import. Ohne diese Sicht liefen Datei
+ * (05.10.) und Mongo (07.10.) unbemerkt auseinander. Legt den Ordner NICHT an.
+ */
+async function vorlagenDateien(userEmail: string, libraryId: string): Promise<Map<string, string> | { fehler: string }> {
+  try {
+    const provider = await requireProvider(userEmail, libraryId)
+    const ordner = (await provider.listItemsById('root')).find((it) => it.type === 'folder' && it.metadata.name.toLowerCase() === 'templates')
+    const dateien = new Map<string, string>()
+    if (!ordner) return dateien
+    for (const it of await provider.listItemsById(ordner.id)) {
+      if (it.type !== 'file' || !it.metadata.name.toLowerCase().endsWith('.md')) continue
+      const geaendert = it.metadata.modifiedAt instanceof Date ? it.metadata.modifiedAt.toISOString() : String(it.metadata.modifiedAt)
+      dateien.set(it.metadata.name.replace(/\.md$/i, '').toLowerCase(), geaendert)
+    }
+    return dateien
+  } catch (error) {
+    return { fehler: error instanceof Error ? error.message : String(error) }
+  }
+}
 
 /** Feldliste je Vorlage begrenzen (Q2: Antwortgroessen sind begrenzt, immer). */
 const MAX_FELDER = 40
@@ -79,6 +101,14 @@ export function registerVorlagenTool(server: McpServer): void {
         const userEmail = mcpUserEmail()
         const library = await requireLibrary(userEmail, libraryId)
         const vorlagen = await listTemplatesFromMongoDB(libraryId, userEmail)
+        const dateien = await vorlagenDateien(userEmail, libraryId)
+        const dateiStand = (name: string): { geaendertAm: string; neuerAlsMongo: boolean | null } | null => {
+          if (!(dateien instanceof Map)) return null
+          const geaendertAm = dateien.get(name.toLowerCase())
+          if (!geaendertAm) return null
+          const mongo = aktualisiertAmIso(vorlagen.find((v) => v.name === name) as TemplateDocument)
+          return { geaendertAm, neuerAlsMongo: mongo ? geaendertAm > mongo : null }
+        }
 
         // Kein stiller Fallback: Ein leeres Ergebnis wird als solches benannt,
         // statt als „keine passende Vorlage" missverstanden zu werden.
@@ -102,7 +132,13 @@ export function registerVorlagenTool(server: McpServer): void {
             aktualisiertAm: vorlage.updatedAt instanceof Date
               ? vorlage.updatedAt.toISOString()
               : (vorlage.updatedAt ?? null),
+            /** Gleichnamige Datei in templates/ — neuerAlsMongo: true heisst, die Datei wirkt noch nicht. */
+            datei: dateiStand(vorlage.name),
           })),
+          ...(dateien instanceof Map
+            ? { nurAlsDatei: [...dateien.keys()].filter((n) => !vorlagen.some((v) => v.name.toLowerCase() === n)) }
+            : { dateienFehler: dateien.fehler }),
+          herkunft: 'Vorlagen leben je Library in MongoDB; eine Datei in templates/ wirkt erst nach vorlage_uebernehmen (datei).',
           hinweis: vorlagen.length === 0
             ? 'Diese Library hat KEINE Vorlagen — Transformationen koennen nur als "nur_transkript" laufen.'
             : 'Vorlage passend zum Dokument waehlen; passt keine, "nur_transkript" verwenden statt zu raten.',

@@ -16,12 +16,36 @@ import { buildFilters } from '@/lib/chat/common/filters'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { dokumenteNummerieren } from '@/lib/chat/common/zitatmarken'
-import { ANSWER_LENGTH_DEFAULT } from '@/lib/chat/constants'
+import {
+  ANSWER_LENGTH_DEFAULT,
+  normalizeAccessPerspectiveToArray,
+  normalizeCharacterToArray,
+  type AccessPerspective,
+  type AnswerLength,
+  type Character,
+  type SocialContext,
+  type TargetLanguage,
+} from '@/lib/chat/constants'
 import { startQueryLog } from '@/lib/logging/query-logger'
 import { findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
 import type { NachpruefungErgebnis } from '@/types/nachpruefung'
 import { baueFrageKontext } from './golden-set/kontext'
 import type { RetrieverWahl } from './golden-set/lauf'
+
+/**
+ * Perspektive wie die Stream-Route sie aus der Adresse liest (Handover W6):
+ * Was fehlt, kommt aus der Library-Konfiguration — dieselbe Regel wie in der
+ * Route ohne Parameter. Der Story-Modus schickt die Werte der Besucherin
+ * (Perspektiven-Seite); wer dessen Cache treffen will, gibt sie hier mit.
+ */
+export interface FragePerspektive {
+  targetLanguage?: TargetLanguage
+  character?: Character[]
+  accessPerspective?: AccessPerspective[]
+  socialContext?: SocialContext
+  genderInclusive?: boolean
+  answerLength?: AnswerLength
+}
 
 export interface FrageAntwort {
   queryId: string
@@ -30,6 +54,8 @@ export interface FrageAntwort {
   retriever: string
   model: string
   baseline: boolean
+  /** Wirksame Perspektive (Teil des Cache-Schluessels). */
+  perspektive: Required<FragePerspektive>
   /** Nummerierte Dokumente wie in den Belegen des UI. */
   dokumente: Array<{ nummer: number; fileId: string; name: string | null; facetten: Record<string, unknown> }>
   /** Nummern der Dokumente, die die Antwort zitiert. */
@@ -46,12 +72,33 @@ export async function beantworteFrage(args: {
   baseline: boolean
   retriever: RetrieverWahl
   temperature: number
+  perspektive?: FragePerspektive
 }): Promise<FrageAntwort> {
   const { libraryId, userEmail } = args
   const frage = args.frage.trim()
   if (!frage) throw new Error('frage ist leer')
   const kontext = await baueFrageKontext({ libraryId, userEmail, baseline: args.baseline })
-  const { ctx, chatConfig, facetDefsFuerModell, antwortregeln, facettenKontext, apiKey, model } = kontext
+  const { ctx, facetDefsFuerModell, antwortregeln, facettenKontext, apiKey, model } = kontext
+  const wunsch = args.perspektive ?? {}
+  const targetLanguage = wunsch.targetLanguage ?? kontext.chatConfig.targetLanguage
+  if (targetLanguage === 'global') {
+    throw new Error('Library-Sprache ist "global" (folgt der Oberflaeche der Besucherin) — targetLanguage ausdruecklich angeben, z. B. "de"')
+  }
+  const perspektive: Required<FragePerspektive> = {
+    targetLanguage,
+    character: wunsch.character ?? normalizeCharacterToArray(kontext.chatConfig.character),
+    accessPerspective: wunsch.accessPerspective ?? normalizeAccessPerspectiveToArray(kontext.chatConfig.accessPerspective),
+    socialContext: wunsch.socialContext ?? kontext.chatConfig.socialContext,
+    genderInclusive: wunsch.genderInclusive ?? kontext.chatConfig.genderInclusive ?? false,
+    answerLength: wunsch.answerLength ?? ANSWER_LENGTH_DEFAULT,
+  }
+  const chatConfig = { ...kontext.chatConfig, ...perspektive }
+  // Cache-Kontext und Query-Log tragen DIESELBEN Werte — vorher schrieb der Log
+  // keine Perspektive, die Suche fragte mit ihr, und kein Aufruf traf je (T6).
+  const cacheKontext = {
+    answerLength: perspektive.answerLength, targetLanguage: perspektive.targetLanguage, character: perspektive.character,
+    accessPerspective: perspektive.accessPerspective, socialContext: perspektive.socialContext, genderInclusive: perspektive.genderInclusive,
+  }
   const explicit = args.retriever === 'auto' ? null : args.retriever
   const built = buildFilters(new URL('http://bruecke.local/'), ctx.library, userEmail, libraryId, explicit ?? 'chunk')
   const entscheidung = await decideRetrieverMode({ libraryId, userEmail, filter: built.mongo, isTOCQuery: false, explicitRetriever: explicit })
@@ -60,14 +107,12 @@ export async function beantworteFrage(args: {
   if (!args.ohneCache) {
     // Cache-Hash wie im UI: Retriever auf chunk|summary normalisiert, Regeln und Facetten-Kontext im Hash.
     const treffer = await findQueryByQuestionAndContext({
-      libraryId, userEmail, question: frage, queryType: 'question', answerLength: ANSWER_LENGTH_DEFAULT,
-      targetLanguage: chatConfig.targetLanguage, character: chatConfig.character, accessPerspective: chatConfig.accessPerspective,
-      socialContext: chatConfig.socialContext, genderInclusive: chatConfig.genderInclusive,
+      libraryId, userEmail, question: frage, queryType: 'question', ...cacheKontext,
       retriever: retriever === 'chunkSummary' ? 'chunk' : retriever, llmModel: model, antwortregeln, facettenKontext,
     })
     if (treffer?.answer?.trim()) {
       return {
-        queryId: treffer.queryId, cacheTreffer: true, antwort: treffer.answer, retriever: treffer.retriever ?? retriever, model, baseline: args.baseline,
+        queryId: treffer.queryId, cacheTreffer: true, antwort: treffer.answer, retriever: treffer.retriever ?? retriever, model, baseline: args.baseline, perspektive,
         dokumente: [], zitiert: (treffer.references ?? []).map((r) => r.number), nachpruefung: treffer.nachpruefung ?? null, timing: null,
       }
     }
@@ -75,16 +120,16 @@ export async function beantworteFrage(args: {
 
   const queryId = await startQueryLog({
     libraryId, userEmail, question: frage, mode: retriever === 'summary' ? 'summaries' : 'chunks',
-    queryType: 'question', answerLength: ANSWER_LENGTH_DEFAULT, retriever, llmModel: model, antwortregeln, facettenKontext,
+    queryType: 'question', ...cacheKontext, retriever, llmModel: model, antwortregeln, facettenKontext,
     filtersNormalized: { ...built.normalized, bruecke: { werkzeug: 'frage_stellen', baseline: args.baseline } },
   })
   const output = await runChatOrchestrated({
-    retriever, libraryId, userEmail, question: frage, answerLength: ANSWER_LENGTH_DEFAULT, filters: built.mongo,
+    retriever, libraryId, userEmail, question: frage, answerLength: perspektive.answerLength, filters: built.mongo,
     queryId, context: {}, chatConfig, facetDefs: facetDefsFuerModell, apiKey, llmModel: model, temperature: args.temperature,
   })
   const gruppen = dokumenteNummerieren(output.sources)
   return {
-    queryId, cacheTreffer: false, antwort: output.answer, retriever, model, baseline: args.baseline,
+    queryId, cacheTreffer: false, antwort: output.answer, retriever, model, baseline: args.baseline, perspektive,
     dokumente: gruppen.map((g) => ({
       nummer: g.nummer, fileId: g.fileId, name: g.fileName ?? null,
       facetten: Object.fromEntries(kontext.facetDefs.map((d) => [d.metaKey, g.sources[0]?.metadata?.[d.metaKey] ?? null]).filter(([, v]) => v !== null)),

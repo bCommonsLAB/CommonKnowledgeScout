@@ -36,10 +36,13 @@ export async function sammleOrdnerQuellen(args: {
   const uebersprungeneOrdner: string[] = []
   let uebersprungeneDateien = 0
   let abgeschnitten = false
-  const stapel = [args.folderId]
+  // Pfad relativ zum Startordner mitfuehren (Handover 08.10., W4): zwei
+  // gleichnamige Dateien in verschiedenen Unterordnern waren in der Antwort
+  // nicht unterscheidbar. Kostet keinen Aufruf — die Namen sind schon da.
+  const stapel: Array<{ id: string; pfad: string }> = [{ id: args.folderId, pfad: '' }]
 
   while (stapel.length > 0 && !abgeschnitten) {
-    const aktuell = stapel.shift() as string
+    const { id: aktuell, pfad: ordnerPfad } = stapel.shift() as { id: string; pfad: string }
     const eintraege = await provider.listItemsById(aktuell)
     for (const eintrag of eintraege) {
       if (eintrag.type === 'folder') {
@@ -48,7 +51,7 @@ export async function sammleOrdnerQuellen(args: {
           uebersprungeneOrdner.push(eintrag.metadata.name)
           continue
         }
-        stapel.push(eintrag.id)
+        stapel.push({ id: eintrag.id, pfad: ordnerPfad ? `${ordnerPfad}/${eintrag.metadata.name}` : eintrag.metadata.name })
         continue
       }
       const kind = getMediaKindFromName(eintrag.metadata.name, eintrag.metadata.mimeType ?? '')
@@ -62,6 +65,7 @@ export async function sammleOrdnerQuellen(args: {
       }
       quellen.push({
         itemId: eintrag.id, parentId: aktuell, name: eintrag.metadata.name, mimeType: eintrag.metadata.mimeType,
+        pfad: ordnerPfad ? `${ordnerPfad}/${eintrag.metadata.name}` : eintrag.metadata.name,
       })
     }
   }

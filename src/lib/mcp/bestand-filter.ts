@@ -45,6 +45,8 @@ export async function baueBestandFilter(args: {
   detailViewType?: string
   facettenWerte?: Record<string, string[]>
   suche?: string
+  /** Nur diese Quellen (Ordner-Filter, Handover W5); leere Liste = kein Treffer. */
+  fileIds?: string[]
 }): Promise<BestandFilter> {
   const { library } = args
   const typ = args.detailViewType?.trim() || null
@@ -65,5 +67,6 @@ export async function baueBestandFilter(args: {
   if (scope.typeFilter) filter.$and = [scope.typeFilter]
   const suche = args.suche?.trim()
   if (suche) filter.$or = baueSuchFilter(defs, suche)
+  if (args.fileIds) filter.fileId = { $in: args.fileIds }
   return { filter, defs, typ, standardTyp, libraryKey }
 }

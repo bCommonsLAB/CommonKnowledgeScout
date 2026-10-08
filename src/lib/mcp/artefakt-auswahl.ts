@@ -26,6 +26,8 @@ export interface ArtefaktSicht {
   erstellt: string
   aktualisiert: string
   frontmatter: Record<string, unknown>
+  /** Frontmatter-Felder, deren Wert auf die Feldgrenze gekuerzt wurde (Befund T5). */
+  frontmatterGekuerzt: string[]
   /** Body ohne Frontmatter; mit `ohneFrontmatter: false` das ganze Markdown. */
   text: string
   zeichen: number
@@ -63,6 +65,25 @@ function record(doc: ShadowTwinDocument, art: ArtefaktArt, sprache: string, vorl
   return { record: gewaehlt.record, sprache, vorlage: gewaehlt.templateName ?? null }
 }
 
+/** Obergrenze je Frontmatter-Feld: summary mit 10 000 Zeichen kam vorher ungekuerzt (T5). */
+const FELD_MAX = 1000
+
+/** Lange Feldwerte kuerzen — Strings direkt, alles andere als JSON-Text. Nennt die Felder. */
+export function kuerzeFrontmatter(meta: Record<string, unknown>, grenze: number): { meta: Record<string, unknown>; gekuerzt: string[] } {
+  const gekuerzt: string[] = []
+  const aus: Record<string, unknown> = {}
+  for (const [key, wert] of Object.entries(meta)) {
+    const text = typeof wert === 'string' ? wert : JSON.stringify(wert)
+    if (typeof text === 'string' && text.length > grenze) {
+      aus[key] = `${text.slice(0, grenze)}… [${text.length} Zeichen]`
+      gekuerzt.push(key)
+    } else {
+      aus[key] = wert
+    }
+  }
+  return { meta: aus, gekuerzt }
+}
+
 export function waehleArtefakt(args: {
   doc: ShadowTwinDocument
   art: ArtefaktArt
@@ -75,8 +96,9 @@ export function waehleArtefakt(args: {
   const { meta, body } = parseFrontmatter(r.markdown)
   const voll = args.ohneFrontmatter ? body : r.markdown
   const gekuerzt = voll.length > args.maxZeichen
+  const kurz = kuerzeFrontmatter(meta, Math.min(args.maxZeichen, FELD_MAX))
   return {
     art: args.art, sprache, vorlage, erstellt: r.createdAt, aktualisiert: r.updatedAt,
-    frontmatter: meta, text: gekuerzt ? voll.slice(0, args.maxZeichen) : voll, zeichen: voll.length, gekuerzt,
+    frontmatter: kurz.meta, frontmatterGekuerzt: kurz.gekuerzt, text: gekuerzt ? voll.slice(0, args.maxZeichen) : voll, zeichen: voll.length, gekuerzt,
   }
 }
