@@ -20,6 +20,7 @@ import { registerStorageOrdnerTools } from './tools-ordner'
 import { registerStoragePatchTool } from './tools-patch'
 import { registerStorageSchreibTools } from './tools-schreiben'
 import { registerStorageVerschiebenTool } from './tools-verschieben'
+import { registerStorageKopierenTool } from './tools-kopieren'
 
 /** Registriert alle Storage-Werkzeuge auf dem MCP-Server. */
 export function registerStorageTools(server: McpServer): void {
@@ -30,5 +31,6 @@ export function registerStorageTools(server: McpServer): void {
   registerStorageAnlegenTools(server)
   registerStorageBinaerTools(server)
   registerStorageVerschiebenTool(server)
+  registerStorageKopierenTool(server)
   registerStorageInfoLoeschenTools(server)
 }
