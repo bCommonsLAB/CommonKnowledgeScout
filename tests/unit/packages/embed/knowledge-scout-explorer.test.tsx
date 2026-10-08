@@ -71,7 +71,7 @@ describe('KnowledgeScoutExplorer', () => {
   })
 
   it('D6b: view="story" montiert die drei Story-Slots, "gallery" keinen', async () => {
-    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } } })
+    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } }, '/llm-models': { ok: true, body: [{ modelId: 'm1' }] } })
     const { unmount } = render(<KnowledgeScoutExplorer {...GRUND} view="story" />)
     expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('3')
     unmount()
@@ -80,7 +80,7 @@ describe('KnowledgeScoutExplorer', () => {
   })
 
   it('enableStory: view="gallery" bietet den Story-Modus an und startet in den Inhalten', async () => {
-    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } } })
+    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } }, '/llm-models': { ok: true, body: [{ modelId: 'm1' }] } })
     render(<KnowledgeScoutExplorer {...GRUND} enableStory />)
     expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('3')
   })
@@ -92,6 +92,24 @@ describe('KnowledgeScoutExplorer', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/widersprechen sich/)
     expect(screen.queryByTestId('galerie')).toBeNull()
     expect(fehler).toHaveBeenCalled()
+  })
+
+  it('enablePerspective ohne Story-Modus wird gemeldet, nicht still ignoriert', () => {
+    const fehler = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    stubFetch({})
+    render(<KnowledgeScoutExplorer {...GRUND} enablePerspective />)
+    expect(screen.getByRole('alert').textContent).toMatch(/braucht den Story-Modus/)
+    expect(fehler).toHaveBeenCalled()
+  })
+
+  it('enablePerspective mit Story-Modus montiert die Galerie', async () => {
+    stubFetch({
+      '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } },
+      '/llm-models': { ok: true, body: [] },
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    render(<KnowledgeScoutExplorer {...GRUND} enableStory enablePerspective />)
+    expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('3')
   })
 
   it('legt alles in den Rahmen .ks-embed mit der gewuenschten Hoehe', async () => {

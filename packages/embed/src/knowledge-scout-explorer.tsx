@@ -41,16 +41,20 @@ import type {
 
 type Ansicht = KnowledgeScoutExplorerProps['view']
 const ANSICHTEN: readonly Ansicht[] = ['gallery', 'story']
-type Aufbau = { instanz: InstanceApi; locale: Locale; view: Ansicht; story: boolean } | { fehler: string }
+type Aufbau = { instanz: InstanceApi; locale: Locale; view: Ansicht; story: boolean; perspektive: boolean } | { fehler: string }
 
 /** Prueft die Props und baut die Instanz — oder sagt, was nicht stimmt. */
-function aufbauen(baseUrl: string, view: string, locale: string, enableStory: boolean | undefined): Aufbau {
+function aufbauen(baseUrl: string, view: string, locale: string, enableStory: boolean | undefined, enablePerspective: boolean | undefined): Aufbau {
   if (!(ANSICHTEN as readonly string[]).includes(view)) {
     return { fehler: `Ansicht "${view}" gibt es im Embed nicht — erlaubt: ${ANSICHTEN.join(', ')}.` }
   }
   // Die Story-Ansicht ohne Story-Modus widerspricht sich — melden statt still eins von beiden nehmen.
   if (view === 'story' && enableStory === false) {
     return { fehler: 'view="story" und enableStory={false} widersprechen sich — fuer die Galerie ohne Story view="gallery" nehmen.' }
+  }
+  const story = view === 'story' || enableStory === true
+  if (enablePerspective === true && !story) {
+    return { fehler: 'enablePerspective braucht den Story-Modus — view="story" oder enableStory setzen.' }
   }
   if (!(SUPPORTED_LOCALES as readonly string[]).includes(locale)) {
     return { fehler: `Sprache "${locale}" wird nicht unterstuetzt — erlaubt: ${SUPPORTED_LOCALES.join(', ')}.` }
@@ -60,7 +64,8 @@ function aufbauen(baseUrl: string, view: string, locale: string, enableStory: bo
       instanz: createInstanceApi({ baseUrl, acceptLanguage: locale }),
       locale: locale as Locale,
       view: view as Ansicht,
-      story: view === 'story' || enableStory === true,
+      story,
+      perspektive: enablePerspective === true,
     }
   } catch (e) {
     return { fehler: e instanceof Error ? e.message : String(e) }
@@ -73,13 +78,17 @@ export function KnowledgeScoutExplorer({
   view,
   locale,
   enableStory,
+  enablePerspective,
   height = '80vh',
   className,
 }: KnowledgeScoutExplorerProps) {
   // Der Rahmen ist zugleich das Ziel fuer Dialoge und Menues (Radix-Portale).
   const [rahmen, setRahmen] = useState<HTMLDivElement | null>(null)
   const store = useMemo(() => createStore(), [])
-  const aufbau = useMemo(() => aufbauen(baseUrl, view, locale, enableStory), [baseUrl, view, locale, enableStory])
+  const aufbau = useMemo(
+    () => aufbauen(baseUrl, view, locale, enableStory, enablePerspective),
+    [baseUrl, view, locale, enableStory, enablePerspective],
+  )
   const fehler = 'fehler' in aufbau ? aufbau.fehler : null
 
   useEffect(() => {
@@ -113,7 +122,7 @@ export function KnowledgeScoutExplorer({
             <TooltipProvider>
               {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
               <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
-                <EmbedGalerie slug={library} instanz={aufbau.instanz} story={aufbau.story} locale={aufbau.locale} />
+                <EmbedGalerie slug={library} instanz={aufbau.instanz} story={aufbau.story} perspektive={aufbau.perspektive} locale={aufbau.locale} />
               </EmbedGalleryProviders>
             </TooltipProvider>
           </PortalContainerProvider>

@@ -36,6 +36,7 @@ export default function Galerie() {
 | `view` | `"gallery"` (Inhalte) oder `"story"` (Themenübersicht, Fragen, Belege; anonym über eine Sitzungskennung im Browser der Besucherin) |
 | `locale` | `en`, `de`, `it`, `fr` oder `es` — gilt für Oberfläche und Inhalte |
 | `enableStory` | Optional. Mit `view="gallery"`: startet in den Inhalten und bietet den Knopf „In Story Mode ansehen“ an. Bei `view="story"` immer an; `false` dort meldet einen Fehler. Standard: aus |
+| `enablePerspective` | Optional, nur mit Story-Modus. Knopf „Perspektive anpassen“ im Story-Kopf: Interessen, Zugang und Sprachstil im Dialog; Sprache (`locale`) und Modell bleiben fest. Der Browser merkt sich die Wahl je Library. Ohne Story-Modus meldet die Komponente einen Fehler. Standard: aus |
 | `height` | Höhe des Rahmens (Standard `80vh`); die Galerie scrollt darin |
 | `className` | Zusätzliche Klassen für den Rahmen |
 
@@ -66,6 +67,8 @@ instance. Install the `.tgz`, import `@ks/embed/styles.css` once, and render
 `view="story"` adds the story mode (topic overview, questions with cited
 sources) over an anonymous browser session. With `view="gallery"`, `enableStory`
 starts in the gallery and offers the switch to the story mode.
+`enablePerspective` lets visitors pick their own perspective (interests,
+access, language style) in a dialog; language and model stay fixed.
 All styles are scoped to `.ks-embed`.
 
 ## Bauen (im Monorepo)

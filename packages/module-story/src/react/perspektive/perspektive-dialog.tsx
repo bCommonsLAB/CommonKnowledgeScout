@@ -12,7 +12,7 @@
  * Portal-Container (`PortalContainerProvider`) — im Embed also im Rahmen.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Compass, Eye, Users } from 'lucide-react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
@@ -40,10 +40,15 @@ export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprac
   const [modellGewechselt, setModellGewechselt] = useState(false)
 
   // Jedes Oeffnen beginnt beim gespeicherten Stand — Abbrechen verwirft den Entwurf.
+  // Nur beim Uebergang zu → offen: Ein neues `wert`-Objekt des Elternteils
+  // (jedes Rendern) darf den laufenden Entwurf nicht ueberschreiben.
+  const warOffen = useRef(false)
   useEffect(() => {
-    if (!open) return
-    setEntwurf(wert)
-    setModellGewechselt(false)
+    if (open && !warOffen.current) {
+      setEntwurf(wert)
+      setModellGewechselt(false)
+    }
+    warOffen.current = open
   }, [open, wert])
 
   // Noch kein Modell, die Liste ist da: das erste passende vorschlagen (sichtbar im Abschnitt).

@@ -31,6 +31,14 @@ export interface KnowledgeScoutExplorerProps {
    * Standard: aus. Jede Frage kostet die Instanz einen Modell-Aufruf.
    */
   enableStory?: boolean
+  /**
+   * Eigene Perspektive im Story-Modus: Knopf „Perspektive anpassen" mit Dialog
+   * (Interessen, Zugang, Sprachstil). Sprache (`locale`) und Modell bleiben
+   * fest. Die Wahl merkt sich der Browser je Library. Braucht den Story-Modus
+   * (`view="story"` oder `enableStory`), sonst ein Fehler. Standard: aus —
+   * jede neue Perspektive laesst die Instanz die Themenuebersicht neu rechnen.
+   */
+  enablePerspective?: boolean
   /** Sprache der Oberflaeche und der Inhalte. */
   locale: KnowledgeScoutLocale
   /** Hoehe des Rahmens als CSS-Wert; die Galerie scrollt darin. Standard: `80vh`. */
