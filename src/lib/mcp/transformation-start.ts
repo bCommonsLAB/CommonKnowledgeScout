@@ -12,6 +12,7 @@
  */
 
 import { enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
+import type { TransformOptionen } from '@/lib/external-jobs/transform-optionen'
 import { getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -31,8 +32,10 @@ export async function starteTransformation(args: {
   zielsprache?: string
   erzwingen?: boolean
   vorlageAktualisiertAm: string | undefined
+  /** Welle B: Lauf-Optionen (P6), nur explizite Booleans landen im Job. */
+  optionen?: TransformOptionen
 }): Promise<{ jobId: string; erzwungen: string; hinweis?: string }> {
-  const { library, libraryId, userEmail, provider, source, template, llmModel, zielsprache } = args
+  const { library, libraryId, userEmail, provider, source, template, llmModel, zielsprache, optionen } = args
   const twins = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [source.itemId] })
   const doc = twins.get(source.itemId) ?? null
   const entscheidung = entscheideTransformationErzwingen({
@@ -47,7 +50,7 @@ export async function starteTransformation(args: {
   // Markdown/Sammeldatei: die Quelle IST der Text — kein Transkript noetig.
   if (istMarkdownQuelle(source.name)) {
     const { jobId } = await starteMarkdownTransformation({
-      libraryId, userEmail, provider, source, template, llmModel, zielsprache,
+      libraryId, userEmail, provider, source, template, llmModel, zielsprache, optionen,
       erzwingen: entscheidung.erzwingen,
     })
     return { jobId, erzwungen: entscheidung.grund, ...(hinweis ? { hinweis } : {}) }
@@ -61,7 +64,7 @@ export async function starteTransformation(args: {
     throw new Error(`Kein Transkript fuer "${source.name}" — zuerst quelle_erschliessen (oder Pipeline im KS-UI)`)
   }
   const { jobId } = await enqueueTemplateOnTextJob({
-    libraryId, userEmail, source, template, llmModel, targetLanguage: zielsprache,
+    libraryId, userEmail, source, template, llmModel, targetLanguage: zielsprache, optionen,
     erzwingen: entscheidung.erzwingen,
     extractedText: transcript.markdown,
   })

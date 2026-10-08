@@ -122,12 +122,22 @@ export function resolveAudioJobContext(job: ExternalJob, library: Library | unde
   const jobKeywords = readStringList(opts[AUDIO_CONTEXT_OPTION_KEYS.keywords])
   const keywords = dedupeKeywords([...libraryNames, ...jobKeywords])
 
-  const speakerModeRaw = opts[AUDIO_CONTEXT_OPTION_KEYS.speakerMode]
-  if (typeof speakerModeRaw === 'boolean') {
-    return { prompt, keywords, speakerMode: speakerModeRaw, speakerModeSource: 'job' }
-  }
+  return { prompt, keywords, ...resolveSpeakerMode(opts, library) }
+}
+
+/**
+ * Sprecher-Erkennung: Job-Option vor Library-Voreinstellung vor Standard
+ * (aus). Reine Funktion, auch VOR dem Job-Start nutzbar — die Bruecke sagt
+ * damit je Quelle, welcher Weg gefahren wird (Welle B).
+ */
+export function resolveSpeakerMode(
+  options: Record<string, unknown> | undefined,
+  library: Library | undefined,
+): { speakerMode: boolean; speakerModeSource: SpeakerModeSource } {
+  const speakerModeRaw = options?.[AUDIO_CONTEXT_OPTION_KEYS.speakerMode]
+  if (typeof speakerModeRaw === 'boolean') return { speakerMode: speakerModeRaw, speakerModeSource: 'job' }
   if (typeof library?.config?.transcriptionSpeakerMode === 'boolean') {
-    return { prompt, keywords, speakerMode: library.config.transcriptionSpeakerMode, speakerModeSource: 'library' }
+    return { speakerMode: library.config.transcriptionSpeakerMode, speakerModeSource: 'library' }
   }
-  return { prompt, keywords, speakerMode: false, speakerModeSource: 'default' }
+  return { speakerMode: false, speakerModeSource: 'default' }
 }

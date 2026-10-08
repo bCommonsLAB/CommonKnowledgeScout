@@ -1,6 +1,6 @@
 # Library-Betrieb über die MCP-Brücke
 
-Stand 08.10.2026, Werkzeugsatz **2.41.0**. Gebaut nach
+Stand 08.10.2026, Werkzeugsatz **2.42.0** (2.42.0: Welle B aus dem Veranstaltungs-Plan, siehe unten). Gebaut nach
 [`docs/plans/geplant/bruecke-library-betrieb.plan.md`](../plans/geplant/bruecke-library-betrieb.plan.md)
 (Wellen A, C, D, F). Die Brücke war bis 2.37.0 eine Archiv-Brücke: sie
 pflegte Twins, Berichte und Website-Seiten. Seit 2.41.0 kann sie eine Library
@@ -66,3 +66,18 @@ Funktion wie das UI (ADR 0007), keine zweite Logik.
   `veroeffentlichung_setzen` (eigene Validierung, eigene Außenwirkung).
 - Ein Live-Nachweis gegen eine echte Library — der Code ist mit Unit-Tests
   belegt, der Lauf über die Brücke steht aus (siehe Plan, Stand 08.10.).
+
+## Nachtrag Welle B (2.42.0): zwei Wege der Audio-Erschliessung
+
+Owner 08.10.: Beim Analysieren von Audio soll unterscheidbar sein, ob mit
+Sprechererkennung gearbeitet wird oder ganz ohne, und im zweiten Fall das
+Transkript danach von Hand geprüft wird. `quelle_erschliessen` nimmt dafür
+`sprecherErkennung` (true, false, weglassen = Library-Voreinstellung), `kontext`
+und `begriffe` (P3a) und nennt je Audio-Quelle den Weg, seine Herkunft
+(aufruf, library, standard) und den nächsten Schritt; `wege` zählt den Stapel.
+Beide Wege enden im Reiter „Korrektur" der KS-Oberfläche: einmal Sprecher und
+Namen bestätigen, einmal Hörfehler von Hand prüfen. `job_status` zeigt den
+Audio-Kontext am Job. P6 (`folienAlsTabelle`, `anhangInSuche`) gilt in
+`quelle_erschliessen` und `transformation_starten`; nur explizite Booleans
+landen im Job (`transform-optionen.ts`), fehlende Werte entscheidet sichtbar
+die Library-Voreinstellung.

@@ -19,6 +19,7 @@ import { zaehleKuerzlichGescheitert } from './job-liste-ehrlich'
 import { beschreibeSchritte, uebersprungenHinweis } from './job-schritte'
 import { holePoolSicht } from './job-pool-sicht'
 import { deuteFehler } from './fehler-deutung'
+import { audioKontextVonJob } from './job-audio-kontext'
 
 /**
  * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
@@ -98,6 +99,8 @@ export function registerJobTools(server: McpServer): void {
           // die Datenbank. Ungefragt mitgeliefert, weil man sonst wissen
           // muesste, dass man fragen kann.
           ...(job.status === 'failed' ? fehlerBlock(job) : {}),
+          // Welle B: bei Audio-Jobs die Transkriptions-Optionen, wie sie im Job liegen (Weg sichtbar).
+          ...(job.job_type === 'audio' ? { audioKontext: audioKontextVonJob(job) } : {}),
           // Welle F: in-process-Phasen (Golden-Set) legen ihr Ergebnis an den Job.
           ...(job.cumulativeMeta?.goldenSet ? { ergebnis: job.cumulativeMeta.goldenSet } : {}),
           erstellt: job.createdAt ?? null,

@@ -41,6 +41,8 @@ export async function starteMarkdownTransformation(args: {
   zielsprache?: string
   /** Template-Gate uebergehen — entschieden in `transformation-erzwingen.ts`. */
   erzwingen?: boolean
+  /** Welle B: Lauf-Optionen (P6). */
+  optionen?: import('@/lib/external-jobs/transform-optionen').TransformOptionen
 }): Promise<{ jobId: string }> {
   const { libraryId, userEmail, provider, source, template, llmModel, zielsprache } = args
   const { blob } = await provider.getBinary(source.itemId)
@@ -71,5 +73,6 @@ export async function starteMarkdownTransformation(args: {
 
   return enqueueSourceMarkdownJob({
     libraryId, userEmail, source, template, llmModel, targetLanguage: zielsprache, erzwingen: args.erzwingen,
+    optionen: args.optionen,
   })
 }
