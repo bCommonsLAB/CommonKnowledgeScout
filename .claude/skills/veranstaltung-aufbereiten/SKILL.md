@@ -5,7 +5,11 @@ description: Einen Ordner mit Audio, PDF, Video und Bildern einer Veranstaltung 
 
 # Veranstaltung aufbereiten
 
-Stand 08.10.2026, Werkzeugsatz 2.44.1. Drehbuch nach dem Plan
+Stand 08.10.2026, Werkzeugsatz 2.44.1. Original im Archiv unter
+`Organisation/Skills/veranstaltung-aufbereiten/SKILL.md`; diese Datei ist die
+Repo-Kopie und wird nach dem Original nachgezogen. Probe: 135 Zeilen.
+
+Drehbuch nach dem Plan
 `docs/plans/geplant/veranstaltungen-ueber-die-bruecke.plan.md` (Wellen B, E, G);
 die Bestandspflege (Aufräumen, Bericht, Stand) bleibt beim Skill
 `archiv-aufraeumen`, die Veröffentlichung von Website-Seiten bei
