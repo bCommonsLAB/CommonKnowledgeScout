@@ -1,6 +1,6 @@
 # Library-Betrieb über die MCP-Brücke
 
-Stand 08.10.2026, Werkzeugsatz **2.42.0** (2.42.0: Welle B aus dem Veranstaltungs-Plan, siehe unten). Gebaut nach
+Stand 08.10.2026, Werkzeugsatz **2.43.0** (2.42.0 Welle B, 2.43.0 Welle E aus dem Veranstaltungs-Plan, siehe unten). Gebaut nach
 [`docs/plans/geplant/bruecke-library-betrieb.plan.md`](../plans/geplant/bruecke-library-betrieb.plan.md)
 (Wellen A, C, D, F). Die Brücke war bis 2.37.0 eine Archiv-Brücke: sie
 pflegte Twins, Berichte und Website-Seiten. Seit 2.41.0 kann sie eine Library
@@ -81,3 +81,20 @@ Audio-Kontext am Job. P6 (`folienAlsTabelle`, `anhangInSuche`) gilt in
 `quelle_erschliessen` und `transformation_starten`; nur explizite Booleans
 landen im Job (`transform-optionen.ts`), fehlende Werte entscheidet sichtbar
 die Library-Voreinstellung.
+
+## Nachtrag Welle E (2.43.0): Einheiten bilden, Abhängige finden
+
+Owner 08.10.: Die Abhängigkeit Sammeldatei → Quellen steht im Twin-Dokument
+(`compositeSources`), geschrieben vom Transformations-Job beim Auflösen der
+`_source_files` (Loader, beide Pfade). Damit ist „welche Sammeldateien
+enthalten diese Quelle?" eine indizierte Mongo-Abfrage statt ein Vollscan.
+`sammeldatei_anlegen` geht den Weg des Knopfs „Sammel-Transkript"
+(`buildCompositeReference`), prüft Existenz und Transkript jeder Quelle und
+überschreibt nichts; `sammeldatei_pruefen` nutzt den Nur-Prüfen-Modus des
+Resolvers; `abhaengige_dokumente` liefert je Sammeldatei Vorlage, Sprache und
+den Befund überholt (Transformation älter als `revised_at` der Quelle,
+dieselbe Regel wie der Badge im Reiter „Korrektur"). Beide Korrektur-Wege
+(Reiter, Route, `transkript_korrigieren`) und die Arbeitsliste von
+`korrekturen_lesen` nennen die abhängigen Sammeldateien. Sammeldateien, die
+vor Welle E zuletzt transformiert wurden, tragen das Feld erst nach dem
+nächsten Lauf; für den Prüffall einmal `transformation_starten` erzwingen.

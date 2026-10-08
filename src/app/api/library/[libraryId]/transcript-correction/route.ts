@@ -19,6 +19,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { FileLogger } from '@/lib/debug/logger'
 import { ErsetzungNichtEindeutigError, ErsetzungNichtGefundenError, type Ersetzung } from '@/lib/mcp/transkript-korrektur'
 import { LibraryService } from '@/lib/services/library-service'
+import { abhaengigeSammeldateien } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { wendeKorrekturAn, type SprecherZuordnung } from '@/lib/transkript-korrektur/anwenden'
@@ -84,7 +85,10 @@ export async function GET(
 
     const stand = await ladeTranskript({ libraryId, sourceId })
     if (!stand) return NextResponse.json({ error: 'Kein Transkript fuer diese Quelle', code: 'kein_transkript' }, { status: 404 })
-    return NextResponse.json(transkriptZustand(stand), { headers: { 'Cache-Control': 'no-store' } })
+    // Welle E: Sammeldateien mit dieser Quelle, damit der Reiter nach der Korrektur sagt, was sonst noch ueberholt ist.
+    const zustand = transkriptZustand(stand)
+    const abhaengige = await abhaengigeSammeldateien({ libraryId, sourceId, revisedAt: zustand.revisedAt })
+    return NextResponse.json({ ...zustand, abhaengigeSammeldateien: abhaengige }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     FileLogger.error('transcript-correction', 'GET fehlgeschlagen', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Interner Fehler' }, { status: 500 })
@@ -142,6 +146,8 @@ export async function POST(
       speakerNames: anwendung.speakerNames,
       revision,
       transformationen: zustandVorher.transformationen,
+      // Welle E: Sammeldateien, die diese Quelle enthalten — nach dem Schreiben ueberholt.
+      abhaengigeSammeldateien: await abhaengigeSammeldateien({ libraryId, sourceId, revisedAt: revision.revised_at }),
     }
     if (nurVorschau) return NextResponse.json({ ...basis, geschrieben: false, updatedAt: stand.record.updatedAt })
 

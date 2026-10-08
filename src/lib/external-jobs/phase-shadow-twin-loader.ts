@@ -207,6 +207,13 @@ export async function loadShadowTwinMarkdown(
               compositeFileName: originalName,
               compositeSourceId: sourceItemId,
             })
+            // Welle E: Quellen der Sammeldatei am Twin vermerken — damit
+            // `abhaengige_dokumente` sie nach einer Korrektur ohne Scan findet.
+            const { merkeSammeldateiQuellen } = await import('@/lib/shadow-twin/sammeldatei-abhaengigkeit')
+            await merkeSammeldateiQuellen({
+              libraryId: job.libraryId, userEmail: job.userEmail, sourceId: sourceItemId,
+              sourceName: originalName, parentId, quellenIds: resolved.sourceIds,
+            })
 
             if (resolved.unresolvedSources.length > 0) {
               FileLogger.warn('phase-shadow-twin-loader', 'Composite: Nicht alle Quellen aufgelöst', {
@@ -378,6 +385,13 @@ export async function loadShadowTwinMarkdown(
               parentId,
               compositeFileName: originalName,
               compositeSourceId: sourceItemId,
+            })
+            // Welle E: Quellen der Sammeldatei am Twin vermerken — damit
+            // `abhaengige_dokumente` sie nach einer Korrektur ohne Scan findet.
+            const { merkeSammeldateiQuellen } = await import('@/lib/shadow-twin/sammeldatei-abhaengigkeit')
+            await merkeSammeldateiQuellen({
+              libraryId: job.libraryId, userEmail: job.userEmail, sourceId: sourceItemId,
+              sourceName: originalName, parentId, quellenIds: resolved.sourceIds,
             })
 
             if (resolved.unresolvedSources.length > 0) {

@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.42.0'
+export const TOOLSET_VERSION = '2.43.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -82,6 +82,10 @@ export const TOOL_NAMES = [
   'frage_stellen',
   'golden_set_fahren',
   'frage_log_lesen',
+  // Welle E — Einheiten bilden, Abhaengige finden.
+  'sammeldatei_anlegen',
+  'sammeldatei_pruefen',
+  'abhaengige_dokumente',
   'sichten_regenerieren',
   'aenderungen_seit',
   'erschliessung_block_schreiben',
@@ -98,6 +102,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.43.0: Welle E Einheiten — sammeldatei_anlegen (Referenz-Markdown wie der Knopf Sammel-Transkript: prueft Existenz und Transkript jeder Quelle, ueberschreibt nichts, optional title/_include_self/_media_files und direkt transformieren), sammeldatei_pruefen (fehlende Quellen mit Namen, Abhaengigkeit vermerkt?, Transformationen), abhaengige_dokumente (Sammeldateien mit dieser Quelle samt ueberholt — eine Mongo-Abfrage ueber das neue Twin-Feld compositeSources, das der Transformations-Job beim Aufloesen schreibt; Owner 08.10.). transkript_korrigieren, der Reiter Korrektur und seine Route nennen jetzt die abhaengigen Sammeldateien (abhaengigeSammeldateien)',
   '2.42.0: Welle B Optionen durchreichen — quelle_erschliessen nimmt fuer Audio sprecherErkennung (true = Sprecher-Modell, false = ohne, danach manuell im Reiter Korrektur pruefen; weglassen = Library-Voreinstellung), kontext und begriffe (P3a) und nennt je Quelle den Weg mit Herkunft und naechstem Schritt (jobs[].transkription, wege); quelle_erschliessen und transformation_starten nehmen folienAlsTabelle und anhangInSuche (P6), nur explizite Booleans landen im Job. job_status zeigt bei Audio-Jobs den Audio-Kontext (audioKontext). Die Job-Bauer der Bruecke (enqueue-secretary-job, enqueue-markdown-job, enqueue-document-job) kennen die Optionen jetzt wie die Pipeline-Route',
   '2.41.0: Welle F Messen vor Aendern — frage_stellen (eine Frage auf dem Weg der Stream-Route: Antwort, nummerierte Dokumente mit Facettenwerten, zitierte Nummern, nachpruefung, queryId; ohneCache und baseline), golden_set_fahren (Golden-Set-JSON aus der Library als JOB: Fortschritt je Frage in job_status, Bericht als Markdown neben der Set-Datei und als job_status.ergebnis; baseline, richterModel, nur), frage_log_lesen (Query-Log mit Cache-Parametern und Nachpruefung, mitPrompt optional). job_status zeigt bei Golden-Set-Jobs das Ergebnis',
   '2.40.0: Welle D Konfiguration ist Vertrag — konfiguration_lesen (Bereiche facetten | antwortregeln | chat | galerie | veroeffentlichung; ohne bereich alle), konfiguration_setzen (facetten ersetzt gallery.facets in der JSON-Form des Editor-Exports, antwortregeln als Text mit Platzhalter-Querpruefung, chat und galerie als Teil-Update; Embeddings/Vektor-Store/Modelle nur lesbar; nur Owner). Pruefung mit demselben Schema wie das Formular (chat-config-validation.ts) — die PATCH-Route /api/libraries/[id] prueft config.chat jetzt ebenfalls und antwortet 400 statt eine ungueltige Konfiguration zu speichern',

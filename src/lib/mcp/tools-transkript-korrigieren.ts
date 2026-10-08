@@ -73,6 +73,13 @@ function hinweisZu(ergebnis: KorrekturErgebnis): string {
         '(Befund transformation_stale) — bei Bedarf transformation_starten; das kostet und wird hier nur empfohlen.',
     )
   }
+  if (ergebnis.abhaengigeSammeldateien.length > 0) {
+    teile.push(
+      `${ergebnis.abhaengigeSammeldateien.length} Sammeldatei(en) enthalten diese Quelle ` +
+        `(${ergebnis.abhaengigeSammeldateien.map((a) => a.sourceName).join(', ')}) — nach dem Schreiben ueberholt; ` +
+        'abhaengige_dokumente zeigt den Stand, transformation_starten erneuert sie.',
+    )
+  }
   if (ergebnis.offeneKorrekturauftraege.length > 0) {
     teile.push(
       `Zu diesem Transkript ist ein Korrekturauftrag offen. Wenn die Ersetzungen ihn erledigen: ` +

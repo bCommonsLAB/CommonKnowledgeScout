@@ -43,6 +43,8 @@ export interface ApplyAntwort {
   speakerNames: string[]
   revision: { revised_by: string; revised_at: string; revision_note: string }
   transformationen: Array<{ pfad: string; template: string; sprache: string; jetztUeberholt: boolean }>
+  /** Welle E: Sammeldateien mit dieser Quelle (nach dem Schreiben ueberholt). */
+  abhaengigeSammeldateien?: Array<{ sourceId: string; sourceName: string; ueberholt: boolean; ohneTransformation: boolean }>
 }
 
 let zaehler = 0

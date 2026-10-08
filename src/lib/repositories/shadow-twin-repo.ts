@@ -72,6 +72,14 @@ export interface ShadowTwinDocument {
     shadowTwinFolderId?: string | null
     lastSyncedAt?: string | null
   }
+  /**
+   * Welle E (Owner 08.10.2026): Storage-Ids der Quellen einer Sammeldatei
+   * (`_source_files`), vom Transformations-Job beim Aufloesen vermerkt. Damit
+   * ist „welche Sammeldateien haengen an dieser Quelle?" EINE Abfrage
+   * (`shadow-twin-sammeldatei.ts`) statt ein Vollscan ueber den Storage.
+   * Fehlt das Feld, wurde die Sammeldatei seit Welle E nicht transformiert.
+   */
+  compositeSources?: string[]
   /** Merker des Fingerabdruck-Tors; siehe {@link ShadowTwinCheckStand}. */
   checkStand?: ShadowTwinCheckStand
   createdAt: string
@@ -90,7 +98,7 @@ export function getShadowTwinCollectionName(libraryId: string): string {
   return `shadow_twins__${libraryId}`
 }
 
-async function getShadowTwinCollection(libraryId: string): Promise<Collection<ShadowTwinDocument>> {
+export async function getShadowTwinCollection(libraryId: string): Promise<Collection<ShadowTwinDocument>> {
   const name = getShadowTwinCollectionName(libraryId)
   const cached = collectionCache.get(name)
   if (cached) return cached
@@ -105,6 +113,8 @@ export async function ensureShadowTwinIndexes(libraryId: string): Promise<void> 
   const col = await getShadowTwinCollection(libraryId)
   await col.createIndex({ libraryId: 1, parentId: 1 })
   await col.createIndex({ libraryId: 1, sourceId: 1 }, { unique: true })
+  // Welle E: Rueckwaertsabfrage „Sammeldateien mit dieser Quelle" ohne Scan.
+  await col.createIndex({ libraryId: 1, compositeSources: 1 })
   indexCache.add(name)
 }
 

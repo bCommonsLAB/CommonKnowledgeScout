@@ -46,6 +46,7 @@ import { registerIndexTools } from './tools-index'
 import { registerBatchNeustartTool } from './tools-batch-neustart'
 import { registerKonfigurationTools } from './tools-konfiguration'
 import { registerMessenTools } from './tools-messen'
+import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -91,6 +92,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerKonfigurationTools(server)
   // Welle F (Library-Betrieb): Messen vor Aendern.
   registerMessenTools(server)
+  // Welle E (Veranstaltungen): Einheiten bilden und Abhaengige finden.
+  registerSammeldateiTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)

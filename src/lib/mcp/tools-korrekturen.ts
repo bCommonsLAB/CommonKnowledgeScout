@@ -122,12 +122,15 @@ function registerLesenTool(server: McpServer): void {
             auftrag.parentId === scopeId ||
             (auftrag.ordnerPfad !== '' && isInSubtree(auftrag.ordnerPfad, scopePfad)),
         )
+        // Welle E: je Quelle die Sammeldateien, die sie enthalten — eine Korrektur dort zieht sie nach.
+        const { sammeldateienJeQuelle: ladeSammeldateien } = await import('@/lib/shadow-twin/sammeldatei-abhaengigkeit')
+        const sammeldateienJeQuelle = await ladeSammeldateien(libraryId, imScope.map((a) => a.sourceId))
         return jsonResult({
           modus: 'arbeitsliste',
           scope: { folderId: scopeId, pfad: scopePfad },
           offen: imScope.length,
           ausserhalb: mitPfad.length - imScope.length,
-          auftraege: imScope,
+          auftraege: imScope.map((a) => ({ ...a, sammeldateien: sammeldateienJeQuelle.get(a.sourceId) ?? [] })),
           hinweis:
             'Reihenfolge: erst einordnen/umbenennen (familie_umziehen), dann bei Bedarf neu ' +
             'erschliessen. Den Korrekturhinweis fuer die Transformation formulierst DU aus dem ' +
