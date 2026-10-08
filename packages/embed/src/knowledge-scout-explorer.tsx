@@ -16,7 +16,10 @@
  * - die Sprache als Prop — fuer die Oberflaeche und, als `Accept-Language`,
  *   fuer die Inhalte der Instanz,
  * - den Rahmen `.ks-embed`: Unter ihm liegen alle Stile (`@ks/embed/styles.css`),
- *   und in ihn rendern Dialoge und Menues (`PortalContainerProvider`).
+ *   und in ihn rendern Dialoge und Menues (`PortalContainerProvider`),
+ * - den `TooltipProvider`, den die Anwendung im Wurzel-Layout setzt: Ohne ihn
+ *   stuerzt jede Galerie-Komponente ab, die einen Tooltip ohne eigenen Provider
+ *   zeigt (Quellenverzeichnis beim Wechsel Story → Galerie, 08.10.2026).
  *
  * Falsche Props werden im Rahmen gemeldet, nicht still ersetzt. Die
  * oeffentlichen Typen stehen in `typen.ts`.
@@ -26,7 +29,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Provider as JotaiProvider, createStore } from 'jotai'
 import { createInstanceApi, type InstanceApi } from '@ks/api-client'
 import { SUPPORTED_LOCALES, type Locale } from '@ks/i18n'
-import { PortalContainerProvider } from '@ks/ui'
+import { PortalContainerProvider, TooltipProvider } from '@ks/ui'
 import { EmbedGalleryProviders } from '@ks/module-explorer/react'
 import { EmbedGalerie } from './embed-galerie'
 import { EmbedLocale } from './embed-locale'
@@ -97,10 +100,12 @@ export function KnowledgeScoutExplorer({
         <JotaiProvider store={store}>
           <EmbedLocale locale={aufbau.locale} />
           <PortalContainerProvider container={rahmen}>
-            {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
-            <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
-              <EmbedGalerie slug={library} instanz={aufbau.instanz} view={aufbau.view} locale={aufbau.locale} />
-            </EmbedGalleryProviders>
+            <TooltipProvider>
+              {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
+              <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
+                <EmbedGalerie slug={library} instanz={aufbau.instanz} view={aufbau.view} locale={aufbau.locale} />
+              </EmbedGalleryProviders>
+            </TooltipProvider>
           </PortalContainerProvider>
         </JotaiProvider>
       )}
