@@ -27,12 +27,18 @@ vi.mock('@/components/library/markdown-preview', () => ({
   MarkdownPreview: () => null,
 }))
 
+// Der erste Import zieht den ganzen Chat-Baum und braucht allein 7–13 s; im
+// vollen Lauf (635 Dateien parallel) kippte er ueber die 15 s Standardgrenze
+// (Pre-Merge-Check 09.10.2026, auf master gleich langsam). Mehr Zeit statt
+// Wackeln — der Vertrag selbst bleibt unveraendert.
+const ERSTER_IMPORT_MS = 45_000
+
 describe('chat-panel Export-Vertrag', () => {
   it('ChatPanel ist eine Funktion (React-Komponente)', async () => {
     // Dynamischer Import, damit Modul-Split-Pfade ausprobiert werden koennen
     const mod = await import('@/components/library/chat/chat-panel')
     expect(typeof mod.ChatPanel).toBe('function')
-  })
+  }, ERSTER_IMPORT_MS)
 
   it('ChatPanel-Export hat den korrekten Namen', async () => {
     const mod = await import('@/components/library/chat/chat-panel')
