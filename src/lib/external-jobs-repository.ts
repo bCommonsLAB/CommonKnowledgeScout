@@ -259,6 +259,20 @@ export class ExternalJobsRepository {
     return res.modifiedCount === 1;
   }
 
+  /**
+   * Fortschritt einer in-process-Phase nach `job.logs` schreiben (Welle F,
+   * phase-golden-set): dort liest `job_status` Phase, Fortschritt und
+   * Meldung; `updatedAt` zaehlt zugleich als Lebenszeichen fuer den Reaper.
+   */
+  async pushLog(jobId: string, entry: { phase: string; progress?: number; message?: string }): Promise<void> {
+    const col = await this.getCollection();
+    const now = new Date();
+    await col.updateOne(
+      { jobId },
+      { $set: { updatedAt: now }, $push: { logs: { timestamp: now, ...entry } } }
+    );
+  }
+
   async setResult(jobId: string, payload: ExternalJob['payload'], result: ExternalJob['result']): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne(

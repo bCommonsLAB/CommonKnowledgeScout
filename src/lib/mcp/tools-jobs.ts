@@ -98,6 +98,8 @@ export function registerJobTools(server: McpServer): void {
           // die Datenbank. Ungefragt mitgeliefert, weil man sonst wissen
           // muesste, dass man fragen kann.
           ...(job.status === 'failed' ? fehlerBlock(job) : {}),
+          // Welle F: in-process-Phasen (Golden-Set) legen ihr Ergebnis an den Job.
+          ...(job.cumulativeMeta?.goldenSet ? { ergebnis: job.cumulativeMeta.goldenSet } : {}),
           erstellt: job.createdAt ?? null,
           aktualisiert: job.updatedAt ?? null,
         })

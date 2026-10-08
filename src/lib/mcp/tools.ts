@@ -44,6 +44,7 @@ import { registerBestandTools } from './tools-bestand'
 import { registerIndexTools } from './tools-index'
 import { registerBatchNeustartTool } from './tools-batch-neustart'
 import { registerKonfigurationTools } from './tools-konfiguration'
+import { registerMessenTools } from './tools-messen'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -86,6 +87,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerBatchNeustartTool(server)
   // Welle D (Library-Betrieb): Konfiguration ist Vertrag.
   registerKonfigurationTools(server)
+  // Welle F (Library-Betrieb): Messen vor Aendern.
+  registerMessenTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)

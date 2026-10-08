@@ -260,6 +260,18 @@ export async function POST(
       }
     }
 
+    // ─── Golden-Set-Lauf (Welle F, Bruecke): Fragen gegen den Story-Modus ───
+    // Minuten je Lauf (ein Modellaufruf je Frage): sofort 202, Phase detached;
+    // Status, Fortschritt (job.logs) und Ergebnis (cumulativeMeta.goldenSet)
+    // schreibt die Phase selbst — wie overlap-report.
+    if (job.job_type === 'golden-set' && job.operation === 'run') {
+      const { runGoldenSetPhase } = await import('@/lib/external-jobs/phase-golden-set')
+      void runGoldenSetPhase(job).catch((err: unknown) => {
+        FileLogger.error('start-route', 'phase-golden-set failed', { jobId, error: err instanceof Error ? err.message : String(err) })
+      })
+      return NextResponse.json({ ok: true, phase: 'golden-set', started: true }, { status: 202 })
+    }
+
     // ─── Overlap-Bericht (Stufe 3): Long-Context-LLM-Pass + Markdown-Bericht ───
     // Schmale Phase ohne Storage/Secretary-Datei-Pfad (ADR 0001, analog
     // doc-relations): laedt den Katalog aus Mongo, ruft das LLM ueber den
