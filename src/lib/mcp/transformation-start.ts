@@ -13,7 +13,7 @@
 
 import { enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import type { TransformOptionen } from '@/lib/external-jobs/transform-optionen'
-import { getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { Library } from '@/types/library'
@@ -44,6 +44,7 @@ export async function starteTransformation(args: {
     template,
     zielsprache: zielsprache ?? 'de',
     vorlageAktualisiertAm: args.vorlageAktualisiertAm,
+    quellenAktualisiertAm: await juengstesQuellenTranskript(libraryId, doc),
   })
   const hinweis = andereVorlagenHinweis(doc, template)
 
@@ -88,4 +89,21 @@ export function andereVorlagenHinweis(doc: ShadowTwinDocument | null, template: 
     `dieser Job schreibt Vorlage "${template}" daneben. Galerie und Schaufenster zeigen danach "${template}". ` +
     'Falls die vorhandene gemeint war: template entsprechend angeben.'
   )
+}
+
+/**
+ * Sammeldatei (Welle E): juengster `updatedAt` der Quellen-Transkripte aus
+ * `compositeSources`. Ohne vermerkte Quellen undefined — dann entscheidet der
+ * Server wie bisher; die Abhaengigkeit entsteht beim naechsten Lauf.
+ */
+export async function juengstesQuellenTranskript(libraryId: string, doc: ShadowTwinDocument | null): Promise<string | undefined> {
+  const ids = doc?.compositeSources ?? []
+  if (ids.length === 0) return undefined
+  const quellen = await getShadowTwinsBySourceIds({ libraryId, sourceIds: ids })
+  let juengster: string | undefined
+  for (const quelle of quellen.values()) {
+    const stand = readTranscriptRecord(quelle)?.updatedAt
+    if (stand && (!juengster || stand > juengster)) juengster = stand
+  }
+  return juengster
 }

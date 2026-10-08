@@ -5,7 +5,7 @@ description: Einen Ordner mit Audio, PDF, Video und Bildern einer Veranstaltung 
 
 # Veranstaltung aufbereiten
 
-Stand 08.10.2026, Werkzeugsatz 2.44.0. Drehbuch nach dem Plan
+Stand 08.10.2026, Werkzeugsatz 2.44.1. Drehbuch nach dem Plan
 `docs/plans/geplant/veranstaltungen-ueber-die-bruecke.plan.md` (Wellen B, E, G);
 die Bestandspflege (Aufräumen, Bericht, Stand) bleibt beim Skill
 `archiv-aufraeumen`, die Veröffentlichung von Website-Seiten bei
@@ -118,9 +118,10 @@ Danach `batch_bilanz`.
 Korrigiert der Mensch später ein Transkript, nennt der Reiter „Korrektur"
 (und `transkript_korrigieren`) die abhängigen Sammeldateien.
 `abhaengige_dokumente` zeigt, welche davon überholt sind;
-`transformation_starten` erneuert genau diese (der Server erzwingt, weil das
-Transkript jünger ist), danach `index_aktualisieren` ist nicht nötig, der
-Job ingestiert selbst. Sammeldateien, die vor Werkzeugsatz 2.43.0 zuletzt
+`transformation_starten` erneuert genau diese: der Server erzwingt mit
+`erzwungen: "quelle_juenger"`, weil das Transkript einer Quelle jünger ist
+(ab 2.44.1). `index_aktualisieren` ist danach nicht nötig, der Job
+ingestiert selbst. Sammeldateien, die vor Werkzeugsatz 2.43.0 zuletzt
 transformiert wurden, tragen die Abhängigkeit erst nach dem nächsten Lauf.
 
 ## Was dieser Skill nicht tut

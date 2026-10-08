@@ -70,4 +70,16 @@ describe('entscheideTransformationErzwingen', () => {
     const doc = twin({ transformationAm: '2026-09-21T14:00:00.000Z' })
     expect(() => entscheide(doc, undefined, undefined)).toThrow(/Vorlage vom unbekannt/)
   })
+
+  it('Sammeldatei: juengeres Quellen-Transkript erzwingt mit quelle_juenger (Welle E)', () => {
+    const doc = twin({ transformationAm: '2026-10-05T10:00:00.000Z' })
+    expect(entscheideTransformationErzwingen({
+      angefordert: undefined, doc, template: TEMPLATE, zielsprache: 'de',
+      vorlageAktualisiertAm: '2026-09-01T00:00:00.000Z', quellenAktualisiertAm: '2026-10-06T00:00:00.000Z',
+    })).toEqual({ erzwingen: true, grund: 'quelle_juenger' })
+    expect(() => entscheideTransformationErzwingen({
+      angefordert: undefined, doc, template: TEMPLATE, zielsprache: 'de',
+      vorlageAktualisiertAm: '2026-09-01T00:00:00.000Z', quellenAktualisiertAm: '2026-10-04T00:00:00.000Z',
+    })).toThrow(/ist aktuell/)
+  })
 })

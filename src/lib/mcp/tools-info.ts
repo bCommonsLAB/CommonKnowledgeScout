@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.44.0'
+export const TOOLSET_VERSION = '2.44.1'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -104,6 +104,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.44.1: transformation_starten erkennt bei Sammeldateien ein juengeres Transkript einer ihrer Quellen (compositeSources) und erzwingt mit erzwungen="quelle_juenger" — vorher sagte der Server nach einer Korrektur an einer Quelle „aktuell" und legte keinen Job an',
   '2.44.0: Welle G — artefakt_lesen liefert Transkript oder Transformation (sprache, optional vorlage; ohne vorlage die juengste der Sprache, benannt) einer Quelle aus MongoDB ohne Spiegel, Body ohne Frontmatter per Vorgabe, auf maxZeichen gekuerzt (gekuerzt: true), mit Uebersicht der vorhandenen Artefakte; ein Fehlgriff nennt, was es stattdessen gibt',
   '2.43.0: Welle E Einheiten — sammeldatei_anlegen (Referenz-Markdown wie der Knopf Sammel-Transkript: prueft Existenz und Transkript jeder Quelle, ueberschreibt nichts, optional title/_include_self/_media_files und direkt transformieren), sammeldatei_pruefen (fehlende Quellen mit Namen, Abhaengigkeit vermerkt?, Transformationen), abhaengige_dokumente (Sammeldateien mit dieser Quelle samt ueberholt — eine Mongo-Abfrage ueber das neue Twin-Feld compositeSources, das der Transformations-Job beim Aufloesen schreibt; Owner 08.10.). transkript_korrigieren, der Reiter Korrektur und seine Route nennen jetzt die abhaengigen Sammeldateien (abhaengigeSammeldateien)',
   '2.42.0: Welle B Optionen durchreichen — quelle_erschliessen nimmt fuer Audio sprecherErkennung (true = Sprecher-Modell, false = ohne, danach manuell im Reiter Korrektur pruefen; weglassen = Library-Voreinstellung), kontext und begriffe (P3a) und nennt je Quelle den Weg mit Herkunft und naechstem Schritt (jobs[].transkription, wege); quelle_erschliessen und transformation_starten nehmen folienAlsTabelle und anhangInSuche (P6), nur explizite Booleans landen im Job. job_status zeigt bei Audio-Jobs den Audio-Kontext (audioKontext). Die Job-Bauer der Bruecke (enqueue-secretary-job, enqueue-markdown-job, enqueue-document-job) kennen die Optionen jetzt wie die Pipeline-Route',

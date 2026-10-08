@@ -31,6 +31,12 @@ export type TransformationErzwingenGrund =
   | 'vorlage_juenger'
   /** Das Transkript wurde nach der Transformation geaendert (transformation_stale). */
   | 'transkript_juenger'
+  /**
+   * Sammeldatei: das Transkript einer ihrer Quellen wurde nach der Transformation
+   * geaendert (Welle E, Befund 08.10.2026 — vorher sah der Server nur das eigene,
+   * nie geaenderte Transkript der Sammeldatei und sagte „aktuell").
+   */
+  | 'quelle_juenger'
   /** Es gibt nur Transformationen ANDERER Vorlagen — das Gate wuerde trotzdem ueberspringen. */
   | 'andere_vorlage'
   /** Noch keine Transformation am Twin: das Gate laesst den Lauf ohnehin durch. */
@@ -60,6 +66,11 @@ export function entscheideTransformationErzwingen(args: {
   zielsprache: string
   /** `updatedAt` der Vorlage in MongoDB (ISO); undefined = nicht ermittelbar. */
   vorlageAktualisiertAm: string | undefined
+  /**
+   * Nur Sammeldateien: juengster Stand der Quellen-Transkripte (`compositeSources`).
+   * undefined = keine Sammeldatei oder Abhaengigkeit noch nicht vermerkt.
+   */
+  quellenAktualisiertAm?: string
 }): TransformationErzwingenEntscheidung {
   if (args.angefordert === true) return { erzwingen: true, grund: 'angefordert' }
   if (args.angefordert === false) return { erzwingen: false, grund: 'abgelehnt' }
@@ -71,6 +82,7 @@ export function entscheideTransformationErzwingen(args: {
   if (istJuenger(readTranscriptRecord(args.doc)?.updatedAt, record.updatedAt)) {
     return { erzwingen: true, grund: 'transkript_juenger' }
   }
+  if (istJuenger(args.quellenAktualisiertAm, record.updatedAt)) return { erzwingen: true, grund: 'quelle_juenger' }
   throw new Error(
     `Transformation mit Vorlage "${args.template}" (${args.zielsprache}) ist aktuell: Twin vom ${record.updatedAt}, ` +
       `Vorlage vom ${args.vorlageAktualisiertAm ?? 'unbekannt'}. Der Worker wuerde sie ueberspringen — ` +

@@ -109,3 +109,10 @@ Einheiten aus den Transkriptanfängen vorschlagen. Der Skill
 Werkzeuge: sieben Stationen plus Nachziehen, drei Rückfragen an den Menschen
 und der Haltepunkt in Station 4, an dem der Mensch das Transkript im Reiter
 „Korrektur" prüft.
+
+**Nachtrag 2.44.1:** `transformation_starten` erkennt bei einer Sammeldatei
+ein jüngeres Transkript einer ihrer Quellen (über `compositeSources`) und
+erzwingt mit `erzwungen: "quelle_juenger"`. Vorher verglich der Server nur
+das eigene Transkript der Sammeldatei und sagte nach einer Korrektur an einer
+Quelle „aktuell". Testablauf für alle Wellen:
+[`mcp-testszenario-library-betrieb.md`](mcp-testszenario-library-betrieb.md).
