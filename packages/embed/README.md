@@ -35,6 +35,7 @@ export default function Galerie() {
 | `library` | Slug einer öffentlichen Library |
 | `view` | `"gallery"` (Inhalte) oder `"story"` (Themenübersicht, Fragen, Belege; anonym über eine Sitzungskennung im Browser der Besucherin) |
 | `locale` | `en`, `de`, `it`, `fr` oder `es` — gilt für Oberfläche und Inhalte |
+| `enableStory` | Optional. Mit `view="gallery"`: startet in den Inhalten und bietet den Knopf „In Story Mode ansehen“ an. Bei `view="story"` immer an; `false` dort meldet einen Fehler. Standard: aus |
 | `height` | Höhe des Rahmens (Standard `80vh`); die Galerie scrollt darin |
 | `className` | Zusätzliche Klassen für den Rahmen |
 
@@ -63,7 +64,8 @@ library inside another application. It reads anonymously from the central
 instance. Install the `.tgz`, import `@ks/embed/styles.css` once, and render
 `<KnowledgeScoutExplorer baseUrl library view="gallery" locale />` as above;
 `view="story"` adds the story mode (topic overview, questions with cited
-sources) over an anonymous browser session.
+sources) over an anonymous browser session. With `view="gallery"`, `enableStory`
+starts in the gallery and offers the switch to the story mode.
 All styles are scoped to `.ks-embed`.
 
 ## Bauen (im Monorepo)

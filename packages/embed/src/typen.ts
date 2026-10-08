@@ -24,6 +24,13 @@ export interface KnowledgeScoutExplorerProps {
    * Fragen und Belege, anonym ueber die Sitzungskennung des Browsers).
    */
   view: 'gallery' | 'story'
+  /**
+   * Story-Modus aus der Galerie heraus anbieten: Mit `view="gallery"` startet
+   * das Embed in den Inhalten und zeigt den Knopf „In Story Mode ansehen".
+   * Bei `view="story"` ist er immer an (`false` dort ist ein Fehler).
+   * Standard: aus. Jede Frage kostet die Instanz einen Modell-Aufruf.
+   */
+  enableStory?: boolean
   /** Sprache der Oberflaeche und der Inhalte. */
   locale: KnowledgeScoutLocale
   /** Hoehe des Rahmens als CSS-Wert; die Galerie scrollt darin. Standard: `80vh`. */

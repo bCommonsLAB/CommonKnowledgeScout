@@ -12,12 +12,19 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { renderToString } from 'react-dom/server'
+import { Tooltip, TooltipTrigger } from '@ks/ui'
 
 vi.mock('@ks/module-explorer/react', async (original) => ({
   ...(await original<typeof import('@ks/module-explorer/react')>()),
-  // Die Galerie hat eigene Tests; hier geht es um die Huelle.
+  // Die Galerie hat eigene Tests; hier geht es um die Huelle. Der Tooltip steht
+  // fuer Galerie-Teile ohne eigenen TooltipProvider (Quellenverzeichnis): Ohne
+  // Provider im Rahmen wirft Radix beim Rendern (Nachweis 08.10.2026).
   GalleryRoot: ({ libraryIdProp, storyPanel, storyChronik, storyHeader }: { libraryIdProp?: string; storyPanel?: unknown; storyChronik?: unknown; storyHeader?: unknown }) => (
-    <div data-testid="galerie" data-story={[storyPanel, storyChronik, storyHeader].filter(Boolean).length}>{`galerie:${libraryIdProp}`}</div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div data-testid="galerie" data-story={[storyPanel, storyChronik, storyHeader].filter(Boolean).length}>{`galerie:${libraryIdProp}`}</div>
+      </TooltipTrigger>
+    </Tooltip>
   ),
 }))
 
@@ -70,6 +77,21 @@ describe('KnowledgeScoutExplorer', () => {
     unmount()
     render(<KnowledgeScoutExplorer {...GRUND} />)
     expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('0')
+  })
+
+  it('enableStory: view="gallery" bietet den Story-Modus an und startet in den Inhalten', async () => {
+    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } } })
+    render(<KnowledgeScoutExplorer {...GRUND} enableStory />)
+    expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('3')
+  })
+
+  it('enableStory={false} mit view="story" wird gemeldet, nicht still aufgeloest', () => {
+    const fehler = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    stubFetch({})
+    render(<KnowledgeScoutExplorer {...GRUND} view="story" enableStory={false} />)
+    expect(screen.getByRole('alert').textContent).toMatch(/widersprechen sich/)
+    expect(screen.queryByTestId('galerie')).toBeNull()
+    expect(fehler).toHaveBeenCalled()
   })
 
   it('legt alles in den Rahmen .ks-embed mit der gewuenschten Hoehe', async () => {

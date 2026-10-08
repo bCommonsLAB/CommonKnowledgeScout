@@ -16,7 +16,10 @@
  * - die Sprache als Prop — fuer die Oberflaeche und, als `Accept-Language`,
  *   fuer die Inhalte der Instanz,
  * - den Rahmen `.ks-embed`: Unter ihm liegen alle Stile (`@ks/embed/styles.css`),
- *   und in ihn rendern Dialoge und Menues (`PortalContainerProvider`).
+ *   und in ihn rendern Dialoge und Menues (`PortalContainerProvider`),
+ * - den `TooltipProvider`, den die Anwendung im Wurzel-Layout setzt: Ohne ihn
+ *   stuerzt jede Galerie-Komponente ab, die einen Tooltip ohne eigenen Provider
+ *   zeigt (Quellenverzeichnis beim Wechsel Story → Galerie, 08.10.2026).
  *
  * Falsche Props werden im Rahmen gemeldet, nicht still ersetzt. Die
  * oeffentlichen Typen stehen in `typen.ts`.
@@ -26,7 +29,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Provider as JotaiProvider, createStore } from 'jotai'
 import { createInstanceApi, type InstanceApi } from '@ks/api-client'
 import { SUPPORTED_LOCALES, type Locale } from '@ks/i18n'
-import { PortalContainerProvider } from '@ks/ui'
+import { PortalContainerProvider, TooltipProvider } from '@ks/ui'
 import { EmbedGalleryProviders } from '@ks/module-explorer/react'
 import { EmbedGalerie } from './embed-galerie'
 import { EmbedLocale } from './embed-locale'
@@ -38,18 +41,27 @@ import type {
 
 type Ansicht = KnowledgeScoutExplorerProps['view']
 const ANSICHTEN: readonly Ansicht[] = ['gallery', 'story']
-type Aufbau = { instanz: InstanceApi; locale: Locale; view: Ansicht } | { fehler: string }
+type Aufbau = { instanz: InstanceApi; locale: Locale; view: Ansicht; story: boolean } | { fehler: string }
 
 /** Prueft die Props und baut die Instanz — oder sagt, was nicht stimmt. */
-function aufbauen(baseUrl: string, view: string, locale: string): Aufbau {
+function aufbauen(baseUrl: string, view: string, locale: string, enableStory: boolean | undefined): Aufbau {
   if (!(ANSICHTEN as readonly string[]).includes(view)) {
     return { fehler: `Ansicht "${view}" gibt es im Embed nicht — erlaubt: ${ANSICHTEN.join(', ')}.` }
+  }
+  // Die Story-Ansicht ohne Story-Modus widerspricht sich — melden statt still eins von beiden nehmen.
+  if (view === 'story' && enableStory === false) {
+    return { fehler: 'view="story" und enableStory={false} widersprechen sich — fuer die Galerie ohne Story view="gallery" nehmen.' }
   }
   if (!(SUPPORTED_LOCALES as readonly string[]).includes(locale)) {
     return { fehler: `Sprache "${locale}" wird nicht unterstuetzt — erlaubt: ${SUPPORTED_LOCALES.join(', ')}.` }
   }
   try {
-    return { instanz: createInstanceApi({ baseUrl, acceptLanguage: locale }), locale: locale as Locale, view: view as Ansicht }
+    return {
+      instanz: createInstanceApi({ baseUrl, acceptLanguage: locale }),
+      locale: locale as Locale,
+      view: view as Ansicht,
+      story: view === 'story' || enableStory === true,
+    }
   } catch (e) {
     return { fehler: e instanceof Error ? e.message : String(e) }
   }
@@ -60,13 +72,14 @@ export function KnowledgeScoutExplorer({
   library,
   view,
   locale,
+  enableStory,
   height = '80vh',
   className,
 }: KnowledgeScoutExplorerProps) {
   // Der Rahmen ist zugleich das Ziel fuer Dialoge und Menues (Radix-Portale).
   const [rahmen, setRahmen] = useState<HTMLDivElement | null>(null)
   const store = useMemo(() => createStore(), [])
-  const aufbau = useMemo(() => aufbauen(baseUrl, view, locale), [baseUrl, view, locale])
+  const aufbau = useMemo(() => aufbauen(baseUrl, view, locale, enableStory), [baseUrl, view, locale, enableStory])
   const fehler = 'fehler' in aufbau ? aufbau.fehler : null
 
   useEffect(() => {
@@ -97,10 +110,12 @@ export function KnowledgeScoutExplorer({
         <JotaiProvider store={store}>
           <EmbedLocale locale={aufbau.locale} />
           <PortalContainerProvider container={rahmen}>
-            {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
-            <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
-              <EmbedGalerie slug={library} instanz={aufbau.instanz} view={aufbau.view} locale={aufbau.locale} />
-            </EmbedGalleryProviders>
+            <TooltipProvider>
+              {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
+              <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
+                <EmbedGalerie slug={library} instanz={aufbau.instanz} story={aufbau.story} locale={aufbau.locale} />
+              </EmbedGalleryProviders>
+            </TooltipProvider>
           </PortalContainerProvider>
         </JotaiProvider>
       )}
