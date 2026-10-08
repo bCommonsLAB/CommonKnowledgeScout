@@ -6,12 +6,16 @@
  * mit ⓘ-Erklaerung, rechts „Zurueck zu den Inhalten", die Knoepfe fuer
  * Chronik (Sheet, D4) und Quellen (Telefon, D12r). Kein Kopf der Seite mehr:
  * Die Themenuebersicht bringt ihren eigenen Titel mit (Owner 04.10.). Die
- * Perspektive hat hier keinen Knopf — im Embed kommt sie aus der Konfig.
+ * Perspektive bekommt einen Knopf, wenn der Montagepunkt sie zur Wahl stellt
+ * (`perspektive`, Embed mit `enablePerspective`, 09.10.); sonst gilt die
+ * Konfig der Library.
  */
 
-import { BookOpen, ChevronLeft, PanelLeft, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronLeft, PanelLeft, Settings2, Sparkles } from 'lucide-react'
 import { AnsichtsZeile, Button, useAnsichtErklaerung } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
+import { PerspektivePlaketten } from './perspektive/perspektive-plaketten'
+import type { PerspektivWahl } from './perspektive/regeln'
 
 export interface StoryKopfzeileProps {
   onBackToGallery: () => void
@@ -20,9 +24,11 @@ export interface StoryKopfzeileProps {
   onOpenQuellen?: () => void
   /** Erklaerung der Ansicht (Konfig `story.headline/intro` der Library); sonst die Uebersetzung. */
   erklaerung?: { titel?: string; text?: string }
+  /** Perspektive zur Wahl: Knopf „Perspektive anpassen" und die Wahl als Plaketten (ab xl). */
+  perspektive?: { wahl: PerspektivWahl; onOpen: () => void }
 }
 
-export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, erklaerung }: StoryKopfzeileProps) {
+export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, erklaerung, perspektive }: StoryKopfzeileProps) {
   const { t } = useTranslation()
   const zustand = useAnsichtErklaerung('story')
   const werkzeuge = (
@@ -43,6 +49,22 @@ export function StoryKopfzeile({ onBackToGallery, onOpenChronik, onOpenQuellen, 
         <ChevronLeft className="h-4 w-4" />
         <span className="hidden whitespace-nowrap md:inline">{t('gallery.backToGallery')}</span>
       </Button>
+      {perspektive && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={perspektive.onOpen}
+            className="gap-2"
+            aria-label={t('gallery.storyMode.perspective.adjustPerspective')}
+            title={t('gallery.storyMode.perspective.adjustPerspective')}
+          >
+            <Settings2 className="h-4 w-4" />
+            <span className="hidden whitespace-nowrap lg:inline">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
+          </Button>
+          <PerspektivePlaketten wahl={perspektive.wahl} className="hidden max-w-[18rem] xl:flex" />
+        </>
+      )}
     </>
   )
   return (

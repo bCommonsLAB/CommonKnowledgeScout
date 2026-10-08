@@ -9,8 +9,8 @@
  *   kein nacktes `fetch` — Test `tests/unit/packages/module-story/instanz-fetch.test.ts`
  * - kein `next/*`, kein Clerk, kein `@/` — Test `paket-schnitt.test.ts`
  * - Chat-Vokabular nur ueber `@ks/contracts`; `src/lib/chat` bleibt Server-Stack
- * - was das Paket nicht kennen darf (Anmeldung, Detailansicht, Perspektive),
- *   kommt als Slot oder Prop
+ * - was das Paket nicht kennen darf (Anmeldung, Detailansicht, wo die
+ *   Perspektive gespeichert wird), kommt als Slot oder Prop
  */
 
 export type { StoryAuswahl, ChronikFrage, ChronikSitzung, AktiveSitzung, StoryKopf } from './types'
@@ -43,3 +43,19 @@ export { useStorySitzungId, type UseStorySitzungIdResult } from './story-root/us
 export { useStoryKonversation, type UseStoryKonversationParams } from './story-root/use-story-konversation'
 export { StoryRoot, type StoryRootProps } from './story-root'
 export { StoryKopfzeile, type StoryKopfzeileProps } from './story-kopfzeile'
+
+// 09.10.2026: die Perspektiv-Wahl als Dialog — ersetzt die Perspektiv-Seite der App.
+export { PerspektiveDialog, type PerspektiveDialogProps } from './perspektive/perspektive-dialog'
+export { PerspektivePlaketten } from './perspektive/perspektive-plaketten'
+export {
+  umschalten,
+  gesperrt,
+  gewaehlt,
+  modelleFuerSprache,
+  modellNachSprachwechsel,
+  sprachenSortiert,
+  zumSpeichern,
+  kannSpeichern,
+  MAX_AUSWAHL,
+  type PerspektivWahl,
+} from './perspektive/regeln'
