@@ -79,6 +79,21 @@ describe('KnowledgeScoutExplorer', () => {
     expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('0')
   })
 
+  it('enableStory: view="gallery" bietet den Story-Modus an und startet in den Inhalten', async () => {
+    stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } } })
+    render(<KnowledgeScoutExplorer {...GRUND} enableStory />)
+    expect((await screen.findByTestId('galerie')).getAttribute('data-story')).toBe('3')
+  })
+
+  it('enableStory={false} mit view="story" wird gemeldet, nicht still aufgeloest', () => {
+    const fehler = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    stubFetch({})
+    render(<KnowledgeScoutExplorer {...GRUND} view="story" enableStory={false} />)
+    expect(screen.getByRole('alert').textContent).toMatch(/widersprechen sich/)
+    expect(screen.queryByTestId('galerie')).toBeNull()
+    expect(fehler).toHaveBeenCalled()
+  })
+
   it('legt alles in den Rahmen .ks-embed mit der gewuenschten Hoehe', async () => {
     stubFetch({ '/api/public/libraries/aeced': { ok: true, body: { library: oeffentlich } } })
 
