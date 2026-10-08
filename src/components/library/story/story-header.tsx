@@ -3,17 +3,15 @@
 import { Button } from '@ks/ui'
 import { Settings2, ChevronLeft, PanelLeft, BookOpen } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
-import { useActiveLibraryId } from '@ks/shell/react'
+import { useSetAtom } from 'jotai'
+import { storyPerspektiveDialogOffenAtom } from '@/atoms/story-perspektive-dialog-atom'
 
 interface StoryHeaderProps {
   /** Wenn true, werden Border und Padding entfernt (für sticky Header) */
   compact?: boolean
   /** Callback für Zurück-zur-Gallery Button */
   onBackToGallery?: () => void
-  /** Library-ID (optional, wird aus Atom verwendet falls nicht angegeben) */
-  libraryId?: string
   /** D4: Menue-Knopf unter `lg`, oeffnet die Chronik als Sheet; ohne Rueckruf kein Knopf. */
   onOpenChronik?: () => void
   /** D12r: oeffnet auf dem Telefon die Quellen (Blatt); ab md steht die Leiste rechts. */
@@ -24,42 +22,16 @@ interface StoryHeaderProps {
  * Header-Komponente für den Story-Modus.
  * 
  * Enthält:
- * - Button "Eigene Perspektive anpassen" und daneben die Perspektive als Plaketten (D9)
+ * - Button "Eigene Perspektive anpassen" und daneben die Perspektive als Plaketten (D9);
+ *   beide oeffnen den Perspektiv-Dialog (09.10.2026, vorher eine eigene Seite)
  * - Button "Zurück zur Gallery" (optional)
  */
-export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp, onOpenChronik, onOpenQuellen }: StoryHeaderProps) {
+export function StoryHeader({ compact = false, onBackToGallery, onOpenChronik, onOpenQuellen }: StoryHeaderProps) {
   const { t } = useTranslation()
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const activeLibraryId = useActiveLibraryId()
-  const libraryId = libraryIdProp || activeLibraryId
+  const perspektiveOeffnen = useSetAtom(storyPerspektiveDialogOffenAtom)
 
-  /**
-   * Handler für "Perspektive anpassen" Button
-   * Navigiert zur Perspective-Seite
-   */
   function handleAdjustPerspective() {
-    // Prüfe ob wir auf einer explore-Seite sind
-    const isExplorePage = pathname?.startsWith('/explore/')
-    if (isExplorePage) {
-      // Extrahiere Slug aus pathname
-      const slugMatch = pathname.match(/\/explore\/([^/]+)/)
-      if (slugMatch && slugMatch[1]) {
-        // Füge Query-Parameter hinzu, um zu signalisieren, dass wir vom Story Mode kommen
-        router.push(`/explore/${slugMatch[1]}/perspective?from=story`)
-        return
-      }
-    }
-    
-    // Für normale Library-Seiten: Navigiere zur Perspective-Seite mit libraryId
-    if (libraryId) {
-      // Erstelle URL mit allen aktuellen Query-Parametern (z.B. mode=story)
-      const params = new URLSearchParams(searchParams?.toString() || '')
-      params.set('libraryId', libraryId)
-      params.set('from', 'story')
-      router.push(`/library/gallery/perspective?${params.toString()}`)
-    }
+    perspektiveOeffnen(true)
   }
 
   return (
@@ -104,7 +76,7 @@ export function StoryHeader({ compact = false, onBackToGallery, libraryId: libra
           </Button>
         )}
 
-        {/* Perspektive-Button - navigiert zur Perspective-Seite */}
+        {/* Perspektive-Button - oeffnet den Perspektiv-Dialog */}
         <Button 
           variant="outline" 
           size="sm" 
@@ -116,7 +88,7 @@ export function StoryHeader({ compact = false, onBackToGallery, libraryId: libra
           <Settings2 className="h-4 w-4 shrink-0" />
           <span className="hidden whitespace-nowrap md:inline">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
         </Button>
-        {/* D9: Perspektive als Plaketten, Klick fuehrt wie der Knopf zur Perspektive-Seite */}
+        {/* D9: Perspektive als Plaketten, Klick oeffnet wie der Knopf den Dialog */}
         <PerspectiveDisplay variant="header" onClick={handleAdjustPerspective} />
       </div>
     </div>

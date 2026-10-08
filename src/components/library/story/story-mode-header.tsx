@@ -60,7 +60,7 @@ export function StoryModeHeader({ libraryId, onBackToGallery, onOpenChronik, onO
           onToggle: erklaerung.toggle,
           labels: { oeffnen: t('ansicht.erklaerungOeffnen'), schliessen: t('ansicht.erklaerungSchliessen') },
         }}
-        werkzeuge={<StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} libraryId={libraryId} />}
+        werkzeuge={<StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} />}
       />
     </div>
   )
