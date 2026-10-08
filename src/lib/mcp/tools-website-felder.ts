@@ -15,7 +15,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
-import { patchMetaDokumentFelder } from '@/lib/repositories/doc-meta-felder'
+import { patchChunkFelder, patchMetaDokumentFelder } from '@/lib/repositories/doc-meta-felder'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select'
@@ -32,6 +32,8 @@ interface Zeile {
   quelle?: string
   geaendert?: Record<string, unknown>
   metaDokument?: 'aktualisiert' | 'nicht_publiziert'
+  /** Welle C: Chunks, die dieselben Felder nachgezogen haben (Meta und Chunks laufen nicht auseinander). */
+  chunks?: number
   fehler?: string
 }
 
@@ -44,7 +46,7 @@ export function registerWebsiteFelderTool(server: McpServer): void {
         'Setzt flache Frontmatter-Felder (`felder`, Skalare) und ergaenzt/entfernt Listeneintraege ' +
         '(`listen`, `entfernen`, z. B. tags: ["fokus"]) an bis zu 30 Quellen. Schreibt zuerst das ' +
         'Frontmatter der Transformation am Twin, dann das Meta-Dokument (docMetaJson + gespiegelte ' +
-        'Facetten) — beide oder keins je Quelle. Gesperrt: Felder, die die Pipeline rechnet ' +
+        'Facetten) und dieselben Felder an den Chunks (zeilen[].chunks) — alles oder nichts je Quelle. Gesperrt: Felder, die die Pipeline rechnet ' +
         '(prioritaets_index, bewertung_*) und Pflichtfelder des Typs. Ist die Quelle nicht publiziert, ' +
         'wird nur der Twin geaendert und die Zeile sagt es. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
@@ -93,9 +95,12 @@ export function registerWebsiteFelderTool(server: McpServer): void {
                   templateName: artefakt.templateName, markdown: createMarkdownWithFrontmatter(body, neu),
                 })
                 const publiziert = await patchMetaDokumentFelder(libraryKey, sourceId, geaendert)
+                // Welle C: Index folgt dem Twin — die Chunks tragen die Facettenwerte als Kopie.
+                const chunks = publiziert ? await patchChunkFelder(libraryKey, sourceId, geaendert) : 0
                 zeilen.push({
                   sourceId, quelle: doc.sourceName, geaendert,
                   metaDokument: publiziert ? 'aktualisiert' : 'nicht_publiziert',
+                  ...(publiziert ? { chunks } : {}),
                 })
               } catch (error) {
                 zeilen.push({ sourceId, fehler: error instanceof Error ? error.message : String(error) })

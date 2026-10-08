@@ -41,6 +41,8 @@ import { registerTranskriptKorrigierenTool } from './tools-transkript-korrigiere
 import { registerJobTools } from './tools-jobs'
 import { registerBatchBilanzTool } from './tools-batch-bilanz'
 import { registerBestandTools } from './tools-bestand'
+import { registerIndexTools } from './tools-index'
+import { registerBatchNeustartTool } from './tools-batch-neustart'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -78,6 +80,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   // Welle A (Library-Betrieb): Index-Seite und Batches sichtbar machen, lesend.
   registerBestandTools(server)
   registerBatchBilanzTool(server)
+  // Welle C (Library-Betrieb): Index folgt dem Twin.
+  registerIndexTools(server)
+  registerBatchNeustartTool(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
