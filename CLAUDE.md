@@ -76,7 +76,7 @@ auf `docs/contracts/` (Zuordnung siehe Routing-Index oben):
 
 **Aufgaben-Skills** — führen eine konkrete Tätigkeit aus:
 `archiv-aufraeumen`, `integration-test`, `shadow-twin-verify`,
-`website-publishing`.
+`website-publishing`, `veranstaltung-aufbereiten`.
 
 ## Pläne
 

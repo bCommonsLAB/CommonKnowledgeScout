@@ -1,7 +1,7 @@
 ---
 name: veranstaltungen-ueber-die-bruecke
 overview: "Ordner mit Audio, PDF, Video und Bildern werden über die MCP-Brücke zu publizierten Seiten: Bestand erfassen, erschließen, Einheiten als Sammeldateien bilden, Mensch prüft Transkripte, transformieren, Rahmen setzen, publizieren, nachziehen. Verallgemeinert aus der Journalistenschulung (Oktober 2026). Vier Wellen (B, E, G, H) in der gemeinsamen Reihenfolge mit bruecke-library-betrieb; der Prüfschritt des Menschen bleibt in der KS-Oberfläche (Owner 08.10.2026). Konzept-Entwurf vom 08.10.2026; die ausführliche Fassung gehört ins Archiv, sobald die Brücke wieder erreichbar ist."
-status: geplant
+status: gebaut
 todos:
   - id: welle-b-optionen
     content: "Welle B Optionen durchreichen (vorher W1): quelle_erschliessen um speakerMode, audioPrompt, audioKeywords erweitern (Schlüssel AUDIO_CONTEXT_OPTION_KEYS), transformation_starten um slidesAsTable und appendixInSearch. Befund 08.10.: die Pipeline-Route liest die Optionen (readAudioContextOptions), die Brücke nutzt diese Route aber NICHT — quelle_erschliessen ruft enqueueSourceTranscribeJob, transformation_starten ruft enqueueTemplateOnTextJob; beide Job-Bauer in src/lib/external-jobs/enqueue-secretary-job.ts kennen die Optionen nicht und müssen sie als Job-Parameter aufnehmen. Kein stiller Default: resolveAudioJobContext und resolveAppendixDecision tragen die Quelle der Entscheidung bereits (job | library | default bzw. lauf | library | standard). Tests wie tests/unit/api/pipeline/process-audio-context.test.ts, nur für die Werkzeuge. ERLEDIGT 08.10.: transform-optionen.ts (P6 fuer alle vier Job-Bauer), audioContext in buildSourceTranscribeJob (nur Audio, Video wirft), erschliessen-wege.ts (zwei Wege mit Herkunft und naechstem Schritt — Owner 08.10.: mit Sprechererkennung ODER ohne und danach manuell pruefen), quelle_erschliessen mit sprecherErkennung/kontext/begriffe/folienAlsTabelle/anhangInSuche, transformation_starten in tools-transformation.ts mit P6, job_status.audioKontext, 2.42.0."
@@ -10,11 +10,11 @@ todos:
     content: "Welle E Einheiten (vorher W2 + W4; Owner 08.10.): (1) Der Transformations-Job schreibt beim Auflösen von _source_files die Quellen-Ids in das Twin-Dokument der Sammeldatei (neues Feld in MongoDB; bestehende Sammeldateien bekommen es mit der nächsten Transformation — für den Prüffall einmal transformation_starten erzwingen über die drei Sammeldateien). (2) sammeldatei_anlegen(ordner, dateiname, quellen[], medien[], vorlage?, titel?, include_self?) über buildCompositeReference aus src/lib/creation/composite-transcript.ts (kind composite-transcript, _source_files, _media_files), prüft vorher, dass jede Quelle existiert und ein Transkript hat, startet auf Wunsch transformation_starten; sammeldatei_pruefen(sourceId) über den Nur-Prüfen-Modus von resolveCompositeTranscript. Die Datei hat 863 Zeilen: wickeln, nicht erweitern. (3) abhaengige_dokumente(sourceId) als EINE Mongo-Abfrage über das neue Feld, je Sammeldatei Vorlage, Sprache und überholt (transformationUeberholt aus src/lib/transkript-korrektur/laden.ts); dazu die Rückfrage im Reiter Korrektur und in korrekturen_lesen. Prüffälle: die drei Sammeldateien der Journalistenschulung neu erzeugen und vergleichen; nach einer Korrektur an der Diskussion erscheinen die Sammeldateien 02 und 03 als überholt. ERLEDIGT 08.10.: Feld compositeSources + Index am Twin (shadow-twin-sammeldatei.ts), Resolver liefert sourceIds, Loader vermerkt sie bei jeder Transformation (merkeSammeldateiQuellen); sammeldatei_anlegen/sammeldatei_pruefen/abhaengige_dokumente in tools-sammeldatei.ts; abhaengigeSammeldateien in transkript_korrigieren, korrekturen_lesen (Arbeitsliste), Route und Reiter Korrektur; 2.43.0. Prueffall live offen."
     status: completed
   - id: welle-g-artefakt-lesen
-    content: "Welle G Helfer (vorher W5): artefakt_lesen(sourceId, kind, sprache?, vorlage?) liefert Transkript oder Transformation einer Quelle aus MongoDB über ladeTranskript bzw. getShadowTwinsBySourceIds, ohne Spiegel — nötig, damit ein Agent die Zuordnung in Station 3 aus den Transkriptanfängen ableiten kann, auch bei persistToFilesystem=false. Nur lesen; Body ohne Frontmatter optional."
-    status: pending
+    content: "Welle G Helfer (vorher W5): artefakt_lesen(sourceId, kind, sprache?, vorlage?) liefert Transkript oder Transformation einer Quelle aus MongoDB über ladeTranskript bzw. getShadowTwinsBySourceIds, ohne Spiegel — nötig, damit ein Agent die Zuordnung in Station 3 aus den Transkriptanfängen ableiten kann, auch bei persistToFilesystem=false. Nur lesen; Body ohne Frontmatter optional. ERLEDIGT 08.10.: artefakt-auswahl.ts + tools-artefakt.ts (artefakt_lesen mit Uebersicht der vorhandenen Artefakte, Fehler nennen das Vorhandene), 2.44.0."
+    status: completed
   - id: welle-h-drehbuch
-    content: "Welle H Drehbuch (vorher W7): Skill veranstaltung-aufbereiten nach dem Muster .claude/skills/archiv-aufraeumen: Stationen 1 bis 7 plus Nachziehen, je Station die Werkzeuge, die Bestätigungspunkte für den Owner (Library, Zuordnung der Einheiten, Freigabe der Veröffentlichung) und die Prüfpunkte (seite_pruefen, keine Antwort der falschen Person, kein Name ohne Beleg). Station 4 hält an: Hörfehler und Sprechernamen prüft der Mensch im Reiter „Korrektur“ der KS-Oberfläche (Owner 08.10.), der Skill nennt nur die Quellen, die dran sind, und fährt nach der Bestätigung mit abhaengige_dokumente fort. Braucht A bis E aus dem gemeinsamen Wellenplan."
-    status: pending
+    content: "Welle H Drehbuch (vorher W7): Skill veranstaltung-aufbereiten nach dem Muster .claude/skills/archiv-aufraeumen: Stationen 1 bis 7 plus Nachziehen, je Station die Werkzeuge, die Bestätigungspunkte für den Owner (Library, Zuordnung der Einheiten, Freigabe der Veröffentlichung) und die Prüfpunkte (seite_pruefen, keine Antwort der falschen Person, kein Name ohne Beleg). Station 4 hält an: Hörfehler und Sprechernamen prüft der Mensch im Reiter „Korrektur“ der KS-Oberfläche (Owner 08.10.), der Skill nennt nur die Quellen, die dran sind, und fährt nach der Bestätigung mit abhaengige_dokumente fort. Braucht A bis E aus dem gemeinsamen Wellenplan. ERLEDIGT 08.10.: .claude/skills/veranstaltung-aufbereiten/SKILL.md: sieben Stationen plus Nachziehen, drei Rueckfragen, Haltepunkt Station 4 in der KS-Oberflaeche, Kostenzahlen, Prueffpunkte; in CLAUDE.md eingetragen. Live-Prueffall mit dem Skill offen."
+    status: completed
 ---
 
 # Veranstaltungen über die Brücke aufbereiten
@@ -131,3 +131,11 @@ Rückfragen an den Menschen (Library, Zuordnung der Einheiten, Freigabe der
 Veröffentlichung) und einem Haltepunkt, an dem der Mensch Hörfehler und
 Namen im Reiter „Korrektur" der KS-Oberfläche prüft. Messen gegen das Drehbuch im Archiv (rund
 70 Minuten, davon 50 Minuten Mensch).
+
+## Stand 08.10.2026
+
+Die vier Wellen dieses Plans (B, E, G, H) sind gebaut (Werkzeugsatz 2.42.0 bis
+2.44.0, Skill `veranstaltung-aufbereiten`). Offen: der Prüffall für den ganzen
+Fluss mit dem Skill gegen den Ordner der Journalistenschulung, und der
+Heartbeat-Prüffall im Secretary. Die Wellen A, C, D, F liegen im Plan
+[`bruecke-library-betrieb.plan.md`](bruecke-library-betrieb.plan.md).

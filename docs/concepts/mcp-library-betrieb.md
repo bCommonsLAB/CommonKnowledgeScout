@@ -1,6 +1,6 @@
 # Library-Betrieb über die MCP-Brücke
 
-Stand 08.10.2026, Werkzeugsatz **2.43.0** (2.42.0 Welle B, 2.43.0 Welle E aus dem Veranstaltungs-Plan, siehe unten). Gebaut nach
+Stand 08.10.2026, Werkzeugsatz **2.44.0** (2.42.0 Welle B, 2.43.0 Welle E, 2.44.0 Welle G aus dem Veranstaltungs-Plan, siehe unten; das Drehbuch ist der Skill `veranstaltung-aufbereiten`). Gebaut nach
 [`docs/plans/geplant/bruecke-library-betrieb.plan.md`](../plans/geplant/bruecke-library-betrieb.plan.md)
 (Wellen A, C, D, F). Die Brücke war bis 2.37.0 eine Archiv-Brücke: sie
 pflegte Twins, Berichte und Website-Seiten. Seit 2.41.0 kann sie eine Library
@@ -98,3 +98,14 @@ dieselbe Regel wie der Badge im Reiter „Korrektur"). Beide Korrektur-Wege
 `korrekturen_lesen` nennen die abhängigen Sammeldateien. Sammeldateien, die
 vor Welle E zuletzt transformiert wurden, tragen das Feld erst nach dem
 nächsten Lauf; für den Prüffall einmal `transformation_starten` erzwingen.
+
+## Nachtrag Wellen G und H (2.44.0): Artefakte lesen, Drehbuch
+
+`artefakt_lesen` liefert Transkript oder Transformation einer Quelle aus
+MongoDB ohne Spiegel, Body ohne Frontmatter, auf `maxZeichen` gekürzt, mit
+Übersicht der vorhandenen Artefakte. Damit kann ein Agent die Zuordnung der
+Einheiten aus den Transkriptanfängen vorschlagen. Der Skill
+`veranstaltung-aufbereiten` (`.claude/skills/`) ist das Drehbuch über alle
+Werkzeuge: sieben Stationen plus Nachziehen, drei Rückfragen an den Menschen
+und der Haltepunkt in Station 4, an dem der Mensch das Transkript im Reiter
+„Korrektur" prüft.
