@@ -117,7 +117,14 @@ export function registerStorageAnlegenTools(server: McpServer): void {
             } catch {
               // Nicht auffindbar ist hier der Normalfall — genau deshalb legen wir an.
             }
-            const id = await ordnerSicherstellen(provider, pfad, elternAnlegen === true)
+            // Befund T0 (Brueckentest 2.44): Der Blattordner selbst fiel unter
+            // `elternAnlegen` — ein fehlender Ordner unter vorhandenem Eltern
+            // wurde abgewiesen. Die Schranke gilt nur fuer Zwischenordner.
+            const { eltern, name } = trenne(pfad)
+            const elternId = await ordnerSicherstellen(provider, eltern, elternAnlegen === true)
+            const id = vorhanden
+              ? await ordnerSicherstellen(provider, pfad, false)
+              : (await provider.createFolder(elternId, name)).id
             return jsonResult({ pfad: normalisiere(pfad), id, neuAngelegt: !vorhanden })
           },
         )

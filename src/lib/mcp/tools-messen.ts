@@ -16,6 +16,13 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { beantworteFrage } from '@/lib/chat/bruecke-frage'
 import { RETRIEVER_WAHL } from '@/lib/chat/golden-set/lauf'
+import {
+  ACCESS_PERSPECTIVE_ARRAY_ZOD_SCHEMA,
+  ANSWER_LENGTH_ZOD_ENUM,
+  CHARACTER_ARRAY_ZOD_SCHEMA,
+  SOCIAL_CONTEXT_ZOD_ENUM,
+  TARGET_LANGUAGE_ZOD_ENUM,
+} from '@/lib/chat/constants'
 import { getQueryLogById } from '@/lib/db/queries-repo'
 import { enqueueGoldenSetJob } from '@/lib/external-jobs/enqueue-golden-set'
 import { frageLogSicht } from './frage-log-sicht'
@@ -36,7 +43,11 @@ export function registerMessenTools(server: McpServer): void {
         'Stellt EINE Frage an den Story-Modus der Library auf demselben Weg wie die Stream-Route ' +
         '(Filter, Retriever-Entscheidung, Antwortregeln, Nachpruefung) und liefert Antwort, nummerierte ' +
         'Dokumente mit Facettenwerten, zitierte Nummern, nachpruefung und queryId. ohneCache: false ' +
-        'befragt vorher den Antwort-Cache (cacheTreffer: true). Dauert 10–40 s (Modellaufruf); fuer ' +
+        'befragt vorher den Antwort-Cache (cacheTreffer: true); ein frischer Aufruf schreibt den Cache auch mit ' +
+        'ohneCache: true. Perspektive (targetLanguage, character, accessPerspective, socialContext, genderInclusive, ' +
+        'answerLength) wie die Adresse des Story-Modus; Fehlendes kommt aus der Library-Konfiguration, answerLength ' +
+        'wie der Story-Modus "ausführlich". Der Story-Modus schickt die Werte der Besucherin — wer dessen Antwort ' +
+        'treffen will, gibt sie mit (z. B. targetLanguage "de"); die Antwort nennt die wirksame perspektive. Dauert 10–40 s (Modellaufruf); fuer ' +
         'ganze Sets golden_set_fahren. Schreibt nur einen Query-Log-Eintrag.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -45,16 +56,23 @@ export function registerMessenTools(server: McpServer): void {
         baseline: BASELINE,
         retriever: RETRIEVER,
         temperature: TEMPERATUR,
+        targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.optional().describe('Antwortsprache; Vorgabe Library ("global" verlangt eine Angabe)'),
+        character: CHARACTER_ARRAY_ZOD_SCHEMA.optional().describe('1–3 Charaktere; Vorgabe Library'),
+        accessPerspective: ACCESS_PERSPECTIVE_ARRAY_ZOD_SCHEMA.optional().describe('1–3 Zugaenge; Vorgabe Library'),
+        socialContext: SOCIAL_CONTEXT_ZOD_ENUM.optional().describe('Sprachstil; Vorgabe Library'),
+        genderInclusive: z.boolean().optional().describe('Vorgabe Library'),
+        answerLength: ANSWER_LENGTH_ZOD_ENUM.optional().describe('Vorgabe "ausführlich" wie der Story-Modus'),
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, frage, ohneCache, baseline, retriever, temperature }) => {
+    async ({ libraryId, frage, ohneCache, baseline, retriever, temperature, targetLanguage, character, accessPerspective, socialContext, genderInclusive, answerLength }) => {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
         const antwort = await beantworteFrage({
           libraryId, userEmail, frage, ohneCache: ohneCache ?? false, baseline: baseline ?? false,
           retriever: retriever ?? 'auto', temperature: temperature ?? 0.3,
+          perspektive: { targetLanguage, character, accessPerspective, socialContext, genderInclusive, answerLength },
         })
         return jsonResult(antwort)
       } catch (error) {

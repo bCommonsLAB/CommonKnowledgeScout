@@ -31,7 +31,8 @@ export function registerArtefaktTool(server: McpServer): void {
         'einer Quelle aus dem Twin-Dokument in MongoDB — ohne Spiegel, also auch in Libraries ohne ' +
         'Filesystem-Persistierung. Ohne vorlage gewinnt die juengste Transformation der Sprache, die ' +
         'Antwort nennt sie. Fehlt das Artefakt, nennt der Fehler, was es stattdessen gibt. Text ' +
-        'standardmaessig ohne Frontmatter und auf maxZeichen gekuerzt (gekuerzt: true). Liest nur.',
+        'standardmaessig ohne Frontmatter und auf maxZeichen gekuerzt (gekuerzt: true); lange Frontmatter-Felder ' +
+        'auf min(maxZeichen, 1000) Zeichen (frontmatterGekuerzt nennt sie). Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         sourceId: z.string().min(1).optional().describe('Storage-Id der QUELLE (z. B. der .m4a)'),
