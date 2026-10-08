@@ -39,6 +39,8 @@ import { registerErschliessenTools } from './tools-erschliessen'
 import { registerKorrekturTools } from './tools-korrekturen'
 import { registerTranskriptKorrigierenTool } from './tools-transkript-korrigieren'
 import { registerJobTools } from './tools-jobs'
+import { registerBatchBilanzTool } from './tools-batch-bilanz'
+import { registerBestandTools } from './tools-bestand'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -73,6 +75,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerJobTools(server)
   registerJobAufraeumenTool(server)
   registerJobAbbrechenTool(server)
+  // Welle A (Library-Betrieb): Index-Seite und Batches sichtbar machen, lesend.
+  registerBestandTools(server)
+  registerBatchBilanzTool(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
