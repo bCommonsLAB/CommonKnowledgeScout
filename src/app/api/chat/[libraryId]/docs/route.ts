@@ -2,6 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { baueSuchFilter } from '@/lib/chat/docs-suchfilter'
 import { resolveFacetScope } from '@/lib/chat/facet-scope'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
@@ -157,40 +158,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const groupOffset = useGrouped ? Math.max(0, parseInt(groupOffsetParam, 10) || 0) : 0
     const groupsLimit = useGrouped ? Math.min(50, Math.max(1, parseInt(groupsLimitParam, 10) || 5)) : 5
 
-    // Search param - Dynamisch in allen String/String[] Facetten suchen
+    // Suche: derselbe Filter wie in der Bruecke (`dokumente_auflisten`),
+    // siehe docs-suchfilter.ts.
     const search = url.searchParams.get('search')
     if (search) {
-      const searchRegex = { $regex: search, $options: 'i' }
-      const searchFields: Array<Record<string, unknown>> = [
-        { title: searchRegex },
-        { shortTitle: searchRegex },
-        { 'docMetaJson.title': searchRegex }, // Auch in docMetaJson suchen
-        { 'docMetaJson.shortTitle': searchRegex }
-      ]
-      
-      // Füge alle String/String[] Facetten dynamisch zur Suche hinzu
-      for (const def of defs) {
-        if (def.type === 'string' || def.type === 'string[]') {
-          searchFields.push({ [def.metaKey]: searchRegex })
-          searchFields.push({ [`docMetaJson.${def.metaKey}`]: searchRegex })
-        } else if (def.type === 'number' || def.type === 'integer-range') {
-          // Zahl-Facetten (z. B. massnahme_nr) durchsuchbar machen — egal ob als
-          // Zahl oder String gespeichert: Wert per $toString in Text wandeln und
-          // gegen die (Teilstring-)Suche matchen. Sonst findet die Freitextsuche
-          // z. B. eine Maßnahmennummer nie (Regex greift nicht auf Number-Feldern).
-          searchFields.push({
-            $expr: {
-              $regexMatch: {
-                input: { $toString: { $ifNull: [`$docMetaJson.${def.metaKey}`, ''] } },
-                regex: search,
-                options: 'i',
-              },
-            },
-          })
-        }
-      }
-      
-      filter.$or = searchFields
+      filter.$or = baueSuchFilter(defs, search)
     }
 
     // Doc-Publication: Owner/Moderatoren sehen alle Dokumente, anonyme und

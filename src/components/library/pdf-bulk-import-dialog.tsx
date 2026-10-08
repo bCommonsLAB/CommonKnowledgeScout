@@ -30,8 +30,7 @@ import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 // Zentrale Medientyp-Erkennung für alle unterstützten Dateitypen
 import { getMediaKind, isPipelineSupported } from '@/lib/media-types';
 // Shadow-Twin-Ordner erkennen (Prefix '_' oder '.'), damit sie beim Scan übersprungen werden
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
-import { shouldFilterShadowTwinFolders } from '@ks/util';
+import { istVomBatchAusgeschlossen } from '@/lib/pipeline/batch-zaun';
 import { matchesGlobFileName } from '@/lib/strings/glob-file-name';
 
 // Rückwärtskompatible Props-Benennung (Dialog unterstützt jetzt alle Medientypen)
@@ -45,6 +44,8 @@ interface ScanStats {
   totalFiles: number;
   skippedExisting: number;
   toProcess: number;
+  /** Ordner, die der Zaun ausgelassen hat (Twin-Ordner `_…`, `test/`). */
+  ordnerUebersprungen: number;
 }
 
 /**
@@ -86,7 +87,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [isEnqueuing, setIsEnqueuing] = useState(false);
   const [candidates, setCandidates] = useState<Array<{ file: StorageItem; parentId: string }>>([]);
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
-  const [stats, setStats] = useState<ScanStats>({ totalFiles: 0, skippedExisting: 0, toProcess: 0 });
+  const [stats, setStats] = useState<ScanStats>({ totalFiles: 0, skippedExisting: 0, toProcess: 0, ordnerUebersprungen: 0 });
   const [batchName, setBatchName] = useState<string>('');
   /** Nach Dateinamen-Muster (Glob mit *); leer = alle Kandidaten */
   const [fileNamePattern, setFileNamePattern] = useState<string>('');
@@ -131,11 +132,12 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
   // rekursiver Scan
   const scanFolder = useCallback(async (folderId: string) => {
-    if (!provider) return { total: 0, skipped: 0, selected: [] as Array<{ file: StorageItem; parentId: string }>, previews: [] as string[] };
+    if (!provider) return { total: 0, skipped: 0, ordnerUebersprungen: 0, selected: [] as Array<{ file: StorageItem; parentId: string }>, previews: [] as string[] };
 
     const stack: string[] = [folderId];
     let total = 0;
     let skipped = 0;
+    let ordnerUebersprungen = 0;
     const selected: Array<{ file: StorageItem; parentId: string }> = [];
     const previews: string[] = [];
 
@@ -149,15 +151,16 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         continue;
       }
 
-      // Shadow-Twin-Ordner nur überspringen, wenn Filesystem-Persistierung aktiv ist.
-      // Ohne FS-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
-      const hideTwinFolders = shouldFilterShadowTwinFolders(
-        activeLibrary?.config?.shadowTwin as { persistToFilesystem?: boolean } | undefined
-      );
-      const folders = items.filter(
-        (i) => i.type === 'folder' && (!hideTwinFolders || !isShadowTwinFolderName(i.metadata.name))
-      );
-      folders.forEach((f) => stack.push(f.id));
+      // Zaun (Owner 08.10.2026, gemeinsam mit der Bruecke): Twin-Ordner `_…`
+      // und `test/` betritt ein Stapel nie — unabhaengig von der
+      // Filesystem-Persistierung, siehe batch-zaun.ts.
+      for (const folder of items.filter((i) => i.type === 'folder')) {
+        if (istVomBatchAusgeschlossen(folder.metadata.name)) {
+          ordnerUebersprungen++;
+          continue;
+        }
+        stack.push(folder.id);
+      }
 
       const files = items.filter((i) => i.type === 'file');
       for (const file of files) {
@@ -181,7 +184,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       }
     }
 
-    return { total, skipped, selected, previews };
+    return { total, skipped, ordnerUebersprungen, selected, previews };
   }, [provider, getBaseName, hasTwinInFolder, activeLibraryId]);
 
   /**
@@ -193,6 +196,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const buildSelectionCandidates = useCallback((): {
     total: number;
     skipped: number;
+    ordnerUebersprungen: number;
     selected: Array<{ file: StorageItem; parentId: string }>;
   } => {
     let total = 0;
@@ -209,7 +213,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       }
       selected.push({ file, parentId: file.parentId });
     }
-    return { total, skipped, selected };
+    // Auswahl-Modus betritt keine Ordner — der Zaun hat nichts auszulassen.
+    return { total, skipped, ordnerUebersprungen: 0, selected };
   }, [selectedFiles]);
 
   /**
@@ -266,7 +271,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       }
       if (mySeq !== scanSeqRef.current) return;
       setPreviewItems(details);
-      setStats({ totalFiles: result.total, skippedExisting: result.skipped, toProcess: result.selected.length });
+      setStats({ totalFiles: result.total, skippedExisting: result.skipped, toProcess: result.selected.length, ordnerUebersprungen: result.ordnerUebersprungen });
     } finally {
       // isScanning nur zuruecksetzen, wenn ICH der neueste Scan war — sonst
       // wuerde der noch laufende neueste Scan optisch beendet wirken.
@@ -565,6 +570,11 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                 <div>
                   <span className="text-muted-foreground">Ignoriert:</span> <span className="font-medium">{stats.skippedExisting}</span>
                 </div>
+                {stats.ordnerUebersprungen > 0 ? (
+                  <div title="Twin-Ordner (_…) und test/-Ordner werden nie mit verarbeitet">
+                    <span className="text-muted-foreground">Ordner ausgelassen:</span> <span className="font-medium">{stats.ordnerUebersprungen}</span>
+                  </div>
+                ) : null}
                 {fileNamePattern.trim() ? (
                   <div>
                     <span className="text-muted-foreground">Passend zum Muster:</span>{' '}

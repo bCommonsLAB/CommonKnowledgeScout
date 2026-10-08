@@ -26,6 +26,7 @@ import { FileLogger } from '@/lib/debug/logger'
 import { getSelfBaseUrl } from '@/lib/env'
 import type { PhasePolicies } from '@/lib/processing/phase-policy'
 import type { ExternalJob } from '@/types/external-job'
+import { transformParameter, type TransformOptionen } from './transform-optionen'
 
 export interface SourceRef {
   itemId: string
@@ -68,10 +69,23 @@ export function buildSourceTranscribeJob(args: {
    * etwas zu schreiben.
    */
   erzwingen?: boolean
+  /**
+   * Welle B: Audio-Kontext als Job-Optionen (Schluessel AUDIO_CONTEXT_OPTION_KEYS,
+   * typgeprueft ueber readAudioContextOptions). Nur Audio: die Start-Route
+   * loest den Kontext nur fuer job_type audio auf — bei Video waere er still
+   * verloren, deshalb ein Fehler statt eines stummen Jobs.
+   */
+  audioContext?: Record<string, unknown>
+  /** Welle B: Lauf-Optionen der Transformation (P6), nur mit Template sinnvoll. */
+  optionen?: TransformOptionen
 }): EnqueueJob {
   const template = args.template?.trim() || undefined
   const llmModel = args.llmModel?.trim() || undefined
   const extractPolicy = args.erzwingen === true ? 'force' : 'do'
+  const audioContext = args.audioContext ?? {}
+  if (Object.keys(audioContext).length > 0 && args.mediaType !== 'audio') {
+    throw new Error(`Sprecher-Erkennung, Kontext und Begriffe gibt es nur fuer Audio — "${args.source.name}" ist ${args.mediaType}`)
+  }
   const policies: PhasePolicies = template
     ? { extract: extractPolicy, metadata: 'do', ingest: 'do' }
     : { extract: extractPolicy, metadata: 'ignore', ingest: 'ignore' }
@@ -94,10 +108,11 @@ export function buildSourceTranscribeJob(args: {
         itemId: args.source.itemId,
         parentId: args.source.parentId,
       },
-      options: { targetLanguage: args.targetLanguage ?? 'de', sourceLanguage: 'auto', useCache: true },
+      options: { targetLanguage: args.targetLanguage ?? 'de', sourceLanguage: 'auto', useCache: true, ...audioContext },
     },
     parameters: {
       ...(template ? { template } : {}),
+      ...transformParameter(args.optionen),
       // Welle ST8 (Live-Befund 28.08.2026): Ohne dieses Feld faellt der
       // Secretary auf SEINEN Default zurueck — und der stand tagelang auf
       // `deepseek/deepseek-v4-flash-latest`, einer Modell-Id, die es bei
@@ -131,6 +146,8 @@ export function buildTemplateOnTextJob(args: {
   targetLanguage?: string
   /** Template-Gate uebergehen (`policies.metadata: 'force'`) — siehe enqueue-markdown-job. */
   erzwingen?: boolean
+  /** Welle B: Lauf-Optionen der Transformation (P6). */
+  optionen?: TransformOptionen
 }): EnqueueJob {
   const template = args.template.trim()
   const llmModel = args.llmModel?.trim() || undefined
@@ -158,6 +175,7 @@ export function buildTemplateOnTextJob(args: {
     },
     parameters: {
       template,
+      ...transformParameter(args.optionen),
       // Welle ST8: siehe buildSourceTranscribeJob — ohne dieses Feld faellt
       // der Secretary auf seinen eigenen Default zurueck, und der war am
       // 28.08.2026 eine ungueltige Modell-Id.
@@ -178,6 +196,8 @@ export async function enqueueSourceTranscribeJob(args: {
   llmModel?: string
   targetLanguage?: string
   erzwingen?: boolean
+  audioContext?: Record<string, unknown>
+  optionen?: TransformOptionen
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const { jobId, jobSecretHash } = newJobIdentity(repo)
@@ -254,6 +274,7 @@ export async function enqueueTemplateOnTextJob(args: {
   llmModel?: string
   targetLanguage?: string
   erzwingen?: boolean
+  optionen?: TransformOptionen
   extractedText: string
 }): Promise<{ jobId: string }> {
   if (!args.extractedText.trim()) throw new Error('extractedText ist leer — nichts zu transformieren')

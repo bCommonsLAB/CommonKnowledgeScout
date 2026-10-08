@@ -15,6 +15,7 @@ import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { mediaKindToJobType } from '@/lib/media-types'
 import type { ExternalJob } from '@/types/external-job'
+import { transformParameter, type TransformOptionen } from './transform-optionen'
 import type { SourceRef } from './enqueue-secretary-job'
 
 /** Ueber die Bruecke erschliessbare Dokument-Arten (Rest: siehe media-types). */
@@ -49,6 +50,8 @@ export async function enqueueSourceDocumentJob(args: {
   targetLanguage?: string
   /** Welle ST11: Extract-Gate uebergehen — siehe `buildSourceTranscribeJob`. */
   erzwingen?: boolean
+  /** Welle B: Lauf-Optionen der Transformation (P6), nur mit Template sinnvoll. */
+  optionen?: TransformOptionen
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()
@@ -94,6 +97,7 @@ export async function enqueueSourceDocumentJob(args: {
     parameters: {
       targetLanguage,
       ...(template ? { template } : {}),
+      ...transformParameter(args.optionen),
       // Welle ST8 (Live-Befund 28.08.2026): Ohne dieses Feld faellt der
       // Secretary auf SEINEN Default zurueck — und der stand tagelang auf
       // `deepseek/deepseek-v4-flash-latest`, einer Modell-Id, die es bei

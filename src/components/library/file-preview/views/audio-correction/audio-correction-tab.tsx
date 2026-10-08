@@ -109,6 +109,12 @@ export function AudioCorrectionTab(props: Props) {
                   {k.ergebnis.transformationen.length} Transformation(en) sind jetzt ueberholt &mdash; im Reiter &bdquo;Transformation&ldquo; neu generieren.
                 </div>
               )}
+              {k.ergebnis.geschrieben && (k.ergebnis.abhaengigeSammeldateien?.length ?? 0) > 0 && (
+                <div className="text-amber-700 dark:text-amber-400">
+                  {k.ergebnis.abhaengigeSammeldateien?.length} Sammeldatei(en) enthalten diese Quelle und sind jetzt ueberholt:{' '}
+                  {k.ergebnis.abhaengigeSammeldateien?.map((a) => a.sourceName).join(', ')}
+                </div>
+              )}
             </div>
           )}
         </>

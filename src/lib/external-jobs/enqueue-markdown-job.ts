@@ -18,6 +18,7 @@ import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import type { ExternalJob } from '@/types/external-job'
 import type { SourceRef } from './enqueue-secretary-job'
+import { transformParameter, type TransformOptionen } from './transform-optionen'
 
 export type MarkdownJob = Omit<ExternalJob, 'createdAt' | 'updatedAt'> & {
   steps: NonNullable<ExternalJob['steps']>
@@ -40,6 +41,8 @@ export function buildSourceMarkdownJob(args: {
    * und meldet trotzdem `completed` (Befund 21.09.2026).
    */
   erzwingen?: boolean
+  /** Welle B: Lauf-Optionen der Transformation (P6). */
+  optionen?: TransformOptionen
 }): MarkdownJob {
   const template = args.template.trim()
   if (!template) throw new Error('template ist Pflicht fuer Markdown-Transformationen')
@@ -76,6 +79,7 @@ export function buildSourceMarkdownJob(args: {
     parameters: {
       targetLanguage,
       template,
+      ...transformParameter(args.optionen),
       // Welle ST8: ohne dieses Feld nimmt der Secretary seinen eigenen Default.
       ...(llmModel ? { llmModel } : {}),
       phases: { extract: false, template: true, ingest: true },
@@ -93,6 +97,7 @@ export async function enqueueSourceMarkdownJob(args: {
   llmModel?: string
   targetLanguage?: string
   erzwingen?: boolean
+  optionen?: TransformOptionen
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()

@@ -27,8 +27,8 @@ const GALLERY = z.object({
   filterDescription: TEXT.optional(), menuLabel: z.string().max(60).optional(), moreLinkLabel: z.string().max(60).optional(),
 }).strict()
 
-/** Sicht auf die Einstellungen ohne Geheimnis (CLAUDE.md: Token-Status statt Token-Wert). */
-function sicht(pub: PublicPublishing | undefined) {
+/** Sicht auf die Einstellungen ohne Geheimnis (CLAUDE.md: Token-Status statt Token-Wert). Auch fuer konfiguration_lesen (Welle D). */
+export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
   const slug = pub?.slugName?.trim() || null
   return {
     isPublic: pub?.isPublic === true,
@@ -65,7 +65,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
     async ({ libraryId }) => {
       try {
         const library = await requireLibrary(mcpUserEmail(), libraryId)
-        return jsonResult(sicht(library.config?.publicPublishing))
+        return jsonResult(veroeffentlichungSicht(library.config?.publicPublishing))
       } catch (error) {
         return errorResult(error)
       }
@@ -132,7 +132,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
             }
             const geaendert = geaenderteFelder(alt, neu)
             if (geaendert.length === 0) {
-              return jsonResult({ geaendert: [], veroeffentlichung: sicht(alt), hinweis: 'Nichts geaendert' })
+              return jsonResult({ geaendert: [], veroeffentlichung: veroeffentlichungSicht(alt), hinweis: 'Nichts geaendert' })
             }
             const ok = await service.updateLibrary(userEmail, {
               ...library, config: { ...library.config, publicPublishing: neu },
@@ -140,7 +140,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
             if (!ok) throw new Error('Library konnte nicht gespeichert werden')
             return jsonResult({
               geaendert,
-              veroeffentlichung: sicht(neu),
+              veroeffentlichung: veroeffentlichungSicht(neu),
               hinweis: neu.isPublic && !alt?.isPublic
                 ? 'Die Library ist jetzt OEFFENTLICH: Galerie und Dokumente sind anonym lesbar.'
                 : null,

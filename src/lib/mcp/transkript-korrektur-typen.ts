@@ -83,6 +83,8 @@ export interface KorrekturErgebnis {
   revision: { revised_by: string; revised_at: string; revision_note: string }
   transformationen: TransformationZeile[]
   offeneKorrekturauftraege: OffenerKorrekturauftrag[]
+  /** Welle E: Sammeldateien, die diese Quelle enthalten — nach der Korrektur ueberholt. */
+  abhaengigeSammeldateien: Array<{ sourceId: string; sourceName: string; ueberholt: boolean; ohneTransformation: boolean }>
 }
 
 export interface KorrekturLauf {

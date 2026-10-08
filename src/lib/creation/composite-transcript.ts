@@ -137,6 +137,12 @@ export interface CompositeResolveResult {
   markdown: string
   /** Quellen, deren Transkript nicht geladen werden konnte */
   unresolvedSources: string[]
+  /**
+   * Welle E: Storage-Ids der aufgeloesten `_source_files` (in Reihenfolge der
+   * Eintraege; nicht gefundene fehlen). Der Loader vermerkt sie am Twin der
+   * Sammeldatei, damit Abhaengige ohne Storage-Scan auffindbar sind.
+   */
+  sourceIds: string[]
 }
 
 /** Internes Zwischenergebnis pro Quelle bei Resolution */
@@ -429,7 +435,7 @@ export async function resolveCompositeTranscript(
   }
 
   if (options.nurQuellenPruefen === true) {
-    return { markdown: '', unresolvedSources }
+    return { markdown: '', unresolvedSources, sourceIds }
   }
 
   // Bilder aus `_media_files` (Pfade wie bei `_source_files`) als Fragmente am
@@ -494,7 +500,7 @@ export async function resolveCompositeTranscript(
     markdownLength: resolvedMarkdown.length,
   })
 
-  return { markdown: resolvedMarkdown, unresolvedSources }
+  return { markdown: resolvedMarkdown, unresolvedSources, sourceIds }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

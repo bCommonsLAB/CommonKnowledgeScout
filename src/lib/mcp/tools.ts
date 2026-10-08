@@ -36,9 +36,18 @@ import {
   resolveScope,
 } from './tool-shared'
 import { registerErschliessenTools } from './tools-erschliessen'
+import { registerTransformationTool } from './tools-transformation'
 import { registerKorrekturTools } from './tools-korrekturen'
 import { registerTranskriptKorrigierenTool } from './tools-transkript-korrigieren'
 import { registerJobTools } from './tools-jobs'
+import { registerBatchBilanzTool } from './tools-batch-bilanz'
+import { registerBestandTools } from './tools-bestand'
+import { registerIndexTools } from './tools-index'
+import { registerBatchNeustartTool } from './tools-batch-neustart'
+import { registerKonfigurationTools } from './tools-konfiguration'
+import { registerMessenTools } from './tools-messen'
+import { registerSammeldateiTools } from './tools-sammeldatei'
+import { registerArtefaktTool } from './tools-artefakt'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -62,6 +71,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerOrdnerTools(server)
   registerStorageTools(server)
   registerErschliessenTools(server)
+  registerTransformationTool(server)
   registerKorrekturTools(server)
   registerTranskriptKorrigierenTool(server)
   registerVorlagenTool(server)
@@ -73,6 +83,20 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerJobTools(server)
   registerJobAufraeumenTool(server)
   registerJobAbbrechenTool(server)
+  // Welle A (Library-Betrieb): Index-Seite und Batches sichtbar machen, lesend.
+  registerBestandTools(server)
+  registerBatchBilanzTool(server)
+  // Welle C (Library-Betrieb): Index folgt dem Twin.
+  registerIndexTools(server)
+  registerBatchNeustartTool(server)
+  // Welle D (Library-Betrieb): Konfiguration ist Vertrag.
+  registerKonfigurationTools(server)
+  // Welle F (Library-Betrieb): Messen vor Aendern.
+  registerMessenTools(server)
+  // Welle E (Veranstaltungen): Einheiten bilden und Abhaengige finden.
+  registerSammeldateiTools(server)
+  // Welle G: Artefakte ohne Spiegel lesen.
+  registerArtefaktTool(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)

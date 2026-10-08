@@ -234,6 +234,45 @@ export class ExternalJobsRepository {
     return { requeued: false, attempts, finalStatus: 'failed' };
   }
 
+  /**
+   * Stellt einen Job fuer einen Neustart zurueck in die Warteschlange (Welle C,
+   * `batch_neustart`): Status `queued`, Fehler und Prozess-Id weg, Versuchs-
+   * zaehler auf null — der Worker claimt ihn dann wie einen neuen Job und die
+   * Start-Route laeuft wie beim Knopf im Job-Monitor. Laufende Jobs werden
+   * NICHT angefasst (false); wer sie wegraeumen will, nimmt den Reaper.
+   */
+  async requeueForRestart(jobId: string): Promise<boolean> {
+    const col = await this.getCollection();
+    const res = await col.updateOne(
+      { jobId, status: { $ne: 'running' } },
+      {
+        $set: { status: 'queued', updatedAt: new Date(), workerStartAttempts: 0 },
+        $unset: { error: '', processId: '' },
+      }
+    );
+    if (res.modifiedCount === 1) {
+      await this.traceAddEvent(jobId, {
+        spanId: 'job', name: 'restart_requeued', level: 'info',
+        message: 'Job fuer Neustart zurueck in die Warteschlange gestellt (batch_neustart)',
+      });
+    }
+    return res.modifiedCount === 1;
+  }
+
+  /**
+   * Fortschritt einer in-process-Phase nach `job.logs` schreiben (Welle F,
+   * phase-golden-set): dort liest `job_status` Phase, Fortschritt und
+   * Meldung; `updatedAt` zaehlt zugleich als Lebenszeichen fuer den Reaper.
+   */
+  async pushLog(jobId: string, entry: { phase: string; progress?: number; message?: string }): Promise<void> {
+    const col = await this.getCollection();
+    const now = new Date();
+    await col.updateOne(
+      { jobId },
+      { $set: { updatedAt: now }, $push: { logs: { timestamp: now, ...entry } } }
+    );
+  }
+
   async setResult(jobId: string, payload: ExternalJob['payload'], result: ExternalJob['result']): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne(

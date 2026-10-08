@@ -31,6 +31,7 @@ import type { Library } from '@/types/library'
 import { normalisiere } from './storage/adressierung'
 import { wendeKorrekturAn } from '@/lib/transkript-korrektur/anwenden'
 import { schreibeTranskriptKorrektur, transformationenVon } from '@/lib/transkript-korrektur/schreiben'
+import { abhaengigeSammeldateien } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
 import {
   KeinSpiegelError,
   KeinTranskriptError,
@@ -124,9 +125,13 @@ export async function korrigiereTranskript(args: KorrekturLauf): Promise<Korrekt
   const offene = sammleKorrekturen([{ sourceId: doc.sourceId, sourceName: doc.sourceName, parentId: doc.parentId, transkript: meta }])
     .filter((auftrag) => auftrag.kind === 'transcript')
     .map((auftrag) => ({ auftrag: auftrag.auftrag, von: auftrag.von, at: auftrag.at }))
+  // Welle E: Sammeldateien mit dieser Quelle — nach der Korrektur sind ihre Transformationen ueberholt.
+  const abhaengige = (await abhaengigeSammeldateien({ libraryId: library.id, sourceId: doc.sourceId, revisedAt: revision.revised_at }))
+    .map((a) => ({ sourceId: a.sourceId, sourceName: a.sourceName, ueberholt: a.ueberholt, ohneTransformation: a.ohneTransformation }))
   const basis = {
     pfad: spiegel.pfad, id: spiegel.fileId, versionVorher: ifVersion, ersetzungen: belege, revision,
     transformationen: transformationenVon(doc, twinOrdnerPfad), offeneKorrekturauftraege: offene,
+    abhaengigeSammeldateien: abhaengige,
   }
   if (args.nurVorschau) return { ...basis, geschrieben: false, versionNachher: null }
 

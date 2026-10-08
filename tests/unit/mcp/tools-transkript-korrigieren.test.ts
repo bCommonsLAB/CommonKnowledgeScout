@@ -40,6 +40,8 @@ vi.mock('@/lib/repositories/shadow-twin-repo', async (importOriginal) => {
   return { ...original, getShadowTwinsBySourceIds: h.getShadowTwinsBySourceIds }
 })
 vi.mock('@/lib/shadow-twin/artifact-resolver', () => ({ resolveArtifact: h.resolveArtifact }))
+// Welle E: abhaengige Sammeldateien kommen aus einer eigenen Mongo-Abfrage — hier leer.
+vi.mock('@/lib/shadow-twin/sammeldatei-abhaengigkeit', () => ({ abhaengigeSammeldateien: async () => [] }))
 vi.mock('@/lib/shadow-twin/store/shadow-twin-service', () => ({
   ShadowTwinService: class {
     upsertMarkdown = h.upsertMarkdown

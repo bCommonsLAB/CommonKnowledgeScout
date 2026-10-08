@@ -1,36 +1,42 @@
 /**
- * B2 — Feld-Patch am Meta-Dokument: docMetaJson UND gespiegelte Facetten.
+ * Welle C — Feld-Patches treffen Meta-Dokument (docMetaJson + Spiegel) UND
+ * die Chunks derselben Quelle; leere Patches schreiben nichts.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const h = vi.hoisted(() => ({ updateOne: vi.fn(async () => ({ matchedCount: 1 })) }))
+const h = vi.hoisted(() => ({ updateOne: vi.fn(), updateMany: vi.fn() }))
 vi.mock('@/lib/repositories/vector-repo', () => ({
-  getCollectionOnly: async () => ({ updateOne: h.updateOne }),
+  getCollectionOnly: async () => ({ updateOne: h.updateOne, updateMany: h.updateMany }),
 }))
 
-import { patchMetaDokumentFelder } from '@/lib/repositories/doc-meta-felder'
+import { patchChunkFelder, patchMetaDokumentFelder } from '@/lib/repositories/doc-meta-felder'
+
+beforeEach(() => {
+  h.updateOne.mockReset().mockResolvedValue({ matchedCount: 1 })
+  h.updateMany.mockReset().mockResolvedValue({ modifiedCount: 7 })
+})
 
 describe('patchMetaDokumentFelder', () => {
-  it('schreibt docMetaJson.<feld> und den Top-Level-Spiegel fuer Facetten', async () => {
-    const ok = await patchMetaDokumentFelder('col', 'f1', { tags: ['fokus'], menu_order: 2 })
-    expect(ok).toBe(true)
-    const [filter, update] = h.updateOne.mock.calls[0] as unknown as [Record<string, unknown>, { $set: Record<string, unknown> }]
+  it('schreibt docMetaJson und den Top-Level-Spiegel fuer Spiegel-Felder', async () => {
+    await patchMetaDokumentFelder('lib_key', 'f1', { tags: ['fokus'], lv_bewertung: 'beschlossen' })
+    const [filter, update] = h.updateOne.mock.calls[0]
     expect(filter).toEqual({ _id: 'f1-meta', kind: 'meta' })
-    expect(update.$set['docMetaJson.tags']).toEqual(['fokus'])
-    expect(update.$set['tags']).toEqual(['fokus'])
-    expect(update.$set['docMetaJson.menu_order']).toBe(2)
-    expect(update.$set['menu_order']).toBeUndefined()
-    expect(typeof update.$set['upsertedAt']).toBe('string')
+    expect(update.$set).toMatchObject({ 'docMetaJson.tags': ['fokus'], tags: ['fokus'], 'docMetaJson.lv_bewertung': 'beschlossen' })
+    expect(update.$set).not.toHaveProperty('lv_bewertung')
+  })
+})
+
+describe('patchChunkFelder', () => {
+  it('setzt die Felder an allen Chunks der Quelle und liefert die Anzahl', async () => {
+    expect(await patchChunkFelder('lib_key', 'f1', { lv_bewertung: 'beschlossen' })).toBe(7)
+    const [filter, update] = h.updateMany.mock.calls[0]
+    expect(filter).toEqual({ kind: 'chunk', fileId: 'f1' })
+    expect(update.$set).toMatchObject({ lv_bewertung: 'beschlossen' })
+    expect(typeof update.$set.upsertedAt).toBe('string')
   })
 
-  it('ohne Felder wird nichts geschrieben', async () => {
-    h.updateOne.mockClear()
-    expect(await patchMetaDokumentFelder('col', 'f1', {})).toBe(true)
-    expect(h.updateOne).not.toHaveBeenCalled()
-  })
-
-  it('kein Meta-Dokument = false (Quelle nicht publiziert)', async () => {
-    h.updateOne.mockResolvedValueOnce({ matchedCount: 0 })
-    expect(await patchMetaDokumentFelder('col', 'f2', { tags: ['x'] })).toBe(false)
+  it('schreibt bei leerem Patch nichts', async () => {
+    expect(await patchChunkFelder('lib_key', 'f1', {})).toBe(0)
+    expect(h.updateMany).not.toHaveBeenCalled()
   })
 })

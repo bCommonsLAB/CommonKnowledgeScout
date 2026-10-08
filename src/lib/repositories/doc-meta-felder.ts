@@ -44,3 +44,23 @@ export async function patchMetaDokumentFelder(
   )
   return ergebnis.matchedCount > 0
 }
+
+/**
+ * Zieht dieselben Felder an den Chunks `<fileId>-<n>` nach (Welle C). Die
+ * Chunks tragen die Facettenwerte als Kopie fuers Retrieval; bleibt sie
+ * stehen, filtert die Galerie anders, als der Chat antwortet. Liefert die
+ * Zahl der geaenderten Chunks; 0 bei einer Quelle ohne Chunks.
+ */
+export async function patchChunkFelder(
+  libraryKey: string,
+  fileId: string,
+  felder: Record<string, unknown>,
+): Promise<number> {
+  const keys = Object.keys(felder)
+  if (keys.length === 0) return 0
+  const set: Record<string, unknown> = { upsertedAt: new Date().toISOString() }
+  for (const key of keys) set[key] = felder[key]
+  const col = await getCollectionOnly(libraryKey)
+  const ergebnis = await col.updateMany({ kind: 'chunk', fileId } as Partial<Document>, { $set: set })
+  return ergebnis.modifiedCount
+}

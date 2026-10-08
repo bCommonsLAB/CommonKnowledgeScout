@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
   record: { markdown: '', updatedAt: '2026-10-08T09:00:00.000Z', createdAt: '2026-10-07T00:00:00.000Z' },
 }))
 
+// Welle E: abhaengige Sammeldateien kommen aus einer eigenen Mongo-Abfrage — hier leer.
+vi.mock('@/lib/shadow-twin/sammeldatei-abhaengigkeit', () => ({ abhaengigeSammeldateien: async () => [] }))
 vi.mock('@clerk/nextjs/server', () => ({
   auth: async () => ({ userId: 'user-1' }),
   currentUser: async () => ({ emailAddresses: [{ emailAddress: 'peter@example.com' }] }),

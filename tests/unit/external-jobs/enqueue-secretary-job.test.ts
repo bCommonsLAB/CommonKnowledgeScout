@@ -60,3 +60,13 @@ describe('buildTemplateOnTextJob — Form der process-text-Job-Route', () => {
     expect(() => buildTemplateOnTextJob({ ...BASE, template: '   ' })).toThrow(/template/)
   })
 })
+
+describe('resolveSpeakerMode (Welle B)', () => {
+  it('Job-Option vor Library-Voreinstellung vor Standard', async () => {
+    const { resolveSpeakerMode } = await import('@/lib/external-jobs/audio-context')
+    const lib = { config: { transcriptionSpeakerMode: true } } as unknown as import('@/types/library').Library
+    expect(resolveSpeakerMode({ speakerMode: false }, lib)).toEqual({ speakerMode: false, speakerModeSource: 'job' })
+    expect(resolveSpeakerMode({}, lib)).toEqual({ speakerMode: true, speakerModeSource: 'library' })
+    expect(resolveSpeakerMode(undefined, undefined)).toEqual({ speakerMode: false, speakerModeSource: 'default' })
+  })
+})

@@ -1,22 +1,22 @@
 /**
- * @fileoverview MCP-Werkzeuge, die Inhalt erzeugen (Welle 5, Stufe 2).
+ * @fileoverview MCP-Werkzeug `quelle_erschliessen` (Welle 5, Stufe 2; Welle B).
  *
  * @description
- * Die zwei Inhalts-Motoren, die dem Aufraeum-Szenario fehlten (Cowork-Befund:
- * „nichts, was Inhalt erzeugt"), im Anstossen-und-Nachsehen-Muster — die Jobs
- * laufen laenger als das ~60s-Client-Limit, deshalb kommt sofort eine jobId
- * zurueck und `job_status` schaut nach:
+ * Inhalts-Motor im Anstossen-und-Nachsehen-Muster — die Jobs laufen laenger
+ * als das ~60s-Client-Limit, deshalb kommt sofort eine jobId zurueck und
+ * `job_status` schaut nach:
  *
- * - `quelle_erschliessen`: Audio/Video (Transkript, mit Template auch
- *   Transformation+Ingest) UND — seit A1 — PDF/Office ueber die Job-Form der
- *   Pipeline-Route (upload-frei, der Worker laedt das Binary selbst).
- * - `transformation_starten`: Standard-Template auf eine Familie MIT
- *   Transkript — Text kommt aus MongoDB (Wahrheit), der Job haengt an der
- *   Quelle, dort landet die Transformation. Je Quelle: `transformation-start.ts`
- *   (Markdown/Sammeldateien ohne Transkript, Gate-Entscheidung `erzwingen`).
- * - Beide nehmen auch `sourceIds` als Stapel (Pilot-Wunschliste C3): eine
- *   Job-Zeile je Quelle, Fehler einzeln statt Stapel-Abbruch.
- * - Job-Beobachtung (`job_status`/`job_liste`): eigene Datei `tools-jobs.ts`.
+ * - Audio/Video (Transkript, mit Template auch Transformation+Ingest) UND —
+ *   seit A1 — PDF/Office ueber die Job-Form der Pipeline-Route (upload-frei,
+ *   der Worker laedt das Binary selbst).
+ * - Welle B (Owner 08.10.2026): Bei Audio sind ZWEI Wege unterscheidbar —
+ *   mit Sprecher-Erkennung (Sprecher-Modell) oder ganz ohne, dann prueft der
+ *   Mensch das Transkript im Reiter „Korrektur". Je Quelle sagt die Antwort,
+ *   welcher Weg gilt und woher die Entscheidung kommt (`erschliessen-wege.ts`).
+ *   Kontext und Begriffe (P3a) gehen wie im Pipeline-Sheet mit.
+ * - `sourceIds` als Stapel (C3): eine Job-Zeile je Quelle, Fehler einzeln.
+ * - `transformation_starten`: eigene Datei `tools-transformation.ts`;
+ *   Job-Beobachtung: `tools-jobs.ts`.
  *
  * @module mcp
  */
@@ -29,19 +29,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
 import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
+import { audioOptionenAusEingabe, bestimmeAudioWeg, fasseWegeZusammen, type AudioWeg } from './erschliessen-wege'
 import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
-import { starteTransformation } from './transformation-start'
-import { vorlageAktualisiertAm } from './tools-vorlagen'
+import { SOURCE_INPUTS, TRANSFORM_INPUTS } from './tools-transformation'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 
-const SOURCE_INPUTS = {
-  sourceId: z.string().min(1).optional().describe('Storage-Id der Quelldatei (targetId aus Befunden)'),
-  quellPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad der Quelldatei'),
-  sourceIds: z.array(z.string().min(1)).min(1).max(30).optional()
-    .describe('STAPEL (C3): mehrere Storage-Ids — eine Job-Zeile je Quelle, Fehler einzeln'),
-}
-
-/** Registriert die Erschliessungs-Werkzeuge (siehe Datei-Kommentar). */
+/** Registriert `quelle_erschliessen` (siehe Datei-Kommentar). */
 export function registerErschliessenTools(server: McpServer): void {
   server.registerTool(
     'quelle_erschliessen',
@@ -51,6 +44,10 @@ export function registerErschliessenTools(server: McpServer): void {
         'Startet die Pipeline fuer Quellen ohne Twin (Befund source_without_twin): Audio/Video ' +
         'wird transkribiert, PDF/DOCX/XLSX/PPTX extrahiert (A1); mit template (Default: ' +
         'Standard-Template der Library) entstehen auch Transformation + Galerie-Eintrag. ' +
+        'AUDIO kennt zwei Wege: sprecherErkennung: true = Sprecher-Modell (Labels, Kontext und Begriffe ' +
+        'verwirft der Anbieter), false = Standard-Transkription mit Kontext und Begriffen, danach prueft ' +
+        'der Mensch das Transkript im Reiter „Korrektur"; weglassen = Library-Voreinstellung. Die Antwort ' +
+        'nennt je Quelle den Weg, seine Herkunft und den naechsten Schritt (jobs[].transkription, wege). ' +
         'Antwortet SOFORT mit jobId(s) — Status mit job_status/job_liste. Stapel via sourceIds. ' +
         'VORHER twins_synchronisieren (import→repair→export) laufen lassen: Es adoptiert Quellen, ' +
         'deren Auswertung schon existiert, aber noch nicht verbucht ist — in einem gemessenen Lauf ' +
@@ -69,11 +66,17 @@ export function registerErschliessenTools(server: McpServer): void {
           'true = immer uebergehen, false = nie (auch nicht bei erkanntem Alt-Format). ' +
           'Hintergrund: Ohne Uebergehen liest das Gate die vorhandene Transformation als Beweis ' +
           'fuers Transkript, der Job wird completed und schreibt nichts.'),
+        sprecherErkennung: z.boolean().optional().describe(
+          'NUR AUDIO. true = Sprecher-Modell (Weg mit_sprechererkennung), false = ohne (Weg ohne_sprechererkennung, ' +
+          'danach manuell pruefen). Weglassen = Library-Voreinstellung transcriptionSpeakerMode, sichtbar als herkunft.'),
+        kontext: z.string().max(2000).optional().describe('NUR AUDIO (P3a): Thema/Anlass als Freitext fuer die Transkription'),
+        begriffe: z.array(z.string().min(1)).max(100).optional().describe('NUR AUDIO (P3a): Namen und Fachwoerter fuer diese Dateien; die Library-Namen ergaenzt der Server'),
+        ...TRANSFORM_INPUTS,
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, sprecherErkennung, kontext, begriffe, folienAlsTabelle, anhangInSuche, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -81,13 +84,13 @@ export function registerErschliessenTools(server: McpServer): void {
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
           // Das Modell kommt AUSSCHLIESSLICH aus der Library-Konfiguration
-          // (Owner-Entscheid 28.08.2026): Der Client waehlt die VORLAGE —
-          // eine fachliche Entscheidung. Welches Modell sie ausfuehrt, ist
-          // Infrastruktur und gehoert dem Betreiber der Library, nicht dem
-          // Agenten. Eine Modellwahl je Aufruf hiesse: zwei Laeufe derselben
-          // Vorlage koennten verschieden ausfallen, ohne dass das Archiv es
-          // einem ansieht.
+          // (Owner-Entscheid 28.08.2026): Der Client waehlt die VORLAGE, das
+          // Modell gehoert dem Betreiber der Library, nicht dem Agenten.
           const effectiveModell = standardLlmModell(library)
+          // Welle B: Audio-Kontext typgeprueft wie in der Pipeline-Route; P6 nur explizite Booleans.
+          const audioContext = audioOptionenAusEingabe({ sprecherErkennung, kontext, begriffe })
+          const optionen = { slidesAsTable: folienAlsTabelle, appendixInSearch: anhangInSuche }
+          const wege: Array<AudioWeg | undefined> = []
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -96,24 +99,23 @@ export function registerErschliessenTools(server: McpServer): void {
               // sie hier zu pruefen kostet eine indizierte Abfrage und
               // erspart dem Agenten eine Entscheidung, die er nur raten kann.
               const twins = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [source.itemId] })
-              const entscheidung = entscheideErzwingen({
-                angefordert: erzwingen,
-                doc: twins.get(source.itemId) ?? null,
-              })
+              const entscheidung = entscheideErzwingen({ angefordert: erzwingen, doc: twins.get(source.itemId) ?? null })
               if (kind === 'audio' || kind === 'video') {
+                const weg = kind === 'audio' ? bestimmeAudioWeg(audioContext, library) : undefined
                 const { jobId } = await enqueueSourceTranscribeJob({
                   libraryId, userEmail, source, mediaType: kind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
-                  erzwingen: entscheidung.erzwingen,
+                  erzwingen: entscheidung.erzwingen, audioContext: kind === 'audio' ? audioContext : undefined, optionen,
                 })
-                return { jobId, erzwungen: entscheidung.grund }
+                wege.push(weg)
+                return { jobId, erzwungen: entscheidung.grund, ...(weg ? { transkription: weg } : {}) }
               }
               const documentKind = documentMediaKindFromName(source.name)
               if (documentKind) {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
-                  erzwingen: entscheidung.erzwingen,
+                  erzwingen: entscheidung.erzwingen, optionen,
                 })
                 return { jobId, erzwungen: entscheidung.grund }
               }
@@ -123,6 +125,7 @@ export function registerErschliessenTools(server: McpServer): void {
               )
             },
           })
+          const wegeSumme = fasseWegeZusammen(wege)
           return jsonResult({
             ok: batch.gescheitert === 0,
             gestartet: batch.gestartet,
@@ -133,71 +136,9 @@ export function registerErschliessenTools(server: McpServer): void {
             // galt, steht je Quelle in `jobs[].erzwungen`.
             erzwingenAngefordert: erzwingen ?? null,
             erzwungenAutomatisch: batch.zeilen.filter((z) => z.erzwungen === 'alt_format_erkannt').length,
-            llmModell: effectiveModell ?? null,
-            modellHerkunft: modellHinweis(effectiveModell),
-            hinweis: JOB_HINWEIS,
-          })
-        })
-      } catch (error) {
-        return errorResult(error)
-      }
-    },
-  )
-
-  server.registerTool(
-    'transformation_starten',
-    {
-      title: 'Transformation starten (SCHREIBT, langlaufend)',
-      description:
-        'Wendet das Standard-Template (oder ein angegebenes) auf Familien MIT Transkript an ' +
-        '(Befund transformation_missing/transformation_stale) — das Transkript kommt aus MongoDB. ' +
-        'Markdown-Quellen (.md/.mdx/.txt) brauchen KEIN Transkript: die Datei selbst ist der Text. ' +
-        'Sammeldateien (kind: composite-transcript) werden wie im KS-UI aus den Twins ihrer ' +
-        '_source_files aufgeloest; fehlt dort ein Transkript, kommt der Fehler mit den Dateinamen ' +
-        'VOR dem Job-Start (dann genau diese Dateien mit quelle_erschliessen erschliessen). ' +
-        'Haengt schon eine Transformation am Twin, entscheidet der Server ueber erzwingen (siehe dort) — ' +
-        'eine aktuelle Transformation wird mit Begruendung abgesagt statt still uebersprungen. ' +
-        'Die Transformation landet an der Quelle. Antwortet SOFORT mit jobId(s) — Status mit ' +
-        'job_status/job_liste. Stapel via sourceIds. SCHREIBT; nur nach Bestaetigung.',
-      inputSchema: {
-        libraryId: LIBRARY_ID,
-        ...SOURCE_INPUTS,
-        template: z.string().min(1).optional().describe('Template; weglassen = Standard-Template der Library'),
-        zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
-        erzwingen: z.boolean().optional().describe(
-          'WEGLASSEN ist der Normalfall: Der Server erzwingt von sich aus, wenn die Vorlage oder das ' +
-          'Transkript juenger ist als die vorhandene Transformation oder nur eine ANDERE Vorlage ' +
-          'transformiert wurde (jobs[].erzwungen nennt den Grund). Ist die Transformation aktuell, ' +
-          'gibt es eine Absage OHNE Job. true = trotzdem neu erzeugen (z.B. Quelldatei geaendert); ' +
-          'false = nie erzwingen — der Worker ueberspringt dann eine vorhandene Transformation.'),
-        begruendung: BEGRUENDUNG,
-      },
-      annotations: { readOnlyHint: false, destructiveHint: true },
-    },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, begruendung }) => {
-      try {
-        return await mitProtokoll({ werkzeug: 'transformation_starten', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
-          const userEmail = mcpUserEmail()
-          const library = await requireLibrary(userEmail, libraryId)
-          const provider = await requireProvider(userEmail, libraryId)
-          const effectiveTemplate = template ?? standardTemplate(library)
-          // Modell nur aus der Library-Konfiguration — siehe quelle_erschliessen.
-          const effectiveModell = standardLlmModell(library)
-          // Einmal je Aufruf, nicht je Quelle: Massstab fuer „Transformation ueberholt".
-          const vorlageStand = await vorlageAktualisiertAm(libraryId, userEmail, effectiveTemplate)
-          const batch = await runForSources({
-            provider, sourceId, quellPfad, sourceIds,
-            start: (source) => starteTransformation({
-              library, libraryId, userEmail, provider, source,
-              template: effectiveTemplate, llmModel: effectiveModell, zielsprache, erzwingen, vorlageAktualisiertAm: vorlageStand,
-            }),
-          })
-          return jsonResult({
-            ok: batch.gescheitert === 0,
-            gestartet: batch.gestartet,
-            gescheitert: batch.gescheitert,
-            jobs: batch.zeilen,
-            template: effectiveTemplate,
+            // Welle B: die zwei Wege der Audio-Erschliessung, gezaehlt ueber den Stapel.
+            ...(wegeSumme ? { wege: wegeSumme } : {}),
+            audioKontext: { kontext: kontext ?? null, begriffe: begriffe ?? [], hinweis: Object.keys(audioContext).length > 0 && wege.every((w) => w === undefined) ? 'Kontext/Begriffe/Sprecher-Erkennung gelten nur fuer Audio-Quellen — hier war keine dabei' : null },
             llmModell: effectiveModell ?? null,
             modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,

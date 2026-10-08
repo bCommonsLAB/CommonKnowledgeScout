@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
+import { formatiereChatKonfigurationFehler, mergeChatKonfiguration, validiereChatKonfiguration } from '@/lib/services/chat-config-validation';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { ClientLibrary, Library } from '@/types/library';
 
@@ -344,12 +345,17 @@ export async function PATCH(
             }
           }
         } else if (key === 'chat' && value && typeof value === 'object' && !Array.isArray(value)) {
-          // Spezielle Behandlung für chat-Config: Merge statt Überschreiben
+          // Spezielle Behandlung für chat-Config: Merge statt Überschreiben —
+          // und seit Welle D dieselbe Pruefung wie im Formular (chat-config-validation.ts):
+          // ein Platzhalter auf eine unbekannte Facette darf nicht gespeichert werden,
+          // sonst steht der Chat der Library beim naechsten Lesen.
           const existingChat = updatedConfig[key] as Record<string, unknown> | undefined
-          updatedConfig[key] = {
-            ...(existingChat || {}),
-            ...(value as Record<string, unknown>),
+          const gemergt = mergeChatKonfiguration(existingChat, value as Record<string, unknown>)
+          const pruefung = validiereChatKonfiguration(gemergt)
+          if (!pruefung.ok) {
+            return NextResponse.json({ error: formatiereChatKonfigurationFehler(pruefung.fehler) }, { status: 400 })
           }
+          updatedConfig[key] = gemergt
           console.log(`[API] Gemergte chat-Config`, { 
             existingKeys: existingChat ? Object.keys(existingChat) : [],
             newKeys: Object.keys(value as Record<string, unknown>),
