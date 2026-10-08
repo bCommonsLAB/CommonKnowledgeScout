@@ -47,6 +47,7 @@ import { registerBatchNeustartTool } from './tools-batch-neustart'
 import { registerKonfigurationTools } from './tools-konfiguration'
 import { registerMessenTools } from './tools-messen'
 import { registerSammeldateiTools } from './tools-sammeldatei'
+import { registerArtefaktTool } from './tools-artefakt'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -94,6 +95,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerMessenTools(server)
   // Welle E (Veranstaltungen): Einheiten bilden und Abhaengige finden.
   registerSammeldateiTools(server)
+  // Welle G: Artefakte ohne Spiegel lesen.
+  registerArtefaktTool(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
