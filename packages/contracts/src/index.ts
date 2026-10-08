@@ -44,7 +44,14 @@ export type {
   SocialContext,
   AccessPerspective,
 } from './chat-vocabulary'
-export { SOCIAL_CONTEXT_VALUES } from './chat-vocabulary'
+export {
+  SOCIAL_CONTEXT_VALUES,
+  ACCESS_PERSPECTIVE_VALUES,
+  CHARACTER_VALUES,
+  LANGUAGE_CATEGORIES,
+  TARGET_LANGUAGE_VALUES,
+  getLanguageCategory,
+} from './chat-vocabulary'
 
 export type { DetailViewType } from './detail-view-type'
 export { DETAIL_VIEW_TYPES, isDetailViewType } from './detail-view-type'
