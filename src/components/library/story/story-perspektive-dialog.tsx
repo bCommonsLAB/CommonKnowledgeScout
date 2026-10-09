@@ -19,10 +19,11 @@
  * seit der Startwert `['undefined']` ist, griff sie nie mehr.
  *
  * Der Knopf „Perspektive anpassen" im Story-Kopf oeffnet denselben Dialog
- * ueber `storyPerspektiveDialogOffenAtom`. Sitzt in `GalleryAppProviders`,
- * also einmal an jedem Montagepunkt der Galerie.
+ * ueber `storyPerspektiveDialogOffenAtom`. Sitzt im `StoryModeHeader`, also
+ * nur dort, wo der Story-Modus wirklich montiert ist — nicht in der
+ * Galerie-Huelle, die auch Teaser und Landingpage tragen.
  *
- * @module providers
+ * @module story
  */
 
 import { useEffect, useRef } from 'react'

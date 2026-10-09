@@ -1,6 +1,6 @@
 > Harte Invarianten fuer Welle 3-III — Galerie + Story-Mode + Chat
 >
-> **Gilt für:** `src/components/library/gallery/**/*.tsx`, `src/components/library/gallery/**/*.ts`, `src/components/library/chat/**/*.tsx`, `src/components/library/chat/**/*.ts`, `src/components/library/story/**/*.tsx`, `src/components/library/story/**/*.ts`, `src/components/library/shared/perspective-display.tsx`, `src/components/providers/story-perspektive-dialog.tsx`, `src/components/library/filter-context-bar.tsx`, `src/components/library/file-category-filter.tsx`
+> **Gilt für:** `src/components/library/gallery/**/*.tsx`, `src/components/library/gallery/**/*.ts`, `src/components/library/chat/**/*.tsx`, `src/components/library/chat/**/*.ts`, `src/components/library/story/**/*.tsx`, `src/components/library/story/**/*.ts`, `src/components/library/shared/perspective-display.tsx`, `src/components/library/filter-context-bar.tsx`, `src/components/library/file-category-filter.tsx`
 
 # Contracts: Welle 3-III — Galerie + Story-Mode + Chat
 
@@ -77,7 +77,7 @@ Filter-Komponenten. Sie ergaenzt:
     Regeln als reine Funktionen in `regeln.ts`) — ohne Anmeldung, ohne Router;
     Sprache und Modell nur, wenn der Montagepunkt sie zur Wahl stellt
   - App: `story/perspektive-dialog-app.tsx` (Story-Atome + localStorage),
-    `providers/story-perspektive-dialog.tsx` (oeffnet im Story-Modus, solange der
+    `story/story-perspektive-dialog.tsx` (am `StoryModeHeader`) (oeffnet im Story-Modus, solange der
     Browser keinen Eintrag `story-perspective-set` hat; Speichern oder
     Wegklicken setzt ihn; ersetzt `StoryPerspectiveRedirect`), Atom
     `storyPerspektiveDialogOffenAtom`; angemeldet gilt das Profil

@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import { Provider as JotaiProvider, createStore } from 'jotai'
 import { storyPerspektiveDialogOffenAtom } from '@/atoms/story-perspektive-dialog-atom'
-import { StoryPerspektiveDialog, STORY_PERSPECTIVE_SET_FLAG, perspektiveErfragen } from '@/components/providers/story-perspektive-dialog'
+import { StoryPerspektiveDialog, STORY_PERSPECTIVE_SET_FLAG, perspektiveErfragen } from '@/components/library/story/story-perspektive-dialog'
 
 let currentSearch = ''
 const profil = { stand: 'fertig' as 'laedt' | 'fertig', speichern: vi.fn(), aktuelleSpeichern: vi.fn() }
