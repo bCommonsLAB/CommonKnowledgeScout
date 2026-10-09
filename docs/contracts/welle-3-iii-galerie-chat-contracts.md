@@ -77,8 +77,9 @@ Filter-Komponenten. Sie ergaenzt:
     Regeln als reine Funktionen in `regeln.ts`) — ohne Anmeldung, ohne Router;
     Sprache und Modell nur, wenn der Montagepunkt sie zur Wahl stellt
   - App: `story/perspektive-dialog-app.tsx` (Story-Atome + localStorage),
-    `providers/story-perspektive-dialog.tsx` (oeffnet beim ersten Story-Besuch
-    ohne Perspektive; ersetzt `StoryPerspectiveRedirect`), Atom
+    `providers/story-perspektive-dialog.tsx` (oeffnet im Story-Modus, solange der
+    Browser keinen Eintrag `story-perspective-set` hat; Speichern oder
+    Wegklicken setzt ihn; ersetzt `StoryPerspectiveRedirect`), Atom
     `storyPerspektiveDialogOffenAtom`; die Routen `…/perspective` leiten nur
     noch in den Story-Modus
   - Embed: `enablePerspective` (`packages/embed/src/embed-perspektive.ts`),
