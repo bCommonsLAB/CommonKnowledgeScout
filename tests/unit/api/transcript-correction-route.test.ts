@@ -13,6 +13,9 @@ const h = vi.hoisted(() => ({
 
 // Welle E: abhaengige Sammeldateien kommen aus einer eigenen Mongo-Abfrage — hier leer.
 vi.mock('@/lib/shadow-twin/sammeldatei-abhaengigkeit', () => ({ abhaengigeSammeldateien: async () => [] }))
+vi.mock('@/lib/repositories/transcript-segments-repo', () => ({
+  getTranscriptSegments: async () => ({ libraryId: 'lib-1', sourceId: 'src-1', segments: [{ start: 0, end: 3, text: 'Frau Mahler spricht.', minLogprob: -1.2 }] }),
+}))
 vi.mock('@clerk/nextjs/server', () => ({
   auth: async () => ({ userId: 'user-1' }),
   currentUser: async () => ({ emailAddresses: [{ emailAddress: 'peter@example.com' }] }),
@@ -75,6 +78,8 @@ describe('transcript-correction Route (P3b)', () => {
     // Lesesicht des Reiters: der Text kommt als Absaetze mit Label, nicht als roher Body.
     expect(json.absaetze).toEqual([{ index: 0, label: 'Stück 1 Sprecher A', text: 'Frau Mahler spricht.' }])
     expect(json.body).toBeUndefined()
+    // Verlaesslichkeit: Segmente des letzten Laufs kommen mit.
+    expect(json.segmente.segments[0]).toMatchObject({ start: 0, minLogprob: -1.2 })
   })
 
   it('schreibt mit Revisions-Stempel des Anwenders und meldet Belege und speakerNames', async () => {

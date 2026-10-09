@@ -2,8 +2,10 @@
  * @fileoverview Reiter „Korrektur" am Audio-Transkript (P3b): Zustand und Schreiben.
  *
  * @description
- * GET  ?sourceId=…  → Zustand ohne Body: `updatedAt` (Riegel), `speakers`,
- *                     `speakerNames`, Revisions-Felder, Transformationen.
+ * GET  ?sourceId=…  → Zustand: `updatedAt` (Riegel), `speakers`, `speakerNames`,
+ *                     Revisions-Felder, Transformationen, Absaetze und die
+ *                     Satz-Segmente des letzten Laufs (`segmente`, null = keine
+ *                     gespeichert).
  * POST { sourceId, ersetzungen?, sprecher?, begruendung, ifUpdatedAt, nurVorschau? }
  *      → wendet die Korrektur an (alles oder nichts) und schreibt nach
  *        MongoDB; der Spiegel folgt ueber den Service, wenn die Library
@@ -22,6 +24,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { abhaengigeSammeldateien } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { getTranscriptSegments } from '@/lib/repositories/transcript-segments-repo'
 import { wendeKorrekturAn, type SprecherZuordnung } from '@/lib/transkript-korrektur/anwenden'
 import { ladeTranskript, transkriptZustand } from '@/lib/transkript-korrektur/laden'
 import { schreibeTranskriptKorrektur } from '@/lib/transkript-korrektur/schreiben'
@@ -88,7 +91,9 @@ export async function GET(
     // Welle E: Sammeldateien mit dieser Quelle, damit der Reiter nach der Korrektur sagt, was sonst noch ueberholt ist.
     const zustand = transkriptZustand(stand)
     const abhaengige = await abhaengigeSammeldateien({ libraryId, sourceId, revisedAt: zustand.revisedAt })
-    return NextResponse.json({ ...zustand, abhaengigeSammeldateien: abhaengige }, { headers: { 'Cache-Control': 'no-store' } })
+    // Verlaesslichkeit: Segmente des letzten Transkriptions-Laufs (eigene Collection).
+    const segmente = await getTranscriptSegments({ libraryId, sourceId })
+    return NextResponse.json({ ...zustand, abhaengigeSammeldateien: abhaengige, segmente }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     FileLogger.error('transcript-correction', 'GET fehlgeschlagen', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Interner Fehler' }, { status: 500 })

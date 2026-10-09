@@ -35,6 +35,8 @@ vi.mock('@/lib/storage/shadow-twin', async (importOriginal) => ({
 const rekeyMocks = vi.hoisted(() => ({ rekeyVectorsFileId: vi.fn() }))
 vi.mock('@/lib/repositories/vector-rekey', () => rekeyMocks)
 vi.mock('@/lib/repositories/vector-repo', () => ({ getCollectionNameForLibrary: () => 'vectors__aeced' }))
+const segmentMocks = vi.hoisted(() => ({ rekeyTranscriptSegments: vi.fn() }))
+vi.mock('@/lib/repositories/transcript-segments-repo', () => segmentMocks)
 vi.mock('@/lib/debug/logger', () => ({ FileLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }))
 
 /** Pfadbasierte Ids wie Nextcloud: base64 des Pfads. */
@@ -87,6 +89,8 @@ beforeEach(() => {
   })
   locationMocks.updateShadowTwinSourceLocation.mockResolvedValue(undefined)
   rekeyMocks.rekeyVectorsFileId.mockResolvedValue({ umgeschrieben: 7 })
+  segmentMocks.rekeyTranscriptSegments.mockReset()
+  segmentMocks.rekeyTranscriptSegments.mockResolvedValue(1)
 })
 
 describe('moveFamily — pfadbasierte Ids (Nextcloud)', () => {
@@ -107,6 +111,8 @@ describe('moveFamily — pfadbasierte Ids (Nextcloud)', () => {
       sourceName: 'methode-08-commoning-kompass.md', parentId: pid('methoden'),
     })
     expect(rekeyMocks.rekeyVectorsFileId).toHaveBeenCalledWith('vectors__aeced', pid(ALT), pid(NEU))
+    // Satz-Segmente (Verlaesslichkeit) ziehen mit, sonst gehen sie beim Umbenennen verloren.
+    expect(segmentMocks.rekeyTranscriptSegments).toHaveBeenCalledWith('lib-1', pid(ALT), pid(NEU))
     // Export laeuft mit der NEUEN Id — mit der alten fand die Engine nichts.
     expect(calls.at(-1)).toBe(`sync:export:${NEU}`)
   })
