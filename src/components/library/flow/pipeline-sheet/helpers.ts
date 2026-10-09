@@ -44,6 +44,7 @@ export interface PipelineStartArgs {
   /** P3a (nur Audio, nur wenn „Transkript erstellen" aktiv) */
   audioPrompt?: string
   audioKeywords?: string[]
+  audioLanguages?: string[]
   speakerMode?: boolean
 }
 

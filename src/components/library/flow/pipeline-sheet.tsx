@@ -554,6 +554,9 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                     onPromptChange={audioContext.setPrompt}
                                     keywordsText={audioContext.keywordsText}
                                     onKeywordsTextChange={audioContext.setKeywordsText}
+                                    languagesText={audioContext.languagesText}
+                                    onLanguagesTextChange={audioContext.setLanguagesText}
+                                    invalidLanguages={audioContext.invalidLanguages}
                                     knownNamesCount={audioContext.knownNamesCount}
                                     disabled={isSubmitting}
                                   />

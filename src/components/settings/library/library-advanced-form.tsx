@@ -219,6 +219,24 @@ export function LibraryAdvancedForm() {
             />
             <FormField
               control={form.control}
+              name="transcriptionLanguages"
+              render={({ field }) => (
+                <FormItem className="rounded-lg border p-4">
+                  <FormLabel className="text-base">Sprachen der Aufnahmen (Audio-Transkription)</FormLabel>
+                  <FormDescription>
+                    Sprachcodes, durch Komma getrennt, z.&nbsp;B. <code>de, it</code>. Voreinstellung
+                    fuer den Transkriptions-Dialog, pro Datei uebersteuerbar. Ohne Angabe entscheidet
+                    das Modell je Abschnitt selbst und uebersetzt gemischte Rede in eine Sprache.
+                  </FormDescription>
+                  <FormControl>
+                    <Input placeholder="de, it" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="ingestSourceAppendix"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">

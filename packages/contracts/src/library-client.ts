@@ -87,6 +87,8 @@ export interface ClientLibrary {
     extractionKnownNames?: string[];
     /** P3a: Sprecher-Erkennung als Voreinstellung fuer Audio-Transkriptionen (kein Secret). */
     transcriptionSpeakerMode?: boolean;
+    /** Moegliche Sprachen der Aufnahmen (ISO 639-1) als Voreinstellung fuer Audio-Transkriptionen (kein Secret). */
+    transcriptionLanguages?: string[];
     /** P6: Voreinstellung „Anhaenge als Text in die Suche" (kein Secret). */
     ingestSourceAppendix?: boolean;
     /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */

@@ -100,6 +100,11 @@ export interface PipelineConfig {
   /** Begriffe (Namen, Fachwoerter) fuer diese Datei; die Library-Namen ergaenzt der Server. */
   audioKeywords?: string[]
   /**
+   * Sprachen der Aufnahme (ISO 639-1) fuer diesen Lauf. Fehlt der Wert, gilt
+   * die Library-Voreinstellung (`transcriptionLanguages`).
+   */
+  audioLanguages?: string[]
+  /**
    * Sprecher-Erkennung fuer diesen Lauf. Fehlt der Wert, entscheidet der
    * Server sichtbar ueber die Library-Voreinstellung (`transcriptionSpeakerMode`).
    */

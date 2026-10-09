@@ -795,6 +795,7 @@ function PreviewContent({
           // Audio-Kontext (P3a): nur wenn das Sheet sie gesetzt hat
           audioPrompt: args.audioPrompt,
           audioKeywords: args.audioKeywords,
+          audioLanguages: args.audioLanguages,
           speakerMode: args.speakerMode,
         })
 

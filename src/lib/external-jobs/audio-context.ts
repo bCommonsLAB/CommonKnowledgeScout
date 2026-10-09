@@ -9,6 +9,10 @@
  * - `prompt`    Freitext ueber Thema und Anlass (pro Datei, aus dem Dialog).
  * - `keywords`  Bekannte Namen der Library (`extractionKnownNames`) plus die
  *               Begriffe, die der Anwender fuer diese Datei ergaenzt hat.
+ * - `languages` Moegliche Sprachen der Aufnahme (ISO 639-1): Job-Option vor
+ *               Library-Voreinstellung (`transcriptionLanguages`). Ohne Angabe
+ *               entscheidet das Modell je Stueck selbst — und uebersetzt bei
+ *               gemischter Rede (Prueffall 09.10.2026).
  * - `speakerMode` Sprecher-Erkennung: Uebersteuerung pro Datei (Job-Option)
  *               vor der Library-Voreinstellung (`transcriptionSpeakerMode`),
  *               sonst aus. Welche Ebene entschieden hat, steht in
@@ -24,15 +28,18 @@
 
 import type { ExternalJob } from '@/types/external-job'
 import type { Library } from '@/types/library'
+import { readLanguageList } from './audio-languages'
 
 /** Job-Optionen, die der Transkriptions-Dialog pro Datei setzt. */
 export const AUDIO_CONTEXT_OPTION_KEYS = {
   prompt: 'audioPrompt',
   keywords: 'audioKeywords',
   speakerMode: 'speakerMode',
+  languages: 'audioLanguages',
 } as const
 
 export type SpeakerModeSource = 'job' | 'library' | 'default'
+export type LanguagesSource = 'job' | 'library' | 'none'
 
 /**
  * Kontext-Felder, wie sie ein Client im Request-Body schickt. Beide Wege
@@ -46,6 +53,8 @@ export interface AudioContextRequestFields {
   audioKeywords?: string[]
   /** Sprecher-Erkennung fuer diesen Lauf (uebersteuert die Library-Voreinstellung). */
   speakerMode?: boolean
+  /** Sprachen der Aufnahme (ISO 639-1) fuer diesen Lauf (uebersteuert `transcriptionLanguages`). */
+  audioLanguages?: string[]
 }
 
 /**
@@ -75,6 +84,14 @@ export function readAudioContextOptions(
     if (typeof body.speakerMode !== 'boolean') return { error: 'speakerMode muss ein Boolean sein' }
     options[AUDIO_CONTEXT_OPTION_KEYS.speakerMode] = body.speakerMode
   }
+  if (body.audioLanguages !== undefined) {
+    if (!Array.isArray(body.audioLanguages) || body.audioLanguages.some((l) => typeof l !== 'string')) {
+      return { error: 'audioLanguages muss eine Liste von Strings sein' }
+    }
+    const { codes, invalid } = readLanguageList(body.audioLanguages)
+    if (invalid.length > 0) return { error: `audioLanguages: keine Sprachcodes (ISO 639-1): ${invalid.join(', ')}` }
+    if (codes.length > 0) options[AUDIO_CONTEXT_OPTION_KEYS.languages] = codes
+  }
   return { options }
 }
 
@@ -85,6 +102,9 @@ export interface AudioJobContext {
   keywords: string[]
   speakerMode: boolean
   speakerModeSource: SpeakerModeSource
+  /** Moegliche Sprachen der Aufnahme; leer = das Modell entscheidet selbst. */
+  languages: string[]
+  languagesSource: LanguagesSource
 }
 
 function readStringList(value: unknown): string[] {
@@ -122,7 +142,19 @@ export function resolveAudioJobContext(job: ExternalJob, library: Library | unde
   const jobKeywords = readStringList(opts[AUDIO_CONTEXT_OPTION_KEYS.keywords])
   const keywords = dedupeKeywords([...libraryNames, ...jobKeywords])
 
-  return { prompt, keywords, ...resolveSpeakerMode(opts, library) }
+  return { prompt, keywords, ...resolveSpeakerMode(opts, library), ...resolveLanguages(opts, library) }
+}
+
+/** Sprachen: Job-Option vor Library-Voreinstellung; ohne beides leer (`none`), sichtbar im Trace. */
+export function resolveLanguages(
+  options: Record<string, unknown> | undefined,
+  library: Library | undefined,
+): { languages: string[]; languagesSource: LanguagesSource } {
+  const jobCodes = readLanguageList(options?.[AUDIO_CONTEXT_OPTION_KEYS.languages]).codes
+  if (jobCodes.length > 0) return { languages: jobCodes, languagesSource: 'job' }
+  const libraryCodes = readLanguageList(library?.config?.transcriptionLanguages).codes
+  if (libraryCodes.length > 0) return { languages: libraryCodes, languagesSource: 'library' }
+  return { languages: [], languagesSource: 'none' }
 }
 
 /**

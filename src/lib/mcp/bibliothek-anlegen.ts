@@ -39,7 +39,7 @@ const VERARBEITUNG_SCHLUESSEL = [
 
 /** Library-Schalter ohne Geheimnis, die eine Vorlage-Library mitgibt. */
 const SCHALTER_SCHLUESSEL = [
-  'transcriptionSpeakerMode', 'ingestSourceAppendix', 'extractionKnownNames', 'scanExcludeGlobs',
+  'transcriptionSpeakerMode', 'transcriptionLanguages', 'ingestSourceAppendix', 'extractionKnownNames', 'scanExcludeGlobs',
 ] as const
 
 /** Was `vorlageVon` bewusst NICHT mitnimmt — wird in der Antwort genannt. */
