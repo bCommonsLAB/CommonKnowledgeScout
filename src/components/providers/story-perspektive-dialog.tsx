@@ -11,6 +11,10 @@
  * wird nicht wieder gefragt. Ueber den Knopf im Story-Kopf geht der Dialog
  * jederzeit auf.
  *
+ * Angemeldet gilt das Profil (`useProfilPerspektive`): Erst wenn feststeht,
+ * ob es eine Perspektive mitbringt, entscheidet der Dialog; Speichern und
+ * Wegklicken landen auch dort — der naechste Browser fragt dann nicht.
+ *
  * Die alte Bedingung (M4h) fragte nur bei leerer oder `business`-Perspektive;
  * seit der Startwert `['undefined']` ist, griff sie nie mehr.
  *
@@ -27,6 +31,7 @@ import { useSearchParams } from 'next/navigation'
 import { readGalleryMode } from '@ks/module-explorer/react'
 import { storyPerspektiveDialogOffenAtom } from '@/atoms/story-perspektive-dialog-atom'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
+import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 
 /** localStorage-Schluessel: Perspektive wurde einmal gewaehlt, nicht mehr nachfragen. */
 export const STORY_PERSPECTIVE_SET_FLAG = 'story-perspective-set'
@@ -38,13 +43,16 @@ export function perspektiveErfragen(params: URLSearchParams, flag: string | null
   return !flag
 }
 
-/** Merkt sich im Browser, dass gefragt wurde — auch wenn nur weggeklickt. */
-function gefragtMerken() {
+/** Merkt sich im Browser, dass gefragt wurde — auch wenn nur weggeklickt. Liefert, ob es neu war. */
+function gefragtMerken(): boolean {
   try {
+    const neu = localStorage.getItem(STORY_PERSPECTIVE_SET_FLAG) !== 'true'
     localStorage.setItem(STORY_PERSPECTIVE_SET_FLAG, 'true')
+    return neu
   } catch (e) {
     // Ohne Speicher fragt der Dialog beim naechsten Besuch wieder; das ist sichtbar, nicht still falsch.
     console.warn('[StoryPerspektiveDialog] Eintrag „Perspektive gewaehlt" nicht speicherbar', e)
+    return false
   }
 }
 
@@ -52,19 +60,23 @@ export function StoryPerspektiveDialog() {
   const [offen, setOffen] = useAtom(storyPerspektiveDialogOffenAtom)
   const searchParams = useSearchParams()
   const gefragt = useRef(false)
+  const profil = useProfilPerspektive()
 
   useEffect(() => {
-    if (gefragt.current) return
+    // Angemeldet erst entscheiden, wenn das Profil geladen ist — es kann den Eintrag mitbringen.
+    if (gefragt.current || profil.stand !== 'fertig') return
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (!perspektiveErfragen(params, localStorage.getItem(STORY_PERSPECTIVE_SET_FLAG))) return
     gefragt.current = true
     setOffen(true)
-  }, [searchParams, setOffen])
+  }, [searchParams, setOffen, profil.stand])
 
   function offenSetzen(neu: boolean) {
-    if (!neu) gefragtMerken()
+    // Erstes Wegklicken: die Voreinstellung gilt als gewaehlt — auch im Profil.
+    // Nach dem Speichern ist der Eintrag schon gesetzt, dann bleibt es beim einen Schreiben.
+    if (!neu && gefragtMerken()) profil.aktuelleSpeichern()
     setOffen(neu)
   }
 
-  return offen ? <PerspektiveDialogApp open={offen} onOpenChange={offenSetzen} /> : null
+  return offen ? <PerspektiveDialogApp open={offen} onOpenChange={offenSetzen} onProfil={profil.speichern} /> : null
 }

@@ -6,8 +6,9 @@
  * Die App stellt Sprache und Modell zur Wahl und legt die Perspektive dort
  * ab, wo sie schon immer lag: in den Story-Atomen und im localStorage
  * (`saveStoryContextToLocalStorage` setzt auch das Flag „Perspektive
- * gewaehlt"). Montiert nur, solange der Dialog offen ist — `useStoryContext`
- * prueft beim Mount das Modell gegen die Instanz.
+ * gewaehlt"), angemeldet zusaetzlich im Profil (`onProfil`). Montiert nur,
+ * solange der Dialog offen ist — `useStoryContext` prueft beim Mount das
+ * Modell gegen die Instanz.
  */
 
 import { useEffect, useMemo } from 'react'
@@ -20,9 +21,11 @@ import { saveStoryContextToLocalStorage, useStoryContext } from '@/hooks/use-sto
 export interface PerspektiveDialogAppProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Legt die Wahl im Profil ab (angemeldet; `useProfilPerspektive`). */
+  onProfil: (wahl: PerspektivWahl) => void
 }
 
-export function PerspektiveDialogApp({ open, onOpenChange }: PerspektiveDialogAppProps) {
+export function PerspektiveDialogApp({ open, onOpenChange, onProfil }: PerspektiveDialogAppProps) {
   const { locale } = useTranslation()
   const { isSignedIn } = useUser()
   const ctx = useStoryContext()
@@ -52,6 +55,7 @@ export function PerspektiveDialogApp({ open, onOpenChange }: PerspektiveDialogAp
     ctx.setSocialContext(wahl.socialContext)
     ctx.setLlmModel(wahl.llmModel)
     saveStoryContextToLocalStorage(wahl.targetLanguage, wahl.character, wahl.socialContext, wahl.accessPerspective, wahl.llmModel, !isSignedIn)
+    onProfil(wahl)
   }
 
   return (

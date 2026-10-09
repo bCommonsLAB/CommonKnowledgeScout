@@ -146,3 +146,6 @@ export { SITE_SURFACES, SITE_FONT_NAMES, SITE_BUTTON_SHAPES } from './site-theme
 // D2 (Plan story-dreiteilung-fragenchronik): Verarbeitungsschritte des
 // Chat-Streams — das Story-Paket zeigt sie in einfachen Worten.
 export type { ChatProcessingStep, StoryFehlerCode } from './chat-processing'
+
+// 09.10.2026: die Story-Perspektive im Benutzerprofil (angemeldet, browseruebergreifend)
+export { alsProfilPerspektive, type ProfilPerspektiveDto } from './profil-perspektive'

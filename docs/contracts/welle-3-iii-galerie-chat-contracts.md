@@ -80,7 +80,9 @@ Filter-Komponenten. Sie ergaenzt:
     `providers/story-perspektive-dialog.tsx` (oeffnet im Story-Modus, solange der
     Browser keinen Eintrag `story-perspective-set` hat; Speichern oder
     Wegklicken setzt ihn; ersetzt `StoryPerspectiveRedirect`), Atom
-    `storyPerspektiveDialogOffenAtom`; die Routen `…/perspective` leiten nur
+    `storyPerspektiveDialogOffenAtom`; angemeldet gilt das Profil
+    (`hooks/use-profil-perspektive.ts`, `GET/PUT /api/user/story-perspektive`,
+    Collection `user_story_perspektiven` je E-Mail) — von Browser zu Browser; die Routen `…/perspective` leiten nur
     noch in den Story-Modus
   - Embed: `enablePerspective` (`packages/embed/src/embed-perspektive.ts`),
     Sprache und Modell fest

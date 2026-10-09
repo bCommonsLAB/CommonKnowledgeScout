@@ -13,6 +13,10 @@ import { storyPerspektiveDialogOffenAtom } from '@/atoms/story-perspektive-dialo
 import { StoryPerspektiveDialog, STORY_PERSPECTIVE_SET_FLAG, perspektiveErfragen } from '@/components/providers/story-perspektive-dialog'
 
 let currentSearch = ''
+const profil = { stand: 'fertig' as 'laedt' | 'fertig', speichern: vi.fn(), aktuelleSpeichern: vi.fn() }
+
+// Das Profil (angemeldet) hat eigene Tests an der Route; hier zaehlt, wann der Dialog es befragt.
+vi.mock('@/hooks/use-profil-perspektive', () => ({ useProfilPerspektive: () => profil }))
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(currentSearch),
@@ -39,6 +43,8 @@ function montieren(search: string) {
 
 beforeEach(() => {
   localStorage.removeItem(STORY_PERSPECTIVE_SET_FLAG)
+  profil.stand = 'fertig'
+  profil.aktuelleSpeichern.mockClear()
 })
 
 afterEach(() => {
@@ -69,6 +75,21 @@ describe('StoryPerspektiveDialog', () => {
     cleanup()
     const zweiter = montieren('mode=story')
     expect(zweiter.ansicht.queryByTestId('perspektive-dialog')).toBeNull()
+  })
+
+  it('Wegklicken beim ersten Mal legt die Voreinstellung ins Profil; spaeteres Schliessen nicht mehr', () => {
+    const { store, ansicht } = montieren('mode=story')
+    fireEvent.click(ansicht.getByTestId('perspektive-dialog'))
+    expect(profil.aktuelleSpeichern).toHaveBeenCalledTimes(1)
+    act(() => store.set(storyPerspektiveDialogOffenAtom, true))
+    fireEvent.click(ansicht.getByTestId('perspektive-dialog'))
+    expect(profil.aktuelleSpeichern).toHaveBeenCalledTimes(1)
+  })
+
+  it('angemeldet: wartet, bis das Profil geladen ist — es kann den Eintrag mitbringen', () => {
+    profil.stand = 'laedt'
+    const { ansicht } = montieren('mode=story')
+    expect(ansicht.queryByTestId('perspektive-dialog')).toBeNull()
   })
 
   it('mit Eintrag bleibt er zu; der Knopf oeffnet ueber das Atom', () => {
