@@ -48,6 +48,7 @@ import { registerKonfigurationTools } from './tools-konfiguration'
 import { registerMessenTools } from './tools-messen'
 import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerArtefaktTool } from './tools-artefakt'
+import { registerBibliothekTools } from './tools-bibliothek'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -97,6 +98,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerSammeldateiTools(server)
   // Welle G: Artefakte ohne Spiegel lesen.
   registerArtefaktTool(server)
+  // Handover Library-Anlage (08.10.): Library anlegen, Speicher pruefen, Vorlagen uebernehmen.
+  registerBibliothekTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)

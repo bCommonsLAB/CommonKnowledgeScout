@@ -5,7 +5,7 @@ description: Einen Ordner mit Audio, PDF, Video und Bildern einer Veranstaltung 
 
 # Veranstaltung aufbereiten
 
-Stand 08.10.2026, Werkzeugsatz 2.44.1. Original im Archiv unter
+Stand 08.10.2026, Werkzeugsatz 2.45.1. Original im Archiv unter
 `Organisation/Skills/veranstaltung-aufbereiten/SKILL.md`; diese Datei ist die
 Repo-Kopie und wird nach dem Original nachgezogen. Probe: 135 Zeilen.
 
@@ -43,6 +43,20 @@ im Secretary nicht belegt ist; das meldet `job_status` als Fehlschlag, nicht
 der Skill vorab.
 
 ## Die Stationen
+
+### 0 Neue Library aufsetzen (nur wenn es noch keine gibt; seit 2.45.0)
+
+- **Rückfrage 1** mit Name, Inhaltstyp, Speicherort und ob eine bestehende
+  Library als Vorlage dient. Erst dann `bibliothek_anlegen` (mit
+  `vorlageVon` und `vorlagenKopieren: true`, wenn eine Vorlage-Library
+  genannt ist). Rohquellen in einen frischen Ordner: `kopieren` mit
+  `nurQuellen: true` und zuerst `vorschau: true` zeigen.
+- **Haltepunkt Geheimnis**: Die Antwort nennt `geheimnisFehlt`. Der Mensch
+  trägt App-Passwort oder OneDrive-Anmeldung in Settings → Archive ein; der
+  Agent fragt nie danach. Danach `speicher_pruefen` (muss `verbunden: true`
+  liefern), `vorlagen_auflisten` (eine Datei mit `neuerAlsMongo: true` wirkt
+  noch nicht → `vorlage_uebernehmen` mit `datei`), `konfiguration_lesen`
+  beider Libraries vergleichen.
 
 ### 1 Bestand erfassen (Maschine)
 
@@ -124,7 +138,7 @@ Korrigiert der Mensch später ein Transkript, nennt der Reiter „Korrektur"
 `abhaengige_dokumente` zeigt, welche davon überholt sind;
 `transformation_starten` erneuert genau diese: der Server erzwingt mit
 `erzwungen: "quelle_juenger"`, weil das Transkript einer Quelle jünger ist
-(ab 2.44.1). `index_aktualisieren` ist danach nicht nötig, der Job
+(ab 2.45.1). `index_aktualisieren` ist danach nicht nötig, der Job
 ingestiert selbst. Sammeldateien, die vor Werkzeugsatz 2.43.0 zuletzt
 transformiert wurden, tragen die Abhängigkeit erst nach dem nächsten Lauf.
 

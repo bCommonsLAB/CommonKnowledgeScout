@@ -1,6 +1,6 @@
 # Library-Betrieb über die MCP-Brücke
 
-Stand 08.10.2026, Werkzeugsatz **2.44.0** (2.42.0 Welle B, 2.43.0 Welle E, 2.44.0 Welle G aus dem Veranstaltungs-Plan, siehe unten; das Drehbuch ist der Skill `veranstaltung-aufbereiten`). Gebaut nach
+Stand 08.10.2026, Werkzeugsatz **2.45.0** (2.42.0 Welle B, 2.43.0 Welle E, 2.44.0 Welle G aus dem Veranstaltungs-Plan, 2.45.0 Library-Anlage, siehe unten; das Drehbuch ist der Skill `veranstaltung-aufbereiten`). Gebaut nach
 [`docs/plans/geplant/bruecke-library-betrieb.plan.md`](../plans/geplant/bruecke-library-betrieb.plan.md)
 (Wellen A, C, D, F). Die Brücke war bis 2.37.0 eine Archiv-Brücke: sie
 pflegte Twins, Berichte und Website-Seiten. Seit 2.41.0 kann sie eine Library
@@ -110,7 +110,38 @@ Werkzeuge: sieben Stationen plus Nachziehen, drei Rückfragen an den Menschen
 und der Haltepunkt in Station 4, an dem der Mensch das Transkript im Reiter
 „Korrektur" prüft.
 
-**Nachtrag 2.44.1:** `transformation_starten` erkennt bei einer Sammeldatei
+## Nachtrag 2.45.0: Library anlegen, Vorlagen und Quellen übernehmen
+
+Ziel: den Flow „Veranstaltung erfassen" von null an über die Brücke fahren,
+Geheimnisse bleiben in der Oberfläche.
+
+| Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
+|---|---|---|
+| `bibliothek_anlegen` | schreibt | Anlege-Dialog + Speicher-Schritt (`LibraryService.updateLibrary`, Shadow-Twin v2/Mongo, `config.nextcloud` ohne Passwort); `vorlageVon` wie der Klon im Anlege-Dialog (eigener Vektor-Index), aber ohne Zugangsdaten, Secretary-Verbindung, Veröffentlichung, Binary-Storage, Agentensicht (`bibliothek-anlegen.ts`) |
+| `speicher_pruefen` | liest | Knopf „Verbindung prüfen" ohne Testordner: `validateConfiguration` + Wurzel listen; nennt nur, ob ein Geheimnis hinterlegt ist |
+| `vorlage_uebernehmen` | schreibt | Klon-Kopie der Vorlagen bzw. Import-Knopf; `saveTemplateToMongoDB`/`updateTemplateInMongoDB` hinter dem Konsistenz-Contract |
+| `kopieren` | schreibt | Provider-Interface (lesen + hochladen); Twin-Ordner nie, `nurQuellen` mit dem Batch-Zaun |
+
+Antwort auf die offene Frage aus dem Brückentest: **Vorlagen leben je
+Library in MongoDB.** Eine Datei in `templates/` wirkt erst nach dem Import;
+`vorlagen_auflisten` nennt deshalb je Vorlage den Stand der gleichnamigen
+Datei (`neuerAlsMongo`) und Dateien ohne Vorlage (`nurAlsDatei`).
+
+Geändert an bestehenden Werkzeugen: `index_aktualisieren` nimmt per Vorgabe
+nur Publiziertes (`nurPublizierte`, Befund T9) und optional eine `vorlage`,
+Zeilen tragen den Pfad; `dokumente_auflisten`/`bestand_pruefen` nehmen
+`ordner`; `frage_stellen` nimmt die Perspektive der Stream-Adresse, und
+Query-Log und Cache-Suche tragen dieselben Werte — vorher schrieb der Log
+keine Perspektive, die Suche fragte mit ihr, und ein zweiter Aufruf traf nie.
+
+Kein Fehler, sondern Regel: In einer gemischten Library zeigt die Galerie
+ohne Typwahl nur die gemeinsamen Facetten („Typ als Leitfilter",
+`facet-scope.ts`). Eine Facette, die nur `session` kennt (z. B. `event`),
+erscheint in `dokumente_auflisten` erst mit `detailViewType: "session"`.
+Ebenso ist `"undefined"` bei `character`, `accessPerspective` und
+`socialContext` ein gültiger Wert („keine Vorgabe"), kein Lesefehler.
+
+**Nachtrag 2.45.1:** `transformation_starten` erkennt bei einer Sammeldatei
 ein jüngeres Transkript einer ihrer Quellen (über `compositeSources`) und
 erzwingt mit `erzwungen: "quelle_juenger"`. Vorher verglich der Server nur
 das eigene Transkript der Sammeldatei und sagte nach einer Korrektur an einer

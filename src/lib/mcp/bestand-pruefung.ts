@@ -84,6 +84,11 @@ export function pruefeBestand(
       if (kennung === null) continue
       nachKennung.set(kennung, [...(nachKennung.get(kennung) ?? []), e])
     }
+    // Befund T2 (Brueckentest 2.44): Ein Feld, das kein Eintrag traegt, ergab
+    // „0 Dubletten" — ein Tippfehler sah aus wie ein sauberer Bestand.
+    if (eintraege.length > 0 && nachKennung.size === 0) {
+      uebersprungen.push(`doppelte_kennung: kein Eintrag traegt das Feld "${args.kennungsfeld}" — Tippfehler? Feldnamen stehen in dokumente_auflisten`)
+    }
     for (const [kennung, gruppe] of nachKennung) {
       if (gruppe.length < 2) continue
       for (const e of gruppe) {

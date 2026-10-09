@@ -115,7 +115,7 @@ welche mit Abweichung, was offen blieb, was zurückgestellt werden muss.
 
 - **Werkzeuge:** `bruecke_info`, `bibliotheken_auflisten`
 - **Erwartung:**
-  - `toolsetVersion` ist `2.44.1`, `werkzeuge` hat 62 Einträge, darunter
+  - `toolsetVersion` ist `2.45.1`, `werkzeuge` hat 66 Einträge, darunter
     `dokumente_auflisten`, `index_aktualisieren`, `konfiguration_setzen`,
     `golden_set_fahren`, `sammeldatei_anlegen`, `artefakt_lesen`.
   - Fehlt eines in der eigenen Werkzeugsicht: Owner bittet, die Erweiterung

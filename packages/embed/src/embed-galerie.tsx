@@ -30,12 +30,15 @@ function Hinweis({ children, alarm = false }: { children: string; alarm?: boolea
 export interface EmbedGalerieProps {
   slug: string
   instanz: InstanceApi
-  /** `story` montiert die drei Story-Slots (D6b); `gallery` zeigt nur die Inhalte. */
-  view: 'gallery' | 'story'
+  /**
+   * Montiert die drei Story-Slots (D6b): bei `view="story"` und bei
+   * `view="gallery"` mit `enableStory`. Ohne sie zeigt die Galerie nur die Inhalte.
+   */
+  story: boolean
   locale: Locale
 }
 
-export function EmbedGalerie({ slug, instanz, view, locale }: EmbedGalerieProps) {
+export function EmbedGalerie({ slug, instanz, story: storyAnbieten, locale }: EmbedGalerieProps) {
   const { t } = useTranslation()
   const texte = useMemo(
     () => ({
@@ -59,11 +62,11 @@ export function EmbedGalerie({ slug, instanz, view, locale }: EmbedGalerieProps)
     )
   }
 
-  // Die Story-Slots nur in der Story-Ansicht: Ohne Slot gibt es keinen Weg in
-  // den Story-Modus und keinen Story-Knopf in der Detailansicht (M5).
+  // Die Story-Slots nur, wenn die Story angeboten wird: Ohne Slot gibt es keinen
+  // Weg in den Story-Modus und keinen Story-Knopf in der Detailansicht (M5).
   const geladen = library
   const story =
-    view === 'story'
+    storyAnbieten
       ? {
           storyPanel: (_libraryId: string, ctx?: { filterAnzeige: ReactNode }) => (
             <EmbedStoryPanel library={geladen} instanz={instanz} locale={locale} filterAnzeige={ctx?.filterAnzeige} />

@@ -25,6 +25,8 @@ export interface ResolvedSource {
   parentId: string
   name: string
   mimeType?: string
+  /** Pfad relativ zum gesammelten Ordner (nur aus `sammleOrdnerQuellen`). */
+  pfad?: string
 }
 
 export async function resolveSourceItem(
