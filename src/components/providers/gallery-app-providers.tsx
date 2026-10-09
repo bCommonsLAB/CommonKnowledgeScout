@@ -8,9 +8,10 @@
  * (`GalleryViewer`, sitzt global im Wurzel-Layout), wie adressiert wird
  * (`GalleryNavigation`) und wer der Gastgeber ist (`GalleryHost` — Job-
  * Meldungen, Bilder). Die letzten beiden gehoeren an jeden Montagepunkt.
- * Dazu kommt seit M4h eine App-Regel, die frueher IN der Galerie lag: der
- * Sprung zur Perspektiven-Wahl, wenn der Story-Modus ohne Perspektive startet
- * (`StoryPerspectiveRedirect`).
+ * Die Perspektiven-Wahl beim ersten Story-Besuch sass hier von M4h bis
+ * 09.10.2026 (`StoryPerspectiveRedirect`); seither ist sie ein Dialog am
+ * Story-Kopf (`story/story-perspektive-dialog.tsx`) — sie braucht die
+ * Anmeldung (Profil), die Galerie-Huelle soll das nicht.
  *
  * Lehre aus #248: Nach Welle #234 fehlte der Adressierungs-Anbieter an zwei
  * Stellen ausserhalb der Galerie, und oldiesforfuture.org war zehn Tage kaputt.
@@ -24,13 +25,11 @@
 import type { ReactNode } from 'react'
 import { NextGalleryNavigation } from './next-gallery-navigation'
 import { AppGalleryHost } from './app-gallery-host'
-import { StoryPerspectiveRedirect } from './story-perspective-redirect'
 
 export function GalleryAppProviders({ children }: { children: ReactNode }) {
   return (
     <NextGalleryNavigation>
       <AppGalleryHost>
-        <StoryPerspectiveRedirect />
         {children}
       </AppGalleryHost>
     </NextGalleryNavigation>

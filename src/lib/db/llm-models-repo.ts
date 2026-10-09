@@ -15,7 +15,7 @@
  * 
  * @usedIn
  * - src/app/api/llm-models: API routes use repository
- * - src/components/library/shared/perspective-page-content.tsx: UI loads models
+ * - packages/module-story (PerspektiveDialog): UI shows models (via @ks/api-client)
  * 
  * @dependencies
  * - @/lib/mongodb-service: MongoDB connection and collection access

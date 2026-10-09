@@ -1,6 +1,6 @@
 > Harte Invarianten fuer Welle 3-III — Galerie + Story-Mode + Chat
 >
-> **Gilt für:** `src/components/library/gallery/**/*.tsx`, `src/components/library/gallery/**/*.ts`, `src/components/library/chat/**/*.tsx`, `src/components/library/chat/**/*.ts`, `src/components/library/story/**/*.tsx`, `src/components/library/story/**/*.ts`, `src/components/library/shared/perspective-page-content.tsx`, `src/components/library/shared/perspective-display.tsx`, `src/components/library/filter-context-bar.tsx`, `src/components/library/file-category-filter.tsx`
+> **Gilt für:** `src/components/library/gallery/**/*.tsx`, `src/components/library/gallery/**/*.ts`, `src/components/library/chat/**/*.tsx`, `src/components/library/chat/**/*.ts`, `src/components/library/story/**/*.tsx`, `src/components/library/story/**/*.ts`, `src/components/library/shared/perspective-display.tsx`, `src/components/library/filter-context-bar.tsx`, `src/components/library/file-category-filter.tsx`
 
 # Contracts: Welle 3-III — Galerie + Story-Mode + Chat
 
@@ -72,9 +72,21 @@ Filter-Komponenten. Sie ergaenzt:
   Das Embed (`packages/embed/src/embed-story.tsx`) und die App
   (`story/story-root-mount.tsx` + `story-fuss.tsx`, D6c) montieren sie als
   die drei Story-Slots der Galerie — eine Mitte, zwei Montagepunkte.
-- **Perspective**:
-  - `shared/perspective-page-content.tsx` (926z, 13 Hooks),
-    `shared/perspective-display.tsx`
+- **Perspective** (seit 09.10.2026 ein Dialog statt einer Seite):
+  - `PerspektiveDialog` im Paket (`packages/module-story/src/react/perspektive/`,
+    Regeln als reine Funktionen in `regeln.ts`) — ohne Anmeldung, ohne Router;
+    Sprache und Modell nur, wenn der Montagepunkt sie zur Wahl stellt
+  - App: `story/perspektive-dialog-app.tsx` (Story-Atome + localStorage),
+    `story/story-perspektive-dialog.tsx` (am `StoryModeHeader`) (oeffnet im Story-Modus, solange der
+    Browser keinen Eintrag `story-perspective-set` hat; Speichern oder
+    Wegklicken setzt ihn; ersetzt `StoryPerspectiveRedirect`), Atom
+    `storyPerspektiveDialogOffenAtom`; angemeldet gilt das Profil
+    (`hooks/use-profil-perspektive.ts`, `GET/PUT /api/user/story-perspektive`,
+    Collection `user_story_perspektiven` je E-Mail) — von Browser zu Browser; die Routen `…/perspective` leiten nur
+    noch in den Story-Modus
+  - Embed: `enablePerspective` (`packages/embed/src/embed-perspektive.ts`),
+    Sprache und Modell fest
+  - `shared/perspective-display.tsx` (Plaketten im App-Kopf und in der Antwort)
 - **Backend-Konsumenten** (nicht in dieser Welle, aber relevant):
   - `src/lib/chat/**` (Backend-Service-Layer, eigene `chat-contracts.mdc`)
   - `src/lib/gallery/**` (Mappers, Query-Builder)
@@ -115,7 +127,7 @@ Filter-Komponenten. Sie ergaenzt:
   Fehler an UI durchreichen (Error-State im Reducer + sichtbarer
   Fallback-Render).
 - **Render-Fehler** in grossen Komponenten (`chat-panel`,
-  `gallery-root`, `perspective-page-content`) werden via
+  `gallery-root`) werden via
   React-Error-Boundary in `library.tsx` gefangen.
 
 ## §3 Erlaubte / verbotene Abhaengigkeiten
@@ -221,7 +233,7 @@ alle 3 Sub-Wellen:
 |---|---|---|
 | `gallery/gallery-root.tsx` | `gallery/gallery-root/` | `index.tsx`, `view-mode-switch.tsx`, `bulk-toolbar.tsx`, `hooks/use-gallery-data.ts`, `hooks/use-gallery-selection.ts`, `hooks/use-gallery-url-state.ts` |
 | `chat/chat-panel.tsx` | `chat/chat-panel/` | `index.tsx`, `panel-header.tsx`, `panel-body.tsx`, `panel-footer.tsx`, `hooks/use-chat-panel-state.ts` |
-| `shared/perspective-page-content.tsx` | `shared/perspective-page-content/` | `index.tsx`, `header.tsx`, `body.tsx`, `tabs.tsx`, `hooks/use-perspective-data.ts` |
+| ~~`shared/perspective-page-content.tsx`~~ | — | 09.10.2026 entfernt, ersetzt durch den `PerspektiveDialog` im Paket |
 | `gallery/document-card.tsx` | bleibt single-file | (keine Modul-Split, aber Helper extrahieren) |
 
 ## §7 Storage-Branches verboten — Helper sind erlaubt
@@ -256,8 +268,7 @@ korrekt: keine Hook-Use, kein Browser-API):
   weil sie nur in Client-Komponenten importiert werden)
 - `chat/utils/*.ts` (2 Files; Pure-Helper, kein Browser-API)
 
-Bei neuen Sub-Komponenten in `gallery-root/`, `chat-panel/`,
-`perspective-page-content/`: KEINE `'use client'`-Direktive setzen,
+Bei neuen Sub-Komponenten in `gallery-root/`, `chat-panel/`: KEINE `'use client'`-Direktive setzen,
 wenn sie ueber den Composer-Index importiert werden. Falls
 Sub-Komponente neue Client-API verwendet (Browser-API, eigene
 `useState`), Direktive explizit setzen.

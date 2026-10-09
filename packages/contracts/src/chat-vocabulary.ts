@@ -4,10 +4,11 @@
  * @description
  * Zielsprache, Interessenprofil (Character), sozialer Kontext und
  * Zugangsperspektive sind Teil des Library-Steckbriefs und damit ein Contract,
- * kein Chat-Implementierungsdetail. Reine String-Unions ohne Laufzeitcode —
- * einzige Ausnahme ist SOCIAL_CONTEXT_VALUES, das direkt neben seiner Union
- * steht: Zwei Orte fuer dieselbe Aufzaehlung laufen frueher oder spaeter
- * auseinander (Welle M4d, Entscheidung 3).
+ * kein Chat-Implementierungsdetail. Neben jeder Union steht ihre Werteliste:
+ * Zwei Orte fuer dieselbe Aufzaehlung laufen frueher oder spaeter auseinander
+ * (Welle M4d, Entscheidung 3). Seit dem Perspektiv-Dialog (09.10.2026) liegen
+ * auch die Listen fuer Sprachen, Interessen und Zugaenge hier — der Dialog im
+ * Paket `@ks/module-story` darf `src/lib/chat` nicht kennen.
  *
  * Die uebrigen Konstanten-Bloecke (Labels, Defaults, Zod-Enums, Prompts)
  * bleiben in src/lib/chat/constants.ts — das Paket beschreibt, es rechnet nicht.
@@ -121,3 +122,52 @@ export type AccessPerspective =
   | 'learning'
   | 'practical_view'
   | 'future_view'
+
+export const ACCESS_PERSPECTIVE_VALUES: readonly AccessPerspective[] = [
+  'undefined',
+  'insight',
+  'community',
+  'sustainability',
+  'learning',
+  'practical_view',
+  'future_view',
+] as const
+
+export const CHARACTER_VALUES: readonly Character[] = [
+  'undefined',
+  'technical',
+  'social-cultural',
+  'ecology',
+  'business',
+  'educational',
+  'practical',
+  'research',
+  'creative',
+] as const
+
+/** Sprachkategorien fuer Warnhinweise: wie gut die Modelle eine Sprache koennen. */
+export const LANGUAGE_CATEGORIES = {
+  /** Vollstaendig unterstuetzt: alle europaeischen Hauptsprachen und grosse asiatische Sprachen */
+  FULLY_SUPPORTED: ['en', 'de', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi', 'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja'] as const,
+  /** Gut unterstuetzt, mit etwas geringerer Praezision */
+  WELL_SUPPORTED: ['hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi'] as const,
+  /** Grundkenntnisse: einfache Texte moeglich */
+  BASIC_SUPPORT: ['sw', 'yo', 'zu', 'am', 'om'] as const,
+} as const
+
+/** Kategorie einer Sprache; `global` folgt der Oberflaechensprache und hat keine. */
+export function getLanguageCategory(language: TargetLanguage): 'full' | 'well' | 'basic' | null {
+  if (language === 'global') return null
+  if ((LANGUAGE_CATEGORIES.FULLY_SUPPORTED as readonly TargetLanguage[]).includes(language)) return 'full'
+  if ((LANGUAGE_CATEGORIES.WELL_SUPPORTED as readonly TargetLanguage[]).includes(language)) return 'well'
+  if ((LANGUAGE_CATEGORIES.BASIC_SUPPORT as readonly TargetLanguage[]).includes(language)) return 'basic'
+  return null
+}
+
+/** Alle Zielsprachen: global, dann vollstaendig, gut und grundlegend unterstuetzt. */
+export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = [
+  'global',
+  ...LANGUAGE_CATEGORIES.FULLY_SUPPORTED,
+  ...LANGUAGE_CATEGORIES.WELL_SUPPORTED,
+  ...LANGUAGE_CATEGORIES.BASIC_SUPPORT,
+] as const

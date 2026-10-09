@@ -5,19 +5,19 @@
  * Bausteinen aus `@ks/module-story` — anonym ueber die Sitzungskennung
  * (ADR 0008: nur Oeffentliches, keine Anmeldung).
  *
- * Was die App ueber Clerk, Perspektiven-Seite und Konfig-Store liefert, kommt
+ * Was die App ueber Clerk, Perspektiv-Dialog und Konfig-Store liefert, kommt
  * hier aus der oeffentlichen Library und der Instanz: Perspektive aus der
- * Chat-Konfig (Sprache = Sprache des Embeds), Modell = erstes der oeffentlich
- * gelisteten (dieselbe Regel wie `useStoryContext` der App), Belege ueber das
- * Atom der Galerie, Dokumentenzahl aus dem geteilten Galerie-Zustand.
+ * Chat-Konfig oder der eigenen Wahl (`embed-perspektive.tsx`, Sprache = Sprache
+ * des Embeds), Modell = erstes der oeffentlich gelisteten (dieselbe Regel wie
+ * `useStoryContext` der App), Belege ueber das Atom der Galerie,
+ * Dokumentenzahl aus dem geteilten Galerie-Zustand. Modell und Perspektive
+ * bestimmt `EmbedGalerie` einmal fuer Kopf und Mitte.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { fetchLlmModels, type InstanceApi } from '@ks/api-client'
 import { useTranslation } from '@ks/i18n/react'
-import type { Locale } from '@ks/i18n'
-import type { Character, SocialContext } from '@ks/contracts'
 import {
   AIGeneratedNotice,
   chatReferencesAtom,
@@ -40,10 +40,14 @@ function InstanzLink({ href, className, children }: HinweisLinkProps) {
   )
 }
 
-/** Das Modell fuer Fragen: das erste der oeffentlich gelisteten; `null` solange unbekannt, `''` wenn keines da ist. */
-function useOeffentlichesModell(instanz: InstanceApi): string | null {
+/**
+ * Das Modell fuer Fragen: das erste der oeffentlich gelisteten; `null` solange
+ * unbekannt, `''` wenn keines da ist. Ohne Story (`aktiv` false) kein Abruf.
+ */
+export function useOeffentlichesModell(instanz: InstanceApi, aktiv: boolean): string | null {
   const [modell, setModell] = useState<string | null>(null)
   useEffect(() => {
+    if (!aktiv) return
     let aktuell = true
     fetchLlmModels('public', { baseUrl: instanz.baseUrl })
       .then((modelle) => {
@@ -60,42 +64,27 @@ function useOeffentlichesModell(instanz: InstanceApi): string | null {
     return () => {
       aktuell = false
     }
-  }, [instanz])
+  }, [instanz, aktiv])
   return modell
 }
 
 export interface EmbedStoryProps {
   library: ExplorerLibraryPayload
   instanz: InstanceApi
-  locale: Locale
+  /** `null` solange das Modell noch geladen wird; `llmModel: ''` heisst: keines da. */
+  perspektive: Perspektive | null
 }
 
 /** Slot `storyPanel`: die Mitte. */
-export function EmbedStoryPanel({ library, instanz, locale, filterAnzeige }: EmbedStoryProps & { filterAnzeige?: ReactNode }) {
+export function EmbedStoryPanel({ library, instanz, perspektive, filterAnzeige }: EmbedStoryProps & { filterAnzeige?: ReactNode }) {
   const { t } = useTranslation()
-  const modell = useOeffentlichesModell(instanz)
   const filter = useAtomValue(galleryFiltersAtom)
   const setBelege = useSetAtom(chatReferencesAtom)
   // Zahl der (gefilterten) Dokumente aus dem Zustand, den die Galerie schon geladen hat.
   const galerie = useGalleryData(filter || {}, 'story', '', library.id, { skipApiCall: true })
   const chat = library.chat
-  const perspektive = useMemo<Perspektive | null>(
-    () =>
-      modell
-        ? {
-            targetLanguage: locale,
-            character: (chat?.character ?? []) as Character[],
-            accessPerspective: [],
-            socialContext: (chat?.socialContext ?? 'undefined') as SocialContext,
-            genderInclusive: chat?.genderInclusive ?? true,
-            llmModel: modell,
-          }
-        : null,
-    [modell, locale, chat?.character, chat?.socialContext, chat?.genderInclusive],
-  )
-
-  if (modell === null) return <p role="status" className="p-4 text-sm text-muted-foreground">{t('gallery.loading')}</p>
-  if (!perspektive) return <p role="alert" className="p-4 text-sm text-destructive">{t('story.modelMissing')}</p>
+  if (perspektive === null) return <p role="status" className="p-4 text-sm text-muted-foreground">{t('gallery.loading')}</p>
+  if (perspektive.llmModel === '') return <p role="alert" className="p-4 text-sm text-destructive">{t('story.modelMissing')}</p>
 
   return (
     <StoryRoot

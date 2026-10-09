@@ -6,6 +6,7 @@ import { AnsichtsZeile, useAnsichtErklaerung } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { useLibraries } from '@ks/shell/react'
 import { StoryHeader } from './story-header'
+import { StoryPerspektiveDialog } from './story-perspektive-dialog'
 
 interface StoryModeHeaderProps {
   libraryId: string
@@ -60,8 +61,10 @@ export function StoryModeHeader({ libraryId, onBackToGallery, onOpenChronik, onO
           onToggle: erklaerung.toggle,
           labels: { oeffnen: t('ansicht.erklaerungOeffnen'), schliessen: t('ansicht.erklaerungSchliessen') },
         }}
-        werkzeuge={<StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} libraryId={libraryId} />}
+        werkzeuge={<StoryHeader compact onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} />}
       />
+      {/* Perspektiv-Dialog: Knopf im Kopf und Erstbesuch (Profil, Browser-Eintrag). */}
+      <StoryPerspektiveDialog />
     </div>
   )
 }

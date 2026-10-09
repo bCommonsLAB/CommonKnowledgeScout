@@ -277,7 +277,7 @@ export function GalleryRoot({
   // Mode und searchParams werden automatisch über React State verwaltet
   
   // Story-Modus ohne Perspektive → Perspektiven-Wahl: Das entscheidet seit M4h
-  // die App (`StoryPerspectiveRedirect`), nicht die Galerie — sie las dafuer
+  // die App (`StoryPerspektiveDialog`, bis 09.10.2026 ein Sprung zur Perspektiv-Seite), nicht die Galerie — sie las dafuer
   // Story-Zustand, der ihr nicht gehoert.
   // useGalleryConfig verwendet jetzt direkt die Übersetzungen basierend auf detailViewType
   // initialDetailViewType verhindert das Flackern beim ersten Render

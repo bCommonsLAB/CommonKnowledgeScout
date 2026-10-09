@@ -44,7 +44,14 @@ export type {
   SocialContext,
   AccessPerspective,
 } from './chat-vocabulary'
-export { SOCIAL_CONTEXT_VALUES } from './chat-vocabulary'
+export {
+  SOCIAL_CONTEXT_VALUES,
+  ACCESS_PERSPECTIVE_VALUES,
+  CHARACTER_VALUES,
+  LANGUAGE_CATEGORIES,
+  TARGET_LANGUAGE_VALUES,
+  getLanguageCategory,
+} from './chat-vocabulary'
 
 export type { DetailViewType } from './detail-view-type'
 export { DETAIL_VIEW_TYPES, isDetailViewType } from './detail-view-type'
@@ -139,3 +146,6 @@ export { SITE_SURFACES, SITE_FONT_NAMES, SITE_BUTTON_SHAPES } from './site-theme
 // D2 (Plan story-dreiteilung-fragenchronik): Verarbeitungsschritte des
 // Chat-Streams — das Story-Paket zeigt sie in einfachen Worten.
 export type { ChatProcessingStep, StoryFehlerCode } from './chat-processing'
+
+// 09.10.2026: die Story-Perspektive im Benutzerprofil (angemeldet, browseruebergreifend)
+export { alsProfilPerspektive, type ProfilPerspektiveDto } from './profil-perspektive'

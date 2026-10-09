@@ -51,12 +51,27 @@ import type {
   SocialContext,
   AccessPerspective,
 } from '@ks/contracts'
-import { SOCIAL_CONTEXT_VALUES } from '@ks/contracts'
+import {
+  SOCIAL_CONTEXT_VALUES,
+  ACCESS_PERSPECTIVE_VALUES,
+  CHARACTER_VALUES,
+  LANGUAGE_CATEGORIES,
+  TARGET_LANGUAGE_VALUES,
+  getLanguageCategory,
+} from '@ks/contracts'
 import { STORY_TOC_QUESTION } from '@ks/contracts'
 
-// Re-Export, damit die bestehenden Importeure unveraendert bleiben (G2-Fassade)
+// Re-Export, damit die bestehenden Importeure unveraendert bleiben (G2-Fassade).
+// Die Wertelisten liegen seit dem Perspektiv-Dialog (09.10.2026) ebenfalls im Paket.
 export type { TargetLanguage, Character, SocialContext, AccessPerspective }
-export { SOCIAL_CONTEXT_VALUES }
+export {
+  SOCIAL_CONTEXT_VALUES,
+  ACCESS_PERSPECTIVE_VALUES,
+  CHARACTER_VALUES,
+  LANGUAGE_CATEGORIES,
+  TARGET_LANGUAGE_VALUES,
+  getLanguageCategory,
+}
 
 // ============================================================================
 // ANTWORTLÄNGE (AnswerLength)
@@ -106,63 +121,6 @@ export const RETRIEVER_ZOD_ENUM = z.enum(['chunk', 'doc', 'summary'])
 // ============================================================================
 // ZIELSPRACHE (TargetLanguage)
 // ============================================================================
-
-/**
- * Sprachkategorien für Warnhinweise
- * 
- * Definiert, welche Sprachen zu welcher Unterstützungskategorie gehören
- */
-export const LANGUAGE_CATEGORIES = {
-  /** ✅ Vollständig unterstützt: Alle europäischen Hauptsprachen + große asiatische Sprachen */
-  FULLY_SUPPORTED: ['en', 'de', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi', 'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja'] as const,
-  /** 🌐 Gut unterstützt: Funktionieren gut, aber mit etwas geringerer Präzision */
-  WELL_SUPPORTED: ['hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi'] as const,
-  /** 🌱 Grundkenntnisse: Einfache Texte möglich, komplexere Grammatik kann schwierig sein */
-  BASIC_SUPPORT: ['sw', 'yo', 'zu', 'am', 'om'] as const,
-} as const
-
-/**
- * Prüft, zu welcher Kategorie eine Sprache gehört
- */
-export function getLanguageCategory(language: TargetLanguage): 'full' | 'well' | 'basic' | null {
-  // 'global' verwendet die UI-Sprache, daher keine spezifische Kategorie
-  if (language === 'global') {
-    return null
-  }
-  // Type Guard: Prüfe ob language in FULLY_SUPPORTED enthalten ist
-  // Verwende explizite Typkonvertierung zu readonly TargetLanguage[] für Type-Safety
-  const fullySupported = LANGUAGE_CATEGORIES.FULLY_SUPPORTED as readonly TargetLanguage[]
-  if (fullySupported.includes(language)) {
-    return 'full'
-  }
-  // Type Guard: Prüfe ob language in WELL_SUPPORTED enthalten ist
-  const wellSupported = LANGUAGE_CATEGORIES.WELL_SUPPORTED as readonly TargetLanguage[]
-  if (wellSupported.includes(language)) {
-    return 'well'
-  }
-  // Type Guard: Prüfe ob language in BASIC_SUPPORT enthalten ist
-  const basicSupport = LANGUAGE_CATEGORIES.BASIC_SUPPORT as readonly TargetLanguage[]
-  if (basicSupport.includes(language)) {
-    return 'basic'
-  }
-  return null
-}
-
-/**
- * Liste aller verfügbaren Zielsprachen
- * 
- * Reihenfolge: Globale Sprache → Vollständig unterstützt → Gut unterstützt → Grundkenntnisse
- */
-export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = [
-  // Globale Sprache (verwendet UI-Sprache)
-  'global',
-  // ✅ Vollständig unterstützt
-  ...LANGUAGE_CATEGORIES.FULLY_SUPPORTED,
-  // 🌐 Gut unterstützt (Alltagsniveau, gelegentlich Einschränkungen)
-  ...LANGUAGE_CATEGORIES.WELL_SUPPORTED,
-  // 🌱 Grundkenntnisse / einfache Texte
-  ...LANGUAGE_CATEGORIES.BASIC_SUPPORT,
-] as const
 
 export const TARGET_LANGUAGE_DEFAULT: TargetLanguage = 'en'
 
@@ -227,18 +185,6 @@ export const TARGET_LANGUAGE_ZOD_ENUM = z.enum([
 // ============================================================================
 // CHARAKTER/PERSPEKTIVE (Character)
 // ============================================================================
-
-export const CHARACTER_VALUES: readonly Character[] = [
-  'undefined',
-  'technical',
-  'social-cultural',
-  'ecology',
-  'business',
-  'educational',
-  'practical',
-  'research',
-  'creative',
-] as const
 
 export const CHARACTER_DEFAULT: Character[] = ['undefined']
 
@@ -400,16 +346,6 @@ export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['undefined', 'scientific', 'gener
 // ============================================================================
 // ZUGANGSPERSPEKTIVE (AccessPerspective)
 // ============================================================================
-
-export const ACCESS_PERSPECTIVE_VALUES: readonly AccessPerspective[] = [
-  'undefined',
-  'insight',
-  'community',
-  'sustainability',
-  'learning',
-  'practical_view',
-  'future_view',
-] as const
 
 export const ACCESS_PERSPECTIVE_DEFAULT: AccessPerspective[] = ['undefined']
 
