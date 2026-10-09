@@ -64,7 +64,7 @@ describe('transcript-correction Route (P3b)', () => {
     h.record.updatedAt = '2026-10-08T09:00:00.000Z'
   })
 
-  it('GET liefert den Zustand ohne Body: updatedAt, speakers, Transformationen', async () => {
+  it('GET liefert Zustand und Absaetze: updatedAt, speakers, Transformationen, Text je Absatz', async () => {
     const res = await get('src-1')
     expect(res.status).toBe(200)
     const json = await res.json()
@@ -72,7 +72,9 @@ describe('transcript-correction Route (P3b)', () => {
     expect(json.speakers).toEqual(['Stück 1 Sprecher A'])
     expect(json.hatPraefixe).toBe(true)
     expect(json.transformationen).toHaveLength(1)
-    expect(JSON.stringify(json)).not.toContain('Frau Mahler spricht')
+    // Lesesicht des Reiters: der Text kommt als Absaetze mit Label, nicht als roher Body.
+    expect(json.absaetze).toEqual([{ index: 0, label: 'Stück 1 Sprecher A', text: 'Frau Mahler spricht.' }])
+    expect(json.body).toBeUndefined()
   })
 
   it('schreibt mit Revisions-Stempel des Anwenders und meldet Belege und speakerNames', async () => {

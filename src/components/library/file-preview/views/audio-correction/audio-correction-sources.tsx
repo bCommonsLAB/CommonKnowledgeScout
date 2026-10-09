@@ -1,8 +1,9 @@
 'use client'
 
 /**
- * Block 1 des Reiters „Korrektur": Begleitdokumente desselben Ordners
- * (Einladung, Folien) waehlen und Vorschlaege beim Secretary holen.
+ * Schritt 1 des Reiters „Korrektur": Begleitdokumente desselben Ordners
+ * (Einladung, Folien) waehlen und Vorschlaege beim Secretary holen. Der Knopf
+ * steht unter der Liste, damit er in der schmalen rechten Spalte nicht umbricht.
  */
 
 import { Button, Checkbox, Label } from '@ks/ui'
@@ -23,18 +24,12 @@ export function AudioCorrectionSources({ quellen, onToggle, onHolen, laeuft, dis
   const gewaehlt = quellen.filter((q) => q.gewaehlt).length
   return (
     <div className="rounded border p-3 space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-medium">Begleitdokumente</div>
-          <p className="text-xs text-muted-foreground">
-            Transkripte aus demselben Ordner, gegen die der Secretary Namen, Zahlen und Begriffe prueft.
-            Namen werden nur vorgeschlagen, wenn sie in einem Begleittext stehen.
-          </p>
-        </div>
-        <Button size="sm" onClick={onHolen} disabled={disabled || laeuft}>
-          <Sparkles className="h-4 w-4 mr-2" />
-          {laeuft ? 'Secretary arbeitet …' : `Vorschlaege holen (${gewaehlt})`}
-        </Button>
+      <div>
+        <div className="text-sm font-medium">1. Begleitdokumente und Vorschlag</div>
+        <p className="text-xs text-muted-foreground">
+          Transkripte aus demselben Ordner, gegen die der Secretary Namen, Zahlen und Begriffe prueft.
+          Namen werden nur vorgeschlagen, wenn sie in einem Begleittext stehen.
+        </p>
       </div>
       {quellen.length === 0 ? (
         <p className="text-xs text-muted-foreground">Keine Begleitdokumente mit Transkript im Ordner. Vorschlaege sind auch ohne moeglich, dann nur aus dem Transkript selbst.</p>
@@ -56,6 +51,12 @@ export function AudioCorrectionSources({ quellen, onToggle, onHolen, laeuft, dis
           ))}
         </ul>
       )}
+      <div className="flex justify-end">
+        <Button size="sm" onClick={onHolen} disabled={disabled || laeuft}>
+          <Sparkles className="h-4 w-4 mr-2" />
+          {laeuft ? 'Secretary arbeitet …' : `Vorschlaege holen (${gewaehlt})`}
+        </Button>
+      </div>
       {vorschlag && (
         <details className="text-xs text-muted-foreground">
           <summary className="cursor-pointer">

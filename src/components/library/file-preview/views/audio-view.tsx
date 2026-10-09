@@ -199,7 +199,7 @@ export function AudioView(props: PreviewViewProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="correction" className="min-h-0 flex-1 overflow-auto p-3">
+        <TabsContent value="correction" className="min-h-0 flex-1 overflow-hidden p-3">
           {infoTab === 'correction' ? (
             <AudioCorrectionTab
               libraryId={activeLibraryId}

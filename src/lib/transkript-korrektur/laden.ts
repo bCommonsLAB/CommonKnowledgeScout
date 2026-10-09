@@ -5,7 +5,8 @@
  * Liest die fuehrende Fassung aus MongoDB (`shadow-twin-repo`), nie aus dem
  * Spiegel. Der Zustand (`transkriptZustand`) ist, was die Oberflaeche braucht,
  * um Listen vorzubelegen und den optimistischen Riegel (`updatedAt`) zu
- * setzen; der Body selbst geht nur an den Secretary, nicht an den Client.
+ * setzen; der rohe Body geht nur an den Secretary, der Client bekommt ihn
+ * als Absaetze mit Sprecher-Label (`absaetze`) fuer die Lesesicht.
  *
  * @module transkript-korrektur
  */
@@ -18,6 +19,7 @@ import {
   type ShadowTwinArtifactRecord,
   type ShadowTwinDocument,
 } from '@/lib/repositories/shadow-twin-repo'
+import { zerlegeAbsaetze, type TranskriptAbsatz } from './absaetze'
 import { parseSpeakerNames, sprecherPraefix } from './anwenden'
 import { transformationenVon } from './schreiben'
 
@@ -28,7 +30,7 @@ export interface TranskriptStand {
   body: string
 }
 
-/** Zustand fuer die Oberflaeche — ohne den Body. */
+/** Zustand fuer die Oberflaeche — der Body als Absaetze (Lesesicht), nicht roh. */
 export interface TranskriptZustand {
   sourceId: string
   sourceName: string
@@ -45,6 +47,8 @@ export interface TranskriptZustand {
   transformationen: TransformationZeile[]
   /** true, wenn das Transkript nach mindestens einer Transformation korrigiert wurde (abgeleitet, kein Feld). */
   ueberholt: boolean
+  /** Text Absatz fuer Absatz mit Sprecher-Label — die linke Spalte des Reiters „Korrektur". */
+  absaetze: TranskriptAbsatz[]
 }
 
 /** Juengster Stand je Transformations-Record — unabhaengig vom Dokument-`updatedAt`, das jeder Write bewegt. */
@@ -96,6 +100,7 @@ export function transkriptZustand(stand: TranskriptStand): TranskriptZustand {
     zeichen: body.length,
     transformationen: transformationenVon(doc, ''),
     ueberholt: transformationUeberholt(doc, revisedAt),
+    absaetze: zerlegeAbsaetze(body, speakers),
   }
 }
 

@@ -1,13 +1,16 @@
 'use client'
 
 /**
- * Block 2 und 3 des Reiters „Korrektur": Ersetzungen (Hoerfehler) und
- * Sprecher-Zuordnung — je Zeile annehmen, ablehnen, aendern. Reine Darstellung;
- * Zustand haelt `useAudioCorrection`.
+ * Schritt 2 des Reiters „Korrektur": Ersetzungen (Hoerfehler) und
+ * Sprecher-Zuordnung — je Zeile annehmen, ablehnen, aendern. Jeder Sprecher
+ * traegt die Farbe seiner Absaetze links. Reine Darstellung; Zustand haelt
+ * `useAudioCorrection`.
  */
 
 import { Button, Checkbox, Input } from '@ks/ui'
 import { Plus, Trash2 } from 'lucide-react'
+import type { TranskriptAbsatz } from '@/lib/transkript-korrektur/absaetze'
+import { absatzId, sprecherFarbe } from './audio-correction-text'
 import { leereErsetzung, type ErsetzungZeile, type SprecherZeile } from './audio-correction-types'
 
 function Beleg({ beleg, begruendung }: { beleg: string; begruendung: string }) {
@@ -67,15 +70,24 @@ interface SprecherProps {
   onChange: (zeilen: SprecherZeile[]) => void
   disabled: boolean
   hatPraefixe: boolean
+  /** Fuer „zur ersten Stelle springen" und die Absatz-Zahl je Sprecher. */
+  absaetze: TranskriptAbsatz[]
 }
 
-export function SprecherListe({ zeilen, onChange, disabled, hatPraefixe }: SprecherProps) {
+/** Springt links zum ersten Absatz dieses Sprechers (DOM-Anker, kein Zustand). */
+function springeZu(absaetze: TranskriptAbsatz[], label: string): void {
+  const erster = absaetze.find((a) => a.label === label)
+  if (!erster) return
+  document.getElementById(absatzId(erster.index))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+export function SprecherListe({ zeilen, onChange, disabled, hatPraefixe, absaetze }: SprecherProps) {
   const update = (label: string, patch: Partial<SprecherZeile>) => onChange(zeilen.map((z) => (z.label === label ? { ...z, ...patch } : z)))
   return (
     <div className="rounded border p-3 space-y-2">
-      <div className="text-sm font-medium">Sprecher</div>
+      <div className="text-sm font-medium">2. Sprecher benennen</div>
       <p className="text-xs text-muted-foreground">
-        Label aus der Transkription → Person. Ein Haken ersetzt das Label an jedem Absatz; ohne Haken bleibt es Rolle.
+        Klick auf das Label springt links zur ersten Stelle. Ein Haken ersetzt das Label an jedem Absatz; ohne Haken bleibt es Rolle.
       </p>
       {zeilen.length === 0 && (
         <p className="text-xs text-muted-foreground">Dieses Transkript hat keine Sprecher-Labels. Mit &bdquo;Sprecher erkennen&ldquo; neu transkribieren, wenn die Zuordnung gebraucht wird.</p>
@@ -83,16 +95,31 @@ export function SprecherListe({ zeilen, onChange, disabled, hatPraefixe }: Sprec
       {zeilen.length > 0 && !hatPraefixe && (
         <p className="text-xs text-amber-700 dark:text-amber-400">Die Labels stehen im Frontmatter, aber nicht mehr als Praefix im Text — vermutlich schon zugeordnet.</p>
       )}
-      {zeilen.map((z) => (
-        <div key={z.label} className="grid grid-cols-[auto_12rem_1fr] items-center gap-2">
-          <Checkbox checked={z.aktiv} disabled={disabled || !hatPraefixe} onCheckedChange={(v) => update(z.label, { aktiv: v === true })} aria-label="Sprecher zuordnen" />
-          <span className="text-xs font-mono truncate" title={z.label}>{z.label}</span>
-          <div className="flex items-center gap-2">
-            <Input value={z.name} disabled={disabled || !hatPraefixe} placeholder="Name der Person" className="h-8 text-xs" onChange={(e) => update(z.label, { name: e.target.value })} />
-            <Beleg beleg={z.beleg} begruendung={z.begruendung} />
+      {zeilen.map((z, i) => {
+        const farbe = sprecherFarbe(i)
+        const anzahl = absaetze.filter((a) => a.label === z.label).length
+        return (
+          <div key={z.label} className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Checkbox checked={z.aktiv} disabled={disabled || !hatPraefixe} onCheckedChange={(v) => update(z.label, { aktiv: v === true })} aria-label="Sprecher zuordnen" />
+              <button
+                type="button"
+                className={`flex min-w-0 items-center gap-1.5 text-xs font-medium hover:underline ${farbe.text}`}
+                title={`${z.label} — zur ersten Stelle springen`}
+                onClick={() => springeZu(absaetze, z.label)}
+              >
+                <span className={`h-2 w-2 shrink-0 rounded-full ${farbe.punkt}`} />
+                <span className="truncate">{z.label}</span>
+              </button>
+              <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{anzahl} Abs.</span>
+            </div>
+            <div className="pl-6">
+              <Input value={z.name} disabled={disabled || !hatPraefixe} placeholder="Name der Person" className="h-8 text-xs" onChange={(e) => update(z.label, { name: e.target.value })} />
+              <Beleg beleg={z.beleg} begruendung={z.begruendung} />
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
