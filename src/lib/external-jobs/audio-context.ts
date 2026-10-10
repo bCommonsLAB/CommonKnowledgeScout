@@ -158,9 +158,12 @@ export function resolveLanguages(
 }
 
 /**
- * Sprecher-Erkennung: Job-Option vor Library-Voreinstellung vor Standard
- * (aus). Reine Funktion, auch VOR dem Job-Start nutzbar — die Bruecke sagt
- * damit je Quelle, welcher Weg gefahren wird (Welle B).
+ * Sprecher-Erkennung: nur noch auf ausdruecklichen Wunsch im Aufruf (Job-Option),
+ * sonst aus. Die Library-Voreinstellung `transcriptionSpeakerMode` wird seit
+ * 10.10.2026 NICHT mehr gelesen (Owner-Entscheid: der Anbieter-Weg uebersetzt
+ * und erfindet Text; das Transkript muss das Original abbilden). Reine
+ * Funktion, auch VOR dem Job-Start nutzbar — die Bruecke sagt damit je Quelle,
+ * welcher Weg gefahren wird (Welle B).
  */
 export function resolveSpeakerMode(
   options: Record<string, unknown> | undefined,
@@ -168,8 +171,6 @@ export function resolveSpeakerMode(
 ): { speakerMode: boolean; speakerModeSource: SpeakerModeSource } {
   const speakerModeRaw = options?.[AUDIO_CONTEXT_OPTION_KEYS.speakerMode]
   if (typeof speakerModeRaw === 'boolean') return { speakerMode: speakerModeRaw, speakerModeSource: 'job' }
-  if (typeof library?.config?.transcriptionSpeakerMode === 'boolean') {
-    return { speakerMode: library.config.transcriptionSpeakerMode, speakerModeSource: 'library' }
-  }
+  void library // Parameter bleibt fuer die Aufrufer stabil; die Library-Voreinstellung ist abgeschaltet (siehe oben).
   return { speakerMode: false, speakerModeSource: 'default' }
 }

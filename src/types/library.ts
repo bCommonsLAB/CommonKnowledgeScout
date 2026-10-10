@@ -183,6 +183,10 @@ export interface StorageConfig {
    * KEIN Kontext-Prompt); false/fehlt = `audio/process` mit Kontext
    * (prompt + keywords aus `extractionKnownNames`). Pro Datei im
    * Transkriptions-Dialog uebersteuerbar. KEIN Secret.
+   *
+   * VERALTET seit 10.10.2026: wird nicht mehr gelesen (`resolveSpeakerMode`)
+   * und in den Einstellungen nicht mehr angeboten; der Wert bleibt nur, damit
+   * bestehende Configs beim Speichern nicht verloren gehen.
    */
   transcriptionSpeakerMode?: boolean;
 

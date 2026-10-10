@@ -1,31 +1,31 @@
 "use client";
 
 /**
- * Kontext-Felder der Audio-Transkription (P3a): Sprecher-Erkennung,
- * Sprachen der Aufnahme, Thema/Anlass und Begriffe fuer diese Datei. Reine Eingabe-Komponente —
+ * Kontext-Felder der Audio-Transkription: Sprachen der Aufnahme,
+ * Thema/Anlass und Begriffe fuer diese Datei. Reine Eingabe-Komponente —
  * eingebunden im Dialog „Aufbereiten & Publizieren" (Schritt „Transkript
  * erstellen", Optionen; `flow/pipeline-sheet.tsx`). Die Werte gehen als
- * `speakerMode`, `audioLanguages`, `audioPrompt`, `audioKeywords` ueber `/api/pipeline/process`
- * an den Job; die bekannten Namen der Library ergaenzt der Server
- * (`resolveAudioJobContext`). Dieselben Feldnamen versteht
- * `/api/secretary/process-audio/job` (Erfassungs-Wizard).
+ * `audioLanguages`/`sourceLanguage`, `audioPrompt`, `audioKeywords` ueber
+ * `/api/pipeline/process` an den Job; die bekannten Namen der Library ergaenzt
+ * der Server (`resolveAudioJobContext`).
+ *
+ * Owner-Entscheid 10.10.2026: Das Transkript bildet das Original ab — keine
+ * Uebersetzung, kein Sprecher-Modus mehr (der Anbieter-Weg uebersetzte und
+ * erfand Text). Sprecher entstehen im Korrektur-Schritt.
  */
 
-import { Input, Label, Switch, Textarea } from '@ks/ui'
+import { Label, Textarea } from '@ks/ui'
+import { SprachenAuswahl } from '@/components/shared/sprachen-auswahl'
 
 export interface AudioTransformContextProps {
-  speakerMode: boolean
-  onSpeakerModeChange: (value: boolean) => void
+  /** Sprachen der Aufnahme; leer = automatisch erkennen. */
+  sprachen: string[]
+  onSprachenChange: (codes: string[]) => void
   prompt: string
   onPromptChange: (value: string) => void
   /** Ein Begriff je Zeile (oder kommagetrennt). */
   keywordsText: string
   onKeywordsTextChange: (value: string) => void
-  /** Sprachcodes als Text („de, it"). */
-  languagesText: string
-  onLanguagesTextChange: (value: string) => void
-  /** Eintraege, die kein Sprachcode sind. */
-  invalidLanguages: string[]
   /** Anzahl der `extractionKnownNames` der Library (werden automatisch ergaenzt). */
   knownNamesCount: number
   disabled?: boolean
@@ -40,44 +40,18 @@ export function parseKeywordsText(text: string): string[] {
 }
 
 export function AudioTransformContext(props: AudioTransformContextProps) {
-  const { speakerMode, prompt, keywordsText, languagesText, invalidLanguages, knownNamesCount, disabled } = props
+  const { sprachen, prompt, keywordsText, knownNamesCount, disabled } = props
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-0.5">
-          <Label htmlFor="audio-speaker-mode" className="text-sm">Sprecher erkennen</Label>
-          <p className="text-xs text-muted-foreground">
-            Ein Absatz je Sprecherwechsel (&bdquo;Sprecher A&ldquo;). Die Zuordnung zu Namen
-            bestaetigt spaeter ein Mensch im Korrektur-Schritt.
-          </p>
-        </div>
-        <Switch
-          id="audio-speaker-mode"
-          checked={speakerMode}
-          onCheckedChange={props.onSpeakerModeChange}
-          disabled={disabled}
-          aria-label="Sprecher erkennen"
-        />
-      </div>
-
       <div className="space-y-1">
-        <Label htmlFor="audio-languages" className="text-sm">Sprachen der Aufnahme</Label>
-        <Input
-          id="audio-languages"
-          value={languagesText}
-          onChange={(e) => props.onLanguagesTextChange(e.target.value)}
-          placeholder="z. B. de, it"
-          className="h-8 text-xs"
-          disabled={disabled}
-        />
-        {invalidLanguages.length > 0 ? (
-          <p className="text-xs text-destructive">Kein Sprachcode: {invalidLanguages.join(', ')} &mdash; zwei Buchstaben, z. B. de, it.</p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Alle Sprachen, die gesprochen werden. Ohne Angabe waehlt das Modell je Abschnitt eine
-            Sprache und uebersetzt den Rest hinein.
-          </p>
-        )}
+        <Label htmlFor="audio-sprachen" className="text-sm">Sprachen der Aufnahme</Label>
+        <SprachenAuswahl id="audio-sprachen" value={sprachen} onChange={props.onSprachenChange} disabled={disabled} />
+        <p className="text-xs text-muted-foreground">
+          {sprachen.length > 1
+            ? 'Gemischte Aufnahme: jede Sprache bleibt im Original stehen.'
+            : 'Bei gemischten Aufnahmen alle gesprochenen Sprachen waehlen — sonst entscheidet das Modell je Abschnitt eine Sprache und uebersetzt den Rest hinein.'}
+          {' '}Das Transkript wird nicht uebersetzt; Uebersetzen gehoert zur Transformation.
+        </p>
       </div>
 
       <div className="space-y-1">
@@ -108,13 +82,6 @@ export function AudioTransformContext(props: AudioTransformContextProps) {
             : 'Die Library hat keine bekannten Namen hinterlegt (Einstellungen → Erweitert).'}
         </p>
       </div>
-
-      {speakerMode && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
-          Im Sprecher-Modus nimmt die Transkription keinen Kontext an; Sprachen, Thema und
-          Begriffe wirken erst im Korrektur-Schritt.
-        </p>
-      )}
     </div>
   )
 }

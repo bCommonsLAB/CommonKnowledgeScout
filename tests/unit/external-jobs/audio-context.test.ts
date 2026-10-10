@@ -23,10 +23,10 @@ describe('resolveAudioJobContext (P3a)', () => {
     expect(ctx).toEqual({ prompt: undefined, keywords: [], speakerMode: false, speakerModeSource: 'default', languages: [], languagesSource: 'none' })
   })
 
-  it('Library-Voreinstellung greift, wenn der Job nichts sagt', () => {
+  it('Library-Voreinstellung Sprecher-Modus ist abgeschaltet (Owner 10.10.2026): ohne Job-Option aus', () => {
     const ctx = resolveAudioJobContext(job({}), library({ transcriptionSpeakerMode: true }))
-    expect(ctx.speakerMode).toBe(true)
-    expect(ctx.speakerModeSource).toBe('library')
+    expect(ctx.speakerMode).toBe(false)
+    expect(ctx.speakerModeSource).toBe('default')
   })
 
   it('Job-Option uebersteuert die Library-Voreinstellung (auch mit false)', () => {

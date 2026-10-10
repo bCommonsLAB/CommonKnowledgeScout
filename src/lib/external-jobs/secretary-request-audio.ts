@@ -62,6 +62,10 @@ export function buildAudioSecretaryRequest(args: AudioRequestArgs): { url: strin
   formData.append('file', file)
   // process-diarized kennt weder target_language noch template (Dienst-Doku audio.md).
   if (!speakerMode) formData.append('target_language', targetLanguage)
+  // Das Transkript bildet das Original ab — Uebersetzen gehoert zur Transformation
+  // (Owner 10.10.2026). Der Secretary wertet das Feld ab Auftrag F aus; bis dahin
+  // schuetzt nur `languages` gemischte Stuecke vor der Uebersetzung.
+  if (!speakerMode) formData.append('translate', 'false')
   formData.append('source_language', sourceLanguage)
   // Secretary uses `useCache` (see existing Next proxy routes)
   formData.append('useCache', String(useCache))

@@ -231,6 +231,8 @@ describe('prepareSecretaryRequest', () => {
     expect(JSON.parse(getStringField(cfg.formData, 'keywords') ?? '[]')).toEqual(['Peter Aichner', 'Caritas'])
     // Gemischte Aufnahme: ohne languages uebersetzt das Modell (Prueffall 09.10.2026).
     expect(JSON.parse(getStringField(cfg.formData, 'languages') ?? '[]')).toEqual(['de', 'it'])
+    // Transkript = Original: nie uebersetzen (Owner 10.10.2026).
+    expect(getStringField(cfg.formData, 'translate')).toBe('false')
     expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
 

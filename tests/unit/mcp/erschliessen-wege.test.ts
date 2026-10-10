@@ -19,9 +19,10 @@ describe('audioOptionenAusEingabe', () => {
 })
 
 describe('bestimmeAudioWeg', () => {
-  it('Aufruf schlaegt Library schlaegt Standard, jeweils mit Herkunft', () => {
+  it('nur der Aufruf schaltet den Sprecher-Modus ein, sonst Standard (aus)', () => {
     expect(bestimmeAudioWeg({ speakerMode: true }, lib(false))).toMatchObject({ weg: 'mit_sprechererkennung', herkunft: 'aufruf' })
-    expect(bestimmeAudioWeg({}, lib(true))).toMatchObject({ weg: 'mit_sprechererkennung', herkunft: 'library' })
+    // Library-Voreinstellung Sprecher-Modus ist seit 10.10.2026 abgeschaltet: ohne Aufruf immer ohne.
+    expect(bestimmeAudioWeg({}, lib(true))).toMatchObject({ weg: 'ohne_sprechererkennung', herkunft: 'standard' })
     expect(bestimmeAudioWeg({}, lib())).toMatchObject({ weg: 'ohne_sprechererkennung', herkunft: 'standard' })
   })
 
