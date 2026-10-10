@@ -56,6 +56,7 @@ export async function persistAudioSegments(args: {
       llmModel: gelesen.llmModel,
       dataLanguage: gelesen.dataLanguage,
       segments: gelesen.segments,
+      translatedChunks: gelesen.translatedChunks,
     })
     log({
       phase: 'transcript_segments_saved',
@@ -66,6 +67,8 @@ export async function persistAudioSegments(args: {
       mitWerten,
       verworfen: gelesen.verworfen,
       dataLanguage: gelesen.dataLanguage,
+      // null = aelterer Secretary ohne das Feld; eine Liste mit Eintraegen widerspricht translate=false.
+      uebersetzteStuecke: gelesen.translatedChunks === null ? 'unbekannt' : gelesen.translatedChunks.length,
     })
     return { gespeichert: true, anzahl: gelesen.segments.length, mitWerten }
   } catch (error) {

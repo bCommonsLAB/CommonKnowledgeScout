@@ -137,10 +137,28 @@ The webhook receives one final message when finished.
   "phase": "completed",
   "message": "Audio-Verarbeitung abgeschlossen",
   "data": {
-    "transcription": { "text": "..." }
+    "transcription": { "text": "..." },
+    "output_text": "...",
+    "segments": [ { "segment_id": 0, "start": 0.0, "end": 12.5, "text": "…", "speaker": null, "avg_logprob": -0.01, "min_logprob": -1.79, "compression_ratio": 1.1, "no_speech_prob": null, "quality_source": "logprobs", "languages": ["de", "it"], "text_language": "de", "text_language_prob": 0.93, "time_source": "estimated" } ],
+    "language": "de",
+    "translated_chunks": []
   }
 }
 ```
+
+**Verlässlichkeit je Satz** (Secretary PR #31): `segments[]` sind die Sätze des Modells
+mit Zeitmarken (bei `gpt-transcribe` geschätzt, `time_source: "estimated"`) und Rohwerten;
+`null` heißt „nicht geliefert", nie „sicher". `quality_source` sagt, woher die Zahlen
+stammen (`whisper`, `logprobs`, `none`). KS speichert sie in `transcript_segments__<libraryId>`
+und bewertet sie in der Korrektur-Ansicht (`src/lib/transkript-verlaesslichkeit/`).
+
+**Nachträgliche Übersetzung** (Secretary PR #33): `translated_chunks[]` nennt die Stücke
+des Gesamttexts, die der Dienst in `target_language` übersetzt hat (`index` ab 1,
+`start`/`end` in Sekunden, `source_language`, `target_language`). Leer = nichts übersetzt;
+fehlt der Schlüssel, ist der Secretary älter als PR #33 und KS behandelt das als
+„Übersetzung unbekannt". `segments[].text` ist nie übersetzt. KS schickt für Audio
+immer `translate=false` — das Transkript bildet das Original ab, Übersetzen ist
+Sache der Transformation.
 
 ### Webhook Payload (Progress)
 
@@ -229,6 +247,7 @@ dagegen nehmen `POST /api/audio/process` und der Job-Weg drei zusätzliche Felde
 | `prompt` | Freitext über Thema, Anlass, Ort | `Interview auf einem Permakultur-Hof im Vinschgau` |
 | `keywords` | Begriffe, die vorkommen können — kommagetrennt oder JSON-Liste | `Vinschgau, Permakultur, Terra Preta` |
 | `languages` | Mögliche Sprachen bei mehrsprachigem Material (ISO 639-1) | `de, it` |
+| `translate` | `false` = nichts nachträglich in `target_language` übersetzen; der Text bleibt in der Originalsprache (Default `true`; Secretary PR #33) | `false` |
 
 **Der `prompt` ist keine Anweisung an das Modell.** Nicht „transkribiere sorgfältig",
 sondern Kontext über das Gesprochene. Keywords sind Hinweise, keine Pflichtausgabe: Ein

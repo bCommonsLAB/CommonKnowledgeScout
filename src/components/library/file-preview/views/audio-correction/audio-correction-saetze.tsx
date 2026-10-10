@@ -87,6 +87,7 @@ export function AudioCorrectionSaetze(p: Props) {
           {bewertung.saetze.length} Saetze · <span className="font-medium text-amber-700 dark:text-amber-400">{bewertung.gelb} gelb</span>
           {' · '}<span className="font-medium text-sky-700 dark:text-sky-400">{vorschlaege} Vorschlaege</span> · {bewertung.luecken} Luecken
           {!bewertung.sprachpruefung && ' · Sprachpruefung aus'}
+          {bewertung.uebersetzung === 'unbekannt' && ' · Uebersetzung unbekannt (aelterer Secretary)'}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setFilter((f) => (f === 'alle' ? 'offen' : 'alle'))} title="Nur gelbe Stellen, Vorschlaege und Luecken zeigen">

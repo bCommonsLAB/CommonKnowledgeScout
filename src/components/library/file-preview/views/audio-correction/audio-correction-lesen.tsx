@@ -13,7 +13,7 @@ import { Info } from 'lucide-react'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { TranskriptAbsatz } from '@/lib/transkript-korrektur/absaetze'
 import { bewerteSegmente } from '@/lib/transkript-verlaesslichkeit/befunde'
-import type { TranscriptSegment } from '@/lib/transkript-verlaesslichkeit/segmente'
+import type { TranscriptSegment, TranslatedChunk } from '@/lib/transkript-verlaesslichkeit/segmente'
 import { AudioCorrectionSaetze } from './audio-correction-saetze'
 import { AudioCorrectionText } from './audio-correction-text'
 import type { SatzVorschlagAktionen } from './audio-correction-satz'
@@ -23,6 +23,8 @@ import { useAudioSprung } from './use-audio-sprung'
 export interface SegmenteStand {
   segments: TranscriptSegment[]
   updatedAt: string
+  /** Uebersetzte Stuecke im Gesamttext; fehlt/null = Secretary meldet es nicht. */
+  translatedChunks?: TranslatedChunk[] | null
 }
 
 interface Props {
@@ -48,7 +50,8 @@ const SPRUENGE = [-15, -5, 5, 15] as const
 export function AudioCorrectionLesen(props: Props) {
   const audio = useAudioSprung(props.provider, props.sourceId)
   const segments = props.segmente?.segments ?? []
-  const bewertung = React.useMemo(() => bewerteSegmente(segments, props.erlaubteSprachen), [segments, props.erlaubteSprachen])
+  const translatedChunks = props.segmente?.translatedChunks ?? null
+  const bewertung = React.useMemo(() => bewerteSegmente(segments, props.erlaubteSprachen, translatedChunks), [segments, props.erlaubteSprachen, translatedChunks])
   const zeitenGeschaetzt = segments.some((s) => s.timeSource === 'estimated')
   const korrigiertNachLauf = !!(props.revisedAt && props.segmente && props.revisedAt > props.segmente.updatedAt)
 
@@ -77,6 +80,12 @@ export function AudioCorrectionLesen(props: Props) {
       <div className="min-h-0 flex-1 overflow-auto rounded border px-3 pb-3">
         {segments.length > 0 ? (
           <>
+            {typeof bewertung.uebersetzung === 'number' && bewertung.uebersetzung > 0 && (
+              <p className="mb-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                {bewertung.uebersetzung} Stueck(e) des Transkripts wurden vom Secretary nachtraeglich uebersetzt — das Transkript ist dort KEIN Original.
+                Das sollte mit &bdquo;nicht uebersetzen&ldquo; nicht vorkommen; bitte melden. Die betroffenen Saetze sind markiert.
+              </p>
+            )}
             {korrigiertNachLauf && (
               <p className="mb-2 text-xs text-muted-foreground">
                 Das Transkript wurde nach diesem Lauf korrigiert — die Saetze zeigen den Text der Transkription, nicht die Korrektur.
