@@ -26,7 +26,8 @@ vi.mock('@/lib/services/library-service', () => ({
   LibraryService: { getInstance: () => ({ getLibrary: async () => ({ id: 'lib-1', config: {} }) }) },
 }))
 vi.mock('@/lib/shadow-twin/shadow-twin-config', () => ({ getShadowTwinConfig: () => ({ persistToFilesystem: false }) }))
-vi.mock('@/lib/storage/server-provider', () => ({ getServerProvider: vi.fn() }))
+const spiegel = vi.hoisted(() => ({ plane: vi.fn() }))
+vi.mock('@/lib/transkript-korrektur/spiegel-nachziehen', () => ({ planeSpiegelExport: spiegel.plane }))
 vi.mock('@/lib/transkript-korrektur/schreiben', () => ({
   schreibeTranskriptKorrektur: h.schreibe,
   transformationenVon: () => [{ pfad: 'x.de.vortrag.md', template: 'vortrag', sprache: 'de', jetztUeberholt: true }],
@@ -97,6 +98,9 @@ describe('transcript-correction Route (P3b)', () => {
     const markdownNeu = (h.schreibe.mock.calls[0] as unknown as [{ markdownNeu: string }])[0].markdownNeu
     expect(markdownNeu).toContain('**Dr. Anna Mahlknecht:** Frau Mahlknecht spricht.')
     expect(markdownNeu).toContain('revised_by: "peter@example.com"')
+    // Synchron nur Mongo; der Spiegel folgt gebuendelt (persistToFilesystem ist im Mock aus → kein Export).
+    expect((h.schreibe.mock.calls[0] as unknown as [{ skipFilesystemMirror: boolean }])[0].skipFilesystemMirror).toBe(true)
+    expect(spiegel.plane).not.toHaveBeenCalled()
     // Lese-Ansicht bleibt konsistent: dieselbe Ersetzung in den gespeicherten Saetzen.
     expect(json.segmenteNachgezogen).toEqual({ angewendet: 1, nichtGefunden: 0, sprecher: 0 })
     const segs = (segmentRepo.update.mock.calls[0] as unknown as [{ segments: Array<{ text: string }> }])[0].segments
