@@ -11,7 +11,7 @@
 
 import * as React from 'react'
 import { Alert, AlertDescription, Button } from '@ks/ui'
-import { Sparkles } from 'lucide-react'
+import { HelpCircle, Maximize2, Minimize2, Sparkles } from 'lucide-react'
 import type { StorageProvider } from '@/lib/storage/types'
 import { satzMitKorrektur } from '@/lib/transkript-korrektur/assistent-pruefung'
 import { AssistentDialog } from './assistent-dialog'
@@ -69,21 +69,41 @@ export function AudioCorrectionTab(props: Props) {
   }
 
   const offeneVorschlaege = assistent.offen.korrekturen.length + assistent.offen.sprecher.length
+
+  // Vollbild (Owner 10.10.2026): die Seite stapelt viele Ebenen ueber der Satzliste;
+  // zum Arbeiten nimmt die Korrektur den ganzen Bildschirm. Esc beendet.
+  const [vollbild, setVollbild] = React.useState(false)
+  React.useEffect(() => {
+    if (!vollbild) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setVollbild(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [vollbild])
+
+  const hilfe = 'Satz fuer Satz lesen und anhoeren — gelb heisst: nachhoeren. Doppelklick korrigiert, Vorschlaege der KI stehen am Rand. Alles wird sofort gespeichert.'
+    + (k.zustand?.revisedAt ? ` Zuletzt geaendert ${new Date(k.zustand.revisedAt).toLocaleString('de-DE')} von ${k.zustand.revisedBy ?? '?'}.` : '')
   const kopfAktion = (
-    <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setDialogOffen(true)} disabled={segments.length === 0}
-      title={segments.length === 0 ? 'Erst neu transkribieren — Vorschlaege brauchen die Saetze' : 'Korrekturen und Sprecherwechsel von der KI vorschlagen lassen'}>
-      <Sparkles className="h-3.5 w-3.5" /><span className="ml-1 hidden lg:inline">Vorschlaege holen</span>
-    </Button>
+    <>
+      <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setDialogOffen(true)} disabled={segments.length === 0}
+        title={segments.length === 0 ? 'Erst neu transkribieren — Vorschlaege brauchen die Saetze' : 'Korrekturen und Sprecherwechsel von der KI vorschlagen lassen'}>
+        <Sparkles className="h-3.5 w-3.5" /><span className="ml-1 hidden lg:inline">Vorschlaege holen</span>
+      </Button>
+      <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setVollbild((v) => !v)} aria-label={vollbild ? 'Vollbild beenden' : 'Vollbild'}
+        title={vollbild ? 'Vollbild beenden (Esc)' : 'Vollbild: die Korrektur nimmt den ganzen Bildschirm'}>
+        {vollbild ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+      </Button>
+      <span className="text-muted-foreground" title={hilfe}><HelpCircle className="h-4 w-4" aria-label="Hilfe zur Korrektur-Ansicht" /></span>
+    </>
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="text-xs text-muted-foreground">
-        Satz fuer Satz lesen und anhoeren — gelb heisst: nachhoeren. Doppelklick korrigiert, Vorschlaege der KI stehen am Rand. Alles wird sofort gespeichert.
-        {k.zustand?.revisedAt && (
-          <> · zuletzt geaendert {new Date(k.zustand.revisedAt).toLocaleString('de-DE')} von {k.zustand.revisedBy}</>
-        )}
-      </div>
+    <div className={vollbild ? 'fixed inset-0 z-50 flex flex-col gap-2 bg-background p-3' : 'flex h-full min-h-0 flex-col gap-2'}>
+      {vollbild && (
+        <div className="flex shrink-0 items-center gap-2 text-sm">
+          <span className="truncate font-medium">{k.zustand?.sourceName ?? ''}</span>
+          <span className="text-xs text-muted-foreground">Korrektur · Esc beendet das Vollbild</span>
+        </div>
+      )}
       {k.ladeFehler && <Alert variant="destructive"><AlertDescription>{k.ladeFehler}</AlertDescription></Alert>}
       {assistent.offen.verworfen.length > 0 && (
         <details className="text-xs text-muted-foreground">

@@ -73,7 +73,7 @@ export function AudioCorrectionSaetze(p: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background pb-2 text-xs">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background py-2 text-xs">
         <span className="truncate text-muted-foreground">
           {bewertung.saetze.length} Saetze · <span className="font-medium text-amber-700 dark:text-amber-400">{bewertung.gelb} gelb</span>
           {' · '}<span className="font-medium text-sky-700 dark:text-sky-400">{vorschlaege} Vorschlaege</span> · {bewertung.luecken} Luecken

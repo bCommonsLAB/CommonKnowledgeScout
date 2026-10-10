@@ -9,6 +9,7 @@
 
 import * as React from 'react'
 import { Button } from '@ks/ui'
+import { Info } from 'lucide-react'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { TranskriptAbsatz } from '@/lib/transkript-korrektur/absaetze'
 import { bewerteSegmente } from '@/lib/transkript-verlaesslichkeit/befunde'
@@ -53,24 +54,25 @@ export function AudioCorrectionLesen(props: Props) {
     <div className="flex h-full min-h-0 flex-col gap-2">
       {audio.fehler && <p className="text-xs text-destructive">Audio nicht ladbar: {audio.fehler}</p>}
       {audio.url && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption -- Das Audio IST die Quelle; der Text daneben ist das Transkript.
-        <audio ref={audio.audioRef} controls preload="metadata" src={audio.url} className="w-full shrink-0" />
-      )}
-      {audio.url && (
-        <div className="flex shrink-0 items-center gap-1 text-xs">
+        // Eine Zeile: Player, Spul-Knoepfe, Hinweis als Symbol — Hoehe sparen (Owner 10.10.2026).
+        <div className="flex shrink-0 items-center gap-1">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- Das Audio IST die Quelle; der Text darunter ist das Transkript. */}
+          <audio ref={audio.audioRef} controls preload="metadata" src={audio.url} className="h-8 min-w-0 flex-1" />
           {SPRUENGE.map((d) => (
-            <Button key={d} size="sm" variant="outline" className="h-7 px-2 text-xs tabular-nums" onClick={() => audio.verschiebe(d)} title={`${d > 0 ? 'Vor' : 'Zurueck'} um ${Math.abs(d)} Sekunden`}>
-              {d > 0 ? `+${d}` : d} s
+            <Button key={d} size="sm" variant="outline" className="h-7 px-1.5 text-xs tabular-nums" onClick={() => audio.verschiebe(d)} title={`${d > 0 ? 'Vor' : 'Zurueck'} um ${Math.abs(d)} Sekunden`}>
+              {d > 0 ? `+${d}` : d}
             </Button>
           ))}
           {zeitenGeschaetzt && (
-            <span className="ml-2 truncate text-muted-foreground" title="gpt-transcribe liefert keine Zeit je Satz; die Zeiten sind aus der Textposition geschaetzt. Der Sprung startet 5 s frueher.">
-              Zeitmarken geschaetzt — koennen 15–30 s abweichen; mit den Knoepfen nachjustieren.
+            // Titel statt Textzeile: der Hinweis ist wichtig, aber nicht bei jedem Satz neu.
+            <span className="ml-1 shrink-0 text-muted-foreground" title="Zeitmarken sind geschaetzt (15–30 s Abweichung moeglich). Der Sprung startet 5 s frueher; mit den Knoepfen nachjustieren.">
+              <Info className="h-4 w-4" aria-label="Hinweis zu den Zeitmarken" />
             </span>
           )}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto rounded border p-3">
+      {/* Kein Innenabstand oben: die klebende Kopfzeile der Satzliste sitzt sonst ueber der ersten Zeile. */}
+      <div className="min-h-0 flex-1 overflow-auto rounded border px-3 pb-3">
         {segments.length > 0 ? (
           <>
             {korrigiertNachLauf && (
