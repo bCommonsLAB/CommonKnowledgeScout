@@ -32,9 +32,8 @@ interface Props {
   erlaubteSprachen: string[]
   /** Letzte Korrektur des Transkripts; liegt sie nach dem Lauf, zeigen die Saetze den Stand vor der Korrektur. */
   revisedAt: string | null
-  /** Vorgemerkte Satz-Korrekturen je Index (noch nicht geschrieben). */
-  korrekturen: Map<number, string>
-  onKorrigiere: (index: number, alt: string, neu: string) => void
+  /** Satz sofort speichern; liefert null bei Erfolg, sonst die Fehlermeldung. */
+  onKorrigiere: (index: number, neu: string) => Promise<string | null>
 }
 
 const SPRUENGE = [-15, -5, 5, 15] as const
@@ -80,8 +79,7 @@ export function AudioCorrectionLesen(props: Props) {
               zeit={audio.zeit}
               onSpringe={audio.springe}
               zeitenGeschaetzt={zeitenGeschaetzt}
-              korrekturen={props.korrekturen}
-              onKorrigiere={(index, neu) => props.onKorrigiere(index, segments[index]?.text ?? '', neu)}
+              onKorrigiere={props.onKorrigiere}
             />
           </>
         ) : (

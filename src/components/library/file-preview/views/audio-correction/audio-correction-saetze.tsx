@@ -5,7 +5,7 @@
  * Transkript Satz fuer Satz. Gelb = die Werte sprechen dagegen (Grund im
  * Tooltip und unter dem Satz), Zeitmarke = anhoeren ab dieser Stelle, Luecken
  * ueber 10 s als eigene Zeile. Ein Satz ist per Doppelklick/Stift
- * korrigierbar (`AudioCorrectionSatz`). Reine Darstellung; Bewertung aus
+ * korrigierbar und wird beim Uebernehmen sofort gespeichert (`AudioCorrectionSatz`). Reine Darstellung; Bewertung aus
  * `bewerteSegmente`, Audio aus `useAudioSprung`, Korrekturen aus dem Tab.
  */
 
@@ -22,16 +22,15 @@ interface Props {
   onSpringe: (sekunden: number) => void
   /** Zeiten aus der Textposition geschaetzt (gpt-transcribe). */
   zeitenGeschaetzt: boolean
-  /** Vorgemerkte Satz-Korrekturen je Index. */
-  korrekturen: Map<number, string>
-  onKorrigiere: (index: number, neu: string) => void
+  /** Satz sofort speichern; null = gespeichert, sonst Fehlermeldung. */
+  onKorrigiere: (index: number, neu: string) => Promise<string | null>
 }
 
 export function satzId(index: number): string {
   return `korrektur-satz-${index}`
 }
 
-export function AudioCorrectionSaetze({ bewertung, zeit, onSpringe, zeitenGeschaetzt, korrekturen, onKorrigiere }: Props) {
+export function AudioCorrectionSaetze({ bewertung, zeit, onSpringe, zeitenGeschaetzt, onKorrigiere }: Props) {
   const [nurGelb, setNurGelb] = React.useState(false)
   const gelbeIndizes = React.useMemo(() => bewertung.saetze.filter((s) => s.befunde.length > 0).map((s) => s.index), [bewertung])
   const naechsteRef = React.useRef(0)
@@ -95,7 +94,6 @@ export function AudioCorrectionSaetze({ bewertung, zeit, onSpringe, zeitenGescha
                 satz={s}
                 domId={satzId(s.index)}
                 laeuft={laeuft}
-                korrektur={korrekturen.get(s.index)}
                 mehrdeutig={mehrdeutig.has(s.segment.text)}
                 zeitenGeschaetzt={zeitenGeschaetzt}
                 onSpringe={onSpringe}

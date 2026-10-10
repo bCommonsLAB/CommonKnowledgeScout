@@ -3,49 +3,57 @@
 /**
  * Ein Satz in der Lese-Ansicht des Reiters „Korrektur": Zeitmarke zum
  * Anhoeren, Text, Gruende fuer Gelb — und Bearbeiten an Ort und Stelle
- * (Doppelklick oder Stift). „Uebernehmen" merkt die Korrektur nur vor; sie
- * erscheint rechts als Ersetzung und wird mit „Bestaetigen und schreiben"
- * gespeichert.
+ * (Doppelklick oder Stift). „Uebernehmen" speichert sofort; schlaegt das
+ * fehl, bleibt der Editor mit dem Text offen und zeigt den Grund.
  */
 
 import * as React from 'react'
 import { Button, Textarea } from '@ks/ui'
-import { Check, Pencil, Play, X } from 'lucide-react'
+import { Check, Loader2, Pencil, Play, X } from 'lucide-react'
 import { formatZeit, type BewerteterSatz } from '@/lib/transkript-verlaesslichkeit/befunde'
 
 interface Props {
   satz: BewerteterSatz
   domId: string
   laeuft: boolean
-  /** Vorgemerkte Korrektur (noch nicht geschrieben), sonst undefined. */
-  korrektur: string | undefined
   /** Satztext kommt im Transkript mehrfach vor — ganze-Satz-Ersetzung waere nicht eindeutig. */
   mehrdeutig: boolean
   zeitenGeschaetzt: boolean
   onSpringe: (sekunden: number) => void
-  onKorrigiere: (neu: string) => void
+  /** Speichert sofort; null = gespeichert, sonst Fehlermeldung. */
+  onKorrigiere: (neu: string) => Promise<string | null>
 }
 
-export function AudioCorrectionSatz({ satz, domId, laeuft, korrektur, mehrdeutig, zeitenGeschaetzt, onSpringe, onKorrigiere }: Props) {
+export function AudioCorrectionSatz({ satz, domId, laeuft, mehrdeutig, zeitenGeschaetzt, onSpringe, onKorrigiere }: Props) {
   const [bearbeiten, setBearbeiten] = React.useState(false)
   const [entwurf, setEntwurf] = React.useState('')
+  const [speichert, setSpeichert] = React.useState(false)
+  const [fehler, setFehler] = React.useState<string | null>(null)
+  const [gespeichert, setGespeichert] = React.useState(false)
   const gelb = satz.befunde.length > 0
-  const text = korrektur ?? satz.segment.text
+  const text = satz.segment.text
 
   const oeffnen = () => {
     setEntwurf(text)
+    setFehler(null)
     setBearbeiten(true)
   }
-  const uebernehmen = () => {
-    onKorrigiere(entwurf)
+  const uebernehmen = async () => {
+    if (entwurf.trim() === text) { setBearbeiten(false); return }
+    setSpeichert(true)
+    setFehler(null)
+    const ergebnis = await onKorrigiere(entwurf)
+    setSpeichert(false)
+    if (ergebnis) { setFehler(ergebnis); return }
     setBearbeiten(false)
+    setGespeichert(true)
   }
 
   return (
     <div
       id={domId}
-      className={`group grid grid-cols-[3.5rem_1fr_auto] gap-2 rounded px-1 py-0.5 ${gelb ? 'bg-amber-100 dark:bg-amber-900/40' : ''} ${laeuft ? 'ring-1 ring-primary' : ''}`}
-      title={gelb && !bearbeiten ? satz.befunde.map((b) => b.text).join('\n') : undefined}
+      className={`group grid grid-cols-[3.5rem_1fr_auto] gap-2 rounded px-1 py-0.5 ${gelb && !gespeichert ? 'bg-amber-100 dark:bg-amber-900/40' : ''} ${laeuft ? 'ring-1 ring-primary' : ''}`}
+      title={gelb && !bearbeiten && !gespeichert ? satz.befunde.map((b) => b.text).join('\n') : undefined}
     >
       <button
         type="button"
@@ -62,31 +70,30 @@ export function AudioCorrectionSatz({ satz, domId, laeuft, korrektur, mehrdeutig
             value={entwurf}
             rows={Math.min(6, Math.max(2, Math.ceil(entwurf.length / 90)))}
             autoFocus
+            disabled={speichert}
             className="text-sm"
             onChange={(e) => setEntwurf(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') setBearbeiten(false)
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); uebernehmen() }
+              if (e.key === 'Escape' && !speichert) setBearbeiten(false)
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void uebernehmen() }
             }}
           />
           <div className="flex items-center gap-2">
-            <Button size="sm" className="h-7 px-2 text-xs" onClick={uebernehmen}><Check className="mr-1 h-3.5 w-3.5" /> Uebernehmen</Button>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setBearbeiten(false)}><X className="mr-1 h-3.5 w-3.5" /> Abbrechen</Button>
-            {korrektur !== undefined && (
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { onKorrigiere(satz.segment.text); setBearbeiten(false) }}>
-                Original wiederherstellen
-              </Button>
-            )}
-            <span className="text-[11px] text-muted-foreground">Enter = uebernehmen, Esc = abbrechen</span>
+            <Button size="sm" className="h-7 px-2 text-xs" onClick={() => void uebernehmen()} disabled={speichert}>
+              {speichert ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />} Uebernehmen
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setBearbeiten(false)} disabled={speichert}>
+              <X className="mr-1 h-3.5 w-3.5" /> Abbrechen
+            </Button>
+            <span className="text-[11px] text-muted-foreground">Enter speichert, Esc bricht ab</span>
           </div>
+          {fehler && <p className="text-xs text-destructive">Nicht gespeichert: {fehler}</p>}
         </div>
       ) : (
         <div onDoubleClick={mehrdeutig ? undefined : oeffnen}>
-          <span className={korrektur !== undefined ? 'text-sky-800 dark:text-sky-300' : undefined}>{text}</span>
-          {korrektur !== undefined && (
-            <span className="block text-[11px] text-sky-700 dark:text-sky-400">geaendert, noch nicht geschrieben · vorher: {satz.segment.text}</span>
-          )}
-          {gelb && (
+          <span>{text}</span>
+          {gespeichert && <span className="ml-2 text-[11px] text-emerald-700 dark:text-emerald-400">✓ gespeichert</span>}
+          {gelb && !gespeichert && (
             <span className="block text-[11px] text-amber-800 dark:text-amber-300">{satz.befunde.map((b) => b.text).join(' · ')}</span>
           )}
         </div>

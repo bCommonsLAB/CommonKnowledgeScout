@@ -13,7 +13,7 @@
  */
 
 import * as React from 'react'
-import { FileText, Sparkles, Upload, RefreshCw, ListChecks } from 'lucide-react'
+import { FileText, Sparkles, Upload, RefreshCw } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertDescription, Button } from '@ks/ui'
 import { FileLogger } from '@/lib/debug/logger'
 import { SourceAndTranscriptPane } from '@/components/library/shared/source-and-transcript-pane'
@@ -34,6 +34,7 @@ import {
 } from '@/components/library/file-preview/review-split'
 import { TranscriptToolbarActions } from '@/components/library/file-preview/transcript-toolbar-actions'
 import { AudioCorrectionTab } from './audio-correction/audio-correction-tab'
+import { AudioTranscriptSubtabs } from './audio-transcript-subtabs'
 import { useTranscriptRevision } from './audio-correction/use-audio-correction'
 import type { PreviewViewProps } from './view-props'
 
@@ -133,11 +134,6 @@ export function AudioView(props: PreviewViewProps) {
           <TabsTrigger value="transcript">
             <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
           </TabsTrigger>
-          {hasTranscriptItem && (
-            <TabsTrigger value="correction">
-              <ListChecks className="h-3.5 w-3.5 mr-1" /> Korrektur
-            </TabsTrigger>
-          )}
           <TabsTrigger value="transform">
             <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStep?.state || null} />
           </TabsTrigger>
@@ -161,7 +157,23 @@ export function AudioView(props: PreviewViewProps) {
         </TabsContent>
 
         <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-          {wrapTranscriptTabWithReviewSplit(
+          <AudioTranscriptSubtabs
+            korrektur={hasTranscriptItem ? (
+              <AudioCorrectionTab
+                libraryId={activeLibraryId}
+                sourceId={item.id}
+                parentId={item.parentId || 'root'}
+                provider={provider}
+                enabled={true}
+                erlaubteSprachen={activeLibrary?.config?.transcriptionLanguages ?? []}
+                onSatzGespeichert={() => setRevisionTick((t) => t + 1)}
+                onGeschrieben={(ueberholt) => {
+                  setRevisionTick((t) => t + 1)
+                  if (ueberholt > 0) setInfoTab('transform')
+                }}
+              />
+            ) : null}
+            text={wrapTranscriptTabWithReviewSplit(
             isReviewMode,
             <ReviewOriginalPane provider={provider} item={item} streamingUrl={null} />,
             <ArtifactMarkdownPanel
@@ -196,24 +208,8 @@ export function AudioView(props: PreviewViewProps) {
                 />
               }
             />,
-          )}
-        </TabsContent>
-
-        <TabsContent value="correction" className="min-h-0 flex-1 overflow-hidden p-3">
-          {infoTab === 'correction' ? (
-            <AudioCorrectionTab
-              libraryId={activeLibraryId}
-              sourceId={item.id}
-              parentId={item.parentId || 'root'}
-              provider={provider}
-              enabled={true}
-              erlaubteSprachen={activeLibrary?.config?.transcriptionLanguages ?? []}
-              onGeschrieben={(ueberholt) => {
-                setRevisionTick((t) => t + 1)
-                if (ueberholt > 0) setInfoTab('transform')
-              }}
-            />
-          ) : null}
+            )}
+          />
         </TabsContent>
 
         <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">

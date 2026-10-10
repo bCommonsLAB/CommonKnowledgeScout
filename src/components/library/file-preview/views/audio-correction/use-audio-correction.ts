@@ -148,7 +148,7 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
   }, [libraryId, sourceId, ersetzungen, sprecher, begruendung, zustand, ladeZustand])
 
   return {
-    zustand, ladeFehler, quellen, setQuellen, vorschlag, ersetzungen, setErsetzungen, sprecher, setSprecher,
+    zustand, setZustand, ladeFehler, quellen, setQuellen, vorschlag, ersetzungen, setErsetzungen, sprecher, setSprecher,
     begruendung, setBegruendung, laeuft, aktionsFehler, ergebnis, holeVorschlaege, anwenden,
   }
 }
