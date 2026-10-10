@@ -36,7 +36,7 @@ import { toDate } from './to-date'
  * Der Brief nennt `run-library-sync.ts` als Ort; sie steht hier, weil das Tor
  * sie braucht und ein Import aus dem Orchestrator einen Zyklus ergaebe.
  */
-export const SYNC_ENGINE_VERSION = '1'
+export const SYNC_ENGINE_VERSION = '2'
 
 /** Eine Datei im Fingerabdruck (nur Listing-Felder, kein Inhalt). */
 interface FingerabdruckDatei {

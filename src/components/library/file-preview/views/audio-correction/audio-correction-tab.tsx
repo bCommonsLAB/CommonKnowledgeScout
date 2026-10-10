@@ -83,37 +83,42 @@ export function AudioCorrectionTab(props: Props) {
   const hilfe = 'Satz fuer Satz lesen und anhoeren — gelb heisst: nachhoeren. Doppelklick korrigiert, Vorschlaege der KI stehen am Rand. Alles wird sofort gespeichert.'
     + (k.zustand?.revisedAt ? ` Zuletzt geaendert ${new Date(k.zustand.revisedAt).toLocaleString('de-DE')} von ${k.zustand.revisedBy ?? '?'}.` : '')
   const kopfAktion = (
-    <>
-      <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setDialogOffen(true)} disabled={segments.length === 0}
-        title={segments.length === 0 ? 'Erst neu transkribieren — Vorschlaege brauchen die Saetze' : 'Korrekturen und Sprecherwechsel von der KI vorschlagen lassen'}>
-        <Sparkles className="h-3.5 w-3.5" /><span className="ml-1 hidden lg:inline">Vorschlaege holen</span>
-      </Button>
-      <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setVollbild((v) => !v)} aria-label={vollbild ? 'Vollbild beenden' : 'Vollbild'}
-        title={vollbild ? 'Vollbild beenden (Esc)' : 'Vollbild: die Korrektur nimmt den ganzen Bildschirm'}>
-        {vollbild ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-      </Button>
-      <span className="text-muted-foreground" title={hilfe}><HelpCircle className="h-4 w-4" aria-label="Hilfe zur Korrektur-Ansicht" /></span>
-    </>
+    <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setDialogOffen(true)} disabled={segments.length === 0}
+      title={segments.length === 0 ? 'Erst neu transkribieren — Vorschlaege brauchen die Saetze' : 'Korrekturen und Sprecherwechsel von der KI vorschlagen lassen'}>
+      <Sparkles className="h-3.5 w-3.5" /><span className="ml-1 hidden lg:inline">Vorschlaege holen</span>
+    </Button>
   )
 
   return (
     <div className={vollbild ? 'fixed inset-0 z-50 flex flex-col gap-2 bg-background p-3' : 'flex h-full min-h-0 flex-col gap-2'}>
-      {vollbild && (
-        <div className="flex shrink-0 items-center gap-2 text-sm">
-          <span className="truncate font-medium">{k.zustand?.sourceName ?? ''}</span>
-          <span className="text-xs text-muted-foreground">Korrektur · Esc beendet das Vollbild</span>
+      {/* Oberste Zeile: links Dateiname (Vollbild) bzw. verworfene Vorschlaege, rechts oben Hilfe und Vollbild (Owner 10.10.2026). */}
+      <div className="flex shrink-0 items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {vollbild && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="truncate font-medium">{k.zustand?.sourceName ?? ''}</span>
+              <span className="text-xs text-muted-foreground">Korrektur · Esc beendet das Vollbild</span>
+            </div>
+          )}
+          {assistent.offen.verworfen.length > 0 && (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer">
+                {assistent.offen.verworfen.length} Vorschlaege der KI verworfen (nicht am Text belegbar)
+                {assistent.offen.info ? ` · ${assistent.offen.info.modell} · ${Math.round(assistent.offen.info.dauerMs / 1000)} s` : ''}
+              </summary>
+              <ul className="mt-1 list-disc pl-5">{assistent.offen.verworfen.map((v, i) => <li key={i}>{v}</li>)}</ul>
+            </details>
+          )}
         </div>
-      )}
+        <div className="flex shrink-0 items-center gap-1">
+          <span className="text-muted-foreground" title={hilfe}><HelpCircle className="h-4 w-4" aria-label="Hilfe zur Korrektur-Ansicht" /></span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setVollbild((v) => !v)} aria-label={vollbild ? 'Vollbild beenden' : 'Vollbild'}
+            title={vollbild ? 'Vollbild beenden (Esc)' : 'Vollbild: die Korrektur nimmt den ganzen Bildschirm'}>
+            {vollbild ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
+      </div>
       {k.ladeFehler && <Alert variant="destructive"><AlertDescription>{k.ladeFehler}</AlertDescription></Alert>}
-      {assistent.offen.verworfen.length > 0 && (
-        <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer">
-            {assistent.offen.verworfen.length} Vorschlaege der KI verworfen (nicht am Text belegbar)
-            {assistent.offen.info ? ` · ${assistent.offen.info.modell} · ${Math.round(assistent.offen.info.dauerMs / 1000)} s` : ''}
-          </summary>
-          <ul className="mt-1 list-disc pl-5">{assistent.offen.verworfen.map((v, i) => <li key={i}>{v}</li>)}</ul>
-        </details>
-      )}
       {k.zustand && (
         <div className="min-h-0 flex-1">
           <AudioCorrectionLesen

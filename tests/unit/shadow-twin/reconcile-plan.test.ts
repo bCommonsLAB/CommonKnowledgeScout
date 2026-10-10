@@ -101,4 +101,39 @@ describe('buildTranscriptReconcilePlan', () => {
     expect(plan.canonicalNeedsWrite).toBe(false)
     expect(plan.deletions.map((d) => d.fileId)).toEqual(['f-en'])
   })
+
+  // 10.10.2026 (Korrektur-Assistent): Mongo juenger als der Spiegel → Mongo gewinnt,
+  // auch wenn der alte Spiegel nach Score (Laenge) vorne laege.
+  it('Mongo juenger als der Spiegel: Mongo gewinnt, Spiegel wird ueberschrieben, Mongo bleibt', () => {
+    const alt = pages(3, 'revision_note: "Satz bei 30:29 beim Nachhoeren korrigiert"')
+    const neu = pages(3, 'revision_note: "Messung"')
+    const candidates: ReconcileCandidate[] = [
+      { fileId: 'f-md', name: 'doc.md', markdown: alt, origin: 'storage', modifiedAt: new Date('2026-10-10T21:49:00Z') },
+      { name: 'doc.md', markdown: neu, origin: 'mongo', modifiedAt: new Date('2026-10-10T21:53:00Z') },
+    ]
+    const plan = buildTranscriptReconcilePlan({ canonicalName: 'doc.md', transcriptCandidates: candidates })
+    expect(plan.status).toBe('ok')
+    expect(plan.winnerOrigin).toBe('mongo')
+    expect(plan.canonicalNeedsWrite).toBe(true)
+    expect(plan.mongoNeedsUpdate).toBe(false)
+  })
+
+  it('Spiegel von Hand NACH Mongo geaendert: Handkorrektur behaelt Vorrang vor dem Mongo-Vorrang', () => {
+    const candidates: ReconcileCandidate[] = [
+      { fileId: 'f-md', name: 'doc.md', markdown: pages(3, 'Supabase'), origin: 'storage', modifiedAt: new Date('2026-10-10T22:00:00Z') },
+      { name: 'doc.md', markdown: pages(3, 'Superbase'), origin: 'mongo', modifiedAt: new Date('2026-10-10T21:53:00Z') },
+    ]
+    const plan = buildTranscriptReconcilePlan({ canonicalName: 'doc.md', transcriptCandidates: candidates })
+    expect(plan.winnerOrigin).toBe('storage')
+    expect(plan.mongoNeedsUpdate).toBe(true)
+  })
+
+  it('Mongo juenger, aber Spiegel hat mehr Seiten: kein Mongo-Vorrang (Migrationsschutz)', () => {
+    const candidates: ReconcileCandidate[] = [
+      { fileId: 'f-md', name: 'doc.md', markdown: pages(20), origin: 'storage', modifiedAt: new Date('2026-10-10T21:49:00Z') },
+      { name: 'doc.md', markdown: pages(1), origin: 'mongo', modifiedAt: new Date('2026-10-10T21:53:00Z') },
+    ]
+    const plan = buildTranscriptReconcilePlan({ canonicalName: 'doc.md', transcriptCandidates: candidates })
+    expect(plan.winnerOrigin).toBe('storage')
+  })
 })

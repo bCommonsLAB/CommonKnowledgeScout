@@ -107,6 +107,39 @@ function pickHandEditedWinner(candidates: ReconcileCandidate[]): ReconcileCandid
 }
 
 /**
+ * Mongo-Vorrang (10.10.2026, Korrektur-Assistent): MongoDB ist die fuehrende
+ * Fassung; die Korrektur-Ansicht schreibt dorthin und zieht den Spiegel
+ * verzoegert nach. Zwischen beidem ist der Spiegel aelter UND inhaltlich
+ * anders — und die Score-Logik (Seiten, dann Laenge) kann ihn trotzdem zum
+ * Gewinner machen (eine laengere Begruendungszeile reicht). Dann wuerde ein
+ * `repair` die Korrektur mit dem alten Spiegel ueberschreiben und ein `export`
+ * gar nichts tun.
+ *
+ * Regel: Ist der Mongo-Record juenger als JEDE Storage-Variante mit
+ * Zeitstempel, weicht er vom kanonischen Spiegel ab und verliert dabei keine
+ * Seite gegenueber dem besten Spiegel, ist Mongo der Gewinner. Ohne
+ * Zeitstempel greift die Regel nicht; eine juengere Handkorrektur im Spiegel
+ * (`pickHandEditedWinner`) hat weiter Vorrang.
+ */
+function pickNewerMongoWinner(candidates: ReconcileCandidate[]): ReconcileCandidate | null {
+  const mongo = candidates.find((c) => c.origin === 'mongo')
+  const mongoTime = mongo?.modifiedAt ? mongo.modifiedAt.getTime() : null
+  if (!mongo || mongoTime === null) return null
+  const mongoContent = normalize(mongo.markdown)
+  if (!mongoContent) return null
+  const mongoPages = countDistinctPages(mongoContent)
+  const storage = candidates.filter((c) => c.origin === 'storage')
+  if (storage.length === 0) return null
+  for (const c of storage) {
+    const time = c.modifiedAt ? c.modifiedAt.getTime() : null
+    if (time === null || time >= mongoTime) return null
+    if (countDistinctPages(normalize(c.markdown)) > mongoPages) return null
+  }
+  const abweichend = storage.some((c) => normalize(c.markdown) !== mongoContent)
+  return abweichend ? mongo : null
+}
+
+/**
  * Baut den Reconcile-Plan fuer das Transkript EINER Quelle.
  *
  * @param canonicalName Kanonischer Dateiname (`{base}.md`).
@@ -145,17 +178,19 @@ export function buildTranscriptReconcilePlan(args: {
     canonicalName,
   )
 
-  // Handkorrektur im Spiegel schlaegt den Score (siehe pickHandEditedWinner).
+  // Handkorrektur im Spiegel schlaegt den Score (siehe pickHandEditedWinner);
+  // sonst schlaegt ein juengerer Mongo-Stand den Score (siehe pickNewerMongoWinner).
   const handEdited = pickHandEditedWinner(transcriptCandidates)
-  if (!handEdited && !sel.best) return base
+  const mongoNewer = handEdited ? null : pickNewerMongoWinner(transcriptCandidates)
+  if (!handEdited && !mongoNewer && !sel.best) return base
 
-  const winner = handEdited ?? (sel.best as { ref: ReconcileCandidate }).ref
+  const winner = handEdited ?? mongoNewer ?? (sel.best as { ref: ReconcileCandidate }).ref
   const winnerContent = normalize(winner.markdown)
   const winnerPages = countDistinctPages(winnerContent)
 
   // Konflikt: nichts an den Transkripten anfassen (nur tote page_NNN.md duerfen weg).
-  // Bei einer Handkorrektur ist die Lage eindeutig — die juengere Fassung gilt.
-  if (sel.conflict && !handEdited) {
+  // Bei einer Handkorrektur oder einem juengeren Mongo-Stand ist die Lage eindeutig.
+  if (sel.conflict && !handEdited && !mongoNewer) {
     return { ...base, status: 'conflict', winnerOrigin: winner.origin, winnerName: winner.name, winnerPages }
   }
 
