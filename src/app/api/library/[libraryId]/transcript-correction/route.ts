@@ -24,7 +24,8 @@ import { LibraryService } from '@/lib/services/library-service'
 import { abhaengigeSammeldateien } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { getTranscriptSegments } from '@/lib/repositories/transcript-segments-repo'
+import { getTranscriptSegments, updateTranscriptSegmentTexts } from '@/lib/repositories/transcript-segments-repo'
+import { wendeErsetzungenAufSegmenteAn } from '@/lib/transkript-verlaesslichkeit/segmente-korrektur'
 import { wendeKorrekturAn, type SprecherZuordnung } from '@/lib/transkript-korrektur/anwenden'
 import { ladeTranskript, transkriptZustand } from '@/lib/transkript-korrektur/laden'
 import { schreibeTranskriptKorrektur } from '@/lib/transkript-korrektur/schreiben'
@@ -70,6 +71,30 @@ function sprecherLesen(value: unknown): SprecherZuordnung[] | string {
     out.push({ label: o['label'], name: o['name'] })
   }
   return out
+}
+
+/**
+ * Lese-Ansicht konsistent halten: dieselben Ersetzungen auf die gespeicherten
+ * Saetze. Das Transkript ist da schon geschrieben — ein Fehler hier bricht die
+ * Antwort nicht ab, steht aber im Log und in der Antwort (`fehler`).
+ */
+async function zieheSegmenteNach(
+  libraryId: string,
+  sourceId: string,
+  ersetzungen: Ersetzung[],
+): Promise<{ angewendet: number; nichtGefunden: number } | { fehler: string } | null> {
+  if (ersetzungen.length === 0) return null
+  try {
+    const doc = await getTranscriptSegments({ libraryId, sourceId })
+    if (!doc) return null
+    const ergebnis = wendeErsetzungenAufSegmenteAn(doc.segments, ersetzungen)
+    if (ergebnis.angewendet > 0) await updateTranscriptSegmentTexts({ libraryId, sourceId, segments: ergebnis.segments })
+    return { angewendet: ergebnis.angewendet, nichtGefunden: ergebnis.nichtGefunden.length }
+  } catch (error) {
+    const fehler = error instanceof Error ? error.message : String(error)
+    FileLogger.error('transcript-correction', 'Segmente nicht nachgezogen', { libraryId, sourceId, error: fehler })
+    return { fehler }
+  }
 }
 
 export async function GET(
@@ -162,10 +187,11 @@ export async function POST(
       library, userEmail, provider, doc: stand.doc, markdownNeu: anwendung.markdownNeu, skipFilesystemMirror: false,
     })
     const danach = await ladeTranskript({ libraryId, sourceId })
+    const segmenteNachgezogen = await zieheSegmenteNach(libraryId, sourceId, ersetzungen)
     FileLogger.info('transcript-correction', 'Korrektur geschrieben', {
-      libraryId, sourceId, ersetzungen: anwendung.belege.length, sprecher: sprecher.length, userEmail,
+      libraryId, sourceId, ersetzungen: anwendung.belege.length, sprecher: sprecher.length, userEmail, segmenteNachgezogen,
     })
-    return NextResponse.json({ ...basis, geschrieben: true, updatedAt: danach?.record.updatedAt ?? null })
+    return NextResponse.json({ ...basis, geschrieben: true, updatedAt: danach?.record.updatedAt ?? null, segmenteNachgezogen })
   } catch (error) {
     FileLogger.error('transcript-correction', 'POST fehlgeschlagen', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Interner Fehler' }, { status: 500 })

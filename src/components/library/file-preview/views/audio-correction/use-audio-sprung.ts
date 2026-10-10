@@ -22,6 +22,8 @@ export interface AudioSprung {
   /** Aktuelle Abspielposition in Sekunden (fuer den hervorgehobenen Satz). */
   zeit: number
   springe: (sekunden: number) => void
+  /** Relativ spulen (z. B. -5 / +5 s), um Ton und Satz abzugleichen. */
+  verschiebe: (deltaSekunden: number) => void
 }
 
 export function useAudioSprung(provider: StorageProvider | null, sourceId: string): AudioSprung {
@@ -62,5 +64,12 @@ export function useAudioSprung(provider: StorageProvider | null, sourceId: strin
     })
   }, [])
 
-  return { url, fehler, audioRef, zeit, springe }
+  const verschiebe = React.useCallback((delta: number) => {
+    const el = audioRef.current
+    if (!el) return
+    const ziel = el.currentTime + delta
+    el.currentTime = Math.max(0, Number.isFinite(el.duration) ? Math.min(ziel, el.duration) : ziel)
+  }, [])
+
+  return { url, fehler, audioRef, zeit, springe, verschiebe }
 }

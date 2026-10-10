@@ -19,6 +19,8 @@ export interface ErsetzungZeile {
   begruendung: string
   beleg: string
   quelle: 'vorschlag' | 'hand'
+  /** Gesetzt, wenn die Zeile aus einer Satz-Korrektur links stammt (Index des Segments). */
+  satzIndex: number | null
 }
 
 export interface SprecherZeile {
@@ -54,15 +56,38 @@ export function neueZeilenId(): string {
 }
 
 export function leereErsetzung(): ErsetzungZeile {
-  return { id: neueZeilenId(), aktiv: true, alt: '', neu: '', alle: false, zeile: null, kontext: '', begruendung: '', beleg: 'mensch', quelle: 'hand' }
+  return { id: neueZeilenId(), aktiv: true, alt: '', neu: '', alle: false, zeile: null, kontext: '', begruendung: '', beleg: 'mensch', quelle: 'hand', satzIndex: null }
 }
 
 /** Vorschlaege des Secretary als Zeilen; `unsicher` ist vorab abgewaehlt (Brief, Entscheidung 4). */
 export function ersetzungenAusVorschlag(vorschlag: Korrekturvorschlag): ErsetzungZeile[] {
   return vorschlag.ersetzungen.map((e) => ({
     id: neueZeilenId(), aktiv: e.beleg !== 'unsicher', alt: e.alt, neu: e.neu, alle: false,
-    zeile: e.zeile > 0 ? e.zeile : null, kontext: e.kontext, begruendung: e.begruendung, beleg: e.beleg, quelle: 'vorschlag',
+    zeile: e.zeile > 0 ? e.zeile : null, kontext: e.kontext, begruendung: e.begruendung, beleg: e.beleg, quelle: 'vorschlag', satzIndex: null,
   }))
+}
+
+/**
+ * Satz links korrigiert: legt eine Ersetzung „ganzer Satz alt → neu" an, aendert
+ * sie oder nimmt sie weg (neu == alt). Geschrieben wird erst mit „Bestaetigen".
+ */
+export function mitSatzKorrektur(zeilen: ErsetzungZeile[], args: { satzIndex: number; alt: string; neu: string; zeitText: string }): ErsetzungZeile[] {
+  const neu = args.neu.trim()
+  const ohne = zeilen.filter((z) => z.satzIndex !== args.satzIndex)
+  if (neu === '' || neu === args.alt) return ohne
+  const vorhanden = zeilen.find((z) => z.satzIndex === args.satzIndex)
+  const zeile: ErsetzungZeile = vorhanden
+    ? { ...vorhanden, neu, aktiv: true }
+    : { id: neueZeilenId(), aktiv: true, alt: args.alt, neu, alle: false, zeile: null, kontext: `Satz bei ${args.zeitText}`,
+        begruendung: 'beim Nachhoeren korrigiert', beleg: 'mensch', quelle: 'hand', satzIndex: args.satzIndex }
+  return [...ohne, zeile]
+}
+
+/** Vorgemerkte (aktive) Satz-Korrekturen je Segment-Index — fuer die Anzeige links. */
+export function satzKorrekturen(zeilen: readonly ErsetzungZeile[]): Map<number, string> {
+  const out = new Map<number, string>()
+  for (const z of zeilen) if (z.satzIndex !== null && z.aktiv) out.set(z.satzIndex, z.neu)
+  return out
 }
 
 /** Eine Zeile je Label aus `speakers`; der Vorschlag fuellt Name, Beleg und Begruendung. */

@@ -13,8 +13,10 @@ const h = vi.hoisted(() => ({
 
 // Welle E: abhaengige Sammeldateien kommen aus einer eigenen Mongo-Abfrage — hier leer.
 vi.mock('@/lib/shadow-twin/sammeldatei-abhaengigkeit', () => ({ abhaengigeSammeldateien: async () => [] }))
+const segmentRepo = vi.hoisted(() => ({ update: vi.fn(async () => undefined) }))
 vi.mock('@/lib/repositories/transcript-segments-repo', () => ({
   getTranscriptSegments: async () => ({ libraryId: 'lib-1', sourceId: 'src-1', segments: [{ start: 0, end: 3, text: 'Frau Mahler spricht.', minLogprob: -1.2 }] }),
+  updateTranscriptSegmentTexts: segmentRepo.update,
 }))
 vi.mock('@clerk/nextjs/server', () => ({
   auth: async () => ({ userId: 'user-1' }),
@@ -63,6 +65,7 @@ const basis = {
 describe('transcript-correction Route (P3b)', () => {
   beforeEach(() => {
     h.schreibe.mockClear()
+    segmentRepo.update.mockClear()
     h.record.markdown = MARKDOWN
     h.record.updatedAt = '2026-10-08T09:00:00.000Z'
   })
@@ -94,6 +97,10 @@ describe('transcript-correction Route (P3b)', () => {
     const markdownNeu = (h.schreibe.mock.calls[0] as unknown as [{ markdownNeu: string }])[0].markdownNeu
     expect(markdownNeu).toContain('**Dr. Anna Mahlknecht:** Frau Mahlknecht spricht.')
     expect(markdownNeu).toContain('revised_by: "peter@example.com"')
+    // Lese-Ansicht bleibt konsistent: dieselbe Ersetzung in den gespeicherten Saetzen.
+    expect(json.segmenteNachgezogen).toEqual({ angewendet: 1, nichtGefunden: 0 })
+    const segs = (segmentRepo.update.mock.calls[0] as unknown as [{ segments: Array<{ text: string }> }])[0].segments
+    expect(segs[0].text).toBe('Frau Mahlknecht spricht.')
   })
 
   it('409 bei veraltetem ifUpdatedAt — nichts geschrieben', async () => {

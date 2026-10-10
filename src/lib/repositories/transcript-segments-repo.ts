@@ -90,6 +90,16 @@ export async function getTranscriptSegments(args: {
   return col.findOne({ libraryId: args.libraryId, sourceId: args.sourceId }, { projection: { _id: 0 } })
 }
 
+/** Nur die Segmente ersetzen (z. B. nach einer Korrektur) — Lauf-Angaben bleiben. */
+export async function updateTranscriptSegmentTexts(args: { libraryId: string; sourceId: string; segments: TranscriptSegment[] }): Promise<void> {
+  const col = await getCol(args.libraryId)
+  const res = await col.updateOne(
+    { libraryId: args.libraryId, sourceId: args.sourceId },
+    { $set: { segments: args.segments, updatedAt: new Date().toISOString() } },
+  )
+  if (res.matchedCount === 0) throw new Error(`Keine Segmente fuer ${args.sourceId} — nichts nachzuziehen`)
+}
+
 /** Nach einem Umzug mit Id-Wechsel: Segmente der Quelle auf die neue Id. */
 export async function rekeyTranscriptSegments(libraryId: string, alteSourceId: string, neueSourceId: string): Promise<number> {
   if (alteSourceId === neueSourceId) return 0

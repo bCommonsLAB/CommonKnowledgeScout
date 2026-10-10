@@ -16,6 +16,8 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { AudioCorrectionSources } from './audio-correction-sources'
 import { AudioCorrectionStep2 } from './audio-correction-step2'
 import { AudioCorrectionLesen } from './audio-correction-lesen'
+import { mitSatzKorrektur, satzKorrekturen } from './audio-correction-types'
+import { formatZeit } from '@/lib/transkript-verlaesslichkeit/befunde'
 import { useAudioCorrection } from './use-audio-correction'
 
 interface Props {
@@ -34,6 +36,14 @@ export function AudioCorrectionTab(props: Props) {
   const k = useAudioCorrection(props)
   const [ohneVorschlag, setOhneVorschlag] = React.useState(false)
   const schritt2 = ohneVorschlag || k.vorschlag !== null
+  const korrekturen = React.useMemo(() => satzKorrekturen(k.ersetzungen), [k.ersetzungen])
+
+  // Satz links korrigiert: als Ersetzung vormerken und Schritt 2 oeffnen, damit „Bestaetigen" sichtbar ist.
+  const korrigiereSatz = (index: number, alt: string, neu: string) => {
+    const start = k.zustand?.segmente?.segments[index]?.start ?? 0
+    k.setErsetzungen(mitSatzKorrektur(k.ersetzungen, { satzIndex: index, alt, neu, zeitText: formatZeit(start) }))
+    setOhneVorschlag(true)
+  }
 
   const schreiben = async () => {
     const antwort = await k.anwenden(false)
@@ -71,6 +81,8 @@ export function AudioCorrectionTab(props: Props) {
             segmente={k.zustand.segmente}
             erlaubteSprachen={props.erlaubteSprachen}
             revisedAt={k.zustand.revisedAt}
+            korrekturen={korrekturen}
+            onKorrigiere={korrigiereSatz}
           />
           <div className="min-h-0 space-y-3 overflow-auto">
             <AudioCorrectionSources
