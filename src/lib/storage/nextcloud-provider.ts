@@ -478,6 +478,23 @@ export class NextcloudProvider implements StorageProvider, StorageVersioning, St
     }
   }
 
+  /**
+   * Teilstueck einer Datei (HTTP-Range), z. B. fuer Audio-Spruenge im Browser.
+   * Der Range-Header geht unveraendert an WebDAV; antwortet Nextcloud ohne
+   * Teilstueck (200), meldet `status` das — der Aufrufer entscheidet, nicht still.
+   */
+  async getBinaryRange(fileId: string, range: string): Promise<{ data: Buffer; status: number; contentRange: string | null; mimeType: string }> {
+    const libraryRelPath = idToPath(fileId)
+    const webdavPath = this.toWebDavPath(libraryRelPath)
+    const res = await withRetry(
+      () => this.client.getFileContents(webdavPath, { details: true, headers: { Range: range } }),
+      `getBinaryRange(${fileId})`
+    ) as ResponseDataDetailed<Buffer>
+    const headers = res.headers as Record<string, string>
+    const fileName = libraryRelPath.split('/').pop() || ''
+    return { data: res.data, status: res.status, contentRange: headers['content-range'] ?? null, mimeType: guessMimeType(fileName) }
+  }
+
   async getPathById(itemId: string): Promise<string> {
     if (itemId === 'root') return '/'
     return idToPath(itemId)

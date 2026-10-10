@@ -70,6 +70,12 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
     const items = await provider.listItemsById(parentId)
     const kandidaten = items.filter((it: StorageItem) => it.type === 'file' && it.id !== sourceId)
       .filter((it) => ['pdf', 'markdown', 'docx', 'pptx'].includes(getMediaKind(it)))
+    // Keine Kandidaten im Ordner: nichts aufzuloesen (batch-resolve lehnt leere Listen ab).
+    if (kandidaten.length === 0) {
+      FileLogger.debug('audio-correction', 'Keine Begleitquellen im Ordner', { parentId, items: items.length })
+      setQuellen([])
+      return
+    }
     const res = await fetch(`/api/library/${libraryId}/artifacts/batch-resolve`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sources: kandidaten.map((it) => ({ sourceId: it.id, sourceName: it.metadata.name, parentId })), includeBoth: true, preferredKind: 'transcript' }),
