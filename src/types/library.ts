@@ -183,8 +183,21 @@ export interface StorageConfig {
    * KEIN Kontext-Prompt); false/fehlt = `audio/process` mit Kontext
    * (prompt + keywords aus `extractionKnownNames`). Pro Datei im
    * Transkriptions-Dialog uebersteuerbar. KEIN Secret.
+   *
+   * VERALTET seit 10.10.2026: wird nicht mehr gelesen (`resolveSpeakerMode`)
+   * und in den Einstellungen nicht mehr angeboten; der Wert bleibt nur, damit
+   * bestehende Configs beim Speichern nicht verloren gehen.
    */
   transcriptionSpeakerMode?: boolean;
+
+  /**
+   * Moegliche Sprachen der Audio-Aufnahmen dieser Library (ISO 639-1, z. B.
+   * `['de', 'it']`). Geht als `languages` an die Transkription; ohne Angabe
+   * entscheidet das Modell je Stueck selbst und uebersetzt gemischte Rede
+   * (Prueffall 09.10.2026). Pro Datei im Transkriptions-Dialog
+   * uebersteuerbar (`audioLanguages`). KEIN Secret.
+   */
+  transcriptionLanguages?: string[];
 
   /**
    * P6 (Plan „Von Menschen gepruefte Veranstaltung"): Voreinstellung der

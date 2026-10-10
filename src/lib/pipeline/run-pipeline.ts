@@ -158,10 +158,12 @@ export async function runPipelineForFile(args: {
   audioPrompt?: string
   /** P3a: Begriffe fuer diese Datei (nur Audio, nur wenn Extract aktiv) */
   audioKeywords?: string[]
+  /** Sprachen der Aufnahme (nur Audio, nur wenn Extract aktiv); undefined = Library-Voreinstellung */
+  audioLanguages?: string[]
   /** P3a: Sprecher-Erkennung fuer diesen Lauf; undefined = Library-Voreinstellung */
   speakerMode?: boolean
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel, slidesAsTable, appendixInSearch, audioPrompt, audioKeywords, speakerMode } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel, slidesAsTable, appendixInSearch, audioPrompt, audioKeywords, audioLanguages, speakerMode } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
@@ -200,6 +202,7 @@ export async function runPipelineForFile(args: {
     // Audio-Kontext (P3a): nur explizit gesetzte Werte, kein geratener Default
     ...(typeof audioPrompt === 'string' ? { audioPrompt } : {}),
     ...(Array.isArray(audioKeywords) ? { audioKeywords } : {}),
+    ...(Array.isArray(audioLanguages) ? { audioLanguages } : {}),
     ...(typeof speakerMode === 'boolean' ? { speakerMode } : {}),
   }
 

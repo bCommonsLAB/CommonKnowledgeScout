@@ -22,6 +22,7 @@ import { StorageProviderType } from "@/types/library";
 import type { CaptureWizardsConfig } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
 import { detailViewTypeSchema } from "@/lib/detail-view-types/registry";
+import { parseLanguagesText, readLanguageList } from "@/lib/external-jobs/audio-languages";
 
 /** Im Settings-Formular waehlbare Storage-Typen ('inbox' ist intern, ADR-0004 II). */
 const LIBRARY_FORM_STORAGE_TYPES = ["local", "onedrive", "gdrive", "nextcloud"] as const;
@@ -72,6 +73,11 @@ export const libraryFormSchema = z.object({
   extractionKnownNames: z.string().default(""),
   // P3a: Sprecher-Erkennung als Voreinstellung fuer Audio-Transkriptionen. Default false.
   transcriptionSpeakerMode: z.boolean().default(false),
+  /** Sprachcodes, durch Komma getrennt (z. B. „de, it"); Pruefung beim Speichern. */
+  transcriptionLanguages: z
+    .string()
+    .refine((value) => parseLanguagesText(value).invalid.length === 0, "Nur Sprachcodes mit zwei Buchstaben, durch Komma getrennt (z. B. de, it).")
+    .default(""),
   // P6: Voreinstellung „Anhaenge als Text in die Suche". Default AN (Owner 05.10.2026).
   ingestSourceAppendix: z.boolean().default(true),
   // Agentensicht (Welle 1/3): Archiv-Konventionen der Library. Das Muster wird
@@ -305,6 +311,7 @@ export function useLibraryForm(createNew: boolean) {
       scanExcludeGlobs: "",
       extractionKnownNames: "",
       transcriptionSpeakerMode: false,
+      transcriptionLanguages: "",
       ingestSourceAppendix: true,
       agentViewEnabled: false,
       agentViewVorhabenPattern: "",
@@ -416,6 +423,7 @@ export function useLibraryForm(createNew: boolean) {
         scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
         extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
         transcriptionSpeakerMode: activeLibrary.config?.transcriptionSpeakerMode === true,
+        transcriptionLanguages: (activeLibrary.config?.transcriptionLanguages ?? []).join(", "),
         ingestSourceAppendix: activeLibrary.config?.ingestSourceAppendix !== false,
         ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
         captureWizards: activeLibrary.config?.captureWizards,
@@ -455,6 +463,7 @@ export function useLibraryForm(createNew: boolean) {
         scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
         extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
         transcriptionSpeakerMode: activeLibrary.config?.transcriptionSpeakerMode === true,
+        transcriptionLanguages: (activeLibrary.config?.transcriptionLanguages ?? []).join(", "),
         ingestSourceAppendix: activeLibrary.config?.ingestSourceAppendix !== false,
         ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
         captureWizards: activeLibrary.config?.captureWizards,
@@ -550,6 +559,7 @@ export function useLibraryForm(createNew: boolean) {
             scanExcludeGlobs: data.scanExcludeGlobs.split(/\r?\n/).map((g) => g.trim()).filter(Boolean),
             extractionKnownNames: data.extractionKnownNames.split(/\r?\n/).map((n) => n.trim()).filter(Boolean),
             transcriptionSpeakerMode: data.transcriptionSpeakerMode,
+            transcriptionLanguages: parseLanguagesText(data.transcriptionLanguages).codes,
             ingestSourceAppendix: data.ingestSourceAppendix,
             agentView: {
               enabled: data.agentViewEnabled,
@@ -767,6 +777,7 @@ export function useLibraryForm(createNew: boolean) {
           scanExcludeGlobs: (((importedLibrary as { config?: Record<string, unknown> }).config?.scanExcludeGlobs as string[] | undefined) ?? []).join("\n"),
           extractionKnownNames: (((importedLibrary as { config?: Record<string, unknown> }).config?.extractionKnownNames as string[] | undefined) ?? []).join("\n"),
           transcriptionSpeakerMode: ((importedLibrary as { config?: Record<string, unknown> }).config?.transcriptionSpeakerMode as boolean | undefined) === true,
+          transcriptionLanguages: readLanguageList((importedLibrary as { config?: Record<string, unknown> }).config?.transcriptionLanguages).codes.join(", "),
           ingestSourceAppendix: ((importedLibrary as { config?: Record<string, unknown> }).config?.ingestSourceAppendix as boolean | undefined) !== false,
           ...readAgentViewForm((importedLibrary as { config?: Record<string, unknown> }).config),
           captureWizards: (importedLibrary as { config?: Record<string, unknown> }).config?.captureWizards as CaptureWizardsConfig | undefined,

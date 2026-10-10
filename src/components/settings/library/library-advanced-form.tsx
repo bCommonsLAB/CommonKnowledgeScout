@@ -32,6 +32,8 @@ import {
   Button,
 } from '@ks/ui'
 
+import { SprachenAuswahl } from "@/components/shared/sprachen-auswahl"
+import { parseLanguagesText } from "@/lib/external-jobs/audio-languages"
 import { useLibraryForm } from "./hooks/use-library-form"
 import { useShadowTwinMigration } from "./hooks/use-shadow-twin-migration"
 import { ShadowTwinConfigSection } from "./shadow-twin-config-section"
@@ -199,21 +201,22 @@ export function LibraryAdvancedForm() {
             />
             <FormField
               control={form.control}
-              name="transcriptionSpeakerMode"
+              name="transcriptionLanguages"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Sprecher erkennen (Audio-Transkription)</FormLabel>
-                    <FormDescription>
-                      Voreinstellung fuer den Transkriptions-Dialog, pro Datei uebersteuerbar.
-                      An: Sprecher-Labels je Absatz (&bdquo;Sprecher A&ldquo;), dafuer ohne
-                      Kontext-Hinweise an die Transkription. Aus: Kontext (Thema, bekannte
-                      Namen) geht an die Transkription, keine Sprecher-Zuordnung.
-                    </FormDescription>
-                  </div>
+                <FormItem className="rounded-lg border p-4">
+                  <FormLabel className="text-base">Sprachen der Aufnahmen (Audio-Transkription)</FormLabel>
+                  <FormDescription>
+                    Voreinstellung fuer den Transkriptions-Dialog, pro Datei aenderbar. Bei gemischten
+                    Aufnahmen alle gesprochenen Sprachen waehlen — dann bleibt jede im Original.
+                    Leer = automatisch erkennen.
+                  </FormDescription>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <SprachenAuswahl
+                      value={parseLanguagesText(field.value).codes}
+                      onChange={(codes) => field.onChange(codes.join(", "))}
+                    />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

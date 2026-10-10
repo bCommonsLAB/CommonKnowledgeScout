@@ -221,11 +221,18 @@ describe('prepareSecretaryRequest', () => {
       },
     })
     const cfg = prepareSecretaryRequest(job, createFile('a.m4a', 'audio/mp4'), 'https://app/cb', 'secret', {
-      audioContext: { prompt: 'Vortrag zu Armut', keywords: ['Peter Aichner', 'Caritas'], speakerMode: false, speakerModeSource: 'library' },
+      audioContext: {
+        prompt: 'Vortrag zu Armut', keywords: ['Peter Aichner', 'Caritas'], speakerMode: false, speakerModeSource: 'library',
+        languages: ['de', 'it'], languagesSource: 'library',
+      },
     })
     expect(cfg.url).toBe('http://127.0.0.1:5001/api/audio/process')
     expect(getStringField(cfg.formData, 'prompt')).toBe('Vortrag zu Armut')
     expect(JSON.parse(getStringField(cfg.formData, 'keywords') ?? '[]')).toEqual(['Peter Aichner', 'Caritas'])
+    // Gemischte Aufnahme: ohne languages uebersetzt das Modell (Prueffall 09.10.2026).
+    expect(JSON.parse(getStringField(cfg.formData, 'languages') ?? '[]')).toEqual(['de', 'it'])
+    // Transkript = Original: nie uebersetzen (Owner 10.10.2026).
+    expect(getStringField(cfg.formData, 'translate')).toBe('false')
     expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
 
@@ -239,11 +246,12 @@ describe('prepareSecretaryRequest', () => {
       },
     })
     const cfg = prepareSecretaryRequest(job, createFile('a.m4a', 'audio/mp4'), 'https://app/cb', 'secret', {
-      audioContext: { prompt: 'Vortrag', keywords: ['X'], speakerMode: true, speakerModeSource: 'job' },
+      audioContext: { prompt: 'Vortrag', keywords: ['X'], speakerMode: true, speakerModeSource: 'job', languages: ['de', 'it'], languagesSource: 'job' },
     })
     expect(cfg.url).toBe('http://127.0.0.1:5001/api/audio/process-diarized')
     expect(getStringField(cfg.formData, 'prompt')).toBeNull()
     expect(getStringField(cfg.formData, 'keywords')).toBeNull()
+    expect(getStringField(cfg.formData, 'languages')).toBeNull()
     // Der Sprecher-Endpunkt kennt kein target_language (Dienst-Doku); source_language bleibt.
     expect(getStringField(cfg.formData, 'target_language')).toBeNull()
     expect(getStringField(cfg.formData, 'source_language')).toBe('auto')

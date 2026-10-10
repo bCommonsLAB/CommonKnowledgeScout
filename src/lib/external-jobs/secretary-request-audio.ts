@@ -10,6 +10,10 @@
  * | normal     | `/audio/process`          | ja              |
  * | Sprecher   | `/audio/process-diarized` | nein (Anbieter) |
  *
+ * `languages` (moegliche Sprachen der Aufnahme) geht im normalen Weg als
+ * JSON-Liste mit; ohne sie entscheidet das Modell je Stueck selbst und
+ * uebersetzt gemischte Rede (Prueffall 09.10.2026).
+ *
  * Im Sprecher-Modus wird ein vorhandener Kontext NICHT gesendet — der Anbieter
  * nimmt ihn fuer dieses Modell nicht an. Das wird protokolliert (kein stiller
  * Fallback); der Kontext wirkt dann erst im Korrektur-Schritt (P3b).
@@ -58,13 +62,18 @@ export function buildAudioSecretaryRequest(args: AudioRequestArgs): { url: strin
   formData.append('file', file)
   // process-diarized kennt weder target_language noch template (Dienst-Doku audio.md).
   if (!speakerMode) formData.append('target_language', targetLanguage)
+  // Das Transkript bildet das Original ab — Uebersetzen gehoert zur Transformation
+  // (Owner 10.10.2026). Der Secretary wertet das Feld ab Auftrag F aus; bis dahin
+  // schuetzt nur `languages` gemischte Stuecke vor der Uebersetzung.
+  if (!speakerMode) formData.append('translate', 'false')
   formData.append('source_language', sourceLanguage)
   // Secretary uses `useCache` (see existing Next proxy routes)
   formData.append('useCache', String(useCache))
 
   const prompt = audioContext?.prompt
   const keywords = audioContext?.keywords ?? []
-  const hasContext = Boolean(prompt) || keywords.length > 0
+  const languages = audioContext?.languages ?? []
+  const hasContext = Boolean(prompt) || keywords.length > 0 || languages.length > 0
   let contextSent = false
   if (!audioContext) {
     FileLogger.warn('secretary-request', 'Audio ohne aufgeloesten Kontext — nur Datei und Sprachen gehen an den Secretary', {
@@ -76,12 +85,14 @@ export function buildAudioSecretaryRequest(args: AudioRequestArgs): { url: strin
         jobId: job.jobId,
         droppedPrompt: Boolean(prompt),
         droppedKeywords: keywords.length,
+        droppedLanguages: languages,
       })
     }
   } else {
     if (prompt) formData.append('prompt', prompt)
     // JSON-Liste statt Kommaliste: Namen mit Komma bleiben ein Begriff.
     if (keywords.length > 0) formData.append('keywords', JSON.stringify(keywords))
+    if (languages.length > 0) formData.append('languages', JSON.stringify(languages))
     contextSent = hasContext
   }
 
@@ -103,6 +114,8 @@ export function buildAudioSecretaryRequest(args: AudioRequestArgs): { url: strin
     speakerModeSource: audioContext?.speakerModeSource ?? 'unresolved',
     contextSent,
     keywordCount: keywords.length,
+    languages,
+    languagesSource: audioContext?.languagesSource ?? 'unresolved',
     callbackUrl: offline ? '(offline-mode)' : callbackUrl,
   })
 

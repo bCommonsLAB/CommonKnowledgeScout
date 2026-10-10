@@ -28,7 +28,7 @@ describe('transkriptZustand / transformationUeberholt (P3b)', () => {
     expect(transformationUeberholt(doc(null), '2026-10-08T10:00:00.000Z')).toBe(false)
   })
 
-  it('Zustand ohne Body: Riegel, Labels, speaker_names, Praefix-Erkennung, ueberholt', () => {
+  it('Zustand mit Absaetzen: Riegel, Labels, speaker_names, Praefix-Erkennung, ueberholt', () => {
     const d = doc('2026-10-07T21:00:00.000Z')
     const record = d.artifacts.transcript!
     const { meta, body } = parseFrontmatter(record.markdown)
@@ -40,6 +40,8 @@ describe('transkriptZustand / transformationUeberholt (P3b)', () => {
     expect(z.revisedBy).toBe('p@example.com')
     expect(z.ueberholt).toBe(true)
     expect(z.transformationen).toHaveLength(1)
-    expect(JSON.stringify(z)).not.toContain('Hallo')
+    // Lesesicht: der Text kommt als Absaetze mit Label, nicht als roher Body.
+    expect(z.absaetze).toEqual([{ index: 0, label: 'Stück 1 Sprecher A', text: 'Hallo' }])
+    expect('body' in z).toBe(false)
   })
 })

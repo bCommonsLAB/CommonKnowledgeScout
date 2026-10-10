@@ -13,6 +13,11 @@ const h = vi.hoisted(() => ({
 
 // Welle E: abhaengige Sammeldateien kommen aus einer eigenen Mongo-Abfrage — hier leer.
 vi.mock('@/lib/shadow-twin/sammeldatei-abhaengigkeit', () => ({ abhaengigeSammeldateien: async () => [] }))
+const segmentRepo = vi.hoisted(() => ({ update: vi.fn(async () => undefined) }))
+vi.mock('@/lib/repositories/transcript-segments-repo', () => ({
+  getTranscriptSegments: async () => ({ libraryId: 'lib-1', sourceId: 'src-1', segments: [{ start: 0, end: 3, text: 'Frau Mahler spricht.', minLogprob: -1.2 }] }),
+  updateTranscriptSegmentTexts: segmentRepo.update,
+}))
 vi.mock('@clerk/nextjs/server', () => ({
   auth: async () => ({ userId: 'user-1' }),
   currentUser: async () => ({ emailAddresses: [{ emailAddress: 'peter@example.com' }] }),
@@ -21,7 +26,8 @@ vi.mock('@/lib/services/library-service', () => ({
   LibraryService: { getInstance: () => ({ getLibrary: async () => ({ id: 'lib-1', config: {} }) }) },
 }))
 vi.mock('@/lib/shadow-twin/shadow-twin-config', () => ({ getShadowTwinConfig: () => ({ persistToFilesystem: false }) }))
-vi.mock('@/lib/storage/server-provider', () => ({ getServerProvider: vi.fn() }))
+const spiegel = vi.hoisted(() => ({ plane: vi.fn() }))
+vi.mock('@/lib/transkript-korrektur/spiegel-nachziehen', () => ({ planeSpiegelExport: spiegel.plane }))
 vi.mock('@/lib/transkript-korrektur/schreiben', () => ({
   schreibeTranskriptKorrektur: h.schreibe,
   transformationenVon: () => [{ pfad: 'x.de.vortrag.md', template: 'vortrag', sprache: 'de', jetztUeberholt: true }],
@@ -60,11 +66,12 @@ const basis = {
 describe('transcript-correction Route (P3b)', () => {
   beforeEach(() => {
     h.schreibe.mockClear()
+    segmentRepo.update.mockClear()
     h.record.markdown = MARKDOWN
     h.record.updatedAt = '2026-10-08T09:00:00.000Z'
   })
 
-  it('GET liefert den Zustand ohne Body: updatedAt, speakers, Transformationen', async () => {
+  it('GET liefert Zustand und Absaetze: updatedAt, speakers, Transformationen, Text je Absatz', async () => {
     const res = await get('src-1')
     expect(res.status).toBe(200)
     const json = await res.json()
@@ -72,7 +79,11 @@ describe('transcript-correction Route (P3b)', () => {
     expect(json.speakers).toEqual(['Stück 1 Sprecher A'])
     expect(json.hatPraefixe).toBe(true)
     expect(json.transformationen).toHaveLength(1)
-    expect(JSON.stringify(json)).not.toContain('Frau Mahler spricht')
+    // Lesesicht des Reiters: der Text kommt als Absaetze mit Label, nicht als roher Body.
+    expect(json.absaetze).toEqual([{ index: 0, label: 'Stück 1 Sprecher A', text: 'Frau Mahler spricht.' }])
+    expect(json.body).toBeUndefined()
+    // Verlaesslichkeit: Segmente des letzten Laufs kommen mit.
+    expect(json.segmente.segments[0]).toMatchObject({ start: 0, minLogprob: -1.2 })
   })
 
   it('schreibt mit Revisions-Stempel des Anwenders und meldet Belege und speakerNames', async () => {
@@ -87,6 +98,25 @@ describe('transcript-correction Route (P3b)', () => {
     const markdownNeu = (h.schreibe.mock.calls[0] as unknown as [{ markdownNeu: string }])[0].markdownNeu
     expect(markdownNeu).toContain('**Dr. Anna Mahlknecht:** Frau Mahlknecht spricht.')
     expect(markdownNeu).toContain('revised_by: "peter@example.com"')
+    // Synchron nur Mongo; der Spiegel folgt gebuendelt (persistToFilesystem ist im Mock aus → kein Export).
+    expect((h.schreibe.mock.calls[0] as unknown as [{ skipFilesystemMirror: boolean }])[0].skipFilesystemMirror).toBe(true)
+    expect(spiegel.plane).not.toHaveBeenCalled()
+    // Lese-Ansicht bleibt konsistent: dieselbe Ersetzung in den gespeicherten Saetzen.
+    expect(json.segmenteNachgezogen).toEqual({ angewendet: 1, nichtGefunden: 0, sprecher: 0 })
+    const segs = (segmentRepo.update.mock.calls[0] as unknown as [{ segments: Array<{ text: string }> }])[0].segments
+    expect(segs[0].text).toBe('Frau Mahlknecht spricht.')
+  })
+
+  it('Sprecherwechsel: neuer Absatz mit Praefix vor dem Satz, Sprecher am Segment', async () => {
+    const res = await post({
+      sourceId: 'src-1', begruendung: 'Sprecher ab 0:00', ifUpdatedAt: '2026-10-08T09:00:00.000Z',
+      sprecherWechsel: [{ satzIndex: 0, name: 'Sascha Britsko' }],
+    })
+    expect(res.status).toBe(200)
+    const markdownNeu = (h.schreibe.mock.calls[0] as unknown as [{ markdownNeu: string }])[0].markdownNeu
+    expect(markdownNeu).toContain('**Sascha Britsko:** Frau Mahler spricht.')
+    const segs = (segmentRepo.update.mock.calls[0] as unknown as [{ segments: Array<{ text: string; speaker?: string }> }])[0].segments
+    expect(segs[0]).toMatchObject({ text: 'Frau Mahler spricht.', speaker: 'Sascha Britsko' })
   })
 
   it('409 bei veraltetem ifUpdatedAt — nichts geschrieben', async () => {

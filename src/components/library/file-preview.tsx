@@ -141,7 +141,7 @@ function PreviewContent({
   pipelineOpenerRef?: React.MutableRefObject<(() => void) | null>;
   onClearCacheBeforeReview?: () => void;
 }) {
-  const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "correction" | "transform" | "story" | "overview" | "diva-info">("original")
+  const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview" | "diva-info">("original")
   const transcript = useResolvedTranscriptItem({
     provider,
     libraryId: activeLibraryId,
@@ -795,6 +795,7 @@ function PreviewContent({
           // Audio-Kontext (P3a): nur wenn das Sheet sie gesetzt hat
           audioPrompt: args.audioPrompt,
           audioKeywords: args.audioKeywords,
+          audioLanguages: args.audioLanguages,
           speakerMode: args.speakerMode,
         })
 

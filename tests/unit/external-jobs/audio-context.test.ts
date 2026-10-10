@@ -20,13 +20,13 @@ function library(config: Record<string, unknown>): Library {
 describe('resolveAudioJobContext (P3a)', () => {
   it('ohne Job-Option und ohne Library-Feld: Sprecher-Modus aus, Quelle "default", kein Kontext', () => {
     const ctx = resolveAudioJobContext(job({}), undefined)
-    expect(ctx).toEqual({ prompt: undefined, keywords: [], speakerMode: false, speakerModeSource: 'default' })
+    expect(ctx).toEqual({ prompt: undefined, keywords: [], speakerMode: false, speakerModeSource: 'default', languages: [], languagesSource: 'none' })
   })
 
-  it('Library-Voreinstellung greift, wenn der Job nichts sagt', () => {
+  it('Library-Voreinstellung Sprecher-Modus ist abgeschaltet (Owner 10.10.2026): ohne Job-Option aus', () => {
     const ctx = resolveAudioJobContext(job({}), library({ transcriptionSpeakerMode: true }))
-    expect(ctx.speakerMode).toBe(true)
-    expect(ctx.speakerModeSource).toBe('library')
+    expect(ctx.speakerMode).toBe(false)
+    expect(ctx.speakerModeSource).toBe('default')
   })
 
   it('Job-Option uebersteuert die Library-Voreinstellung (auch mit false)', () => {
@@ -73,5 +73,26 @@ describe('readAudioContextOptions (P3a, gemeinsamer Leser beider Routen)', () =>
     expect(readAudioContextOptions({ speakerMode: 'ja' as unknown as boolean })).toEqual({ error: 'speakerMode muss ein Boolean sein' })
     expect(readAudioContextOptions({ audioKeywords: 'A' as unknown as string[] })).toEqual({ error: 'audioKeywords muss eine Liste von Strings sein' })
     expect(readAudioContextOptions({ audioPrompt: 1 as unknown as string })).toEqual({ error: 'audioPrompt muss ein String sein' })
+  })
+})
+
+describe('Sprachen der Aufnahme', () => {
+  it('Library-Voreinstellung greift, wenn der Job nichts sagt; Codes normalisiert', () => {
+    const ctx = resolveAudioJobContext(job({}), library({ transcriptionLanguages: ['DE', 'it', 'de'] }))
+    expect(ctx.languages).toEqual(['de', 'it'])
+    expect(ctx.languagesSource).toBe('library')
+  })
+
+  it('Job-Option uebersteuert die Library-Voreinstellung', () => {
+    const ctx = resolveAudioJobContext(job({ audioLanguages: ['it'] }), library({ transcriptionLanguages: ['de', 'it'] }))
+    expect(ctx.languages).toEqual(['it'])
+    expect(ctx.languagesSource).toBe('job')
+  })
+
+  it('readAudioContextOptions: gueltige Codes werden Job-Option, ungueltige sind ein Fehler statt still weg', () => {
+    expect(readAudioContextOptions({ audioLanguages: [' de ', 'IT'] })).toEqual({ options: { audioLanguages: ['de', 'it'] } })
+    const fehler = readAudioContextOptions({ audioLanguages: ['de', 'deutsch'] })
+    expect('error' in fehler && fehler.error).toContain('deutsch')
+    expect(readAudioContextOptions({ audioLanguages: 'de' as unknown as string[] })).toEqual({ error: 'audioLanguages muss eine Liste von Strings sein' })
   })
 })

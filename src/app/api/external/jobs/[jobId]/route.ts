@@ -45,6 +45,7 @@ import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
 import { buildProvider, resolveJobLibrary, resolveShadowTwinLibrary } from '@/lib/external-jobs/provider'
 import { runExtractOnly } from '@/lib/external-jobs/extract-only'
+import { persistAudioSegments } from '@/lib/external-jobs/audio-segments'
 import { downloadMistralOcrRaw } from '@/lib/external-jobs/mistral-ocr-download'
 import { resolveLibrarySecretaryConfig } from '@/lib/external-jobs/secretary-url'
 import { setJobCompleted } from '@/lib/external-jobs/complete'
@@ -620,6 +621,12 @@ export async function POST(
         error: { code: 'worker_payload_missing_transcription', message: 'Worker completed but did not provide transcription text' },
       })
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed_missing_transcription' })
+    }
+
+    // Verlaesslichkeit: Satz-Segmente des Laufs speichern, bevor die Phasen verzweigen.
+    // Scheitert das, laeuft der Job weiter (Messung, kein Artefakt) — laut im Trace.
+    if ((job.job_type === 'audio' || job.job_type === 'video') && body?.phase === 'completed' && extractedText) {
+      await persistAudioSegments({ job, callbackBody: body, log: (eintrag) => bufferLog(jobId, eintrag) })
     }
 
     // Prüfe auch auf pages_archive_data, pages_archive_url, mistral_ocr_images_url und mistral_ocr_raw für Mistral OCR

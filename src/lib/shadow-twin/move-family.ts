@@ -32,6 +32,7 @@ import { selectSiblingArtifactFiles } from '@/lib/shadow-twin/shadow-twin-migrat
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { FileLogger } from '@/lib/debug/logger'
 import { findeIdNachVerschieben, zieheSchaufensterNach } from '@/lib/shadow-twin/move-family-identity'
+import { rekeyTranscriptSegments } from '@/lib/repositories/transcript-segments-repo'
 import path from 'path'
 
 export interface MoveFamilyArgs {
@@ -174,6 +175,9 @@ export async function moveFamily(args: MoveFamilyArgs): Promise<MoveFamilyResult
   //    zweiten daneben.
   if (result.sourceIdChanged) {
     result.vectorsRekeyed = (await zieheSchaufensterNach({ library: args.library, alteSourceId: sourceId, neueSourceId: currentId })).umgeschrieben
+    // Satz-Segmente (Verlaesslichkeit) haengen ebenfalls an der sourceId.
+    const segmenteUmgeschrieben = await rekeyTranscriptSegments(libraryId, sourceId, currentId)
+    FileLogger.info('shadow-twin/move-family', 'Transkript-Segmente nachgezogen', { libraryId, sourceId, newSourceId: currentId, segmenteUmgeschrieben })
   }
 
   // 7) EXPORT: Spiegel am neuen Ort, korrekt benannt, regenerieren — mit der Id, die jetzt gilt.

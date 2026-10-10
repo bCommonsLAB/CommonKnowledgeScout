@@ -1,21 +1,25 @@
 'use client'
 
 /**
- * Reiter „Korrektur" am Audio-Transkript (P3b). Aufbau wie der Reiter
- * „Transformation": Kopfzeile mit Hinweis links und Knoepfen rechts, Inhalt in
- * Rahmen. Drei Bloecke (Begleitdokumente, Ersetzungen, Sprecher) und die
- * Fusszeile mit Begruendung, Vorschau und „Bestaetigen und schreiben".
+ * Unter-Reiter „Korrektur" am Audio-Transkript: ein Assistent, der hilft, die
+ * Wirklichkeit zu rekonstruieren (Owner 10.10.2026). Oben das Audio, darunter
+ * der Text Satz fuer Satz — gelb = nachhoeren, Doppelklick = korrigieren —
+ * und am Rand die Vorschlaege der KI wie im Aenderungsmodus von Word
+ * (Korrektur „alt → neu", Sprecherwechsel). Alles, was uebernommen wird, ist
+ * sofort gespeichert; es gibt keinen separaten Bestaetigen-Schritt.
  */
 
 import * as React from 'react'
-import { Alert, AlertDescription, Button, Input } from '@ks/ui'
-import { Check, Eye } from 'lucide-react'
-import { toast } from 'sonner'
+import { Alert, AlertDescription, Button } from '@ks/ui'
+import { HelpCircle, Maximize2, Minimize2, Sparkles } from 'lucide-react'
 import type { StorageProvider } from '@/lib/storage/types'
-import { ErsetzungenListe, SprecherListe } from './audio-correction-lists'
-import { AudioCorrectionSources } from './audio-correction-sources'
-import { anzahlAktiv } from './audio-correction-types'
+import { satzMitKorrektur } from '@/lib/transkript-korrektur/assistent-pruefung'
+import { AssistentDialog } from './assistent-dialog'
+import { AudioCorrectionLesen } from './audio-correction-lesen'
+import type { SatzVorschlagAktionen } from './audio-correction-satz'
+import { useAssistent } from './use-assistent'
 import { useAudioCorrection } from './use-audio-correction'
+import { useSatzSpeichern } from './use-satz-speichern'
 
 interface Props {
   libraryId: string
@@ -23,102 +27,127 @@ interface Props {
   parentId: string
   provider: StorageProvider | null
   enabled: boolean
-  /** Nach erfolgreichem Schreiben: z. B. in den Reiter „Transformation" springen. */
-  onGeschrieben?: (ueberholteTransformationen: number) => void
+  /** Sprachen der Aufnahmen aus der Library (fuer die Sprachpruefung); leer = Pruefung aus. */
+  erlaubteSprachen: string[]
+  /** Nach jeder gespeicherten Aenderung (Revisionsstand im Reiter Transformation auffrischen). */
+  onSatzGespeichert?: () => void
 }
 
 export function AudioCorrectionTab(props: Props) {
   const k = useAudioCorrection(props)
-  const aktiv = anzahlAktiv(k.ersetzungen, k.sprecher)
-  const nichtsGewaehlt = aktiv.ersetzungen + aktiv.sprecher === 0
-  const gesperrt = k.laeuft !== null || !k.zustand
+  const assistent = useAssistent(props.libraryId, props.sourceId)
+  const [dialogOffen, setDialogOffen] = React.useState(false)
+  const { speichereSatz, speichereSprecher } = useSatzSpeichern({
+    libraryId: props.libraryId, sourceId: props.sourceId, zustand: k.zustand, setZustand: k.setZustand,
+    onGespeichert: props.onSatzGespeichert,
+  })
+  const segments = k.zustand?.segmente?.segments ?? []
 
-  const schreiben = async () => {
-    const antwort = await k.anwenden(false)
-    if (!antwort) return
-    toast.success('Transkript korrigiert', {
-      description: `${antwort.belege.length} Stellen ersetzt, ${antwort.speakerNames.length} Sprecher zugeordnet.`,
-    })
-    props.onGeschrieben?.(antwort.transformationen.length)
+  const korrigiere = async (index: number, neu: string) => {
+    const fehler = await speichereSatz(index, neu)
+    if (!fehler) assistent.bereinigeSatz(index, neu.trim())
+    return fehler
   }
 
+  const aktionen: SatzVorschlagAktionen = {
+    korrekturAnnehmen: async (v) => {
+      const satz = segments[v.satz]
+      if (!satz) return 'Satz nicht gefunden — Seite neu laden'
+      if (!satz.text.includes(v.alt)) return 'Der Satz wurde inzwischen geaendert — Vorschlag passt nicht mehr'
+      const neu = satzMitKorrektur(satz.text, v)
+      const fehler = await speichereSatz(v.satz, neu)
+      if (!fehler) { assistent.entferneKorrektur(v.id); assistent.bereinigeSatz(v.satz, neu) }
+      return fehler
+    },
+    korrekturVerwerfen: (v) => assistent.entferneKorrektur(v.id),
+    sprecherAnnehmen: async (v) => {
+      const fehler = await speichereSprecher(v.abSatz, v.name)
+      if (!fehler) assistent.entferneSprecher(v.id)
+      return fehler
+    },
+    sprecherVerwerfen: (v) => assistent.entferneSprecher(v.id),
+  }
+
+  const offeneVorschlaege = assistent.offen.korrekturen.length + assistent.offen.sprecher.length
+
+  // Vollbild (Owner 10.10.2026): die Seite stapelt viele Ebenen ueber der Satzliste;
+  // zum Arbeiten nimmt die Korrektur den ganzen Bildschirm. Esc beendet.
+  const [vollbild, setVollbild] = React.useState(false)
+  React.useEffect(() => {
+    if (!vollbild) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setVollbild(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [vollbild])
+
+  const hilfe = 'Satz fuer Satz lesen und anhoeren — gelb heisst: nachhoeren. Doppelklick korrigiert, Vorschlaege der KI stehen am Rand. Alles wird sofort gespeichert.'
+    + (k.zustand?.revisedAt ? ` Zuletzt geaendert ${new Date(k.zustand.revisedAt).toLocaleString('de-DE')} von ${k.zustand.revisedBy ?? '?'}.` : '')
+  const kopfAktion = (
+    <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setDialogOffen(true)} disabled={segments.length === 0}
+      title={segments.length === 0 ? 'Erst neu transkribieren — Vorschlaege brauchen die Saetze' : 'Korrekturen und Sprecherwechsel von der KI vorschlagen lassen'}>
+      <Sparkles className="h-3.5 w-3.5" /><span className="ml-1 hidden lg:inline">Vorschlaege holen</span>
+    </Button>
+  )
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">
-          Hoerfehler und Sprecher bestaetigen, dann schreiben. Geschrieben wird nur der Text; vorhandene
-          Transformationen gelten danach als ueberholt.
-          {k.zustand?.revisedAt && (
-            <> · zuletzt korrigiert {new Date(k.zustand.revisedAt).toLocaleString('de-DE')} von {k.zustand.revisedBy}</>
+    <div className={vollbild ? 'fixed inset-0 z-50 flex flex-col gap-2 bg-background p-3' : 'flex h-full min-h-0 flex-col gap-2'}>
+      {/* Oberste Zeile: links Dateiname (Vollbild) bzw. verworfene Vorschlaege, rechts oben Hilfe und Vollbild (Owner 10.10.2026). */}
+      <div className="flex shrink-0 items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {vollbild && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="truncate font-medium">{k.zustand?.sourceName ?? ''}</span>
+              <span className="text-xs text-muted-foreground">Korrektur · Esc beendet das Vollbild</span>
+            </div>
+          )}
+          {assistent.offen.verworfen.length > 0 && (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer">
+                {assistent.offen.verworfen.length} Vorschlaege der KI verworfen (nicht am Text belegbar)
+                {assistent.offen.info ? ` · ${assistent.offen.info.modell} · ${Math.round(assistent.offen.info.dauerMs / 1000)} s` : ''}
+              </summary>
+              <ul className="mt-1 list-disc pl-5">{assistent.offen.verworfen.map((v, i) => <li key={i}>{v}</li>)}</ul>
+            </details>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => void k.anwenden(true)} disabled={gesperrt || nichtsGewaehlt}>
-            <Eye className="h-4 w-4 mr-2" /> Vorschau
-          </Button>
-          <Button size="sm" onClick={() => void schreiben()} disabled={gesperrt || nichtsGewaehlt || k.begruendung.trim() === ''}>
-            <Check className="h-4 w-4 mr-2" /> {k.laeuft === 'schreiben' ? 'Schreibt …' : 'Bestaetigen und schreiben'}
+        <div className="flex shrink-0 items-center gap-1">
+          <span className="text-muted-foreground" title={hilfe}><HelpCircle className="h-4 w-4" aria-label="Hilfe zur Korrektur-Ansicht" /></span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setVollbild((v) => !v)} aria-label={vollbild ? 'Vollbild beenden' : 'Vollbild'}
+            title={vollbild ? 'Vollbild beenden (Esc)' : 'Vollbild: die Korrektur nimmt den ganzen Bildschirm'}>
+            {vollbild ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>
-
-      {k.ladeFehler && (
-        <Alert variant="destructive"><AlertDescription>{k.ladeFehler}</AlertDescription></Alert>
-      )}
-      {k.aktionsFehler && (
-        <Alert variant="destructive"><AlertDescription>{k.aktionsFehler}</AlertDescription></Alert>
-      )}
-
+      {k.ladeFehler && <Alert variant="destructive"><AlertDescription>{k.ladeFehler}</AlertDescription></Alert>}
       {k.zustand && (
-        <>
-          <AudioCorrectionSources
-            quellen={k.quellen}
-            onToggle={(id, gewaehlt) => k.setQuellen(k.quellen.map((q) => (q.id === id ? { ...q, gewaehlt } : q)))}
-            onHolen={() => void k.holeVorschlaege()}
-            laeuft={k.laeuft === 'vorschlag'}
-            disabled={k.laeuft !== null}
-            vorschlag={k.vorschlag}
+        <div className="min-h-0 flex-1">
+          <AudioCorrectionLesen
+            provider={props.provider}
+            sourceId={props.sourceId}
+            absaetze={k.zustand.absaetze}
+            segmente={k.zustand.segmente}
+            erlaubteSprachen={props.erlaubteSprachen}
+            revisedAt={k.zustand.revisedAt}
+            onKorrigiere={korrigiere}
+            onSprecher={speichereSprecher}
+            assistent={assistent}
+            aktionen={aktionen}
+            kopfAktion={kopfAktion}
           />
-          <ErsetzungenListe zeilen={k.ersetzungen} onChange={k.setErsetzungen} disabled={k.laeuft !== null} />
-          <SprecherListe zeilen={k.sprecher} onChange={k.setSprecher} disabled={k.laeuft !== null} hatPraefixe={k.zustand.hatPraefixe} />
-          <div className="rounded border p-3 space-y-2">
-            <div className="text-sm font-medium">Begruendung (wird als revision_note gespeichert)</div>
-            <Input
-              value={k.begruendung}
-              onChange={(e) => k.setBegruendung(e.target.value)}
-              placeholder="z. B. Namen laut Einladung und Folien bestaetigt"
-              className="h-8 text-xs"
-              disabled={k.laeuft !== null}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Aktiv: {aktiv.ersetzungen} Ersetzungen, {aktiv.sprecher} Sprecher. Stand {k.zustand.updatedAt}.
-            </p>
-          </div>
-          {k.ergebnis && (
-            <div className="rounded border p-3 space-y-1 text-xs">
-              <div className="font-medium">{k.ergebnis.geschrieben ? 'Geschrieben' : 'Vorschau (nichts geschrieben)'}</div>
-              {k.ergebnis.belege.map((b, i) => (
-                <div key={i} className="grid grid-cols-[4rem_1fr] gap-2">
-                  <span className="text-muted-foreground">Z. {b.zeile}{b.treffer > 1 ? ` ×${b.treffer}` : ''}</span>
-                  <span><span className="line-through text-muted-foreground">{b.alt}</span> → <span className="font-medium">{b.neu}</span></span>
-                </div>
-              ))}
-              {k.ergebnis.speakerNames.length > 0 && <div>Sprecher: {k.ergebnis.speakerNames.join(' · ')}</div>}
-              {k.ergebnis.geschrieben && k.ergebnis.transformationen.length > 0 && (
-                <div className="text-amber-700 dark:text-amber-400">
-                  {k.ergebnis.transformationen.length} Transformation(en) sind jetzt ueberholt &mdash; im Reiter &bdquo;Transformation&ldquo; neu generieren.
-                </div>
-              )}
-              {k.ergebnis.geschrieben && (k.ergebnis.abhaengigeSammeldateien?.length ?? 0) > 0 && (
-                <div className="text-amber-700 dark:text-amber-400">
-                  {k.ergebnis.abhaengigeSammeldateien?.length} Sammeldatei(en) enthalten diese Quelle und sind jetzt ueberholt:{' '}
-                  {k.ergebnis.abhaengigeSammeldateien?.map((a) => a.sourceName).join(', ')}
-                </div>
-              )}
-            </div>
-          )}
-        </>
+        </div>
       )}
+      <AssistentDialog
+        offen={dialogOffen}
+        onOffenChange={setDialogOffen}
+        quellen={k.quellen}
+        onQuellenChange={k.setQuellen}
+        auftrag={assistent.auftrag}
+        onAuftragChange={assistent.setAuftrag}
+        laeuft={assistent.laeuft}
+        fehler={assistent.fehler}
+        onHolen={assistent.hole}
+        offeneVorschlaege={offeneVorschlaege}
+      />
     </div>
   )
 }

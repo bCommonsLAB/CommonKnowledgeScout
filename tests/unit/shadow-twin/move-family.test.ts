@@ -24,6 +24,7 @@ vi.mock('@/lib/repositories/shadow-twin-repo', async (importOriginal) => ({
 
 const locationMocks = vi.hoisted(() => ({ updateShadowTwinSourceLocation: vi.fn() }))
 vi.mock('@/lib/repositories/shadow-twin-location', () => locationMocks)
+vi.mock('@/lib/repositories/transcript-segments-repo', () => ({ rekeyTranscriptSegments: vi.fn(async () => 0) }))
 
 const folderMocks = vi.hoisted(() => ({ findShadowTwinFolder: vi.fn() }))
 vi.mock('@/lib/storage/shadow-twin', async (importOriginal) => ({

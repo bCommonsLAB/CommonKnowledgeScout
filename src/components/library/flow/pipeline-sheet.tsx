@@ -504,6 +504,8 @@ export function PipelineSheet(props: PipelineSheetProps) {
                           {/* === Extract-Optionen: Quellsprache + Zielsprache === */}
                           {step.key === "extract" && (
                             <>
+                              {/* Audio: Sprachen der Aufnahme in der Kontext-Box; keine Zielsprache — das Transkript bleibt im Original. */}
+                              {!isAudioSource && (<>
                               <div className="flex items-center gap-2 ml-[76px] pr-4">
                                 <Label htmlFor="source-language" className="text-xs text-muted-foreground whitespace-nowrap w-20">
                                   Quellsprache
@@ -544,12 +546,13 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              {/* Audio-Kontext (P3a): Sprecher erkennen, Thema/Anlass, Begriffe */}
+                              </>)}
+                              {/* Audio-Kontext: Sprachen der Aufnahme, Thema/Anlass, Begriffe */}
                               {isAudioSource && (
                                 <div className="ml-[76px] pr-4 pt-1">
                                   <AudioTransformContext
-                                    speakerMode={audioContext.speakerMode}
-                                    onSpeakerModeChange={audioContext.setSpeakerMode}
+                                    sprachen={audioContext.sprachen}
+                                    onSprachenChange={audioContext.setSprachen}
                                     prompt={audioContext.prompt}
                                     onPromptChange={audioContext.setPrompt}
                                     keywordsText={audioContext.keywordsText}

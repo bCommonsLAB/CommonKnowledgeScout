@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * P3b: Vorschlags-Route. Laedt Transkript und Begleittexte server-seitig,
- * reicht Secretary-Fehler mit Status und Code durch, misst die 600k-Grenze vorab.
+ * Korrektur-Assistent: Vorschlags-Route. Saetze aus den gespeicherten Segmenten,
+ * Begleittexte server-seitig, Auftrag Pflicht, Antwort gegen den Text geprueft.
  */
 
 const h = vi.hoisted(() => ({
-  hole: vi.fn(),
+  llm: vi.fn(),
+  segmente: null as null | { segments: Array<{ text: string }> },
   docs: new Map<string, { sourceId: string; sourceName: string; parentId: string; artifacts: { transcript?: { markdown: string; updatedAt: string; createdAt: string } } }>(),
 }))
 
@@ -22,15 +23,10 @@ vi.mock('@/lib/repositories/shadow-twin-repo', () => ({
     new Map(sourceIds.filter((id) => h.docs.has(id)).map((id) => [id, h.docs.get(id)!])),
   readTranscriptRecord: (doc: { artifacts?: { transcript?: unknown } }) => doc.artifacts?.transcript ?? null,
 }))
-vi.mock('@/lib/transkript-korrektur/vorschlag', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/transkript-korrektur/vorschlag')>()
-  return { ...original, holeKorrekturvorschlag: h.hole }
-})
+vi.mock('@/lib/repositories/transcript-segments-repo', () => ({ getTranscriptSegments: async () => h.segmente }))
+vi.mock('@/lib/db/llm-models-repo', () => ({ getDefaultLlmModel: async () => ({ modelId: 'google/gemini-test' }) }))
+vi.mock('@/lib/chat/common/llm', () => ({ callLlmJson: h.llm }))
 vi.mock('@/lib/debug/logger', () => ({ FileLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }))
-
-function rec(markdown: string) {
-  return { markdown, updatedAt: '2026-10-08T09:00:00.000Z', createdAt: '2026-10-07T00:00:00.000Z' }
-}
 
 async function post(body: Record<string, unknown>) {
   const { POST } = await import('@/app/api/library/[libraryId]/transcript-correction/suggest/route')
@@ -40,42 +36,44 @@ async function post(body: Record<string, unknown>) {
   return POST(req as unknown as Parameters<typeof POST>[0], { params: Promise.resolve({ libraryId: 'lib-1' }) })
 }
 
-describe('transcript-correction/suggest Route (P3b)', () => {
+describe('transcript-correction/suggest — Korrektur-Assistent', () => {
   beforeEach(() => {
-    h.hole.mockReset()
+    h.llm.mockReset()
     h.docs.clear()
-    h.docs.set('audio', { sourceId: 'audio', sourceName: 'a.m4a', parentId: 'p', artifacts: { transcript: rec('---\ntype: "transcript"\n---\n**Stück 1 Sprecher A:** Hallo') } })
-    h.docs.set('flyer', { sourceId: 'flyer', sourceName: 'flyer.pdf', parentId: 'p', artifacts: { transcript: rec('---\ntype: "transcript"\n---\nReferentin: Dr. Anna Mahlknecht') } })
-    h.docs.set('ohne', { sourceId: 'ohne', sourceName: 'ohne.pdf', parentId: 'p', artifacts: {} })
+    h.segmente = { segments: [{ text: 'Grazie Assunta.' }, { text: 'Frau Britzko hat gesagt, das stimmt.' }, { text: 'Ich habe eine Frage.' }] }
+    h.docs.set('flyer', { sourceId: 'flyer', sourceName: 'Flyer.pdf', parentId: 'p', artifacts: { transcript: { markdown: '---\n---\nReferentinnen: Sascha Britsko, Assunta Corbo', updatedAt: 'x', createdAt: 'x' } } })
   })
 
-  it('schickt Body ohne Frontmatter und Begleittexte mit Namen an den Secretary', async () => {
-    h.hole.mockResolvedValue({ ersetzungen: [], sprecher: [{ label: 'Stück 1 Sprecher A', name: 'Dr. Anna Mahlknecht', begruendung: 'Einladung', beleg: 'einladung' }], verworfen: [], modell: 'm', tokens: 1, dauer_ms: 2 })
-    const res = await post({ sourceId: 'audio', begleitSourceIds: ['flyer'] })
+  it('schickt Auftrag, Begleittext und nummerierte Saetze; gibt gepruefte Vorschlaege zurueck', async () => {
+    h.llm.mockResolvedValue({ data: {
+      korrekturen: [{ satz: 1, alt: 'Britzko', neu: 'Britsko', grund: 'Flyer' }, { satz: 1, alt: 'gibt es nicht', neu: 'x' }],
+      sprecher: [{ ab_satz: 1, name: 'Sascha Britsko', rolle: 'Referentin' }, { ab_satz: 2, name: 'Publikum', rolle: 'Publikum' }, { ab_satz: 0, name: 'Erfundene Person' }],
+    }, usage: { totalTokens: 1234 } })
+    const res = await post({ sourceId: 'audio', begleitSourceIds: ['flyer'], auftrag: 'Finde Hoerfehler.' })
     expect(res.status).toBe(200)
-    expect((await res.json()).sprecher).toHaveLength(1)
-    const args = h.hole.mock.calls[0][0] as { transkript: string; begleittexte: Array<{ name: string; text: string }>; zielsprache: string }
-    expect(args.transkript).toBe('**Stück 1 Sprecher A:** Hallo')
-    expect(args.begleittexte).toEqual([{ name: 'flyer.pdf', text: 'Referentin: Dr. Anna Mahlknecht' }])
-    expect(args.zielsprache).toBe('de')
+    const json = await res.json()
+    const nachricht = (h.llm.mock.calls[0] as unknown as [{ messages: Array<{ content: string }> }])[0].messages[0].content
+    expect(nachricht).toContain('Finde Hoerfehler.')
+    expect(nachricht).toContain('### Flyer.pdf')
+    expect(nachricht).toContain('[1] Frau Britzko hat gesagt')
+    expect(json.korrekturen).toEqual([{ id: 'k1-0', satz: 1, alt: 'Britzko', neu: 'Britsko', grund: 'Flyer' }])
+    expect(json.sprecher.map((s: { name: string }) => s.name)).toEqual(['Sascha Britsko', 'Publikum'])
+    expect(json.verworfen).toHaveLength(2)
+    expect(json.tokens).toBe(1234)
   })
 
-  it('Begleitdokument ohne Transkript: 400 mit Namen, kein Secretary-Aufruf', async () => {
-    const res = await post({ sourceId: 'audio', begleitSourceIds: ['ohne'] })
+  it('ohne Auftrag 400, ohne Saetze 409 (zuerst neu transkribieren)', async () => {
+    expect((await post({ sourceId: 'audio', auftrag: '  ' })).status).toBe(400)
+    h.segmente = null
+    const res = await post({ sourceId: 'audio', auftrag: 'x' })
+    expect(res.status).toBe(409)
+    expect((await res.json()).code).toBe('keine_saetze')
+  })
+
+  it('fehlendes Begleit-Transkript ist ein Fehler mit Namen, kein stilles Weglassen', async () => {
+    const res = await post({ sourceId: 'audio', begleitSourceIds: ['fehlt'], auftrag: 'x' })
     expect(res.status).toBe(400)
-    expect((await res.json()).error).toContain('ohne')
-    expect(h.hole).not.toHaveBeenCalled()
-  })
-
-  it('reicht Secretary-Fehler mit Status und Code durch', async () => {
-    const { SecretaryVorschlagError } = await import('@/lib/transkript-korrektur/vorschlag')
-    h.hole.mockRejectedValue(new SecretaryVorschlagError(503, 'NO_MODEL_CONFIGURED', 'kein Modell'))
-    const res = await post({ sourceId: 'audio', begleitSourceIds: [] })
-    expect(res.status).toBe(503)
-    expect((await res.json()).code).toBe('NO_MODEL_CONFIGURED')
-  })
-
-  it('404 ohne Transkript der Quelle', async () => {
-    expect((await post({ sourceId: 'ohne', begleitSourceIds: [] })).status).toBe(404)
+    expect((await res.json()).code).toBe('begleittext_fehlt')
+    expect(h.llm).not.toHaveBeenCalled()
   })
 })

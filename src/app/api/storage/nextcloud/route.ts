@@ -177,12 +177,31 @@ export async function GET(request: NextRequest) {
         if (!fileId || fileId === 'root') {
           return NextResponse.json({ error: 'Ungueltige Datei-ID' }, { status: 400 })
         }
+        // Range (z. B. Audio-Sprung im Reiter „Korrektur"): nur das Teilstueck von Nextcloud holen.
+        const range = request.headers.get('range')
+        if (range && /^bytes=\d*-\d*$/.test(range.trim())) {
+          const teil = await provider.getBinaryRange(fileId, range.trim())
+          if (teil.status === 206 && teil.contentRange) {
+            return new NextResponse(new Uint8Array(teil.data), {
+              status: 206,
+              headers: {
+                'Content-Type': teil.mimeType,
+                'Content-Length': teil.data.length.toString(),
+                'Content-Range': teil.contentRange,
+                'Accept-Ranges': 'bytes',
+                'Cache-Control': 'no-store',
+              },
+            })
+          }
+          console.warn('[nextcloud] Range nicht bedient, liefere ganze Datei', { fileId, range, status: teil.status })
+        }
         const { blob, mimeType } = await provider.getBinary(fileId)
         const buffer = Buffer.from(await blob.arrayBuffer())
         return new NextResponse(buffer, {
           headers: {
             'Content-Type': mimeType,
             'Content-Length': buffer.length.toString(),
+            'Accept-Ranges': 'bytes',
             'Cache-Control': 'no-store',
           },
         })

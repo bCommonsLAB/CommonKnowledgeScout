@@ -499,6 +499,7 @@ export class LibraryService {
         extractionKnownNames: Array.isArray(lib.config?.extractionKnownNames) ? lib.config.extractionKnownNames : [],
         // P3a: Sprecher-Erkennung als Voreinstellung (Dialog belegt damit vor), kein Secret.
         transcriptionSpeakerMode: lib.config?.transcriptionSpeakerMode === true,
+        transcriptionLanguages: Array.isArray(lib.config?.transcriptionLanguages) ? lib.config.transcriptionLanguages : [],
         // P6: Voreinstellung des Ingest-Anhangs; fehlt = AN (dokumentierter Standard), kein Secret.
         ingestSourceAppendix: lib.config?.ingestSourceAppendix !== false,
         // Agentensicht-Konventionen (Welle 1/3): reine Scan-/Anzeige-Regeln, kein Secret.

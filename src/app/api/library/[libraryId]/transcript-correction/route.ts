@@ -2,11 +2,14 @@
  * @fileoverview Reiter „Korrektur" am Audio-Transkript (P3b): Zustand und Schreiben.
  *
  * @description
- * GET  ?sourceId=…  → Zustand ohne Body: `updatedAt` (Riegel), `speakers`,
- *                     `speakerNames`, Revisions-Felder, Transformationen.
- * POST { sourceId, ersetzungen?, sprecher?, begruendung, ifUpdatedAt, nurVorschau? }
- *      → wendet die Korrektur an (alles oder nichts) und schreibt nach
- *        MongoDB; der Spiegel folgt ueber den Service, wenn die Library
+ * GET  ?sourceId=…  → Zustand: `updatedAt` (Riegel), `speakers`, `speakerNames`,
+ *                     Revisions-Felder, Transformationen, Absaetze und die
+ *                     Satz-Segmente des letzten Laufs (`segmente`, null = keine
+ *                     gespeichert).
+ * POST { sourceId, ersetzungen?, sprecher?, sprecherWechsel?, begruendung, ifUpdatedAt, nurVorschau? }
+ *      → wendet die Korrektur an (alles oder nichts) und schreibt synchron
+ *        nach MongoDB; der Spiegel im Storage folgt gebuendelt kurz nach der
+ *        letzten Aenderung (`spiegel-nachziehen.ts`), wenn die Library
  *        `persistToFilesystem` fuehrt. 409 bei veraltetem `ifUpdatedAt`,
  *        422 bei nicht gefundenen oder mehrdeutigen Stellen — nie still.
  *
@@ -21,7 +24,9 @@ import { ErsetzungNichtEindeutigError, ErsetzungNichtGefundenError, type Ersetzu
 import { LibraryService } from '@/lib/services/library-service'
 import { abhaengigeSammeldateien } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { getServerProvider } from '@/lib/storage/server-provider'
+import { planeSpiegelExport } from '@/lib/transkript-korrektur/spiegel-nachziehen'
+import { getTranscriptSegments } from '@/lib/repositories/transcript-segments-repo'
+import { sprecherwechselErsetzungen, sprecherwechselLesen, zieheSegmenteNach } from '@/lib/transkript-verlaesslichkeit/segmente-nachziehen'
 import { wendeKorrekturAn, type SprecherZuordnung } from '@/lib/transkript-korrektur/anwenden'
 import { ladeTranskript, transkriptZustand } from '@/lib/transkript-korrektur/laden'
 import { schreibeTranskriptKorrektur } from '@/lib/transkript-korrektur/schreiben'
@@ -33,6 +38,8 @@ interface ApplyBody {
   begruendung?: unknown
   ifUpdatedAt?: unknown
   nurVorschau?: unknown
+  /** Korrektur-Assistent: „ab Satz n spricht X" — neuer Absatz mit Praefix im Transkript. */
+  sprecherWechsel?: unknown
 }
 
 async function anmelden(): Promise<{ userEmail: string } | NextResponse> {
@@ -88,7 +95,9 @@ export async function GET(
     // Welle E: Sammeldateien mit dieser Quelle, damit der Reiter nach der Korrektur sagt, was sonst noch ueberholt ist.
     const zustand = transkriptZustand(stand)
     const abhaengige = await abhaengigeSammeldateien({ libraryId, sourceId, revisedAt: zustand.revisedAt })
-    return NextResponse.json({ ...zustand, abhaengigeSammeldateien: abhaengige }, { headers: { 'Cache-Control': 'no-store' } })
+    // Verlaesslichkeit: Segmente des letzten Transkriptions-Laufs (eigene Collection).
+    const segmente = await getTranscriptSegments({ libraryId, sourceId })
+    return NextResponse.json({ ...zustand, abhaengigeSammeldateien: abhaengige, segmente }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     FileLogger.error('transcript-correction', 'GET fehlgeschlagen', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Interner Fehler' }, { status: 500 })
@@ -100,9 +109,14 @@ export async function POST(
   { params }: { params: Promise<{ libraryId: string }> },
 ): Promise<NextResponse> {
   try {
+    // Dauer je Schritt (ms seit Start) — kommt als `zeiten` in Antwort und Log, damit Traegheit messbar ist.
+    const t0 = Date.now()
+    const zeiten: Record<string, number> = {}
+    const lap = (name: string) => { zeiten[name] = Date.now() - t0 }
     const anmeldung = await anmelden()
     if (anmeldung instanceof NextResponse) return anmeldung
     const { userEmail } = anmeldung
+    lap('auth')
     const { libraryId } = await params
     const body = (await request.json().catch(() => null)) as ApplyBody | null
     const sourceId = typeof body?.sourceId === 'string' ? body.sourceId : ''
@@ -111,6 +125,8 @@ export async function POST(
     if (typeof ersetzungen === 'string') return NextResponse.json({ error: ersetzungen }, { status: 400 })
     const sprecher = sprecherLesen(body?.sprecher)
     if (typeof sprecher === 'string') return NextResponse.json({ error: sprecher }, { status: 400 })
+    const wechsel = sprecherwechselLesen(body?.sprecherWechsel)
+    if (typeof wechsel === 'string') return NextResponse.json({ error: wechsel }, { status: 400 })
     const nurVorschau = body?.nurVorschau === true
     const begruendung = typeof body?.begruendung === 'string' ? body.begruendung.trim() : ''
     // Die Vorschau schreibt nichts — sie braucht keine Begruendung; der Stempel ist dann nur Platzhalter.
@@ -120,8 +136,10 @@ export async function POST(
 
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+    lap('library')
 
     const stand = await ladeTranskript({ libraryId, sourceId })
+    lap('transkript')
     if (!stand) return NextResponse.json({ error: 'Kein Transkript fuer diese Quelle', code: 'kein_transkript' }, { status: 404 })
     if (stand.record.updatedAt !== ifUpdatedAt) {
       return NextResponse.json(
@@ -133,7 +151,9 @@ export async function POST(
     const revision = { revised_by: userEmail, revised_at: new Date().toISOString(), revision_note: begruendung || '(Vorschau)' }
     let anwendung
     try {
-      anwendung = wendeKorrekturAn({ markdown: stand.record.markdown, ersetzungen, sprecher, revision })
+      // Sprecherwechsel werden zu Ersetzungen „Satz → Absatz + Praefix + Satz" (alles oder nichts mit dem Rest).
+      const wechselErsetzungen = await sprecherwechselErsetzungen(libraryId, sourceId, wechsel, stand.body)
+      anwendung = wendeKorrekturAn({ markdown: stand.record.markdown, ersetzungen: [...ersetzungen, ...wechselErsetzungen], sprecher, revision })
     } catch (error) {
       if (error instanceof ErsetzungNichtGefundenError || error instanceof ErsetzungNichtEindeutigError) {
         return NextResponse.json({ error: error.message, code: error.code }, { status: 422 })
@@ -149,18 +169,28 @@ export async function POST(
       // Welle E: Sammeldateien, die diese Quelle enthalten — nach dem Schreiben ueberholt.
       abhaengigeSammeldateien: await abhaengigeSammeldateien({ libraryId, sourceId, revisedAt: revision.revised_at }),
     }
-    if (nurVorschau) return NextResponse.json({ ...basis, geschrieben: false, updatedAt: stand.record.updatedAt })
+    lap('anwenden_und_sammeldateien')
+    if (nurVorschau) return NextResponse.json({ ...basis, geschrieben: false, updatedAt: stand.record.updatedAt, zeiten })
 
-    const persistToFilesystem = getShadowTwinConfig(library).persistToFilesystem
-    const provider = persistToFilesystem ? await getServerProvider(userEmail, libraryId) : undefined
+    // Synchron nur MongoDB (fuehrende Fassung). Der Spiegel im Storage folgt gebuendelt
+    // nach der letzten Aenderung (`planeSpiegelExport`) — jeder Satz einzeln per WebDAV
+    // war der traege Teil des Speicherns (Owner-Befund 10.10.2026).
     await schreibeTranskriptKorrektur({
-      library, userEmail, provider, doc: stand.doc, markdownNeu: anwendung.markdownNeu, skipFilesystemMirror: false,
+      library, userEmail, doc: stand.doc, markdownNeu: anwendung.markdownNeu, skipFilesystemMirror: true,
     })
-    const danach = await ladeTranskript({ libraryId, sourceId })
+    lap('schreiben_mongo')
+    if (getShadowTwinConfig(library).persistToFilesystem) planeSpiegelExport({ libraryId, userEmail, sourceId })
+    // Neuer Riegel (updatedAt) und Nachziehen der Saetze laufen parallel — beides nur Mongo.
+    const [danach, segmenteNachgezogen] = await Promise.all([
+      ladeTranskript({ libraryId, sourceId }),
+      // Text-Ersetzungen und Sprecher in die Saetze; die Wechsel-Ersetzungen NICHT (der Satztext bleibt ohne Praefix).
+      zieheSegmenteNach(libraryId, sourceId, ersetzungen, wechsel),
+    ])
+    lap('nachziehen')
     FileLogger.info('transcript-correction', 'Korrektur geschrieben', {
-      libraryId, sourceId, ersetzungen: anwendung.belege.length, sprecher: sprecher.length, userEmail,
+      libraryId, sourceId, ersetzungen: anwendung.belege.length, sprecher: sprecher.length, sprecherWechsel: wechsel.length, userEmail, segmenteNachgezogen, zeiten,
     })
-    return NextResponse.json({ ...basis, geschrieben: true, updatedAt: danach?.record.updatedAt ?? null })
+    return NextResponse.json({ ...basis, geschrieben: true, updatedAt: danach?.record.updatedAt ?? null, segmenteNachgezogen, zeiten })
   } catch (error) {
     FileLogger.error('transcript-correction', 'POST fehlgeschlagen', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Interner Fehler' }, { status: 500 })
