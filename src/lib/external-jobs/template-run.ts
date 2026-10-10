@@ -36,12 +36,32 @@ import { getSecretaryConfig } from '@/lib/env'
  * Schluessel kamen zurueck, gab es `data`, was steckte in `structured_data`,
  * und hat Secretary selbst eine Fehlermeldung mitgeschickt.
  */
+/** `error: { code, message }` an der Wurzel oder unter `data` — als ein Satz. */
+function findeFehlerKlartext(wurzel: Record<string, unknown>): string | null {
+  const kandidaten = [wurzel['error'], (wurzel['data'] as Record<string, unknown> | undefined)?.['error']]
+  for (const k of kandidaten) {
+    if (!k || typeof k !== 'object') continue
+    const o = k as Record<string, unknown>
+    const message = typeof o['message'] === 'string' ? o['message'].trim() : ''
+    const code = typeof o['code'] === 'string' ? o['code'].trim() : ''
+    if (message || code) return `${code ? `[${code}] ` : ''}${message.slice(0, 600)}`
+  }
+  return null
+}
+
 export function beschreibeAntwort(data: unknown): string {
   if (data === null || typeof data !== 'object') {
     return `Antwort war kein Objekt (${data === null ? 'null' : typeof data}).`
   }
   const wurzel = data as Record<string, unknown>
   const teile: string[] = [`Schluessel: [${Object.keys(wurzel).join(', ')}]`]
+
+  // Prod-Befund 10.10.2026: Der Secretary antwortet HTTP 200 / status "success" und steckt den
+  // eigentlichen Grund in `data.error.message` („deepseek/… is not a valid model ID"). Der stand
+  // zwar im 1200-Zeichen-Auszug unten, aber hinter dem Echo — und wurde abgeschnitten. Zuerst
+  // der Klartext, dann die Struktur.
+  const fehler = findeFehlerKlartext(wurzel)
+  if (fehler) teile.push(`Ursache laut Secretary: ${fehler}`)
 
   // Secretary meldet Fehler teils im Klartext neben `status: "success"`.
   for (const feld of ['status', 'message', 'error', 'detail'] as const) {

@@ -81,3 +81,24 @@ describe('beschreibeAntwort', () => {
     expect(beschreibeAntwort('kaputt')).toContain('kein Objekt (string)')
   })
 })
+
+describe('beschreibeAntwort — Ursache aus data.error zuerst (Prod-Befund 10.10.2026)', () => {
+  it('nennt code und message aus data.error vor dem Struktur-Auszug', () => {
+    const text = beschreibeAntwort({
+      status: 'success',
+      request: { parameters: { text: 'x'.repeat(5000) } },
+      data: {
+        status: 'error',
+        request: { parameters: { text: 'y'.repeat(5000) } },
+        error: { code: 'TEMPLATE_TRANSFORMATION_ERROR', message: 'LLM-Anfrage fehlgeschlagen. Modell: deepseek/deepseek-v4-flash-latest. Fehler: deepseek/deepseek-v4-flash-latest is not a valid model ID' },
+      },
+    })
+    expect(text).toContain('Ursache laut Secretary: [TEMPLATE_TRANSFORMATION_ERROR] LLM-Anfrage fehlgeschlagen')
+    expect(text).toContain('is not a valid model ID')
+    expect(text.indexOf('Ursache laut Secretary')).toBeLessThan(text.indexOf('Antwort ohne request-Echo'))
+  })
+
+  it('ohne error-Objekt bleibt die Beschreibung wie bisher', () => {
+    expect(beschreibeAntwort({ status: 'success', data: {} })).not.toContain('Ursache laut Secretary')
+  })
+})
