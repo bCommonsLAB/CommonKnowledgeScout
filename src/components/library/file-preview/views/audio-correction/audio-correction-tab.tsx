@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 import type { StorageProvider } from '@/lib/storage/types'
 import { AudioCorrectionSources } from './audio-correction-sources'
 import { AudioCorrectionStep2 } from './audio-correction-step2'
-import { AudioCorrectionText } from './audio-correction-text'
+import { AudioCorrectionLesen } from './audio-correction-lesen'
 import { useAudioCorrection } from './use-audio-correction'
 
 interface Props {
@@ -24,6 +24,8 @@ interface Props {
   parentId: string
   provider: StorageProvider | null
   enabled: boolean
+  /** Sprachen der Aufnahmen aus der Library (fuer die Sprachpruefung); leer = Pruefung aus. */
+  erlaubteSprachen: string[]
   /** Nach erfolgreichem Schreiben: z. B. in den Reiter „Transformation" springen. */
   onGeschrieben?: (ueberholteTransformationen: number) => void
 }
@@ -46,7 +48,7 @@ export function AudioCorrectionTab(props: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="text-xs text-muted-foreground">
-        Links der Text, rechts die Arbeit: erst Vorschlaege holen, dann Sprecher und Hoerfehler bestaetigen und schreiben.
+        Links Satz fuer Satz lesen und anhoeren — gelb heisst: nachhoeren. Rechts erst Vorschlaege holen, dann Sprecher und Hoerfehler bestaetigen und schreiben.
         {k.zustand?.revisedAt && (
           <> · zuletzt korrigiert {new Date(k.zustand.revisedAt).toLocaleString('de-DE')} von {k.zustand.revisedBy}</>
         )}
@@ -61,9 +63,15 @@ export function AudioCorrectionTab(props: Props) {
 
       {k.zustand && (
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)]">
-          <div className="min-h-0 overflow-auto rounded border p-3">
-            <AudioCorrectionText absaetze={k.zustand.absaetze} sprecher={k.sprecher} />
-          </div>
+          <AudioCorrectionLesen
+            provider={props.provider}
+            sourceId={props.sourceId}
+            absaetze={k.zustand.absaetze}
+            sprecher={k.sprecher}
+            segmente={k.zustand.segmente}
+            erlaubteSprachen={props.erlaubteSprachen}
+            revisedAt={k.zustand.revisedAt}
+          />
           <div className="min-h-0 space-y-3 overflow-auto">
             <AudioCorrectionSources
               quellen={k.quellen}

@@ -207,6 +207,7 @@ export function AudioView(props: PreviewViewProps) {
               parentId={item.parentId || 'root'}
               provider={provider}
               enabled={true}
+              erlaubteSprachen={activeLibrary?.config?.transcriptionLanguages ?? []}
               onGeschrieben={(ueberholt) => {
                 setRevisionTick((t) => t + 1)
                 if (ueberholt > 0) setInfoTab('transform')
