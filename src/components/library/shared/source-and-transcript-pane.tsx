@@ -120,15 +120,17 @@ export function SourceAndTranscriptPane(props: SourceAndTranscriptPaneProps) {
   if (mediaType === "audio" || mediaType === "video") {
     return (
       <div className="flex h-full flex-col">
-        <div className="min-h-0 flex-1 overflow-hidden">
+        {/* Audio: der Player braucht nur seine eigene Hoehe — die halbe Flaeche war leer (Owner 11.10.2026).
+            Video braucht die Flaeche fuer das Bild und teilt sie sich weiter mit dem Transkript. */}
+        <div className={mediaType === "audio" ? "shrink-0" : "min-h-0 flex-1 overflow-hidden"}>
           <SourceRenderer provider={props.provider} file={props.sourceFile} streamingUrl={props.streamingUrl} showHeader={false} />
         </div>
 
-        <div className="min-h-0 flex-1 border-t">
-          <div className="border-b bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex min-h-0 flex-1 flex-col border-t">
+          <div className="shrink-0 border-b bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             Transcript (Shadow‑Twin{props.transcriptItem?.metadata?.name ? `: ${props.transcriptItem.metadata.name}` : ""})
           </div>
-          <div className="h-full overflow-auto p-3">
+          <div className="min-h-0 flex-1 overflow-auto p-3">
             {!props.transcriptItem ? (
               <div className="text-sm text-muted-foreground">Kein Transcript vorhanden.</div>
             ) : transcriptError ? (
