@@ -15,7 +15,8 @@ import { bewerteSegmente } from '@/lib/transkript-verlaesslichkeit/befunde'
 import type { TranscriptSegment } from '@/lib/transkript-verlaesslichkeit/segmente'
 import { AudioCorrectionSaetze } from './audio-correction-saetze'
 import { AudioCorrectionText } from './audio-correction-text'
-import type { SprecherZeile } from './audio-correction-types'
+import type { SatzVorschlagAktionen } from './audio-correction-satz'
+import type { AssistentState } from './use-assistent'
 import { useAudioSprung } from './use-audio-sprung'
 
 export interface SegmenteStand {
@@ -27,13 +28,16 @@ interface Props {
   provider: StorageProvider | null
   sourceId: string
   absaetze: TranskriptAbsatz[]
-  sprecher: SprecherZeile[]
   segmente: SegmenteStand | null
   erlaubteSprachen: string[]
   /** Letzte Korrektur des Transkripts; liegt sie nach dem Lauf, zeigen die Saetze den Stand vor der Korrektur. */
   revisedAt: string | null
   /** Satz sofort speichern; liefert null bei Erfolg, sonst die Fehlermeldung. */
   onKorrigiere: (index: number, neu: string) => Promise<string | null>
+  assistent: AssistentState
+  aktionen: SatzVorschlagAktionen
+  /** Knopf „Vorschlaege holen" fuer die Kopfzeile der Satzliste. */
+  kopfAktion: React.ReactNode
 }
 
 const SPRUENGE = [-15, -5, 5, 15] as const
@@ -80,6 +84,10 @@ export function AudioCorrectionLesen(props: Props) {
               onSpringe={audio.springe}
               zeitenGeschaetzt={zeitenGeschaetzt}
               onKorrigiere={props.onKorrigiere}
+              korrekturenJeSatz={props.assistent.korrekturenJeSatz}
+              sprecherJeSatz={props.assistent.sprecherJeSatz}
+              aktionen={props.aktionen}
+              kopfAktion={props.kopfAktion}
             />
           </>
         ) : (
@@ -89,7 +97,7 @@ export function AudioCorrectionLesen(props: Props) {
                 ? 'Der letzte Transkriptions-Lauf hat keine Saetze geliefert — keine Bewertung moeglich.'
                 : 'Fuer dieses Transkript liegen keine Satz-Werte vor (aelterer Lauf). Neu transkribieren, um unsichere Stellen zu sehen.'}
             </p>
-            <AudioCorrectionText absaetze={props.absaetze} sprecher={props.sprecher} />
+            <AudioCorrectionText absaetze={props.absaetze} />
           </>
         )}
       </div>

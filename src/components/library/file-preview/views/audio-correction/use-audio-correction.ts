@@ -1,10 +1,11 @@
 'use client'
 
 /**
- * Daten und Aktionen des Reiters „Korrektur" (P3b): Zustand des Transkripts
- * (GET), Begleitquellen desselben Ordners (Provider + batch-resolve),
- * Vorschlaege holen (suggest), Vorschau und Schreiben (POST). Fehler werden
- * als Text gehalten und angezeigt, nie verschluckt.
+ * Daten der Korrektur-Ansicht: Zustand des Transkripts mit Satz-Segmenten
+ * (GET) und die Begleitquellen desselben Ordners (Provider + batch-resolve)
+ * fuer den Korrektur-Assistenten. Schreiben laeuft satzweise ueber
+ * `useSatzSpeichern`; Vorschlaege ueber `useAssistent`. Fehler werden als Text
+ * gehalten und angezeigt, nie verschluckt.
  */
 
 import * as React from 'react'
@@ -13,16 +14,6 @@ import { getMediaKind } from '@/lib/media-types'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { TranskriptZustand } from '@/lib/transkript-korrektur/laden'
 import type { SegmenteStand } from './audio-correction-lesen'
-import type { Korrekturvorschlag } from '@/lib/transkript-korrektur/vorschlag'
-import {
-  applyBody,
-  ersetzungenAusVorschlag,
-  sprecherZeilen,
-  type ApplyAntwort,
-  type BegleitQuelle,
-  type ErsetzungZeile,
-  type SprecherZeile,
-} from './audio-correction-types'
 
 async function lesen<T>(res: Response): Promise<T> {
   const json = (await res.json().catch(() => ({}))) as T & { error?: string; code?: string }
@@ -35,6 +26,13 @@ async function lesen<T>(res: Response): Promise<T> {
 
 /** GET-Antwort: Zustand plus Satz-Segmente des letzten Laufs (null = keine gespeichert). */
 export type KorrekturZustand = TranskriptZustand & { segmente: SegmenteStand | null }
+
+export interface BegleitQuelle {
+  id: string
+  name: string
+  hatTranskript: boolean
+  gewaehlt: boolean
+}
 
 export interface AudioCorrectionArgs {
   libraryId: string
@@ -49,20 +47,10 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
   const [zustand, setZustand] = React.useState<KorrekturZustand | null>(null)
   const [ladeFehler, setLadeFehler] = React.useState<string | null>(null)
   const [quellen, setQuellen] = React.useState<BegleitQuelle[]>([])
-  const [vorschlag, setVorschlag] = React.useState<Korrekturvorschlag | null>(null)
-  const [ersetzungen, setErsetzungen] = React.useState<ErsetzungZeile[]>([])
-  const [sprecher, setSprecher] = React.useState<SprecherZeile[]>([])
-  const [begruendung, setBegruendung] = React.useState('')
-  const [laeuft, setLaeuft] = React.useState<'vorschlag' | 'vorschau' | 'schreiben' | null>(null)
-  const [aktionsFehler, setAktionsFehler] = React.useState<string | null>(null)
-  const [ergebnis, setErgebnis] = React.useState<ApplyAntwort | null>(null)
 
   const ladeZustand = React.useCallback(async () => {
     const res = await fetch(`/api/library/${libraryId}/transcript-correction?sourceId=${encodeURIComponent(sourceId)}`, { cache: 'no-store' })
-    const z = await lesen<KorrekturZustand>(res)
-    setZustand(z)
-    setSprecher((alt) => (alt.length ? alt : sprecherZeilen(z, null)))
-    return z
+    setZustand(await lesen<KorrekturZustand>(res))
   }, [libraryId, sourceId])
 
   const ladeQuellen = React.useCallback(async () => {
@@ -82,9 +70,6 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
     })
     const json = await lesen<{ transcripts?: Record<string, unknown>; artifacts?: Record<string, unknown> }>(res)
     const transkripte = json.transcripts ?? json.artifacts ?? {}
-    FileLogger.debug('audio-correction', 'Begleitquellen geladen', {
-      parentId, items: items.length, kandidaten: kandidaten.length, mitTranskript: Object.values(transkripte).filter(Boolean).length,
-    })
     setQuellen(kandidaten.map((it) => {
       const hat = !!transkripte[it.id]
       return { id: it.id, name: it.metadata.name, hatTranskript: hat, gewaehlt: hat && getMediaKind(it) === 'pdf' }
@@ -101,56 +86,7 @@ export function useAudioCorrection(args: AudioCorrectionArgs) {
     return () => { aktiv = false }
   }, [enabled, ladeZustand, ladeQuellen])
 
-  const holeVorschlaege = React.useCallback(async () => {
-    if (!zustand) return
-    setLaeuft('vorschlag')
-    setAktionsFehler(null)
-    try {
-      const res = await fetch(`/api/library/${libraryId}/transcript-correction/suggest`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId, begleitSourceIds: quellen.filter((q) => q.gewaehlt).map((q) => q.id), zielsprache: 'de' }),
-      })
-      const v = await lesen<Korrekturvorschlag>(res)
-      setVorschlag(v)
-      setErsetzungen((alt) => [...ersetzungenAusVorschlag(v), ...alt.filter((z) => z.quelle === 'hand')])
-      setSprecher(sprecherZeilen(zustand, v))
-    } catch (e) {
-      setAktionsFehler(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLaeuft(null)
-    }
-  }, [libraryId, sourceId, quellen, zustand])
-
-  const anwenden = React.useCallback(async (nurVorschau: boolean) => {
-    if (!zustand) return
-    setLaeuft(nurVorschau ? 'vorschau' : 'schreiben')
-    setAktionsFehler(null)
-    try {
-      const res = await fetch(`/api/library/${libraryId}/transcript-correction`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(applyBody({ sourceId, ersetzungen, sprecher, begruendung, ifUpdatedAt: zustand.updatedAt, nurVorschau })),
-      })
-      const antwort = await lesen<ApplyAntwort>(res)
-      setErgebnis(antwort)
-      if (!nurVorschau) {
-        setErsetzungen([])
-        setSprecher([])
-        setVorschlag(null)
-        await ladeZustand()
-      }
-      return antwort
-    } catch (e) {
-      setAktionsFehler(e instanceof Error ? e.message : String(e))
-      return null
-    } finally {
-      setLaeuft(null)
-    }
-  }, [libraryId, sourceId, ersetzungen, sprecher, begruendung, zustand, ladeZustand])
-
-  return {
-    zustand, setZustand, ladeFehler, quellen, setQuellen, vorschlag, ersetzungen, setErsetzungen, sprecher, setSprecher,
-    begruendung, setBegruendung, laeuft, aktionsFehler, ergebnis, holeVorschlaege, anwenden,
-  }
+  return { zustand, setZustand, ladeFehler, quellen, setQuellen }
 }
 
 export type AudioCorrectionState = ReturnType<typeof useAudioCorrection>

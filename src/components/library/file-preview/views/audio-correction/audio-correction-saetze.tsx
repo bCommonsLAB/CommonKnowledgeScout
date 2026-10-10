@@ -1,19 +1,19 @@
 'use client'
 
 /**
- * Linke Spalte des Reiters „Korrektur", wenn Satz-Segmente vorliegen: das
- * Transkript Satz fuer Satz. Gelb = die Werte sprechen dagegen (Grund im
- * Tooltip und unter dem Satz), Zeitmarke = anhoeren ab dieser Stelle, Luecken
- * ueber 10 s als eigene Zeile. Ein Satz ist per Doppelklick/Stift
- * korrigierbar und wird beim Uebernehmen sofort gespeichert (`AudioCorrectionSatz`). Reine Darstellung; Bewertung aus
- * `bewerteSegmente`, Audio aus `useAudioSprung`, Korrekturen aus dem Tab.
+ * Die Korrektur-Ansicht Satz fuer Satz, zweispaltig wie der Aenderungsmodus
+ * von Word: links der Text (gelb = Werte sprechen dagegen, Vorschlaege als
+ * Revision im Text), rechts am Rand die Vorschlagskarten des Assistenten.
+ * Luecken ueber 10 s als eigene Zeile. Kopfzeile mit Zaehlern, Filter und
+ * Sprung zur naechsten offenen Stelle (gelb oder Vorschlag).
  */
 
 import * as React from 'react'
 import { Button } from '@ks/ui'
 import { AlertTriangle, ChevronDown } from 'lucide-react'
+import type { KorrekturVorschlag, SprecherVorschlag } from '@/lib/transkript-korrektur/assistent-pruefung'
 import type { Bewertung } from '@/lib/transkript-verlaesslichkeit/befunde'
-import { AudioCorrectionSatz } from './audio-correction-satz'
+import { AudioCorrectionSatz, type SatzVorschlagAktionen } from './audio-correction-satz'
 
 interface Props {
   bewertung: Bewertung
@@ -24,16 +24,29 @@ interface Props {
   zeitenGeschaetzt: boolean
   /** Satz sofort speichern; null = gespeichert, sonst Fehlermeldung. */
   onKorrigiere: (index: number, neu: string) => Promise<string | null>
+  korrekturenJeSatz: Map<number, KorrekturVorschlag[]>
+  sprecherJeSatz: Map<number, SprecherVorschlag>
+  aktionen: SatzVorschlagAktionen
+  /** Rechts in der Kopfzeile, z. B. „Vorschlaege holen". */
+  kopfAktion?: React.ReactNode
 }
 
 export function satzId(index: number): string {
   return `korrektur-satz-${index}`
 }
 
-export function AudioCorrectionSaetze({ bewertung, zeit, onSpringe, zeitenGeschaetzt, onKorrigiere }: Props) {
-  const [nurGelb, setNurGelb] = React.useState(false)
-  const gelbeIndizes = React.useMemo(() => bewertung.saetze.filter((s) => s.befunde.length > 0).map((s) => s.index), [bewertung])
+type Filter = 'alle' | 'offen'
+
+export function AudioCorrectionSaetze(p: Props) {
+  const { bewertung, zeit, korrekturenJeSatz, sprecherJeSatz } = p
+  const [filter, setFilter] = React.useState<Filter>('alle')
   const naechsteRef = React.useRef(0)
+  const offen = (index: number, gelb: boolean) => gelb || korrekturenJeSatz.has(index) || sprecherJeSatz.has(index)
+  const offeneIndizes = React.useMemo(
+    () => bewertung.saetze.filter((s) => s.befunde.length > 0 || korrekturenJeSatz.has(s.index) || sprecherJeSatz.has(s.index)).map((s) => s.index),
+    [bewertung, korrekturenJeSatz, sprecherJeSatz],
+  )
+  const vorschlaege = [...korrekturenJeSatz.values()].reduce((n, l) => n + l.length, 0) + sprecherJeSatz.size
   // Ganze-Satz-Ersetzung braucht einen eindeutigen Text (der Schreibweg lehnt Mehrdeutiges ab).
   const mehrdeutig = React.useMemo(() => {
     const zaehler = new Map<string, number>()
@@ -47,61 +60,65 @@ export function AudioCorrectionSaetze({ bewertung, zeit, onSpringe, zeitenGescha
     return treffer
   }, [bewertung, zeit])
 
-  const springeZurNaechstenGelben = () => {
-    if (gelbeIndizes.length === 0) return
-    const index = gelbeIndizes[naechsteRef.current % gelbeIndizes.length]
+  const springeZurNaechsten = () => {
+    if (offeneIndizes.length === 0) return
+    const index = offeneIndizes[naechsteRef.current % offeneIndizes.length]
     naechsteRef.current += 1
     document.getElementById(satzId(index))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
-  const sichtbar = nurGelb ? bewertung.saetze.filter((s) => s.befunde.length > 0 || s.lueckeDavor !== null) : bewertung.saetze
+  const sichtbar = filter === 'offen'
+    ? bewertung.saetze.filter((s) => offen(s.index, s.befunde.length > 0) || s.lueckeDavor !== null)
+    : bewertung.saetze
 
   return (
     <div className="space-y-2">
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background pb-2 text-xs">
-        <span className="text-muted-foreground">
-          {bewertung.saetze.length} Saetze · <span className="font-medium text-amber-700 dark:text-amber-400">{bewertung.gelb} gelb</span> · {bewertung.luecken} Luecken
-          {!bewertung.sprachpruefung && ' · Sprachpruefung aus (keine Sprachen hinterlegt)'}
+        <span className="truncate text-muted-foreground">
+          {bewertung.saetze.length} Saetze · <span className="font-medium text-amber-700 dark:text-amber-400">{bewertung.gelb} gelb</span>
+          {' · '}<span className="font-medium text-sky-700 dark:text-sky-400">{vorschlaege} Vorschlaege</span> · {bewertung.luecken} Luecken
+          {!bewertung.sprachpruefung && ' · Sprachpruefung aus'}
         </span>
-        <div className="ml-auto flex items-center gap-1">
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setNurGelb((v) => !v)} title="Nur gelbe Stellen und Luecken zeigen">
-            {nurGelb ? 'Alle' : 'Nur gelbe'}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setFilter((f) => (f === 'alle' ? 'offen' : 'alle'))} title="Nur gelbe Stellen, Vorschlaege und Luecken zeigen">
+            {filter === 'alle' ? 'Nur offene' : 'Alle'}
           </Button>
-          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={springeZurNaechstenGelben} disabled={gelbeIndizes.length === 0} title="Zur naechsten gelben Stelle">
-            <ChevronDown className="h-3.5 w-3.5" /><span className="hidden lg:inline ml-1">Naechste gelbe</span>
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={springeZurNaechsten} disabled={offeneIndizes.length === 0} title="Zur naechsten gelben Stelle oder zum naechsten Vorschlag">
+            <ChevronDown className="h-3.5 w-3.5" /><span className="ml-1 hidden lg:inline">Naechste</span>
           </Button>
+          {p.kopfAktion}
         </div>
       </div>
       {bewertung.mitWerten === 0 && (
         <p className="text-xs text-muted-foreground">Dieser Lauf hat keine Verlaesslichkeitswerte geliefert — ohne Gelb heisst hier nichts.</p>
       )}
       <div className="space-y-1 text-sm leading-relaxed">
-        {sichtbar.map((s) => {
-          const laeuft = laufender === s.index
-          return (
-            <React.Fragment key={s.index}>
-              {s.lueckeDavor !== null && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded border border-dashed border-amber-400 px-2 py-1 text-left text-xs text-amber-700 dark:text-amber-400"
-                  onClick={() => onSpringe(s.segment.start - (s.lueckeDavor ?? 0))}
-                  title="Anhoeren: Ist hier wirklich niemand zu hoeren?"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" /> {Math.round(s.lueckeDavor)} s ohne Text — fehlt hier Rede?
-                </button>
-              )}
-              <AudioCorrectionSatz
-                satz={s}
-                domId={satzId(s.index)}
-                laeuft={laeuft}
-                mehrdeutig={mehrdeutig.has(s.segment.text)}
-                zeitenGeschaetzt={zeitenGeschaetzt}
-                onSpringe={onSpringe}
-                onKorrigiere={(neu) => onKorrigiere(s.index, neu)}
-              />
-            </React.Fragment>
-          )
-        })}
+        {sichtbar.map((s) => (
+          <React.Fragment key={s.index}>
+            {s.lueckeDavor !== null && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded border border-dashed border-amber-400 px-2 py-1 text-left text-xs text-amber-700 dark:text-amber-400"
+                onClick={() => p.onSpringe(s.segment.start - (s.lueckeDavor ?? 0))}
+                title="Anhoeren: Ist hier wirklich niemand zu hoeren?"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" /> {Math.round(s.lueckeDavor)} s ohne Text — fehlt hier Rede?
+              </button>
+            )}
+            <AudioCorrectionSatz
+              satz={s}
+              domId={satzId(s.index)}
+              laeuft={laufender === s.index}
+              mehrdeutig={mehrdeutig.has(s.segment.text)}
+              zeitenGeschaetzt={p.zeitenGeschaetzt}
+              korrekturen={korrekturenJeSatz.get(s.index) ?? []}
+              sprecherVorschlag={sprecherJeSatz.get(s.index)}
+              aktionen={p.aktionen}
+              onSpringe={p.onSpringe}
+              onKorrigiere={(neu) => p.onKorrigiere(s.index, neu)}
+            />
+          </React.Fragment>
+        ))}
       </div>
     </div>
   )

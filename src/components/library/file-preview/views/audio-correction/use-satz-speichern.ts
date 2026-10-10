@@ -1,19 +1,19 @@
 'use client'
 
 /**
- * Satz-Korrektur sofort speichern (Owner-Wunsch 10.10.2026: „Uebernehmen" IST
- * die Bestaetigung, wie in einem Editor — keine Vormerkung, keine Begruendung
- * von Hand). Geht ueber denselben Schreibweg wie die Ersetzungen
- * (`POST transcript-correction`): ganzer Satz alt → neu, Begruendung
- * automatisch mit Zeitmarke, Riegel `ifUpdatedAt`. Speichern laeuft
- * nacheinander (Warteschlange), damit schnell hintereinander korrigierte
- * Saetze nicht am Riegel scheitern. Ein Fehler kommt an den Satz zurueck,
- * der Text bleibt im Editor — keine Arbeit geht still verloren.
+ * Korrekturen sofort speichern (Owner 10.10.2026: „Uebernehmen" IST die
+ * Bestaetigung, wie in einem Editor). Zwei Arten, beide ueber
+ * `POST transcript-correction` (Riegel `ifUpdatedAt`, Begruendung automatisch
+ * mit Zeitmarke):
+ * - `speichereSatz(index, neu)`: ganzer Satz alt → neu,
+ * - `speichereSprecher(index, name)`: ab diesem Satz spricht `name`.
+ * Alles laeuft nacheinander (Warteschlange), damit schnell hintereinander
+ * gespeicherte Aenderungen nicht am Riegel scheitern. Ergebnis `null` =
+ * gespeichert, sonst die Fehlermeldung fuer die Oberflaeche.
  */
 
 import * as React from 'react'
 import { formatZeit } from '@/lib/transkript-verlaesslichkeit/befunde'
-import type { ApplyAntwort } from './audio-correction-types'
 import type { KorrekturZustand } from './use-audio-correction'
 
 export interface SatzSpeichernArgs {
@@ -25,35 +25,40 @@ export interface SatzSpeichernArgs {
   onGespeichert?: () => void
 }
 
-/** Liefert `null` bei Erfolg, sonst die Fehlermeldung fuer den Satz. */
-export type SpeichereSatz = (index: number, neu: string) => Promise<string | null>
+export type Speichern = (index: number, wert: string) => Promise<string | null>
 
-export function useSatzSpeichern(args: SatzSpeichernArgs): SpeichereSatz {
+interface Antwort {
+  updatedAt?: string | null
+  revision?: { revised_at?: string }
+  error?: string
+}
+
+export function useSatzSpeichern(args: SatzSpeichernArgs): { speichereSatz: Speichern; speichereSprecher: Speichern } {
   const { libraryId, sourceId, zustand, setZustand, onGespeichert } = args
   const stand = React.useRef(zustand)
   stand.current = zustand
   const schlange = React.useRef<Promise<unknown>>(Promise.resolve())
 
-  return React.useCallback((index: number, neu: string) => {
-    const lauf = schlange.current.then(async (): Promise<string | null> => {
+  const lauf = React.useCallback((art: 'satz' | 'sprecher', index: number, wert: string): Promise<string | null> => {
+    const schritt = schlange.current.then(async (): Promise<string | null> => {
       const z = stand.current
       const segment = z?.segmente?.segments[index]
       if (!z || !segment) return 'Satz nicht gefunden — Seite neu laden'
-      const alt = segment.text
-      const text = neu.trim()
-      if (text === '' || text === alt) return null
+      const text = wert.trim()
+      if (text === '' || (art === 'satz' && text === segment.text) || (art === 'sprecher' && text === segment.speaker)) return null
+      const zeit = formatZeit(segment.start)
       const res = await fetch(`/api/library/${libraryId}/transcript-correction`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sourceId, ersetzungen: [{ alt, neu: text }], sprecher: [],
-          begruendung: `Satz bei ${formatZeit(segment.start)} beim Nachhoeren korrigiert`,
-          ifUpdatedAt: z.updatedAt, nurVorschau: false,
+          sourceId, sprecher: [], ifUpdatedAt: z.updatedAt, nurVorschau: false,
+          ...(art === 'satz'
+            ? { ersetzungen: [{ alt: segment.text, neu: text }], begruendung: `Satz bei ${zeit} beim Nachhoeren korrigiert` }
+            : { ersetzungen: [], sprecherWechsel: [{ satzIndex: index, name: text }], begruendung: `Sprecher ab ${zeit}: ${text}` }),
         }),
       })
-      const json = (await res.json().catch(() => ({}))) as Partial<ApplyAntwort> & { error?: string }
+      const json = (await res.json().catch(() => ({}))) as Antwort
       if (!res.ok) return json.error || `Speichern fehlgeschlagen (HTTP ${res.status})`
-      // Lokal nachziehen statt neu laden: neuer Riegel und der Satz mit dem gespeicherten Text.
-      // `stand` sofort setzen, damit der naechste Satz in der Schlange nicht auf den Render wartet.
+      // Lokal nachziehen statt neu laden; `stand` sofort setzen, damit der naechste Schritt nicht auf den Render wartet.
       const aktuell = stand.current ?? z
       const segmente = aktuell.segmente
       const naechster: KorrekturZustand = {
@@ -61,7 +66,11 @@ export function useSatzSpeichern(args: SatzSpeichernArgs): SpeichereSatz {
         updatedAt: json.updatedAt ?? aktuell.updatedAt,
         revisedAt: json.revision?.revised_at ?? aktuell.revisedAt,
         segmente: segmente
-          ? { ...segmente, segments: segmente.segments.map((s, i) => (i === index ? { ...s, text } : s)), updatedAt: new Date().toISOString() }
+          ? {
+              ...segmente,
+              segments: segmente.segments.map((s, i) => (i !== index ? s : art === 'satz' ? { ...s, text } : { ...s, speaker: text })),
+              updatedAt: new Date().toISOString(),
+            }
           : segmente,
       }
       stand.current = naechster
@@ -69,7 +78,12 @@ export function useSatzSpeichern(args: SatzSpeichernArgs): SpeichereSatz {
       onGespeichert?.()
       return null
     })
-    schlange.current = lauf.catch(() => undefined)
-    return lauf.catch((e: unknown) => (e instanceof Error ? e.message : String(e)))
+    schlange.current = schritt.catch(() => undefined)
+    return schritt.catch((e: unknown) => (e instanceof Error ? e.message : String(e)))
   }, [libraryId, sourceId, setZustand, onGespeichert])
+
+  return React.useMemo(() => ({
+    speichereSatz: (index: number, neu: string) => lauf('satz', index, neu),
+    speichereSprecher: (index: number, name: string) => lauf('sprecher', index, name),
+  }), [lauf])
 }

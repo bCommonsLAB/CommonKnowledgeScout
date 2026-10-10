@@ -98,9 +98,21 @@ describe('transcript-correction Route (P3b)', () => {
     expect(markdownNeu).toContain('**Dr. Anna Mahlknecht:** Frau Mahlknecht spricht.')
     expect(markdownNeu).toContain('revised_by: "peter@example.com"')
     // Lese-Ansicht bleibt konsistent: dieselbe Ersetzung in den gespeicherten Saetzen.
-    expect(json.segmenteNachgezogen).toEqual({ angewendet: 1, nichtGefunden: 0 })
+    expect(json.segmenteNachgezogen).toEqual({ angewendet: 1, nichtGefunden: 0, sprecher: 0 })
     const segs = (segmentRepo.update.mock.calls[0] as unknown as [{ segments: Array<{ text: string }> }])[0].segments
     expect(segs[0].text).toBe('Frau Mahlknecht spricht.')
+  })
+
+  it('Sprecherwechsel: neuer Absatz mit Praefix vor dem Satz, Sprecher am Segment', async () => {
+    const res = await post({
+      sourceId: 'src-1', begruendung: 'Sprecher ab 0:00', ifUpdatedAt: '2026-10-08T09:00:00.000Z',
+      sprecherWechsel: [{ satzIndex: 0, name: 'Sascha Britsko' }],
+    })
+    expect(res.status).toBe(200)
+    const markdownNeu = (h.schreibe.mock.calls[0] as unknown as [{ markdownNeu: string }])[0].markdownNeu
+    expect(markdownNeu).toContain('**Sascha Britsko:** Frau Mahler spricht.')
+    const segs = (segmentRepo.update.mock.calls[0] as unknown as [{ segments: Array<{ text: string; speaker?: string }> }])[0].segments
+    expect(segs[0]).toMatchObject({ text: 'Frau Mahler spricht.', speaker: 'Sascha Britsko' })
   })
 
   it('409 bei veraltetem ifUpdatedAt — nichts geschrieben', async () => {

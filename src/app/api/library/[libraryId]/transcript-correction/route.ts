@@ -24,8 +24,8 @@ import { LibraryService } from '@/lib/services/library-service'
 import { abhaengigeSammeldateien } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { getTranscriptSegments, updateTranscriptSegmentTexts } from '@/lib/repositories/transcript-segments-repo'
-import { wendeErsetzungenAufSegmenteAn } from '@/lib/transkript-verlaesslichkeit/segmente-korrektur'
+import { getTranscriptSegments } from '@/lib/repositories/transcript-segments-repo'
+import { sprecherwechselErsetzungen, sprecherwechselLesen, zieheSegmenteNach } from '@/lib/transkript-verlaesslichkeit/segmente-nachziehen'
 import { wendeKorrekturAn, type SprecherZuordnung } from '@/lib/transkript-korrektur/anwenden'
 import { ladeTranskript, transkriptZustand } from '@/lib/transkript-korrektur/laden'
 import { schreibeTranskriptKorrektur } from '@/lib/transkript-korrektur/schreiben'
@@ -37,6 +37,8 @@ interface ApplyBody {
   begruendung?: unknown
   ifUpdatedAt?: unknown
   nurVorschau?: unknown
+  /** Korrektur-Assistent: „ab Satz n spricht X" — neuer Absatz mit Praefix im Transkript. */
+  sprecherWechsel?: unknown
 }
 
 async function anmelden(): Promise<{ userEmail: string } | NextResponse> {
@@ -71,30 +73,6 @@ function sprecherLesen(value: unknown): SprecherZuordnung[] | string {
     out.push({ label: o['label'], name: o['name'] })
   }
   return out
-}
-
-/**
- * Lese-Ansicht konsistent halten: dieselben Ersetzungen auf die gespeicherten
- * Saetze. Das Transkript ist da schon geschrieben — ein Fehler hier bricht die
- * Antwort nicht ab, steht aber im Log und in der Antwort (`fehler`).
- */
-async function zieheSegmenteNach(
-  libraryId: string,
-  sourceId: string,
-  ersetzungen: Ersetzung[],
-): Promise<{ angewendet: number; nichtGefunden: number } | { fehler: string } | null> {
-  if (ersetzungen.length === 0) return null
-  try {
-    const doc = await getTranscriptSegments({ libraryId, sourceId })
-    if (!doc) return null
-    const ergebnis = wendeErsetzungenAufSegmenteAn(doc.segments, ersetzungen)
-    if (ergebnis.angewendet > 0) await updateTranscriptSegmentTexts({ libraryId, sourceId, segments: ergebnis.segments })
-    return { angewendet: ergebnis.angewendet, nichtGefunden: ergebnis.nichtGefunden.length }
-  } catch (error) {
-    const fehler = error instanceof Error ? error.message : String(error)
-    FileLogger.error('transcript-correction', 'Segmente nicht nachgezogen', { libraryId, sourceId, error: fehler })
-    return { fehler }
-  }
 }
 
 export async function GET(
@@ -141,6 +119,8 @@ export async function POST(
     if (typeof ersetzungen === 'string') return NextResponse.json({ error: ersetzungen }, { status: 400 })
     const sprecher = sprecherLesen(body?.sprecher)
     if (typeof sprecher === 'string') return NextResponse.json({ error: sprecher }, { status: 400 })
+    const wechsel = sprecherwechselLesen(body?.sprecherWechsel)
+    if (typeof wechsel === 'string') return NextResponse.json({ error: wechsel }, { status: 400 })
     const nurVorschau = body?.nurVorschau === true
     const begruendung = typeof body?.begruendung === 'string' ? body.begruendung.trim() : ''
     // Die Vorschau schreibt nichts — sie braucht keine Begruendung; der Stempel ist dann nur Platzhalter.
@@ -163,7 +143,9 @@ export async function POST(
     const revision = { revised_by: userEmail, revised_at: new Date().toISOString(), revision_note: begruendung || '(Vorschau)' }
     let anwendung
     try {
-      anwendung = wendeKorrekturAn({ markdown: stand.record.markdown, ersetzungen, sprecher, revision })
+      // Sprecherwechsel werden zu Ersetzungen „Satz → Absatz + Praefix + Satz" (alles oder nichts mit dem Rest).
+      const wechselErsetzungen = await sprecherwechselErsetzungen(libraryId, sourceId, wechsel)
+      anwendung = wendeKorrekturAn({ markdown: stand.record.markdown, ersetzungen: [...ersetzungen, ...wechselErsetzungen], sprecher, revision })
     } catch (error) {
       if (error instanceof ErsetzungNichtGefundenError || error instanceof ErsetzungNichtEindeutigError) {
         return NextResponse.json({ error: error.message, code: error.code }, { status: 422 })
@@ -187,9 +169,10 @@ export async function POST(
       library, userEmail, provider, doc: stand.doc, markdownNeu: anwendung.markdownNeu, skipFilesystemMirror: false,
     })
     const danach = await ladeTranskript({ libraryId, sourceId })
-    const segmenteNachgezogen = await zieheSegmenteNach(libraryId, sourceId, ersetzungen)
+    // Text-Ersetzungen und Sprecher in die Saetze; die Wechsel-Ersetzungen NICHT (der Satztext bleibt ohne Praefix).
+    const segmenteNachgezogen = await zieheSegmenteNach(libraryId, sourceId, ersetzungen, wechsel)
     FileLogger.info('transcript-correction', 'Korrektur geschrieben', {
-      libraryId, sourceId, ersetzungen: anwendung.belege.length, sprecher: sprecher.length, userEmail, segmenteNachgezogen,
+      libraryId, sourceId, ersetzungen: anwendung.belege.length, sprecher: sprecher.length, sprecherWechsel: wechsel.length, userEmail, segmenteNachgezogen,
     })
     return NextResponse.json({ ...basis, geschrieben: true, updatedAt: danach?.record.updatedAt ?? null, segmenteNachgezogen })
   } catch (error) {

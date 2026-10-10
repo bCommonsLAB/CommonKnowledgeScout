@@ -167,10 +167,6 @@ export function AudioView(props: PreviewViewProps) {
                 enabled={true}
                 erlaubteSprachen={activeLibrary?.config?.transcriptionLanguages ?? []}
                 onSatzGespeichert={() => setRevisionTick((t) => t + 1)}
-                onGeschrieben={(ueberholt) => {
-                  setRevisionTick((t) => t + 1)
-                  if (ueberholt > 0) setInfoTab('transform')
-                }}
               />
             ) : null}
             text={wrapTranscriptTabWithReviewSplit(

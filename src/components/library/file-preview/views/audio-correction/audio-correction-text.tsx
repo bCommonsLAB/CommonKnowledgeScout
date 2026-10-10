@@ -2,14 +2,12 @@
 
 /**
  * Linke Spalte des Reiters „Korrektur": das Transkript Absatz fuer Absatz.
- * Jeder Sprecher hat eine feste Farbe; vor dem Absatz steht das Label — oder
- * der Name, sobald rechts einer eingetragen ist (noch nicht geschrieben).
- * Reine Darstellung, kein Zustand.
+ * Jeder Sprecher hat eine feste Farbe; vor dem Absatz steht das Label.
+ * Rueckfall-Ansicht, wenn keine Satz-Segmente vorliegen. Reine Darstellung.
  */
 
 import * as React from 'react'
 import type { TranskriptAbsatz } from '@/lib/transkript-korrektur/absaetze'
-import type { SprecherZeile } from './audio-correction-types'
 
 /** Feste Farbreihe je Sprecher-Index; Text- und Randfarbe gehoeren zusammen. */
 export const SPRECHER_FARBEN: ReadonlyArray<{ text: string; rand: string; punkt: string }> = [
@@ -34,19 +32,16 @@ export function absatzId(index: number): string {
 
 interface Props {
   absaetze: TranskriptAbsatz[]
-  /** Reihenfolge = Farbindex. Name (falls aktiv und gesetzt) ersetzt das Label in der Anzeige. */
-  sprecher: SprecherZeile[]
 }
 
-export function AudioCorrectionText({ absaetze, sprecher }: Props) {
+export function AudioCorrectionText({ absaetze }: Props) {
   const anzeige = React.useMemo(() => {
     const map = new Map<string, { farbe: ReturnType<typeof sprecherFarbe>; name: string }>()
-    sprecher.forEach((z, i) => {
-      const name = z.aktiv && z.name.trim() !== '' ? z.name.trim() : z.label
-      map.set(z.label, { farbe: sprecherFarbe(i), name })
-    })
+    for (const a of absaetze) {
+      if (a.label && !map.has(a.label)) map.set(a.label, { farbe: sprecherFarbe(map.size), name: a.label })
+    }
     return map
-  }, [sprecher])
+  }, [absaetze])
 
   if (absaetze.length === 0) {
     return <p className="text-xs text-muted-foreground">Das Transkript hat keinen Text.</p>
