@@ -64,14 +64,28 @@ describe('Korrektur-Assistent: Pruefung der Antwort', () => {
 })
 
 describe('Sprecherwechsel', () => {
-  it('neuer Absatz mit Praefix; Namen mit * oder : sind ein Fehler', () => {
-    expect(ersetzungFuerSprecherwechsel('Ich habe eine Frage.', 'Publikum')).toEqual({ alt: 'Ich habe eine Frage.', neu: '\n\n**Publikum:** Ich habe eine Frage.' })
-    expect(() => ersetzungFuerSprecherwechsel('x', 'A: B')).toThrow()
+  it('setzen: neuer Absatz mit Praefix; Namen mit * oder : sind ein Fehler', () => {
+    const seg = { text: 'Ich habe eine Frage.', speaker: null }
+    expect(ersetzungFuerSprecherwechsel(seg, 'Publikum', 'Ich habe eine Frage.')).toEqual({ alt: 'Ich habe eine Frage.', neu: '\n\n**Publikum:** Ich habe eine Frage.' })
+    expect(() => ersetzungFuerSprecherwechsel(seg, 'A: B', '')).toThrow()
+    expect(() => ersetzungFuerSprecherwechsel(seg, null, '')).toThrow(/nichts zu entfernen/)
   })
 
-  it('setzt den Sprecher am ersten Satz des Beitrags', () => {
+  it('umbenennen tauscht nur das Praefix; entfernen nimmt Praefix und Absatzumbruch', () => {
+    const seg = { text: 'Ich habe eine Frage.', speaker: 'Publikum' }
+    expect(ersetzungFuerSprecherwechsel(seg, 'Anita Rossi', 'x\n\n**Publikum:** Ich habe eine Frage.'))
+      .toEqual({ alt: '**Publikum:** Ich habe eine Frage.', neu: '**Anita Rossi:** Ich habe eine Frage.' })
+    expect(ersetzungFuerSprecherwechsel(seg, null, 'x\n\n**Publikum:** Ich habe eine Frage.'))
+      .toEqual({ alt: '\n\n**Publikum:** Ich habe eine Frage.', neu: 'Ich habe eine Frage.' })
+    // Am Dateianfang gibt es keinen Umbruch davor.
+    expect(ersetzungFuerSprecherwechsel(seg, null, '**Publikum:** Ich habe eine Frage.').alt).toBe('**Publikum:** Ich habe eine Frage.')
+    expect(() => ersetzungFuerSprecherwechsel(seg, null, 'ganz anderer Text')).toThrow(/neu laden/)
+  })
+
+  it('setzt, benennt um und entfernt den Sprecher am Segment', () => {
     const seg = { start: 0, end: 1, text: 'x', speaker: null } as unknown as TranscriptSegment
     expect(mitSprecher([seg, seg], [{ satzIndex: 1, name: 'Publikum' }]).map((s) => s.speaker)).toEqual([null, 'Publikum'])
+    expect(mitSprecher([{ ...seg, speaker: 'X' }], [{ satzIndex: 0, name: null }])[0].speaker).toBeNull()
     expect(() => mitSprecher([seg], [{ satzIndex: 3, name: 'X' }])).toThrow()
   })
 })

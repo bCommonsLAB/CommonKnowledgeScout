@@ -24,6 +24,8 @@ interface Props {
   zeitenGeschaetzt: boolean
   /** Satz sofort speichern; null = gespeichert, sonst Fehlermeldung. */
   onKorrigiere: (index: number, neu: string) => Promise<string | null>
+  /** Sprecher an einem Satz setzen/umbenennen (Name) oder entfernen (null). */
+  onSprecher: (index: number, name: string | null) => Promise<string | null>
   korrekturenJeSatz: Map<number, KorrekturVorschlag[]>
   sprecherJeSatz: Map<number, SprecherVorschlag>
   aktionen: SatzVorschlagAktionen
@@ -47,6 +49,13 @@ export function AudioCorrectionSaetze(p: Props) {
     [bewertung, korrekturenJeSatz, sprecherJeSatz],
   )
   const vorschlaege = [...korrekturenJeSatz.values()].reduce((n, l) => n + l.length, 0) + sprecherJeSatz.size
+  // Bisher gesetzte Sprecher als Vorschlagsliste beim Setzen von Hand (Reihenfolge des ersten Auftretens).
+  const bekannteSprecher = React.useMemo(() => {
+    const out: string[] = []
+    for (const s of bewertung.saetze) if (s.segment.speaker && !out.includes(s.segment.speaker)) out.push(s.segment.speaker)
+    for (const r of ['Publikum', 'Moderation']) if (!out.includes(r)) out.push(r)
+    return out
+  }, [bewertung])
   // Ganze-Satz-Ersetzung braucht einen eindeutigen Text (der Schreibweg lehnt Mehrdeutiges ab).
   const mehrdeutig = React.useMemo(() => {
     const zaehler = new Map<string, number>()
@@ -116,6 +125,8 @@ export function AudioCorrectionSaetze(p: Props) {
               aktionen={p.aktionen}
               onSpringe={p.onSpringe}
               onKorrigiere={(neu) => p.onKorrigiere(s.index, neu)}
+              onSprecher={(name) => p.onSprecher(s.index, name)}
+              bekannteSprecher={bekannteSprecher}
             />
           </React.Fragment>
         ))}

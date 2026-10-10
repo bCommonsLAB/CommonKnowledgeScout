@@ -124,6 +124,7 @@ export function AudioCorrectionTab(props: Props) {
             erlaubteSprachen={props.erlaubteSprachen}
             revisedAt={k.zustand.revisedAt}
             onKorrigiere={korrigiere}
+            onSprecher={speichereSprecher}
             assistent={assistent}
             aktionen={aktionen}
             kopfAktion={kopfAktion}

@@ -25,22 +25,29 @@ export function sprecherwechselLesen(value: unknown): Sprecherwechsel[] | string
   const out: Sprecherwechsel[] = []
   for (const [i, e] of value.entries()) {
     const o = e && typeof e === 'object' ? (e as Record<string, unknown>) : null
-    if (!o || typeof o['satzIndex'] !== 'number' || !Number.isInteger(o['satzIndex']) || typeof o['name'] !== 'string') {
-      return `sprecherWechsel[${i}]: satzIndex (Zahl) und name (String) erforderlich`
+    const name = o?.['name']
+    if (!o || typeof o['satzIndex'] !== 'number' || !Number.isInteger(o['satzIndex']) || (typeof name !== 'string' && name !== null)) {
+      return `sprecherWechsel[${i}]: satzIndex (Zahl) und name (String oder null = entfernen) erforderlich`
     }
-    out.push({ satzIndex: o['satzIndex'], name: o['name'] })
+    out.push({ satzIndex: o['satzIndex'], name: name as string | null })
   }
   return out
 }
 
-export async function sprecherwechselErsetzungen(libraryId: string, sourceId: string, wechsel: readonly Sprecherwechsel[]): Promise<SegmentErsetzung[]> {
+/** Sprecher setzen/umbenennen/entfernen als Transkript-Ersetzungen; `markdown` = aktueller Stand des Transkripts. */
+export async function sprecherwechselErsetzungen(
+  libraryId: string,
+  sourceId: string,
+  wechsel: readonly Sprecherwechsel[],
+  markdown: string,
+): Promise<SegmentErsetzung[]> {
   if (wechsel.length === 0) return []
   const doc = await getTranscriptSegments({ libraryId, sourceId })
   if (!doc) throw new Error('Keine Saetze gespeichert — Sprecherwechsel braucht die Satz-Segmente (neu transkribieren)')
   return wechsel.map((w) => {
     const satz = doc.segments[w.satzIndex]
     if (!satz) throw new Error(`Sprecherwechsel: Satz ${w.satzIndex} gibt es nicht`)
-    return ersetzungFuerSprecherwechsel(satz.text, w.name)
+    return ersetzungFuerSprecherwechsel(satz, w.name, markdown)
   })
 }
 

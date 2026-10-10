@@ -144,7 +144,7 @@ export async function POST(
     let anwendung
     try {
       // Sprecherwechsel werden zu Ersetzungen „Satz → Absatz + Praefix + Satz" (alles oder nichts mit dem Rest).
-      const wechselErsetzungen = await sprecherwechselErsetzungen(libraryId, sourceId, wechsel)
+      const wechselErsetzungen = await sprecherwechselErsetzungen(libraryId, sourceId, wechsel, stand.body)
       anwendung = wendeKorrekturAn({ markdown: stand.record.markdown, ersetzungen: [...ersetzungen, ...wechselErsetzungen], sprecher, revision })
     } catch (error) {
       if (error instanceof ErsetzungNichtGefundenError || error instanceof ErsetzungNichtEindeutigError) {

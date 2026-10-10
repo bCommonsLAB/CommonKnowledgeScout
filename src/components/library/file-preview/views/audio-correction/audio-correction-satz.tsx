@@ -10,10 +10,11 @@
 
 import * as React from 'react'
 import { Button, Textarea } from '@ks/ui'
-import { Check, Loader2, Pencil, Play, UserRound, X } from 'lucide-react'
+import { Check, Loader2, Pencil, Play, UserRound, UserRoundPlus, X } from 'lucide-react'
 import type { KorrekturVorschlag, SprecherVorschlag } from '@/lib/transkript-korrektur/assistent-pruefung'
 import { formatZeit, type BewerteterSatz } from '@/lib/transkript-verlaesslichkeit/befunde'
 import { KorrekturKarte, SprecherKarte } from './assistent-karten'
+import { SprecherZeile } from './sprecher-zeile'
 import { SatzText } from './satz-text'
 
 export interface SatzVorschlagAktionen {
@@ -36,11 +37,16 @@ interface Props {
   onSpringe: (sekunden: number) => void
   /** Speichert sofort; null = gespeichert, sonst Fehlermeldung. */
   onKorrigiere: (neu: string) => Promise<string | null>
+  /** Sprecher an diesem Satz setzen/umbenennen (Name) oder entfernen (null); speichert sofort. */
+  onSprecher: (name: string | null) => Promise<string | null>
+  /** Bisher verwendete Sprecher als Vorschlagsliste. */
+  bekannteSprecher: readonly string[]
 }
 
 export function AudioCorrectionSatz(p: Props) {
   const { satz, korrekturen, sprecherVorschlag, aktionen } = p
   const [bearbeiten, setBearbeiten] = React.useState(false)
+  const [sprecherOffen, setSprecherOffen] = React.useState(false)
   const [entwurf, setEntwurf] = React.useState('')
   const [speichert, setSpeichert] = React.useState(false)
   const [fehler, setFehler] = React.useState<string | null>(null)
@@ -61,9 +67,14 @@ export function AudioCorrectionSatz(p: Props) {
 
   return (
     <div id={p.domId} className="space-y-1">
-      {satz.segment.speaker && (
-        <div className="flex items-center gap-1.5 pt-2 text-sm font-semibold"><UserRound className="h-4 w-4" /> {satz.segment.speaker}</div>
-      )}
+      <SprecherZeile
+        aktuell={satz.segment.speaker ?? null}
+        vorschlaege={p.bekannteSprecher}
+        offen={sprecherOffen}
+        onOffen={setSprecherOffen}
+        onSetze={p.onSprecher}
+        listId={`${p.domId}-sprecher`}
+      />
       {sprecherVorschlag && (
         <div className="flex items-center gap-1.5 rounded border border-dashed border-sky-400 px-2 py-0.5 text-xs text-sky-800 dark:text-sky-300">
           <UserRound className="h-3.5 w-3.5" /> Vorschlag: ab hier spricht {sprecherVorschlag.name}
@@ -105,11 +116,20 @@ export function AudioCorrectionSatz(p: Props) {
             </div>
           )}
           {!bearbeiten && (
-            <button type="button" onClick={oeffnen} disabled={p.mehrdeutig} aria-label="Satz korrigieren"
-              className="h-6 w-6 shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100 disabled:cursor-not-allowed"
-              title={p.mehrdeutig ? 'Dieser Satz kommt im Transkript mehrfach vor und laesst sich hier nicht eindeutig korrigieren' : 'Satz korrigieren (oder Doppelklick auf den Text)'}>
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
+            <>
+              <button type="button" onClick={oeffnen} disabled={p.mehrdeutig} aria-label="Satz korrigieren"
+                className="h-6 w-6 shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100 disabled:cursor-not-allowed"
+                title={p.mehrdeutig ? 'Dieser Satz kommt im Transkript mehrfach vor und laesst sich hier nicht eindeutig korrigieren' : 'Satz korrigieren (oder Doppelklick auf den Text)'}>
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              {!satz.segment.speaker && (
+                <button type="button" onClick={() => setSprecherOffen(true)} disabled={p.mehrdeutig} aria-label="Sprecher ab hier"
+                  className="h-6 w-6 shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100 disabled:cursor-not-allowed"
+                  title={p.mehrdeutig ? 'Dieser Satz kommt mehrfach vor — Sprecher hier nicht eindeutig setzbar' : 'Ab diesem Satz spricht … (Sprecher setzen)'}>
+                  <UserRoundPlus className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
           )}
         </div>
 

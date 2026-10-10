@@ -35,6 +35,8 @@ interface Props {
   revisedAt: string | null
   /** Satz sofort speichern; liefert null bei Erfolg, sonst die Fehlermeldung. */
   onKorrigiere: (index: number, neu: string) => Promise<string | null>
+  /** Sprecher an einem Satz setzen/umbenennen (Name) oder entfernen (null). */
+  onSprecher: (index: number, name: string | null) => Promise<string | null>
   assistent: AssistentState
   aktionen: SatzVorschlagAktionen
   /** Knopf „Vorschlaege holen" fuer die Kopfzeile der Satzliste. */
@@ -86,6 +88,7 @@ export function AudioCorrectionLesen(props: Props) {
               onSpringe={audio.springe}
               zeitenGeschaetzt={zeitenGeschaetzt}
               onKorrigiere={props.onKorrigiere}
+              onSprecher={props.onSprecher}
               korrekturenJeSatz={props.assistent.korrekturenJeSatz}
               sprecherJeSatz={props.assistent.sprecherJeSatz}
               aktionen={props.aktionen}
