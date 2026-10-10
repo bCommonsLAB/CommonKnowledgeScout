@@ -46,6 +46,15 @@ describe('bewerteSegmente', () => {
     expect(bewerteSegmente([seg({ text: 'Und dann … ja.' })], []).saetze[0].befunde[0].art).toBe('unverstaendlich')
   })
 
+  it('uebersetzte Stuecke markieren die Saetze im Zeitbereich; ohne Angabe ist die Uebersetzung unbekannt', () => {
+    const s = [seg({ start: 0, end: 5 }), seg({ start: 280, end: 290 })]
+    const b = bewerteSegmente(s, [], [{ index: 2, start: 275, end: 553, sourceLanguage: 'it', targetLanguage: 'de' }])
+    expect(b.saetze.map((x) => x.befunde.map((y) => y.art))).toEqual([[], ['uebersetzt']])
+    expect(b.uebersetzung).toBe(1)
+    expect(bewerteSegmente(s, [], []).uebersetzung).toBe(0)
+    expect(bewerteSegmente(s, []).uebersetzung).toBe('unbekannt')
+  })
+
   it('Luecke ueber 10 s vor einem Satz', () => {
     const b = bewerteSegmente([seg({ start: 0, end: 5 }), seg({ start: 9, end: 12 }), seg({ start: 40, end: 44 })], [])
     expect(b.saetze.map((s) => s.lueckeDavor)).toEqual([null, null, 28])

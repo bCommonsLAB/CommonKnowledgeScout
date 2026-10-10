@@ -13,7 +13,7 @@ describe('readTranscriptSegments', () => {
       }],
     } })
     expect(r).toEqual({
-      dataLanguage: 'de', llmModel: 'gpt-transcribe', verworfen: 0,
+      dataLanguage: 'de', llmModel: 'gpt-transcribe', verworfen: 0, translatedChunks: null,
       segments: [{
         start: 0, end: 12.5, text: 'Jährlich werden Schafe und Ziegen erhoben.', speaker: null,
         avgLogprob: -0.01, minLogprob: -1.79, compressionRatio: 1.1, noSpeechProb: null, qualitySource: 'logprobs',
@@ -35,6 +35,13 @@ describe('readTranscriptSegments', () => {
   })
 
   it('ohne data: leer', () => {
-    expect(readTranscriptSegments({ phase: 'completed' })).toEqual({ segments: [], dataLanguage: null, llmModel: null, verworfen: 0 })
+    expect(readTranscriptSegments({ phase: 'completed' })).toEqual({ segments: [], translatedChunks: null, dataLanguage: null, llmModel: null, verworfen: 0 })
+  })
+
+  it('translated_chunks: Liste wird gelesen, fehlender Schluessel ist null (unbekannt), nicht leer', () => {
+    const mit = readTranscriptSegments({ data: { segments: [], translated_chunks: [{ index: 2, start: 275.4, end: 553.6, source_language: 'it', target_language: 'de' }] } })
+    expect(mit.translatedChunks).toEqual([{ index: 2, start: 275.4, end: 553.6, sourceLanguage: 'it', targetLanguage: 'de' }])
+    expect(readTranscriptSegments({ data: { segments: [], translated_chunks: [] } }).translatedChunks).toEqual([])
+    expect(readTranscriptSegments({ data: { segments: [] } }).translatedChunks).toBeNull()
   })
 })

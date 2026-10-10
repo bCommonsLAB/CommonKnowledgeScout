@@ -18,7 +18,7 @@
 
 import type { Collection } from 'mongodb'
 import { getCollection } from '@/lib/mongodb-service'
-import type { TranscriptSegment } from '@/lib/transkript-verlaesslichkeit/segmente'
+import type { TranscriptSegment, TranslatedChunk } from '@/lib/transkript-verlaesslichkeit/segmente'
 
 export interface TranscriptSegmentsDocument {
   _id?: string
@@ -30,6 +30,8 @@ export interface TranscriptSegmentsDocument {
   llmModel: string | null
   dataLanguage: string | null
   segments: TranscriptSegment[]
+  /** Uebersetzte Stuecke des Gesamttexts; null = Secretary meldet es nicht (unbekannt). */
+  translatedChunks?: TranslatedChunk[] | null
   createdAt: string
   updatedAt: string
 }
@@ -66,6 +68,7 @@ export interface SaveTranscriptSegmentsArgs {
   llmModel: string | null
   dataLanguage: string | null
   segments: TranscriptSegment[]
+  translatedChunks: TranslatedChunk[] | null
 }
 
 /** Ersetzt die Segmente der Quelle (Upsert) — auch mit leerer Liste. */

@@ -15,7 +15,7 @@
  * @module transkript-verlaesslichkeit
  */
 
-import type { TranscriptSegment } from './segmente'
+import type { TranscriptSegment, TranslatedChunk } from './segmente'
 
 export const VERLAESSLICHKEIT_SCHWELLEN = {
   /** Schlechtestes Wort eines Satzes: darunter vermutlich verhoert (Namen, erfundene Woerter). */
@@ -30,7 +30,7 @@ export const VERLAESSLICHKEIT_SCHWELLEN = {
   lueckeSekunden: 10,
 } as const
 
-export type BefundArt = 'unsicheres_wort' | 'unsicherer_abschnitt' | 'wiederholung' | 'vielleicht_erfunden' | 'fremde_sprache' | 'unverstaendlich'
+export type BefundArt = 'unsicheres_wort' | 'unsicherer_abschnitt' | 'wiederholung' | 'vielleicht_erfunden' | 'fremde_sprache' | 'unverstaendlich' | 'uebersetzt'
 
 export interface SatzBefund {
   art: BefundArt
@@ -55,6 +55,8 @@ export interface Bewertung {
   mitWerten: number
   /** Ob die Sprachpruefung lief (nur mit erlaubten Sprachen). */
   sprachpruefung: boolean
+  /** Uebersetzte Stuecke im Gesamttext: 'unbekannt' = Secretary meldet es nicht; sonst Anzahl (0 = nichts uebersetzt). */
+  uebersetzung: 'unbekannt' | number
 }
 
 function f(n: number): string {
@@ -85,14 +87,23 @@ function befundeFuer(s: TranscriptSegment, erlaubt: ReadonlySet<string>): SatzBe
   return out
 }
 
-export function bewerteSegmente(segments: readonly TranscriptSegment[], erlaubteSprachen: readonly string[]): Bewertung {
+export function bewerteSegmente(
+  segments: readonly TranscriptSegment[],
+  erlaubteSprachen: readonly string[],
+  translatedChunks: readonly TranslatedChunk[] | null = null,
+): Bewertung {
   const erlaubt = new Set(erlaubteSprachen.map((s) => s.toLowerCase()))
   let vorherEnde: number | null = null
   const saetze = segments.map((segment, index): BewerteterSatz => {
     const abstand: number | null = vorherEnde === null ? null : segment.start - vorherEnde
     const lueckeDavor = abstand !== null && abstand > VERLAESSLICHKEIT_SCHWELLEN.lueckeSekunden ? abstand : null
     vorherEnde = Math.max(vorherEnde ?? 0, segment.end)
-    return { index, segment, befunde: befundeFuer(segment, erlaubt), lueckeDavor }
+    const befunde = befundeFuer(segment, erlaubt)
+    // Secretary PR #33: Stuecke, die im Gesamttext nachtraeglich uebersetzt wurden — die Saetze zeigen
+    // das Original, das Transkript nicht. Mit translate=false darf das nie vorkommen.
+    const chunk = (translatedChunks ?? []).find((c) => segment.start < c.end && segment.end > c.start)
+    if (chunk) befunde.push({ art: 'uebersetzt', text: `Im Transkript ist dieser Abschnitt uebersetzt (${chunk.sourceLanguage ?? '?'} → ${chunk.targetLanguage ?? '?'}); der Satz hier zeigt das Original.` })
+    return { index, segment, befunde, lueckeDavor }
   })
   return {
     saetze,
@@ -100,6 +111,7 @@ export function bewerteSegmente(segments: readonly TranscriptSegment[], erlaubte
     luecken: saetze.filter((s) => s.lueckeDavor !== null).length,
     mitWerten: segments.filter((s) => s.minLogprob !== null || s.avgLogprob !== null).length,
     sprachpruefung: erlaubt.size > 0,
+    uebersetzung: translatedChunks === null ? 'unbekannt' : translatedChunks.length,
   }
 }
 

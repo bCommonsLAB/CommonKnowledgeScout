@@ -37,8 +37,24 @@ export interface TranscriptSegment {
   timeSource: string | null
 }
 
+/** Ein Stueck des Gesamttexts, das der Secretary nachtraeglich uebersetzt hat (Secretary PR #33). */
+export interface TranslatedChunk {
+  /** Stueck ab 1. */
+  index: number
+  start: number
+  end: number
+  sourceLanguage: string | null
+  targetLanguage: string | null
+}
+
 export interface TranscriptSegmentsResult {
   segments: TranscriptSegment[]
+  /**
+   * Uebersetzte Stuecke des Gesamttexts. Leer = nichts uebersetzt; null = der
+   * Secretary kennt das Feld nicht (aelter als PR #33) — dann ist unbekannt, ob
+   * uebersetzt wurde, und das wird so gesagt, nicht als „nicht uebersetzt" gelesen.
+   */
+  translatedChunks: TranslatedChunk[] | null
   /** Sprache der ganzen Datei (Mehrheit), wie der Secretary sie meldet. */
   dataLanguage: string | null
   llmModel: string | null
@@ -71,7 +87,7 @@ function rohSegmente(data: Record<string, unknown>): unknown[] {
 
 export function readTranscriptSegments(callbackBody: unknown): TranscriptSegmentsResult {
   const data = obj(obj(callbackBody)?.data)
-  if (!data) return { segments: [], dataLanguage: null, llmModel: null, verworfen: 0 }
+  if (!data) return { segments: [], translatedChunks: null, dataLanguage: null, llmModel: null, verworfen: 0 }
   const roh = rohSegmente(data)
   const segments: TranscriptSegment[] = []
   for (const eintrag of roh) {
@@ -95,5 +111,21 @@ export function readTranscriptSegments(callbackBody: unknown): TranscriptSegment
       timeSource: str(s.time_source),
     })
   }
-  return { segments, dataLanguage: str(data.language), llmModel: str(data.llm_model), verworfen: roh.length - segments.length }
+  return {
+    segments, translatedChunks: readTranslatedChunks(data.translated_chunks),
+    dataLanguage: str(data.language), llmModel: str(data.llm_model), verworfen: roh.length - segments.length,
+  }
+}
+
+function readTranslatedChunks(value: unknown): TranslatedChunk[] | null {
+  if (!Array.isArray(value)) return null
+  const out: TranslatedChunk[] = []
+  for (const eintrag of value) {
+    const c = obj(eintrag)
+    const start = num(c?.start)
+    const end = num(c?.end)
+    if (!c || start === null || end === null) continue
+    out.push({ index: num(c.index) ?? out.length + 1, start, end, sourceLanguage: str(c.source_language), targetLanguage: str(c.target_language) })
+  }
+  return out
 }
