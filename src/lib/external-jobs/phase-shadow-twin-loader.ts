@@ -103,6 +103,20 @@ export interface ShadowTwinMarkdownResult {
  * // Ingest-Phase → braucht transformierte Datei
  * const source = await loadShadowTwinMarkdown(ctx, provider, 'forIngestOrPassthrough')
  */
+/**
+ * Ist die QUELLDATEI selbst Markdown (dann ist sie der Text, kein Transkript noetig)?
+ * Entscheidend ist der Dateiname. `mediaType: 'markdown'` / `job_type: 'text'` allein
+ * reichen nicht: Die Bruecke legt Template-Jobs auf PDFs ebenfalls als Text-Job an
+ * (`enqueueTemplateOnTextJob`), die Quelle bleibt dabei eine PDF.
+ */
+export function istMarkdownQuelle(args: { name: string; mediaType?: string; jobType?: string }): boolean {
+  const name = args.name.toLowerCase()
+  if (/\.(md|markdown)$/.test(name)) return true
+  const hatAndereEndung = /\.[a-z0-9]{2,5}$/.test(name)
+  // Ohne erkennbare Endung gilt die Angabe des Jobs.
+  return !hatAndereEndung && (args.mediaType === 'markdown' || args.jobType === 'text')
+}
+
 export async function loadShadowTwinMarkdown(
   ctx: RequestContext,
   provider: StorageProvider,
@@ -114,9 +128,15 @@ export async function loadShadowTwinMarkdown(
   const originalName = job.correlation.source?.name || 'output'
   const sourceItemId = job.correlation?.source?.itemId || 'unknown'
   const sourceMediaType = job.correlation?.source?.mediaType
-  const isMarkdownSource = sourceMediaType === 'markdown'
-    || originalName.toLowerCase().endsWith('.md')
-    || job.job_type === 'text'
+  const isMarkdownSource = istMarkdownQuelle({ name: originalName, mediaType: sourceMediaType, jobType: job.job_type })
+  if (!isMarkdownSource && (sourceMediaType === 'markdown' || job.job_type === 'text')) {
+    // Befund 10.10.2026 (Job 4e25acc5, Bruecke transformation_starten auf eine PDF): der Job war als
+    // Text/Markdown angelegt, die Quelle ist aber eine PDF. Die Regel „Markdown-Quelle = Quelldatei
+    // lesen" haette die PDF-Bytes (2,6 MB „%PDF-1.4…") an den Transformer geschickt. Laut sagen, Transkript nehmen.
+    FileLogger.warn('phase-shadow-twin-loader', 'Job als Text/Markdown angelegt, Quelle ist aber keine Markdown-Datei — Transkript aus dem Twin wird verwendet', {
+      jobId, sourceItemId, sourceName: originalName, sourceMediaType, jobType: job.job_type,
+    })
+  }
   // Bilder haben kein Transkript — die Transformation wird direkt vom Image-Analyzer erzeugt
   const isImageSource = sourceMediaType === 'image' || job.job_type === 'image'
   const templateName = job.parameters?.template as string | undefined
