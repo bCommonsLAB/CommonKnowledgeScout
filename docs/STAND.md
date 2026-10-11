@@ -121,6 +121,13 @@ Bekannte Punkte:
    [`plans/mcp-bruecke-website-publizieren.plan.md`](plans/mcp-bruecke-website-publizieren.plan.md)
    (B1 publizieren, B2 Felder setzen, B3 Bilder in den Blob, B4
    Veröffentlichung lesen/setzen, B5 Seite prüfen, B6 Skill).
+   **Seit 11.10.: Welle I Verlässlichkeit der Brücke** in
+   [`plans/geplant/bruecke-library-betrieb.plan.md`](plans/geplant/bruecke-library-betrieb.plan.md)
+   §3a, aus dem Live-Prüffall der Veranstaltung über die Brücke (Handover
+   im Archiv): Ingest als bewusster Schritt nach der Prüfung durch den
+   Menschen (`ingest: false` als sichtbare Vorgabe, dann
+   `index_aktualisieren`), Text-Feed ehrlich, Fehlertexte vollständig, Zaun
+   in allen schreibenden Werkzeugen. Zwei PRs, angelegt, nicht gebaut.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

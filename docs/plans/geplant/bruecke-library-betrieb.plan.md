@@ -19,6 +19,9 @@ todos:
   - id: querschnitt-regeln
     content: "Querschnitt je Welle: dieselbe Service-Funktion wie das UI (ADR 0007), schreibende Werkzeuge nur nach Bestätigung mit Protokoll-Eintrag (protokoll.ts), Stapelgrenze 30, Fehler je Zeile statt Abbruch; TOOLSET_VERSION, TOOL_NAMES und NEU_IN_VERSION in tools-info.ts; Tests unter tests/unit/mcp/; neue Funktionen in eigene Module (vector-repo.ts hat 2.026 Zeilen); Zeile für src/lib/mcp/** im Routing-Index von CLAUDE.md; Konzept-Doku in einer neuen Datei docs/concepts/mcp-library-betrieb.md statt in mcp-storage-stand.md (Befund-Dokument der Versionen 2.10/2.11). ERLEDIGT 08.10.: Konzept docs/concepts/mcp-library-betrieb.md, Zeile im Routing-Index, 21 Testdateien unter tests/unit/; Live-Nachweis gegen eine echte Library OFFEN."
     status: completed
+  - id: welle-i-verlaesslichkeit
+    content: "Welle I Verlässlichkeit der Brücke (Owner 11.10.2026, aus dem Live-Prüffall der Veranstaltung über die Brücke, Archiv Tests/2026-10-11 Handover Veranstaltung Neuaufbau.md Abschnitt 9): I1 Transformieren und Ingest trennen (transformation_starten, quelle_erschliessen mit Vorlage, sammeldatei_anlegen bekommen ingest: boolean, Vorgabe false, sichtbar in der Antwort mit naechsterSchritt index_aktualisieren; Skill-Stationen 5 Transformieren, 6 Prüfen, 7 Freigabe trennen); I2 Text-Feed ehrlich (enqueue-secretary-job.ts: Job während des Feeds nicht claimbar, failed nur bedingt, nie über einen Job mit abgeschlossenen Schritten); I3 Fehlertexte vollständig (template-run.ts 600-Zeichen-Schnitt, responseDataPreview ohne Request-Echo, job-fehler-details jüngste Ereignisse, fetch-with-timeout cause, fehlerDeutung für secretary_abbruch, kein_llm_aufruf, text_feed_failed, abschluss_verweigert); I4 Zaun überall (quelle_erschliessen, transformation_starten, dokument_publizieren, index_aktualisieren mit sourceIds, sammeldatei_anlegen über istVomBatchAusgeschlossen; unter test/ Transformation erlaubt, Ingest verboten; bestand-pruefung.ts auf die gemeinsame Funktion; Startordner prüfen). Zwei PRs: I1+I2 (2.46.0), I3+I4 (2.46.1). Detail in §3a."
+    status: pending
 ---
 
 # Library-Betrieb über die MCP-Brücke
@@ -85,6 +88,7 @@ Die Buchstaben gelten in beiden Plänen.
 | **F Messen** | `frage_stellen`, `golden_set_fahren` als Job, `frage_log_lesen` | Chat-Libraries nach jeder Regeländerung | D; echtes Golden-Set bei der Library | dieser |
 | **G Helfer** | `artefakt_lesen` | Agent ohne Spiegel | keine | Veranstaltungen |
 | **H Drehbuch** | Skill `veranstaltung-aufbereiten` | wiederholbarer Ablauf | A bis E | Veranstaltungen |
+| **I Verlässlichkeit** | `transformation_starten`, `quelle_erschliessen`, `sammeldatei_anlegen` + `ingest`; Text-Feed; `job_status` Fehlertexte und `fehlerDeutung`; Zaun in allen schreibenden Werkzeugen | jede Library, jeder Lauf; Mensch entscheidet vor der Galerie | B, C, H; Live-Prüffall 11.10. (Archiv) | dieser, §3a |
 
 Jede Welle ist ein eigener PR (eine Welle mit Entscheidung darf zwei sein)
 mit Integrationstest gegen die Test-Library
@@ -118,6 +122,157 @@ mit Integrationstest gegen die Test-Library
   `start-batch` mit Status- und batchId-Filter.
 - Für den Chunk-Nachzug liegt mit Commit cf25f18 (Facettenwerte aus dem
   Meta-Dokument in ältere Chunks) bereits Code auf master.
+
+## 3a. Welle I Verlässlichkeit der Brücke (Owner 11.10.2026)
+
+**Anlass.** Der Live-Prüffall des Veranstaltungs-Plans lief am 08.–11.10.
+über die Brücke (Werkzeugsatz 2.45.0, Library „Neuaufbau" des Dachverbands;
+Handover mit Code-Prüfung im Archiv: `24.09 KnowledgeScout/Tests/2026-10-11
+Handover Veranstaltung Neuaufbau.md`, Abschnitt 9). Vier Befunde betreffen
+jede Library bei jedem Lauf, nicht nur Veranstaltungen:
+
+1. `transformation_starten` ingestiert IMMER mit. Der Skill verspricht in
+   Station 7 eine Freigabe vor der Veröffentlichung; tatsächlich steht die
+   Seite nach Station 5 in der Galerie. Owner 11.10.: „Das ist eine
+   Übergehung von Keep the Human in the Loop." Die Oberfläche kann es längst
+   (Ingest-Haken im Pipeline-Sheet, Vorgabe aus).
+2. Ein Job stand auf `failed`, obwohl Transformation und Ingest fertig
+   waren. Ursache: der Text-Feed der Brücke setzt bei „fetch failed"
+   bedingungslos `failed`, während die Callback-Route weiterrechnet; und der
+   Job ist während des Feeds `queued`, der Worker kann ihn parallel claimen.
+3. Fehlermeldungen kommen gekürzt an (600 Zeichen), die Antwort-Vorschau
+   ist vom Request-Echo belegt, `fehlerDeutung` kennt nur eine Art.
+4. Der Zaun gilt nur für Batch, `index_aktualisieren` (Ordnerweg) und
+   `kopieren`. Eine Testkopie unter `test/` lief in die Galerie.
+
+**Entscheidungen (Owner 11.10.):**
+
+- **Ingest ist ein eigener, bewusster Schritt.** Transformieren legt die
+  Transformation am Twin ab; der Mensch prüft in der KS-Oberfläche; erst
+  `index_aktualisieren` bringt die Seite in die Galerie. Die Vorgabe von
+  `ingest` ist `false` und steht sichtbar in der Antwort (Muster
+  `nurPublizierte`, 2.45.0), kein stiller Default.
+- **Unter `test/` wird nie ingestiert.** Transformation ist dort erlaubt
+  (Diagnose), `ingest: true` ist ein Fehler mit `ZAUN_BESCHREIBUNG`.
+- **Die Callback-Route bleibt synchron.** Welle I baut die Semantik von
+  `POST /api/external/jobs/[jobId]` nicht um; sie macht den Feed ehrlich.
+
+### I1 Transformieren und Ingest trennen
+
+- `transformation_starten`, `quelle_erschliessen` (nur mit Vorlage, nicht
+  `nur_transkript`) und `sammeldatei_anlegen` (wenn es transformiert)
+  bekommen `ingest: z.boolean().optional()`; Weglassen = `false`, und die
+  Antwort nennt `ingest` samt Herkunft (`aufruf` | `vorgabe`) und
+  `naechsterSchritt` („Transformation liegt am Twin; in der KS-Oberfläche
+  prüfen; dann `index_aktualisieren` mit sourceIds").
+- Job-Bauer in `src/lib/external-jobs/enqueue-secretary-job.ts`
+  (`buildSourceTranscribeJob`, `buildTemplateOnTextJob`) und
+  `enqueue-markdown-job.ts` nehmen `ingest` als Argument und setzen
+  `phases.ingest` und `policies.ingest` daraus. Die Werte aus
+  `transform-optionen.ts` bleiben unberührt.
+- `job_status` zeigt den Schritt `ingest_rag` bei abgeschaltetem Ingest als
+  „übersprungen (abgeschaltet)", nicht als Fehler (`job-schritte.ts`
+  prüfen). `abdeckung_lesen` zeigt den Zwischenzustand „Transformation ja,
+  Galerie-Eintrag nein" (Test ergänzen).
+- Skill `veranstaltung-aufbereiten`: Station 5 Transformieren (`ingest:
+  false`), Station 6 Prüfen in der KS-Oberfläche (Markdown und Frontmatter
+  der Transformation; Haltepunkt, der Mensch sagt „freigegeben"), Station 7
+  Freigabe = `index_aktualisieren` mit den geprüften sourceIds, dann die
+  bisherigen Prüfpunkte. Fehlerbilder ergänzen: Ingest-Haken im
+  Pipeline-Sheet ist aus; „aborted" nach 2 Min = Secretary, nicht Vorlage;
+  `failed` trotz Ingest completed = Text-Feed (bis I2 gebaut ist).
+- `tools-info.ts`: 2.46.0, `NEU_IN_VERSION`.
+
+### I2 Text-Feed ehrlich
+
+- `fuettereTextImHintergrund` in `enqueue-secretary-job.ts:224-255`:
+  (a) Der Job darf während des Feeds nicht vom Worker claimbar sein, bevor
+  die Callback-Route ihn auf `running` setzt (Status beim Anlegen oder ein
+  Claim-Marker; Muster `requeueAfterStartFailure`/`claim` im Repository
+  prüfen, Reaper darf ihn nicht einsammeln). (b) `meldeFuetterFehler` setzt
+  `failed` nur BEDINGT: nie über einen Job, der `running` ist oder
+  abgeschlossene Schritte hat. `ExternalJobsRepository.setStatus` bekommt
+  dafür eine Variante mit Vorbedingung (`$set` nur bei `status: queued`),
+  statt den bedingungslosen Aufruf zu erweitern. (c) Der Feed-`fetch`
+  bekommt eine ausdrückliche Zeitgrenze oberhalb von
+  `EXTERNAL_TEMPLATE_TIMEOUT_MS` plus Ingest, und ein Ablauf wird als
+  `text_feed_timeout` mit Deutung vermerkt, nicht als `failed`.
+- Folge: „Abschluss verweigert" in `finalize-completion.ts:91-93` tritt
+  für diesen Weg nicht mehr auf. Test: Feed scheitert nach abgeschlossenem
+  Ingest → Status bleibt `completed`, Ereignis im Trace.
+- Nicht anfassen: Worker→`/start` (PR #366), Watchdog, Start-Sperre.
+
+### I3 Fehlertexte vollständig
+
+- `template-run.ts:47` (`findeFehlerKlartext`): keine Kürzung auf 600
+  Zeichen; `responseDataPreview` in `phase-template.ts:1120-1124` ohne das
+  `request`-Echo (dasselbe, was `beschreibeAntwort` schon tut);
+  `job-fehler-details.ts`: die JÜNGSTEN fünf Fehlerereignisse statt der
+  ersten, `step_failed` mit `error` als Objekt lesbar; `fetch-with-timeout.ts:46`
+  übernimmt `e.cause`; `adapter.ts:141-142` behält `error.code`.
+- `fehler-deutung.ts`: neue Arten `secretary_abbruch` („aborted", „fetch
+  failed", Timeout → Zeitlimit beim Secretary oder Anbieter, nicht die
+  Vorlage), `kein_llm_aufruf` (TEMPLATE_TRANSFORMATION_ERROR mit „0
+  LLM-Aufrufe" → Secretary-Konfiguration oder Modell), `text_feed_failed`,
+  `abschluss_verweigert`. `job_status` wendet die Deutung auch auf
+  `job.error` an, nicht nur auf `meldung`/`antwortAuszug`
+  (`tools-jobs.ts:42-45`); `batch_bilanz` deutet den ungekürzten Schlüssel.
+- Tests: `fehler-deutung.test.ts`, `job-fehler-details.test.ts` erweitern.
+
+### I4 Zaun in allen schreibenden Werkzeugen
+
+- `istVomBatchAusgeschlossen` (`src/lib/pipeline/batch-zaun.ts`) auch in
+  `quelle_erschliessen`, `transformation_starten`, `dokument_publizieren`,
+  `sammeldatei_anlegen` und `index_aktualisieren` mit `sourceIds`: Quelle
+  unter `test/` oder `tests/` → Transformation erlaubt, Ingest (auch über
+  `ingest: true`) abgelehnt mit `ZAUN_BESCHREIBUNG` je Zeile.
+- `bestand-pruefung.ts:42-47` (`istTwinOderTestPfad`) auf die gemeinsame
+  Funktion umstellen (kennt dann auch `tests`); `ordner-quellen.ts` prüft
+  den Startordner selbst, nicht nur Unterordner.
+- Test: `kopier-plan-und-index.test.ts` oder neu `zaun-werkzeuge.test.ts`.
+
+**Zuschnitt.** Zwei PRs: I1 + I2 (beide an `enqueue-secretary-job.ts` und
+der Status-Semantik; 2.46.0), I3 + I4 (2.46.1). Je PR unter 5.000 Zeilen,
+`pnpm test`, `pnpm lint`, `npx tsc --noEmit` ohne neue Zeilen; vor Merge
+`bash scripts/welle-pre-merge-check.sh` und `pnpm build` lokal.
+
+**Live-Prüffall (Owner, Library „Neuaufbau" 72a883a0…):**
+`transformation_starten` auf `04 Diskussion.md` ohne `ingest` → Antwort
+nennt `ingest: false (vorgabe)` und den nächsten Schritt; `abdeckung_lesen`
+zeigt Transformation ohne Galerie-Eintrag; nach Prüfung
+`index_aktualisieren` → Eintrag da, Slug unverändert. Corbo (58 Folien)
+erneut: `job_status` endet nicht auf `failed`, wenn der Ingest fertig ist;
+bei Abbruch nennt `fehlerDeutung` den Secretary. Testkopie unter `test/`:
+Transformation läuft, `ingest: true` wird abgelehnt.
+
+**Stop-Bedingungen zusätzlich:** Umbau der Callback-Route auf asynchron;
+Änderung an Worker-Dispatch oder Start-Sperre; ein Default für `ingest`,
+der nicht in der Antwort steht.
+
+**Hand-off für den Start:**
+
+- Branch `claude/welle-i-bruecke-verlaesslichkeit` von `master`.
+- Modell: Opus, Thinking medium für I1 + I2 (Status-Semantik über
+  Repository, Feed und Route hinweg); Sonnet, Thinking medium für I3 + I4
+  (Muster vorhanden, Tests nachziehen).
+- Neuer Agent je PR. Start-Prompt:
+
+  > Lies CLAUDE.md, AGENTS.md, docs/STAND.md und
+  > docs/plans/geplant/bruecke-library-betrieb.plan.md §3a (Welle I). Baue
+  > I1 und I2 als EINEN PR auf Branch
+  > `claude/welle-i-bruecke-verlaesslichkeit`: `ingest`-Parameter in
+  > transformation_starten, quelle_erschliessen, sammeldatei_anlegen
+  > (Vorgabe false, sichtbar in der Antwort, naechsterSchritt), Job-Bauer in
+  > enqueue-secretary-job.ts und enqueue-markdown-job.ts; Text-Feed ehrlich
+  > (nicht claimbar, failed nur bedingt, Zeitgrenze); Skill
+  > veranstaltung-aufbereiten Stationen 5/6/7 trennen; tools-info.ts 2.46.0.
+  > Contracts: contracts-pipeline, no-silent-fallbacks. Tests unter
+  > tests/unit/mcp und tests/unit/external-jobs; pnpm test, pnpm lint,
+  > npx tsc --noEmit ohne neue Zeilen. Hand-off-Block am Ende nach
+  > docs/agents-handbuch.md §5.
+
+- Kosten grob: I1 + I2 rund 8 bis 12 USD, I3 + I4 rund 5 bis 8 USD im
+  Cloud-Agent; `pnpm build` nur lokal beim Owner.
 
 ## 4. Was nicht in diesen Plan gehört
 
@@ -158,3 +313,11 @@ durchzuziehen und das Ergebnis danach zu prüfen. Offen:
   Owner-Arbeit, Plan story-status-modalitaet §5a).
 - Die Wellen B, E, G, H liegen im Plan
   [`veranstaltungen-ueber-die-bruecke.plan.md`](veranstaltungen-ueber-die-bruecke.plan.md).
+
+**Nachtrag 11.10.2026:** Der Live-Prüffall der Veranstaltung über die Brücke
+ist gelaufen (Archiv, Handover mit Code-Prüfung). Daraus kommt **Welle I
+Verlässlichkeit** (§3a, Owner-Entscheid: Ingest als bewusster Schritt,
+Text-Feed ehrlich, Fehlertexte vollständig, Zaun überall). Sie ist angelegt,
+nicht gebaut. Die Lesersicht-Befunde desselben Prüffalls (Folienbilder,
+Cover, PDF-Anhänge; „Paket 1") und der Kleinkram („Paket 3") sind im
+Handover beschrieben und noch keinem Plan zugeordnet.

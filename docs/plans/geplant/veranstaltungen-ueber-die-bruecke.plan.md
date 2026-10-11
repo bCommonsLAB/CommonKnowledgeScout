@@ -139,3 +139,15 @@ Die vier Wellen dieses Plans (B, E, G, H) sind gebaut (Werkzeugsatz 2.42.0 bis
 Fluss mit dem Skill gegen den Ordner der Journalistenschulung, und der
 Heartbeat-Prüffall im Secretary. Die Wellen A, C, D, F liegen im Plan
 [`bruecke-library-betrieb.plan.md`](bruecke-library-betrieb.plan.md).
+
+**Nachtrag 11.10.2026:** Der Prüffall ist gelaufen (Library „Neuaufbau" des
+Dachverbands, 08.–11.10., Handover mit Code-Prüfung im Archiv:
+`24.09 KnowledgeScout/Tests/2026-10-11 Handover Veranstaltung Neuaufbau.md`).
+Ergebnis: fünf Seiten publiziert, Texte gut; Bilder, Cover und PDF-Anhänge
+laden nicht; ein Job meldete `failed` trotz fertigem Ingest; und
+`transformation_starten` ingestiert immer mit, womit die Freigabe in
+Station 7 nur Schein ist. Daraus **Welle I Verlässlichkeit** im Plan
+`bruecke-library-betrieb` §3a (Owner 11.10.: Ingest als bewusster Schritt;
+Skill-Stationen 5/6/7 werden dort getrennt). Die Lesersicht-Befunde
+(Folienbilder, Cover, Anhänge über den Ingest) warten auf einen eigenen
+Plan.
