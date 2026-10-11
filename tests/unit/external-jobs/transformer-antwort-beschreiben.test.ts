@@ -13,7 +13,7 @@
  * Miete.
  */
 import { describe, expect, it } from 'vitest'
-import { beschreibeAntwort } from '@/lib/external-jobs/template-run'
+import { beschreibeAntwort, fehlerTextAusAntwort } from '@/lib/external-jobs/template-run'
 
 /** Die Antwort, an der sich die Diagnose am 28.08. die Zähne ausbiss. */
 const ECHTE_ANTWORT = {
@@ -100,5 +100,30 @@ describe('beschreibeAntwort — Ursache aus data.error zuerst (Prod-Befund 10.10
 
   it('ohne error-Objekt bleibt die Beschreibung wie bisher', () => {
     expect(beschreibeAntwort({ status: 'success', data: {} })).not.toContain('Ursache laut Secretary')
+  })
+})
+
+describe('fehlerTextAusAntwort — Secretary HTTP 400 mit error-Objekt (Hand-off 11.10.2026)', () => {
+  it('nennt code und message statt „[object Object]"', () => {
+    const text = fehlerTextAusAntwort(400, 'Bad Request', {
+      status: 'error',
+      error: { code: 'TEMPLATE_TRANSFORMATION_ERROR', message: 'Fehler bei der Template-Transformation: LLM-Anfrage fehlgeschlagen. Modell: deepseek/deepseek-v4-flash-latest. Fehler: deepseek/deepseek-v4-flash-latest is not a valid model ID', details: { error_type: 'ProcessingError' } },
+      data: null,
+    })
+    expect(text).toBe('[TEMPLATE_TRANSFORMATION_ERROR] Fehler bei der Template-Transformation: LLM-Anfrage fehlgeschlagen. Modell: deepseek/deepseek-v4-flash-latest. Fehler: deepseek/deepseek-v4-flash-latest is not a valid model ID')
+    expect(text).not.toContain('[object Object]')
+  })
+
+  it('alte Formen bleiben lesbar: error als String, message, detail, Text, leer', () => {
+    expect(fehlerTextAusAntwort(500, 'Internal Server Error', { error: 'kaputt' })).toBe('kaputt')
+    expect(fehlerTextAusAntwort(500, 'Internal Server Error', { message: 'nur message' })).toBe('nur message')
+    expect(fehlerTextAusAntwort(422, 'Unprocessable', { detail: 'Feld fehlt' })).toBe('Feld fehlt')
+    expect(fehlerTextAusAntwort(502, 'Bad Gateway', '<html>upstream</html>')).toBe('HTTP 502: Bad Gateway. Response: <html>upstream</html>')
+    expect(fehlerTextAusAntwort(503, 'Service Unavailable', null)).toBe('HTTP 503: Service Unavailable')
+    expect(fehlerTextAusAntwort(500, 'Internal Server Error', { foo: 1 })).toBe('HTTP 500: Internal Server Error. Response: {"foo":1}')
+  })
+
+  it('error-Objekt ohne code/message: JSON statt [object Object]', () => {
+    expect(fehlerTextAusAntwort(400, 'Bad Request', { error: { type: 'x' } })).toBe('HTTP 400: Bad Request. error: {"type":"x"}')
   })
 })
