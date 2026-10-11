@@ -1,5 +1,5 @@
 /**
- * @fileoverview MCP-Werkzeuge `dokumente_auflisten` und `bestand_pruefen` (Welle A).
+ * @fileoverview MCP-Werkzeuge `dokumente_auflisten` und `bestand_pruefen` (Welle A); `dokument_lesen` (K1) daneben.
  *
  * @description
  * Die Index-Seite einer Library sichtbar machen, bevor die Bruecke dort
@@ -22,7 +22,9 @@ import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import type { StorageProvider } from '@/lib/storage/types'
 import { baueBestandFilter } from './bestand-filter'
 import { pruefeBestand, type BestandEintrag } from './bestand-pruefung'
+import { lesersichtKurz } from './lesersicht'
 import { sammleOrdnerQuellen } from './ordner-quellen'
+import { registerDokumentLesenTool } from './tools-dokument-lesen'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
 
 const FACETTEN_WERTE = z.record(z.array(z.string().min(1)).min(1)).optional()
@@ -83,6 +85,7 @@ async function alsEintraege(
 }
 
 export function registerBestandTools(server: McpServer): void {
+  registerDokumentLesenTool(server)
   server.registerTool(
     'dokumente_auflisten',
     {
@@ -90,7 +93,8 @@ export function registerBestandTools(server: McpServer): void {
       description:
         'Listet die publizierten Dokumente (Meta-Dokumente des Index) einer Library mit demselben ' +
         'Filter wie die Galerie: Typ, Facettenwerte, Suche, Seiten, optional ordner. Je Eintrag sourceId, Quelle, Typ, ' +
-        'Veroeffentlichungs-Stand und die Werte der Facetten — Felder, keine Karten. Liest nur.',
+        'Veroeffentlichungs-Stand und die Werte der Facetten — Felder, keine Karten. Mit lesersicht: true je Zeile ' +
+        'zusaetzlich cover (ja/nein), anhaenge (Anzahl), folienMitAdresse/folienAnzahl (K1; Detail: dokument_lesen). Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         detailViewType: TYP,
@@ -99,10 +103,11 @@ export function registerBestandTools(server: McpServer): void {
         ordner: ORDNER,
         seite: z.number().int().min(1).optional().describe('Seite (1-basiert, Default 1)'),
         proSeite: z.number().int().min(1).max(META_LISTE_MAX).optional().describe(`Eintraege je Seite (Default 50, max ${META_LISTE_MAX})`),
+        lesersicht: z.boolean().optional().describe('true: je Zeile cover, anhaenge, folienMitAdresse, folienAnzahl aus dem Meta-Dokument (Vorgabe false)'),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, detailViewType, facettenWerte, suche, ordner, seite, proSeite }) => {
+    async ({ libraryId, detailViewType, facettenWerte, suche, ordner, seite, proSeite, lesersicht }) => {
       try {
         const userEmail = mcpUserEmail()
         const library = await requireLibrary(userEmail, libraryId)
@@ -119,6 +124,7 @@ export function registerBestandTools(server: McpServer): void {
             sourceId: z.fileId, quelle: z.fileName, titel: z.title, kurztitel: z.shortTitle,
             detailViewType: z.detailViewType, publikation: z.publikation, aktualisiert: z.upsertedAt,
             facettenWerte: Object.fromEntries(defs.map((d) => [d.metaKey, getTopLevelValue(z.docMetaJson, d) ?? null])),
+            ...(lesersicht ? { lesersicht: lesersichtKurz(z.docMetaJson) } : {}),
           })),
         })
       } catch (error) {
