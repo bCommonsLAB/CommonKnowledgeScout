@@ -12,6 +12,9 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { ImageProcessor } from '@/lib/ingestion/image-processor'
 import { resolveSlideImagesFromTwinFragments } from '@/lib/ingestion/slide-image-resolver'
 import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatter-json-lists'
+import { ladeGeordneteQuellen, type QuellenTwin } from '@/lib/ingestion/quellen-fragmente'
+import { waehleCover } from '@/lib/ingestion/cover-aus-quellen'
+import { anhaengeAusQuellen, ersetzePdfLinks } from '@/lib/ingestion/anhaenge-aus-quellen'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
 import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
@@ -360,6 +363,15 @@ export class IngestionService {
       if (provider && body && typeof body === 'string' && body.trim().length > 0) {
         // Lokale Referenz: In verschachtelten async-Closures bleibt `provider` sonst `| undefined` (TS)
         const storageProvider: StorageProvider = provider
+        // Welle J3/J4: Quellen-Twins der Sammeldatei (compositeSources) einmal laden;
+        // Cover und Anhaenge rechnen darauf. Anhaenge, die aus den Quellen stammen,
+        // kennt STUFE-2 ueber ihre sourceId statt ueber eine Namenssuche im Ordner.
+        let quellenTwins: QuellenTwin[] | null = null
+        const ladeQuellenTwins = async (): Promise<QuellenTwin[]> => {
+          if (quellenTwins === null) quellenTwins = await ladeGeordneteQuellen(libraryId, fileId)
+          return quellenTwins
+        }
+        const anhangIdByName = new Map<string, string>()
         try {
           // shadowTwinFolderId kommt bereits aus job.shadowTwinState (zentrale Logik)
           if (shadowTwinFolderId) {
@@ -534,6 +546,30 @@ export class IngestionService {
             }
           }
           
+          // Welle J3: Kein Cover im Frontmatter → aus den Seitenbildern der Quellen
+          // rechnen (zweite Seite der Folien-PDF, sonst erste; sonst Flyer). Die
+          // Herkunft geht in den Trace (cover_source), ein Fehlschlag ebenso.
+          const frontmatterCoverLeer = !(typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0)
+          if (!coverImageUrl && frontmatterCoverLeer) {
+            try {
+              const cover = waehleCover(await ladeQuellenTwins())
+              if (cover) {
+                coverImageUrl = cover.coverImageUrl
+                docMetaJsonObj.coverImageUrl = cover.coverImageUrl
+                if (cover.coverThumbnailUrl) docMetaJsonObj.coverThumbnailUrl = cover.coverThumbnailUrl
+                FileLogger.info('ingestion', 'Cover aus Quellen-Twin gerechnet', { fileId, ...cover })
+                if (jobId) {
+                  bufferLog(jobId, { phase: 'cover_image_processed', message: `Cover aus ${cover.quelle === 'slides' ? 'Folien' : 'Flyer'} (${cover.sourceName}, Seite ${cover.page})` })
+                  await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: cover.quelle, sourceId: cover.sourceId, sourceName: cover.sourceName, page: cover.page })
+                }
+              } else if (jobId) {
+                await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'none', grund: 'keine PDF-Quelle mit Seitenbildern' })
+              }
+            } catch (error) {
+              FileLogger.warn('ingestion', 'Cover aus Quellen-Twins nicht rechenbar', { fileId, error: error instanceof Error ? error.message : String(error) })
+            }
+          }
+
           // PRIORITÄT 2: Fallback auf automatische Cover-Bild-Erkennung (nur wenn kein explizites coverImageUrl vorhanden)
           if (!coverImageUrl) {
             coverImageUrl = await ImageProcessor.processCoverImage(
@@ -558,6 +594,28 @@ export class IngestionService {
             }
           }
           
+          // Welle J4: Keine Anhaenge im Frontmatter → alle PDF-Quellen der Sammeldatei
+          // (Folien, Unterlagen, Flyer zuletzt) als Dateinamen eintragen; STUFE-2 hebt
+          // sie ueber die sourceId in den Blob. Ohne PDF-Quelle bleibt das Feld leer, gemeldet.
+          try {
+            const vorhandeneAnhaenge = docMetaJsonObj.attachments_url
+            const anhaengeLeer = vorhandeneAnhaenge == null
+              || (Array.isArray(vorhandeneAnhaenge) && vorhandeneAnhaenge.length === 0)
+              || (typeof vorhandeneAnhaenge === 'string' && vorhandeneAnhaenge.trim() === '')
+            if (anhaengeLeer) {
+              const anhaenge = anhaengeAusQuellen(await ladeQuellenTwins())
+              for (const a of anhaenge) anhangIdByName.set(a.name, a.sourceId)
+              if (anhaenge.length > 0) {
+                docMetaJsonObj.attachments_url = anhaenge.map((a) => a.name)
+                docMetaJsonObj.attachments_names = anhaenge.map((a) => a.name)
+              }
+              FileLogger.info('ingestion', 'Anhaenge aus Quellen-Twins gerechnet', { fileId, anhaenge })
+              if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_source', { anzahl: anhaenge.length, namen: anhaenge.map((a) => a.name) })
+            }
+          } catch (error) {
+            FileLogger.warn('ingestion', 'Anhaenge aus Quellen-Twins nicht rechenbar', { fileId, error: error instanceof Error ? error.message : String(error) })
+          }
+
           // Medien-Felder: Dateiname, `_Quelle.pdf/fragment.jpeg` oder URL — Auflösung über Anker- + Quell-Shadow-Twin-Fragmente
           try {
             const baseItemMedia = await storageProvider.getItemById(fileId)
@@ -797,7 +855,8 @@ export class IngestionService {
                   }
                 }
 
-                const matchedFileId = await findItemByName(value)
+                // Welle J4: Anhang aus den Quellen-Twins → Datei ueber ihre sourceId, keine Namenssuche
+                const matchedFileId = anhangIdByName.get(value) ?? await findItemByName(value)
                 if (!matchedFileId) {
                   FileLogger.warn('ingestion', '[STUFE-2] Datei nicht im Storage gefunden — Dateiname bleibt', { fileId, value })
                   return value
@@ -888,6 +947,26 @@ export class IngestionService {
           
           // Verwende aktualisiertes Markdown (mit Azure-URLs)
           docMetaJsonObj.markdown = markdownResult.markdown.trim()
+
+          // Welle J4: Markdown-Links auf PDF-Namen (`[Flyer](Einladung.pdf)`) auf die
+          // veroeffentlichte Adresse des Anhangs umschreiben.
+          {
+            const urls = Array.isArray(docMetaJsonObj.attachments_url) ? docMetaJsonObj.attachments_url : []
+            const namen = Array.isArray(docMetaJsonObj.attachments_names) ? docMetaJsonObj.attachments_names : []
+            const adressen = new Map<string, string>()
+            urls.forEach((url, i) => {
+              const name = namen[i]
+              if (typeof url === 'string' && typeof name === 'string') adressen.set(name, url)
+            })
+            if (adressen.size > 0 && typeof docMetaJsonObj.markdown === 'string') {
+              const umgeschrieben = ersetzePdfLinks(docMetaJsonObj.markdown, adressen)
+              docMetaJsonObj.markdown = umgeschrieben.markdown
+              if (umgeschrieben.ersetzt > 0) {
+                FileLogger.info('ingestion', 'PDF-Links im Body auf Anhang-Adressen umgeschrieben', { fileId, ersetzt: umgeschrieben.ersetzt })
+                if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_links_rewritten', { ersetzt: umgeschrieben.ersetzt })
+              }
+            }
+          }
           
           if (markdownResult.imageErrors.length > 0) {
             FileLogger.warn('ingestion', 'Fehler beim Verarbeiten einiger Markdown-Bilder', {

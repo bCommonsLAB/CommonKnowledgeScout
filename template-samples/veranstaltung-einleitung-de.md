@@ -22,8 +22,6 @@ thema: {{thema|Array aus kontrolliertem Vokabular, maximal 3: armut, wohnen, arb
 sprachniveau: {{sprachniveau|Eine aus: fachsprache, standard, einfache-sprache — nach der Sprache des Materials}}
 tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, höchstens 8; nur Begriffe, die im Material vorkommen}}
 topics: {{topics|Array der 4–8 wichtigsten Stichworte der Veranstaltung, kebab-case}}
-attachments_url: {{attachments_url|Array der DATEINAMEN aller PDF-Einträge aus „Verfügbare Medien" (nur Dateiname, ohne Pfad), zuerst die Einladung; sonst []}}
-coverImageUrl: {{coverImageUrl|Dateiname des Vorschaubilds der ersten Seite der Einladung aus „Verfügbare Medien" (preview_001.jpg), NUR wenn dort vorhanden; sonst ""}}
 ---
 
 ## {{title}}
@@ -53,13 +51,13 @@ Strenge Regeln:
 - Personen, die begrüßen oder vortragen, mit Namen, wenn im Material genannt. Teilnehmende nur als Rolle.
 - Fertige Markdown-Links aus der Sammeldatei wörtlich übernehmen, Ziel-Adresse unverändert.
 - Fehlende Information: "" , [] oder null. Nie raten.
-- Dateinamen in coverImageUrl und attachments_url NUR aus „Verfügbare Medien" übernehmen, ohne Pfad, exakt wie dort geschrieben.
+- KEINE Felder coverImageUrl und attachments_url ausgeben: Cover (erste Seite der Einladung) und PDF-Anhänge rechnet die Pipeline aus den Quellen.
 - Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Kein Text davor oder danach, keine Code-Fences.
 
 Zuordnung der Quellen:
 - Sammeldatei (eigener Text): Links zu den Vorträgen für vortraege_md.
 - Audio-Transkript (Begrüßung, Einführung): Grundlage für einleitung_md, authors, Teile von summary.
-- Einladung oder Flyer (PDF): Grundlage für title, event, date, location, organisation, programm_md, hintergrund_md, coverImageUrl, attachments_url.
+- Einladung oder Flyer (PDF): Grundlage für title, event, date, location, organisation, programm_md, hintergrund_md.
 
 Antwortschema (MUSS exakt ein JSON-Objekt sein):
 {
@@ -82,8 +80,6 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein):
   "sprachniveau": "string",
   "tags": "string[]",
   "topics": "string[]",
-  "attachments_url": "string[]",
-  "coverImageUrl": "string",
   "einleitung_md": "string (Markdown)",
   "programm_md": "string (Markdown)",
   "vortraege_md": "string (Markdown)",

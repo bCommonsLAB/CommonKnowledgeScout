@@ -500,7 +500,12 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       sourceItemId: job.correlation?.source?.itemId,
     })
   } catch {}
-  await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() })
+  // Welle J5: Folienbilder-Bilanz am Schritt, damit job_status sie als `bilder` zeigt.
+  await repo.updateStep(jobId, 'ingest_rag', {
+    status: 'completed',
+    endedAt: new Date(),
+    ...(res.slideImages ? { details: { slideImages: res.slideImages } } : {}),
+  })
   try {
     getJobEventBus().emitUpdate(job.userEmail, {
       type: 'job_update',

@@ -405,6 +405,23 @@ pauschal alle Strings. Trace: `slide_images_resolved` (mit Quellen) und
 `index_aktualisieren` in J5 als `bilder` meldet. Live-Prüffall Corbo/Britsko
 steht aus (Owner).
 
+**Stand 11.10.2026 (PR 2, J3 + J4 + J5 gebaut, gestapelt auf PR 1):**
+Cover: `cover-aus-quellen.ts` nimmt die zweite Seite der Folien-PDF
+(page-render als Cover, thumbnail als Vorschau), sonst die erste, sonst den
+Flyer (Name mit flyer/einladung); ein erzeugtes Cover entsteht weiterhin in
+der Template-Phase und steht dann schon im Frontmatter, der Ingest fasst es
+nicht an. Anhänge: `anhaenge-aus-quellen.ts` listet die PDF-Quellen (Folien,
+Unterlagen, Flyer zuletzt) als Dateinamen; der bestehende Blob-Schritt des
+Ingests hebt sie über die `sourceId` in den Blob (öffentliche Adresse; die
+Streaming-URL verlangt Anmeldung und kam deshalb nicht in Frage), Markdown-
+Links auf PDF-Namen werden auf dieselbe Adresse umgeschrieben. Rückschreiben
+ins Twin-Frontmatter bewusst nicht: das Meta-Dokument ist die Lesersicht, der
+Twin bleibt Modellausgabe. Abweichung zu J5: `index_aktualisieren` antwortet
+sofort mit Job-Ids, die Bilanz entsteht erst im Job; deshalb zeigt
+`job_status` am Schritt `ingest_rag` das Feld `bilder`, nicht die Antwort von
+`index_aktualisieren` (die nennt den Weg). Werkzeugsatz 2.47.0. Live-Prüffall
+alle fünf Seiten (Cover, Flyer-PDF aus dem Rückblick) beim Owner offen.
+
 ### J3 Cover automatisch
 
 - Beim Ingest, wenn `coverImageUrl` leer: (1) zweite Seite der ersten

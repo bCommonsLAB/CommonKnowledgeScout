@@ -3,15 +3,8 @@
  * des eigenen Twins UND der Quellen-Twins aufloesen (Welle J2).
  *
  * @description
- * Die Seitenbilder eines Vortrags liegen am Twin der Folien-PDF aus
- * `_source_files` (PDF-Extraktion, `variant: 'thumbnail' | 'page-render'`,
- * `pageNumber`), nicht am Twin der Sammeldatei. Seit Welle E stehen die
- * Quellen als `compositeSources` am Twin der Sammeldatei; hier werden die
- * Fragmente aller Quellen in deterministischer Reihenfolge durchsucht:
- * eigener Twin, dann PDF-Quellen (die mit den meisten Seitenbildern zuerst,
- * bei Gleichstand Reihenfolge der `_source_files`), dann uebrige Quellen.
- *
- * Zuordnung je Folie:
+ * Die Suchreihenfolge der Twins liefert `quellen-fragmente.ts` (eigener Twin,
+ * PDF-Quellen mit den meisten Seitenbildern zuerst, Rest). Zuordnung je Folie:
  * 1. exakter Fragmentname (`preview_007.jpeg`),
  * 2. Seitennummer aus dem Namen (`preview_007.jpg` → Seite 7; der Upload
  *    normalisiert `jpg` zu `jpeg`, deshalb reicht der Name allein nicht),
@@ -29,7 +22,7 @@
 
 import { FileLogger } from '@/lib/debug/logger'
 import { parseTwinRelativeImageRef } from '@ks/util'
-import { getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
+import { ladeGeordneteQuellen, nachSeite, seitenbilder, type Fragment, type QuellenTwin, type SeitenVariante } from '@/lib/ingestion/quellen-fragmente'
 
 export interface SlideImageSource {
   sourceId: string
@@ -47,31 +40,7 @@ export interface SlideImageResolution {
   sources: SlideImageSource[]
 }
 
-interface Fragment {
-  name: string
-  url: string
-  variant?: string
-  pageNumber?: number
-}
-
-type SeitenVariante = 'thumbnail' | 'page-render'
-
 const SEITENBILD_RE = /^(preview|page)[_-](\d+)\.(png|jpe?g|webp)$/i
-
-function fragmenteAusTwin(doc: ShadowTwinDocument | undefined): Fragment[] {
-  const out: Fragment[] = []
-  for (const raw of doc?.binaryFragments ?? []) {
-    const f = raw as Record<string, unknown>
-    if (typeof f.name !== 'string' || typeof f.url !== 'string' || !f.url) continue
-    out.push({
-      name: f.name,
-      url: f.url,
-      variant: typeof f.variant === 'string' ? f.variant : undefined,
-      pageNumber: typeof f.pageNumber === 'number' ? f.pageNumber : undefined,
-    })
-  }
-  return out
-}
 
 /** Nackter Name oder Twin-relativer Verweis (`_Folien.pdf/preview_001.jpg`) → Blattname; sonst null. */
 function blattname(value: unknown): string | null {
@@ -87,16 +56,7 @@ function seitenHinweis(name: string): { page: number; bevorzugt: SeitenVariante 
   return { page: parseInt(m[2], 10), bevorzugt: m[1].toLowerCase() === 'preview' ? 'thumbnail' : 'page-render' }
 }
 
-function nachSeite(fragments: Fragment[], page: number, bevorzugt: SeitenVariante): string | undefined {
-  const andere: SeitenVariante = bevorzugt === 'thumbnail' ? 'page-render' : 'thumbnail'
-  for (const variante of [bevorzugt, andere]) {
-    const hit = fragments.find((f) => f.pageNumber === page && f.variant === variante)
-    if (hit) return hit.url
-  }
-  return undefined
-}
-
-function sucheInQuellen(quellen: Array<{ fragments: Fragment[] }>, finde: (f: Fragment[]) => string | undefined): string | undefined {
+function sucheInQuellen(quellen: QuellenTwin[], finde: (f: Fragment[]) => string | undefined): string | undefined {
   for (const q of quellen) {
     const url = finde(q.fragments)
     if (url) return url
@@ -104,38 +64,14 @@ function sucheInQuellen(quellen: Array<{ fragments: Fragment[] }>, finde: (f: Fr
   return undefined
 }
 
-/** Suchreihenfolge: eigener Twin, PDF-Quellen (meiste Seitenbilder zuerst), Rest. */
-export function ordneQuellen(
-  eigener: { sourceId: string; sourceName: string; fragments: Fragment[] },
-  quellen: Array<{ sourceId: string; sourceName: string; fragments: Fragment[] }>,
-): Array<{ sourceId: string; sourceName: string; fragments: Fragment[] }> {
-  const seiten = (q: { fragments: Fragment[] }) => q.fragments.filter((f) => typeof f.pageNumber === 'number').length
-  const istPdf = (q: { sourceName: string }) => /\.pdf$/i.test(q.sourceName)
-  const pdfs = quellen.map((q, i) => ({ q, i })).filter(({ q }) => istPdf(q))
-    .sort((a, b) => seiten(b.q) - seiten(a.q) || a.i - b.i).map(({ q }) => q)
-  const rest = quellen.filter((q) => !istPdf(q))
-  return [eigener, ...pdfs, ...rest]
-}
-
 export async function resolveSlideImagesFromTwinFragments(
   libraryId: string,
   fileId: string,
   slides: Array<Record<string, unknown>>,
 ): Promise<SlideImageResolution> {
-  const eigenerTwin = (await getShadowTwinsBySourceIds({ libraryId, sourceIds: [fileId] })).get(fileId)
-  const quellenIds = Array.isArray(eigenerTwin?.compositeSources) ? eigenerTwin.compositeSources : []
-  const quellenDocs = quellenIds.length > 0 ? await getShadowTwinsBySourceIds({ libraryId, sourceIds: quellenIds }) : new Map<string, ShadowTwinDocument>()
-
-  const quellen = ordneQuellen(
-    { sourceId: fileId, sourceName: eigenerTwin?.sourceName ?? '', fragments: fragmenteAusTwin(eigenerTwin) },
-    quellenIds.map((id) => {
-      const doc = quellenDocs.get(id)
-      return { sourceId: id, sourceName: doc?.sourceName ?? '', fragments: fragmenteAusTwin(doc) }
-    }),
-  )
+  const quellen = await ladeGeordneteQuellen(libraryId, fileId)
   const sources: SlideImageSource[] = quellen.map((q) => ({
-    sourceId: q.sourceId, sourceName: q.sourceName,
-    seitenbilder: q.fragments.filter((f) => typeof f.pageNumber === 'number').length,
+    sourceId: q.sourceId, sourceName: q.sourceName, seitenbilder: seitenbilder(q),
   }))
 
   const unresolved: string[] = []

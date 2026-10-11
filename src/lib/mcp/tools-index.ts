@@ -60,7 +60,9 @@ export function registerIndexTools(server: McpServer): void {
         'Bestand nicht (Neues ueber dokument_publizieren). vorlage: nur Transformationen dieser Vorlage. ' +
         'Uebersprungenes und Quellen ohne Transformation stehen je Zeile mit Grund und Pfad da. Quellen als ' +
         `sourceIds (bis ${MAX_STAPEL}) ODER ordner/ordnerId (+ rekursiv, bis ${MAX_ORDNER}); ${ZAUN_BESCHREIBUNG} und werden genannt. ` +
-        'Antwortet sofort mit batchId und jobIds — Bilanz mit batch_bilanz. SCHREIBT; nur nach Bestaetigung.',
+        'Antwortet sofort mit batchId und jobIds — Bilanz mit batch_bilanz. Seit 2.47.0 rechnet der Ingest ' +
+        'Folienbilder, Cover und PDF-Anhaenge aus den Quellen der Sammeldatei (compositeSources); job_status ' +
+        'zeigt am Schritt ingest_rag bilder: { aufgeloest, unaufgeloest }. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         sourceIds: z.array(z.string().min(1)).min(1).max(MAX_STAPEL).optional().describe('Storage-Ids der Quellen (bis 30)'),

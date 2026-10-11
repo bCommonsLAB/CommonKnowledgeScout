@@ -132,9 +132,11 @@ Bekannte Punkte:
    2.46.1, #370) am 11.10. gemergt und live geprüft; Welle I abgeschlossen.
    **Welle J Lesersicht** (Folienbilder, Cover, PDF-Anhänge) ist seit 11.10.
    als §3b angelegt; PR 1 (J1 Slides als Liste lesen, J2 Folienbilder über
-   die Quellen-Twins, Viewer rät keinen Wurzel-Pfad mehr) am 11.10. gebaut,
-   Live-Prüffall Corbo/Britsko offen; PR 2 (J3 Cover, J4 PDF-Anhänge, J5
-   Vorlagen und Skill) wartet.
+   die Quellen-Twins, Viewer rät keinen Wurzel-Pfad mehr) und PR 2 (J3 Cover
+   aus der zweiten Folienseite, J4 PDF-Anhänge aus den Quellen in den Blob,
+   J5 Vorlagen ohne Dateinamen, Skill-Prüfpunkte, Werkzeugsatz 2.47.0) am
+   11.10. gebaut, PR 2 gestapelt auf PR 1; Live-Prüffall (Folienbilder,
+   Cover, Flyer-PDF) beim Owner offen.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

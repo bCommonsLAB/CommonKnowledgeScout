@@ -201,6 +201,8 @@ export interface IngestResult {
   chunksUpserted: number
   docUpserted: boolean
   index: string
+  /** Welle J: Folienbilder, die der Ingest ueber Twin-/Quellen-Fragmente aufgeloest hat bzw. nicht. */
+  slideImages?: { resolved: number; unresolved: string[] }
 }
 
 // --- Completion ---
