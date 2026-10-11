@@ -35,14 +35,19 @@ const MAX_JE_GRUPPE = 30
 /** Gruppierungsschluessel: Meldung gekuerzt, damit Varianten mit Pfaden zusammenfallen. */
 const SCHLUESSEL_LAENGE = 160
 
-function ursacheVon(job: ExternalJob): { ursache: string; code: string | null; schritt: string | null } {
+function ursacheVon(job: ExternalJob): { ursache: string; code: string | null; schritt: string | null; deutung: FehlerDeutung | null } {
   const details = fehlerDetailsAusTrace(job)
   const letztes = details.length > 0 ? details[details.length - 1] : null
   const meldung = letztes?.meldung ?? job.error?.message ?? null
+  const code = letztes?.code ?? job.error?.code ?? null
   return {
     ursache: meldung ? meldung.trim().slice(0, SCHLUESSEL_LAENGE) : 'ohne Fehlermeldung (alter Job ohne Trace?)',
-    code: letztes?.code ?? job.error?.code ?? null,
+    code,
     schritt: letztes?.schritt ?? null,
+    // Welle I3: Die Deutung liest die UNGEKUERZTE Meldung samt Code und
+    // Antwort-Auszug — die Signatur („0 LLM-Aufrufe") stand oft hinter dem
+    // 160-Zeichen-Schluessel und fiel so durchs Raster.
+    deutung: deuteFehler([code, job.error?.code, job.error?.message, meldung, letztes?.antwortAuszug]),
   }
 }
 
@@ -59,9 +64,9 @@ export function bilanziereJobs(jobs: readonly ExternalJob[]): BatchBilanz {
       default: throw new Error(`Unbekannter Job-Status "${String(job.status)}" an Job ${job.jobId}`)
     }
     if (job.status !== 'failed') continue
-    const { ursache, code, schritt } = ursacheVon(job)
+    const { ursache, code, schritt, deutung } = ursacheVon(job)
     const gruppe = gruppen.get(ursache) ?? {
-      ursache, code, schritt, anzahl: 0, jobIds: [], quellen: [], deutung: deuteFehler([ursache]),
+      ursache, code, schritt, anzahl: 0, jobIds: [], quellen: [], deutung,
     }
     gruppe.anzahl += 1
     if (gruppe.jobIds.length < MAX_JE_GRUPPE) {

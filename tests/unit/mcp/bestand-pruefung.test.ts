@@ -23,6 +23,9 @@ describe('istTwinOderTestPfad', () => {
     expect(istTwinOderTestPfad('Klima/_Bericht 2026/Teil')).toBe(true)
     expect(istTwinOderTestPfad('Klima/Test')).toBe(true)
     expect(istTwinOderTestPfad('Klima/Massnahmen')).toBe(false)
+    // Welle I4: derselbe Zaun wie Batch und index_aktualisieren — kennt auch tests/.
+    expect(istTwinOderTestPfad('Klima/tests/Probe')).toBe(true)
+    expect(istTwinOderTestPfad('Klima/Testlauf')).toBe(false)
   })
 })
 

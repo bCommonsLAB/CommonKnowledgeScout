@@ -44,9 +44,24 @@ function findeFehlerKlartext(wurzel: Record<string, unknown>): string | null {
     const o = k as Record<string, unknown>
     const message = typeof o['message'] === 'string' ? o['message'].trim() : ''
     const code = typeof o['code'] === 'string' ? o['code'].trim() : ''
-    if (message || code) return `${code ? `[${code}] ` : ''}${message.slice(0, 600)}`
+    // Welle I3 (Owner 11.10.2026): keine Kuerzung mehr — die Meldung des
+    // Dienstes ist das einzige, was den Fehlschlag erklaert. Begrenzt wird
+    // erst beim Lesen (job-fehler-details, MAX_TEXT), nicht beim Schreiben.
+    if (message || code) return `${code ? `[${code}] ` : ''}${message}`
   }
   return null
+}
+
+/**
+ * Antwort ohne das `request`-Echo — fuer Trace-Vorschauen (Welle I3). Das Echo
+ * ist unsere eigene Eingabe und verdraengte in der 500-Zeichen-Vorschau genau
+ * den Teil, der den Fehler erklaert (`data.error.message`).
+ */
+export function antwortOhneEcho(data: unknown): unknown {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return data
+  const { request: _echo, ...ohneEcho } = data as Record<string, unknown>
+  void _echo
+  return ohneEcho
 }
 
 /**

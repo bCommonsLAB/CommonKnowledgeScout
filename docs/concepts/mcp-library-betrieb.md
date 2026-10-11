@@ -174,3 +174,23 @@ Callback-Route selbst bleibt synchron. Der Zwischenzustand „Transformation
 ja, Galerie-Eintrag nein" ist über `job_status` (Schritt `ingest_rag`) und
 `dokumente_auflisten`/`bestand_pruefen` sichtbar; `abdeckung_lesen` kennt
 nur die Archiv-Seite (Twins), nicht den Index.
+
+## Nachtrag Welle I, zweiter Teil (2.46.1): Fehlertexte vollständig, Zaun abgeglichen
+
+Owner 11.10.: Im Prüffall kamen Fehlermeldungen gekürzt an, die Vorschau der
+Secretary-Antwort war vom `request`-Echo belegt, und `fehlerDeutung` kannte
+nur die fehlende Tonspur. Seither schreibt `template-run.ts` die Meldung des
+Secretary ungekürzt (begrenzt wird beim Lesen, 1500 Zeichen), die Vorschau in
+`phase-template.ts` kommt ohne Echo (`antwortOhneEcho`), `job-fehler-details.ts`
+liefert die jüngsten fünf Fehlerereignisse in zeitlicher Reihenfolge und
+liest `error`-Objekte aus `updateStep`, Netzfehler tragen ihre Ursache
+(`fetch failed (ECONNREFUSED …)`), und der Secretary-Adapter behält
+`error.code`. `fehler-deutung.ts` kennt vier neue Arten: `secretary_abbruch`
+(aborted, fetch failed, Zeitlimit: Secretary oder Anbieter, nicht die
+Vorlage), `kein_llm_aufruf` (`TEMPLATE_TRANSFORMATION_ERROR` mit 0
+LLM-Aufrufen: Secretary-Konfiguration oder Modell), `text_feed_failed` und
+`abschluss_verweigert`. `job_status` deutet auch `job.error`, `batch_bilanz`
+die ungekürzte Meldung samt Code. Zaun: `bestand_pruefen` nutzt
+`istVomBatchAusgeschlossen` aus `batch-zaun.ts` (kennt `tests/`), und der
+Ordnerweg (`index_aktualisieren`, `bestand_pruefen`) weist einen Startordner
+ab, der selbst Twin- oder Testordner ist; Einzelwerkzeuge bekommen keinen Zaun.

@@ -18,7 +18,7 @@ import { pruefeJobNichtAbgebrochen } from '@/lib/external-jobs/job-abbruch-waech
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-transform-template'
 import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
-import { runTemplateTransform } from '@/lib/external-jobs/template-run'
+import { antwortOhneEcho, runTemplateTransform } from '@/lib/external-jobs/template-run'
 import { normalizeJsonStringValues } from '@/lib/markdown/frontmatter'
 import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
 import { saveMarkdown } from '@/lib/external-jobs/storage'
@@ -1117,10 +1117,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     // Trace-Event für Fehler (nur einmal hier)
     try {
       // Extrahiere Response-Daten für Debugging (falls vorhanden)
-      const responseDataPreview = errorWithDetails.responseData 
-        ? (typeof errorWithDetails.responseData === 'object' 
-          ? JSON.stringify(errorWithDetails.responseData).substring(0, 500)
-          : String(errorWithDetails.responseData).substring(0, 500))
+      // Welle I3: ohne das request-Echo (dasselbe, was beschreibeAntwort tut) —
+      // sonst fuellte unsere eigene Eingabe die Vorschau, und die Ursache fehlte.
+      const responseDataPreview = errorWithDetails.responseData
+        ? (typeof errorWithDetails.responseData === 'object'
+          ? JSON.stringify(antwortOhneEcho(errorWithDetails.responseData)).substring(0, 1200)
+          : String(errorWithDetails.responseData).substring(0, 1200))
         : undefined
       
       await repo.traceAddEvent(jobId, {
