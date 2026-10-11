@@ -50,10 +50,13 @@ class ExternalJobsWorkerSingleton {
   private readonly concurrency: number = Number(process.env.JOBS_WORKER_CONCURRENCY || '3');
   /**
    * Hartes Timeout für den `fetch()` an `/api/external/jobs/[jobId]/start`.
-   * Default 60 s — deutlich kürzer als undici-Default (300 s), damit Hänger früh sichtbar werden.
-   * Konfigurierbar via `JOBS_WORKER_START_TIMEOUT_MS`.
+   * Die Start-Route arbeitet den Job SYNCHRON ab — das Timeout muss laenger sein als eine
+   * ganze Transformation. Befund 11.10.2026 (Owner): mit 60 s brach der Worker bei einer
+   * 53 000-Zeichen-Transformation (105 s) ab, reihte den Job neu ein und startete ihn parallel
+   * ein zweites Mal — doppelte LLM-Kosten, Artefakt doppelt geschrieben, Endstatus „failed"
+   * trotz fertigem Ergebnis. Default jetzt 5 Minuten; konfigurierbar via `JOBS_WORKER_START_TIMEOUT_MS`.
    */
-  private readonly startFetchTimeoutMs: number = Number(process.env.JOBS_WORKER_START_TIMEOUT_MS || '60000');
+  private readonly startFetchTimeoutMs: number = Number(process.env.JOBS_WORKER_START_TIMEOUT_MS || '300000');
   /**
    * Maximale Wiederhol-Versuche, bevor der Job bei wiederholtem Worker-Dispatch-Fehler endgültig fehlschlägt.
    * Default 3 — schützt gegen kurzzeitige HMR-/Compile-Hänger im Dev-Modus.

@@ -112,7 +112,7 @@ nächste Fehlerfall die Ursache zeigt, kann gezielt nachgezogen werden:
 ## 6. Offene Fragen vor Umsetzung
 
 - Soll der Worker-Timeout konfigurierbar via ENV sein
-  (`JOBS_WORKER_START_TIMEOUT_MS`, Default 60_000)?
+  (`JOBS_WORKER_START_TIMEOUT_MS`, Default seit 11.10.2026: 300_000 — vorher 60_000)?
 - Sollen wir bei `AbortError` den Job sofort als `failed` markieren oder
   in `queued` zurückgeben, damit der nächste Tick es erneut versucht?
   (Aktuell: sofort `failed`. Das ist bei einem Compile-Hang vielleicht
