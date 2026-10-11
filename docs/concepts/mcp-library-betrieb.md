@@ -194,3 +194,32 @@ die ungekürzte Meldung samt Code. Zaun: `bestand_pruefen` nutzt
 `istVomBatchAusgeschlossen` aus `batch-zaun.ts` (kennt `tests/`), und der
 Ordnerweg (`index_aktualisieren`, `bestand_pruefen`) weist einen Startordner
 ab, der selbst Twin- oder Testordner ist; Einzelwerkzeuge bekommen keinen Zaun.
+
+## Nachtrag Welle K, erster Teil (2.48.0): die Brücke zeigt, was der Leser sieht
+
+Owner 12.10.: Welle J brauchte drei Nachzüge, und jeder Befund kam aus dem
+Live-Prüffall, weil kein Werkzeug das Meta-Dokument oder die Ereignisse des
+Ingests zeigte (Plan §3c). Seither gilt: Eine Welle ist erst abnehmbar, wenn
+ihr Prüfkriterium über die Brücke lesbar ist.
+
+| Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
+|---|---|---|
+| `dokument_lesen` | liest | `getMetaByFileId` (das Meta-Dokument, das Galerie-Karte und Session-Detail lesen); Mapping in `lesersicht.ts`: Cover, Anhänge als Paare (`attachments_url`/`attachments_names`), `folien { anzahl, mitAdresse, ohneAdresse }`, Galeriebilder, `upsertedAt`, `galerieAdresse` (`/explore/<slug>?doc=<docSlug>`) oder `null` mit Grund |
+| `dokumente_auflisten` (`lesersicht: true`) | liest | dieselbe Kurzform je Zeile: `cover`, `anhaenge`, `folienMitAdresse`, `folienAnzahl` |
+| `job_status` (`ereignisse`, `befunde`) | liest | `job-ereignisse.ts`: feste Namensliste des Ingest-Spans (`slide_images_resolved/unresolved`, `cover_source`, `attachments_source`, `attachments_links_rewritten`, `extract_only_page_images_*`, `frontmatter_json_list_invalid`), Attribute statt ganzer Trace; `job-befunde.ts`: Klartext aus Schrittdetails und Ereignissen |
+| `batch_bilanz` (`zeilen`, `mitBefund`) | liest | je Job `coverQuelle`, `folien { aufgeloest, unaufgeloest }`, `befunde` aus denselben Ereignissen |
+
+Regeln: Der Job-Status bleibt `completed`; ein Befund ist ein Feld, keine
+Statusart, und die leere Liste heißt „nichts zu melden". Formen, die nicht
+passen (`slides` als JSON-Text im Meta-Dokument, unbekannte
+`cover_source`-Herkunft), werden genannt, nicht als leer gezählt.
+`frontmatter_json_list_invalid` schreibt der Ingest nur als Log-Phase; die
+Ereignisliste nimmt Log-Phasen der Liste mit, wenn kein Trace-Ereignis
+gleichen Namens steht (`quelle: log`). Ist-Zustand vor dem Bauen (Lehre aus
+Welle J): `scripts/welle-k-ist-zustand-lesen.mjs` liest Index-Job und
+Meta-Dokument einer Quelle aus der Prod-DB, nur lesend. Prüffall 12.10. am
+Corbo-Index-Job vom 11.10. 22:18 (`2abe2a40…`, vor #376): `slide_images_resolved: 58`,
+`cover_source: none` mit Grund, `attachments_source: 1`; das Meta-Dokument
+trägt `coverImageUrl: ""`, 58 Folien mit Blob-Adresse, einen Anhang als Paar.
+K4 bis K6 (App-Version in `bruecke_info`, Stempel `ingestedWith`/`generated_with`,
+drei Zahlen in `twins_pruefen`) folgen im zweiten PR.
