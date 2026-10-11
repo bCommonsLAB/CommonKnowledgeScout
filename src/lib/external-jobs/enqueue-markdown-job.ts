@@ -43,6 +43,11 @@ export function buildSourceMarkdownJob(args: {
   erzwingen?: boolean
   /** Welle B: Lauf-Optionen der Transformation (P6). */
   optionen?: TransformOptionen
+  /**
+   * Welle I (Owner 11.10.2026): Ingest ist ein bewusster Schritt, kein
+   * Default im Bauer — der Aufrufer entscheidet sichtbar (`ingest-entscheidung.ts`).
+   */
+  ingest: boolean
 }): MarkdownJob {
   const template = args.template.trim()
   if (!template) throw new Error('template ist Pflicht fuer Markdown-Transformationen')
@@ -82,8 +87,8 @@ export function buildSourceMarkdownJob(args: {
       ...transformParameter(args.optionen),
       // Welle ST8: ohne dieses Feld nimmt der Secretary seinen eigenen Default.
       ...(llmModel ? { llmModel } : {}),
-      phases: { extract: false, template: true, ingest: true },
-      policies: { extract: 'ignore', metadata: args.erzwingen === true ? 'force' : 'do', ingest: 'do' },
+      phases: { extract: false, template: true, ingest: args.ingest },
+      policies: { extract: 'ignore', metadata: args.erzwingen === true ? 'force' : 'do', ingest: args.ingest ? 'do' : 'ignore' },
     },
   }
 }
@@ -98,6 +103,7 @@ export async function enqueueSourceMarkdownJob(args: {
   targetLanguage?: string
   erzwingen?: boolean
   optionen?: TransformOptionen
+  ingest: boolean
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()

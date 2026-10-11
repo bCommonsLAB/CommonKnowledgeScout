@@ -20,6 +20,7 @@ const BASIS = {
   libraryId: 'lib',
   userEmail: 'a@b.c',
   source: { name: 'Anlage A1.pdf', itemId: 'i1', parentId: 'p1' },
+  ingest: false,
 }
 
 describe('buildSourceTranscribeJob', () => {

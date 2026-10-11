@@ -128,7 +128,8 @@ Bekannte Punkte:
    Menschen (`ingest: false` als sichtbare Vorgabe, dann
    `index_aktualisieren`; kein Sonderfall für `test/`, weil Ingest nie
    automatisch passiert), Text-Feed ehrlich, Fehlertexte vollständig,
-   Zaun-Abgleich. Zwei PRs, angelegt, nicht gebaut.
+   Zaun-Abgleich. PR 1 (I1 + I2, Werkzeugsatz 2.46.0) am 11.10. gebaut;
+   PR 2 (I3 + I4) offen.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

@@ -52,12 +52,17 @@ export async function enqueueSourceDocumentJob(args: {
   erzwingen?: boolean
   /** Welle B: Lauf-Optionen der Transformation (P6), nur mit Template sinnvoll. */
   optionen?: TransformOptionen
+  /** Welle I: Ingest nur auf ausdruecklichen Wunsch — siehe `buildSourceTranscribeJob`. */
+  ingest: boolean
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()
   const jobSecret = crypto.randomBytes(24).toString('base64url')
   const jobSecretHash = repo.hashSecret(jobSecret)
   const template = args.template?.trim() || undefined
+  if (args.ingest && !template) {
+    throw new Error(`ingest: true ohne Vorlage — "${args.source.name}" wuerde nur extrahiert, es gaebe nichts zu ingestieren`)
+  }
   const llmModel = args.llmModel?.trim() || undefined
   const targetLanguage = args.targetLanguage ?? 'de'
   const jobType = mediaKindToJobType(args.mediaKind)
@@ -106,11 +111,11 @@ export async function enqueueSourceDocumentJob(args: {
       // lief: die gibt ein Modell mit. Ein stiller Rueckfall auf fremde
       // Konfiguration ist genau das, was `no-silent-fallbacks` verbietet.
       ...(llmModel ? { llmModel } : {}),
-      phases: { extract: true, template: Boolean(template), ingest: Boolean(template) },
+      phases: { extract: true, template: Boolean(template), ingest: Boolean(template) && args.ingest },
       policies: {
         extract: args.erzwingen === true ? 'force' : 'do',
         metadata: template ? 'do' : 'ignore',
-        ingest: template ? 'do' : 'ignore',
+        ingest: template && args.ingest ? 'do' : 'ignore',
       },
       ...(args.mediaKind === 'pdf'
         ? {

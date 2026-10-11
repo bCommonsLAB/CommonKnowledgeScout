@@ -52,7 +52,7 @@ function start(markdown: string, erzwingen?: boolean) {
   return starteMarkdownTransformation({
     erzwingen,
     libraryId: 'lib-1', userEmail: 'peter@example.com', provider: providerMit(markdown),
-    source: SOURCE, template: 'commoning-methode-de', llmModel: 'modell-x',
+    source: SOURCE, template: 'commoning-methode-de', llmModel: 'modell-x', ingest: true,
   })
 }
 

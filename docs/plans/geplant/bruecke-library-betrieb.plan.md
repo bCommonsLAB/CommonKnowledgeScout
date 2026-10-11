@@ -240,6 +240,21 @@ der Status-Semantik; 2.46.0), I3 + I4 (2.46.1). Je PR unter 5.000 Zeilen,
 `pnpm test`, `pnpm lint`, `npx tsc --noEmit` ohne neue Zeilen; vor Merge
 `bash scripts/welle-pre-merge-check.sh` und `pnpm build` lokal.
 
+**Stand 11.10. (abends): I1 + I2 gebaut** (Branch
+`claude/welle-i-bruecke-verlaesslichkeit`, 2.46.0; Konzept-Nachtrag in
+`docs/concepts/mcp-library-betrieb.md`). Drei Abweichungen vom Text oben:
+(a) Der Text-Job wird ab Anlage als `running` mit Schritten angelegt statt
+über einen Claim-Marker; die Vorbedingung für `failed` ist darum „`running`
+und kein Schritt über `pending` hinaus" (`job-unberuehrt-filter.ts`,
+`setFailedIfUntouched`), nicht `status: queued`. (b) Die Zeitgrenze läuft
+über `node:http` (`text-feed-transport.ts`), weil das globale `fetch` nach
+300 s still abbricht und keine höhere Grenze zulässt. (c) `abdeckung_lesen`
+kennt den Galerie-Stand nicht (Archiv-Seite, Twins); der Zwischenzustand ist
+in `job_status` (`ingest_rag` „abgeschaltet") und in
+`dokumente_auflisten`/`bestand_pruefen` sichtbar — dort kein neuer Test.
+`enqueue-document-job.ts` nimmt `ingest` ebenfalls (Weg PDF/Office in
+`quelle_erschliessen`), sonst wäre die Vorgabe dort still geblieben.
+
 **Live-Prüffall (Owner, Library „Neuaufbau" 72a883a0…):**
 `transformation_starten` auf `04 Diskussion.md` ohne `ingest` → Antwort
 nennt `ingest: false (vorgabe)` und den nächsten Schritt; `abdeckung_lesen`

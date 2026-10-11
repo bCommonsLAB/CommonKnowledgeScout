@@ -16,6 +16,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+import { INGEST_INPUT, entscheideIngest } from './ingest-entscheidung'
 import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
 import { starteTransformation } from './transformation-start'
 import { vorlageAktualisiertAm } from './tools-vorlagen'
@@ -53,8 +54,9 @@ export function registerTransformationTool(server: McpServer): void {
         'Haengt schon eine Transformation am Twin, entscheidet der Server ueber erzwingen (siehe dort) — ' +
         'eine aktuelle Transformation wird mit Begruendung abgesagt statt still uebersprungen. ' +
         'Lauf-Optionen wie im Pipeline-Sheet: folienAlsTabelle, anhangInSuche (P6). ' +
-        'Die Transformation landet an der Quelle. Antwortet SOFORT mit jobId(s) — Status mit ' +
-        'job_status/job_liste. Stapel via sourceIds. SCHREIBT; nur nach Bestaetigung.',
+        'Die Transformation landet an der Quelle — OHNE Galerie-Eintrag, solange ingest nicht true ist ' +
+        '(Welle I: der Mensch prueft zuerst, dann index_aktualisieren). Antwortet SOFORT mit jobId(s) — ' +
+        'Status mit job_status/job_liste. Stapel via sourceIds. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         ...SOURCE_INPUTS,
@@ -67,11 +69,12 @@ export function registerTransformationTool(server: McpServer): void {
           'gibt es eine Absage OHNE Job. true = trotzdem neu erzeugen (z.B. Quelldatei geaendert); ' +
           'false = nie erzwingen — der Worker ueberspringt dann eine vorhandene Transformation.'),
         ...TRANSFORM_INPUTS,
+        ...INGEST_INPUT,
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, folienAlsTabelle, anhangInSuche, begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, folienAlsTabelle, anhangInSuche, ingest, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'transformation_starten', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -83,11 +86,14 @@ export function registerTransformationTool(server: McpServer): void {
           // Einmal je Aufruf, nicht je Quelle: Massstab fuer „Transformation ueberholt".
           const vorlageStand = await vorlageAktualisiertAm(libraryId, userEmail, effectiveTemplate)
           const optionen = { slidesAsTable: folienAlsTabelle, appendixInSearch: anhangInSuche }
+          // Welle I: Ingest nie still — Weglassen heisst false und steht so in der Antwort.
+          const ingestEntscheidung = entscheideIngest(ingest)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: (source) => starteTransformation({
               library, libraryId, userEmail, provider, source,
               template: effectiveTemplate, llmModel: effectiveModell, zielsprache, erzwingen, vorlageAktualisiertAm: vorlageStand, optionen,
+              ingest: ingestEntscheidung.ingest,
             }),
           })
           return jsonResult({
@@ -96,6 +102,7 @@ export function registerTransformationTool(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate,
+            ingest: ingestEntscheidung,
             optionen: {
               folienAlsTabelle: folienAlsTabelle ?? 'Vorlage unveraendert',
               anhangInSuche: anhangInSuche ?? 'Library-Voreinstellung',

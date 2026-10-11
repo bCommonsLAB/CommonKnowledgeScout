@@ -30,6 +30,7 @@ import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/exter
 import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { audioOptionenAusEingabe, bestimmeAudioWeg, fasseWegeZusammen, type AudioWeg } from './erschliessen-wege'
+import { INGEST_INPUT, entscheideIngest, pruefeIngestMitVorlage } from './ingest-entscheidung'
 import { JOB_HINWEIS, modellHinweis, runForSources, standardLlmModell, standardTemplate } from './tools-erschliessen-shared'
 import { SOURCE_INPUTS, TRANSFORM_INPUTS } from './tools-transformation'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
@@ -43,7 +44,8 @@ export function registerErschliessenTools(server: McpServer): void {
       description:
         'Startet die Pipeline fuer Quellen ohne Twin (Befund source_without_twin): Audio/Video ' +
         'wird transkribiert, PDF/DOCX/XLSX/PPTX extrahiert (A1); mit template (Default: ' +
-        'Standard-Template der Library) entstehen auch Transformation + Galerie-Eintrag. ' +
+        'Standard-Template der Library) entsteht auch die Transformation — der Galerie-Eintrag nur mit ' +
+        'ingest: true (Welle I: der Mensch prueft zuerst, dann index_aktualisieren). ' +
         'AUDIO kennt zwei Wege: sprecherErkennung: true = Sprecher-Modell (Labels, Kontext und Begriffe ' +
         'verwirft der Anbieter), false = Standard-Transkription mit Kontext und Begriffen, danach prueft ' +
         'der Mensch das Transkript im Reiter „Korrektur"; weglassen = Library-Voreinstellung. Die Antwort ' +
@@ -72,17 +74,21 @@ export function registerErschliessenTools(server: McpServer): void {
         kontext: z.string().max(2000).optional().describe('NUR AUDIO (P3a): Thema/Anlass als Freitext fuer die Transkription'),
         begriffe: z.array(z.string().min(1)).max(100).optional().describe('NUR AUDIO (P3a): Namen und Fachwoerter fuer diese Dateien; die Library-Namen ergaenzt der Server'),
         ...TRANSFORM_INPUTS,
+        ...INGEST_INPUT,
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, sprecherErkennung, kontext, begriffe, folienAlsTabelle, anhangInSuche, begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, sprecherErkennung, kontext, begriffe, folienAlsTabelle, anhangInSuche, ingest, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
+          // Welle I: Ingest nie still; ohne Vorlage (nur_transkript) ist true ein Widerspruch.
+          const ingestEntscheidung = entscheideIngest(ingest)
+          pruefeIngestMitVorlage({ ingest: ingestEntscheidung.ingest, template: effectiveTemplate })
           // Das Modell kommt AUSSCHLIESSLICH aus der Library-Konfiguration
           // (Owner-Entscheid 28.08.2026): Der Client waehlt die VORLAGE, das
           // Modell gehoert dem Betreiber der Library, nicht dem Agenten.
@@ -106,6 +112,7 @@ export function registerErschliessenTools(server: McpServer): void {
                   libraryId, userEmail, source, mediaType: kind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                   erzwingen: entscheidung.erzwingen, audioContext: kind === 'audio' ? audioContext : undefined, optionen,
+                  ingest: ingestEntscheidung.ingest,
                 })
                 wege.push(weg)
                 return { jobId, erzwungen: entscheidung.grund, ...(weg ? { transkription: weg } : {}) }
@@ -115,7 +122,7 @@ export function registerErschliessenTools(server: McpServer): void {
                 const { jobId } = await enqueueSourceDocumentJob({
                   libraryId, userEmail, source, mediaKind: documentKind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
-                  erzwingen: entscheidung.erzwingen, optionen,
+                  erzwingen: entscheidung.erzwingen, optionen, ingest: ingestEntscheidung.ingest,
                 })
                 return { jobId, erzwungen: entscheidung.grund }
               }
@@ -132,6 +139,10 @@ export function registerErschliessenTools(server: McpServer): void {
             gescheitert: batch.gescheitert,
             jobs: batch.zeilen,
             template: effectiveTemplate ?? null,
+            // Welle I: ohne Vorlage gibt es keinen Ingest — dann steht das auch so da.
+            ingest: effectiveTemplate
+              ? ingestEntscheidung
+              : { ingest: false, herkunft: 'nur_transkript', naechsterSchritt: 'Nur Transkript: keine Transformation, kein Galerie-Eintrag. Spaeter transformation_starten.' },
             // Die Sammelangabe sagt nur, was ANGEFORDERT war; was tatsaechlich
             // galt, steht je Quelle in `jobs[].erzwungen`.
             erzwingenAngefordert: erzwingen ?? null,

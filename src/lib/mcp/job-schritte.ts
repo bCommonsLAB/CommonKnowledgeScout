@@ -35,6 +35,22 @@ function skipGrund(step: ExternalJobStep): string | undefined {
   return typeof grund === 'string' && grund.trim().length > 0 ? grund : undefined
 }
 
+/**
+ * Welle I1: Ein abgeschalteter Ingest (`ingest: false`, Vorgabe der Bruecke)
+ * ist kein Befund, sondern der gewollte Zwischenzustand „Transformation am
+ * Twin, noch kein Galerie-Eintrag". Die Zeile sagt das und nennt den Weg.
+ */
+export const INGEST_ABGESCHALTET_GRUND =
+  'abgeschaltet (ingest: false) — Transformation liegt am Twin, kein Galerie-Eintrag; ' +
+  'nach der Pruefung index_aktualisieren mit den sourceIds'
+
+/** Klartext fuer die Zeile; rohe Gruende bleiben, nur der bewusste Skip wird erklaert. */
+function zeilenGrund(step: ExternalJobStep): string | undefined {
+  const grund = skipGrund(step)
+  if (step.name === 'ingest_rag' && grund === 'phase_disabled') return INGEST_ABGESCHALTET_GRUND
+  return grund
+}
+
 /** Schritte fuer die Bruecken-Antwort — Skips bleiben sichtbar. */
 export function beschreibeSchritte(steps: ExternalJobStep[] | undefined): SchrittZeile[] {
   return (steps ?? []).map((step) => ({
@@ -42,7 +58,7 @@ export function beschreibeSchritte(steps: ExternalJobStep[] | undefined): Schrit
     status: step.status,
     ...(step.durationMs !== undefined ? { dauerMs: step.durationMs } : {}),
     ...(istUebersprungen(step)
-      ? { uebersprungen: true as const, ...(skipGrund(step) ? { grund: skipGrund(step) } : {}) }
+      ? { uebersprungen: true as const, ...(zeilenGrund(step) ? { grund: zeilenGrund(step) } : {}) }
       : {}),
   }))
 }
