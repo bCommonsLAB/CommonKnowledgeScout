@@ -464,7 +464,9 @@
     "loadingSessionData": "Caricamento dati sessione…",
     "errorLoadingSessionData": "Impossibile caricare i dati della sessione",
     "presentationSlides": "Diapositive presentazione",
-    "noImage": "Nessuna immagine"
+    "noImage": "Nessuna immagine",
+    "imageUnresolved": "Immagine non risolta",
+    "imageLoadFailed": "Impossibile caricare l'immagine"
   },
   "chat": {
     "source": "Fonte",

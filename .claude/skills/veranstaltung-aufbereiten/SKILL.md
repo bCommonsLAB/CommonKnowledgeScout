@@ -157,6 +157,15 @@ Weiter erst, wenn der Mensch je Seite „freigegeben" sagt.
   Antwort steht bei der falschen Person (Sprecher-Labels gegen die
   Sprecherliste); kein Name ohne Beleg; `bestand_pruefen` ohne Doppelgänger
   und ohne Einträge aus Testkopien.
+- Prüfpunkte Lesersicht (seit 2.47.0, Welle J): Cover sichtbar (Karte in der
+  Galerie), Folienbilder laden (`job_status` am Schritt `ingest_rag`:
+  `bilder.unaufgeloest` leer; sonst die genannten Seiten oder Namen melden),
+  PDF-Anhang öffnet (Link unter „Anhänge" ist eine Blob-Adresse, kein
+  Dateiname), keine leeren Überschriften im Text. Cover, Anhänge und
+  Folienbilder rechnet der Ingest aus den Quellen der Sammeldatei; sie
+  fehlen, wenn die Sammeldatei vor 2.43.0 zuletzt transformiert wurde
+  (`abhaengige_dokumente` meldet dann „Abhängigkeit nicht vermerkt",
+  Abhilfe: `transformation_starten` mit `erzwingen`).
 
 ### Q Nachziehen nach einer Korrektur (Maschine)
 

@@ -464,7 +464,9 @@
     "loadingSessionData": "Loading session data…",
     "errorLoadingSessionData": "Session data could not be loaded",
     "presentationSlides": "Presentation Slides",
-    "noImage": "No image"
+    "noImage": "No image",
+    "imageUnresolved": "Image not resolved",
+    "imageLoadFailed": "Image could not be loaded"
   },
   "chat": {
     "source": "Source",

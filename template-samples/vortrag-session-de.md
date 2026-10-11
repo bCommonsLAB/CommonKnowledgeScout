@@ -24,10 +24,7 @@ thema: {{thema|Array aus kontrolliertem Vokabular, maximal 3: armut, wohnen, arb
 sprachniveau: {{sprachniveau|Eine aus: fachsprache, standard, einfache-sprache — nach der Sprache des Materials, nicht nach der Zusammenfassung}}
 tags: {{tags|Array, lowercase, ASCII, kebab-case, dedupliziert, höchstens 8; nur Begriffe, die im Material vorkommen}}
 topics: {{topics|Array der 4–8 wichtigsten inhaltlichen Stichworte des Vortrags, kebab-case}}
-attachments_url: {{attachments_url|Array der DATEINAMEN aller PDF-Einträge aus „Verfügbare Medien" (nur Dateiname, ohne Pfad, in der Reihenfolge Folien, dann weitere Unterlagen, dann Einladung); sonst []}}
-coverImageUrl: {{coverImageUrl|Dateiname des Vorschaubilds der ZWEITEN Seite des Folien-PDFs aus „Verfügbare Medien" (preview_002.jpg), weil die erste Seite nur die Titelfolie ist. Hat das PDF nur eine Seite: preview_001.jpg. Kein Folien-PDF: ""}}
-galleryImageUrls: []
-slides: {{slides|PFLICHT, sobald ein Folien-PDF unter den Quellen ist: Array mit EINEM Objekt je Seite des Folien-PDFs, in Seitenreihenfolge, vollständig bis zur letzten Seite, niemals kürzen. Je Objekt: page_num (Seitenzahl als Zahl, aus den Markern „--- Seite N ---" im Transkript des Folien-PDFs), title (Überschrift der Folie oder ein kurzer Titel aus ihrem Inhalt, max. 80 Zeichen), summary (1–3 kurze Sätze, max. 60 Wörter: was auf der Folie steht UND was die vortragende Person laut Audio-Transkript dazu sagt; Zahlen und Begriffe übernehmen, Tabellen und Formatierung weglassen; nur Text. Kurz halten, damit auch 50 und mehr Folien vollständig in die Antwort passen), image_url (Dateiname des Vorschaubilds dieser Seite aus „Verfügbare Medien", z. B. preview_007.jpg, ohne Pfad). Nur wenn kein Folien-PDF vorhanden ist: []}}
+slides: {{slides|PFLICHT, sobald ein Folien-PDF unter den Quellen ist: Array mit EINEM Objekt je Seite des Folien-PDFs, in Seitenreihenfolge, vollständig bis zur letzten Seite, niemals kürzen. Je Objekt: page_num (Seitenzahl als Zahl, aus den Markern „--- Seite N ---" im Transkript des Folien-PDFs), title (Überschrift der Folie oder ein kurzer Titel aus ihrem Inhalt, max. 80 Zeichen), summary (1–3 kurze Sätze, max. 60 Wörter: was auf der Folie steht UND was die vortragende Person laut Audio-Transkript dazu sagt; Zahlen und Begriffe übernehmen, Tabellen und Formatierung weglassen; nur Text. Kurz halten, damit auch 50 und mehr Folien vollständig in die Antwort passen). KEIN image_url: das Seitenbild ordnet die Pipeline über page_num zu. Nur wenn kein Folien-PDF vorhanden ist: []}}
 ---
 
 ## {{title}}
@@ -57,15 +54,14 @@ Strenge Regeln:
 - Personen: Vortragende mit Namen, wenn im Material genannt. Fragende und Teilnehmende nur als Rolle, nie mit Namen.
 - Zahlen und Zitate wörtlich aus Transkript oder Folien übernehmen.
 - Fehlende Information: "" , [] oder null. Nie raten.
-- Dateinamen in coverImageUrl, attachments_url und slides[].image_url NUR aus „Verfügbare Medien" übernehmen, ohne Pfad, exakt wie dort geschrieben.
-- KEIN Feld galleryImageUrls ausgeben. Die Folien erscheinen ausschließlich über slides.
+- KEINE Felder coverImageUrl, attachments_url, galleryImageUrls und KEIN image_url in slides ausgeben: Cover (zweite Folienseite), PDF-Anhänge und Folienbilder rechnet die Pipeline aus den Quellen; du nennst nur Seitenzahlen. Die Folien erscheinen ausschließlich über slides.
 - Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Kein Text davor oder danach, keine Code-Fences.
 
 Zuordnung der Quellen:
 - Audio-Transkript des Vortrags (die Audio-Quelle, deren Name zum Vortrag passt, z. B. „Teil 2 - Britsko"): Grundlage für summary, vortrag_md und den ersten Teil von diskussion_md.
 - Audio-Transkript der Diskussion (Audio-Quelle mit „Diskussion" im Namen, falls vorhanden): NUR für diskussion_md, und nur die Wortmeldungen, die diesen Vortrag oder diese Referentin betreffen. Nichts daraus in summary oder vortrag_md übernehmen.
-- Folien-PDF (Quelle, deren Titel zum Vortrag passt, nicht der Flyer): Grundlage für folien_md, coverImageUrl, galleryImageUrls und slides. Für slides gilt: Seite N des PDFs (Marker „--- Seite N ---") gehört zu preview_NNN.jpg; die summary verbindet den Folientext mit der Stelle im Audio-Transkript, an der diese Folie besprochen wird.
-- Einladung oder Flyer: Grundlage für event, date, location, organisation, kontext_md. Seine Bilder NICHT in galleryImageUrls.
+- Folien-PDF (Quelle, deren Titel zum Vortrag passt, nicht der Flyer): Grundlage für folien_md und slides. Für slides gilt: page_num ist die Seite N des PDFs (Marker „--- Seite N ---"); die summary verbindet den Folientext mit der Stelle im Audio-Transkript, an der diese Folie besprochen wird.
+- Einladung oder Flyer: Grundlage für event, date, location, organisation, kontext_md.
 
 Antwortschema (MUSS exakt ein JSON-Objekt sein):
 {
@@ -90,10 +86,8 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein):
   "sprachniveau": "string",
   "tags": "string[]",
   "topics": "string[]",
-  "attachments_url": "string[]",
-  "coverImageUrl": "string",
   "slides": [
-    { "page_num": 1, "title": "string", "summary": "string", "image_url": "preview_001.jpg" }
+    { "page_num": 1, "title": "string", "summary": "string" }
   ],
   "vortrag_md": "string (Markdown)",
   "folien_md": "string (Markdown)",

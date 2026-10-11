@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { Badge } from '@ks/ui'
 import type { Slide } from "@/components/library/slide-accordion";
@@ -7,63 +8,69 @@ import { useTranslation } from "@ks/i18n/react";
 
 interface EventSlidesProps {
   slides: Slide[];
-  libraryId?: string; // Optional: für Auflösung relativer Bildpfade
 }
 
 /**
- * Konvertiert einen relativen Pfad (bezogen auf Library-Root) zu einer Storage-API-URL
- * Der relative Pfad wird base64-kodiert und als fileId verwendet
- * 
- * @param relativePath Relativer Pfad wie "2024 SFSCON/assets/ansible/preview_001.jpg"
- * @param libraryId Die Library-ID
- * @returns Storage-API-URL oder undefined falls libraryId fehlt
+ * Welle J2: Der Ingest liefert `slides[].image_url` als abrufbare Adresse
+ * (Blob-URL aus den Twin-Fragmenten oder Site-absoluter Pfad). Ein nackter
+ * Dateiname bedeutet: nicht aufgeloest. Frueher riet die Komponente daraus
+ * einen Pfad relativ zur Library-Wurzel (HTTP 400); jetzt wird der Zustand
+ * gezeigt, nicht geraten (no-silent-fallbacks).
  */
-function resolveImageUrl(relativePath: string | undefined, libraryId: string | undefined): string | undefined {
-  if (!relativePath || !libraryId) {
-    return relativePath; // Fallback: ursprüngliche URL verwenden
-  }
+export function isDisplayableImageUrl(value: string | undefined): value is string {
+  if (!value) return false;
+  return /^https?:\/\//i.test(value) || value.startsWith('/');
+}
 
-  // Prüfe ob es bereits eine absolute URL ist (http/https)
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
-  }
+function SlideImage({ slide }: { slide: Slide }) {
+  const { t } = useTranslation()
+  const [loadFailed, setLoadFailed] = useState(false)
+  const imageUrl = slide.image_url
 
-  // Normalisiere den Pfad (entferne führende/trailing Slashes)
-  const normalizedPath = relativePath.replace(/^\/+|\/+$/g, '');
-
-  // Prüfe auf Path-Traversal-Versuche
-  if (normalizedPath.includes('..')) {
-    console.warn('[EventSlides] Path traversal detected, ignoring:', normalizedPath);
-    return relativePath; // Fallback: ursprüngliche URL verwenden
+  if (!imageUrl) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+        {t('event.noImage')}
+      </div>
+    )
   }
-
-  // Konvertiere relativen Pfad zu base64-kodierter fileId
-  // (entspricht der Logik in getIdFromPath aus filesystem/route.ts)
-  // Browser-kompatible base64-Kodierung für UTF-8-Strings
-  try {
-    // Konvertiere UTF-8-String zu Uint8Array und dann zu base64
-    const utf8Bytes = new TextEncoder().encode(normalizedPath);
-    let binary = '';
-    for (let i = 0; i < utf8Bytes.length; i++) {
-      binary += String.fromCharCode(utf8Bytes[i]);
-    }
-    const fileId = btoa(binary);
-    
-    // Provider-agnostische Streaming-URL (funktioniert für Local und OneDrive)
-    return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`;
-  } catch (error) {
-    console.error('[EventSlides] Fehler beim Konvertieren des Bildpfads:', error);
-    return relativePath; // Fallback: ursprüngliche URL verwenden
+  if (!isDisplayableImageUrl(imageUrl)) {
+    return (
+      <div
+        className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center text-xs text-muted-foreground"
+        data-testid="slide-image-unresolved"
+      >
+        <span>{t('event.imageUnresolved')}</span>
+        <span className="break-all">{imageUrl}</span>
+      </div>
+    )
   }
+  if (loadFailed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center px-2 text-center text-xs text-muted-foreground" data-testid="slide-image-failed">
+        {t('event.imageLoadFailed')}
+      </div>
+    )
+  }
+  return (
+    <Image
+      src={imageUrl}
+      alt={slide.title || `Slide ${slide.page_num}`}
+      fill
+      className="object-cover"
+      sizes="(max-width: 640px) 100vw, 256px"
+      onError={() => setLoadFailed(true)}
+    />
+  )
 }
 
 /**
- * Komponente zur Anzeige von Präsentationsfolien
+ * Komponente zur Anzeige von Praesentationsfolien
  * Zeigt Slides mit Thumbnails, Titel und Zusammenfassung
  */
-export function EventSlides({ slides, libraryId }: EventSlidesProps) {
+export function EventSlides({ slides }: EventSlidesProps) {
   const { t } = useTranslation()
-  
+
   if (!slides || slides.length === 0) {
     return null;
   }
@@ -72,51 +79,27 @@ export function EventSlides({ slides, libraryId }: EventSlidesProps) {
     <div className="w-full max-w-full overflow-x-hidden box-border">
       <h2 className="text-2xl font-bold mb-6">{t('event.presentationSlides')}</h2>
       <div className="space-y-8 w-full max-w-full overflow-x-hidden box-border">
-        {slides.map((slide) => {
-          // Resolve relative image paths to Storage API URLs
-          const imageUrl = resolveImageUrl(slide.image_url, libraryId);
-          
-          return (
-            <div key={slide.page_num} className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start w-full max-w-full box-border">
-              <div className="flex-shrink-0 w-full sm:w-64 max-w-full box-border">
-                <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden w-full max-w-full">
-                  {imageUrl ? (
-                    // Verwende Storage-API-URL für relative Pfade oder next/image für externe URLs
-                    <Image
-                      src={imageUrl}
-                      alt={slide.title || `Slide ${slide.page_num}`}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, 256px"
-                      onError={(e) => {
-                        // Fallback bei fehlerhaftem Bild
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                      {t('event.noImage')}
-                    </div>
-                  )}
-                  <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">
-                    {slide.page_num}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex-1 pt-1 w-full max-w-full min-w-0">
-                {slide.title && (
-                  <h3 className="text-lg font-semibold mb-2 text-balance">{slide.title}</h3>
-                )}
-                {slide.summary && (
-                  <p className="text-muted-foreground text-pretty leading-relaxed">{slide.summary}</p>
-                )}
+        {slides.map((slide) => (
+          <div key={slide.page_num} className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start w-full max-w-full box-border">
+            <div className="flex-shrink-0 w-full sm:w-64 max-w-full box-border">
+              <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden w-full max-w-full">
+                <SlideImage slide={slide} />
+                <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">
+                  {slide.page_num}
+                </Badge>
               </div>
             </div>
-          );
-        })}
+            <div className="flex-1 pt-1 w-full max-w-full min-w-0">
+              {slide.title && (
+                <h3 className="text-lg font-semibold mb-2 text-balance">{slide.title}</h3>
+              )}
+              {slide.summary && (
+                <p className="text-muted-foreground text-pretty leading-relaxed">{slide.summary}</p>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
-

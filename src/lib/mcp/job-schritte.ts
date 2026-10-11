@@ -22,6 +22,17 @@ export interface SchrittZeile {
   dauerMs?: number
   uebersprungen?: true
   grund?: string
+  /** Welle J5: Folienbilder des Ingests — aufgeloest ueber Twin-/Quellen-Fragmente, Rest mit Namen. */
+  bilder?: { aufgeloest: number; unaufgeloest: string[] }
+}
+
+/** Folienbilder-Bilanz aus `step.details.slideImages` (schreibt phase-ingest.ts). */
+export function bilderAusSchritt(step: ExternalJobStep): SchrittZeile['bilder'] | undefined {
+  const raw = step.details?.slideImages
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as { resolved?: unknown; unresolved?: unknown }
+  if (typeof r.resolved !== 'number' || !Array.isArray(r.unresolved)) return undefined
+  return { aufgeloest: r.resolved, unaufgeloest: r.unresolved.filter((x): x is string => typeof x === 'string') }
 }
 
 /** True, wenn der Schritt laut seinen Details uebersprungen wurde. */
@@ -60,6 +71,7 @@ export function beschreibeSchritte(steps: ExternalJobStep[] | undefined): Schrit
     ...(istUebersprungen(step)
       ? { uebersprungen: true as const, ...(zeilenGrund(step) ? { grund: zeilenGrund(step) } : {}) }
       : {}),
+    ...(() => { const bilder = bilderAusSchritt(step); return bilder ? { bilder } : {} })(),
   }))
 }
 
