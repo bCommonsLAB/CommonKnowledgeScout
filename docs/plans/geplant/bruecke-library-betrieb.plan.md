@@ -310,6 +310,162 @@ der nicht in der Antwort steht.
 - Kosten grob: I1 + I2 rund 8 bis 12 USD, I3 + I4 rund 5 bis 8 USD im
   Cloud-Agent; `pnpm build` nur lokal beim Owner.
 
+**Live-Prüffall 11.10. abends gefahren (Produktion 2.46.1, Library
+„Neuaufbau"):** alle Prüfpunkte bestanden (Archiv, Handover Abschnitte 10
+und 11). Owner-Entscheid dabei: `slug` aus allen Vorlagen der Library
+entfernt; ohne `slug` vom Modell bleibt der Slug am Twin stehen (Merge-Basis
+ist das bestehende Frontmatter), Fallback aus dem Artefaktnamen nur bei der
+ersten Transformation. Freigabe mit Slug-Rücksetzung über
+`dokument_felder_setzen`, dann `index_aktualisieren`. Welle I ist damit
+abgeschlossen.
+
+## 3b. Welle J Lesersicht: Folienbilder, Cover, PDF-Anhänge (Owner 11.10.2026)
+
+**Anlass.** Nach Welle I stehen die fünf Seiten der Journalistenschulung
+mit guten Texten in der Galerie, aber ohne Bilder: 58 (Corbo) und 22
+(Britsko) Folienbilder laden nicht, vier von fünf Seiten haben kein Cover,
+PDF-Anhänge fehlen oder enden in 404 (Handover Abschnitt 2 „Bilder", Code-
+Punkte 4.1 bis 4.4, Vorlagen 5). Das Handover hatte diese Befunde als
+„Paket 1" ausgeklammert; sie waren bis 11.10. keinem Plan zugeordnet.
+
+**Befund der Code-Prüfung 11.10. (Stand master 1.2.299):** Die Kette ist
+länger als „Pfad relativ zur Wurzel":
+
+1. `phase-template.ts` schreibt `slides` (Liste von Objekten) als JSON-
+   **String** ins Frontmatter (flaches Frontmatter, AGENTS.md). Beim
+   Ingest liest `ingestion-service.ts` das Frontmatter des Twins, prüft
+   `Array.isArray(slides)` (Zeilen 171, 213) und findet einen String: der
+   Session-Modus greift nicht, die Folienbild-Verarbeitung (Zeilen 213 bis
+   264, `resolveSlideImagesFromTwinFragments`, Azure-Upload) läuft nie.
+   `normalizeJsonStringValues` (`frontmatter.ts:148`) existiert, wird aber
+   beim Lesen am Ingest nicht angewandt.
+2. Selbst als Liste würde `slide-image-resolver.ts` nackte Namen
+   (`preview_001.jpg`) nur gegen die `binaryFragments` der **Sammeldatei**
+   auflösen (`getShadowTwinBinaryFragments(libraryId, fileId)`). Die
+   Seitenbilder gehören aber zum Twin der **Folien-PDF** aus
+   `_source_files`; die PDF-Extraktion legt sie dort als Fragmente mit
+   `variant: 'page-render'` ab (`extract-only.ts:524`). Der Cover-Weg kennt
+   das Muster schon: `fragmentUrlForRef` löst `_Quelle.pdf/name.jpg` über
+   `findSourceFileMatchingTwinFolder` auf (`ingestion-service.ts`, FALL B).
+   Seit Welle E steht die Liste der Quellen als `compositeSources` am Twin.
+3. `event-slides.tsx` baut aus einem nackten Namen eine `streaming-url`
+   mit base64 des Namens relativ zur Library-Wurzel; das ist der HTTP 400
+   aus dem Handover. Absolute URLs reicht die Komponente durch.
+4. `coverImageUrl` bleibt leer, weil die Vorlage den Namen aus
+   „Verfügbare Medien" erwartet und diese Liste keine `preview_00N.jpg`
+   enthält; `attachments_url` ebenso. Das sind Modell-Felder ohne Quelle.
+
+**Entscheidungen (Owner 11.10.):**
+
+- Bilder und Anhänge sind **Sache der Pipeline, nicht des Modells**. Die
+  Vorlage liefert Seitenzahlen und Texte; welche Datei zu Seite N gehört
+  und wo sie öffentlich liegt, rechnet der Ingest.
+- Das Frontmatter bleibt flach: `slides` als JSON-String im Twin ist der
+  Speicher-Vertrag; wer liest, parst. Im Meta-Dokument (MongoDB) ist
+  `slides` eine Liste mit absoluten Bild-URLs.
+
+### J1 Slides beim Ingest als Liste lesen
+
+- `ingestion-service.ts`: `metaEffective` vor der Session-Erkennung durch
+  `normalizeJsonStringValues` schicken (oder gezielt `slides`,
+  `attachments_url`, `galleryImageUrls` mit `tryParseFrontmatterValue`).
+  Danach greifen Session-Modus und Folienbild-Verarbeitung.
+- Test: Twin-Frontmatter mit `slides: "[{...}]"` als String → Session-Modus
+  erkannt, `result.slides` Liste.
+
+### J2 Folienbilder gegen die Quellen-Twins auflösen
+
+- `slide-image-resolver.ts`: Fragmente nicht nur der Sammeldatei, sondern
+  aller `compositeSources` des Twins (Vorrang: Quelle mit `.pdf`, dann
+  Reihenfolge der `_source_files`). Nackter Name → URL des `page-render`-
+  Fragments gleichen Namens. Unaufgelöste Namen bleiben wie heute in
+  `unresolved` und im Trace (`slide_images_unresolved`), kein stiller
+  Platzhalter.
+- Prüfen: heißen die Fragmente der PDF-Extraktion `preview_NNN.jpg` wie in
+  den Twin-Ordnern? Sonst Abbildung Seitenzahl → Fragmentname über
+  `page_num`.
+- `event-slides.tsx`: absolute URL durchreichen; nackter Name ohne Auflösung
+  wird als „Bild nicht aufgelöst" gezeigt, nicht als Wurzel-Pfad geraten
+  (no-silent-fallbacks).
+- Prüfkriterium: Corbo 58 und Britsko 22 Folienbilder laden im Browser.
+
+### J3 Cover automatisch
+
+- Beim Ingest, wenn `coverImageUrl` leer: (1) zweite Seite der ersten
+  Folien-PDF (`preview_002.jpg`), sonst erste; (2) erstes Bild des Flyers
+  (Quelle mit `flyer`/`einladung` im Namen oder erste Nicht-Folien-PDF);
+  (3) erzeugtes Cover nach Library-Einstellung „Cover-Bild automatisch
+  generieren". Ergebnis als absolute URL in Meta-Dokument und Twin-
+  Frontmatter, Herkunft im Trace (`cover_source: slides | flyer |
+  generated`), nie still.
+- Prüfkriterium: alle fünf Seiten der Journalistenschulung zeigen ein Cover
+  in der Galerie.
+
+### J4 PDF-Anhänge öffentlich
+
+- `attachments_url` beim Ingest aus `compositeSources` füllen, wenn leer:
+  alle PDF-Quellen (Reihenfolge: Folien, Unterlagen, Einladung), als
+  abrufbare Adresse (Blob analog `bild_veroeffentlichen`, oder
+  `streaming-url` mit der `fileId` der Quelle, nicht mit dem Namen);
+  `attachments_names` weiter als Anzeigename. Markdown-Links auf PDF-Namen
+  im Body auf dieselbe Adresse umschreiben.
+- Prüfkriterium: Flyer-Link im Rückblick öffnet das PDF; Corbo-Seite listet
+  die Folien-PDF unter „Dokumente & Links".
+
+### J5 Vorlagen und Skill
+
+- `vortrag-session-de`, `diskussion-de`, `veranstaltung-*-de`: Anweisungen
+  zu `coverImageUrl`, `attachments_url` und `slides[].image_url` auf
+  „Seitenzahl nennen, Datei rechnet die Pipeline" umstellen; feste
+  Leerwerte (`coverImageUrl: ""`) raus, weil sie wörtlich landen.
+- Skill `veranstaltung-aufbereiten`: Station 7 bekommt die Prüfpunkte
+  „Cover sichtbar, Folienbilder laden, PDF-Anhang öffnet, keine leeren
+  Überschriften"; `index_aktualisieren` nennt in der Antwort je Zeile
+  `bilder: { aufgeloest, unaufgeloest }` (Werkzeugsatz 2.47.0,
+  `NEU_IN_VERSION`).
+
+**Nicht in dieser Welle:** Diarisierung (Handover 4.12), `standard-book`
+an das Facetten-Vokabular binden (4.13), englische UI-Texte (4.14).
+
+**Zuschnitt.** Zwei PRs: J1 + J2 + Viewer (Folien; Opus, Thinking medium,
+weil Ingest, Resolver und Viewer zusammenhängen), J3 + J4 + J5 (Cover,
+Anhänge, Vorlagen; Sonnet, Thinking medium). Je PR unter 5.000 Zeilen,
+`pnpm test`, `pnpm lint`, `npx tsc --noEmit` ohne neue Zeilen (Vergleich
+per Stash); vor Merge `bash scripts/welle-pre-merge-check.sh` und
+`pnpm build` lokal. Tests unter `tests/unit/ingestion/` und
+`tests/unit/components/`.
+
+**Live-Prüffall (Owner, Library „Neuaufbau" 72a883a0…):** nach PR 1
+`index_aktualisieren` mit den `sourceIds` von Corbo und Britsko → beide
+Seiten zeigen alle Folienbilder; nach PR 2 `index_aktualisieren` für alle
+fünf Seiten → Cover auf jeder Karte, Flyer-PDF öffnet aus dem Rückblick.
+
+**Hand-off für den Start:**
+
+- Branch `claude/welle-j-folienbilder` von `master`; neuer Agent je PR.
+- Start-Prompt PR 1:
+
+  > Lies CLAUDE.md, AGENTS.md, docs/STAND.md und
+  > docs/plans/geplant/bruecke-library-betrieb.plan.md §3b (Welle J). Baue
+  > J1 und J2 samt Viewer als EINEN PR auf Branch
+  > `claude/welle-j-folienbilder` von master: Ingest liest `slides` aus dem
+  > Twin-Frontmatter auch als JSON-String (normalizeJsonStringValues vor der
+  > Session-Erkennung in ingestion-service.ts); slide-image-resolver.ts
+  > löst nackte Namen gegen die page-render-Fragmente aller
+  > compositeSources des Twins auf (Vorrang PDF-Quellen), unaufgelöste
+  > Namen bleiben sichtbar; event-slides.tsx rät keinen Wurzel-Pfad mehr.
+  > Prüfe zuerst, wie die Fragmente der PDF-Extraktion heißen
+  > (extract-only.ts, variant page-render) und ob sie zu
+  > `slides[].image_url` passen. Contracts: contracts-ingestion-chat,
+  > contracts-templates-media, no-silent-fallbacks. Tests unter
+  > tests/unit/ingestion und tests/unit/components; pnpm test, pnpm lint,
+  > npx tsc --noEmit ohne neue Zeilen gegenüber master (Vergleich per
+  > Stash). Im Worktree vorher pnpm install. Hand-off-Block nach
+  > docs/agents-handbuch.md §5.
+
+- Kosten grob: PR 1 rund 8 bis 12 USD, PR 2 rund 6 bis 9 USD im Cloud-
+  Agent; `pnpm build` nur lokal beim Owner.
+
 ## 4. Was nicht in diesen Plan gehört
 
 - Rechte und Scopes des Konto-Schlüssels (offene Kante aus ADR 0008): die
