@@ -112,8 +112,20 @@ nächste Fehlerfall die Ursache zeigt, kann gezielt nachgezogen werden:
 ## 6. Offene Fragen vor Umsetzung
 
 - Soll der Worker-Timeout konfigurierbar via ENV sein
-  (`JOBS_WORKER_START_TIMEOUT_MS`, Default 60_000)?
+  (`JOBS_WORKER_START_TIMEOUT_MS`, Default seit 11.10.2026: 300_000 — vorher 60_000)?
 - Sollen wir bei `AbortError` den Job sofort als `failed` markieren oder
   in `queued` zurückgeben, damit der nächste Tick es erneut versucht?
   (Aktuell: sofort `failed`. Das ist bei einem Compile-Hang vielleicht
   unfreundlich.)
+
+## 7. Umgesetzt 11.10.2026 (Befund Doppellauf, Job 707873f4 lokal / 05734bb2 Prod)
+
+- Worker: ein Timeout des eigenen `fetch()` (AbortError) reiht den Job NICHT mehr neu
+  ein — die Start-Route arbeitet synchron weiter („loslassen", Trace
+  `worker_dispatch_detached`). Requeue nur noch bei echten Verbindungsfehlern.
+- Start-Route: Start-Sperre am Job (`startLock`, `src/lib/external-jobs/start-lock.ts`),
+  atomar gesetzt; zweiter Start → 409 `already_running` (Trace `start_duplicate_rejected`).
+  Fehlgeschlagene Jobs bleiben neu startbar. Der Nur-Logging-Check
+  `checkJobStartability` ist entfallen.
+- Worker wertet 409 als „laeuft schon": kein failed, kein Requeue (Trace `worker_dispatch_rejected`).
+- Default `JOBS_WORKER_START_TIMEOUT_MS` 60 s → 300 s.

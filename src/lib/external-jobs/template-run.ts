@@ -36,12 +36,54 @@ import { getSecretaryConfig } from '@/lib/env'
  * Schluessel kamen zurueck, gab es `data`, was steckte in `structured_data`,
  * und hat Secretary selbst eine Fehlermeldung mitgeschickt.
  */
+/** `error: { code, message }` an der Wurzel oder unter `data` — als ein Satz. */
+function findeFehlerKlartext(wurzel: Record<string, unknown>): string | null {
+  const kandidaten = [wurzel['error'], (wurzel['data'] as Record<string, unknown> | undefined)?.['error']]
+  for (const k of kandidaten) {
+    if (!k || typeof k !== 'object') continue
+    const o = k as Record<string, unknown>
+    const message = typeof o['message'] === 'string' ? o['message'].trim() : ''
+    const code = typeof o['code'] === 'string' ? o['code'].trim() : ''
+    if (message || code) return `${code ? `[${code}] ` : ''}${message.slice(0, 600)}`
+  }
+  return null
+}
+
+/**
+ * Fehlertext einer Nicht-OK-Antwort des Secretary. Secretary-Hand-off 11.10.2026
+ * (`handover-ks-transformer-fehlerstatus.md`): Der Transformer antwortet jetzt HTTP 400 mit
+ * `error: { code, message }` — ein Objekt. `String(error)` ergab „[object Object]" und die
+ * Meldung des Dienstes („… is not a valid model ID") ging verloren.
+ */
+export function fehlerTextAusAntwort(status: number, statusText: string, data: unknown): string {
+  const kopf = `HTTP ${status}: ${statusText}`
+  if (typeof data === 'string') return `${kopf}. Response: ${data.substring(0, 500)}`
+  if (!data || typeof data !== 'object') return kopf
+  const wurzel = data as Record<string, unknown>
+  const klartext = findeFehlerKlartext(wurzel)
+  if (klartext) return klartext
+  for (const feld of ['error', 'message', 'detail'] as const) {
+    const wert = wurzel[feld]
+    if (typeof wert === 'string' && wert.trim()) return wert
+    if (wert !== undefined && wert !== null && typeof wert !== 'object') return String(wert)
+    if (wert && typeof wert === 'object') return `${kopf}. ${feld}: ${JSON.stringify(wert).substring(0, 500)}`
+  }
+  return `${kopf}. Response: ${JSON.stringify(data).substring(0, 500)}`
+}
+
 export function beschreibeAntwort(data: unknown): string {
   if (data === null || typeof data !== 'object') {
     return `Antwort war kein Objekt (${data === null ? 'null' : typeof data}).`
   }
   const wurzel = data as Record<string, unknown>
   const teile: string[] = [`Schluessel: [${Object.keys(wurzel).join(', ')}]`]
+
+  // Prod-Befund 10.10.2026: Der Secretary antwortet HTTP 200 / status "success" und steckt den
+  // eigentlichen Grund in `data.error.message` („deepseek/… is not a valid model ID"). Der stand
+  // zwar im 1200-Zeichen-Auszug unten, aber hinter dem Echo — und wurde abgeschnitten. Zuerst
+  // der Klartext, dann die Struktur.
+  const fehler = findeFehlerKlartext(wurzel)
+  if (fehler) teile.push(`Ursache laut Secretary: ${fehler}`)
 
   // Secretary meldet Fehler teils im Klartext neben `status: "success"`.
   for (const feld of ['status', 'message', 'error', 'detail'] as const) {
@@ -170,6 +212,9 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
         method: 'POST', 
         targetLanguage, 
         useCache: false,
+        // Befund 11.10.2026: ohne dieses Feld war im Job nicht zu sehen, ob das Library-Modell
+        // oder der Secretary-Default lief. null = kein Modell mitgegeben (Secretary-Default).
+        llmModel: llmModel ?? null,
         templateContentLen: templateContent.length,
         extractedTextLen: textLength,
         estimatedContentLength
@@ -371,30 +416,10 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       }
     }
     
-    // HTTP-Status nicht OK, aber Response erhalten
-    // Versuche, detaillierte Fehlermeldung aus Response-Body zu extrahieren
-    let errorText = `HTTP ${resp.status}: ${resp.statusText}`
-    let responseData: unknown = data
-    
-    if (data && typeof data === 'object' && data !== null) {
-      // Versuche verschiedene Fehlerfelder zu finden
-      if ('error' in data) {
-        errorText = String((data as { error?: unknown }).error)
-      } else if ('message' in data) {
-        errorText = String((data as { message?: unknown }).message)
-      } else if ('detail' in data) {
-        errorText = String((data as { detail?: unknown }).detail)
-      } else {
-        // Verwende JSON-String der Response als Fehlermeldung (erste 500 Zeichen)
-        const dataStr = JSON.stringify(data).substring(0, 500)
-        errorText = `HTTP ${resp.status}: ${resp.statusText}. Response: ${dataStr}`
-      }
-      responseData = data
-    } else if (typeof data === 'string') {
-      errorText = `HTTP ${resp.status}: ${resp.statusText}. Response: ${data.substring(0, 500)}`
-      responseData = data
-    }
-    
+    // HTTP-Status nicht OK, aber Response erhalten: Fehlermeldung aus dem Body lesen.
+    const errorText = fehlerTextAusAntwort(resp.status, resp.statusText, data)
+    const responseData: unknown = data
+
     // Extrahiere Max-Content-Length aus Response-Headers (falls vorhanden)
     const maxContentLength = resp.headers.get('x-max-content-length') 
       || resp.headers.get('x-content-length-max')

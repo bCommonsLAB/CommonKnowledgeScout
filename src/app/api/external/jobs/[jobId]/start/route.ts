@@ -39,7 +39,7 @@ import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-
 import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { isInternalAuthorized } from '@/lib/external-jobs/auth'
 import { FileLogger } from '@/lib/debug/logger'
-import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
+import { neueStartLock } from '@/lib/external-jobs/start-lock'
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
 import { resolveAudioJobContext } from '@/lib/external-jobs/audio-context'
 import { resolveLibrarySecretaryConfig } from '@/lib/external-jobs/secretary-url'
@@ -221,6 +221,26 @@ export async function POST(
       if (job.userEmail !== userEmail) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Start-Sperre: ein Job laeuft nur einmal (Befund 11.10.2026, Doppellauf nach Worker-Timeout).
+    // Vor allen Phasen-Zweigen, damit auch die abgekoppelten Phasen (doc-relations, golden-set ...)
+    // nicht doppelt anlaufen. Fehlgeschlagene Jobs duerfen neu gestartet werden.
+    const startRequestId = request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || null
+    const workerIdFromHeader = request.headers.get('x-worker-id') || null
+    const sperre = await repo.acquireStartLock(jobId, neueStartLock({ startRequestId, workerId: workerIdFromHeader, pid: process.pid }))
+    if (sperre === 'held') {
+      FileLogger.warn('start-route', 'Doppelstart abgelehnt - Job laeuft bereits', {
+        jobId, jobStatus: job.status, startLock: job.startLock, workerId: workerIdFromHeader, startRequestId, pid: process.pid,
+      })
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'job', name: 'start_duplicate_rejected', level: 'warn',
+          message: 'Zweiter Start abgelehnt (409) - der Job laeuft bereits',
+          attributes: { jobStatus: job.status, startLock: job.startLock ?? null, workerId: workerIdFromHeader, startRequestId, pid: process.pid },
+        })
+      } catch {}
+      return NextResponse.json({ error: 'Job laeuft bereits', code: 'already_running', startLock: job.startLock ?? null }, { status: 409 })
+    }
+
     // ─── Doc-Translations Refactor: schmale Phase ohne Storage/Secretary-Pfad ───
     // Translation-Jobs kennen kein Quell-Item im Storage, deshalb branchen wir
     // hier frueh aus. Die Phase erledigt LLM-Call + atomares Schreiben in
@@ -346,36 +366,6 @@ export async function POST(
       })
       // Watchdog-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
-    // Duplicate-Detection (nur Logging, kein Blockieren):
-    // Wir wollen doppelte /start Requests erkennen und Ursachen finden, statt hart zu blockieren.
-    const startability = checkJobStartability(job)
-    const startRequestId = request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || null
-    const workerIdFromHeader = request.headers.get('x-worker-id') || null
-    if (!startability.canStart) {
-      FileLogger.warn('start-route', 'Start-Request erneut erhalten (nicht blockiert)', {
-        jobId,
-        reason: startability.reason || 'already_started',
-        jobStatus: job.status,
-        workerId: workerIdFromHeader,
-        startRequestId,
-        pid: process.pid,
-      })
-      try {
-        await repo.traceAddEvent(jobId, {
-          spanId: 'job',
-          name: 'start_duplicate_request',
-          level: 'warn',
-          attributes: {
-            reason: startability.reason || 'already_started',
-            jobStatus: job.status,
-            workerId: workerIdFromHeader,
-            startRequestId,
-            pid: process.pid,
-          },
-        })
-      } catch {}
-    }
-    
     // Erlaube Neustart, wenn Job fehlgeschlagen ist
     const isFailed = job.status === 'failed'
     // Wenn Job fehlgeschlagen ist, lösche processId, damit neue Callbacks akzeptiert werden
