@@ -448,7 +448,10 @@ export class ShadowTwinService {
    * @returns Fragment mit aufgelöster URL
    */
   async uploadBinaryFragment(opts: UploadBinaryFragmentOptions): Promise<UploadBinaryFragmentResult> {
-    const { buffer, fileName, mimeType, kind, variant, sourceHash } = opts
+    // Welle J Nachzug 3: pageNumber stand im Typ, wurde aber nie gespeichert — die
+    // Nachregistrierung (reconstructPageImages) lieferte Seitenbilder ohne Seitennummer,
+    // Cover und page_num-Aufloesung fanden deshalb nichts (Befund 11.10.2026).
+    const { buffer, fileName, mimeType, kind, variant, sourceHash, pageNumber } = opts
 
     // Ermittle Extension aus Dateiname
     const extension = path.extname(fileName).toLowerCase().slice(1) || 'jpg'
@@ -536,6 +539,7 @@ export class ShadowTwinService {
         kind,
         variant,
         sourceHash,
+        ...(typeof pageNumber === 'number' ? { pageNumber } : {}),
         resolvedUrl: azureUrl,
       }
 
@@ -550,6 +554,7 @@ export class ShadowTwinService {
         createdAt,
         variant,
         sourceHash,
+        ...(typeof pageNumber === 'number' ? { pageNumber } : {}),
       })
 
       return fragment

@@ -27,3 +27,24 @@ describe('nachSeite mit nachregistrierten Fragmenten', () => {
     expect(nachSeite([ocr], 2, 'thumbnail')).toBeUndefined()
   })
 })
+
+describe('fragmenteAusTwin / seitenAusName (Nachzug 3)', () => {
+  it('leitet Seitennummer und Variante aus dem Namen ab, wenn das Fragment sie nicht traegt', async () => {
+    const { fragmenteAusTwin, seitenAusName } = await import('@/lib/ingestion/quellen-fragmente')
+    expect(seitenAusName('preview_007.jpg')).toEqual({ pageNumber: 7, variant: 'preview' })
+    expect(seitenAusName('page_012.jpeg')).toEqual({ pageNumber: 12, variant: 'page-render' })
+    expect(seitenAusName('img-0.jpeg')).toBeNull()
+    const doc = { binaryFragments: [
+      { name: 'page_002.jpeg', url: 'https://b/p2', variant: 'page-render' },
+      { name: 'preview_002.jpg', url: 'https://b/v2' },
+      { name: 'img-0.jpeg', url: 'https://b/i0' },
+      { name: 'page_003.jpeg', url: 'https://b/p3', variant: 'page-render', pageNumber: 3 },
+    ] } as unknown as Parameters<typeof fragmenteAusTwin>[0]
+    const fr = fragmenteAusTwin(doc)
+    expect(fr.map((f) => [f.name, f.variant ?? null, f.pageNumber ?? null])).toEqual([
+      ['page_002.jpeg', 'page-render', 2], ['preview_002.jpg', 'preview', 2], ['img-0.jpeg', null, null], ['page_003.jpeg', 'page-render', 3],
+    ])
+    expect(nachSeite(fr, 2, 'page-render')).toBe('https://b/p2')
+    expect(nachSeite(fr, 2, 'thumbnail')).toBe('https://b/v2')
+  })
+})

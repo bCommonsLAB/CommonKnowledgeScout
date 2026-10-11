@@ -35,16 +35,32 @@ export interface QuellenTwin {
 
 export type SeitenVariante = 'thumbnail' | 'page-render'
 
+const SEITENBILD_NAME_RE = /^(preview|page)[_-](\d+)\.(png|jpe?g|webp)$/i
+
+/**
+ * Seitennummer und Variante aus dem Dateinamen, wenn das Fragment sie nicht
+ * traegt. Fragmente, die vor Nachzug 3 ueber `uploadBinaryFragment`
+ * registriert wurden, haben `variant`, aber keine `pageNumber` (Befund
+ * 11.10.2026: 58 Seitenbilder, Cover trotzdem „keine PDF-Quelle mit
+ * Seitenbildern"). Der Name `preview_007.jpg` ist eindeutig genug.
+ */
+export function seitenAusName(name: string): { pageNumber: number; variant: SeitenVariante | 'preview' } | null {
+  const m = name.match(SEITENBILD_NAME_RE)
+  if (!m) return null
+  return { pageNumber: parseInt(m[2], 10), variant: m[1].toLowerCase() === 'preview' ? 'preview' : 'page-render' }
+}
+
 export function fragmenteAusTwin(doc: ShadowTwinDocument | undefined): Fragment[] {
   const out: Fragment[] = []
   for (const raw of doc?.binaryFragments ?? []) {
     const f = raw as Record<string, unknown>
     if (typeof f.name !== 'string' || typeof f.url !== 'string' || !f.url) continue
+    const ausName = seitenAusName(f.name)
     out.push({
       name: f.name,
       url: f.url,
-      variant: typeof f.variant === 'string' ? f.variant : undefined,
-      pageNumber: typeof f.pageNumber === 'number' ? f.pageNumber : undefined,
+      variant: typeof f.variant === 'string' ? f.variant : ausName?.variant,
+      pageNumber: typeof f.pageNumber === 'number' ? f.pageNumber : ausName?.pageNumber,
     })
   }
   return out
