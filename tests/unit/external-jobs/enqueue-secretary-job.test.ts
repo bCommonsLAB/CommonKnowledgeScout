@@ -14,6 +14,8 @@ const BASE = {
   libraryId: 'lib-1',
   userEmail: 'peter@example.org',
   source: { itemId: 'src-1', parentId: 'folder-1', name: 'Climaclub.m4a' },
+  // Welle I: Ingest ist Pflicht-Argument — die Bruecke entscheidet sichtbar.
+  ingest: false,
 }
 
 describe('buildSourceTranscribeJob — Form der process-audio/video-Job-Routen', () => {
@@ -32,7 +34,7 @@ describe('buildSourceTranscribeJob — Form der process-audio/video-Job-Routen',
   })
 
   it('mit Template: voll erschliessen (extract+template+ingest)', () => {
-    const job = buildSourceTranscribeJob({ ...BASE, mediaType: 'video', template: 'standard-meeting' })
+    const job = buildSourceTranscribeJob({ ...BASE, mediaType: 'video', template: 'standard-meeting', ingest: true })
     expect(job.job_type).toBe('video')
     expect(job.parameters).toMatchObject({
       template: 'standard-meeting',
@@ -44,8 +46,9 @@ describe('buildSourceTranscribeJob — Form der process-audio/video-Job-Routen',
 
 describe('buildTemplateOnTextJob — Form der process-text-Job-Route', () => {
   it('haengt an der QUELLE und ueberspringt die Extraktion', () => {
-    const job = buildTemplateOnTextJob({ ...BASE, template: 'standard-meeting' })
-    expect(job).toMatchObject({ job_type: 'text', operation: 'extract', status: 'queued' })
+    const job = buildTemplateOnTextJob({ ...BASE, template: 'standard-meeting', ingest: true })
+    // Welle I2: ab Anlage running — der Worker darf ihn waehrend des Feeds nicht claimen.
+    expect(job).toMatchObject({ job_type: 'text', operation: 'extract', status: 'running' })
     expect(job.parameters).toMatchObject({
       template: 'standard-meeting',
       policies: { extract: 'ignore', metadata: 'do', ingest: 'do' },

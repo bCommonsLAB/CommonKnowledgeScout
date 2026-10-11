@@ -25,10 +25,11 @@
  */
 
 import { Collection } from 'mongodb';
-import type { UpdateOptions } from 'mongodb';
+import type { Filter, UpdateOptions } from 'mongodb';
 import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
 import { startLockFreiFilter, type StartLock } from '@/lib/external-jobs/start-lock';
+import { unberuehrtFilter } from '@/lib/external-jobs/job-unberuehrt-filter';
 import { currentWorkerPoolMongoMatch, getJobsWorkerPoolId } from '@/lib/env';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
@@ -161,6 +162,37 @@ export class ExternalJobsRepository {
     }
     const res = await col.updateOne({ jobId, status: expectedStatus }, update as unknown as Record<string, unknown>)
     return res.modifiedCount > 0
+  }
+
+  /**
+   * Setzt `failed` nur, wenn die Callback-Route den Job nie angefasst hat
+   * (Welle I2, Filter in `external-jobs/job-unberuehrt-filter.ts`): Status
+   * `running` und kein Schritt ueber `pending` hinaus. Hat die Route
+   * gearbeitet, bleibt der Endstatus bei ihr; der Aufrufer vermerkt seinen
+   * Fehler dann nur im Trace. Liefert true, wenn gesetzt wurde.
+   */
+  async setFailedIfUntouched(jobId: string, error: NonNullable<ExternalJob['error']>): Promise<boolean> {
+    const col = await this.getCollection()
+    const now = new Date()
+    const res = await col.updateOne(
+      unberuehrtFilter(jobId) as unknown as Filter<ExternalJob>,
+      { $set: { status: 'failed', updatedAt: now, error } }
+    )
+    if (res.modifiedCount !== 1) return false
+    try {
+      await col.updateOne(
+        { jobId },
+        { $set: { 'trace.spans.$[s].endedAt': now, 'trace.spans.$[s].status': 'failed' } },
+        { arrayFilters: [ { 's.spanId': 'job', 's.endedAt': { $exists: false } } ] } as unknown as UpdateOptions
+      )
+      await this.traceAddEvent(jobId, {
+        spanId: 'job', name: 'text_feed_failed', level: 'error', message: error.message,
+        attributes: { code: error.code },
+      })
+    } catch {
+      // Trace ist Beiwerk: der Status ist gesetzt, mehr muss nicht gelingen.
+    }
+    return true
   }
 
   async setProcess(jobId: string, processId: string): Promise<void> {
