@@ -138,9 +138,12 @@ Bekannte Punkte:
    11.10. gebaut und gemergt (#372). Live-Prüffall 11.10. abends: 0 von 58
    Folien aufgelöst, weil die PDF-Twins im Filesystem-Modus keine
    Seitenbilder als Fragmente tragen (Befund und Nachzug in §3b: extract-only
-   registriert sie jetzt nach, Variante `preview` gilt als Vorschau);
-   Datenreparatur über `twins_synchronisieren repair` und erneuter Prüffall
-   beim Owner offen.
+   registriert sie jetzt nach, Variante `preview` gilt als Vorschau; #374);
+   zweiter Nachzug: die Sync-Engine plante die Nachregistrierung nie, wenn
+   der Twin schon OCR-Fragmente hatte. Datenreparatur über
+   `twins_synchronisieren repair` (löscht dabei die toten `page_NNN.de.md`,
+   Owner-Entscheid) oder Neu-Extraktion der drei PDFs, dann erneuter
+   Prüffall beim Owner offen.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

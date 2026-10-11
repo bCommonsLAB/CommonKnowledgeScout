@@ -15,7 +15,7 @@
 
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
-import { isReconstructablePageImage } from '@/lib/shadow-twin/reconstruct-from-storage'
+import { zaehleRekonstruierbareSeitenbilder } from '@/lib/shadow-twin/reconstruct-from-storage'
 import { readTranscriptRecord, type MongoBinaryFragment, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import type { ReconcileCandidate } from '@/lib/shadow-twin/reconcile-plan'
 import type { SourceSyncInput } from '@/lib/shadow-twin/sync-plan/plan-source-sync'
@@ -173,10 +173,12 @@ export async function collectSourceInput(args: {
   const imagesMissingInStorage = fragments
     .filter((f) => !!f.url && !!f.name && !twinFileNames.has(f.name as string))
     .map((f) => ({ name: f.name as string, url: f.url as string }))
-  const hasFragments = fragments.length > 0
-  const reconstructablePageImages = hasFragments
-    ? 0
-    : twinFolderItems.filter((it) => it.type === 'file' && isReconstructablePageImage(it.metadata.name)).length
+  // Welle J Nachzug: nicht „hat Fragmente → nichts zu tun", sondern je Datei
+  // pruefen, ob sie schon als Fragment steht (OCR-Bilder registriert, Seiten nicht).
+  const reconstructablePageImages = zaehleRekonstruierbareSeitenbilder(
+    fragments.map((f) => f.name),
+    twinFolderItems,
+  )
 
   const input: SourceSyncInput = {
     sourceId: doc.sourceId,
