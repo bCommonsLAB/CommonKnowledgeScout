@@ -405,7 +405,7 @@ pauschal alle Strings. Trace: `slide_images_resolved` (mit Quellen) und
 `index_aktualisieren` in J5 als `bilder` meldet. Live-Prüffall Corbo/Britsko
 steht aus (Owner).
 
-**Stand 11.10.2026 (PR 2, J3 + J4 + J5 gebaut, gestapelt auf PR 1):**
+**Stand 11.10.2026 (J3 + J4 + J5 gebaut; auf Owner-Wunsch mit J1 + J2 in EINER PR #372, zwei Commits):**
 Cover: `cover-aus-quellen.ts` nimmt die zweite Seite der Folien-PDF
 (page-render als Cover, thumbnail als Vorschau), sonst die erste, sonst den
 Flyer (Name mit flyer/einladung); ein erzeugtes Cover entsteht weiterhin in
