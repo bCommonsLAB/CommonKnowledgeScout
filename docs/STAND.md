@@ -135,8 +135,12 @@ Bekannte Punkte:
    die Quellen-Twins, Viewer rät keinen Wurzel-Pfad mehr) und PR 2 (J3 Cover
    aus der zweiten Folienseite, J4 PDF-Anhänge aus den Quellen in den Blob,
    J5 Vorlagen ohne Dateinamen, Skill-Prüfpunkte, Werkzeugsatz 2.47.0) am
-   11.10. gebaut, auf Owner-Wunsch in EINER PR (#372, zwei Commits);
-   Live-Prüffall (Folienbilder, Cover, Flyer-PDF) beim Owner offen.
+   11.10. gebaut und gemergt (#372). Live-Prüffall 11.10. abends: 0 von 58
+   Folien aufgelöst, weil die PDF-Twins im Filesystem-Modus keine
+   Seitenbilder als Fragmente tragen (Befund und Nachzug in §3b: extract-only
+   registriert sie jetzt nach, Variante `preview` gilt als Vorschau);
+   Datenreparatur über `twins_synchronisieren repair` und erneuter Prüffall
+   beim Owner offen.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

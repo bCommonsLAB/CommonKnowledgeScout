@@ -64,11 +64,22 @@ export function istFlyer(q: { sourceName: string }): boolean {
   return /flyer|einladung|invitation/i.test(q.sourceName)
 }
 
+/**
+ * Variante eines Fragments gegen die gesuchte pruefen. `preview` ist der Name,
+ * den die Nachregistrierung aus dem Twin-Ordner (`reconstruct-from-storage.ts`,
+ * Sync-Engine `register-image-fragments`) fuer `preview_NNN.*` vergibt — dieselbe
+ * Vorschau, die der Direct-Upload `thumbnail` nennt. Beide gelten als Vorschau.
+ */
+export function hatVariante(f: Fragment, gesucht: SeitenVariante): boolean {
+  if (gesucht === 'thumbnail') return f.variant === 'thumbnail' || f.variant === 'preview'
+  return f.variant === 'page-render'
+}
+
 /** Fragment-URL fuer eine Seite: bevorzugte Variante, sonst die andere. */
 export function nachSeite(fragments: Fragment[], page: number, bevorzugt: SeitenVariante): string | undefined {
   const andere: SeitenVariante = bevorzugt === 'thumbnail' ? 'page-render' : 'thumbnail'
   for (const variante of [bevorzugt, andere]) {
-    const hit = fragments.find((f) => f.pageNumber === page && f.variant === variante)
+    const hit = fragments.find((f) => f.pageNumber === page && hatVariante(f, variante))
     if (hit) return hit.url
   }
   return undefined
