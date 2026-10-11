@@ -190,6 +190,9 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
         method: 'POST', 
         targetLanguage, 
         useCache: false,
+        // Befund 11.10.2026: ohne dieses Feld war im Job nicht zu sehen, ob das Library-Modell
+        // oder der Secretary-Default lief. null = kein Modell mitgegeben (Secretary-Default).
+        llmModel: llmModel ?? null,
         templateContentLen: templateContent.length,
         extractedTextLen: textLength,
         estimatedContentLength
