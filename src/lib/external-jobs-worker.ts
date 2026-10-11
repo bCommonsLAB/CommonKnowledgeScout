@@ -24,6 +24,7 @@
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { FileLogger } from '@/lib/debug/logger';
+import { reaktionAufAntwort, reaktionAufFehler } from '@/lib/external-jobs/dispatch-reaktion';
 import { getJobsWorkerPoolId, getPublicAppUrl } from '@/lib/env'
 
 type WorkerState = 'stopped' | 'running';
@@ -251,6 +252,20 @@ class ExternalJobsWorkerSingleton {
             timeoutMs: this.startFetchTimeoutMs,
           });
           
+          if (reaktionAufAntwort(startResponse.status) === 'laeuft_schon') {
+            // Die Route hat den Job schon (Start-Sperre). Unser Aufruf war ein Doppelstart -
+            // nichts markieren, nichts einreihen; der laufende Aufruf setzt den Endstatus.
+            FileLogger.warn('jobs-worker', 'Start-Route lehnt Doppelstart ab (409) - Job laeuft bereits', { jobId: claimed.jobId });
+            try {
+              await repo.traceAddEvent(claimed.jobId, {
+                spanId: 'job', name: 'worker_dispatch_rejected', level: 'warn',
+                message: 'Start-Route: Job laeuft bereits (409) - kein zweiter Lauf',
+                attributes: { workerId: this.workerId, startRequestId },
+              });
+            } catch {}
+            return;
+          }
+
           if (!startResponse.ok) {
             const errorText = await startResponse.text().catch(() => 'Keine Fehlermeldung');
             FileLogger.error('jobs-worker', 'Start-Route Fehler', {
@@ -322,6 +337,24 @@ class ExternalJobsWorkerSingleton {
 
           // Wenn wir keinen claim haben, ist der Fehler nicht jobspezifisch — nichts zu requeuen.
           if (!claimed) return;
+
+          if (reaktionAufFehler(err) === 'losgelassen') {
+            // Befund 11.10.2026: Unser Warten ist abgelaufen, aber die Route arbeitet den Job
+            // synchron weiter. Neu einreihen hiesse: denselben Job parallel ein zweites Mal
+            // starten (doppelte LLM-Kosten, Artefakt doppelt, Endstatus failed trotz Ergebnis).
+            // Also loslassen. Ob der Job wirklich haengt, bewacht der Watchdog der Start-Route.
+            FileLogger.warn('jobs-worker', 'Dispatch losgelassen - Start-Route arbeitet weiter, kein Neustart', {
+              jobId: claimed.jobId, timeoutMs: this.startFetchTimeoutMs,
+            });
+            try {
+              await repo.traceAddEvent(claimed.jobId, {
+                spanId: 'job', name: 'worker_dispatch_detached', level: 'warn',
+                message: `Worker wartet nach ${Math.round(this.startFetchTimeoutMs / 1000)} s nicht laenger - der Job laeuft in der Start-Route weiter`,
+                attributes: { workerId: this.workerId, timeoutMs: this.startFetchTimeoutMs },
+              });
+            } catch {}
+            return;
+          }
 
           // Worker konnte die `/start`-Route nicht erreichen → Requeue mit Versuchszähler.
           // Das schützt gegen kurzlebige Hänger (Next-HMR-Compile, kurzfristige Mongo-/DNS-Probleme),

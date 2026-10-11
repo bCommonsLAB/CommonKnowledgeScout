@@ -106,6 +106,11 @@ export interface ExternalJob {
    * Bei jedem erfolgreichen Aufruf der `/start`-Route bleibt das Feld unverändert (resetten würde Race-Conditions provozieren).
    */
   workerStartAttempts?: number;
+  /**
+   * Start-Sperre der `/start`-Route (siehe `external-jobs/start-lock.ts`): gesetzt, sobald die
+   * Route den Job angenommen hat. Ein zweiter Start erhaelt 409, solange der Job nicht `failed` ist.
+   */
+  startLock?: import('@/lib/external-jobs/start-lock').StartLock;
   libraryId: string;
   userEmail: string;
   /**

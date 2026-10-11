@@ -28,6 +28,7 @@ import { Collection } from 'mongodb';
 import type { UpdateOptions } from 'mongodb';
 import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
+import { startLockFreiFilter, type StartLock } from '@/lib/external-jobs/start-lock';
 import { currentWorkerPoolMongoMatch, getJobsWorkerPoolId } from '@/lib/env';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
@@ -165,6 +166,19 @@ export class ExternalJobsRepository {
   async setProcess(jobId: string, processId: string): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne({ jobId }, { $set: { processId, updatedAt: new Date() } });
+  }
+
+  /**
+   * Setzt die Start-Sperre atomar (siehe `external-jobs/start-lock.ts`). `held` heisst: ein
+   * anderer Aufruf hat den Job bereits — der Aufrufer antwortet 409 und tut nichts.
+   */
+  async acquireStartLock(jobId: string, lock: StartLock): Promise<'acquired' | 'held'> {
+    const col = await this.getCollection();
+    const res = await col.updateOne(
+      startLockFreiFilter(jobId),
+      { $set: { startLock: lock, status: 'running', updatedAt: new Date() } }
+    );
+    return res.modifiedCount === 1 ? 'acquired' : 'held';
   }
 
   /**
