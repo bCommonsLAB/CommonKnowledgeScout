@@ -143,7 +143,12 @@ Bekannte Punkte:
    der Twin schon OCR-Fragmente hatte. Datenreparatur über
    `twins_synchronisieren repair` (löscht dabei die toten `page_NNN.de.md`,
    Owner-Entscheid) oder Neu-Extraktion der drei PDFs, dann erneuter
-   Prüffall beim Owner offen.
+   Prüffall beim Owner offen. Dritter Nachzug (#376): `uploadBinaryFragment` speicherte
+   die Seitennummer nie, deshalb blieb das Cover leer. **Welle K
+   Prüfbarkeit** (Owner 12.10., §3c): die Brücke zeigt, was der Leser sieht
+   (`dokument_lesen`, Ereignisse und Befunde in `job_status`, App-Version in
+   `bruecke_info`, Stempel am Meta-Dokument, drei Zahlen in `twins_pruefen`);
+   angelegt, nicht gebaut.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):
