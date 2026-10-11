@@ -662,6 +662,30 @@ export async function runExtractOnly(
       } catch {
         // Trace-Fehler nicht kritisch
       }
+
+      // Welle J Nachzug: Im Filesystem-Modus liegen die Seitenbilder (pages.zip)
+      // nur im Twin-Ordner — hier als binaryFragments nachregistrieren, damit
+      // Folien, Cover und Anhaenge sie finden (Befund 11.10.2026).
+      if (persistToFilesystem && imagesPhaseEnabled) {
+        try {
+          const { registrierePageImagesAusTwinOrdner } = await import('./extract-page-images-register')
+          await registrierePageImagesAusTwinOrdner({
+            provider, repo, jobId,
+            libraryId: job.libraryId, userEmail: job.userEmail,
+            sourceItem, parentId: job.correlation?.source?.parentId || 'root',
+            shadowTwinFolderId: currentShadowTwinFolderId || undefined,
+          })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          FileLogger.error('extract-only', 'Seitenbilder aus dem Twin-Ordner nicht registriert', { jobId, error: message })
+          bufferLog(jobId, { phase: 'extract_only_page_images_error', message: `Seitenbilder nicht registriert: ${message}` })
+          try {
+            await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'extract_only_page_images_error', level: 'error', attributes: { message } })
+          } catch {
+            // Trace-Fehler nicht kritisch
+          }
+        }
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       const errorStack = error instanceof Error ? error.stack : undefined

@@ -422,6 +422,35 @@ sofort mit Job-Ids, die Bilanz entsteht erst im Job; deshalb zeigt
 `index_aktualisieren` (die nennt den Weg). Werkzeugsatz 2.47.0. Live-Prüffall
 alle fünf Seiten (Cover, Flyer-PDF aus dem Rückblick) beim Owner offen.
 
+**Live-Prüffall 11.10.2026 abends (Owner in Cowork, Library „Neuaufbau",
+`events/Journalisten Schulung`):** Werkzeugsatz 2.47.0 bestätigt, fünf
+Index-Jobs grün, aber `bilder` bei Corbo 0/58 und Britsko 0/22, alle Namen
+`preview_NNN.jpg` unaufgelöst, Cover und Anhänge leer. Befund in Mongo (nur
+lesen): Die PDF-Twins tragen nur die OCR-Bilder (`img-N.jpeg`, 9 bzw. 8), kein
+einziges Fragment mit `variant`/`pageNumber`. Der Extraktions-Trace zeigt
+den Grund: `pages.zip` kam an und wurde hochgeladen (174 bzw. 66 Bilder),
+aber `zipArchivesPassed: 0, ranDirectUpload: false` — im Filesystem-Modus
+(`persistToFilesystem` true, Strategie `azure-with-fs-backup`) sammelt
+`extract-only.ts` die Archive nicht für den Direct-Upload, die Seitenbilder
+landen nur im Twin-Ordner des Storage und werden nie als `binaryFragments`
+registriert. Die Namen `preview_001.jpg` … im Twin hat das Modell aus der
+Vorlagenregel „Seite N gehört zu preview_NNN.jpg" gebildet („Verfügbare
+Medien" zeigte nur `img-N.jpeg`).
+
+**Nachzug (PR gleichen Tages):** (1) `extract-only.ts` registriert im
+Filesystem-Modus nach dem Mongo-Speichern die Seitenbilder aus dem Twin-Ordner
+(`extract-page-images-register.ts`, derselbe Weg wie `register-image-fragments`
+der Sync-Engine: `reconstructPageImages`, Upsert je Name), Trace
+`extract_only_page_images_registered` / `_skipped` / `_error`. (2) Die
+Nachregistrierung nennt Vorschauen `preview`, der Direct-Upload `thumbnail`;
+`quellen-fragmente.ts` lässt beide als Vorschau gelten. Für bestehende Twins
+(diese Library) ist der Weg `twins_pruefen` → Plan zeigt
+`register-image-fragments` je PDF → `twins_synchronisieren` mit `repair`, dann
+`index_aktualisieren`. Nebenbefund offen: `dokumente_auflisten` zeigt
+`coverImageUrl`, `attachments_url`, `slides` nicht (nur Facetten), und
+`job_status` zeigt Trace-Ereignisse nur im Fehlerfall; beides erschwert die
+Prüfung über die Brücke.
+
 ### J3 Cover automatisch
 
 - Beim Ingest, wenn `coverImageUrl` leer: (1) zweite Seite der ersten

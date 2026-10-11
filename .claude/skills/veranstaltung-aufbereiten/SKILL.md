@@ -166,6 +166,13 @@ Weiter erst, wenn der Mensch je Seite „freigegeben" sagt.
   fehlen, wenn die Sammeldatei vor 2.43.0 zuletzt transformiert wurde
   (`abhaengige_dokumente` meldet dann „Abhängigkeit nicht vermerkt",
   Abhilfe: `transformation_starten` mit `erzwingen`).
+- Sind in `bilder` ALLE Folien unaufgelöst (0 von N), fehlen am Twin der
+  Folien-PDF die Seitenbilder als Fragmente (PDF vor dem 12.10.2026 im
+  Filesystem-Modus erschlossen): `twins_pruefen` für den Ordner muss je PDF
+  `register-image-fragments` planen, dann `twins_synchronisieren` mit
+  `preset: repair`, danach `index_aktualisieren` für die Sammeldateien
+  wiederholen. Zeigt `twins_pruefen` das nicht, ist der Twin-Ordner im Storage
+  leer: die PDF mit `quelle_erschliessen` und `erzwingen` neu extrahieren.
 
 ### Q Nachziehen nach einer Korrektur (Maschine)
 
