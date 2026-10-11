@@ -50,7 +50,7 @@ describe('enqueueSourceDocumentJob (A1)', () => {
   it('PDF-Job traegt die Pipeline-Form: job_type pdf, extract_pdf, Mistral-OCR-Parameter', async () => {
     const { jobId } = await enqueueSourceDocumentJob({
       libraryId: 'lib-1', userEmail: 'peter@example.com', source: SOURCE,
-      mediaKind: 'pdf', template: 'standard-meeting',
+      mediaKind: 'pdf', template: 'standard-meeting', ingest: true,
     })
     expect(jobId).toBeTruthy()
     const job = mocks.create.mock.calls[0][0] as Record<string, unknown>
@@ -73,7 +73,7 @@ describe('enqueueSourceDocumentJob (A1)', () => {
   it('Office-Job: job_type office, extract_office; ohne Template bleiben metadata/ingest ignore', async () => {
     await enqueueSourceDocumentJob({
       libraryId: 'lib-1', userEmail: 'peter@example.com',
-      source: { ...SOURCE, name: 'Protokoll.docx' }, mediaKind: 'docx',
+      source: { ...SOURCE, name: 'Protokoll.docx' }, mediaKind: 'docx', ingest: false,
     })
     const job = mocks.create.mock.calls[0][0] as Record<string, unknown>
     expect(job.job_type).toBe('office')

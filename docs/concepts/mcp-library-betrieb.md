@@ -140,3 +140,37 @@ ohne Typwahl nur die gemeinsamen Facetten („Typ als Leitfilter",
 erscheint in `dokumente_auflisten` erst mit `detailViewType: "session"`.
 Ebenso ist `"undefined"` bei `character`, `accessPerspective` und
 `socialContext` ein gültiger Wert („keine Vorgabe"), kein Lesefehler.
+
+## Nachtrag Welle I (2.46.0): Ingest als bewusster Schritt, Text-Feed ehrlich
+
+Owner 11.10.: Der Live-Prüffall der Veranstaltung zeigte, dass
+`transformation_starten` IMMER mit ingestierte — die Seite stand in der
+Galerie, bevor der Mensch die Transformation gesehen hatte. Seither ist
+Ingest nie automatisch: `transformation_starten`, `quelle_erschliessen` (nur
+mit Vorlage) und `sammeldatei_anlegen` (mit `transformieren`) nehmen
+`ingest`; Weglassen heißt `false`, und die Antwort nennt Wert, Herkunft
+(`aufruf` | `vorgabe`) und den nächsten Schritt (`ingest-entscheidung.ts`).
+Die Transformation liegt am Twin, der Mensch prüft in der KS-Oberfläche,
+`index_aktualisieren` mit den geprüften `sourceIds` (beim ersten Eintrag
+`nurPublizierte: false`) bringt die Seite in die Galerie. Die Job-Bauer
+(`enqueue-secretary-job`, `enqueue-markdown-job`, `enqueue-document-job`)
+kennen keinen Default mehr; `ingest: true` ohne Vorlage ist ein Fehler.
+`job_status` zeigt `ingest_rag` dann als übersprungen mit dem Grund
+„abgeschaltet (ingest: false)" — der gewollte Zwischenstand, kein Befund.
+Kein Sonderfall für `test/`: wer `ingest: true` sagt, hat es so gewollt; der
+Zaun bleibt bei den Sammel-Werkzeugen.
+
+Text-Feed (`text-feed.ts`, `text-feed-transport.ts`): Der Template-auf-Text-
+Job (Transkript aus MongoDB) wird ab Anlage als `running` mit Schritten
+angelegt, damit der Worker ihn während des Feeds nicht claimt. Der Feed läuft
+über `node:http` mit einer Zeitgrenze von `EXTERNAL_TEMPLATE_TIMEOUT_MS` plus
+zehn Minuten Ingest-Zugabe (das globale `fetch` brach still nach 300 s ab);
+ihr Ablauf ist ein Trace-Ereignis `text_feed_timeout` mit Deutung, kein
+Status. `failed` setzt der Feed nur noch, wenn die Callback-Route den Job nie
+angefasst hat (`setFailedIfUntouched`: Status `running`, kein Schritt über
+`pending` hinaus); sonst bleibt der Endstatus bei der Route und der
+Feed-Fehler steht als `text_feed_fehler_nach_arbeit` im Trace. Die
+Callback-Route selbst bleibt synchron. Der Zwischenzustand „Transformation
+ja, Galerie-Eintrag nein" ist über `job_status` (Schritt `ingest_rag`) und
+`dokumente_auflisten`/`bestand_pruefen` sichtbar; `abdeckung_lesen` kennt
+nur die Archiv-Seite (Twins), nicht den Index.

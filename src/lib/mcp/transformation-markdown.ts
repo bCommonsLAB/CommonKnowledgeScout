@@ -43,6 +43,8 @@ export async function starteMarkdownTransformation(args: {
   erzwingen?: boolean
   /** Welle B: Lauf-Optionen (P6). */
   optionen?: import('@/lib/external-jobs/transform-optionen').TransformOptionen
+  /** Welle I: Ingest nur auf ausdruecklichen Wunsch (`ingest-entscheidung.ts`). */
+  ingest: boolean
 }): Promise<{ jobId: string }> {
   const { libraryId, userEmail, provider, source, template, llmModel, zielsprache } = args
   const { blob } = await provider.getBinary(source.itemId)
@@ -73,6 +75,6 @@ export async function starteMarkdownTransformation(args: {
 
   return enqueueSourceMarkdownJob({
     libraryId, userEmail, source, template, llmModel, targetLanguage: zielsprache, erzwingen: args.erzwingen,
-    optionen: args.optionen,
+    optionen: args.optionen, ingest: args.ingest,
   })
 }

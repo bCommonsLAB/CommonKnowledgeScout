@@ -8,7 +8,7 @@
  * unrettbar.
  */
 import { describe, expect, it } from 'vitest'
-import { beschreibeSchritte, uebersprungenHinweis } from '@/lib/mcp/job-schritte'
+import { INGEST_ABGESCHALTET_GRUND, beschreibeSchritte, uebersprungenHinweis } from '@/lib/mcp/job-schritte'
 import type { ExternalJobStep } from '@/types/external-job'
 
 const GEARBEITET: ExternalJobStep = { name: 'extract_audio', status: 'completed', durationMs: 12000 }
@@ -85,5 +85,34 @@ describe('uebersprungenHinweis — Transformation uebersprungen, Ingest lief (Be
   it('schweigt, wenn die Transformation gelaufen ist', () => {
     const lief: ExternalJobStep = { name: 'transform_template', status: 'completed', durationMs: 9000 }
     expect(uebersprungenHinweis({ status: 'completed', steps: [UEBERSPRUNGEN, lief, INGEST] })).toBeUndefined()
+  })
+})
+
+describe('beschreibeSchritte — Welle I: abgeschalteter Ingest', () => {
+  it('erklaert ingest_rag mit phase_disabled als bewusst abgeschaltet, nicht als Befund', () => {
+    const zeilen = beschreibeSchritte([
+      { name: 'transform_template', status: 'completed', durationMs: 3000 },
+      { name: 'ingest_rag', status: 'completed', details: { skipped: true, reason: 'phase_disabled' } },
+    ])
+    expect(zeilen[1]).toMatchObject({ name: 'ingest_rag', uebersprungen: true, grund: INGEST_ABGESCHALTET_GRUND })
+    expect(zeilen[1].grund).toContain('index_aktualisieren')
+  })
+
+  it('laesst andere Skip-Gruende von ingest_rag unveraendert', () => {
+    const zeilen = beschreibeSchritte([
+      { name: 'ingest_rag', status: 'completed', details: { skipped: true, reason: 'no_metadata_for_ingestion' } },
+    ])
+    expect(zeilen[0].grund).toBe('no_metadata_for_ingestion')
+  })
+
+  it('ist fuer einen completed-Job mit abgeschaltetem Ingest kein nichtsGeschrieben-Hinweis', () => {
+    const hinweis = uebersprungenHinweis({
+      status: 'completed',
+      steps: [
+        { name: 'transform_template', status: 'completed' },
+        { name: 'ingest_rag', status: 'completed', details: { skipped: true, reason: 'phase_disabled' } },
+      ],
+    })
+    expect(hinweis).toBeUndefined()
   })
 })

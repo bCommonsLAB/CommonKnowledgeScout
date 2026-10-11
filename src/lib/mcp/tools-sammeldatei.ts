@@ -20,6 +20,7 @@ import { buildCompositeReference, resolveCompositeTranscript } from '@/lib/creat
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { abhaengigeSammeldateien, korrekturStandDerQuelle, transformationenGegenStand } from '@/lib/shadow-twin/sammeldatei-abhaengigkeit'
+import { INGEST_INPUT, entscheideIngest } from './ingest-entscheidung'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { ergaenzeSammeldateiFrontmatter } from './sammeldatei-frontmatter'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
@@ -55,14 +56,16 @@ export function registerSammeldateiTools(server: McpServer): void {
         zielsprache: z.string().min(2).max(5).optional().describe('Default de'),
         transformieren: z.boolean().optional().describe('true = direkt transformation_starten anstossen'),
         vorlage: z.string().min(1).optional().describe('Vorlage fuer die Transformation; weglassen = Standard-Template der Library'),
+        ...INGEST_INPUT,
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, dateiname, quellenIds, ordner, ordnerId, medien, titel, includeSelf, zielsprache, transformieren, vorlage, begruendung }) => {
+    async ({ libraryId, dateiname, quellenIds, ordner, ordnerId, medien, titel, includeSelf, zielsprache, transformieren, vorlage, ingest, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'sammeldatei_anlegen', libraryId, akteur: mcpUserEmail(), begruendung, pfad: ordner }, async () => {
           if (!/\.md$/i.test(dateiname)) throw new Error(`dateiname "${dateiname}" muss auf .md enden`)
+          if (ingest !== undefined && !transformieren) throw new Error('ingest gilt nur mit transformieren: true — ohne Transformation gibt es nichts zu ingestieren')
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
@@ -83,16 +86,20 @@ export function registerSammeldateiTools(server: McpServer): void {
           const markdown = ergaenzeSammeldateiFrontmatter(referenz.markdown, { titel, includeSelf, medien })
           const datei = await provider.uploadFile(folderId, new File([markdown], dateiname, { type: 'text/markdown' }))
           let transformation: { jobId: string } | null = null
-          if (transformieren) {
+          // Welle I: Ingest nie still — Weglassen heisst false und steht in der Antwort.
+          const ingestEntscheidung = transformieren ? entscheideIngest(ingest) : null
+          if (transformieren && ingestEntscheidung) {
             transformation = await starteMarkdownTransformation({
               libraryId, userEmail, provider, source: { itemId: datei.id, parentId: folderId, name: dateiname },
               template: vorlage ?? standardTemplate(library), llmModel: standardLlmModell(library), zielsprache: targetLanguage,
+              ingest: ingestEntscheidung.ingest,
             })
           }
           return jsonResult({
             sourceId: datei.id, name: dateiname, ordnerId: folderId, quellen: referenz.sourceFileNames,
             medienErkannt: referenz.mediaFiles.length, medienErgaenzt: medien ?? [],
             transformation,
+            ...(ingestEntscheidung ? { ingest: ingestEntscheidung } : {}),
             hinweis: transformation
               ? 'Transformation laeuft (job_status). Die Abhaengigkeit Sammeldatei → Quellen vermerkt der Job am Twin; danach findet abhaengige_dokumente sie.'
               : 'Angelegt, nicht transformiert. Die Abhaengigkeit Sammeldatei → Quellen wird beim ersten Transformationslauf vermerkt.',

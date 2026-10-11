@@ -17,6 +17,7 @@ const BASIS = {
   libraryId: 'lib',
   userEmail: 'a@b.c',
   source: { name: 'Vortrag.mp4', itemId: 'i1', parentId: 'p1' },
+  ingest: false,
 }
 
 interface MitPolicies {

@@ -7,7 +7,7 @@ import { transformParameter } from '@/lib/external-jobs/transform-optionen'
 import { buildSourceTranscribeJob, buildTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { buildSourceMarkdownJob } from '@/lib/external-jobs/enqueue-markdown-job'
 
-const BASE = { jobId: 'j', jobSecretHash: 'h', libraryId: 'lib', userEmail: 'o@x', source: { itemId: 's', parentId: 'p', name: 'Rede.m4a' } }
+const BASE = { jobId: 'j', jobSecretHash: 'h', libraryId: 'lib', userEmail: 'o@x', source: { itemId: 's', parentId: 'p', name: 'Rede.m4a' }, ingest: false }
 
 describe('transformParameter', () => {
   it('reicht nur explizite Booleans durch', () => {
