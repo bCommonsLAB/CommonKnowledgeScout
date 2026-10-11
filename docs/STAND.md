@@ -129,7 +129,9 @@ Bekannte Punkte:
    `index_aktualisieren`; kein Sonderfall für `test/`, weil Ingest nie
    automatisch passiert), Text-Feed ehrlich, Fehlertexte vollständig,
    Zaun-Abgleich. PR 1 (I1 + I2, Werkzeugsatz 2.46.0, #368) und PR 2 (I3 + I4,
-   2.46.1, gestapelt auf #368) am 11.10. gebaut; Live-Prüffall offen.
+   2.46.1, #370) am 11.10. gemergt und live geprüft; Welle I abgeschlossen.
+   **Welle J Lesersicht** (Folienbilder, Cover, PDF-Anhänge) ist seit 11.10.
+   als §3b angelegt, nicht gebaut.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):
