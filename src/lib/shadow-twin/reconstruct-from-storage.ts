@@ -35,6 +35,27 @@ export function isReconstructablePageImage(name: string): boolean {
   return IMAGE_EXT_RE.test(name) && (PAGE_RENDER_RE.test(name) || PREVIEW_RE.test(name))
 }
 
+/**
+ * Seitenbilder im Twin-Ordner, die NOCH NICHT als Fragment am Twin stehen
+ * (Vergleich ueber den Namen, so wie `uploadBinaryFragment` upsertet).
+ *
+ * Befund 11.10.2026 (Welle J): Vorher galt „hat der Twin irgendein Fragment,
+ * ist nichts zu rekonstruieren". Im Filesystem-Modus traegt der Twin aber die
+ * OCR-Bilder (`img-N.jpeg`) und die Seitenbilder liegen nur im Ordner — die
+ * Sync-Engine plante dann nie `register-image-fragments`, 174 Seitenbilder
+ * blieben unregistriert.
+ */
+export function zaehleRekonstruierbareSeitenbilder(
+  fragmentNames: Iterable<string | undefined>,
+  twinFolderItems: Array<{ type: string; metadata: { name: string } }>,
+): number {
+  const registriert = new Set<string>()
+  for (const n of fragmentNames) if (typeof n === 'string' && n) registriert.add(n)
+  return twinFolderItems.filter(
+    (it) => it.type === 'file' && isReconstructablePageImage(it.metadata.name) && !registriert.has(it.metadata.name),
+  ).length
+}
+
 /** MIME-Type aus Dateiendung ableiten (nur Bild-Formate). */
 function imageMimeFromName(name: string): string {
   const lower = name.toLowerCase()

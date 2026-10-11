@@ -446,7 +446,12 @@ Nachregistrierung nennt Vorschauen `preview`, der Direct-Upload `thumbnail`;
 `quellen-fragmente.ts` lässt beide als Vorschau gelten. Für bestehende Twins
 (diese Library) ist der Weg `twins_pruefen` → Plan zeigt
 `register-image-fragments` je PDF → `twins_synchronisieren` mit `repair`, dann
-`index_aktualisieren`. Nebenbefund offen: `dokumente_auflisten` zeigt
+`index_aktualisieren`. **Zweiter Befund (Owner in Cowork, nach #374):**
+`twins_pruefen` plante `register-image-fragments` bei keiner PDF, sondern nur
+`delete-dead-page-md` (58/22/1 `page_NNN.de.md`); die Sync-Engine hielt
+Twins mit irgendeinem Fragment für versorgt (`hasFragments ? 0`). Nachzug 2:
+`zaehleRekonstruierbareSeitenbilder` zählt je Datei, ob sie schon als
+Fragment steht. Nebenbefund offen: `dokumente_auflisten` zeigt
 `coverImageUrl`, `attachments_url`, `slides` nicht (nur Facetten), und
 `job_status` zeigt Trace-Ereignisse nur im Fehlerfall; beides erschwert die
 Prüfung über die Brücke.
