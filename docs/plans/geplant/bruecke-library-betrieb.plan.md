@@ -389,6 +389,22 @@ länger als „Pfad relativ zur Wurzel":
   (no-silent-fallbacks).
 - Prüfkriterium: Corbo 58 und Britsko 22 Folienbilder laden im Browser.
 
+**Stand 11.10.2026 (PR 1, J1 + J2 + Viewer gebaut):** Die Fragmente der
+PDF-Extraktion heißen am Twin `preview_NNN.jpeg` (thumbnail) und
+`page_NNN.jpeg` (page-render), beide mit `pageNumber`; der Direct-Upload
+normalisiert `jpg` zu `jpeg`. Die Vorlage nennt `preview_NNN.jpg`, deshalb
+ordnet der Resolver zuerst über den exakten Namen, dann über die Seitenzahl
+aus dem Namen (Vorrang der Variante nach Präfix), und ohne `image_url` über
+`page_num` (thumbnail vor page-render). Suchreihenfolge: eigener Twin, dann
+PDF-Quellen aus `compositeSources` (die mit den meisten Seitenbildern zuerst,
+damit ein Flyer nicht die Folien verdrängt), dann übrige Quellen. Der Ingest
+parst gezielt `slides`, `galleryImageUrls`, `attachments_url`,
+`attachments_names` aus JSON-Text (`frontmatter-json-lists.ts`), nicht
+pauschal alle Strings. Trace: `slide_images_resolved` (mit Quellen) und
+`slide_images_unresolved`; `upsertMarkdown` gibt `slideImages` zurück, das
+`index_aktualisieren` in J5 als `bilder` meldet. Live-Prüffall Corbo/Britsko
+steht aus (Owner).
+
 ### J3 Cover automatisch
 
 - Beim Ingest, wenn `coverImageUrl` leer: (1) zweite Seite der ersten

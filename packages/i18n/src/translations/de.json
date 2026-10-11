@@ -491,7 +491,9 @@
     "loadingSessionData": "Lade Session-Daten…",
     "errorLoadingSessionData": "Session-Daten konnten nicht geladen werden",
     "presentationSlides": "Präsentationsfolien",
-    "noImage": "Kein Bild"
+    "noImage": "Kein Bild",
+    "imageUnresolved": "Bild nicht aufgelöst",
+    "imageLoadFailed": "Bild konnte nicht geladen werden"
   },
   "chat": {
     "source": "Quelle",

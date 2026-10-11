@@ -650,7 +650,7 @@ export function SessionDetail({
           )}
 
           {/* Slides Section - full width */}
-          {slides.length > 0 && <EventSlides slides={slides} libraryId={libraryId} />}
+          {slides.length > 0 && <EventSlides slides={slides} />}
 
           {/* Event: Moderator-Tools + Testimonials */}
           {isEvent && showEventTools ? (

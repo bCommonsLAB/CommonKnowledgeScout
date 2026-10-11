@@ -11,6 +11,7 @@ import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ImageProcessor } from '@/lib/ingestion/image-processor'
 import { resolveSlideImagesFromTwinFragments } from '@/lib/ingestion/slide-image-resolver'
+import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatter-json-lists'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
 import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
@@ -107,7 +108,14 @@ export class IngestionService {
     sourceParentId?: string,
     /** Transkripte der verbundenen Quellen — nur fuer den eingebetteten Text, nie fuer die Anzeige. */
     sourceAppendix?: SourceAppendix,
-  ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string; imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }> }> {
+  ): Promise<{
+    chunksUpserted: number
+    docUpserted: boolean
+    index: string
+    imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }>
+    /** Welle J2: Folienbilder, die ueber Twin-/Quellen-Fragmente aufgeloest wurden bzw. ohne Treffer blieben. */
+    slideImages?: { resolved: number; unresolved: string[] }
+  }> {
     const repo = new ExternalJobsRepository()
     const retrieverCtx = await getRetrieverContext(userEmail, libraryId)
     const { ctx, libraryKey, facetDefs } = retrieverCtx
@@ -124,7 +132,17 @@ export class IngestionService {
         return { meta: meta || {}, body: markdown }
       }
     })()
-    const metaEffective: Record<string, unknown> = { ...(metaFromMarkdown || {}), ...(meta || {}) }
+    // Welle J1: Listenfelder (slides, galleryImageUrls, attachments_*) kommen aus dem
+    // flachen Twin-Frontmatter als JSON-Text — hier parsen, damit Session-Modus und
+    // Folienbild-Verarbeitung sie als Listen sehen. Unlesbare bleiben String, gemeldet.
+    const listenfelder = parseJsonListFields({ ...(metaFromMarkdown || {}), ...(meta || {}) }, JSON_LIST_FIELDS, { fileId })
+    const metaEffective: Record<string, unknown> = listenfelder.meta
+    if (jobId && listenfelder.fehlerhaft.length > 0) {
+      bufferLog(jobId, {
+        phase: 'frontmatter_json_list_invalid',
+        message: `Listenfeld als JSON-Text nicht lesbar: ${listenfelder.fehlerhaft.map((f) => `${f.field} (${f.error})`).join(', ')}`,
+      })
+    }
     // Facetten-validierung und Parsing: fehlende Felder warnen, Typen parse/prüfen
     try {
       validateAndSanitizeFrontmatter(metaEffective, facetDefs, jobId)
@@ -157,6 +175,7 @@ export class IngestionService {
     // Slide-Bilder auf Azure Storage hochladen (vor docMetaJsonObj Erstellung)
     // imageErrors muss außerhalb des try-Blocks initialisiert werden, damit es immer im Scope ist
     let imageErrors: Array<{ slideIndex: number; imageUrl: string; error: string }> | undefined = undefined
+    let slideImages: { resolved: number; unresolved: string[] } | undefined = undefined
 
     // Hilfsfunktionen sind jetzt in src/lib/utils/string-utils.ts
 
@@ -220,15 +239,24 @@ export class IngestionService {
           }
           
           try {
-            // Nackte Dateinamen (wie bei galleryImageUrls) zuerst ueber die
-            // Fragmente des eigenen Twins heben — die Seitenbilder einer
-            // Sammeldatei liegen dort schon im Blob. Rest geht in den Pfad-Upload.
+            // Welle J2: Nackte Dateinamen und Seitenzahlen ueber die Fragmente des
+            // eigenen Twins und der Quellen-Twins (compositeSources) heben — die
+            // Seitenbilder liegen am Twin der Folien-PDF. Rest geht in den Pfad-Upload.
             const viaFragments = await resolveSlideImagesFromTwinFragments(libraryId, fileId, slidesInput)
-            if (jobId && viaFragments.unresolved.length > 0) {
-              bufferLog(jobId, {
-                phase: 'slide_images_processing',
-                message: `${viaFragments.unresolved.length} Slide-Bild(er) ohne Twin-Fragment: ${viaFragments.unresolved.join(', ')}`,
+            slideImages = { resolved: viaFragments.resolved, unresolved: viaFragments.unresolved }
+            if (jobId) {
+              await emitIngestTraceEvent(repo, jobId, 'slide_images_resolved', {
+                resolved: viaFragments.resolved,
+                unresolved: viaFragments.unresolved.length,
+                sources: viaFragments.sources,
               })
+              if (viaFragments.unresolved.length > 0) {
+                bufferLog(jobId, {
+                  phase: 'slide_images_unresolved',
+                  message: `${viaFragments.unresolved.length} Folienbild(er) ohne Fragment an Twin oder Quellen: ${viaFragments.unresolved.join(', ')}`,
+                })
+                await emitIngestTraceEvent(repo, jobId, 'slide_images_unresolved', { unresolved: viaFragments.unresolved })
+              }
             }
             const result = await ImageProcessor.processSlideImages(
               viaFragments.slides,
@@ -1310,7 +1338,7 @@ export class IngestionService {
       if (!baseMarkdown || baseMarkdown.length === 0) {
         FileLogger.warn('ingestion', 'Kein Markdown für Embedding verfügbar', { fileId })
         if (jobId) bufferLog(jobId, { phase: 'ingest_no_markdown', message: 'Kein Markdown für Embedding verfügbar' })
-        return { chunksUpserted: 0, docUpserted: true, index: libraryKey, imageErrors: imageErrors ?? undefined }
+        return { chunksUpserted: 0, docUpserted: true, index: libraryKey, imageErrors: imageErrors ?? undefined, slideImages }
       }
       
       // Metadaten als Text-Präfix vor das Markdown setzen, um Embedding-Qualität zu verbessern
@@ -1529,7 +1557,7 @@ export class IngestionService {
       
       FileLogger.info('ingestion', 'Upsert abgeschlossen', { fileId, chunks: chunksUpserted, vectors: vectors.length, imageErrors: imageErrors?.length ?? 0 })
       if (jobId) bufferLog(jobId, { phase: 'ingest_completed', message: `Upsert abgeschlossen: ${chunksUpserted} Chunks (${vectors.length} Vektoren)` })
-      return { chunksUpserted, docUpserted: true, index: libraryKey, imageErrors: imageErrors ?? undefined }
+      return { chunksUpserted, docUpserted: true, index: libraryKey, imageErrors: imageErrors ?? undefined, slideImages }
     } catch (err) {
       FileLogger.warn('ingestion', 'Doc‑Meta finales Update fehlgeschlagen', { fileId, err: String(err) })
       if (jobId) {

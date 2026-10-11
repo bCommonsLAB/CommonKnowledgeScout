@@ -131,7 +131,10 @@ Bekannte Punkte:
    Zaun-Abgleich. PR 1 (I1 + I2, Werkzeugsatz 2.46.0, #368) und PR 2 (I3 + I4,
    2.46.1, #370) am 11.10. gemergt und live geprüft; Welle I abgeschlossen.
    **Welle J Lesersicht** (Folienbilder, Cover, PDF-Anhänge) ist seit 11.10.
-   als §3b angelegt, nicht gebaut.
+   als §3b angelegt; PR 1 (J1 Slides als Liste lesen, J2 Folienbilder über
+   die Quellen-Twins, Viewer rät keinen Wurzel-Pfad mehr) am 11.10. gebaut,
+   Live-Prüffall Corbo/Britsko offen; PR 2 (J3 Cover, J4 PDF-Anhänge, J5
+   Vorlagen und Skill) wartet.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):
