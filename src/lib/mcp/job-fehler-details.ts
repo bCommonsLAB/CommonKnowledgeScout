@@ -1,5 +1,5 @@
 /**
- * @fileoverview Fehlerdetails aus dem Job-Trace lesen (Welle ST7).
+ * @fileoverview Fehlerdetails aus dem Job-Trace lesen (Welle ST7, I3).
  *
  * @description
  * Live-Befund 28.08.2026: Vierzehn Transformationen scheiterten, und
@@ -12,6 +12,12 @@
  *
  * Kein Werkzeug reichte sie durch. Der Nutzer musste in die Datenbank, um
  * einen Fehler zu verstehen, den die Bruecke selbst kannte.
+ *
+ * Welle I3 (Befund 11.10.2026): Es kamen die ERSTEN fuenf Ereignisse — bei
+ * einem Job mit Neustarts also die aeltesten, nicht der Fehlschlag, um den es
+ * ging. Jetzt die juengsten fuenf, in zeitlicher Reihenfolge. Und
+ * `step_failed` aus `updateStep` traegt `error` als OBJEKT (`{ message,
+ * details }`); das fiel frueher als „aussagelos" durchs Raster.
  *
  * Der Trace ist in `ExternalJob` nicht typisiert (er wird direkt nach Mongo
  * geschrieben) — deshalb hier `unknown` plus Type-Guards statt eines Casts.
@@ -61,7 +67,29 @@ function zeit(wert: unknown): string | null {
 }
 
 /**
- * Liest die Fehlschlaege aus dem Trace eines Jobs.
+ * `error` eines Ereignisses lesbar machen: ein String bleibt, ein Objekt
+ * (`{ code, message, details }`) wird zu einem Satz — Code voran, Details
+ * als kompaktes JSON dahinter, damit `reason` aus dem Ingest nicht verloren geht.
+ */
+export function fehlerAlsText(wert: unknown): { meldung: string | null; code: string | null } {
+  if (typeof wert === 'string') return { meldung: text(wert), code: null }
+  const o = alsObjekt(wert)
+  if (!o) return { meldung: null, code: null }
+  const code = typeof o['code'] === 'string' && o['code'].trim() ? o['code'].trim() : null
+  const message = typeof o['message'] === 'string' && o['message'].trim() ? o['message'].trim() : null
+  let details: string | null = null
+  if (o['details'] !== undefined && o['details'] !== null) {
+    try { details = JSON.stringify(o['details']) } catch { details = String(o['details']) }
+  }
+  if (!message && !code && !details) return { meldung: null, code: null }
+  const satz = [code ? `[${code}]` : null, message, details ? `Details: ${details}` : null]
+    .filter((t): t is string => !!t).join(' ')
+  return { meldung: text(satz), code }
+}
+
+/**
+ * Liest die Fehlschlaege aus dem Trace eines Jobs — die juengsten fuenf, in
+ * zeitlicher Reihenfolge (das letzte Element ist der letzte Fehlschlag).
  *
  * Leeres Array heisst „nichts gefunden" — das ist bei einem gelungenen Job
  * die richtige Antwort und bei einem gescheiterten ein Hinweis darauf, dass
@@ -75,17 +103,19 @@ export function fehlerDetailsAusTrace(job: unknown): FehlerDetail[] {
   if (!Array.isArray(roh)) return []
 
   const details: FehlerDetail[] = []
-  for (const eintrag of roh) {
-    const ereignis = alsObjekt(eintrag)
+  for (let i = roh.length - 1; i >= 0 && details.length < MAX_DETAILS; i -= 1) {
+    const ereignis = alsObjekt(roh[i])
     if (!ereignis) continue
     const name = ereignis['name']
     const istFehlschlag = name === 'step_failed' || name === 'job_error'
     if (!istFehlschlag) continue
 
     const attribute = alsObjekt(ereignis['attributes']) ?? {}
-    // `job_error` traegt die Meldung oben, `step_failed` in den Attributen.
-    const meldung = text(attribute['error']) ?? text(ereignis['message'])
-    const code = text(attribute['errorCode'])
+    // `job_error` traegt die Meldung oben, `step_failed` in den Attributen —
+    // dort als String (phase-template) oder als Objekt (updateStep).
+    const fehler = fehlerAlsText(attribute['error'])
+    const meldung = fehler.meldung ?? text(ereignis['message'])
+    const code = text(attribute['errorCode']) ?? fehler.code
     // Ereignisse ohne jede Aussage weglassen — der Worker schreibt bei
     // einem Fehlschlag mehrere, teils mit `error: null`.
     if (meldung === null && code === null) continue
@@ -99,7 +129,6 @@ export function fehlerDetailsAusTrace(job: unknown): FehlerDetail[] {
       url: text(attribute['url']),
       antwortAuszug: text(attribute['responseDataPreview']),
     })
-    if (details.length >= MAX_DETAILS) break
   }
-  return details
+  return details.reverse()
 }

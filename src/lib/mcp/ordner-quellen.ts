@@ -32,6 +32,16 @@ export async function sammleOrdnerQuellen(args: {
   maxQuellen: number
 }): Promise<OrdnerQuellen> {
   const { provider, rekursiv, maxQuellen } = args
+  // Welle I4: Der Zaun gilt auch fuer den Startordner selbst, nicht nur fuer
+  // Unterordner — sonst liess sich `index_aktualisieren` direkt auf `test/`
+  // oder einen Twin-Ordner ansetzen, und der Zaun war Dekoration.
+  const start = await provider.getItemById(args.folderId)
+  if (start && istVomBatchAusgeschlossen(start.metadata.name)) {
+    throw new Error(
+      `Ordner "${start.metadata.name}" ist vom Stapel ausgeschlossen (Twin-Ordner oder Testbereich) — ` +
+        'kein Ordnerweg. Einzelne Quellen daraus bewusst mit sourceIds nennen.',
+    )
+  }
   const quellen: ResolvedSource[] = []
   const uebersprungeneOrdner: string[] = []
   let uebersprungeneDateien = 0

@@ -17,7 +17,15 @@ const BAUM: Record<string, StorageItem[]> = {
   x: [item('y', 'Y.pdf', 'file', 'x')],
 }
 
-const provider = { listItemsById: async (id: string) => BAUM[id] ?? [] } as unknown as StorageProvider
+const ORDNER: Record<string, StorageItem> = {
+  root: item('root', 'Klima', 'folder', ''),
+  x: item('x', 'test', 'folder', 'root'),
+  t: item('t', '_Twin', 'folder', 'root'),
+}
+const provider = {
+  listItemsById: async (id: string) => BAUM[id] ?? [],
+  getItemById: async (id: string) => ORDNER[id] ?? item(id, id, 'folder', 'root'),
+} as unknown as StorageProvider
 
 describe('sammleOrdnerQuellen', () => {
   it('rekursiv: nimmt Pipeline-Dateien, ueberspringt Zaun-Ordner und nennt sie', async () => {
@@ -39,5 +47,17 @@ describe('sammleOrdnerQuellen', () => {
     const r = await sammleOrdnerQuellen({ provider, folderId: 'root', rekursiv: true, maxQuellen: 2 })
     expect(r.quellen).toHaveLength(2)
     expect(r.abgeschnitten).toBe(true)
+  })
+})
+
+describe('sammleOrdnerQuellen — Welle I4: Zaun gilt auch fuer den Startordner', () => {
+  it('weist einen test/-Startordner ab, statt ihn still zu durchsuchen', async () => {
+    await expect(sammleOrdnerQuellen({ provider, folderId: 'x', rekursiv: true, maxQuellen: 10 }))
+      .rejects.toThrow(/ausgeschlossen.*sourceIds/)
+  })
+
+  it('weist einen Twin-Startordner ab', async () => {
+    await expect(sammleOrdnerQuellen({ provider, folderId: 't', rekursiv: false, maxQuellen: 10 }))
+      .rejects.toThrow(/_Twin/)
   })
 })

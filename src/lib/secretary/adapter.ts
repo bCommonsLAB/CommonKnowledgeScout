@@ -319,10 +319,12 @@ export async function callTransformerChat(p: TransformerChatParams): Promise<Res
         if (errorData && typeof errorData === 'object' && errorData !== null) {
           if ('error' in errorData && typeof errorData.error === 'object' && errorData.error !== null) {
             const err = errorData.error as { code?: unknown; message?: unknown }
-            if ('message' in err) {
-              errorMessage = String(err.message)
-            } else if ('code' in err) {
-              errorMessage = String(err.code)
+            // Welle I3: code UND message behalten — der Code (z. B.
+            // TEMPLATE_TRANSFORMATION_ERROR) ist der Schluessel fuer die Deutung.
+            const code = typeof err.code === 'string' && err.code.trim() ? err.code.trim() : null
+            const message = 'message' in err && err.message !== undefined && err.message !== null ? String(err.message) : null
+            if (message || code) {
+              errorMessage = `${code ? `[${code}] ` : ''}${message ?? ''}`.trim()
             }
           } else if ('error' in errorData) {
             errorMessage = String(errorData.error)

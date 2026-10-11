@@ -255,6 +255,23 @@ in `job_status` (`ingest_rag` „abgeschaltet") und in
 `enqueue-document-job.ts` nimmt `ingest` ebenfalls (Weg PDF/Office in
 `quelle_erschliessen`), sonst wäre die Vorgabe dort still geblieben.
 
+**Stand 11.10. (spät): I3 + I4 gebaut** (Branch
+`claude/welle-i3-i4-fehlertexte-zaun`, gestapelt auf I1 + I2; 2.46.1).
+Abweichungen: `fetch-with-timeout.ts` nimmt die Ursache nicht nur an
+`cause`, sondern auch in den Text („fetch failed (ECONNREFUSED …)"), weil
+Trace und `job.error` nur Strings tragen. `job-fehler-details.ts` liest
+`error`-Objekte als „[code] message Details: {…}" und liefert die
+jüngsten fünf in zeitlicher Reihenfolge (das letzte Element ist der letzte
+Fehlschlag; `batch_bilanz` nutzt es als Ursache). `secretary_abbruch` ist
+bewusst breit (aborted, fetch failed, timed out, UND_ERR_*_TIMEOUT), aber
+nachrangig: `text_feed_failed` und `abschluss_verweigert` werden vorher
+geprüft, weil ihre Meldungen „fetch failed" enthalten können. Der Zaun am
+Startordner (`ordner-quellen.ts`) wirft einen Fehler mit Hinweis auf
+`sourceIds` statt einer leeren Liste. Signatur für `kein_llm_aufruf`: Code
+`TEMPLATE_TRANSFORMATION_ERROR` UND „0 LLM-Aufrufe"/„llm_calls: 0"; die
+genaue Formulierung des Secretary ist im Repo nicht belegt, beim Live-Lauf
+gegenprüfen.
+
 **Live-Prüffall (Owner, Library „Neuaufbau" 72a883a0…):**
 `transformation_starten` auf `04 Diskussion.md` ohne `ingest` → Antwort
 nennt `ingest: false (vorgabe)` und den nächsten Schritt; `abdeckung_lesen`

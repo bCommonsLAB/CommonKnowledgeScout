@@ -12,6 +12,7 @@
  */
 
 import { getTopLevelValue, type FacetDef } from '@/lib/chat/dynamic-facets'
+import { istVomBatchAusgeschlossen } from '@/lib/pipeline/batch-zaun'
 
 export type PruefRegel = 'doppelte_kennung' | 'wert_ausserhalb_woerterbuch' | 'pflichtfeld_fehlt' | 'twin_oder_testordner'
 
@@ -38,12 +39,13 @@ export interface BestandPruefung {
   uebersprungen: string[]
 }
 
-/** Twin-Ordner beginnen mit `_`; `test`-Ordner sind Spielwiese, kein Bestand. */
+/**
+ * Twin-Ordner und Testordner in jeder Tiefe des Pfads — derselbe Zaun wie
+ * Batch-Dialog und `index_aktualisieren` (`batch-zaun.ts`, Welle I4): ein
+ * zweites Regelwerk kannte `tests/` nicht und drohte, vom Zaun abzuweichen.
+ */
 export function istTwinOderTestPfad(pfad: string): boolean {
-  return pfad
-    .split('/')
-    .filter(Boolean)
-    .some((segment) => segment.startsWith('_') || segment.toLocaleLowerCase('de') === 'test')
+  return pfad.split('/').filter(Boolean).some(istVomBatchAusgeschlossen)
 }
 
 function leer(wert: unknown): boolean {

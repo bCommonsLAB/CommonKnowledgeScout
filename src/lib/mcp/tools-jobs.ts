@@ -25,24 +25,29 @@ import { audioKontextVonJob } from './job-audio-kontext'
  * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
  * dass der Trace nichts hergibt (alte Jobs ohne Trace).
  */
-function fehlerBlock(job: unknown): Record<string, unknown> {
+function fehlerBlock(job: { error?: { code?: string; message?: string } | null }): Record<string, unknown> {
   const details = fehlerDetailsAusTrace(job)
+  // Welle W11: Die Rohmeldung benennt den Fehlschlag, die Deutung zieht die
+  // Konsequenz. Sieben Bildschirmaufnahmen ohne Tonspur wurden immer wieder
+  // neu gestartet, weil niemand aus der Meldung las, dass ein zweiter
+  // Versuch dieselbe Wand trifft.
+  // Welle I3: auch job.error (Code und Meldung) deuten — text_feed_failed und
+  // „Abschluss verweigert" stehen nur dort, nicht in den Schritt-Ereignissen.
+  const deutung = deuteFehler([
+    job.error?.code,
+    job.error?.message,
+    ...details.map((detail) => detail.meldung),
+    ...details.map((detail) => detail.antwortAuszug),
+  ])
   if (details.length === 0) {
     return {
       fehlerDetails: [],
       fehlerHinweis:
         'Der Job ist gescheitert, sein Trace enthaelt aber keine Fehlerereignisse — ' +
         'entweder ein alter Job ohne Trace oder der Fehlschlag lag ausserhalb der Schritte.',
+      ...(deutung ? { fehlerDeutung: deutung } : {}),
     }
   }
-  // Welle W11: Die Rohmeldung benennt den Fehlschlag, die Deutung zieht die
-  // Konsequenz. Sieben Bildschirmaufnahmen ohne Tonspur wurden immer wieder
-  // neu gestartet, weil niemand aus der Meldung las, dass ein zweiter
-  // Versuch dieselbe Wand trifft.
-  const deutung = deuteFehler([
-    ...details.map((detail) => detail.meldung),
-    ...details.map((detail) => detail.antwortAuszug),
-  ])
   return { fehlerDetails: details, ...(deutung ? { fehlerDeutung: deutung } : {}) }
 }
 
