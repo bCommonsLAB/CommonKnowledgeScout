@@ -46,7 +46,9 @@ export function registerBatchBilanzTool(server: McpServer): void {
         'Zaehler eines Batches (queued/running/completed/failed) und die gescheiterten Jobs nach ' +
         'letzter Fehlerursache gruppiert — je Gruppe Meldung, Code, Schritt, Deutung, jobIds und ' +
         'betroffene Quellen. So laesst sich ein Neustart auf die Quellen beschraenken, bei denen er ' +
-        'etwas bringt. Ohne batchId/batchName werden die Batch-Namen der Library genannt. Liest nur.',
+        'etwas bringt. Welle K: `zeilen` nennt je Job coverQuelle (slides | flyer | none), folien ' +
+        '{ aufgeloest, unaufgeloest } und befunde (Klartext, leer = nichts zu melden), `mitBefund` zaehlt die ' +
+        'Jobs mit Befund — auch unter den completed. Ohne batchId/batchName werden die Batch-Namen der Library genannt. Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         batchId: z.string().min(1).optional().describe('batchId aus einer Stapel-Antwort (quelle_erschliessen, index_aktualisieren)'),

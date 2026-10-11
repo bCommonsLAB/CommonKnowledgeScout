@@ -62,7 +62,8 @@ export function registerIndexTools(server: McpServer): void {
         `sourceIds (bis ${MAX_STAPEL}) ODER ordner/ordnerId (+ rekursiv, bis ${MAX_ORDNER}); ${ZAUN_BESCHREIBUNG} und werden genannt. ` +
         'Antwortet sofort mit batchId und jobIds — Bilanz mit batch_bilanz. Seit 2.47.0 rechnet der Ingest ' +
         'Folienbilder, Cover und PDF-Anhaenge aus den Quellen der Sammeldatei (compositeSources); job_status ' +
-        'zeigt am Schritt ingest_rag bilder: { aufgeloest, unaufgeloest }. SCHREIBT; nur nach Bestaetigung.',
+        'zeigt am Schritt ingest_rag bilder: { aufgeloest, unaufgeloest }, dazu ereignisse und befunde (Welle K); ' +
+        'das Ergebnis fuer den Leser zeigt dokument_lesen. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         sourceIds: z.array(z.string().min(1)).min(1).max(MAX_STAPEL).optional().describe('Storage-Ids der Quellen (bis 30)'),
@@ -125,7 +126,7 @@ export function registerIndexTools(server: McpServer): void {
             jobs: zeilen,
             uebersprungen,
             ...zaun,
-            hinweis: JOB_HINWEIS,
+            hinweis: `${JOB_HINWEIS} job_status nennt je Job befunde (Folien ohne Adresse, Cover ohne Quelle, fehlende Anhaenge; leer = nichts zu melden) und ereignisse; die Lesersicht danach mit dokument_lesen pruefen.`,
           })
         })
       } catch (error) {

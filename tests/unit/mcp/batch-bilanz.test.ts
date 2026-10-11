@@ -42,6 +42,28 @@ describe('bilanziereJobs', () => {
     expect(bilanz.fehlerNachUrsache[0].code).toBe('x')
   })
 
+  it('Welle K: nennt je Zeile coverQuelle, folien und befunde und zaehlt mitBefund auch unter completed', () => {
+    const gut = { ...job({ jobId: 'g', status: 'completed' }), trace: { events: [
+      { name: 'slide_images_resolved', attributes: { resolved: 58, unresolved: 0 } },
+      { name: 'cover_source', attributes: { source: 'slides', page: 2 } },
+      { name: 'attachments_source', attributes: { anzahl: 1, namen: ['x.pdf'] } },
+    ] } } as ExternalJob
+    const stumm = { ...job({ jobId: 's', status: 'completed' }), trace: { events: [
+      { name: 'slide_images_resolved', attributes: { resolved: 0, unresolved: 58 } },
+      { name: 'cover_source', attributes: { source: 'none', grund: 'keine PDF-Quelle mit Seitenbildern' } },
+    ] } } as ExternalJob
+    const bilanz = bilanziereJobs([gut, stumm, job({ jobId: 'q', status: 'queued' })])
+    expect(bilanz.zaehler.failed).toBe(0)
+    expect(bilanz.mitBefund).toBe(1)
+    expect(bilanz.zeilen.map((z) => [z.jobId, z.coverQuelle, z.folien, z.befunde.length])).toEqual([
+      ['g', 'slides', { aufgeloest: 58, unaufgeloest: 0 }, 0],
+      ['s', 'none', { aufgeloest: 0, unaufgeloest: 58 }, 2],
+      ['q', null, null, 0],
+    ])
+    expect(bilanz.zeilen[1].befunde[0]).toBe('Folien: 58 von 58 ohne Adresse')
+    expect(bilanz.zeilen[1].quelle).toEqual({ sourceId: 'src-s', name: 's.pdf' })
+  })
+
   it('wirft bei unbekanntem Status statt ihn still zu zaehlen', () => {
     expect(() => bilanziereJobs([job({ jobId: '1', status: 'kaputt' as ExternalJob['status'] })])).toThrow(/Unbekannter Job-Status/)
   })

@@ -25,6 +25,8 @@
  * @module mcp
  */
 
+import { deuteFehler } from './fehler-deutung'
+
 /** Was zum Scheitern eines Schritts bekannt ist. */
 export interface FehlerDetail {
   /** Betroffener Schritt, z. B. `transform_template`. */
@@ -131,4 +133,32 @@ export function fehlerDetailsAusTrace(job: unknown): FehlerDetail[] {
     })
   }
   return details.reverse()
+}
+
+/**
+ * Fehlerblock fuer `job_status`: Details plus Deutung — oder die ehrliche
+ * Auskunft, dass der Trace nichts hergibt (alte Jobs ohne Trace). Welle W11:
+ * Die Rohmeldung benennt den Fehlschlag, die Deutung zieht die Konsequenz
+ * (Quelle ohne Tonspur: jeder Neustart trifft dieselbe Wand). Welle I3: auch
+ * `job.error` deuten — text_feed_failed steht nur dort. Aus `tools-jobs.ts`
+ * hierher (200-Zeilen-Regel, Welle K).
+ */
+export function fehlerBlock(job: { error?: { code?: string; message?: string } | null }): Record<string, unknown> {
+  const details = fehlerDetailsAusTrace(job)
+  const deutung = deuteFehler([
+    job.error?.code,
+    job.error?.message,
+    ...details.map((detail) => detail.meldung),
+    ...details.map((detail) => detail.antwortAuszug),
+  ])
+  if (details.length === 0) {
+    return {
+      fehlerDetails: [],
+      fehlerHinweis:
+        'Der Job ist gescheitert, sein Trace enthaelt aber keine Fehlerereignisse — ' +
+        'entweder ein alter Job ohne Trace oder der Fehlschlag lag ausserhalb der Schritte.',
+      ...(deutung ? { fehlerDeutung: deutung } : {}),
+    }
+  }
+  return { fehlerDetails: details, ...(deutung ? { fehlerDeutung: deutung } : {}) }
 }

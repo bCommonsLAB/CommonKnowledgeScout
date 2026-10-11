@@ -14,6 +14,8 @@
 import type { ExternalJob } from '@/types/external-job'
 import { fehlerDetailsAusTrace } from './job-fehler-details'
 import { deuteFehler, type FehlerDeutung } from './fehler-deutung'
+import { befundeFuerJob } from './job-befunde'
+import { coverQuelleAus, ereignisseAusTrace, folienAus } from './job-ereignisse'
 
 export interface FehlerGruppe {
   ursache: string
@@ -25,9 +27,23 @@ export interface FehlerGruppe {
   deutung: FehlerDeutung | null
 }
 
+/** Welle K2/K3: Lesersicht je Job — was der Ingest fuer Cover und Folien gerechnet hat, und was fehlt. */
+export interface BilanzZeile {
+  jobId: string
+  status: ExternalJob['status']
+  quelle: { sourceId: string | null; name: string | null }
+  /** `slides | flyer | none` aus cover_source; null, wenn der Job kein Cover-Ereignis schrieb. */
+  coverQuelle: string | null
+  folien: { aufgeloest: number; unaufgeloest: number } | null
+  befunde: string[]
+}
+
 export interface BatchBilanz {
   zaehler: { queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number }
+  /** Welle K3: Jobs mit mindestens einem Befund — auch unter den completed. */
+  mitBefund: number
   fehlerNachUrsache: FehlerGruppe[]
+  zeilen: BilanzZeile[]
 }
 
 /** Mehr Eintraege je Gruppe sagen nichts Neues — job_status liefert den Rest. */
@@ -51,9 +67,23 @@ function ursacheVon(job: ExternalJob): { ursache: string; code: string | null; s
   }
 }
 
+function zeileVon(job: ExternalJob): BilanzZeile {
+  const ereignisse = ereignisseAusTrace(job)
+  const folien = folienAus(ereignisse)
+  return {
+    jobId: job.jobId,
+    status: job.status,
+    quelle: { sourceId: job.correlation?.source?.itemId ?? null, name: job.correlation?.source?.name ?? null },
+    coverQuelle: coverQuelleAus(ereignisse)?.quelle ?? null,
+    folien: folien ? { aufgeloest: folien.aufgeloest, unaufgeloest: folien.unaufgeloest } : null,
+    befunde: befundeFuerJob({ status: job.status, steps: job.steps, ereignisse }),
+  }
+}
+
 export function bilanziereJobs(jobs: readonly ExternalJob[]): BatchBilanz {
   const zaehler = { queued: 0, running: 0, completed: 0, failed: 0, pendingStorage: 0, total: jobs.length }
   const gruppen = new Map<string, FehlerGruppe>()
+  const zeilen: BilanzZeile[] = []
   for (const job of jobs) {
     switch (job.status) {
       case 'queued': zaehler.queued += 1; break
@@ -63,6 +93,7 @@ export function bilanziereJobs(jobs: readonly ExternalJob[]): BatchBilanz {
       case 'pending-storage': zaehler.pendingStorage += 1; break
       default: throw new Error(`Unbekannter Job-Status "${String(job.status)}" an Job ${job.jobId}`)
     }
+    zeilen.push(zeileVon(job))
     if (job.status !== 'failed') continue
     const { ursache, code, schritt, deutung } = ursacheVon(job)
     const gruppe = gruppen.get(ursache) ?? {
@@ -77,6 +108,8 @@ export function bilanziereJobs(jobs: readonly ExternalJob[]): BatchBilanz {
   }
   return {
     zaehler,
+    mitBefund: zeilen.filter((z) => z.befunde.length > 0).length,
     fehlerNachUrsache: [...gruppen.values()].sort((a, b) => b.anzahl - a.anzahl),
+    zeilen,
   }
 }
