@@ -140,15 +140,15 @@ Bekannte Punkte:
    Seitenbilder als Fragmente tragen (Befund und Nachzug in §3b: extract-only
    registriert sie jetzt nach, Variante `preview` gilt als Vorschau; #374);
    zweiter Nachzug: die Sync-Engine plante die Nachregistrierung nie, wenn
-   der Twin schon OCR-Fragmente hatte. Datenreparatur über
-   `twins_synchronisieren repair` (löscht dabei die toten `page_NNN.de.md`,
-   Owner-Entscheid) oder Neu-Extraktion der drei PDFs, dann erneuter
-   Prüffall beim Owner offen. Dritter Nachzug (#376): `uploadBinaryFragment` speicherte
-   die Seitennummer nie, deshalb blieb das Cover leer. **Welle K
-   Prüfbarkeit** (Owner 12.10., §3c): die Brücke zeigt, was der Leser sieht
-   (`dokument_lesen`, Ereignisse und Befunde in `job_status`, App-Version in
-   `bruecke_info`, Stempel am Meta-Dokument, drei Zahlen in `twins_pruefen`);
-   angelegt, nicht gebaut.
+   der Twin schon OCR-Fragmente hatte (#375). Neu-Extraktion der drei PDFs
+   am 11.10. spät: Folien 58/58 und 22/22, Anhänge und Flyer-Link stehen;
+   Cover fehlte, weil `uploadBinaryFragment` die Seitennummer nie speicherte
+   (dritter Nachzug #376: durchreichen plus Ableitung aus dem Namen). Danach
+   `index_aktualisieren` für die fünf Seiten und Sichtprüfung des Covers
+   beim Owner offen. **Welle K Prüfbarkeit** (Owner 12.10., §3c): die
+   Brücke zeigt, was der Leser sieht (`dokument_lesen`, Ereignisse und
+   Befunde in `job_status`, App-Version in `bruecke_info`, Stempel am
+   Meta-Dokument, drei Zahlen in `twins_pruefen`); angelegt, nicht gebaut.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

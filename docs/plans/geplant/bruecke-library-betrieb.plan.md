@@ -451,7 +451,16 @@ Nachregistrierung nennt Vorschauen `preview`, der Direct-Upload `thumbnail`;
 `delete-dead-page-md` (58/22/1 `page_NNN.de.md`); die Sync-Engine hielt
 Twins mit irgendeinem Fragment für versorgt (`hasFragments ? 0`). Nachzug 2:
 `zaehleRekonstruierbareSeitenbilder` zählt je Datei, ob sie schon als
-Fragment steht. Nebenbefund offen: `dokumente_auflisten` zeigt
+Fragment steht. **Dritter Befund (Owner in Cowork, 11.10. spät):** Nach
+Neu-Extraktion der drei PDFs (Weg 2) sind Corbo 58/58 und Britsko 22/22
+aufgelöst, Anhänge stehen als Blob-Adressen, der Flyer-Link im Rückblick ist
+umgeschrieben — aber kein Cover. Prod-Mongo: die nachregistrierten Fragmente
+tragen `variant`, aber `pageNumber: null`, Trace `cover_source: none`.
+`uploadBinaryFragment` nahm `pageNumber` im Typ an, speicherte es nie.
+Nachzug 3: Service reicht `pageNumber` durch; `quellen-fragmente.ts` leitet
+Seitennummer und Variante aus dem Namen ab, wenn sie fehlen, damit die
+bereits registrierten Fragmente ohne erneute Extraktion reichen. Nebenbefund
+offen: `dokumente_auflisten` zeigt
 `coverImageUrl`, `attachments_url`, `slides` nicht (nur Facetten), und
 `job_status` zeigt Trace-Ereignisse nur im Fehlerfall; beides erschwert die
 Prüfung über die Brücke.
