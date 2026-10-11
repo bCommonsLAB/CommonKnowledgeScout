@@ -20,7 +20,7 @@ todos:
     content: "Querschnitt je Welle: dieselbe Service-Funktion wie das UI (ADR 0007), schreibende Werkzeuge nur nach Bestätigung mit Protokoll-Eintrag (protokoll.ts), Stapelgrenze 30, Fehler je Zeile statt Abbruch; TOOLSET_VERSION, TOOL_NAMES und NEU_IN_VERSION in tools-info.ts; Tests unter tests/unit/mcp/; neue Funktionen in eigene Module (vector-repo.ts hat 2.026 Zeilen); Zeile für src/lib/mcp/** im Routing-Index von CLAUDE.md; Konzept-Doku in einer neuen Datei docs/concepts/mcp-library-betrieb.md statt in mcp-storage-stand.md (Befund-Dokument der Versionen 2.10/2.11). ERLEDIGT 08.10.: Konzept docs/concepts/mcp-library-betrieb.md, Zeile im Routing-Index, 21 Testdateien unter tests/unit/; Live-Nachweis gegen eine echte Library OFFEN."
     status: completed
   - id: welle-i-verlaesslichkeit
-    content: "Welle I Verlässlichkeit der Brücke (Owner 11.10.2026, aus dem Live-Prüffall der Veranstaltung über die Brücke, Archiv Tests/2026-10-11 Handover Veranstaltung Neuaufbau.md Abschnitt 9): I1 Transformieren und Ingest trennen (transformation_starten, quelle_erschliessen mit Vorlage, sammeldatei_anlegen bekommen ingest: boolean, Vorgabe false, sichtbar in der Antwort mit naechsterSchritt index_aktualisieren; Skill-Stationen 5 Transformieren, 6 Prüfen, 7 Freigabe trennen); I2 Text-Feed ehrlich (enqueue-secretary-job.ts: Job während des Feeds nicht claimbar, failed nur bedingt, nie über einen Job mit abgeschlossenen Schritten); I3 Fehlertexte vollständig (template-run.ts 600-Zeichen-Schnitt, responseDataPreview ohne Request-Echo, job-fehler-details jüngste Ereignisse, fetch-with-timeout cause, fehlerDeutung für secretary_abbruch, kein_llm_aufruf, text_feed_failed, abschluss_verweigert); I4 Zaun überall (quelle_erschliessen, transformation_starten, dokument_publizieren, index_aktualisieren mit sourceIds, sammeldatei_anlegen über istVomBatchAusgeschlossen; unter test/ Transformation erlaubt, Ingest verboten; bestand-pruefung.ts auf die gemeinsame Funktion; Startordner prüfen). Zwei PRs: I1+I2 (2.46.0), I3+I4 (2.46.1). Detail in §3a."
+    content: "Welle I Verlässlichkeit der Brücke (Owner 11.10.2026, aus dem Live-Prüffall der Veranstaltung über die Brücke, Archiv Tests/2026-10-11 Handover Veranstaltung Neuaufbau.md Abschnitt 9): I1 Transformieren und Ingest trennen (transformation_starten, quelle_erschliessen mit Vorlage, sammeldatei_anlegen bekommen ingest: boolean, Vorgabe false, sichtbar in der Antwort mit naechsterSchritt index_aktualisieren; Skill-Stationen 5 Transformieren, 6 Prüfen, 7 Freigabe trennen); I2 Text-Feed ehrlich (enqueue-secretary-job.ts: Job während des Feeds nicht claimbar, failed nur bedingt, nie über einen Job mit abgeschlossenen Schritten); I3 Fehlertexte vollständig (template-run.ts 600-Zeichen-Schnitt, responseDataPreview ohne Request-Echo, job-fehler-details jüngste Ereignisse, fetch-with-timeout cause, fehlerDeutung für secretary_abbruch, kein_llm_aufruf, text_feed_failed, abschluss_verweigert); I4 Zaun abgleichen (kein neuer Zaun in Einzelwerkzeugen, weil Ingest nie automatisch passiert, Owner 11.10.; nur bestand-pruefung.ts auf die gemeinsame Funktion und Startordner in ordner-quellen.ts prüfen). Zwei PRs: I1+I2 (2.46.0), I3+I4 (2.46.1). Detail in §3a."
     status: pending
 ---
 
@@ -88,7 +88,7 @@ Die Buchstaben gelten in beiden Plänen.
 | **F Messen** | `frage_stellen`, `golden_set_fahren` als Job, `frage_log_lesen` | Chat-Libraries nach jeder Regeländerung | D; echtes Golden-Set bei der Library | dieser |
 | **G Helfer** | `artefakt_lesen` | Agent ohne Spiegel | keine | Veranstaltungen |
 | **H Drehbuch** | Skill `veranstaltung-aufbereiten` | wiederholbarer Ablauf | A bis E | Veranstaltungen |
-| **I Verlässlichkeit** | `transformation_starten`, `quelle_erschliessen`, `sammeldatei_anlegen` + `ingest`; Text-Feed; `job_status` Fehlertexte und `fehlerDeutung`; Zaun in allen schreibenden Werkzeugen | jede Library, jeder Lauf; Mensch entscheidet vor der Galerie | B, C, H; Live-Prüffall 11.10. (Archiv) | dieser, §3a |
+| **I Verlässlichkeit** | `transformation_starten`, `quelle_erschliessen`, `sammeldatei_anlegen` + `ingest`; Text-Feed; `job_status` Fehlertexte und `fehlerDeutung`; Zaun-Abgleich | jede Library, jeder Lauf; Mensch entscheidet vor der Galerie | B, C, H; Live-Prüffall 11.10. (Archiv) | dieser, §3a |
 
 Jede Welle ist ein eigener PR (eine Welle mit Entscheidung darf zwei sein)
 mit Integrationstest gegen die Test-Library
@@ -142,8 +142,10 @@ jede Library bei jedem Lauf, nicht nur Veranstaltungen:
    Job ist während des Feeds `queued`, der Worker kann ihn parallel claimen.
 3. Fehlermeldungen kommen gekürzt an (600 Zeichen), die Antwort-Vorschau
    ist vom Request-Echo belegt, `fehlerDeutung` kennt nur eine Art.
-4. Der Zaun gilt nur für Batch, `index_aktualisieren` (Ordnerweg) und
-   `kopieren`. Eine Testkopie unter `test/` lief in die Galerie.
+4. Eine Testkopie unter `test/` lief in die Galerie, weil
+   `transformation_starten` mit ingestierte. Mit I1 verschwindet die
+   Ursache; der Zaun bleibt, wo er ist (Batch, `index_aktualisieren`
+   Ordnerweg, `kopieren`).
 
 **Entscheidungen (Owner 11.10.):**
 
@@ -152,8 +154,11 @@ jede Library bei jedem Lauf, nicht nur Veranstaltungen:
   `index_aktualisieren` bringt die Seite in die Galerie. Die Vorgabe von
   `ingest` ist `false` und steht sichtbar in der Antwort (Muster
   `nurPublizierte`, 2.45.0), kein stiller Default.
-- **Unter `test/` wird nie ingestiert.** Transformation ist dort erlaubt
-  (Diagnose), `ingest: true` ist ein Fehler mit `ZAUN_BESCHREIBUNG`.
+- **Kein Sonderfall für `test/` in Einzelwerkzeugen.** Ingest passiert nie
+  automatisch, sondern ist die bewusste Entscheidung des Anwenders
+  (`ingest: true`). Wer eine Testkopie ingestiert, hat es so gewollt. Der
+  Zaun bleibt bei den Sammel-Werkzeugen (Ordnerweg), wo niemand jede Quelle
+  einzeln nennt.
 - **Die Callback-Route bleibt synchron.** Welle I baut die Semantik von
   `POST /api/external/jobs/[jobId]` nicht um; sie macht den Feed ehrlich.
 
@@ -219,17 +224,16 @@ jede Library bei jedem Lauf, nicht nur Veranstaltungen:
   (`tools-jobs.ts:42-45`); `batch_bilanz` deutet den ungekürzten Schlüssel.
 - Tests: `fehler-deutung.test.ts`, `job-fehler-details.test.ts` erweitern.
 
-### I4 Zaun in allen schreibenden Werkzeugen
+### I4 Zaun abgleichen (klein)
 
-- `istVomBatchAusgeschlossen` (`src/lib/pipeline/batch-zaun.ts`) auch in
-  `quelle_erschliessen`, `transformation_starten`, `dokument_publizieren`,
-  `sammeldatei_anlegen` und `index_aktualisieren` mit `sourceIds`: Quelle
-  unter `test/` oder `tests/` → Transformation erlaubt, Ingest (auch über
-  `ingest: true`) abgelehnt mit `ZAUN_BESCHREIBUNG` je Zeile.
-- `bestand-pruefung.ts:42-47` (`istTwinOderTestPfad`) auf die gemeinsame
-  Funktion umstellen (kennt dann auch `tests`); `ordner-quellen.ts` prüft
-  den Startordner selbst, nicht nur Unterordner.
-- Test: `kopier-plan-und-index.test.ts` oder neu `zaun-werkzeuge.test.ts`.
+- Kein neuer Zaun in `quelle_erschliessen`, `transformation_starten`,
+  `dokument_publizieren`, `sammeldatei_anlegen` oder `index_aktualisieren`
+  mit `sourceIds` (Owner 11.10., siehe Entscheidungen).
+- `bestand-pruefung.ts:42-47` (`istTwinOderTestPfad`) auf
+  `istVomBatchAusgeschlossen` aus `src/lib/pipeline/batch-zaun.ts`
+  umstellen (kennt dann auch `tests`); `ordner-quellen.ts` prüft den
+  Startordner selbst, nicht nur Unterordner.
+- Test: `bestand-pruefung.test.ts` und `ordner-quellen.test.ts` erweitern.
 
 **Zuschnitt.** Zwei PRs: I1 + I2 (beide an `enqueue-secretary-job.ts` und
 der Status-Semantik; 2.46.0), I3 + I4 (2.46.1). Je PR unter 5.000 Zeilen,
@@ -243,7 +247,7 @@ zeigt Transformation ohne Galerie-Eintrag; nach Prüfung
 `index_aktualisieren` → Eintrag da, Slug unverändert. Corbo (58 Folien)
 erneut: `job_status` endet nicht auf `failed`, wenn der Ingest fertig ist;
 bei Abbruch nennt `fehlerDeutung` den Secretary. Testkopie unter `test/`:
-Transformation läuft, `ingest: true` wird abgelehnt.
+`transformation_starten` ohne `ingest` erzeugt keinen Galerie-Eintrag.
 
 **Stop-Bedingungen zusätzlich:** Umbau der Callback-Route auf asynchron;
 Änderung an Worker-Dispatch oder Start-Sperre; ein Default für `ingest`,
@@ -317,7 +321,7 @@ durchzuziehen und das Ergebnis danach zu prüfen. Offen:
 **Nachtrag 11.10.2026:** Der Live-Prüffall der Veranstaltung über die Brücke
 ist gelaufen (Archiv, Handover mit Code-Prüfung). Daraus kommt **Welle I
 Verlässlichkeit** (§3a, Owner-Entscheid: Ingest als bewusster Schritt,
-Text-Feed ehrlich, Fehlertexte vollständig, Zaun überall). Sie ist angelegt,
+Text-Feed ehrlich, Fehlertexte vollständig, Zaun abgleichen). Sie ist angelegt,
 nicht gebaut. Die Lesersicht-Befunde desselben Prüffalls (Folienbilder,
 Cover, PDF-Anhänge; „Paket 1") und der Kleinkram („Paket 3") sind im
 Handover beschrieben und noch keinem Plan zugeordnet.

@@ -126,8 +126,9 @@ Bekannte Punkte:
    §3a, aus dem Live-Prüffall der Veranstaltung über die Brücke (Handover
    im Archiv): Ingest als bewusster Schritt nach der Prüfung durch den
    Menschen (`ingest: false` als sichtbare Vorgabe, dann
-   `index_aktualisieren`), Text-Feed ehrlich, Fehlertexte vollständig, Zaun
-   in allen schreibenden Werkzeugen. Zwei PRs, angelegt, nicht gebaut.
+   `index_aktualisieren`; kein Sonderfall für `test/`, weil Ingest nie
+   automatisch passiert), Text-Feed ehrlich, Fehlertexte vollständig,
+   Zaun-Abgleich. Zwei PRs, angelegt, nicht gebaut.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):
