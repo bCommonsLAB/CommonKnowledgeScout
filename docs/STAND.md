@@ -148,7 +148,8 @@ Bekannte Punkte:
    beim Owner offen. **Welle K Prüfbarkeit** (Owner 12.10., §3c): die
    Brücke zeigt, was der Leser sieht (`dokument_lesen`, Ereignisse und
    Befunde in `job_status`, App-Version in `bruecke_info`, Stempel am
-   Meta-Dokument, drei Zahlen in `twins_pruefen`); angelegt, nicht gebaut.
+   Meta-Dokument, drei Zahlen in `twins_pruefen`); K1–K3 gebaut (PR 1,
+   Werkzeugsatz 2.48.0, 12.10.), K4–K6 folgen in PR 2.
 5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
    06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
    der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):

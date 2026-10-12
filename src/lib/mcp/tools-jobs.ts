@@ -14,42 +14,13 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
-import { fehlerDetailsAusTrace } from './job-fehler-details'
+import { befundeFuerJob } from './job-befunde'
+import { ereignisseAusTrace } from './job-ereignisse'
+import { fehlerBlock } from './job-fehler-details'
 import { zaehleKuerzlichGescheitert } from './job-liste-ehrlich'
 import { beschreibeSchritte, uebersprungenHinweis } from './job-schritte'
 import { holePoolSicht } from './job-pool-sicht'
-import { deuteFehler } from './fehler-deutung'
 import { audioKontextVonJob } from './job-audio-kontext'
-
-/**
- * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
- * dass der Trace nichts hergibt (alte Jobs ohne Trace).
- */
-function fehlerBlock(job: { error?: { code?: string; message?: string } | null }): Record<string, unknown> {
-  const details = fehlerDetailsAusTrace(job)
-  // Welle W11: Die Rohmeldung benennt den Fehlschlag, die Deutung zieht die
-  // Konsequenz. Sieben Bildschirmaufnahmen ohne Tonspur wurden immer wieder
-  // neu gestartet, weil niemand aus der Meldung las, dass ein zweiter
-  // Versuch dieselbe Wand trifft.
-  // Welle I3: auch job.error (Code und Meldung) deuten — text_feed_failed und
-  // „Abschluss verweigert" stehen nur dort, nicht in den Schritt-Ereignissen.
-  const deutung = deuteFehler([
-    job.error?.code,
-    job.error?.message,
-    ...details.map((detail) => detail.meldung),
-    ...details.map((detail) => detail.antwortAuszug),
-  ])
-  if (details.length === 0) {
-    return {
-      fehlerDetails: [],
-      fehlerHinweis:
-        'Der Job ist gescheitert, sein Trace enthaelt aber keine Fehlerereignisse — ' +
-        'entweder ein alter Job ohne Trace oder der Fehlschlag lag ausserhalb der Schritte.',
-      ...(deutung ? { fehlerDeutung: deutung } : {}),
-    }
-  }
-  return { fehlerDetails: details, ...(deutung ? { fehlerDeutung: deutung } : {}) }
-}
 
 /** Registriert job_status + job_liste (siehe Datei-Kommentar). */
 export function registerJobTools(server: McpServer): void {
@@ -66,8 +37,12 @@ export function registerJobTools(server: McpServer): void {
         '(Klartext + Empfehlung + ob ein zweiter Versuch ueberhaupt Sinn hat) — etwa eine Quelle ' +
         'ohne Tonspur, bei der jeder Neustart dieselbe Wand trifft. UEBERSPRUNGENE Schritte sind je Schritt markiert (uebersprungen/' +
         'grund); hat ein completed-Job ALLE Schritte uebersprungen, sagt ein Hinweis explizit, ' +
-        'dass NICHTS geschrieben wurde. Damit ist ein Fehlschlag OHNE Blick in die Datenbank ' +
-        'zu analysieren. Liest nur.',
+        'dass NICHTS geschrieben wurde. Welle K: `ereignisse` nennt die Trace-Ereignisse der Lesersicht ' +
+        '(slide_images_resolved/unresolved, cover_source, attachments_source, attachments_links_rewritten, ' +
+        'extract_only_page_images_*, frontmatter_json_list_invalid) mit Attributen, und `befunde` sagt in ' +
+        'Klartext, was dem Leser fehlt (Folien ohne Adresse, Cover ohne Quelle, keine PDF-Anhaenge, ' +
+        'Transformation uebersprungen) — leere Liste heisst: nichts zu melden, auch bei completed. Damit ' +
+        'ist ein Fehlschlag OHNE Blick in die Datenbank zu analysieren. Liest nur.',
       inputSchema: { jobId: z.string().min(1).describe('jobId aus der Start-Antwort') },
       annotations: { readOnlyHint: true },
     },
@@ -80,6 +55,10 @@ export function registerJobTools(server: McpServer): void {
         // Worker schreibt phase/progress/message nach Mongo) und in job.steps
         // — die frueheren Flat-Felder gab es nie (durchgaengig null).
         const lastLog = job.logs?.length ? job.logs[job.logs.length - 1] : null
+        // Welle K2/K3: Die Ereignisse der Lesersicht standen bisher nur im
+        // Fehlerfall da; ein Ingest mit 0 von 58 Bildern war ein stummes completed.
+        const ereignisse = ereignisseAusTrace(job)
+        const befunde = befundeFuerJob({ status: job.status, steps: job.steps, ereignisse })
         return jsonResult({
           jobId,
           status: job.status,
@@ -96,6 +75,8 @@ export function registerJobTools(server: McpServer): void {
             const hinweis = uebersprungenHinweis({ status: job.status, steps: job.steps })
             return hinweis ? { nichtsGeschrieben: hinweis } : {}
           })(),
+          befunde,
+          ereignisse,
           fehler: job.error?.message ?? null,
           // Welle ST7: Bei einem Fehlschlag ist `job.error.message` der Satz,
           // der das Scheitern benennt („Template-Transformation

@@ -109,7 +109,7 @@ export function registerTransformationTool(server: McpServer): void {
             },
             llmModell: effectiveModell ?? null,
             modellHerkunft: modellHinweis(effectiveModell),
-            hinweis: JOB_HINWEIS,
+            hinweis: `${JOB_HINWEIS} job_status nennt je Job befunde (z. B. Transformation uebersprungen; mit ingest: true auch Folien, Cover, Anhaenge; leer = nichts zu melden).`,
           })
         })
       } catch (error) {

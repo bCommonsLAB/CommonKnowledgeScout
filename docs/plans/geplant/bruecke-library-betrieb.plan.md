@@ -658,6 +658,30 @@ ein Feld, keine neue Statusart. Werkzeugsatz 2.48.0.
   seitenbilderImOrdner: 116` und plant nichts; vor #374 hätte es
   `9 / 0 / 116` und `register-image-fragments: 116` gezeigt.
 
+**Stand 12.10.2026 (PR 1, K1 + K2 + K3 gebaut, Werkzeugsatz 2.48.0):**
+`dokument_lesen` (Registrierung in `tools-dokument-lesen.ts`, Mapping in
+`lesersicht.ts`, von `registerBestandTools` aufgerufen — 200-Zeilen-Regel),
+`dokumente_auflisten` mit `lesersicht`, `job_status` mit `ereignisse` und
+`befunde` (`job-ereignisse.ts`, `job-befunde.ts`), `batch_bilanz` mit
+`zeilen` je Job (`coverQuelle`, `folien`, `befunde`) und `mitBefund`;
+`fehlerBlock` aus `tools-jobs.ts` nach `job-fehler-details.ts` verschoben.
+Ist-Zustand vorher gelesen (Prod, nur lesend; Skript
+`scripts/welle-k-ist-zustand-lesen.mjs`): Corbo-Index-Job `2abe2a40…` vom
+11.10. 22:18 trägt `slide_images_resolved: 58`, `cover_source: none`
+(„keine PDF-Quelle mit Seitenbildern"), `attachments_source: 1`; das
+Meta-Dokument `coverImageUrl: ""`, `slides` als Liste (58, Blob-Adressen),
+`attachments_url`/`attachments_names` als parallele Listen,
+`galleryImageUrls: []`, `publication: null`, `slug` oben und im
+`docMetaJson`. Der Job würde heute `befunde: ["Cover: keine Quelle (keine
+PDF-Quelle mit Seitenbildern)"]` zeigen. Abweichungen zum Plan:
+`frontmatter_json_list_invalid` ist eine Log-Phase, kein Trace-Ereignis — die
+Ereignisliste nimmt Log-Phasen der festen Liste mit, wenn kein gleichnamiges
+Trace-Ereignis steht; `ingestedWith` in `dokument_lesen` kommt mit K5. Der
+Trace kennt zusätzlich `cover_preserve` (Carry-Forward eines alten Covers),
+nicht in der Liste — ein Befund „Cover: keine Quelle" kann daher neben einem
+bewahrten alten Cover stehen; falls das im Prüffall stört, in PR 2 ergänzen.
+Live-Prüffall (fünf Seiten, `befunde: []` nach #376) beim Owner offen.
+
 **Nicht in dieser Welle:** Status `completed mit Befund` als eigener
 Job-Status (Befund bleibt Feld); `delete-dead-page-md` im Preset `repair`
 überdenken (eigene Entscheidung, gehört zur Sync-Engine); Skill-Stationen
