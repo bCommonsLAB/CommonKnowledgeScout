@@ -10,13 +10,25 @@
  *   <!-- /section -->
  *
  * - `layout` und `bg` sind optional; fehlen sie, gelten die Defaults.
+ * - `image_width=1/3` und `image_align=top` (nur image-left/image-right):
+ *   schmale Bildspalte bzw. obenbuendiges Bild; fehlen sie, bleibt es bei
+ *   halber Spalte und mittiger Ausrichtung.
  * - Ungueltige Werte werfen einen Fehler (kein Silent Fallback,
- *   siehe no-silent-fallbacks.mdc).
+ *   siehe no-silent-fallbacks.mdc) — auch ein Bild-Attribut an einem
+ *   Layout ohne Bildspalte.
  * - Body ohne Marker => eine einzige Default-Sektion (Robustheit).
  */
 
 import { SITE_SURFACES } from '@ks/contracts'
-import type { SectionBg, SectionLayout, WebsiteSection } from './types'
+import {
+  SECTION_IMAGE_ALIGNS,
+  SECTION_IMAGE_WIDTHS,
+  type SectionBg,
+  type SectionImageAlign,
+  type SectionImageWidth,
+  type SectionLayout,
+  type WebsiteSection,
+} from './types'
 import { parseSectionBlocks } from './parse-section-blocks'
 
 const SECTION_LAYOUTS: readonly SectionLayout[] = [
@@ -36,7 +48,7 @@ const DEFAULT_BG: SectionBg = 'default'
 const SECTION_RE = /<!--\s*section\b([^>]*?)-->([\s\S]*?)<!--\s*\/section\s*-->/g
 // Werte ohne Anfuehrungszeichen sind Woerter (`layout=banner`); in
 // Anfuehrungszeichen darf alles stehen (`kicker="Wer wir sind"`, S2).
-const ATTR_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([\w-]+))/g
+const ATTR_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([\w\/-]+))/g
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/
 // Video-URL: bevorzugt Markdown-Link [text](url), sonst erste nackte http(s)-URL.
 const VIDEO_LINK_RE = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/
@@ -50,10 +62,28 @@ function isBg(value: string): value is SectionBg {
   return (SECTION_BGS as readonly string[]).includes(value)
 }
 
-function parseAttrs(raw: string): { layout: SectionLayout; bg: SectionBg; kicker?: string } {
+function isImageWidth(value: string): value is SectionImageWidth {
+  return (SECTION_IMAGE_WIDTHS as readonly string[]).includes(value)
+}
+
+function isImageAlign(value: string): value is SectionImageAlign {
+  return (SECTION_IMAGE_ALIGNS as readonly string[]).includes(value)
+}
+
+interface SectionAttrs {
+  layout: SectionLayout
+  bg: SectionBg
+  kicker?: string
+  imageWidth?: SectionImageWidth
+  imageAlign?: SectionImageAlign
+}
+
+function parseAttrs(raw: string): SectionAttrs {
   let layout: SectionLayout = DEFAULT_LAYOUT
   let bg: SectionBg = DEFAULT_BG
   let kicker: string | undefined
+  let imageWidth: SectionImageWidth | undefined
+  let imageAlign: SectionImageAlign | undefined
   ATTR_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTR_RE.exec(raw)) !== null) {
@@ -75,9 +105,25 @@ function parseAttrs(raw: string): { layout: SectionLayout; bg: SectionBg; kicker
       bg = value
     } else if (key === 'kicker') {
       kicker = value.trim() || undefined
+    } else if (key === 'image_width') {
+      if (!isImageWidth(value)) {
+        throw new Error(`Ungueltiges section image_width="${value}". Erlaubt: ${SECTION_IMAGE_WIDTHS.join(', ')}`)
+      }
+      imageWidth = value
+    } else if (key === 'image_align') {
+      if (!isImageAlign(value)) {
+        throw new Error(`Ungueltiges section image_align="${value}". Erlaubt: ${SECTION_IMAGE_ALIGNS.join(', ')}`)
+      }
+      imageAlign = value
     }
   }
-  return { layout, bg, kicker }
+  const hatBildspalte = layout === 'image-left' || layout === 'image-right'
+  if (!hatBildspalte && (imageWidth || imageAlign)) {
+    throw new Error(
+      `section image_width/image_align gelten nur fuer layout=image-left oder image-right (hier: ${layout})`,
+    )
+  }
+  return { layout, bg, kicker, imageWidth, imageAlign }
 }
 
 function extractImage(markdown: string): {
@@ -112,13 +158,17 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
   SECTION_RE.lastIndex = 0
   let match: RegExpExecArray | null
   while ((match = SECTION_RE.exec(body)) !== null) {
-    const { layout, bg, kicker } = parseAttrs(match[1] ?? '')
+    const { layout, bg, kicker, imageWidth, imageAlign } = parseAttrs(match[1] ?? '')
     if (layout === 'video') {
       const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
       sections.push({ layout, bg, markdown: rest, videoUrl, kicker, blocks: parseSectionBlocks(rest) })
     } else {
       const { imageUrl, imageAlt, rest } = extractImage(match[2] ?? '')
-      sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt, kicker, blocks: parseSectionBlocks(rest) })
+      sections.push({
+        layout, bg, markdown: rest, imageUrl, imageAlt, kicker, blocks: parseSectionBlocks(rest),
+        ...(imageWidth ? { imageWidth } : {}),
+        ...(imageAlign ? { imageAlign } : {}),
+      })
     }
   }
   if (sections.length === 0) {

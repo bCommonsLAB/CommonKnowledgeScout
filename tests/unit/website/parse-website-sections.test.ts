@@ -113,6 +113,20 @@ describe('parseWebsiteSections — Kennzeile (S2)', () => {
     expect(parseWebsiteSections('<!-- section layout=text-only -->x<!-- /section -->')[0].kicker).toBeUndefined()
   })
 
+  it('liest image_width und image_align an Bild-Layouts; ohne Angabe bleiben die Felder weg', () => {
+    const mit = parseWebsiteSections('<!-- section layout=image-left bg=light image_width=1/3 image_align=top -->\n## P\n![p](https://b/p.jpg)\nText\n<!-- /section -->')
+    expect(mit[0]).toMatchObject({ layout: 'image-left', imageWidth: '1/3', imageAlign: 'top', imageUrl: 'https://b/p.jpg' })
+    const ohne = parseWebsiteSections('<!-- section layout=image-right -->\n## P\n<!-- /section -->')
+    expect('imageWidth' in ohne[0]).toBe(false)
+    expect('imageAlign' in ohne[0]).toBe(false)
+  })
+
+  it('weist ungueltige Bild-Attribute und Bild-Attribute an Layouts ohne Bildspalte ab', () => {
+    expect(() => parseWebsiteSections('<!-- section layout=image-left image_width=1/4 -->x<!-- /section -->')).toThrow(/Ungueltiges section image_width="1\/4"/)
+    expect(() => parseWebsiteSections('<!-- section layout=image-left image_align=bottom -->x<!-- /section -->')).toThrow(/Ungueltiges section image_align="bottom"/)
+    expect(() => parseWebsiteSections('<!-- section layout=text-only image_width=1/3 -->x<!-- /section -->')).toThrow(/nur fuer layout=image-left oder image-right \(hier: text-only\)/)
+  })
+
   it('ein ungueltiges bg in Anfuehrungszeichen wirft weiterhin', () => {
     expect(() => parseWebsiteSections('<!-- section bg="petrol" -->x<!-- /section -->')).toThrow(/Ungueltiges section bg="petrol"/)
   })

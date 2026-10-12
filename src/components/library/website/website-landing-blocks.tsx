@@ -32,6 +32,10 @@ export function SectionBlock({
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'
   const imageFirst = section.layout === 'image-left'
+  // Bildspalte und Ausrichtung (Marker-Attribute image_width, image_align):
+  // `1/3` = ein Drittel Bild, zwei Drittel Text; `top` = obenbuendig statt mittig.
+  const schmal = section.imageWidth === '1/3'
+  const oben = section.imageAlign === 'top'
   const flaeche = surfaceStyle(section.bg, theme)
   const kicker = section.kicker ? <p className={KICKER_CLASS}>{section.kicker}</p> : null
 
@@ -66,9 +70,11 @@ export function SectionBlock({
   return (
     <section className={cn('py-14 px-6', flaeche.className)} style={flaeche.style}>
       <div
-        className={`max-w-5xl mx-auto gap-10 items-center ${
-          twoCol && hasImage ? 'grid md:grid-cols-2' : 'flex flex-col'
-        }`}
+        className={cn(
+          'max-w-5xl mx-auto gap-10',
+          oben ? 'items-start' : 'items-center',
+          twoCol && hasImage ? (schmal ? 'grid md:grid-cols-3' : 'grid md:grid-cols-2') : 'flex flex-col',
+        )}
       >
         {hasImage && section.layout === 'full-image' && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -91,13 +97,14 @@ export function SectionBlock({
           </div>
         )}
         <div
-          className={
+          className={cn(
             twoCol && hasImage
               ? imageFirst
                 ? 'md:order-2'
                 : 'md:order-1'
-              : 'mx-auto max-w-3xl'
-          }
+              : 'mx-auto max-w-3xl',
+            twoCol && hasImage && schmal ? 'md:col-span-2' : null,
+          )}
         >
           {kicker}
           <SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} />
