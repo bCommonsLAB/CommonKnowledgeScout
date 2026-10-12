@@ -134,7 +134,10 @@ Erweiterung in den Einstellungen aus- und einschalten.
    fehlt), dann je Seite `datei_anlegen`:
    - Startseite: `detailViewType: "website"`, `title`, `language`,
      `targetLanguage`, `menu_order: 1`, Hero-Felder (`hero_subtitle`,
-     `hero_image`, `hero_layout` mit `overlay`, `cover` oder `campaign`,
+     `hero_image`, `hero_layout` mit `overlay`, `cover`, `campaign` oder
+     `none` (kein Kopf: weder Titel noch Abstand über der ersten Sektion —
+     für Seiten, deren erste Sektion das Bild trägt; ein `hero_image` wird
+     dann nicht gezeigt, `dokument_publizieren` warnt),
      `cta_label`, `cta_url`, optional `hero_title`, wenn die Hero-Überschrift
      vom Titel abweichen soll (`title` bleibt der Menüpunkt); bei `campaign` zusätzlich `hero_kicker`
      für die Kennzeile im Bild, `hero_title2` für die kursive Zweitzeile,

@@ -26,6 +26,9 @@ export interface DokumentPruefung {
   fehler: string[]
 }
 
+/** Werte von `hero_layout`, die der Renderer kennt (website-detail.tsx); `none` = kein Kopf. */
+export const HERO_LAYOUTS: readonly string[] = ['overlay', 'cover', 'campaign', 'none']
+
 /** Bild-URL, die ein anonymer Besucher laden kann: absolut, http(s). */
 const ANONYM_LESBAR = /^https?:\/\//i
 
@@ -72,6 +75,15 @@ export function pruefeMarkdownDokument(markdown: string): DokumentPruefung {
       fehler.push(`Sektions-Marker: ${error instanceof Error ? error.message : String(error)}`)
     }
     const heroBild = meta['hero_image']
+    // hero_layout: ein unbekannter Wert faellt im Renderer still auf overlay zurueck — hier wird er genannt.
+    const heroLayout = meta['hero_layout']
+    if (heroLayout !== undefined && heroLayout !== null) {
+      if (typeof heroLayout !== 'string' || !HERO_LAYOUTS.includes(heroLayout)) {
+        warnungen.push(`hero_layout "${String(heroLayout)}" ist unbekannt (erlaubt: ${HERO_LAYOUTS.join(', ')}) — der Renderer zeigt den Standard-Kopf`)
+      } else if (heroLayout === 'none' && typeof heroBild === 'string' && heroBild.trim()) {
+        warnungen.push('hero_layout none mit hero_image: das Bild wird nicht gezeigt — als Sektion full-image in den Body setzen oder hero_layout aendern')
+      }
+    }
     const kandidaten = [...bildUrls(body), ...(typeof heroBild === 'string' && heroBild ? [heroBild] : [])]
     for (const url of kandidaten) {
       if (!ANONYM_LESBAR.test(url)) {

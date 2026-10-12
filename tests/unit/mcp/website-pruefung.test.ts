@@ -59,6 +59,16 @@ describe('pruefeMarkdownDokument', () => {
     expect(p.warnungen.some((w) => w.includes('bilder/gruppe.jpg'))).toBe(true)
   })
 
+  it('hero_layout: unbekannter Wert und none mit hero_image sind Warnungen', () => {
+    const basis = '---\ndetailViewType: "website"\ntitle: "T"\n'
+    const unbekannt = pruefeMarkdownDokument(basis + 'hero_layout: "split"\n---\n# T')
+    expect(unbekannt.warnungen.some((w) => w.includes('hero_layout "split" ist unbekannt'))).toBe(true)
+    const none = pruefeMarkdownDokument(basis + 'hero_layout: "none"\nhero_image: "https://b/h.jpg"\n---\n# T')
+    expect(none.warnungen.some((w) => w.includes('hero_layout none mit hero_image'))).toBe(true)
+    const sauber = pruefeMarkdownDokument(basis + 'hero_layout: "none"\n---\n# T')
+    expect(sauber.warnungen.filter((w) => w.includes('hero_layout'))).toEqual([])
+  })
+
   it('leerer Body ist ein harter Fehler', () => {
     const p = pruefeMarkdownDokument('---\ndetailViewType: "website"\n---\n   ')
     expect(p.fehler.some((f) => f.includes('Kein Text'))).toBe(true)

@@ -41,6 +41,10 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   die Hero-Ueberschrift, `title` bleibt der Menuepunkt. Marker-Attribut
   `kicker="…"` setzt eine Versalzeile ueber die Sektions-Ueberschrift;
   Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
+- **Kein Kopf (2.48.1):** `hero_layout: none` rendert keinen `<header>`;
+  die erste Sektion beginnt oben. Ein unbekannter `hero_layout`-Wert faellt
+  im Renderer weiterhin auf `overlay` zurueck, `pruefeMarkdownDokument`
+  (`dokument_publizieren`) nennt ihn als Warnung (`HERO_LAYOUTS`).
 - **Bildspalte (2.48.1):** `image-left`/`image-right` nehmen `image_width`
   (`1/2` Vorgabe, `1/3` = Drittel Bild, zwei Drittel Text) und `image_align`
   (`center` Vorgabe, `top` = obenbuendig). Der Renderer setzt dafuer
