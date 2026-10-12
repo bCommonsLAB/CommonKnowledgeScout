@@ -26,7 +26,7 @@ export interface WebsiteDetailData {
    * - `cover`: helle Flaeche, grosser gestapelter Titel, kleineres ueberlagertes Bild.
    * - `campaign` (S2): Bild oben mit Kennzeile, darunter Titel, Zweitzeile, zwei Buttons.
    */
-  heroLayout?: string
+  heroLayout?: string // overlay (Vorgabe) | cover | campaign | none (kein Kopf, erste Sektion beginnt oben)
   videoUrl?: string
   ctaLabel?: string
   ctaUrl?: string
@@ -110,7 +110,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         </button>
       )}
 
-      {data.heroLayout === "campaign" && data.heroImageUrl ? (
+      {data.heroLayout === "none" ? null : data.heroLayout === "campaign" && data.heroImageUrl ? (
         <HeroCampaign
           title={heroTitle}
           title2={data.heroTitle2}
