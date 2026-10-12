@@ -5,12 +5,18 @@ description: Einen Ordner mit Audio, PDF, Video und Bildern einer Veranstaltung 
 
 # Veranstaltung aufbereiten
 
-Stand 11.10.2026, Werkzeugsatz 2.46.0 (Welle I: Ingest als bewusster
-Schritt). Drehbuch nach dem Plan
+Stand 12.10.2026, Werkzeugsatz 2.48.1 (Welle I: Ingest als bewusster
+Schritt; Welle J: Bilder rechnet die Pipeline; Welle K: die Brücke zeigt,
+was der Leser sieht). Original im Archiv unter
+`Organisation/Skills/veranstaltung-aufbereiten/SKILL.md`; in den
+Claude-Einstellungen die Ableitung, im Repo die Kopie. Drehbuch nach dem Plan
 `docs/plans/geplant/veranstaltungen-ueber-die-bruecke.plan.md` (Wellen B, E, G);
 die Bestandspflege (Aufräumen, Bericht, Stand) bleibt beim Skill
-`archiv-aufraeumen`, die Veröffentlichung von Website-Seiten bei
-`website-publishing`.
+`archiv-aufraeumen`. **Dieser Skill endet, wenn die Vortragsseiten in der
+Galerie stehen und `dokument_lesen` je Seite Cover, Folien und Anhang
+zeigt.** Die präsentierbare Webseite daraus (Startseite mit Plakat, eine
+Sektion je Vortrag, Rückblick) baut der Skill `website-publishing`,
+Abschnitt „Veranstaltungs-Webseite aus Vortragsseiten".
 
 Ziel: Ein Ordner mit vier Audios, drei PDFs und einem Flyer wird zu drei
 Vortragsseiten und einer Veranstaltungsseite — mit genau drei Rückfragen an
@@ -86,6 +92,21 @@ Veranstaltung, nicht der Agent. PDFs und Bilder laufen ohne diese Wahl.
 Fortschritt mit `job_status`, Stapel mit `batch_bilanz`; Fehlergruppen
 gezielt mit `batch_neustart` (nur nach behobener Ursache).
 
+**Seitenbilder der Folien-PDFs sichern, bevor transformiert wird.** Cover
+und Folienbilder der Vortragsseiten rechnet der Ingest später aus den
+Seitenbildern, die am Twin der Folien-PDF als Fragmente mit Seitennummer
+liegen. Fehlen sie, fehlt alles weiter hinten, und der Fehler fällt erst in
+Station 7 auf (Lehre aus Welle J, 11.10.). Deshalb direkt nach der
+Extraktion je PDF: `job_status` muss das Ereignis
+`extract_only_page_images_registered` mit `registriert > 0` nennen; bei
+`_skipped` oder `_error` steht der Grund in `befunde`. PDFs, die vor dem
+12.10.2026 im Filesystem-Modus erschlossen wurden, tragen die Fragmente
+nicht: `twins_pruefen` für den Ordner muss je PDF `register-image-fragments`
+planen, dann `twins_synchronisieren` mit `preset: repair`. Plant
+`twins_pruefen` nichts und der Twin-Ordner im Storage ist leer, die PDF mit
+`quelle_erschliessen` und `erzwingen` neu extrahieren. Erst wenn das steht,
+weiter zu Station 3.
+
 ### 3 Einheiten bilden (Mensch entscheidet, Agent schlägt vor)
 
 - Vorschlag aus den Transkriptanfängen: `artefakt_lesen` mit
@@ -157,22 +178,29 @@ Weiter erst, wenn der Mensch je Seite „freigegeben" sagt.
   Antwort steht bei der falschen Person (Sprecher-Labels gegen die
   Sprecherliste); kein Name ohne Beleg; `bestand_pruefen` ohne Doppelgänger
   und ohne Einträge aus Testkopien.
-- Prüfpunkte Lesersicht (seit 2.47.0, Welle J): Cover sichtbar (Karte in der
-  Galerie), Folienbilder laden (`job_status` am Schritt `ingest_rag`:
-  `bilder.unaufgeloest` leer; sonst die genannten Seiten oder Namen melden),
-  PDF-Anhang öffnet (Link unter „Anhänge" ist eine Blob-Adresse, kein
-  Dateiname), keine leeren Überschriften im Text. Cover, Anhänge und
-  Folienbilder rechnet der Ingest aus den Quellen der Sammeldatei; sie
-  fehlen, wenn die Sammeldatei vor 2.43.0 zuletzt transformiert wurde
-  (`abhaengige_dokumente` meldet dann „Abhängigkeit nicht vermerkt",
-  Abhilfe: `transformation_starten` mit `erzwingen`).
-- Sind in `bilder` ALLE Folien unaufgelöst (0 von N), fehlen am Twin der
-  Folien-PDF die Seitenbilder als Fragmente (PDF vor dem 12.10.2026 im
-  Filesystem-Modus erschlossen): `twins_pruefen` für den Ordner muss je PDF
-  `register-image-fragments` planen, dann `twins_synchronisieren` mit
-  `preset: repair`, danach `index_aktualisieren` für die Sammeldateien
-  wiederholen. Zeigt `twins_pruefen` das nicht, ist der Twin-Ordner im Storage
-  leer: die PDF mit `quelle_erschliessen` und `erzwingen` neu extrahieren.
+- Prüfpunkte Lesersicht (seit 2.48.0, Welle K) — über die Brücke, nicht
+  über die Galerie: `batch_bilanz` des Index-Batches muss `mitBefund: 0`
+  zeigen; je Job sagt `befunde` sonst in Klartext, was fehlt („Folien: N von
+  M ohne Adresse", „Cover: keine Quelle (Grund)", „Anhänge: keine
+  PDF-Quelle"), `ereignisse` nennt die Herkunft (`cover_source` mit `source`
+  und `page`, `slide_images_resolved`, `attachments_source`). Danach
+  `dokument_lesen` je Seite: `coverImageUrl` gesetzt, `folien.ohneAdresse`
+  leer, `anhaenge` mit Blob-Adressen, `galerieAdresse` vorhanden (sonst steht
+  der Grund daneben). Erst wenn beides stimmt, ist die Seite fertig; der
+  Mensch sieht die Galerie zur Bestätigung an, nicht zur Suche nach Fehlern.
+- Fehlt trotzdem etwas: Cover und Folien hängen an den Seitenbildern der
+  Folien-PDF (Station 2, Absatz „Seitenbilder sichern"); Anhänge und
+  Folien fehlen auch, wenn die Sammeldatei vor 2.43.0 zuletzt transformiert
+  wurde (`abhaengige_dokumente` meldet „Abhängigkeit nicht vermerkt",
+  Abhilfe: `transformation_starten` mit `erzwingen`, wieder ohne `ingest`,
+  dann Station 6 und 7). Nach der Abhilfe `index_aktualisieren` für die
+  betroffenen Seiten wiederholen und die Prüfpunkte am NEUEN Job lesen.
+- Nach einem Merge am Server (neue App-Version, `bruecke_info` nennt eine
+  höhere Werkzeugsatz-Version): zuerst die Erweiterung in der Desktop-App
+  aus- und einschalten, dann einen frischen Index-Lauf starten und erst
+  dessen `befunde` deuten. Ein Job von gestern zeigt den Stand von gestern
+  (Befund 12.10.: ein bereits behobener Fehler wurde aus einem alten Job als
+  neu gemeldet).
 
 ### Q Nachziehen nach einer Korrektur (Maschine)
 
@@ -204,9 +232,19 @@ wurden, tragen die Abhängigkeit erst nach dem nächsten Lauf.
 - **Testkopie unter `test/` in der Galerie**: nur möglich mit
   `ingest: true` oder über Station 7. Kein Zaun in den Einzelwerkzeugen
   (Owner 11.10.); `index_entfernen` nimmt den Eintrag zurück.
+- **`befunde: ["Cover: keine Quelle …"]` an einem Job, der vor dem letzten
+  Merge lief**: kein neuer Fehler, sondern der alte Stand. Frischen Lauf
+  starten (Station 7, letzter Punkt), dann neu lesen.
+- **`job_status` ohne `befunde`/`ereignisse`, `dokument_lesen` fehlt in der
+  Werkzeugliste**: die Desktop-App hält eine alte Toolliste. `bruecke_info`
+  nennt die Server-Version; Erweiterung aus- und einschalten.
 
 ## Was dieser Skill nicht tut
 
 - Keine Korrekturvorschläge und keine Namen aus eigener Deutung (Owner 08.10.).
 - Keine Kostenschätzung als Werkzeug; die Zahlen oben genügen.
 - Keine Veröffentlichung ohne Rückfrage 3, keine Library ohne Rückfrage 1.
+- Keine Webseite: Startseite, Sektionen je Vortrag und Design-Profil sind
+  Sache von `website-publishing` (Abschnitt „Veranstaltungs-Webseite aus
+  Vortragsseiten"); dieser Skill liefert nur die Vortragsseiten, auf die
+  jene Webseite verweist.
