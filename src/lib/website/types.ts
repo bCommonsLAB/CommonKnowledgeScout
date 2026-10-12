@@ -26,6 +26,18 @@ export type SectionLayout =
   | 'contact-form'
   | 'banner'
 
+/**
+ * Bildspalte der Sektionen image-left/image-right (Marker-Attribut
+ * `image_width`): `1/2` = zwei gleiche Spalten (Vorgabe), `1/3` = ein Drittel
+ * Bild, zwei Drittel Text — fuer Portraets und Bilder mit geringer Aufloesung.
+ */
+export type SectionImageWidth = '1/2' | '1/3'
+export const SECTION_IMAGE_WIDTHS: readonly SectionImageWidth[] = ['1/2', '1/3']
+
+/** Ausrichtung des Sektions-Bilds zum Text (`image_align`): `center` (Vorgabe) oder `top` (obenbuendig). */
+export type SectionImageAlign = 'center' | 'top'
+export const SECTION_IMAGE_ALIGNS: readonly SectionImageAlign[] = ['center', 'top']
+
 /** Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
 export type HeadingCase = 'capitalize' | 'none'
 export const HEADING_CASES: readonly HeadingCase[] = ['capitalize', 'none']
@@ -51,6 +63,10 @@ export interface WebsiteSection {
   videoUrl?: string
   /** Welle S2: Kennzeile (Versalzeile ueber der Ueberschrift), Marker-Attribut `kicker="…"`. */
   kicker?: string
+  /** Bildspalte bei image-left/image-right; fehlt = `1/2`. Nur gesetzt, wenn der Marker es nennt. */
+  imageWidth?: SectionImageWidth
+  /** Bildausrichtung bei image-left/image-right; fehlt = `center`. Nur gesetzt, wenn der Marker es nennt. */
+  imageAlign?: SectionImageAlign
   /**
    * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
    * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;

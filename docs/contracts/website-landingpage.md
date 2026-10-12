@@ -41,6 +41,12 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   die Hero-Ueberschrift, `title` bleibt der Menuepunkt. Marker-Attribut
   `kicker="…"` setzt eine Versalzeile ueber die Sektions-Ueberschrift;
   Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
+- **Bildspalte (2.48.1):** `image-left`/`image-right` nehmen `image_width`
+  (`1/2` Vorgabe, `1/3` = Drittel Bild, zwei Drittel Text) und `image_align`
+  (`center` Vorgabe, `top` = obenbuendig). Der Renderer setzt dafuer
+  `md:grid-cols-3` + `md:col-span-2` bzw. `items-start`. Ungueltige Werte
+  und die Attribute an Layouts ohne Bildspalte werfen im Parser;
+  `seite_pruefen` nennt `bildBreite`/`bildAusrichtung` je Sektion.
 - **Bloecke in Sektionen (S3):** innerhalb einer Sektion zerlegt
   `parse-section-blocks.ts` den Markdown in Text und Sonderbloecke:
   `<!-- stats -->` + Liste `- **Wert** Beschriftung` (Kennzahl-Kacheln),

@@ -27,7 +27,7 @@ export interface SeitenEintrag {
   menu_order?: number
   menu_area?: string
   site_role?: string
-  sektionen: Array<{ layout: string; bg: string; bild: boolean }>
+  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string }>
   fehler: string[]
   warnungen: string[]
 }
@@ -73,7 +73,12 @@ export function baueSeitenBericht(
       fehler.push('Kein Markdown im Meta-Dokument — Seite rendert leer')
     } else {
       try {
-        sektionen = parseWebsiteSections(markdown).map((s) => ({ layout: s.layout, bg: s.bg, bild: Boolean(s.imageUrl) }))
+        // Bild-Attribute nur, wenn der Marker sie nennt — sonst bleibt die Zeile wie bisher.
+        sektionen = parseWebsiteSections(markdown).map((s) => ({
+          layout: s.layout, bg: s.bg, bild: Boolean(s.imageUrl),
+          ...(s.imageWidth ? { bildBreite: s.imageWidth } : {}),
+          ...(s.imageAlign ? { bildAusrichtung: s.imageAlign } : {}),
+        }))
       } catch (error) {
         fehler.push(`Sektions-Marker: ${error instanceof Error ? error.message : String(error)}`)
       }

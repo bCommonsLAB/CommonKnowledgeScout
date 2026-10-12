@@ -133,7 +133,11 @@ Erweiterung in den Einstellungen aus- und einschalten.
    - Fußzeile: `site_role: "footer-content"`, `menu_area: "hidden"`.
    Erlaubte `layout`: image-left, image-right, full-image, text-only, video,
    contact-form, banner (Raster an dieser Stelle; ab Welle S1). Erlaubte `bg`: default, light, dark, brand, linen, mint,
-   dark-green, neutral. Bild-URLs absolut aus dem Blob (Regel 3 oben):
+   dark-green, neutral. Bei `image-left`/`image-right` zusätzlich
+   `image_width=1/3` (ein Drittel Bild, zwei Drittel Text; Vorgabe `1/2`)
+   und `image_align=top` (Bild obenbündig; Vorgabe `center`) — für Porträts
+   und Bilder mit geringer Auflösung. An anderen Layouts weist der Parser
+   die beiden Attribute ab. Bild-URLs absolut aus dem Blob (Regel 3 oben):
    erst `bild_veroeffentlichen` (Schritt 4 oben), dann die URLs eintragen.
    Frontmatter flach, snake_case, keine verschachtelten Objekte.
    Welche Farbe hinter `bg=dark-green` oder `bg=light` liegt, entscheidet

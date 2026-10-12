@@ -41,6 +41,13 @@ describe('baueSeitenBericht', () => {
     expect(home.warnungen.some((w) => w.includes('bilder/b.jpg'))).toBe(true)
   })
 
+  it('nennt bildBreite und bildAusrichtung nur, wenn der Marker sie setzt', () => {
+    const md = '<!-- section layout=image-left bg=light image_width=1/3 image_align=top -->\n## P\n![p](https://blob/p.jpg)\n<!-- /section -->'
+    const b = baueSeitenBericht([HOME], new Map([['home', md]]))
+    expect(b.seiten[0].sektionen).toEqual([{ layout: 'image-left', bg: 'light', bild: true, bildBreite: '1/3', bildAusrichtung: 'top' }])
+    expect(b.seiten[0].fehler).toEqual([])
+  })
+
   it('fehlendes Markdown und fehlender menu_order sind Befunde am Doc', () => {
     const b = baueSeitenBericht([doc({ fileId: 'k', title: 'K' })], new Map())
     expect(b.seiten[0].fehler).toContain('Kein Markdown im Meta-Dokument — Seite rendert leer')
