@@ -5,9 +5,14 @@ description: Website-Seiten einer Library über die KnowledgeScout-MCP-Brücke a
 
 # Website-Publishing: Inhalte einer öffentlichen Library füllen
 
-Stand 27.09.2026, Werkzeugsatz 2.36.0. Original im Archiv unter
+Stand 12.10.2026, Werkzeugsatz 2.48.1 (Bildspalte, Bildausrichtung,
+`hero_layout: none`). Original im Archiv unter
 `Organisation/Skills/website-publishing/SKILL.md`; diese Datei ist die
-Repo-Kopie und wird nach dem Original nachgezogen.
+Repo-Kopie und wird nach dem Original nachgezogen. Vortragsseiten einer
+Veranstaltung entstehen vorher mit dem Skill `veranstaltung-aufbereiten`
+(Stationen 1 bis 7); dieser Skill beginnt, wenn sie in der Galerie stehen,
+und baut daraus die Webseite (Abschnitt „Veranstaltungs-Webseite aus
+Vortragsseiten" am Ende).
 
 Ziel: Die Felder unter **Einstellungen → Veröffentlichung** (Galerie-Texte,
 Website-Logo-URL, Hintergrundbild-URL, Icon) für eine Library passend zu ihrem
@@ -103,6 +108,15 @@ als der Standard ist. Entwürfe dem User zur Freigabe vorlegen (Regel 2).
   Blob-URLs verwenden.
 - `siteEnabled` steuert die Website-Landingpage am Slug; ohne dieses Flag gibt
   es nur die Galerie.
+- Der Sektions-Marker nimmt unbekannte Attribute stumm an (Bestandsschutz);
+  Parser und Renderer kennen sie nicht. Es gilt nur, was `seite_pruefen` je
+  Sektion zeigt (`layout`, `bg`, `bild`, `bildBreite`, `bildAusrichtung`).
+  Nie Attribute ausprobieren; nur die Liste in Schritt 2 unten verwenden.
+  Ein ungültiger Wert eines bekannten Attributs wirft dagegen beim
+  Publizieren.
+- Nach einem Merge am Server hält die Desktop-App die alte Werkzeugliste.
+  `bruecke_info` nennt die Server-Version; weicht sie ab, Erweiterung aus-
+  und einschalten, bevor neue Attribute oder Werkzeuge benutzt werden.
 
 
 ## Website-Seiten über die Brücke anlegen und publizieren (Werkzeugsatz 2.36.0)
@@ -190,3 +204,52 @@ Erweiterung in den Einstellungen aus- und einschalten.
 
 Nicht über die Brücke: die Domain-Zuordnung (`PUBLIC_DOMAIN_LIBRARY_MAP`
 im Deployment, DNS) und der API-Schlüssel der Library.
+
+## Veranstaltungs-Webseite aus Vortragsseiten (Werkzeugsatz 2.48.1)
+
+Muster: eine Fortbildung (Prüffall 12.10.2026): ein Plakat, ein Rückblick,
+drei Vorträge mit Porträt der Vortragenden. Die
+Vortragsseiten stehen schon in der Galerie (Skill `veranstaltung-aufbereiten`,
+Station 7, `dokument_lesen` ohne Befund); hier entsteht die Seite, die sie
+präsentiert. Jede schreibende Aktion nur nach Bestätigung, mit `begruendung`.
+
+1. **Bilder in den Blob.** Plakat, Porträts, Flyer-Bild mit
+   `bild_veroeffentlichen` (Quelle: Twin-Ordner oder `web/images/`); nur
+   die zurückgegebenen Blob-Adressen in die Seite. Porträts aus
+   Folien-PDFs haben geringe Auflösung: später schmal und obenbündig setzen
+   (Punkt 3), nicht groß.
+2. **Startseite.** `datei_anlegen` unter `Webseite/Seiten/` mit
+   `detailViewType: "website"`, `title`, `menu_order: 1`, `slug` und
+   **`hero_layout: "none"`**: die erste Sektion trägt das Plakat als
+   `layout=full-image`, ein Hero-Kopf darüber wäre ein leerer Rand mit
+   Titel (Befund 12.10.; kein Zero-Width-Space im Titel, das versteckt nur
+   den Text, nicht den Abstand). `hero_image` dann weglassen,
+   `dokument_publizieren` warnt sonst. Danach eine `text-only`-Sektion mit
+   Überschrift und Untertitel der Veranstaltung (Datum, Ort als kursive
+   Zeile).
+3. **Eine Sektion je Vortrag.** `layout=image-left` oder `image-right`
+   im Wechsel, `kicker="Vortrag"`, **`image_width=1/3 image_align=top`**
+   (ein Drittel Porträt, zwei Drittel Text, Bild oben): Überschrift
+   „Name: Titel des Vortrags", Zusammenfassung aus der Vortragsseite
+   (`artefakt_lesen` mit `art: "transformation"` als Quelle; Text zeigen,
+   dann übernehmen), ein Zitat als Blockquote, Link auf die Vortragsseite
+   (`?doc=<slug>` aus `dokument_lesen`, `galerieAdresse`). Folienbilder
+   bleiben auf der Vortragsseite; die Webseite zeigt nur Porträt und
+   Zusammenfassung.
+4. **Rückblick und Anhänge.** `text-only`-Sektion mit `bg=light`: Verlauf
+   des Tages, Flyer als Link auf die Blob-Adresse (aus `dokument_lesen`,
+   `anhaenge`), nicht als Dateiname.
+5. **Vortragsseiten als Raster.** `layout=banner` mit Einleitung; am
+   Startseiten-Doc `banner_tag` (Schritt 4 oben) und die Vortragsseiten mit
+   `dokument_felder_setzen` auf dasselbe Tag, damit das Raster genau diese
+   Seiten zeigt.
+6. **Publizieren und prüfen.** `dokument_publizieren`; Warnungen beheben,
+   nicht übergehen. `seite_pruefen` muss je Sektion `bildBreite: "1/3"`
+   und `bildAusrichtung: "top"` an den Vortragssektionen zeigen und keine
+   Fehler. Dann `/explore/<slug>` ansehen: kein Rand über dem Plakat,
+   Porträt links oder rechts im Drittel, Text daneben.
+
+Attribute, die es gibt (alles andere schluckt der Marker stumm): `layout`,
+`bg`, `kicker`, `image_width` (`1/2`, `1/3`), `image_align` (`center`,
+`top`); im Frontmatter `hero_layout` (`overlay`, `cover`, `campaign`,
+`none`). Alles ab 2.48.1; `bruecke_info` prüfen.
