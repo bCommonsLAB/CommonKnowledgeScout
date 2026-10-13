@@ -353,3 +353,20 @@ als Geschwister-Artefakte und würden beim nächsten Import als Twin eingelesen.
 Seitenbilder werden nicht kopiert, danach `index_aktualisieren` in B.
 `vorschau: true` zeigt den Plan. `type: verweis` gehört zu den Begleittypen
 mit Pflichtstempel wie `notiz` und `verlauf`.
+
+## Nachtrag 2.53.0 (13.10.2026): Webseite als Quelle nach dem Cowork-Test
+
+Der erste Lauf über die Brücke (Videoseite, `medienEinbetten: false`) zeigte
+drei Lücken, alle behoben:
+
+- **Videos kommen als Tonspur.** Der Secretary zieht bei Videos und Streams
+  per ffmpeg nur den Ton heraus (`/api/media/download`, `nur_audio`). Damit
+  gelten `sprecherErkennung`, `kontext` und `begriffe` auch für Videoseiten.
+  Ist keine Tonspur extrahierbar, weist das Werkzeug diese Optionen ab, bevor
+  es etwas schreibt.
+- **Kein Rest nach einem Abbruch.** Scheitert ein Aufruf nach dem Hochladen,
+  entfernt das Werkzeug die schon geschriebenen Dateien; der
+  Transkriptionsjob startet erst, wenn alles liegt.
+- **Datum aus dem richtigen Knoten.** Im JSON-LD-`@graph` steht die WebPage
+  oft vor dem VideoObject; die Rangfolge geht jetzt nach Typ, dazu
+  `video:release_date` und `<time datetime>`.
