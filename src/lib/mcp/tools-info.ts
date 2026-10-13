@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.49.1'
+export const TOOLSET_VERSION = '2.50.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -91,6 +91,8 @@ export const TOOL_NAMES = [
   'abhaengige_dokumente',
   // Welle G — Artefakte ohne Spiegel lesen.
   'artefakt_lesen',
+  // Wunschliste 8, W8-2 — Quelle ueber Library-Grenzen finden.
+  'quelle_suchen',
   // Handover Library-Anlage (08.10.).
   'bibliothek_anlegen',
   'speicher_pruefen',
@@ -113,6 +115,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.50.0: Wunschliste 8, W8-2 — quelle_suchen findet eine Quelle in ALLEN eigenen Libraries (Eingabe genau eine von: hash | dateiname + groesse | vonLibraryId + sourceId aus einem Befund), Rangfolge uebereinstimmung hash > name_groesse > name, je Treffer libraryName, slug, adresse @<slug>/<pfad>, pfad, imSpeicher, erschliessung; inhaltVerschieden nennt gleichen Namen mit belegt anderem Inhalt; nachrechnen: true (begruendung Pflicht) rechnet die Quellkennung der gesuchten Quelle und von bis zu 5 Treffern (je bis 50 MB) und schreibt sie ans Twin-Dokument. quelle_verschwunden traegt moeglicherweiseIn (bis 5 Orte: libraryId, libraryName, bibliothek @<slug>, sourceId, uebereinstimmung; [] = gesucht, nichts gefunden; fehlt = nicht gesucht) und moeglicherweiseInGesamt, gesucht nur in MongoDB; abdeckung_lesen zeigt beides. GRUNDLAGE ADRESSEN (Plan Abschnitt 6): Verweise [[@<slug>/<pfad>]] in andere Libraries; bibliotheken_auflisten nennt slug, slugHerkunft (gesetzt | veroeffentlicht | abgeleitet), slugKonflikt, frueherSlugs; neues Werkzeug adresse_setzen (instanzweit eindeutig, alter Slug wird gemerkt, nur Owner); das Verweis-Audit prueft @-Adressen nur gegen die bekannten Slugs (unbekannt oder unlesbar = verweis_tot), ohne Library-Liste bleiben sie ungeprueft. Grenze: eine verschwundene Quelle von vor 2.49.1 traegt weder Kennung noch Groesse — fuer sie bleibt es bei name',
   '2.49.1: Wunschliste 8, W8-1 — Quellkennung am Twin-Dokument: sourceContentHash (SHA-256 ueber den Inhalt der Quelldatei), sourceSize, sourceHashedAt. Gerechnet in der Start-Route aus dem Blob, der zum Secretary geht (kein zweites Lesen), am Job gemerkt (quellkennung) und beim Abschluss ans Twin-Dokument geschrieben (Job-Log quellkennung_gesetzt | quellkennung_ohne_twin | quellkennung_fehler). Wiedererkennung ueber Library-Grenzen, kein Schluessel: Identitaet bleibt die Provider-Id. artefakt_lesen nennt quellkennung (null = seit 2.49.1 nicht neu erschlossen). Kein Migrationslauf: Bestand bekommt die Kennung bei der naechsten Erschliessung oder ueber quelle_suchen nachrechnen (W8-2, folgt). NICHT sourceHash — der Name ist an binaryFragments[].sourceHash vergeben. Index { libraryId, sourceContentHash }',
   '2.49.0: Wunschliste 8, W8-4 — Libraries gehoeren zu Vorhaben. BERICHT.md nimmt das Feld libraries: (Flow-Form wie repo:, Werte sind Library-Ids oder -Namen). Zwei neue Befunde im Library-weiten Scan einer Archivpflege-Library (abdeckung_scannen ohne pfad): library_ohne_vorhaben (eine eigene Library des Users, die kein Bericht nennt; Library-Ebene, Akteur Cowork, info; targetId = libraryId) und library_unbekannt (ein Wert unter libraries:, der weder Id noch Name einer eigenen Library ist; je Bericht ein Sammelbefund). Teilbaum-Scans und Libraries ohne Archivpflege melden beides nicht. abdeckung_lesen nennt je Vorhaben libraries (roh; null = Report vor 2.49.0)',
   '2.48.1: Website-Sektionen image-left/image-right nehmen zwei neue Marker-Attribute: image_width=1/3 (ein Drittel Bild, zwei Drittel Text; Vorgabe 1/2) und image_align=top (Bild obenbuendig; Vorgabe center), z. B. <!-- section layout=image-left bg=light image_width=1/3 image_align=top -->. Ungueltige Werte und Bild-Attribute an Layouts ohne Bildspalte weist der Parser ab (seite_pruefen und dokument_publizieren melden es). seite_pruefen nennt je Sektion bildBreite und bildAusrichtung, wenn gesetzt. Andere unbekannte Marker-Attribute ignoriert der Parser weiterhin stumm (Bestandsschutz). hero_layout: none rendert KEINEN Kopf (kein Titel, kein Abstand ueber der ersten Sektion) — fuer Seiten, deren erste Sektion das Bild traegt; dokument_publizieren warnt bei unbekanntem hero_layout und bei none mit hero_image',

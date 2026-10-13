@@ -11,8 +11,8 @@ todos:
     content: "PR 2 (W8-1): Quellkennung am Twin-Dokument (sourceContentHash sha256, sourceSize, sourceHashedAt); gerechnet in der Start-Route aus dem ohnehin gelesenen Blob, am Job gemerkt und beim Abschluss (finalize-completion) per setzeQuellkennung geschrieben; Index; Contract §9; artefakt_lesen zeigt sie. Werkzeugsatz 2.49.1."
     status: completed
   - id: w8-2-suchen
-    content: "PR 3 (W8-2): quelle_suchen über alle eigenen Libraries (Kennung, sonst Name + Größe, sonst Name); quelle_verschwunden bekommt moeglicherweiseIn aus einer Mongo-Suche (kein Storage-Zugriff im Scan); nachrechnen: true rechnet die Kennung für höchstens fünf Namenstreffer nach. Dazu die Grundlage aus Abschnitt 6: G1 Slug je Library, G2 library-adresse.ts ([[@slug/pfad]]), G3 Verweis-Parser erkennt die Adresse. Werkzeugsatz 2.50.0."
-    status: pending
+    content: "PR 3 (W8-2): quelle_suchen über alle eigenen Libraries (Kennung, sonst Name + Größe, sonst Name); quelle_verschwunden bekommt moeglicherweiseIn aus einer Mongo-Suche (kein Storage-Zugriff im Scan); nachrechnen: true rechnet die Kennung für höchstens fünf Namenstreffer nach. Dazu die Grundlage aus Abschnitt 6: G1 Slug je Library, G2 library-adresse.ts ([[@slug/pfad]]), G3 Verweis-Parser erkennt die Adresse. Werkzeugsatz 2.50.0. Gebaut 13.10. mit Werkzeug adresse_setzen."
+    status: completed
   - id: w8-adressen-spaeter
     content: "Reserviert, nicht in diesem Plan: Auflöser-Route /@<slug>/<pfad> (App und Website), Klick im Markdown-Renderer und im Embed, Verzeichnis fremder Libraries mit Instanz-Adresse, inhaltliche Suche über Libraries (ADR 0009/0010)."
     status: pending
@@ -167,9 +167,15 @@ bis drei Tage plus Live-Prüfung mit echten Dateien in zwei Libraries.
 - W8-1: `Journalistenschulung Armut-Teil 2 - Britsko.m4a` in Archiv und
   Neuaufbau trägt nach `nachrechnen` denselben `sourceContentHash`.
 - W8-2: Die acht Dateien aus `2026-09-25 Journalistenschulung Armut` werden in
-  `72a883a0…` gefunden, nach `nachrechnen` mit `uebereinstimmung: hash`,
-  davor mit `name_groesse`. Der Voll-Scan der Archiv-Library zeigt an den
-  acht `quelle_verschwunden` ein `moeglicherweiseIn` mit der Neuaufbau-Library.
+  `72a883a0…` gefunden. Der Voll-Scan der Archiv-Library zeigt an den acht
+  `quelle_verschwunden` ein `moeglicherweiseIn` mit der Neuaufbau-Library.
+  **Korrektur 13.10. (beim Bauen von PR 3):** Die Übereinstimmung ist hier
+  `name`, nicht `hash` und nicht `name_groesse`. Die Originale sind aus dem
+  Archiv verschwunden und wurden vor 2.49.1 erschlossen; ihr Twin-Dokument
+  trägt weder Kennung noch Größe, und ihr Inhalt ist nicht mehr lesbar.
+  `nachrechnen` hilft nur, wenn beide Seiten lesbar sind. Der nächste Beleg
+  für diese Fälle ist der Vergleich der Transkripte (`artefakt_lesen`).
+  Derselbe Vorbehalt gilt für den W8-1-Testfall oben.
 - W8-3: Eine Datei aus einem Testordner übergeben; in B liegt Quelle, Spiegel
   und Twin-Dokument; in A liegt die Verweis-Datei; ein zweiter Scan meldet in
   A kein `quelle_verschwunden`.
@@ -222,6 +228,15 @@ nicht gefunden, keine Berechtigung). Über Instanzgrenzen gilt ADR 0008,
 Nachtrag (a): nur öffentliche Inhalte, anonym lesbar; alles andere braucht
 die Anmeldung auf der anderen Instanz. Das Einwilligungsmodell von ADR 0009
 bleibt die Regel dafür, wer wen sehen darf.
+
+**Gebaut in PR 3 (13.10.), mit zwei Abweichungen:** Der Slug liegt unter
+`config.adresse` und wird über das neue Werkzeug `adresse_setzen` gesetzt,
+nicht über ein Feld im Einstellungsformular; das Formular kommt mit dem
+Auflöser (Schicht 3), weil erst dann ein Mensch ihn dort braucht. Der
+Server führt `config` beim Speichern zusammen, deshalb überlebt der Slug
+das Formular. Und ein abgeleiteter Slug wird nicht beim ersten Gebrauch
+festgeschrieben; `bibliotheken_auflisten` nennt seine Herkunft, damit
+sichtbar ist, welche Slugs mit dem Namen wandern.
 
 **Was davon jetzt gebaut wird, in diesem Plan:**
 

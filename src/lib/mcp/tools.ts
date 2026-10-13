@@ -50,6 +50,7 @@ import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerArtefaktTool } from './tools-artefakt'
 import { registerBibliothekTools } from './tools-bibliothek'
 import { registerAdresseTools } from './tools-adresse'
+import { registerQuelleSuchenTool } from './tools-quelle-suchen'
 import { bestimmeSlugs } from '@/lib/library-adresse/slug'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
@@ -100,6 +101,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerSammeldateiTools(server)
   // Welle G: Artefakte ohne Spiegel lesen.
   registerArtefaktTool(server)
+  // Wunschliste 8, W8-2: Quelle ueber alle eigenen Libraries finden.
+  registerQuelleSuchenTool(server)
   // Handover Library-Anlage (08.10.): Library anlegen, Speicher pruefen, Vorlagen uebernehmen.
   registerBibliothekTools(server)
   // Wunschliste 8 (G1): Adress-Slug je Library fuer [[@<slug>/<pfad>]].
