@@ -2,7 +2,7 @@
 name: speicher-verbindungen-und-library-anlage
 overview: "Drei Beobachtungen des Owners vom 13.10.2026, ein Umbau: (A) Speicher-Zugänge (Nextcloud, OneDrive) gehören der Person und werden einmal am Konto gepflegt, die Library zeigt nur noch auf eine Verbindung plus Verzeichnis. (B) Die Seite „Erweitert" wird ein aufklappbarer Menüpunkt mit sieben Unterseiten statt einer endlosen Seite. (C) Eine neue Library wird vollständig angelegt: ein Entscheidungskatalog sagt, welche Antworten eine funktionierende Library braucht; die App fragt sie in einem Wizard ab, die Brücke stellt Rückfragen, statt halb konfigurierte Libraries zu hinterlassen."
 vorhaben: []
-status: geplant
+status: aktiv
 todos:
   - id: a1-verbindungen-modell
     content: "Teil A, PR 1 — Speicher-Verbindung als eigene Entität: Collection `storage_connections` (Besitzer-E-Mail, Bezeichnung, Typ, Zugangsdaten verschlüsselt, letzter Test), Repository nach mongodb-repository-pattern, Verschlüsselung AES-256-GCM aus Commit 63a64bb9 übernehmen (`src/lib/security/`), Konto-Seite „Speicher-Verbindungen" unter Mein Konto (anlegen, testen, OneDrive-Login, löschen nur ohne abhängige Library). Noch nutzt keine Library die Verbindung."
@@ -17,7 +17,7 @@ todos:
     content: "Teil A, PR 4 — ADR 0005 umsetzen: `LibraryMember.storageConnectionId` ersetzt `localPathOverride`; `getServerProvider` löst je handelndem Member auf, nie Rückfall auf die Owner-Verbindung; Einladung annehmen = Verbindung wählen + Test auf das Library-Root; ID-Konsistenz über Konten (offener Punkt des ADR) vorher mit einem Prüffall belegen."
     status: pending
   - id: b1-seitenmenue-erweitert
-    content: "Teil B — `SidebarNav` bekommt eine zweite Ebene (aufklappbarer Eintrag, aktiver Pfad klappt auf); Erweitert → sieben Unterrouten `/settings/advanced/{suche-ki,speicher-twins,verarbeitung,extraktion,diva,agentensicht,wartung}`; je Seite genau ein Config-Objekt und ein Speichern-Knopf; Library-Formular in Teil-Formulare je Seite zerlegen; Inhalte erfassen (Wizards) auf die Archive-Seite als Schritt 4; Mein Konto bekommt „Speicher-Verbindungen" (Route aus A1). Unabhängig von Teil A, kann zuerst gehen."
+    content: "Teil B — `SidebarNav` bekommt eine zweite Ebene (aufklappbarer Eintrag, aktiver Pfad klappt auf); Erweitert → sieben Unterrouten `/settings/advanced/{suche-ki,speicher-twins,verarbeitung,extraktion,diva,agentensicht,wartung}`; je Seite genau ein Config-Objekt und ein Speichern-Knopf; Library-Formular in Teil-Formulare je Seite zerlegen; Inhalte erfassen (Wizards) auf die Archive-Seite als Schritt 4; der Konto-Eintrag „Speicher-Verbindungen" kommt erst mit A1. Unabhängig von Teil A, kann zuerst gehen. Start-Prompt in §9."
     status: pending
   - id: c1-entscheidungskatalog
     content: "Teil C, Schritt 1 — Entscheidungskatalog der Library-Anlage als Code (`src/lib/library-setup/entscheidungen.ts`): je Entscheidung Feld, Gewicht (pflicht | empfohlen | später), Vorgabe ohne Antwort, Bedingung (nur bei Audio, nur bei Inhaltstyp X); dazu `pruefeEinrichtung(library)` → Liste offener Entscheidungen. Eine Quelle für App-Wizard, Brücke und die Einrichtungs-Anzeige in den Settings. Owner entscheidet vorher die Gewichte (§6, E6). Dazu E8: Standard-Facetten je Inhaltstyp."
@@ -260,15 +260,20 @@ Regeln für die Umsetzung:
 - **Eine Seite, ein Config-Objekt, ein Speichern-Knopf.** Bild-Speicher bleibt
   vorerst bei „Suche & KI", weil er im Chat-Config liegt; er zieht um, sobald
   er eine Konto-Verbindung wird (§3).
-- **PATCH-Merge beachten.** `src/app/api/libraries/[id]/route.ts` führt
-  `chat` tief zusammen und behandelt `nextcloud` und `ingestionStorage`
-  gesondert; alle anderen Schlüssel auf oberster Ebene (`secretaryService`,
-  `agentView`, `divaArchiveDefaults`, `shadowTwin`, `captureWizards`) werden
-  **als Ganzes ersetzt**. Eine Teil-Seite, die nur einen Teil von
-  `secretaryService` schickt, löscht den Rest. Deshalb schickt jede Seite ihr
-  Objekt vollständig (sie liest die ganze Library und ändert nur ihre Felder),
-  oder der Merge in der Route wird für diese Schlüssel tief. Empfehlung: tief
-  mergen in der Route, mit Test.
+- **Merge beim Speichern beachten.** Die Formulare speichern über
+  `POST /api/libraries` (`src/app/api/libraries/route.ts`, Library-,
+  Secretary-Formular) oder `PATCH /api/libraries/[id]`. Beide führen die
+  Config nur **auf oberster Ebene** zusammen (PATCH zusätzlich tief für
+  `chat`, gesondert für `nextcloud` und `ingestionStorage`): ein
+  mitgeschickter Schlüssel wie `secretaryService`, `agentView`,
+  `divaArchiveDefaults` oder `shadowTwin` ersetzt das gespeicherte Objekt
+  **als Ganzes**; nicht mitgeschickte Schlüssel bleiben unberührt. Regel
+  für die Teil-Seiten: jede Seite schickt nur die Schlüssel, die ihr
+  gehören, und ein Objekt, das sich zwei Seiten teilen (`secretaryService`
+  liegt auf Archive · Verarbeitung UND auf Erweitert · Verarbeitung),
+  vollständig: gespeichertes Objekt plus eigene Felder. Ein Test je
+  geteiltem Objekt belegt, dass Speichern der einen Seite die Felder der
+  anderen nicht löscht. Die Routen bleiben unverändert.
 - **`SidebarNav`**: `SidebarNavItem` bekommt optional `children`; ein Eintrag
   mit Kindern rendert aufgeklappt, wenn `pathname` mit seinem `href` beginnt.
   Mobil (horizontale Leiste) zeigen die Kinder als eigene Chips neben dem
@@ -285,8 +290,9 @@ Regeln für die Umsetzung:
 - Contract `welle-3-iv-settings-contracts.md` (Client-Direktive, erlaubte
   API-Pfade, Sub-Modul-Struktur) gilt für alle neuen Seiten.
 
-Teil B hängt nicht an Teil A und kann als erster PR gehen; er legt die Route
-an, auf die A1 die Konto-Seite setzt.
+Teil B hängt nicht an Teil A und kann als erster PR gehen. Den Eintrag
+„Speicher-Verbindungen" unter Mein Konto legt erst A1 an, zusammen mit der
+Seite; B1 baut nur die zweite Menü-Ebene, die er braucht.
 
 ## 5. Teil C: Vollständige Library-Anlage
 
@@ -387,3 +393,90 @@ vor dem Merge; A2 zusätzlich Migrations-Probelauf gegen Dev mit Backup.
 - `docs/concepts/mcp-library-betrieb.md` (Brücken-Werkzeuge)
 - `docs/plans/geplant/bruecke-library-betrieb.plan.md` (Use Case 1 Konfigurieren)
 - Commit `63a64bb9` auf `origin/claude/lucid-planck-b9i6gj` (Verschlüsselung)
+
+## 9. Start-Prompts
+
+Jeder Schritt startet als **neue** Session, ab `master`, ein PR je Schritt.
+Pflicht in jeder Session: `pnpm test`, `pnpm lint` und die volle
+tsc-Prüfung mit Vorher/Nachher-Vergleich aus `AGENTS.md` (Abschnitt
+„Test- und Lint-Commands"); kein `pnpm build` in der Cloud, den fährt der
+Owner lokal mit `bash scripts/welle-pre-merge-check.sh` vor dem Merge.
+Grenzen: 200 Zeilen je Datei, 1.000 Zeilen Diff je Commit, 5.000 je PR,
+15 Commits je PR. Owner-Regel: Knopf- und Menüzeilen brechen nie um (kein
+`flex-wrap`; bei Platzmangel nur Symbol, Text im Tooltip). Hand-off nach
+`docs/agents-handbuch.md` §5 im PR-Body.
+
+### B1 Seitenmenü „Erweitert" (Sonnet, Thinking mittel)
+
+> Lies `CLAUDE.md`, `AGENTS.md`, `docs/STAND.md` (Zwischenschnitt
+> „Speicher-Verbindungen und Library-Anlage") und
+> `docs/plans/speicher-verbindungen-und-library-anlage.plan.md`, vor allem
+> §2b und §4. Lade den Skill `contracts-ui` und lies
+> `docs/contracts/welle-3-iv-settings-contracts.md` und
+> `docs/contracts/library-config-field.md`.
+>
+> Baue Schritt B1 auf dem Branch `claude/speicher-b1-seitenmenue-erweitert`:
+>
+> 1. `src/components/settings/sidebar-nav.tsx`: `SidebarNavItem` bekommt
+>    optional `children`. Ein Eintrag mit Kindern zeigt sie aufgeklappt,
+>    sobald `pathname` mit seinem `href` beginnt; aktiv markiert ist das
+>    Kind. Mobil (horizontale Leiste unter `lg`) erscheinen die Kinder als
+>    eigene Einträge neben dem Elternteil, ohne Umbruch.
+> 2. In `src/app/settings/layout.tsx` bekommt „Erweitert" sieben Kinder:
+>    `/settings/advanced/suche-ki`, `/speicher-twins`, `/verarbeitung`,
+>    `/extraktion`, `/diva`, `/agentensicht`, `/wartung`. Die Zuordnung der
+>    heutigen Abschnitte steht im Baum in §4. `/settings/advanced` leitet auf
+>    `/settings/advanced/suche-ki` weiter; suche vorher mit grep alle Links
+>    auf `/settings/advanced` (App, Brücke, Doku) und prüfe, ob sie auf eine
+>    Unterseite zeigen sollten.
+> 3. Zerlege `src/components/settings/library/library-advanced-form.tsx`
+>    (heute ein React-Hook-Form für alles) in Teil-Formulare je Seite:
+>    Speicher & Twins, Extraktion, DIVA, Agentensicht. Die vorhandenen
+>    Section-Komponenten bleiben und bekommen ihr `form`. Sprachbereinigung
+>    und Export/Import ziehen auf die Seite Wartung, zusammen mit den
+>    Panels Dokument-Angaben prüfen und Speicher-Abgleich. Die falsche
+>    Überschrift „Speicher-Abgleich" über Scan-Ausschluss, bekannten Namen,
+>    Sprachen und Anhängen verschwindet dabei (§4).
+> 4. „Inhalte erfassen" (`captureWizards`) zieht auf die Archive-Seite als
+>    Schritt „4 · Erfassen".
+> 5. Speichern: Regel „Merge beim Speichern beachten" in §4. Jede Seite
+>    schickt nur ihre Config-Schlüssel; `secretaryService` teilen sich
+>    Archive · Verarbeitung und Erweitert · Verarbeitung, also wird es
+>    vollständig geschickt (gespeichertes Objekt plus eigene Felder). Ein
+>    Unit-Test belegt für jedes geteilte Objekt, dass Speichern der einen
+>    Seite die Felder der anderen nicht löscht. Die API-Routen bleiben
+>    unverändert.
+> 6. Der Konto-Eintrag „Speicher-Verbindungen" gehört NICHT in diesen
+>    Schritt, er kommt mit A1.
+>
+> Kein Verhalten ändert sich außer der Navigation: jedes Feld ist danach
+> auf genau einer Seite und speichert dasselbe wie vorher. Melde im PR,
+> welche Felder wohin gewandert sind (Tabelle alt → neu). Setze im Plan den
+> Marker von `b1-seitenmenue-erweitert` auf `completed` mit Kurzbeleg und
+> trage den Stand im Zwischenschnitt von `docs/STAND.md` nach.
+> Live-Prüfung im Browser macht der Owner lokal; nenne im PR die Klickwege
+> dafür.
+
+### C1 Entscheidungskatalog (Sonnet, Thinking mittel; parallel zu B1 möglich)
+
+> Lies `CLAUDE.md`, `AGENTS.md`, `docs/STAND.md` und
+> `docs/plans/speicher-verbindungen-und-library-anlage.plan.md` §2c und §5.
+> Lade den Skill `checklisten-erweiterung`.
+>
+> Baue Schritt C1 auf dem Branch `claude/speicher-c1-entscheidungskatalog`:
+> `src/lib/library-setup/entscheidungen.ts` beschreibt die 19 Zeilen der
+> Tabelle in §5 als Daten (Schlüssel, Feldpfad in der Library-Config,
+> Gewicht `pflicht | empfohlen | spaeter`, Bedingung, Vorgabe ohne Antwort,
+> Frage-Text, Optionen) und liefert `pruefeEinrichtung(library)` mit der
+> Liste offener Entscheidungen; Bedingungen (Audio erwartet, Inhaltstyp mit
+> Wizards) als reine Funktionen. Dazu E8: Standard-Facetten je Inhaltstyp,
+> abgeleitet aus den Feldern der Standard-Vorlage (`standard-<typ>`,
+> `src/lib/templates/default-templates.ts`), analog zu F11 im
+> Settings-UX-Konzept, mit CI-Test wie dort. Reine Funktionen, keine UI,
+> keine Route; Tests unter `tests/unit/library-setup/`. Keine stillen
+> Vorgaben: was ohne Antwort gilt, steht als `vorgabe` im Katalog und nicht
+> verstreut im Code. Marker `c1-entscheidungskatalog` im Plan auf
+> `completed` setzen, Stand in `docs/STAND.md` nachtragen.
+
+Die Prompts für A1 bis A4, C2 und C3 schreibt die Session, die den
+vorangehenden Schritt abschließt, in ihren Hand-off.

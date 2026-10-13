@@ -12,16 +12,26 @@ verworfen. Es gibt keinen Zustand „offen" mehr. Gearbeitet wird **ein
 Vorhaben nach dem anderen**; Agenten arbeiten nur am Vorhaben, das in
 `STAND.md` auf „jetzt" steht, es sei denn, der Owner sagt es anders.
 
-- **Vorhaben 1 (jetzt): AECED, Galerie als einbettbare Komponente (M5).**
-  Brief: [`docs/refactor/modularisierung/AGENT-BRIEF-M5.md`](docs/refactor/modularisierung/AGENT-BRIEF-M5.md)
-  (fuenf Schritte, Vorgeschichte M1–M4e, Regeln aus frueheren Wellen).
-  Die Schritte 1 und 3 laufen als Teilwellen M4f–M4i mit eigener Messung:
-  [`AGENT-BRIEF-M4f.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4f.md)
-  (M4f bis M4i erledigt — die Galerie liegt im Paket; naechstes ist M5).
-- **Vorhaben 2: Klimamaßnahmen Südtirol, Vortrag 30.09.** (OneDrive-Anmeldung
-  stabil neu aufsetzen, Library-Anpassungen, Webseite; Konzept im Archiv).
-- **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10.); die Erfassung
-  wird dort in einem Zug bereinigt (Alt-Endpunkte, ADR 0003, Welle 3-VI).
+Stand der Durchsicht 13.10.2026:
+
+- **Vorhaben 1: AECED, Galerie als einbettbare Komponente (M5) — erledigt**
+  (bedient 15.09.; Brief
+  [`AGENT-BRIEF-M5.md`](docs/refactor/modularisierung/AGENT-BRIEF-M5.md)).
+  Reste stehen im Vorrat von `STAND.md`.
+- **Vorhaben 2 (jetzt, Termin vorbei): Klimamaßnahmen Südtirol, Vortrag
+  30.09.** Offen sind Reste je Punkt (Status-Modalität messen,
+  Website-Sektionen S0/S4/S5, Live-Prüffall Welle J, Welle K PR 2,
+  unverändert publizieren); Liste unter „Stand 13.10." in `STAND.md`.
+- **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10. ohne Code
+  verstrichen); naechster Schritt sind die Owner-Entscheide O1, O2,
+  O10–O20; die Erfassung wird dort in einem Zug bereinigt (Alt-Endpunkte,
+  ADR 0003, Welle 3-VI).
+- **Zwischenschnitt (aktiv, Owner 13.10.): Speicher-Verbindungen und
+  Library-Anlage.** Plan
+  [`docs/plans/speicher-verbindungen-und-library-anlage.plan.md`](docs/plans/speicher-verbindungen-und-library-anlage.plan.md)
+  (Teil A Zugaenge am Konto, Teil B Seitenmenue „Erweitert", Teil C
+  vollstaendige Library-Anlage; Owner-Entscheide bestaetigt, Start-Prompts
+  in §9). Erster Schritt: B1 Seitenmenue.
 
 **Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent mit Datum
 unter „Neu dazugekommen" des laufenden Vorhabens in
@@ -37,8 +47,9 @@ Docker-Build nicht — gruene PR-Checks sind kein Beleg.
 `docs/STAND.md`): Refactor-Wellen 1.1–3-IV und 4, Shadow Twin Mongo-only,
 Werkbank/Agentensicht W0–W5, W1–W8, A1–A7b (Kuration nach ADR 0006, Tab
 „Aktuell" aus den Bericht-Feldern der `VorhabenCard`s, Postfach-Frische
-ueber `agentView.postfachMaxRueckstandWochen`), Modularisierung M1–M4e,
-Storage ueber MCP ST1–ST4.
+ueber `agentView.postfachMaxRueckstandWochen`), Modularisierung M1–M4e
+und M4f–M5 (Vorhaben 1), Storage ueber MCP ST1–ST4, Twin-Fingerabdruck
+(Stufe 1; Stufe 2 entfaellt nach Messung).
 
 **Ruhend / geplant**: alles im Vorrat von `docs/STAND.md`, darunter die
 Juni-Roadmap
