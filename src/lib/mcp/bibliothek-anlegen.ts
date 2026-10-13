@@ -5,9 +5,12 @@
  * Baut eine neue Library so, wie die KS-Oberflaeche sie anlegt: Anlege-Dialog
  * (`use-library-form.ts`, Inhaltstyp in `config.chat.gallery.detailViewType`,
  * Shadow-Twin v2/Mongo) plus Speicher-Schritt (`use-storage-form.ts`: `type`,
- * `path`, `config.nextcloud`). Geheimnisse (App-Passwort, Client-Secret,
- * OAuth) kommen NIE ueber die Bruecke — der Owner traegt sie in Settings →
- * Archive ein.
+ * `path`, `storageConnectionId`). Zugangsdaten liegen seit Teil A des Plans
+ * speicher-verbindungen-und-library-anlage an der Speicher-Verbindung der
+ * Person; die Bruecke haengt eine Nextcloud-Library an die Verbindung mit
+ * gleicher WebDAV-URL und gleichem Benutzer, sonst bleibt sie „ausstehend"
+ * (Owner waehlt in Settings → Archive · 1 Quelle). Geheimnisse kommen NIE
+ * ueber die Bruecke.
  *
  * Mit `vorlageVon` werden die Bereiche einer bestehenden Library uebernommen,
  * die NICHTS mit Zugangsdaten oder Aussenwirkung zu tun haben: Chat
@@ -20,6 +23,7 @@
  */
 
 import type { Library, StorageConfig, StorageProviderType } from '@/types/library'
+import { dedupeKeyFor } from '@/lib/storage-connections/migration-plan'
 
 export const SPEICHER_TYPEN = ['nextcloud', 'local', 'onedrive'] as const
 export type SpeicherTyp = (typeof SPEICHER_TYPEN)[number]
@@ -82,7 +86,7 @@ export function pruefeSpeicher(speicher: SpeicherAngaben): void {
   }
 }
 
-/** Braucht der Speicher ein Geheimnis, das nur der Owner in der Oberflaeche eintraegt? */
+/** Liegt dieser Speichertyp auf einer Speicher-Verbindung (mit Geheimnis) statt auf einem lokalen Pfad? */
 export function geheimnisFehlt(speicher: SpeicherAngaben): boolean {
   switch (speicher.typ) {
     case 'nextcloud':
@@ -134,10 +138,25 @@ export function uebernimmKonfiguration(vorlage: Library, neueId: string): Uebern
   return { config, uebernommen }
 }
 
-/** Speicher-Teil der Config, wie ihn der Speicher-Schritt der Oberflaeche schreibt. */
-function speicherConfig(speicher: SpeicherAngaben): Record<string, unknown> {
-  if (speicher.typ !== 'nextcloud') return {}
-  return { nextcloud: { webdavUrl: speicher.webdavUrl?.trim(), username: speicher.benutzer?.trim() } }
+/** Nicht-geheime Sicht einer Speicher-Verbindung, gegen die zugeordnet wird. */
+export interface VerbindungsKandidat {
+  id: string
+  label: string
+  type: string
+  nextcloud?: { webdavUrl: string; username: string }
+}
+
+/**
+ * Nextcloud: die Verbindung des Kontos mit gleicher WebDAV-URL und gleichem
+ * Benutzer (derselbe Schluessel wie das Zusammenlegen in der Migration).
+ * OneDrive hat ueber die Bruecke keine Kennung — dort waehlt der Owner.
+ */
+export function findePassendeVerbindung(speicher: SpeicherAngaben, kandidaten: VerbindungsKandidat[]): VerbindungsKandidat | null {
+  if (speicher.typ !== 'nextcloud') return null
+  const gesucht = dedupeKeyFor('nextcloud', { webdavUrl: speicher.webdavUrl?.trim(), username: speicher.benutzer?.trim() })
+  return (
+    kandidaten.find((k) => k.type === 'nextcloud' && k.nextcloud && dedupeKeyFor('nextcloud', k.nextcloud) === gesucht) ?? null
+  )
 }
 
 /** Die neue Library, bereit fuer `LibraryService.updateLibrary`. */
@@ -147,6 +166,8 @@ export function baueLibrary(args: {
   inhaltstyp: string
   speicher: SpeicherAngaben
   uebernahme?: UebernahmeErgebnis
+  /** Speicher-Verbindung, auf der die Library liegt (nextcloud/onedrive); fehlt = ausstehend. */
+  storageConnectionId?: string
 }): Library {
   const basis = args.uebernahme?.config ?? {}
   const chat = alsObjekt(basis.chat)
@@ -154,7 +175,6 @@ export function baueLibrary(args: {
     ...basis,
     chat: { ...chat, gallery: { ...alsObjekt(chat.gallery), detailViewType: args.inhaltstyp } },
     shadowTwin: { mode: 'v2', primaryStore: 'mongo', persistToFilesystem: true, allowFilesystemFallback: true },
-    ...speicherConfig(args.speicher),
   }
   return {
     id: args.id,
@@ -163,6 +183,7 @@ export function baueLibrary(args: {
     type: args.speicher.typ as StorageProviderType,
     isEnabled: true,
     transcription: 'shadowTwin',
+    ...(args.storageConnectionId ? { storageConnectionId: args.storageConnectionId } : {}),
     config: config as StorageConfig,
   }
 }

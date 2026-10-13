@@ -3,7 +3,7 @@
  * die Oberflaeche — ohne Geheimnisse, mit eigenem Vektor-Index bei vorlageVon.
  */
 import { describe, it, expect } from 'vitest'
-import { baueLibrary, collectionNameFuer, geheimnisFehlt, pruefeSpeicher, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
+import { baueLibrary, collectionNameFuer, findePassendeVerbindung, geheimnisFehlt, pruefeSpeicher, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
 import type { Library } from '@/types/library'
 
 const nextcloud = { typ: 'nextcloud' as const, verzeichnis: '/Archiv - Kopie', webdavUrl: 'https://cloud.example.org/remote.php/dav/files/u', benutzer: 'u' }
@@ -62,15 +62,31 @@ describe('uebernimmKonfiguration', () => {
 })
 
 describe('baueLibrary', () => {
-  it('setzt Typ, Pfad, Nextcloud ohne Passwort und Shadow-Twin v2', () => {
-    const lib = baueLibrary({ id: 'n', name: ' Neu ', inhaltstyp: 'session', speicher: nextcloud })
-    expect(lib).toMatchObject({ id: 'n', label: 'Neu', path: '/Archiv - Kopie', type: 'nextcloud', isEnabled: true })
-    expect(lib.config?.nextcloud).toEqual({ webdavUrl: nextcloud.webdavUrl, username: 'u' })
+  it('setzt Typ, Pfad, Verbindung (ohne Zugangsdaten in der Config) und Shadow-Twin v2', () => {
+    const lib = baueLibrary({ id: 'n', name: ' Neu ', inhaltstyp: 'session', speicher: nextcloud, storageConnectionId: 'c1' })
+    expect(lib).toMatchObject({ id: 'n', label: 'Neu', path: '/Archiv - Kopie', type: 'nextcloud', isEnabled: true, storageConnectionId: 'c1' })
+    expect((lib.config as Record<string, unknown>).nextcloud).toBeUndefined()
+    expect(baueLibrary({ id: 'n', name: 'Neu', inhaltstyp: 'session', speicher: nextcloud }).storageConnectionId).toBeUndefined()
     expect(lib.config?.chat?.gallery?.detailViewType).toBe('session')
     expect(lib.config?.shadowTwin).toMatchObject({ mode: 'v2', primaryStore: 'mongo' })
   })
   it('behaelt bei Uebernahme die Facetten und setzt den gewaehlten Typ', () => {
     const lib = baueLibrary({ id: 'n', name: 'Neu', inhaltstyp: 'book', speicher: nextcloud, uebernahme: uebernimmKonfiguration(vorlage, 'n') })
     expect(lib.config?.chat?.gallery).toMatchObject({ detailViewType: 'book', facets: [{ metaKey: 'event' }] })
+  })
+})
+
+describe('findePassendeVerbindung', () => {
+  const kandidaten = [
+    { id: 'c1', label: 'Andere', type: 'nextcloud', nextcloud: { webdavUrl: 'https://andere.example/remote.php/dav/files/u', username: 'u' } },
+    { id: 'c2', label: 'Passt', type: 'nextcloud', nextcloud: { webdavUrl: 'https://CLOUD.example.org/remote.php/dav/files/u/', username: 'U' } },
+    { id: 'c3', label: 'OneDrive', type: 'onedrive' },
+  ]
+  it('findet die Nextcloud-Verbindung mit gleicher URL und gleichem Benutzer (ohne Gross-/Kleinschreibung, ohne Schluss-Slash)', () => {
+    expect(findePassendeVerbindung(nextcloud, kandidaten)?.id).toBe('c2')
+  })
+  it('liefert null ohne Treffer und immer bei OneDrive', () => {
+    expect(findePassendeVerbindung({ ...nextcloud, benutzer: 'x' }, kandidaten)).toBeNull()
+    expect(findePassendeVerbindung({ typ: 'onedrive' }, kandidaten)).toBeNull()
   })
 })

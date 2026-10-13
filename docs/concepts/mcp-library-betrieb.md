@@ -117,8 +117,8 @@ Geheimnisse bleiben in der Oberfläche.
 
 | Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
 |---|---|---|
-| `bibliothek_anlegen` | schreibt | Anlege-Dialog + Speicher-Schritt (`LibraryService.updateLibrary`, Shadow-Twin v2/Mongo, `config.nextcloud` ohne Passwort); `vorlageVon` wie der Klon im Anlege-Dialog (eigener Vektor-Index), aber ohne Zugangsdaten, Secretary-Verbindung, Veröffentlichung, Binary-Storage, Agentensicht (`bibliothek-anlegen.ts`) |
-| `speicher_pruefen` | liest | Knopf „Verbindung prüfen" ohne Testordner: `validateConfiguration` + Wurzel listen; nennt nur, ob ein Geheimnis hinterlegt ist |
+| `bibliothek_anlegen` | schreibt | Anlege-Dialog + Speicher-Schritt (`LibraryService.updateLibrary`, Shadow-Twin v2/Mongo); seit 2.53.1 hängt sie eine Nextcloud-Library an die Speicher-Verbindung mit gleicher WebDAV-URL und gleichem Benutzer (`storageConnectionId`), sonst Verbindung „ausstehend"; `vorlageVon` wie der Klon im Anlege-Dialog (eigener Vektor-Index), aber ohne Zugangsdaten, Secretary-Verbindung, Veröffentlichung, Binary-Storage, Agentensicht (`bibliothek-anlegen.ts`) |
+| `speicher_pruefen` | liest | Knopf „Verbindung prüfen" ohne Testordner: `validateConfiguration` + Wurzel listen; nennt die Speicher-Verbindung (Bezeichnung, ob ein Geheimnis hinterlegt bzw. OneDrive angemeldet ist), nie Werte |
 | `vorlage_uebernehmen` | schreibt | Klon-Kopie der Vorlagen bzw. Import-Knopf; `saveTemplateToMongoDB`/`updateTemplateInMongoDB` hinter dem Konsistenz-Contract |
 | `kopieren` | schreibt | Provider-Interface (lesen + hochladen); Twin-Ordner nie, `nurQuellen` mit dem Batch-Zaun |
 

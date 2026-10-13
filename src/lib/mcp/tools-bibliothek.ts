@@ -21,7 +21,9 @@ import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
 import { getSelfBaseUrl } from '@/lib/env'
 import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { NICHT_UEBERNOMMEN, SPEICHER_TYPEN, baueLibrary, geheimnisFehlt, pruefeSpeicher, uebernimmKonfiguration } from './bibliothek-anlegen'
+import { NICHT_UEBERNOMMEN, SPEICHER_TYPEN, baueLibrary, findePassendeVerbindung, geheimnisFehlt, pruefeSpeicher, uebernimmKonfiguration } from './bibliothek-anlegen'
+import { listStorageConnectionSummaries } from '@/lib/storage-connections/connection-service'
+import { beschreibeSpeicherVerbindung } from './speicher-verbindung-info'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 import { uebernimmAusDatei, uebernimmAusLibrary } from './vorlage-uebernahme'
@@ -42,9 +44,10 @@ export function registerBibliothekTools(server: McpServer): void {
       description:
         'Legt eine Library an wie Settings → „Neue Bibliothek erstellen" plus Speicher-Schritt: name, ' +
         'inhaltstyp (detailViewType), speicherTyp (nextcloud | local | onedrive) mit den NICHT geheimen ' +
-        'Angaben verzeichnis, webdavUrl, benutzer. Geheimnisse (App-Passwort, OAuth) nie ueber die Bruecke: ' +
-        'die Antwort nennt geheimnisFehlt und den Weg in die Oberflaeche; bis dahin verbindung "ausstehend", ' +
-        'danach speicher_pruefen. Optional vorlageVon (libraryId): uebernimmt Chat (Facetten, Antwortregeln, ' +
+        'Angaben verzeichnis, webdavUrl, benutzer. Zugangsdaten liegen an den Speicher-Verbindungen des Kontos: ' +
+        'eine Nextcloud-Library wird an die Verbindung mit gleicher WebDAV-URL und gleichem Benutzer gehaengt ' +
+        '(Antwort speicherVerbindung); sonst verbindung "ausstehend" mit dem Weg in die Oberflaeche, danach ' +
+        'speicher_pruefen. Geheimnisse nie ueber die Bruecke. Optional vorlageVon (libraryId): uebernimmt Chat (Facetten, Antwortregeln, ' +
         'Galerie, Sprache), Verarbeitung (Standard-Vorlage, Zielsprache) und Ingest-Schalter — keine ' +
         'Zugangsdaten, keine Veroeffentlichung; vorlagenKopieren: true kopiert zusaetzlich deren Vorlagen. ' +
         'Gleichnamige Library wird abgewiesen. Nur nach Bestaetigung durch den Menschen.',
@@ -84,25 +87,30 @@ export function registerBibliothekTools(server: McpServer): void {
           }
           if (!typ) throw new Error('inhaltstyp ist Pflicht (die Vorlage-Library traegt keinen detailViewType)')
 
-          const library = baueLibrary({ id: libraryId, name, inhaltstyp: typ, speicher, uebernahme })
+          const verbindung = geheimnisFehlt(speicher)
+            ? findePassendeVerbindung(speicher, await listStorageConnectionSummaries(userEmail))
+            : null
+          const library = baueLibrary({ id: libraryId, name, inhaltstyp: typ, speicher, uebernahme, storageConnectionId: verbindung?.id })
           if (!(await service.updateLibrary(userEmail, library))) throw new Error('Library konnte nicht gespeichert werden')
 
           const vorlagen = vorlageVon && vorlagenKopieren
             ? await uebernimmAusLibrary({ vonLibraryId: vorlageVon, zielLibraryId: libraryId, userEmail, ueberschreiben: false })
             : null
-          const fehlt = geheimnisFehlt(speicher)
+          const fehlt = geheimnisFehlt(speicher) && !verbindung
           return jsonResult({
             libraryId,
             name: library.label,
             inhaltstyp: typ,
             speicher: { typ: speicherTyp, verzeichnis: library.path, webdavUrl: webdavUrl ?? null, benutzer: benutzer ?? null },
+            speicherVerbindung: verbindung ? { id: verbindung.id, bezeichnung: verbindung.label } : null,
             ...(vorlageVon ? { vorlageVon, uebernommen: uebernahme?.uebernommen ?? [], nichtUebernommen: NICHT_UEBERNOMMEN } : {}),
             ...(vorlagen ? { vorlagen } : {}),
             geheimnisFehlt: fehlt,
             verbindung: fehlt ? 'ausstehend' : 'ungeprueft',
             naechsterSchritt: fehlt
-              ? `Owner: Library "${library.label}" in der Bibliotheksauswahl waehlen, ${getSelfBaseUrl()}${ARCHIV_SETTINGS} → 1 · Quelle: ` +
-                (speicherTyp === 'nextcloud' ? 'App-Passwort eintragen, speichern' : 'bei OneDrive anmelden') + ' — danach speicher_pruefen'
+              ? `Owner: unter ${getSelfBaseUrl()}/settings/account/storage-connections eine ${speicherTyp === 'nextcloud' ? 'Nextcloud' : 'OneDrive'}-Verbindung ` +
+                `anlegen und testen${speicherTyp === 'onedrive' ? ' (bei Microsoft anmelden)' : ''}, dann Library "${library.label}" waehlen, ` +
+                `${getSelfBaseUrl()}${ARCHIV_SETTINGS} → 1 · Quelle: Verbindung waehlen — danach speicher_pruefen`
               : 'speicher_pruefen, dann ordner_listen',
           })
         })
@@ -119,7 +127,8 @@ export function registerBibliothekTools(server: McpServer): void {
       description:
         'Prueft die Speicher-Verbindung einer Library wie der Knopf „Verbindung pruefen", aber ohne ' +
         'Testordner anzulegen: Konfiguration gueltig? Wurzel lesbar (Anzahl Eintraege)? Nennt Typ, ' +
-        'Verzeichnis und ob ein Geheimnis hinterlegt ist — nie dessen Wert. Liest nur.',
+        'Verzeichnis und die Speicher-Verbindung (Bezeichnung, bei Nextcloud URL und Benutzer, ob ein ' +
+        'Geheimnis hinterlegt ist) — nie dessen Wert. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID },
       annotations: { readOnlyHint: true },
     },
@@ -127,14 +136,8 @@ export function registerBibliothekTools(server: McpServer): void {
       try {
         const userEmail = mcpUserEmail()
         const library = await requireLibrary(userEmail, libraryId)
-        const kopf = {
-          libraryId, typ: library.type, verzeichnis: library.path,
-          ...(library.type === 'nextcloud' ? {
-            webdavUrl: library.config?.nextcloud?.webdavUrl ?? null,
-            benutzer: library.config?.nextcloud?.username ?? null,
-            geheimnisHinterlegt: Boolean(library.config?.nextcloud?.appPassword),
-          } : {}),
-        }
+        const verbindung = await beschreibeSpeicherVerbindung(library)
+        const kopf = { libraryId, typ: library.type, verzeichnis: library.path, ...(verbindung ? { speicherVerbindung: verbindung } : {}) }
         try {
           const provider = await getServerProvider(userEmail, libraryId)
           const validierung = await provider.validateConfiguration()
