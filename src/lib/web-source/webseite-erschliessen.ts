@@ -43,6 +43,11 @@ export interface WebseiteErschliessenInput {
   llmModel?: string
   /** false = Seite nur lesen und Sammeldatei anlegen, kein Medium holen. */
   medienHolen: boolean
+  /**
+   * false = Medium nur als Quelle (Transkription), ohne Player und Video-Embed;
+   * im Eintrag nur Vorschaubild und Link zum Original. Default true.
+   */
+  medienEinbetten?: boolean
 }
 
 export interface WebseiteErschliessenResult {
@@ -125,8 +130,11 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
 
   const medienDatei = 'datei' in medium ? `${basis} - Audio.${medium.datei.ext}` : null
   const coverDatei = 'buffer' in cover ? `${basis} - Cover.${cover.ext}` : null
-  const videoEmbedUrl = embedUrlFuerVideo(url, seite.media)
-  const markdown = baueArtikelSammeldatei({ seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl })
+  const medienEinbetten = input.medienEinbetten !== false
+  const videoEmbedUrl = medienEinbetten ? embedUrlFuerVideo(url, seite.media) : null
+  const markdown = baueArtikelSammeldatei({
+    seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl, medienEinbetten,
+  })
 
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
   if ('datei' in medium && medienDatei) {

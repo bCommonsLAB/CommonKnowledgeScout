@@ -29,6 +29,8 @@ topics: {{topics|Array der 4–8 wichtigsten inhaltlichen Stichworte, kebab-case
 
 ## {{title}}
 
+[Original auf der Seite der Quelle ansehen]({{source_url}})
+
 {{artikel_md|Der Artikeltext WOERTLICH und VOLLSTAENDIG aus dem Abschnitt „## Artikel" der Sammeldatei: jeder Absatz, jede Zwischenueberschrift (### …), jedes Zitat genau so, wie es dort steht — gleiche Reihenfolge, gleiche Woerter, gleiche Zahlen, keine Auslassung, keine Umformulierung, keine Ergaenzung. Die Zeilen „Quelle/Datum/Autor/Link" und die Abschnitte „Eingebettetes Medium" und „Cover" NICHT uebernehmen}}
 
 ## Aus dem Interview

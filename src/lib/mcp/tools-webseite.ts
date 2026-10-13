@@ -41,6 +41,7 @@ export function registerWebseiteTool(server: McpServer): void {
         ordnerId: z.string().min(1).optional().describe('ALTERNATIVE: Storage-Id des Ordners'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache der Transkription, Default de'),
         medienHolen: z.boolean().optional().describe('false = nur Seite lesen und Sammeldatei anlegen, kein Medium; Default true'),
+        medienEinbetten: z.boolean().optional().describe('false = Medium nur als Quelle transkribieren, OHNE Player und Video-Embed im Eintrag (nur Vorschaubild und Link zum Original, z. B. aus rechtlichen Gruenden); Default true'),
         sprecherErkennung: z.boolean().optional().describe('NUR AUDIO: true = Sprecher-Modell, false = ohne; weglassen = Library-Voreinstellung'),
         kontext: z.string().max(2000).optional().describe('NUR AUDIO: Thema/Anlass als Freitext fuer die Transkription'),
         begriffe: z.array(z.string().min(1)).max(100).optional().describe('NUR AUDIO: Namen und Fachwoerter fuer dieses Medium'),
@@ -48,7 +49,7 @@ export function registerWebseiteTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, url, dateiname, ordner, ordnerId, zielsprache, medienHolen, sprecherErkennung, kontext, begriffe, begruendung }) => {
+    async ({ libraryId, url, dateiname, ordner, ordnerId, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'webseite_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, pfad: ordner }, async () => {
           const userEmail = mcpUserEmail()
@@ -61,6 +62,7 @@ export function registerWebseiteTool(server: McpServer): void {
             libraryId, userEmail, provider, url, folderId, dateiname,
             targetLanguage: zielsprache ?? 'de', audioContext, llmModel: standardLlmModell(library),
             medienHolen: medienHolen ?? true,
+            medienEinbetten: medienEinbetten ?? true,
           })
           const weg = ergebnis.medium ? bestimmeAudioWeg(audioContext, library) : null
           return jsonResult({

@@ -26,6 +26,12 @@ export interface ArtikelSammeldateiInput {
   medienDauerSekunden: number | null
   /** Embed-Adresse (YouTube/Vimeo/PeerTube), wenn die Seite ein einbettbares Video ist; sonst null. */
   videoEmbedUrl?: string | null
+  /**
+   * false = das Medium bleibt reine Quelle fuer die Transkription (nur `_source_files`),
+   * bekommt keine Blob-Adresse und keinen Player, kein Video-Embed — im Eintrag nur
+   * Vorschaubild und Link zum Original (rechtliche Vorgabe des Owners). Default true.
+   */
+  medienEinbetten?: boolean
 }
 
 function dauerText(sekunden: number | null): string {
@@ -38,7 +44,8 @@ function dauerText(sekunden: number | null): string {
 /** Markdown der Sammeldatei: Frontmatter + Body mit woertlichem Artikeltext. */
 export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   const { seite, medienDatei, coverDatei, medienDauerSekunden } = input
-  const videoEmbedUrl = input.videoEmbedUrl ?? null
+  const einbetten = input.medienEinbetten !== false
+  const videoEmbedUrl = einbetten ? (input.videoEmbedUrl ?? null) : null
   if (!seite.title.trim()) throw new Error('Seite ohne Titel — Sammeldatei nicht gebaut')
   if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze gefunden) — Sammeldatei nicht gebaut')
 
@@ -47,7 +54,7 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
     title: seite.title,
     _include_self: true,
     _source_files: medienDatei ? [medienDatei] : [],
-    _media_files: [medienDatei, coverDatei].filter((v): v is string => typeof v === 'string' && v.length > 0),
+    _media_files: [einbetten ? medienDatei : null, coverDatei].filter((v): v is string => typeof v === 'string' && v.length > 0),
     source_url: seite.url,
     source: seite.siteName,
     authors: seite.author ? [seite.author] : [],
@@ -71,7 +78,7 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   for (const block of seite.bloecke) zeilen.push(block, '')
   if (medienDatei) {
     const dauer = dauerText(medienDauerSekunden)
-    zeilen.push('## Eingebettetes Medium', '')
+    zeilen.push(einbetten ? '## Eingebettetes Medium' : '## Medium (nur Quelle, nicht eingebettet)', '')
     zeilen.push(`- Audio/Video: [[${medienDatei}]]${dauer ? ` (${dauer})` : ''}`)
     zeilen.push('')
   }

@@ -8,7 +8,7 @@
  * Transkription des Mediums starten. Fuer die Oberflaeche (Wizard-Quelle
  * „Webseite" im Standard-Wizard). Die Transformation ist ein eigener Schritt.
  *
- * Body: { url, folderId, dateiname, zielsprache?, medienHolen?, sprecherErkennung?, kontext?, begriffe? }
+ * Body: { url, folderId, dateiname, zielsprache?, medienHolen?, medienEinbetten?, sprecherErkennung?, kontext?, begriffe? }
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -28,6 +28,7 @@ interface WebSourceRequest {
   dateiname?: unknown
   zielsprache?: unknown
   medienHolen?: unknown
+  medienEinbetten?: unknown
   sprecherErkennung?: unknown
   kontext?: unknown
   begriffe?: unknown
@@ -54,6 +55,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (body.medienHolen !== undefined && typeof body.medienHolen !== 'boolean') {
       return NextResponse.json({ error: 'medienHolen muss boolean sein' }, { status: 400 })
     }
+    if (body.medienEinbetten !== undefined && typeof body.medienEinbetten !== 'boolean') {
+      return NextResponse.json({ error: 'medienEinbetten muss boolean sein' }, { status: 400 })
+    }
 
     // Typen prueft readAudioContextOptions zur Laufzeit (falscher Typ = 400), daher die Zuweisung als Request-Felder.
     const audioFelder = {
@@ -74,6 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       libraryId, userEmail, provider, url, folderId, dateiname,
       targetLanguage: zielsprache, audioContext: gelesen.options, llmModel,
       medienHolen: body.medienHolen ?? true,
+      medienEinbetten: body.medienEinbetten ?? true,
     })
     return NextResponse.json({ ok: true, ...ergebnis })
   } catch (error) {
