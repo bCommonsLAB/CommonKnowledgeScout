@@ -327,3 +327,29 @@ nach demselben Muster wie die Vorträge einer Veranstaltung:
   `transformation_starten` mit `artikel-de` und bewusstem `ingest`.
   Live belegt 13.10. am Rai-Beitrag: 7/7 Absätze wörtlich, Audio-Player und
   Cover in der Galerie.
+
+## Nachtrag Wunschliste 8, vierter Teil (2.52.0): Familie an eine andere Library übergeben
+
+Owner 13.10.: Bisher ging eine Übergabe zwangsläufig neben der Brücke, und im
+Herkunfts-Archiv blieb ein Loch (Plan `docs/plans/dateien-ueber-library-grenzen.plan.md`,
+W8-3). `familie_uebergeben` gibt eine Quelle samt Familie von Library A nach B
+und hinterlässt in A eine Verweis-Datei.
+
+| Schritt | Was | Bei Fehler |
+|---|---|---|
+| Vorbedingungen | verschiedene Libraries, Owner beider, Quelle keine Datei im Twin-Ordner, Ziel kein Twin-Ordner, kein gleichnamiges Ziel, keine vorhandene Verweis-Datei, höchstens 250 MB | Abbruch, nichts geschrieben |
+| `import_herkunft` | Spiegel von A nach MongoDB (wie `moveFamily`) | Abbruch |
+| `quelle_kopiert` | Datei A → B, Quellkennung aus demselben Blob | Abbruch |
+| `twin_angelegt` | Twin-Dokument in B: Artefakte und Kennung; ohne `checkStand`, `compositeSources`, `binaryFragments` | Kopie in B wird entfernt, A unverändert |
+| `segmente_kopiert`, `export_ziel`, `kennung_herkunft`, `verweis_geschrieben`, `herkunft` | Segmente nach B, Spiegel in B, Kennung in A, Verweis in A, dann behalten oder nach „zu klären" | Kette hält an, Schritt steht als `fehler`, `offen` nennt es |
+
+Die Verweis-Datei heißt `Verweis – <Quellname>.md` und trägt flaches
+Frontmatter (`type: verweis`, `uebergeben_nach_library`, `uebergeben_nach_pfad`,
+`uebergeben_nach_adresse` `@<slug>/<pfad>`, `source_content_hash`,
+`generated_by`, `generated_at`) und den Link `[[@<slug>/<pfad>]]`. Der Name
+beginnt bewusst nicht mit dem Stamm der Quelle: Solche Markdown-Dateien gelten
+als Geschwister-Artefakte und würden beim nächsten Import als Twin eingelesen.
+`herkunft` ist Pflicht ohne Vorgabe. Gelöscht wird nie; Vektoren und
+Seitenbilder werden nicht kopiert, danach `index_aktualisieren` in B.
+`vorschau: true` zeigt den Plan. `type: verweis` gehört zu den Begleittypen
+mit Pflichtstempel wie `notiz` und `verlauf`.

@@ -62,6 +62,7 @@ import { registerStandTool } from './tools-stand'
 import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
+import { registerUebergebenTool } from './tools-uebergeben'
 import { registerStorageTools } from './storage'
 import { registerVorlagenTool } from './tools-vorlagen'
 import { registerWebsitePublizierenTools } from './tools-website-publizieren'
@@ -73,6 +74,8 @@ import { registerWebsiteVeroeffentlichungTools } from './tools-website-veroeffen
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
   registerUmzugTools(server)
+  // Wunschliste 8, W8-3: Quelle samt Familie an eine andere Library uebergeben.
+  registerUebergebenTool(server)
   registerOrdnerTools(server)
   registerStorageTools(server)
   registerErschliessenTools(server)

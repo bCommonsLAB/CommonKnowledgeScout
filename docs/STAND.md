@@ -349,8 +349,8 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   und die beiden Vorlagen-Branches der Partner-Library vom 14.09. und 18.09.
 - **Wunschliste 8 „Dateien über Library-Grenzen nachvollziehen"** (Stand
   13.10.: W8-4 #382, W8-1 #383 und W8-2 #384 gemergt, Werkzeugsatz 2.50.0;
-  W8-3 `familie_uebergeben` und die Skill-Patches laufen in einer parallelen
-  Session) (Cowork,
+  W8-3 `familie_uebergeben` gebaut, Werkzeugsatz 2.52.0, PR offen, Live-Prüfung
+  mit zwei Libraries steht aus; die Skill-Patches liegen beim Archiv) (Cowork,
   2026-10-13, im Archiv unter `24.09 KnowledgeScout/2026-10-13 Wunschliste 8 -
   …md`; Programmiersicht und PR-Schnitt in
   [`plans/dateien-ueber-library-grenzen.plan.md`](plans/dateien-ueber-library-grenzen.plan.md),

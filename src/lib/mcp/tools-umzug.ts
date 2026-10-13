@@ -24,13 +24,12 @@ import { z } from 'zod'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { moveFamily } from '@/lib/shadow-twin/move-family'
+import { KLAER_ORDNER, verwirfQuelle } from '@/lib/shadow-twin/quelle-verwerfen'
 import type { StorageProvider } from '@/lib/storage/types'
 import { resolveFolderIdByPath, resolveItemByPath } from './resolve-folder'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 import { MAX_UMZUEGE, fuehreStapelUmzugAus } from './umzug-stapel'
 
-/** Name des Klaer-Ordners (C4) — bewusst deutsch und sichtbar, kein .trash. */
-const KLAER_ORDNER = 'zu klären'
 
 async function resolveSourceId(provider: StorageProvider, sourceId?: string, quellPfad?: string): Promise<string> {
   if (sourceId && quellPfad) throw new Error('Entweder sourceId ODER quellPfad angeben — nicht beides')
@@ -159,28 +158,11 @@ export function registerUmzugTools(server: McpServer): void {
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
-          const source = await provider.getItemById(resolvedSourceId)
-          if (!source || source.type !== 'file') throw new Error(`${resolvedSourceId} ist keine Datei`)
-
-          const parent = await provider.getItemById(source.parentId).catch(() => null)
-          if (parent && parent.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase()) {
-            throw new Error(`"${source.metadata.name}" liegt bereits in „${KLAER_ORDNER}“ — nichts zu tun`)
-          }
-
-          // „zu klaeren“ im Elternordner finden oder anlegen (Entscheid Peter 2026-08-21).
-          const siblings = await provider.listItemsById(source.parentId)
-          const existing = siblings.find(
-            (item) => item.type === 'folder' && item.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase(),
-          )
-          const klaerFolder = existing ?? (await provider.createFolder(source.parentId, KLAER_ORDNER))
-
-          const result = await moveFamily({
-            library, libraryId, userEmail, provider,
-            sourceId: resolvedSourceId, newParentId: klaerFolder.id,
-          })
+          // Wunschliste 8, W8-3: derselbe Weg wie familie_uebergeben (herkunft: verwerfen).
+          const { klaerOrdner, result } = await verwirfQuelle({ library, libraryId, userEmail, provider, sourceId: resolvedSourceId })
           return jsonResult({
             ok: true,
-            verschobenNach: { folderId: klaerFolder.id, name: klaerFolder.metadata.name },
+            verschobenNach: klaerOrdner,
             result,
             hinweis:
               'Reversibel: familie_umziehen mit dem alten Ordner als Ziel macht es rueckgaengig. ' +

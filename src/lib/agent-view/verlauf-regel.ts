@@ -31,16 +31,23 @@ import type { CoverageGap } from './types'
 /** Die beiden `type`-Werte, die Wunschliste 6 in den Twin-Contract bringt. */
 export const VERLAUFS_TYPEN = ['notiz', 'verlauf'] as const
 
-function istVerlaufsTyp(typ: string | null): typ is (typeof VERLAUFS_TYPEN)[number] {
-  return typ !== null && (VERLAUFS_TYPEN as readonly string[]).includes(typ)
+/**
+ * Begleittypen mit Pflichtstempel `generated_by`/`generated_at`: die beiden
+ * aus Wunschliste 6 und `verweis` aus Wunschliste 8, W8-3 (die Datei, die
+ * `familie_uebergeben` im Herkunftsordner hinterlaesst).
+ */
+export const BEGLEIT_KERN_TYPEN = [...VERLAUFS_TYPEN, 'verweis'] as const
+
+function istBegleitKernTyp(typ: string | null): typ is (typeof BEGLEIT_KERN_TYPEN)[number] {
+  return typ !== null && (BEGLEIT_KERN_TYPEN as readonly string[]).includes(typ)
 }
 
-/** C1: `generated_by`/`generated_at` sind bei `notiz` und `verlauf` Pflicht. */
+/** C1: `generated_by`/`generated_at` sind bei `notiz`, `verlauf` und `verweis` Pflicht. */
 export function checkBegleitKern(folder: ArchiveFolderNode, docs: readonly ArchiveDocEntry[]): CoverageGap[] {
   const gaps: CoverageGap[] = []
   for (const doc of docs) {
     const typ = begleitTyp(doc)
-    if (!istVerlaufsTyp(typ)) continue
+    if (!istBegleitKernTyp(typ)) continue
     const fehlend = ['generated_by', 'generated_at'].filter((feld) => asString(doc.meta[feld]) === null)
     if (fehlend.length === 0) continue
     gaps.push(
