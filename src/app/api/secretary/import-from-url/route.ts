@@ -64,9 +64,14 @@ export async function POST(request: NextRequest) {
       }
 
       const { loadTemplateFromMongoDB, serializeTemplateToMarkdown } = await import('@/lib/templates/template-service-mongodb')
+      const { getBuiltinCreationTemplate } = await import('@/lib/templates/builtin-creation-templates')
       // TODO: Admin-Check implementieren
       const isAdmin = false
-      const tpl = await loadTemplateFromMongoDB(templateId, libraryId, userEmail, isAdmin)
+      // Mongo zuerst; eingebaute Wizard-Vorlagen (z. B. website-de) liegen nur im Code —
+      // gleiches Muster wie in api/templates/[templateId]/config.
+      const tpl =
+        (await loadTemplateFromMongoDB(templateId, libraryId, userEmail, isAdmin)) ??
+        getBuiltinCreationTemplate(templateId, libraryId, userEmail)
       if (!tpl) {
         return NextResponse.json(
           { status: 'error', error: { code: 'TEMPLATE_NOT_FOUND', message: `Template "${templateId}" nicht gefunden` } },
