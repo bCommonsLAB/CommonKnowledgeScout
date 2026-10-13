@@ -452,6 +452,15 @@ export interface Library {
   
   /** Provider-specific configuration */
   config?: StorageConfig;
+
+  /**
+   * Speicher-Verbindung der Person, auf der die Library liegt (Plan
+   * speicher-verbindungen-und-library-anlage, Teil A). A1 legt nur das Feld
+   * an, damit das Loeschen einer Verbindung abhaengige Libraries erkennt;
+   * gesetzt wird es ab A2 (Library zeigt auf Verbindung plus `path`).
+   * Fehlt bei `type = local`.
+   */
+  storageConnectionId?: string;
   
   /** Whether the library is currently active */
   isEnabled: boolean;
