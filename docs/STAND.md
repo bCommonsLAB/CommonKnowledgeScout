@@ -2,7 +2,7 @@
 
 > Eine Quelle für die Frage „woran wird gerade gearbeitet, und was wartet?".
 > Gepflegt von Hand bei jedem Vorhabenswechsel und bei jedem neuen Punkt.
-> Stand: 2026-09-15. Die ausführliche Landkarte mit Legende und Motiven aller
+> Stand: 2026-10-13 (Durchsicht gegen Code, Pläne und offene Branches). Die ausführliche Landkarte mit Legende und Motiven aller
 > Wellen liegt in Peters Archiv (`24.09 KnowledgeScout/THEMEN.md`), der
 > Verlauf je Vorhaben mit allen „Neu dazugekommen"-Einträgen in
 > `24.09 KnowledgeScout/STAND-Vorhaben.md` (seit 15.09., Regel „Oeffentliches
@@ -47,50 +47,37 @@ mitgenommenen Themen übrig bleibt, geht mit Notiz zurück in den Vorrat.
 **Reihenfolge: 1 AECED → 2 Klimamaßnahmen/Vortrag 30.09. → 3 SHF.** Agenten arbeiten nur
 am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
 
-## Vorhaben 1 · AECED: Galerie als einbettbare Komponente (M5) — jetzt
+**Durchsicht 13.10.2026.** Vorhaben 1 ist am 15.09. bedient und steht jetzt
+unter „Erledigt", seine Reste im Vorrat. Vorhaben 2 und 3 haben ihren Termin
+hinter sich (30.09. und 09.10.); beide tragen Reste weiter, die je Vorhaben
+unter „Stand 13.10." stehen. Nach der Pflege-Regel steht Vorhaben 2 auf
+„jetzt", bis der Owner ein anderes Vorhaben aufruft oder die Reste in den
+Vorrat schiebt. Daneben ist in den Wochen seit dem 15.09. viel Arbeit ohne
+eigenes Vorhaben entstanden (Story-Dreiteilung, Status-Modalität,
+Veranstaltung über die Brücke, Wunschliste 8); sie steht im Vorrat mit ihrem
+offenen Rest.
 
-- **Termin**: Arbeitstreffen mit dem Partner am 15.09.2026.
-- **Ziel**: `<KnowledgeScoutExplorer baseUrl="…" library="…" view="gallery" />`
-  läuft in einer fremden Next-Anwendung, liest anonym von der zentralen
-  Instanz, zeigt nur öffentliche Inhalte (ADR 0008, Nachtrag 2026-08-29).
-  Kein neues Deployment.
-- **Arbeitsauftrag**: [`docs/refactor/modularisierung/AGENT-BRIEF-M5.md`](refactor/modularisierung/AGENT-BRIEF-M5.md);
-  lokale Sitzung: [`HANDOFF-M5-aeced-lokal.md`](refactor/modularisierung/HANDOFF-M5-aeced-lokal.md).
-- **Stand 15.09.**: M4f–M4i (Galerie im Paket) und M5 (Basis-URL,
-  Adressierung, Buch-Renderer, CORS, Hülle `@ks/embed`, Nachweis in einer
-  fremden Next-16-App) sind gebaut und deployt; der Inhaltsweg über
-  Sammel-Markdowns mit Vorlage `book` plus Video, Audio und Anhängen steht
-  (#282, #283); die `?doc=`-Links im Embed öffnen das Dokument in der Galerie
-  (#286, `gallery/lib/doc-link.ts`), der Nachweis in commoning-methods ist
-  dort PR #26 (gemergt; Paket aus `master` 1.2.255 nachgezogen in PR #27).
-  Die Partner-Library ist seit 15.09. nachmittags öffentlich; im Nachweis
-  live belegt: Galerie mit eigenen Texten und Covern, Buch-Ansicht mit
-  Audio-Player und PDF-Anhängen, `?doc=`-Link wechselt das Dokument ohne
-  Neuladen der fremden Seite. Offen im Code: der Loader könnte fehlende
-  PDF-Transkripte selbst anstoßen (Job-Kette). Alles Weitere ist
-  Inhaltsarbeit auf der Instanz (Facetten, restliche Dokumente), nicht Repo.
-  **Vorhaben 1 ist damit bedient.** Nächster Schritt mit dem Partner, wenn
-  er es aufruft: das Manifest der fremden App zur Laufzeit aus der
-  öffentlichen Dokument-API ziehen (eigenes Vorhaben mit Brief; Konzept im
-  Archiv, Headless-API P8 bleibt außen vor).
-- **Verlauf und „Neu dazugekommen"** (Befunde, Entscheidungen, Lehren seit
-  09.09.): Archiv `24.09 KnowledgeScout/STAND-Vorhaben.md`.
-
-Nicht in diesem Vorhaben: M6 bis M8, Headless-API P8, Story und Chat im Embed
-vor der Galerie. **Nachtrag 01.10.2026**: Der Story-Modus liegt seit D6b des
-Plans [`story-dreiteilung-fragenchronik`](plans/story-dreiteilung-fragenchronik.plan.md)
-als `view="story"` im Embed (Konversation in `@ks/module-story`, anonym über
-die Sitzungskennung); seit D6c montiert auch die App ihre Story-Mitte aus
-demselben Paket. Live-Nachweis in App und fremder App offen; der tote
-App-Chat (`ChatPanel` ohne Montagepunkt) fällt in D6d.
-
-## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — danach
+## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — jetzt (Termin vorbei, Reste)
 
 - **Termin**: 30.09.
 - **Was es ist**: ein Auftritt mit der Library „Klimamaßnahmen"; Konzept und
   Anforderungen im Vorhabensordner des Archivs, hier nur die Arbeitsliste.
 - **Ziel**: eine Vorführung, die eine Stunde lang nicht hängen bleibt, und
   eine Library, die zeigt, was der Vortrag verspricht.
+- **Stand 13.10.**, Rest je Punkt der Liste unten:
+  1. OneDrive-Anmeldung: nicht begonnen. Wird vom Plan
+     [`speicher-verbindungen-und-library-anlage`](plans/geplant/speicher-verbindungen-und-library-anlage.plan.md)
+     Teil A abgelöst (ein Login je Verbindung statt je Library).
+  2. Status-Modalität: Code gebaut (#355). Offen sind Golden-Set,
+     Baseline und, nur bei Bedarf, der Kontrolldurchlauf (m6); Golden-Set
+     und Baseline sind Arbeit des Owners an der Library.
+  3. Website-Sektionen: S1 bis S3 gebaut; offen S0 Inhalt, S4 Fußzeile,
+     S5 Sprachumschalter.
+  4. Brücke: Wellen I und J gebaut und gemergt (Nachzüge #374 bis #376);
+     offen ist der Live-Prüffall von J (Index der fünf Seiten nachziehen,
+     Cover ansehen). Welle K: PR 1 (K1 bis K3, 2.48.0) gemergt, PR 2 (K4
+     bis K6) nicht begonnen.
+  5. Unverändert publizieren: P1 bis P4 offen, nichts gebaut.
 
 Bekannte Punkte:
 
@@ -164,9 +151,15 @@ die Library ohnehin angefasst wird; ADR 0005 nur entscheiden.
 
 Neu dazugekommen: siehe Archiv `STAND-Vorhaben.md` (noch nichts).
 
-## Vorhaben 3 · SHF: Konsensieren-Modul und Begleitfunktionen — ab 16.09. vorbereiten
+## Vorhaben 3 · SHF: Konsensieren-Modul und Begleitfunktionen — Freeze vorbei, ohne Code
 
 - **Termin**: Feature Freeze 09.10.; Termine des Partners im Archiv.
+- **Stand 13.10.**: Der Freeze ist verstrichen, ohne dass Code für das
+  Modul entstanden ist. Es liegen nur Konzepte vor (Abschnitte unten). Der
+  nächste Schritt ist unverändert eine Owner-Sache: die Entscheide O1, O2
+  und O10 bis O20 aus [`plans/beteiligung/README.md`](plans/beteiligung/README.md),
+  dann Welle 0 nach dem Parallelisierungsplan. Ob und mit welchem neuen
+  Termin das Vorhaben weiterläuft, entscheidet der Owner.
 - **Was es ist**: digitale Begleitung eines Beratungsgremiums mit
   Arbeitstischen (Steckbrief SHF). Anforderungen und Verfahrensdetails im
   Vorhabensordner des Archivs; im Repo liegen die abgenommenen Konzepte.
@@ -254,7 +247,16 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
-## Zwischenschnitt · Twin-Fingerabdruck — aktiv, Online-Session (Owner 09.09.)
+## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
+
+**Stand 13.10.**: Messung in Prod am 10.09. (75 Quellen, Teilbaum des
+Archivs): zweiter Lauf mit Tor liest null Dateien und braucht 29 s, der
+Lauf ohne Tor läuft über das 60-Sekunden-Limit. Die Zusage des Briefs ist
+damit belegt. Stufe 2 spart im warmen Fall nichts und im kalten Fall rund
+45 % der Lesezeit; für den kalten Fall ist der Job-Modus aus dem Vorrat das
+passende Werkzeug. **Stufe 2 wird nicht gebaut.** Die Messung liegt als
+nie gemergter Commit auf `origin/claude/twin-fingerabdruck-messung` und ist
+hier übernommen; der Branch kann weg.
 
 - **Was**: Der Sync-Engine-Check liest heute bei jedem `abdeckung_scannen` jede
   Markdown-Datei jeder Twin-Familie (~330 ms je Datei, zwei Anfragen). Ein
@@ -272,7 +274,8 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   `wiederverwendet`/`gelesen` im Report, Schalter `erzwingen` an
   `twins_pruefen` und `abdeckung_scannen`. Sieben Tests mit gezähltem
   `getBinary` in `tests/unit/shadow-twin/check-stand.test.ts`. Stufe 2 (eine
-  Anfrage statt zwei im OneDrive-Provider) bleibt offen.
+  Anfrage statt zwei im OneDrive-Provider) entfällt nach der Messung vom
+  10.09. (siehe oben).
 - Neu dazugekommen:
   - **2026-09-09 — `updatedAt` war nicht überall gesetzt.** Der Fingerabdruck
     verlässt sich auf `updatedAt` des Twin-Dokuments; fünf Schreibwege setzten
@@ -309,7 +312,45 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
 
 Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
-- **Wunschliste 8 „Dateien über Library-Grenzen nachvollziehen"** (Cowork,
+- **Webseite als Quelle** (Werkzeugsatz 2.49.0, 13.10.): `webseite_erschliessen`,
+  Seiten-Extraktion ohne Modell, Videoseiten über den Secretary, Skill
+  `webseite-erschliessen`. Gebaut, liegt als PR #385 zur Prüfung; nach dem
+  Merge hierher als erledigt.
+- **Reste aus Vorhaben 1 AECED** (bedient 15.09.): Live-Nachweis des
+  Story-Modus in App und fremder App (`view="story"`, D6b/D6c); D6d toten
+  App-Chat (`ChatPanel` ohne Montagepunkt) entfernen; D0 Abnahme des
+  Klickmodells in Figma (Plan
+  [`story-dreiteilung-fragenchronik`](plans/story-dreiteilung-fragenchronik.plan.md));
+  der Galerie-Loader könnte fehlende PDF-Transkripte selbst anstoßen
+  (Job-Kette); Manifest der fremden App zur Laufzeit aus der öffentlichen
+  Dokument-API (eigenes Vorhaben mit Brief, wenn der Partner es aufruft)
+- **Von Menschen geprüfte Veranstaltung** (Plan
+  [`von-menschen-gepruefte-veranstaltung`](plans/von-menschen-gepruefte-veranstaltung.plan.md);
+  die Marker im Plan sind veraltet): P3a Kontext im Datei-Weg und P3b
+  Reiter „Korrektur" sind gebaut und gemergt (bis 10.10.). P4 Vorlage wartet
+  auf den Prüffall mit dem lokalen Secretary (Plan-Stand liegt ungemergt auf
+  `claude/p4-vorlage-abnahme`); P5 Wizard-Schritt und P6 Optionen im Dialog
+  „Aufbereiten & Publizieren" sind nicht begonnen
+- **Prompt-Inspektion der Transformation** (Plan
+  [`prompt-inspektion-transformation`](plans/prompt-inspektion-transformation.plan.md),
+  06.10.): Prompt-Protokoll je Transformation, Vorschau ohne Modellaufruf,
+  Anzeige in der Datei-Vorschau, Brücken-Werkzeug. Nichts gebaut; I1 und I1b
+  liegen im Secretary-Repo
+- **Aufräumen der Branches** (Befund 13.10.): nie gemergte Branches, deren
+  Inhalt master auf anderem Weg hat oder der überholt ist, können weg:
+  `claude/job-start-idempotent` (abgelöst durch #366),
+  `claude/umzug-1-chat-vokabular`, `claude/brave-euler-x4yzrw`,
+  `claude/website-sektion-bildbreite`, `claude/story-fix-tsc-sitzungen-test`,
+  `claude/fervent-dirac-849b2a`, `claude/welle-j-folienbilder-c14c4c`,
+  `claude/twin-fingerabdruck-messung` (Ergebnis oben übernommen), rund 40
+  lokale Branches aus der Zeit vor der Bereinigung vom 09.09. Zu
+  entscheiden: `claude/handover-bruecke-library-setup-7fdbb4` (App-Passwort
+  direkt nachtragen, fertig, wird von Teil A des Speicher-Plans überholt)
+  und die beiden Vorlagen-Branches der Partner-Library vom 14.09. und 18.09.
+- **Wunschliste 8 „Dateien über Library-Grenzen nachvollziehen"** (Stand
+  13.10.: W8-4 #382, W8-1 #383 und W8-2 #384 gemergt, Werkzeugsatz 2.50.0;
+  W8-3 `familie_uebergeben` und die Skill-Patches laufen in einer parallelen
+  Session) (Cowork,
   2026-10-13, im Archiv unter `24.09 KnowledgeScout/2026-10-13 Wunschliste 8 -
   …md`; Programmiersicht und PR-Schnitt in
   [`plans/dateien-ueber-library-grenzen.plan.md`](plans/dateien-ueber-library-grenzen.plan.md),
@@ -412,7 +453,9 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   Library-Anlage (Owner 13.10.2026, über die Brücke beobachtet): Plan
   `docs/plans/geplant/speicher-verbindungen-und-library-anlage.plan.md`;
   bündelt die beiden Punkte darüber (ADR 0005, Verschlüsselung) und den
-  Start-Flow des Settings-UX-Folgeplans; acht Owner-Entscheide (§6) offen
+  Start-Flow des Settings-UX-Folgeplans; die acht Owner-Entscheide (§6)
+  sind am 13.10. wie empfohlen bestätigt. Erster Schritt, an nichts
+  gebunden: Teil B (Seitenmenü). Teil A ersetzt Punkt 1 von Vorhaben 2
 - Settings-UX-Folgeplan: Start-Flow, automatisierte Oberflächentests
 - Dateigrößen-Reste der Refactor-Wellen: `onedrive-provider.ts` 2.294,
   `job-report-tab.tsx` 2.262, `phase-template.ts` 2.037, `file-list.tsx` 1.761,
@@ -436,6 +479,15 @@ Stufen 0–3 · Agentensicht W0–W5, Werkbank W1–W8, A1–A7b, ADR 0006, MCP
 2.27.0 · Storage über MCP ST1–ST4 (11 von 14) · Modularisierung M1–M4e,
 Galerie-Vertrag, -Eine-Quelle, -Betrachter, Umzugs-Messung · Landingpage
 und Site-Modus · Favoriten und Kommentare · Settings-UX.
+
+Seit 15.09.: **Vorhaben 1 AECED** (M4f–M4i, M5, `@ks/embed`, bedient
+15.09.; Brief [`AGENT-BRIEF-M5.md`](refactor/modularisierung/AGENT-BRIEF-M5.md),
+Verlauf im Archiv) · Twin-Fingerabdruck Stufe 1 · Story-Dreiteilung D1–D7
+und Layout-Wellen D8–D12 · Status-Modalität Code (#355) · Brücke Wellen A,
+C, D, F (2.38–2.41), I (2.46), J (2.47 mit Nachzügen), K PR 1 (2.48) ·
+Transkript-Verlässlichkeit (#364 bis #366) · Reiter „Korrektur" am
+Audio-Transkript (P3b) · Wunschliste 6 Code (2.30) · Wunschliste 8 W8-4,
+W8-1, W8-2 (2.50).
 
 ## Die ADRs
 
