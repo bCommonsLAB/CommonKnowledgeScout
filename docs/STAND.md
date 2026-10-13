@@ -267,8 +267,9 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   A1 Verbindungen + Konto-Seite → A2 Library auf Verbindung + Migration
   (Prod-Lauf beim Owner) → A3 Brücke; C1 Entscheidungskatalog parallel
   möglich, C2 nach A2, C3 nach C1; A4 Mitglieder zuletzt.
-- **Stand 13.10.**: Plan liegt in PR #386 und muss vor dem Start von B1
-  auf `master` sein; B1 wird als erste Cloud-Session gestartet.
+- **Stand 13.10.**: Plan auf `master` seit #386; die Aktivierung und die
+  Start-Prompts in §9 kommen mit dem Folge-PR, der vor dem Start von B1
+  gemergt sein muss. B1 startet als erste Cloud-Session.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
@@ -370,7 +371,7 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   die beiden Vorlagen-Branches der Partner-Library vom 14.09. und 18.09.
 - **Wunschliste 8 „Dateien über Library-Grenzen nachvollziehen"** (Stand
   13.10.: W8-4 #382, W8-1 #383 und W8-2 #384 gemergt, Werkzeugsatz 2.50.0;
-  W8-3 `familie_uebergeben` gebaut, Werkzeugsatz 2.52.0, PR offen, Live-Prüfung
+  W8-3 `familie_uebergeben` gemergt (#387, Werkzeugsatz 2.52.0), Live-Prüfung
   mit zwei Libraries steht aus; die Skill-Patches liegen beim Archiv) (Cowork,
   2026-10-13, im Archiv unter `24.09 KnowledgeScout/2026-10-13 Wunschliste 8 -
   …md`; Programmiersicht und PR-Schnitt in
@@ -499,8 +500,8 @@ und Layout-Wellen D8–D12 · Status-Modalität Code (#355) · Brücke Wellen A,
 C, D, F (2.38–2.41), I (2.46), J (2.47 mit Nachzügen), K PR 1 (2.48) ·
 Transkript-Verlässlichkeit (#364 bis #366) · Reiter „Korrektur" am
 Audio-Transkript (P3b) · Wunschliste 6 Code (2.30) · Webseite als Quelle
-(`webseite_erschliessen`, #385, 2.49.0) · Wunschliste 8 W8-4, W8-1, W8-2
-(2.50).
+(`webseite_erschliessen`, #385, 2.49.0) · Wunschliste 8 W8-4, W8-1, W8-2,
+W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen).
 
 ## Die ADRs
 
