@@ -14,6 +14,7 @@ affiliations: {{affiliations|Array parallel zu speakers: Rolle oder Organisation
 organisation: {{organisation|Medium/Redaktion laut Zeile „Quelle:" der Sammeldatei, z. B. "RaiNews"}}
 source: {{source|Gleicher Wert wie organisation (Basis-Feld)}}
 source_url: {{source_url|Die Adresse aus der Zeile „Link:" der Sammeldatei, woertlich}}
+video_url: {{video_url|NUR die Adresse aus der Zeile „Video:" der Sammeldatei, woertlich (Embed-Adresse); gibt es keine solche Zeile: ""}}
 event: {{event|Veranstaltung, auf die sich der Artikel bezieht, wenn er eine nennt (z. B. "Armut verstehen und sichtbar machen"); sonst ""}}
 date: {{date|Datum aus der Zeile „Datum:" der Sammeldatei (YYYY-MM-DD); sonst ""}}
 year: {{year|Jahr als Zahl aus date; sonst null}}
@@ -45,7 +46,7 @@ Strenge Regeln — EXTRAKTIV, NICHT INTERPRETIEREND:
 - Zitate aus dem Interview (interview_md) nur im Wortlaut des Transkripts.
 - Personen: nur mit Namen, wenn Artikel oder Transkript sie nennen; sonst als Rolle.
 - Fehlende Information: "", [] oder null. Nie raten.
-- KEINE Felder coverImageUrl, audio_url, video_url, attachments_url, galleryImageUrls ausgeben: Cover und Audio rechnet die Pipeline aus den Medien der Sammeldatei.
+- KEINE Felder coverImageUrl, audio_url, attachments_url, galleryImageUrls ausgeben: Cover und Audio rechnet die Pipeline aus den Medien der Sammeldatei. video_url nur woertlich aus der Zeile „Video:" der Sammeldatei, sonst "".
 - Antworte AUSSCHLIESSLICH mit einem gueltigen JSON-Objekt. Kein Text davor oder danach, keine Code-Fences.
 
 Antwortschema (MUSS exakt ein JSON-Objekt sein):
@@ -61,6 +62,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein):
   "organisation": "string",
   "source": "string",
   "source_url": "string",
+  "video_url": "string (Embed-Adresse oder \"\")",
   "event": "string",
   "date": "string (YYYY-MM-DD oder \"\")",
   "year": "number|null",

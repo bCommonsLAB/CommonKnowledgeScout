@@ -23,8 +23,9 @@ import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretar
 import type { StorageProvider } from '@/lib/storage/types'
 import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
 import { basisName, baueArtikelSammeldatei } from './artikel-sammeldatei'
-import { downloadDeclaredMedia, downloadMedia, resolveMediaViaSecretary, type DownloadedMedia } from './media-resolve'
+import { downloadDeclaredMedia, downloadMedia, downloadMediaViaSecretary, resolveMediaViaSecretary, type DownloadedMedia } from './media-resolve'
 import { extractWebPage, type WebPageExtract } from './page-extract'
+import { embedUrlFuerVideo } from './video-embed'
 
 const PAGE_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 KnowledgeScout'
 
@@ -47,7 +48,9 @@ export interface WebseiteErschliessenInput {
 export interface WebseiteErschliessenResult {
   sammeldatei: { sourceId: string; name: string; ordnerId: string }
   seite: Pick<WebPageExtract, 'title' | 'siteName' | 'author' | 'datePublished' | 'imageUrl' | 'language'> & { bloecke: number; medienGefunden: number }
-  medium: { sourceId: string; name: string; bytes: number; dauerSekunden: number | null; weg: 'secretary' | 'seite'; jobId: string } | null
+  medium: { sourceId: string; name: string; bytes: number; dauerSekunden: number | null; weg: 'secretary' | 'secretary-download' | 'seite'; jobId: string } | null
+  /** Embed-Adresse (YouTube/Vimeo/PeerTube) fuer video_url, sonst null. */
+  videoEmbedUrl: string | null
   mediumGrund: string | null
   cover: { sourceId: string; name: string; bytes: number } | null
   coverGrund: string | null
@@ -62,12 +65,17 @@ export async function ladeSeiteHtml(url: string): Promise<string> {
   return res.text()
 }
 
-async function holeMedium(seite: WebPageExtract): Promise<{ datei: DownloadedMedia; dauer: number | null; weg: 'secretary' | 'seite' } | { grund: string }> {
+async function holeMedium(seite: WebPageExtract): Promise<{ datei: DownloadedMedia; dauer: number | null; weg: 'secretary' | 'secretary-download' | 'seite' } | { grund: string }> {
   let secretaryFehler: string
   try {
     const resolved = await resolveMediaViaSecretary(seite.url)
-    const datei = await downloadMedia(resolved.directUrl, { ext: resolved.ext, httpHeaders: resolved.httpHeaders })
-    return { datei, dauer: resolved.duration, weg: 'secretary' }
+    // Direkte Datei (http/https) laden wir selbst; Streams (HLS/DASH, z. B. Rai-Videos) laedt der Secretary mit ffmpeg.
+    if (/^https?$/i.test(resolved.protocol)) {
+      const datei = await downloadMedia(resolved.directUrl, { ext: resolved.ext, istAudio: resolved.istAudio, httpHeaders: resolved.httpHeaders })
+      return { datei, dauer: resolved.duration, weg: 'secretary' }
+    }
+    const geladen = await downloadMediaViaSecretary(seite.url)
+    return { datei: { buffer: geladen.buffer, mimeType: geladen.mimeType, ext: geladen.ext }, dauer: geladen.duration ?? resolved.duration, weg: 'secretary-download' }
   } catch (error) {
     secretaryFehler = error instanceof Error ? error.message : String(error)
   }
@@ -117,7 +125,8 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
 
   const medienDatei = 'datei' in medium ? `${basis} - Audio.${medium.datei.ext}` : null
   const coverDatei = 'buffer' in cover ? `${basis} - Cover.${cover.ext}` : null
-  const markdown = baueArtikelSammeldatei({ seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null })
+  const videoEmbedUrl = embedUrlFuerVideo(url, seite.media)
+  const markdown = baueArtikelSammeldatei({ seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl })
 
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
   if ('datei' in medium && medienDatei) {
@@ -144,6 +153,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
       imageUrl: seite.imageUrl, language: seite.language, bloecke: seite.bloecke.length, medienGefunden: seite.media.length,
     },
     medium: mediumErgebnis,
+    videoEmbedUrl,
     mediumGrund: 'grund' in medium ? medium.grund : null,
     cover: coverErgebnis,
     coverGrund: 'grund' in cover ? cover.grund : null,

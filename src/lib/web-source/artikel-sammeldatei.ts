@@ -24,6 +24,8 @@ export interface ArtikelSammeldateiInput {
   coverDatei: string | null
   /** Dauer des Mediums in Sekunden, wenn bekannt. */
   medienDauerSekunden: number | null
+  /** Embed-Adresse (YouTube/Vimeo/PeerTube), wenn die Seite ein einbettbares Video ist; sonst null. */
+  videoEmbedUrl?: string | null
 }
 
 function dauerText(sekunden: number | null): string {
@@ -36,6 +38,7 @@ function dauerText(sekunden: number | null): string {
 /** Markdown der Sammeldatei: Frontmatter + Body mit woertlichem Artikeltext. */
 export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   const { seite, medienDatei, coverDatei, medienDauerSekunden } = input
+  const videoEmbedUrl = input.videoEmbedUrl ?? null
   if (!seite.title.trim()) throw new Error('Seite ohne Titel — Sammeldatei nicht gebaut')
   if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze gefunden) — Sammeldatei nicht gebaut')
 
@@ -50,6 +53,7 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
     authors: seite.author ? [seite.author] : [],
     date: seite.datePublished,
     language: seite.language,
+    ...(videoEmbedUrl ? { video_url: videoEmbedUrl } : {}),
   }
 
   const herkunft: string[] = []
@@ -70,6 +74,9 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
     zeilen.push('## Eingebettetes Medium', '')
     zeilen.push(`- Audio/Video: [[${medienDatei}]]${dauer ? ` (${dauer})` : ''}`)
     zeilen.push('')
+  }
+  if (videoEmbedUrl) {
+    zeilen.push(`Video: ${videoEmbedUrl}`, '')
   }
   if (coverDatei) {
     zeilen.push(`Cover: [[${coverDatei}]]`, '')
