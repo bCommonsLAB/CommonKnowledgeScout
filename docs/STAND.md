@@ -408,6 +408,11 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   (63a64bb9, 2026-06-22, 12 Dateien), nie gemergt; im Code gibt es heute keine
   Verschlüsselung. Der einzige verbliebene Alt-Branch (Bereinigung 2026-09-09:
   176 Branches gelöscht, alle in master oder per PR gemergt)
+- Speicher-Verbindungen am Konto, Seitenmenü „Erweitert", vollständige
+  Library-Anlage (Owner 13.10.2026, über die Brücke beobachtet): Plan
+  `docs/plans/geplant/speicher-verbindungen-und-library-anlage.plan.md`;
+  bündelt die beiden Punkte darüber (ADR 0005, Verschlüsselung) und den
+  Start-Flow des Settings-UX-Folgeplans; acht Owner-Entscheide (§6) offen
 - Settings-UX-Folgeplan: Start-Flow, automatisierte Oberflächentests
 - Dateigrößen-Reste der Refactor-Wellen: `onedrive-provider.ts` 2.294,
   `job-report-tab.tsx` 2.262, `phase-template.ts` 2.037, `file-list.tsx` 1.761,
