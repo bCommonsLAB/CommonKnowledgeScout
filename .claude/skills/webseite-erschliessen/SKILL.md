@@ -30,7 +30,7 @@ Anhang in der Suche.
 ## Ablauf über die Brücke
 
 1. **Ordner und Dateiname festlegen.** Der Mensch nennt beides; Dateinamen
-   folgen dem Ordner (z. B. `05 Rai Beitrag Britsko.md` neben den Vorträgen).
+   folgen dem Ordner (z. B. `05 Presseartikel Interview.md` neben den Vorträgen).
    Nie `<Basis>.mp3` neben `<Basis>.md` anlegen — das gilt im Twin-System als
    Transkript des Mediums (Geschwister-Regel); das Werkzeug benennt deshalb
    `… - Audio` und `… - Cover`.
@@ -57,6 +57,13 @@ Anhang in der Suche.
 
 Ohne Medium (reiner Artikel): `medienHolen: false` oder einfach laufen lassen —
 die Antwort nennt den Grund, Schritt 3 entfällt.
+
+**Fremdes Video nicht einbetten** (rechtliche Vorgabe, z. B. Beiträge von
+Rundfunkanstalten): `medienEinbetten: false`. Das Medium wird geladen und
+transkribiert, bleibt aber reine Quelle im Ordner — kein Player, kein Embed,
+keine öffentliche Blob-Adresse. Im Eintrag stehen nur das Vorschaubild der
+Seite und der Link „Original auf der Seite der Quelle ansehen". Im Zweifel den
+Menschen fragen, ob eingebettet werden darf.
 
 ## Wenn etwas fehlt
 
