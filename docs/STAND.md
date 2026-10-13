@@ -66,7 +66,7 @@ offenen Rest.
   eine Library, die zeigt, was der Vortrag verspricht.
 - **Stand 13.10.**, Rest je Punkt der Liste unten:
   1. OneDrive-Anmeldung: nicht begonnen. Wird vom Plan
-     [`speicher-verbindungen-und-library-anlage`](plans/geplant/speicher-verbindungen-und-library-anlage.plan.md)
+     [`speicher-verbindungen-und-library-anlage`](plans/speicher-verbindungen-und-library-anlage.plan.md)
      Teil A abgelöst (ein Login je Verbindung statt je Library).
   2. Status-Modalität: Code gebaut (#355). Offen sind Golden-Set,
      Baseline und, nur bei Bedarf, der Kontrolldurchlauf (m6); Golden-Set
@@ -247,6 +247,30 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
+## Zwischenschnitt · Speicher-Verbindungen und Library-Anlage — aktiv (Owner 13.10.)
+
+- **Was**: Speicher-Zugänge (Nextcloud, OneDrive) gehören der Person und
+  werden einmal am Konto gepflegt, verschlüsselt; die Library zeigt nur
+  noch auf Verbindung plus Verzeichnis (Teil A, bündelt ADR 0005 und die
+  Verschlüsselung). „Erweitert" wird ein aufklappbarer Menüpunkt mit
+  sieben Unterseiten (Teil B). Eine neue Library wird vollständig angelegt:
+  Entscheidungskatalog, App-Wizard, Rückfragen von `bibliothek_anlegen`
+  (Teil C).
+- **Warum jetzt**: beim Arbeiten über die Brücke beobachtet (13.10.):
+  redundante Pflege delikater Zugangsdaten je Library, und jede über die
+  Brücke angelegte Library muss in den Settings nachkonfiguriert werden.
+  Teil A ersetzt zugleich Punkt 1 von Vorhaben 2 (OneDrive-Anmeldung).
+- **Plan**: [`plans/speicher-verbindungen-und-library-anlage.plan.md`](plans/speicher-verbindungen-und-library-anlage.plan.md);
+  die acht Owner-Entscheide (§6) sind am 13.10. wie empfohlen bestätigt.
+  Start-Prompts je Schritt in §9.
+- **Reihenfolge**: B1 Seitenmenü (an nichts gebunden, Cloud-Session) →
+  A1 Verbindungen + Konto-Seite → A2 Library auf Verbindung + Migration
+  (Prod-Lauf beim Owner) → A3 Brücke; C1 Entscheidungskatalog parallel
+  möglich, C2 nach A2, C3 nach C1; A4 Mitglieder zuletzt.
+- **Stand 13.10.**: Plan auf `master` seit #386; die Aktivierung und die
+  Start-Prompts in §9 kommen mit dem Folge-PR, der vor dem Start von B1
+  gemergt sein muss. B1 startet als erste Cloud-Session.
+
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
 **Stand 13.10.**: Messung in Prod am 10.09. (75 Quellen, Teilbaum des
@@ -312,10 +336,6 @@ hier übernommen; der Branch kann weg.
 
 Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
-- **Webseite als Quelle** (Werkzeugsatz 2.49.0, 13.10.): `webseite_erschliessen`,
-  Seiten-Extraktion ohne Modell, Videoseiten über den Secretary, Skill
-  `webseite-erschliessen`. Gebaut, liegt als PR #385 zur Prüfung; nach dem
-  Merge hierher als erledigt.
 - **Reste aus Vorhaben 1 AECED** (bedient 15.09.): Live-Nachweis des
   Story-Modus in App und fremder App (`view="story"`, D6b/D6c); D6d toten
   App-Chat (`ChatPanel` ohne Montagepunkt) entfernen; D0 Abnahme des
@@ -336,20 +356,22 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   06.10.): Prompt-Protokoll je Transformation, Vorschau ohne Modellaufruf,
   Anzeige in der Datei-Vorschau, Brücken-Werkzeug. Nichts gebaut; I1 und I1b
   liegen im Secretary-Repo
-- **Aufräumen der Branches** (Befund 13.10.): nie gemergte Branches, deren
-  Inhalt master auf anderem Weg hat oder der überholt ist, können weg:
-  `claude/job-start-idempotent` (abgelöst durch #366),
-  `claude/umzug-1-chat-vokabular`, `claude/brave-euler-x4yzrw`,
-  `claude/website-sektion-bildbreite`, `claude/story-fix-tsc-sitzungen-test`,
-  `claude/fervent-dirac-849b2a`, `claude/welle-j-folienbilder-c14c4c`,
-  `claude/twin-fingerabdruck-messung` (Ergebnis oben übernommen), rund 40
-  lokale Branches aus der Zeit vor der Bereinigung vom 09.09. Zu
-  entscheiden: `claude/handover-bruecke-library-setup-7fdbb4` (App-Passwort
-  direkt nachtragen, fertig, wird von Teil A des Speicher-Plans überholt)
-  und die beiden Vorlagen-Branches der Partner-Library vom 14.09. und 18.09.
+- **Branches aufgeräumt** (13.10., Owner-Auftrag): 22 Remote-Branches
+  gelöscht (überholte und solche, deren Inhalt vollständig in master liegt)
+  und 221 lokale (168 in master, die überholten aus der Durchsicht, 47 aus
+  der Zeit vor der Bereinigung vom 09.09. ohne Remote, der gemergte Branch
+  von #385). Alle sind beim Owner gesichert im ignorierten Ordner
+  `backups/` als `branches-geloescht-2026-10-13.bundle` mit Kopfliste; ein
+  Branch kommt mit `git fetch <bundle> <ref>:<ref>` zurück. Branches, die in
+  einem Worktree ausgecheckt sind, blieben stehen (darunter
+  `claude/umzug-1-chat-vokabular`). Remote bleiben vier, zu entscheiden:
+  `claude/lucid-planck-b9i6gj` (Grundlage für Teil A des Speicher-Plans,
+  bleibt bis A1), `claude/handover-bruecke-library-setup-7fdbb4`
+  (App-Passwort direkt nachtragen, fertig, wird von Teil A überholt) und
+  die beiden Vorlagen-Branches der Partner-Library vom 14.09. und 18.09.
 - **Wunschliste 8 „Dateien über Library-Grenzen nachvollziehen"** (Stand
   13.10.: W8-4 #382, W8-1 #383 und W8-2 #384 gemergt, Werkzeugsatz 2.50.0;
-  W8-3 `familie_uebergeben` gebaut, Werkzeugsatz 2.52.0, PR offen, Live-Prüfung
+  W8-3 `familie_uebergeben` gemergt (#387, Werkzeugsatz 2.52.0), Live-Prüfung
   mit zwei Libraries steht aus; die Skill-Patches liegen beim Archiv) (Cowork,
   2026-10-13, im Archiv unter `24.09 KnowledgeScout/2026-10-13 Wunschliste 8 -
   …md`; Programmiersicht und PR-Schnitt in
@@ -443,19 +465,10 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   Job-Modus für Scans über dem 60-Sekunden-Limit (Q7) — der Twin-Fingerabdruck (Zwischenschnitt) nimmt den meisten Läufen den Grund; danach neu messen
 - Modularisierung: M6 Oldies-SiteConfig, M7 `@ks/module-agent-view`, M8
   Föderation (ADR 0009) + Retrieval-Profile (ADR 0010), `apps/`-Ebene
-- ADR 0005 Co-Creator mit eigener Storage-Auth
-- Verschlüsselung der gespeicherten Storage-Zugangsdaten (Encryption-at-rest):
-  liegt fertig als ein Commit auf `origin/claude/lucid-planck-b9i6gj`
-  (63a64bb9, 2026-06-22, 12 Dateien), nie gemergt; im Code gibt es heute keine
-  Verschlüsselung. Der einzige verbliebene Alt-Branch (Bereinigung 2026-09-09:
-  176 Branches gelöscht, alle in master oder per PR gemergt)
-- Speicher-Verbindungen am Konto, Seitenmenü „Erweitert", vollständige
-  Library-Anlage (Owner 13.10.2026, über die Brücke beobachtet): Plan
-  `docs/plans/geplant/speicher-verbindungen-und-library-anlage.plan.md`;
-  bündelt die beiden Punkte darüber (ADR 0005, Verschlüsselung) und den
-  Start-Flow des Settings-UX-Folgeplans; die acht Owner-Entscheide (§6)
-  sind am 13.10. wie empfohlen bestätigt. Erster Schritt, an nichts
-  gebunden: Teil B (Seitenmenü). Teil A ersetzt Punkt 1 von Vorhaben 2
+- ADR 0005 Co-Creator mit eigener Storage-Auth und die Verschlüsselung der
+  Storage-Zugangsdaten (Commit 63a64bb9 auf `origin/claude/lucid-planck-b9i6gj`,
+  nie gemergt, der Branch bleibt als Grundlage stehen): seit 13.10. Teil A
+  des Zwischenschnitts „Speicher-Verbindungen und Library-Anlage" (oben)
 - Settings-UX-Folgeplan: Start-Flow, automatisierte Oberflächentests
 - Dateigrößen-Reste der Refactor-Wellen: `onedrive-provider.ts` 2.294,
   `job-report-tab.tsx` 2.262, `phase-template.ts` 2.037, `file-list.tsx` 1.761,
@@ -486,8 +499,9 @@ Verlauf im Archiv) · Twin-Fingerabdruck Stufe 1 · Story-Dreiteilung D1–D7
 und Layout-Wellen D8–D12 · Status-Modalität Code (#355) · Brücke Wellen A,
 C, D, F (2.38–2.41), I (2.46), J (2.47 mit Nachzügen), K PR 1 (2.48) ·
 Transkript-Verlässlichkeit (#364 bis #366) · Reiter „Korrektur" am
-Audio-Transkript (P3b) · Wunschliste 6 Code (2.30) · Wunschliste 8 W8-4,
-W8-1, W8-2 (2.50).
+Audio-Transkript (P3b) · Wunschliste 6 Code (2.30) · Webseite als Quelle
+(`webseite_erschliessen`, #385, 2.49.0) · Wunschliste 8 W8-4, W8-1, W8-2,
+W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen).
 
 ## Die ADRs
 
