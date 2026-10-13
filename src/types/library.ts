@@ -338,6 +338,21 @@ export interface StorageConfig {
     }>;
   };
 
+  /**
+   * Wunschliste 8, Plan Abschnitt 6 (G1): Adress-Slug der Library fuer
+   * Verweise `[[@<slug>/<pfad>]]` ueber Library-Grenzen. Gesetzt nur ueber
+   * `adresse_setzen` (instanzweit eindeutig geprueft); `frueher` sind alte
+   * Slugs, unter denen bestehende Adressen weiter treffen. Fehlt das Feld,
+   * gilt der veroeffentlichte Slug, sonst ein aus dem Namen abgeleiteter
+   * (`lib/library-adresse/slug.ts`). Das Formular kennt das Feld nicht; der
+   * Server fuehrt `config` beim Speichern mit dem Bestand zusammen, es bleibt
+   * also erhalten. KEIN Secret.
+   */
+  adresse?: {
+    slug?: string;
+    frueher?: string[];
+  };
+
   /** Öffentliche Veröffentlichungseinstellungen */
   publicPublishing?: {
     /** Eindeutiger Slug für URL (z.B. "sfscon-talks") */

@@ -31,6 +31,8 @@ export function auditAllDocuments(args: {
   index?: ReferenceIndex
   /** Gesetzt bei Teilbaum-Scans — siehe `ReferenceAuditArgs.teilbaum`. */
   teilbaum?: { scopePath: string | null }
+  /** Wunschliste 8 (G3): bekannte Library-Slugs — siehe `ReferenceAuditArgs.libraryAdressen`. */
+  libraryAdressen?: ReadonlySet<string> | null
 }): CoverageGap[] {
   const index = args.index ?? buildReferenceIndex(buildInventoryTargets({ folders: args.folders, families: args.families, fileIndex: args.fileIndex }))
   const sourcesByFolder = new Map<string, Array<{ name: string; path: string }>>()
@@ -43,7 +45,7 @@ export function auditAllDocuments(args: {
 
   const gaps: CoverageGap[] = []
   for (const folder of args.folders) {
-    if (folder.index) gaps.push(...auditReferences({ doc: folder.index, folderId: folder.folderId, index, teilbaum: args.teilbaum }))
+    if (folder.index) gaps.push(...auditReferences({ doc: folder.index, folderId: folder.folderId, index, teilbaum: args.teilbaum, libraryAdressen: args.libraryAdressen }))
     if (!folder.bericht) continue
     gaps.push(
       ...auditReferences({
@@ -55,6 +57,7 @@ export function auditAllDocuments(args: {
         expectedSources: isVorhaben(folder, args.vorhabenPattern) ? sourcesByFolder.get(folder.folderId) ?? [] : [],
         linkedDocs: args.begleit?.get(folder.folderId) ?? [],
         teilbaum: args.teilbaum,
+        libraryAdressen: args.libraryAdressen,
       }),
     )
   }

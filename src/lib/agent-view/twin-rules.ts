@@ -54,6 +54,9 @@ export interface TwinFamilyView {
   /** Library-relativer Pfad der Quelle ('' wenn der Scan sie nicht fand). */
   path: string
   artifacts: TwinArtifactView[]
+  /** Wunschliste 8, W8-1/W8-2: Quellkennung am Twin; null/fehlt = nie gerechnet. */
+  sourceContentHash?: string | null
+  sourceSize?: number | null
 }
 
 /**

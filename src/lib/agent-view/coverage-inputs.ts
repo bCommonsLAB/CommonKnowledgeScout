@@ -30,6 +30,9 @@ export interface RawTwinFamily {
   sourceName: string
   parentId: string
   artifacts: TwinArtifactView[]
+  /** Wunschliste 8: Quellkennung des Twin-Dokuments; null/fehlt = nie gerechnet. */
+  sourceContentHash?: string | null
+  sourceSize?: number | null
 }
 
 /** Datei-Id → Fundort (Aufloesung von Engine-Zeilen und Twin-Familien). */

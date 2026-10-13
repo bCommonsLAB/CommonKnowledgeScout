@@ -224,7 +224,77 @@ trägt `coverImageUrl: ""`, 58 Folien mit Blob-Adresse, einen Anhang als Paar.
 K4 bis K6 (App-Version in `bruecke_info`, Stempel `ingestedWith`/`generated_with`,
 drei Zahlen in `twins_pruefen`) folgen im zweiten PR.
 
-## Nachtrag 2.49.0 (13.10.2026): Webseite als Quelle
+## Nachtrag Wunschliste 8, erster Teil (2.49.0): Libraries gehören zu Vorhaben
+
+Owner 13.10.: Zwei Tage Arbeit in einer Library standen in keinem Bericht,
+weil aus „Arbeit in Library X" kein Vorhaben ableitbar war (Plan
+`docs/plans/dateien-ueber-library-grenzen.plan.md`, W8-4). Seither sagt ein
+Vorhaben selbst, welche Libraries zu ihm gehören:
+
+```yaml
+libraries: [Dachverband für Soziales – Neuaufbau, 72a883a0-d0d9-45be-8c19-6685c0ad8b95]
+```
+
+| Befund | Wo | Bedeutung |
+|---|---|---|
+| `library_ohne_vorhaben` | Library-Ebene, Akteur Cowork, `info`; `targetId` = Library-Id | eine eigene Library des Users, die kein `BERICHT.md` unter `libraries:` nennt — Arbeit dort erfährt kein Vorhaben |
+| `library_unbekannt` | Ordner-Ebene, Akteur Cowork, `info`; ein Sammelbefund je Bericht | ein Wert unter `libraries:`, der weder Id noch Name einer eigenen Library ist — genannt, nicht verschluckt |
+
+Regeln (`libraries-regel.ts`, pur): Ids exakt, Namen getrimmt und ohne
+Groß-/Kleinschreibung; die gescannte Archiv-Library zählt nicht als „ohne
+Vorhaben"; nur eigene Libraries, keine geteilten. Beide Befunde entstehen nur
+im Library-weiten Scan (im Teilbaum fehlen Berichte) und nur in Libraries
+mit Archivpflege (`config.agentView.enabled`, derselbe Schalter wie
+`stand_setzen`); die Library-Liste kommt als optionaler Port
+`listeLibraries` in den Scan. `abdeckung_lesen` nennt je Vorhaben
+`libraries` (roh; `null` = Report vor 2.49.0). Darauf bauen die
+Skill-Änderungen im Archiv auf (`chat-abschliessen`: leeres `vorhaben:` wird
+begründungspflichtig, Arbeit an einer Library ist Arbeit an dem Vorhaben,
+das sie nennt).
+
+## Nachtrag Wunschliste 8, zweiter Teil (2.49.1): Quellkennung am Twin
+
+Owner 13.10.: Acht Dateien lagen in zwei Libraries, mit zwei Storage-Ids,
+und nichts verband sie (Plan `docs/plans/dateien-ueber-library-grenzen.plan.md`,
+W8-1). Seither trägt das Twin-Dokument eine Quellkennung: `sourceContentHash`
+(SHA-256 über den Inhalt), `sourceSize`, `sourceHashedAt` (Contract
+`shadow-twin-contracts.md` §9). Gerechnet wird sie in der Start-Route aus dem
+Blob, der ohnehin zum Secretary geht, am Job gemerkt und beim Abschluss ans
+Twin-Dokument geschrieben; das Job-Log nennt `quellkennung_gesetzt`,
+`quellkennung_ohne_twin` oder `quellkennung_fehler`. `artefakt_lesen` zeigt
+`quellkennung` (`null` = seit 2.49.1 nicht neu erschlossen). Kein
+Migrationslauf; alte Bestände bekommen sie bei der nächsten Erschließung oder
+über `quelle_suchen nachrechnen: true` (W8-2, folgt). Die Kennung ist
+Wiedererkennung über Library-Grenzen, kein Schlüssel: Identität bleibt die
+Provider-Id.
+
+## Nachtrag Wunschliste 8, dritter Teil (2.50.0): Quelle über Library-Grenzen finden, Adressen
+
+Owner 13.10.: `quelle_verschwunden` war eine Sackgasse; die acht Dateien des
+Anlasses wurden von Hand in einer anderen Library gefunden (Plan
+`docs/plans/dateien-ueber-library-grenzen.plan.md`, W8-2 und Abschnitt 6).
+
+| Werkzeug / Feld | Liest/Schreibt | Was |
+|---|---|---|
+| `quelle_suchen` | liest; `nachrechnen` schreibt die Kennung | eine Quelle in allen eigenen Libraries: Eingabe `hash` \| `dateiname` (+ `groesse`) \| `vonLibraryId` + `sourceId`; Rangfolge `hash` › `name_groesse` › `name`; je Treffer `adresse` `@<slug>/<pfad>`, `imSpeicher`, `erschliessung`; `inhaltVerschieden` für gleichen Namen mit belegt anderem Inhalt |
+| `quelle_verschwunden.moeglicherweiseIn` | Scan, nur MongoDB | bis fünf Orte (`libraryName`, `bibliothek` `@<slug>`, `sourceId`, `uebereinstimmung`); `[]` = gesucht, nichts gefunden; Feld fehlt = nicht gesucht |
+| `bibliotheken_auflisten` | liest | `slug`, `slugHerkunft` (`gesetzt` \| `veroeffentlicht` \| `abgeleitet`), `slugKonflikt`, `frueherSlugs` |
+| `adresse_setzen` | schreibt, nur Owner | Adress-Slug instanzweit eindeutig; der bisher wirksame Slug wandert nach `frueher` |
+| Verweis-Audit | Scan | `[[@<slug>/<pfad>]]` wird nur gegen die bekannten Slugs geprüft (unbekannt oder unlesbar = `verweis_tot`); ohne Library-Liste ungeprüft |
+
+Regeln: Die Suche läuft in MongoDB über `{ libraryId, sourceContentHash }`
+und `{ libraryId, sourceName }`; Namen werden exakt verglichen. Pfade und
+Größen holt erst `quelle_suchen` aus dem Speicher (höchstens 20 Treffer).
+`nachrechnen` liest höchstens fünf Treffer bis 50 MB und die gesuchte Quelle,
+wenn sie lesbar ist. **Grenze:** Eine verschwundene Quelle von vor 2.49.1
+trägt weder Kennung noch Größe, und ihr Inhalt ist nicht mehr lesbar; für sie
+bleibt es bei `name`, der Hinweis empfiehlt, die Transkripte beider Seiten mit
+`artefakt_lesen` zu vergleichen. Ein abgeleiteter Slug ändert sich mit dem
+Namen der Library; stabil wird er mit `adresse_setzen`. Das
+Einstellungsformular kennt den Slug nicht; der Server führt `config` beim
+Speichern mit dem Bestand zusammen, er bleibt also erhalten.
+
+## Nachtrag 2.51.0 (13.10.2026): Webseite als Quelle
 
 Ein Artikel im Netz mit eingebettetem Audio oder Video wird zur Sammeldatei,
 nach demselben Muster wie die Vorträge einer Veranstaltung:

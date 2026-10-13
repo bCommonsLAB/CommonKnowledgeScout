@@ -19,7 +19,14 @@
  * @module agent-view
  */
 
-export type ReferenceSyntax = 'wikilink' | 'markdown-link'
+import { istLibraryAdresse } from '@/lib/library-adresse/adresse'
+
+/**
+ * `library-adresse` (Wunschliste 8, G3): ein Ziel `@<slug>/<pfad>` zeigt in
+ * eine ANDERE Library (`lib/library-adresse/adresse.ts`). Es wird nicht im
+ * eigenen Bestand aufgeloest, sondern nur gegen die bekannten Slugs geprueft.
+ */
+export type ReferenceSyntax = 'wikilink' | 'markdown-link' | 'library-adresse'
 
 export interface ParsedReference {
   /** Ziel wie im Text (ohne Alias, ohne Anker). */
@@ -72,7 +79,7 @@ export function parseReferences(body: string): ParsedReference[] {
     if (!isCheckableTarget(rawTarget)) continue
     const target = normalizeTarget(rawTarget)
     if (target === '') continue
-    refs.push({ target, syntax: 'wikilink', label: (match[2] ?? rawTarget).trim() })
+    refs.push({ target, syntax: istLibraryAdresse(target) ? 'library-adresse' : 'wikilink', label: (match[2] ?? rawTarget).trim() })
   }
 
   for (const match of text.matchAll(MD_LINK_RE)) {
@@ -80,7 +87,7 @@ export function parseReferences(body: string): ParsedReference[] {
     if (!isCheckableTarget(rawTarget)) continue
     const target = normalizeTarget(rawTarget)
     if (target === '') continue
-    refs.push({ target, syntax: 'markdown-link', label: (match[1] || rawTarget).trim() })
+    refs.push({ target, syntax: istLibraryAdresse(target) ? 'library-adresse' : 'markdown-link', label: (match[1] || rawTarget).trim() })
   }
 
   return refs

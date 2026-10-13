@@ -36,6 +36,9 @@ import { applyGapBudget } from './gap-budget'
 import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders, quellenVerschwunden } from './inventory-gaps'
+import { checkLibraryOhneVorhaben, checkLibraryUnbekannt, type LibraryEintrag } from './libraries-regel'
+import { verschwundeneMitOrten } from './quelle-anderswo'
+import type { OrteJeQuelle, SuchQuelle } from '@/lib/shadow-twin/quelle-suche'
 import { buildReferenceIndex } from './reference-audit'
 import { filesWithoutExtension, sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
@@ -69,6 +72,20 @@ export interface CoverageScanPorts {
     docs: ArchiveDocEntry[]
     fehler: Array<{ file: ArchiveFileEntry; error: string }>
   }>
+  /**
+   * Wunschliste 8, W8-4: die eigenen Libraries des Users (Id + Name) fuer
+   * `library_ohne_vorhaben` / `library_unbekannt`. OPTIONAL: ohne den Port
+   * bleiben beide Regeln stumm — der Server reicht ihn nur fuer Libraries mit
+   * Archivpflege herein (in einer fremd gebauten Library gibt es keine
+   * Berichte mit `libraries:`), Tests ohne Library-Dienst lassen ihn weg.
+   */
+  listeLibraries?(): Promise<LibraryEintrag[]>
+  /**
+   * Wunschliste 8, W8-2: Orte verschwundener Quellen in den eigenen
+   * Libraries (nur MongoDB). OPTIONAL: ohne Port traegt `quelle_verschwunden`
+   * kein `moeglicherweiseIn` (Feld fehlt = nicht gesucht).
+   */
+  sucheQuelleAnderswo?(quellen: readonly SuchQuelle[]): Promise<Map<string, OrteJeQuelle>>
   /** Zeitquelle (injiziert, damit Reports reproduzierbar testbar sind). */
   now(): string
 }
@@ -144,6 +161,25 @@ export async function runCoverageScan(
     : { docs: [], fehler: [] }
   const begleit = ordneBegleitdokumente(begleitAuswahl, gelesen.docs)
 
+  // Wunschliste 8: die Library-Liste (Port nur bei Archivpflege). W8-4-Regeln
+  // nur im Library-weiten Scan — im Teilbaum fehlen die Berichte, die eine
+  // Library nennen koennten. Das Adress-Verzeichnis (G3) gilt in beiden
+  // Scopes; ohne Port bleiben Regeln und Adress-Pruefung stumm (kein Raten).
+  const alleLibraries: LibraryEintrag[] | null = ports.listeLibraries ? await ports.listeLibraries() : null
+  const libraries = request.scopeFolderId === null ? alleLibraries : null
+  const libraryAdressen = alleLibraries === null ? null : new Set(alleLibraries.flatMap((lib) => lib.adressSlugs ?? []))
+
+  // W12 + Wunschliste 8, W8-2: Beweisbar verschwundene Quellen gelten in
+  // BEIDEN Scopes (ihr Elternordner wurde gelesen); die Suche in den anderen
+  // Libraries haengt `moeglicherweiseIn` an, statt den Befund als Sackgasse
+  // stehen zu lassen.
+  const verschwunden = await verschwundeneMitOrten({
+    gaps: quellenVerschwunden({ families, scannedFileIds: new Set(fileIndex.keys()), scannedFolderIds: folderIds }),
+    families,
+    suche: ports.sucheQuelleAnderswo?.bind(ports),
+    rootFolderId: request.rootFolderId,
+  })
+
   const locations = new Map<string, SourceLocation>(
     [...fileIndex.entries()].map(([fileId, location]) => [fileId, { folderId: location.folderId, path: location.path }]),
   )
@@ -180,14 +216,8 @@ export async function runCoverageScan(
         ]),
     ...families.flatMap((family) => evaluateTwinRules(family, conventions.standardTemplate)),
     ...orphanTwinFolders(folders),
-    // W12: Beweisbar verschwundene Quellen gelten in BEIDEN Scopes — ihr
-    // eigener Elternordner wurde gelesen, die „liegt womoeglich ausserhalb"-
-    // Unschaerfe greift dort nicht.
-    ...quellenVerschwunden({
-      families,
-      scannedFileIds: new Set(fileIndex.keys()),
-      scannedFolderIds: folderIds,
-    }),
+    // W12: siehe `verschwunden` oben (mit Orten in anderen Libraries).
+    ...verschwunden,
     // Die uebrigen Twin-Dokumente ohne Scan-Fund sind nur beim Library-weiten
     // Scan aussagekraeftig — im Teilbaum-Scope liegt die Quelle womoeglich
     // ausserhalb (kein Raten, siehe inventory-gaps.ts).
@@ -211,7 +241,7 @@ export async function runCoverageScan(
       }),
     ),
     ...auditAllDocuments({
-      folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex,
+      folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex, libraryAdressen,
       // Im Teilbaum ist ein Verweis nach aussen nicht beurteilbar — das macht der Voll-Scan.
       teilbaum: request.scopeFolderId === null ? undefined : { scopePath: request.scopePath ?? null },
     }),
@@ -231,6 +261,13 @@ export async function runCoverageScan(
     // `erschlossen` kein Thema tragen — die Regel braucht den Ordnerbaum
     // (Vorhabens-Vorfahre) und laeuft deshalb ueber `folders`, nicht je Knoten.
     ...checkThemaFehlt({ folders, vorhabenPattern, vokabularGepflegt: conventions.themenVokabularGepflegt }),
+    // Wunschliste 8, W8-4: Libraries gehoeren zu Vorhaben (siehe `libraries` oben).
+    ...(libraries === null
+      ? []
+      : [
+          ...checkLibraryOhneVorhaben({ folders, libraries, eigeneLibraryId: request.libraryId, rootFolderId: request.rootFolderId }),
+          ...checkLibraryUnbekannt({ folders, libraries }),
+        ]),
   ]
 
   const budget = applyGapBudget(folders, gaps)

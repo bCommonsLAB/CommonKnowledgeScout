@@ -15,7 +15,8 @@
 
 import type { ArchiveDocEntry } from './archive-types'
 import { createGap } from './gap-registry'
-import { parseReferences, uniqueReferences } from './reference-parser'
+import { parseReferences, uniqueReferences, type ReferenceSyntax } from './reference-parser'
+import { pruefeLibraryAdresse } from './reference-adresse'
 import type { CoverageGap } from './types'
 
 /** Ein aufloesbares Ziel des Inventars. */
@@ -117,6 +118,12 @@ export interface ReferenceAuditArgs {
    * `entwicklung_unberichtet` verlangt (Prueflauf 18.09.2026).
    */
   teilbaum?: { scopePath: string | null }
+  /**
+   * Wunschliste 8 (G3): Slugs, unter denen eine Library-Adresse `[[@slug/…]]`
+   * trifft (aktuell + frueher). null/fehlt = kein Verzeichnis im Scan — die
+   * Adresse bleibt dann ungeprueft statt geraten tot (`reference-adresse.ts`).
+   */
+  libraryAdressen?: ReadonlySet<string> | null
 }
 
 /**
@@ -125,7 +132,7 @@ export interface ReferenceAuditArgs {
  * fuer einen zweiten Aufloesungsversuch), `offen` = nicht beurteilbar.
  */
 export function teilbaumLage(
-  ref: { target: string; syntax: 'wikilink' | 'markdown-link' },
+  ref: { target: string; syntax: ReferenceSyntax },
   scopePath: string | null,
 ): { lage: 'innen'; scopeRelativ: string | null } | { lage: 'offen' } {
   const target = ref.target.replace(/\\/g, '/')
@@ -157,6 +164,25 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
   const docTime = doc.modifiedAt === null ? null : Date.parse(doc.modifiedAt)
 
   for (const ref of refs) {
+    // G3: Adressen in andere Libraries nie im eigenen Bestand aufloesen.
+    if (ref.syntax === 'library-adresse') {
+      const grund = pruefeLibraryAdresse(ref.target, args.libraryAdressen)
+      if (grund !== null) {
+        gaps.push(
+          createGap({
+            type: 'verweis_tot',
+            scope: 'folder',
+            targetId: doc.fileId,
+            targetName: doc.name,
+            folderId,
+            path: doc.path,
+            message: grund,
+            detail: `${ref.syntax}, Anzeigetext „${ref.label}"`,
+          }),
+        )
+      }
+      continue
+    }
     let hit = resolveReference(ref.target, doc.path, index)
     if (!hit && args.teilbaum) {
       const lage = teilbaumLage(ref, args.teilbaum.scopePath)

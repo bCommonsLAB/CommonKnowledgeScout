@@ -14,6 +14,7 @@
 
 import type { ArchiveFolderNode } from './archive-types'
 import { isVorhaben } from './archive-rules'
+import { leseLibrariesFeld } from './libraries-regel'
 import { asList, asString, projektAusBericht, titelLesen } from './sichten/bericht-lesen'
 import type { CoverageGap, CoverageTreeNode, VorhabenCard } from './types'
 
@@ -35,7 +36,7 @@ type BerichtFelder = Pick<
   | 'berichtTitel' | 'berichtFileId' | 'berichtModifiedAt' | 'berichtStatus' | 'themen'
   | 'berichtRolle' | 'berichtLetzteAktivitaet' | 'berichtNaechsterTermin'
   | 'berichtTerminFixiert' | 'berichtOffenePunkte' | 'berichtOffeneAnzahl'
-  | 'postfachAb' | 'postfachBis' | 'berichtBytes'
+  | 'postfachAb' | 'postfachBis' | 'berichtBytes' | 'libraries'
 >
 
 /** Wie viele offene Punkte die Karte traegt — `AKTUELL.md` zeigt dieselben zwei. */
@@ -70,6 +71,7 @@ function berichtFelder(folder: ArchiveFolderNode): BerichtFelder {
       berichtStatus: null,
       themen: asList(folder.index?.meta.themen),
       berichtBytes: null,
+      libraries: [],
       ...ohneAktuellFelder(),
     }
   }
@@ -97,6 +99,8 @@ function berichtFelder(folder: ArchiveFolderNode): BerichtFelder {
     postfachBis: asString(bericht.meta.postfach_bis),
     // Wunschliste 6, A1: aus dem Listing, null = Provider nennt keine Groesse.
     berichtBytes: bericht.sizeBytes ?? null,
+    // Wunschliste 8, W8-4: roh (Ids oder Namen), der Abgleich ist Sache der Regel.
+    libraries: leseLibrariesFeld(bericht.meta),
   }
 }
 

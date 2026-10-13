@@ -50,6 +50,9 @@ import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerWebseiteTool } from './tools-webseite'
 import { registerArtefaktTool } from './tools-artefakt'
 import { registerBibliothekTools } from './tools-bibliothek'
+import { registerAdresseTools } from './tools-adresse'
+import { registerQuelleSuchenTool } from './tools-quelle-suchen'
+import { bestimmeSlugs } from '@/lib/library-adresse/slug'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
@@ -100,8 +103,12 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerWebseiteTool(server)
   // Welle G: Artefakte ohne Spiegel lesen.
   registerArtefaktTool(server)
+  // Wunschliste 8, W8-2: Quelle ueber alle eigenen Libraries finden.
+  registerQuelleSuchenTool(server)
   // Handover Library-Anlage (08.10.): Library anlegen, Speicher pruefen, Vorlagen uebernehmen.
   registerBibliothekTools(server)
+  // Wunschliste 8 (G1): Adress-Slug je Library fuer [[@<slug>/<pfad>]].
+  registerAdresseTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
@@ -113,19 +120,32 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     {
       title: 'Bibliotheken auflisten',
       description:
-        'Listet die KnowledgeScout-Libraries des Users (Id + Name + archivpflege). archivpflege=false: ' +
+        'Listet die KnowledgeScout-Libraries des Users (Id + Name + archivpflege + Adress-Slug). archivpflege=false: ' +
         'die Library fuehrt keine Archiv-Konventionen — stand_setzen, themen_setzen, ' +
-        'erschliessung_block_schreiben und sichten_regenerieren sind dort gesperrt. Liest nur.',
+        'erschliessung_block_schreiben und sichten_regenerieren sind dort gesperrt. slug ist der Teil von ' +
+        '[[@<slug>/<pfad>]], mit dem Dokumente auf diese Library verweisen; slugHerkunft gesetzt | ' +
+        'veroeffentlicht | abgeleitet (abgeleitet = aus dem Namen, aendert sich mit ihm — stabil machen mit ' +
+        'adresse_setzen); slug null = Konflikt, Grund in slugKonflikt. Liest nur.',
       annotations: { readOnlyHint: true },
     },
     async () => {
       try {
         const libraries = await LibraryService.getInstance().getUserLibraries(mcpUserEmail())
-        return jsonResult(libraries.map((library) => ({
-          id: library.id,
-          name: library.label,
-          archivpflege: archivpflegeAktiv(library),
-        })))
+        // Wunschliste 8 (G1): Slugs ueber die GANZE Liste bestimmen — Kollisionen
+        // zwischen eigenen Libraries werden benannt, nicht still nummeriert.
+        const slugs = new Map(bestimmeSlugs(libraries).map((eintrag) => [eintrag.libraryId, eintrag]))
+        return jsonResult(libraries.map((library) => {
+          const eintrag = slugs.get(library.id)
+          return {
+            id: library.id,
+            name: library.label,
+            archivpflege: archivpflegeAktiv(library),
+            slug: eintrag?.slug ?? null,
+            slugHerkunft: eintrag?.herkunft ?? null,
+            ...(eintrag?.konflikt ? { slugKonflikt: eintrag.konflikt } : {}),
+            ...(eintrag && eintrag.frueher.length > 0 ? { frueherSlugs: eintrag.frueher } : {}),
+          }
+        }))
       } catch (error) {
         return errorResult(error)
       }

@@ -486,6 +486,15 @@ export class ExternalJobsRepository {
     );
   }
 
+  /** Wunschliste 8, W8-1: Quellkennung am Job merken (Start-Route, nach dem Lesen des Blobs). */
+  async setQuellkennung(jobId: string, quellkennung: NonNullable<ExternalJob['quellkennung']>): Promise<void> {
+    const col = await this.getCollection();
+    await col.updateOne(
+      { jobId },
+      { $set: { quellkennung, updatedAt: new Date() } }
+    );
+  }
+
   async get(jobId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     return col.findOne({ jobId });

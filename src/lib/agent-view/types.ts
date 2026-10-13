@@ -15,6 +15,8 @@
  * @module agent-view
  */
 
+import type { MoeglicherOrt } from '@/lib/shadow-twin/quelle-suche'
+
 /** Zustaendiger Akteur eines Befunds (F2 Todo-Routing). */
 export type GapActor = 'mensch' | 'cowork' | 'knowledgescout'
 
@@ -93,6 +95,14 @@ export type CoverageGapType =
    */
   | 'verlauf_fehlt'
   | 'entwicklung_unberichtet'
+  /**
+   * Wunschliste 8, W8-4: `library_ohne_vorhaben` (eine eigene Library des
+   * Users, die kein `BERICHT.md` unter `libraries:` nennt; Library-Ebene,
+   * nur im Voll-Scan) und `library_unbekannt` (ein Wert unter `libraries:`,
+   * der weder Id noch Name einer Library ist).
+   */
+  | 'library_ohne_vorhaben'
+  | 'library_unbekannt'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'
@@ -133,6 +143,15 @@ export interface CoverageGap {
    * exakt rekonstruiert, statt den eigenen Message-Text zu parsen.
    */
   anzahl?: number
+  /**
+   * Wunschliste 8, W8-2 — nur `quelle_verschwunden`: wo dieselbe Quelle
+   * womoeglich liegt (andere oder dieselbe Library; nach Quellkennung, sonst
+   * Name). [] = gesucht, nichts gefunden; fehlt = nicht gesucht (Report vor
+   * 2.50.0 oder Scan ohne Such-Port). Pfade nennt erst `quelle_suchen`.
+   */
+  moeglicherweiseIn?: MoeglicherOrt[]
+  /** Gesamtzahl der Orte, wenn `moeglicherweiseIn` gekappt ist. */
+  moeglicherweiseInGesamt?: number
 }
 
 /** Erklaerter Ordner-Stand aus dem `_INDEX.md` (Zyklus §4). */
@@ -235,6 +254,12 @@ export interface VorhabenCard {
    * [] = kein Thema vergeben („Ohne Thema"); fehlt in Reports vor A6.
    */
   gepflegteThemen?: string[]
+  /**
+   * Wunschliste 8, W8-4: `libraries:` aus dem `BERICHT.md`-Frontmatter —
+   * die Libraries, die zu diesem Vorhaben gehoeren (Ids oder Namen, roh).
+   * [] = Feld fehlt oder leer; fehlt in Reports aus Scans vor 2.49.0.
+   */
+  libraries?: string[]
   /*
    * Aktuell-Sicht (Welle A7) — die Felder, die `AKTUELL.md` aus dem
    * `BERICHT.md`-Frontmatter zieht. Sie reisen auf der Karte mit, weil der

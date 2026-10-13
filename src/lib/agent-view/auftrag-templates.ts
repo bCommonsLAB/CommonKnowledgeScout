@@ -42,6 +42,10 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `Lege fuer ${pfad} eine Verlaufsdatei der Korrespondenz an: ${gap.message}${detail(gap)}. Korrespondenz.md in der Vorhabenswurzel (type: verlauf, generated_by, generated_at; juengste Kalenderwoche oben), die KW-Abschnitte aus dem Bericht dorthin verschieben und im Bericht mit [[Korrespondenz]] darauf verweisen.`,
   entwicklung_unberichtet: (gap, pfad) =>
     `Ziehe in ${pfad} die Programmierung nach: ${gap.message}${detail(gap)}. Je Eintrag EINE Chronologiezeile mit Link auf das Sprungziel des Eintrags; offene Fragen, die der Eintrag erledigt, abraeumen. Den Inhalt NICHT kopieren — er steht in der Verlaufsdatei, das Detail im Repo.`,
+  library_ohne_vorhaben: (gap, pfad) =>
+    `Ordne im Archiv ${pfad} die Library „${gap.targetName}" einem Vorhaben zu: ${gap.message}${detail(gap)}. Im BERICHT.md des zustaendigen Vorhabens das Feld libraries: ergaenzen (Flow-Form wie repo:, Id oder Name).`,
+  library_unbekannt: (gap, pfad) =>
+    `Pruefe libraries: in ${pfad}: ${gap.message}${detail(gap)}. Den Wert auf die Id oder den Namen einer Library des Users berichtigen (bibliotheken_auflisten).`,
   sicht_veraltet: (gap, pfad) =>
     `Erzeuge die Sichten neu (sichten_regenerieren): ${pfad} ist aelter als der juengste Bericht der Library${detail(gap)}.`,
   thema_fehlt: (gap, pfad) =>
@@ -85,6 +89,7 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
 
   quelle_verschwunden: (gap, pfad) =>
     `Mensch: Die Datenbank kennt ${pfad}${detail(gap)}, im Speicher liegt sie nicht mehr. ` +
+    `Zuerst quelle_suchen (vonLibraryId + sourceId ${gap.targetId}): liegt sie in einer anderen Library? ` +
     'Kein Job behebt das — entweder die Datei zurueckholen (dann greift der naechste Scan) ' +
     'oder die Familie mit quelle_verwerfen aufloesen. NICHT erneut erschliessen: Der Job ' +
     'scheitert am fehlenden Original.',
