@@ -206,13 +206,10 @@ export default clerkMiddleware(async (auth, req) => {
       isPublic = true;
     }
 
-    // Interne/öffentliche Ausnahmen für Storage-Tokens & OneDrive-Refresh
-    if (
-      path === '/api/auth/onedrive/refresh' ||
-      /\/api\/libraries\/.+\/tokens$/.test(path) ||
-      path === '/api/storage/filesystem'
-    ) {
-      // Diese Routen schützen sich selbst (prüfen Header X-Internal-Request bzw. Clerk im Handler)
+    // Ausnahme: /api/storage/filesystem schuetzt sich selbst. Token- und
+    // Refresh-Route verlangen seit Teil A (Speicher-Verbindungen) immer eine
+    // Clerk-Session — keine X-Internal-Request-Umgehung mehr.
+    if (path === '/api/storage/filesystem') {
       isPublic = true;
     }
 
