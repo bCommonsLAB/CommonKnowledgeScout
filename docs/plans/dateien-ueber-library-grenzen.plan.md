@@ -17,8 +17,8 @@ todos:
     content: "Reserviert, nicht in diesem Plan: Auflöser-Route /@<slug>/<pfad> (App und Website), Klick im Markdown-Renderer und im Embed, Verzeichnis fremder Libraries mit Instanz-Adresse, inhaltliche Suche über Libraries (ADR 0009/0010)."
     status: pending
   - id: w8-3-uebergeben
-    content: "PR 4 (W8-3): familie_uebergeben von Library A nach B (Quelle, Twin-Dokument, Segmente, Export in B, Verweis-Datei type: verweis in A, Herkunft behalten oder verwerfen); Vektoren nie kopiert, index_aktualisieren in B ist der bewusste Schritt. Erst nach den Owner-Entscheiden unten. Werkzeugsatz 2.51.0."
-    status: pending
+    content: "PR 4 (W8-3): familie_uebergeben von Library A nach B (Quelle, Twin-Dokument, Segmente, Export in B, Verweis-Datei type: verweis in A, Herkunft behalten oder verwerfen); Vektoren nie kopiert, index_aktualisieren in B ist der bewusste Schritt. Erst nach den Owner-Entscheiden unten. Werkzeugsatz 2.52.0 (2.51.0 ging an Webseite als Quelle). Gebaut 13.10."
+    status: completed
   - id: w8-skills
     content: "Nicht im Repo: Skill-Patches chat-abschliessen, veranstaltung-aufbereiten, archiv-aufraeumen liegen in Organisation/Skills/ des Archivs (Cowork). Das Repo liefert nur die Werkzeuge, auf die sie verweisen."
     status: pending
@@ -119,6 +119,21 @@ Ablauf als Service `transfer-family.ts` (kein Umbau von `moveFamily`):
    Es wird NIE gelöscht; Vektoren in A räumt `index_entfernen` auf Zuruf.
 9. Antwort nennt, was in B noch fehlt: `index_aktualisieren` (Vektoren werden
    nie kopiert, die Embedding-Konfiguration ist je Library) und Seitenbilder.
+
+Gebaut (PR 4, 13.10., Werkzeugsatz 2.52.0) unter diesen Annahmen zu den
+Entscheiden 3 bis 5: `herkunft` ist Pflicht **ohne Vorgabe** (wer übergibt,
+sagt es jedes Mal); `type: verweis` steht in der Pflichtstempel-Regel neben
+`notiz` und `verlauf` (`BEGLEIT_KERN_TYPEN`); Seitenbilder werden nicht
+kopiert. Drei Abweichungen von der Liste oben: Die Verweis-Datei heißt
+`Verweis – <Quellname>.md`, nicht `<Quellname>.verweis.md`, weil jede
+Markdown-Datei mit dem Stamm der Quelle plus Punkt als ihr Geschwister-Artefakt
+gilt und beim nächsten Import als Twin eingelesen würde. Die Quellkennung
+entsteht beim Übergeben aus demselben Blob und wird auch in A nachgetragen
+(Schritt `kennung_herkunft`). Und der Verwerfen-Weg liegt jetzt in
+`shadow-twin/quelle-verwerfen.ts`, genutzt von `quelle_verwerfen` und
+`familie_uebergeben`. Der Ablauf hängt an Ports (`transfer-family.ts`), die
+Tests fahren ihn mit zwei In-Memory-Speichern. Eine Live-Prüfung mit einer
+Testdatei in zwei Libraries steht aus.
 
 ## 3. Reihenfolge und PRs
 
