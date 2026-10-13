@@ -126,8 +126,9 @@ export async function ensureShadowTwinIndexes(libraryId: string): Promise<void> 
   await col.createIndex({ libraryId: 1, sourceId: 1 }, { unique: true })
   // Welle E: Rueckwaertsabfrage „Sammeldateien mit dieser Quelle" ohne Scan.
   await col.createIndex({ libraryId: 1, compositeSources: 1 })
-  // Wunschliste 8, W8-1: Suche nach Inhalt ueber Library-Grenzen (quelle_suchen, W8-2).
+  // Wunschliste 8, W8-1/W8-2: Suche nach Inhalt bzw. Name ueber Library-Grenzen (quelle_suchen).
   await col.createIndex({ libraryId: 1, sourceContentHash: 1 })
+  await col.createIndex({ libraryId: 1, sourceName: 1 })
   indexCache.add(name)
 }
 

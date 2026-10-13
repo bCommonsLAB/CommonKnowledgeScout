@@ -102,6 +102,9 @@ export function compactGap(gap: CoverageGap) {
     targetName: gap.targetName,
     message: gap.message,
     ...(gap.detail ? { detail: gap.detail } : {}),
+    // Wunschliste 8, W8-2: nur an quelle_verschwunden; fehlt = nicht gesucht.
+    ...(gap.moeglicherweiseIn ? { moeglicherweiseIn: gap.moeglicherweiseIn } : {}),
+    ...(gap.moeglicherweiseInGesamt !== undefined ? { moeglicherweiseInGesamt: gap.moeglicherweiseInGesamt } : {}),
   }
 }
 

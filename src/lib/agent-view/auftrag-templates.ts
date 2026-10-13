@@ -89,6 +89,7 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
 
   quelle_verschwunden: (gap, pfad) =>
     `Mensch: Die Datenbank kennt ${pfad}${detail(gap)}, im Speicher liegt sie nicht mehr. ` +
+    `Zuerst quelle_suchen (vonLibraryId + sourceId ${gap.targetId}): liegt sie in einer anderen Library? ` +
     'Kein Job behebt das — entweder die Datei zurueckholen (dann greift der naechste Scan) ' +
     'oder die Familie mit quelle_verwerfen aufloesen. NICHT erneut erschliessen: Der Job ' +
     'scheitert am fehlenden Original.',

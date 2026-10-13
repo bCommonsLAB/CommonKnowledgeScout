@@ -18,6 +18,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getAllShadowTwins, readTranscriptRecord, type ShadowTwinArtifactRecord, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { bestimmeSlugs } from '@/lib/library-adresse/slug'
+import { sucheVerschwundeneAnderswo, suchLibrariesAus } from '@/lib/shadow-twin/quelle-suche-lauf'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import type { Library } from '@/types/library'
@@ -104,7 +105,12 @@ export function toRawTwinFamily(doc: ShadowTwinDocument): RawTwinFamily {
       artifacts.push({ kind: 'transformation', templateName, targetLanguage, frontmatter: frontmatterOf(record), updatedAt: record.updatedAt })
     }
   }
-  return { sourceId: doc.sourceId, sourceName: doc.sourceName, parentId: doc.parentId, artifacts }
+  return {
+    sourceId: doc.sourceId, sourceName: doc.sourceName, parentId: doc.parentId, artifacts,
+    // Wunschliste 8, W8-2: Kennung fuer die Suche nach verschwundenen Quellen.
+    sourceContentHash: typeof doc.sourceContentHash === 'string' && doc.sourceContentHash !== '' ? doc.sourceContentHash : null,
+    sourceSize: typeof doc.sourceSize === 'number' ? doc.sourceSize : null,
+  }
 }
 
 export interface ScanLibraryCoverageArgs {
@@ -198,6 +204,14 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
             })),
         }
       : {}),
+    // Wunschliste 8, W8-2: verschwundene Quellen in den eigenen Libraries
+    // suchen — nur MongoDB, in jeder Library (auch ohne Archivpflege).
+    sucheQuelleAnderswo: async (quellen) =>
+      sucheVerschwundeneAnderswo({
+        libraries: suchLibrariesAus(await LibraryService.getInstance().getUserLibraries(userEmail)),
+        eigeneLibraryId: libraryId,
+        quellen,
+      }),
     now: args.now ?? (() => new Date().toISOString()),
   }
 

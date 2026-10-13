@@ -37,6 +37,8 @@ import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders, quellenVerschwunden } from './inventory-gaps'
 import { checkLibraryOhneVorhaben, checkLibraryUnbekannt, type LibraryEintrag } from './libraries-regel'
+import { verschwundeneMitOrten } from './quelle-anderswo'
+import type { OrteJeQuelle, SuchQuelle } from '@/lib/shadow-twin/quelle-suche'
 import { buildReferenceIndex } from './reference-audit'
 import { filesWithoutExtension, sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
@@ -78,6 +80,12 @@ export interface CoverageScanPorts {
    * Berichte mit `libraries:`), Tests ohne Library-Dienst lassen ihn weg.
    */
   listeLibraries?(): Promise<LibraryEintrag[]>
+  /**
+   * Wunschliste 8, W8-2: Orte verschwundener Quellen in den eigenen
+   * Libraries (nur MongoDB). OPTIONAL: ohne Port traegt `quelle_verschwunden`
+   * kein `moeglicherweiseIn` (Feld fehlt = nicht gesucht).
+   */
+  sucheQuelleAnderswo?(quellen: readonly SuchQuelle[]): Promise<Map<string, OrteJeQuelle>>
   /** Zeitquelle (injiziert, damit Reports reproduzierbar testbar sind). */
   now(): string
 }
@@ -161,6 +169,17 @@ export async function runCoverageScan(
   const libraries = request.scopeFolderId === null ? alleLibraries : null
   const libraryAdressen = alleLibraries === null ? null : new Set(alleLibraries.flatMap((lib) => lib.adressSlugs ?? []))
 
+  // W12 + Wunschliste 8, W8-2: Beweisbar verschwundene Quellen gelten in
+  // BEIDEN Scopes (ihr Elternordner wurde gelesen); die Suche in den anderen
+  // Libraries haengt `moeglicherweiseIn` an, statt den Befund als Sackgasse
+  // stehen zu lassen.
+  const verschwunden = await verschwundeneMitOrten({
+    gaps: quellenVerschwunden({ families, scannedFileIds: new Set(fileIndex.keys()), scannedFolderIds: folderIds }),
+    families,
+    suche: ports.sucheQuelleAnderswo?.bind(ports),
+    rootFolderId: request.rootFolderId,
+  })
+
   const locations = new Map<string, SourceLocation>(
     [...fileIndex.entries()].map(([fileId, location]) => [fileId, { folderId: location.folderId, path: location.path }]),
   )
@@ -197,14 +216,8 @@ export async function runCoverageScan(
         ]),
     ...families.flatMap((family) => evaluateTwinRules(family, conventions.standardTemplate)),
     ...orphanTwinFolders(folders),
-    // W12: Beweisbar verschwundene Quellen gelten in BEIDEN Scopes — ihr
-    // eigener Elternordner wurde gelesen, die „liegt womoeglich ausserhalb"-
-    // Unschaerfe greift dort nicht.
-    ...quellenVerschwunden({
-      families,
-      scannedFileIds: new Set(fileIndex.keys()),
-      scannedFolderIds: folderIds,
-    }),
+    // W12: siehe `verschwunden` oben (mit Orten in anderen Libraries).
+    ...verschwunden,
     // Die uebrigen Twin-Dokumente ohne Scan-Fund sind nur beim Library-weiten
     // Scan aussagekraeftig — im Teilbaum-Scope liegt die Quelle womoeglich
     // ausserhalb (kein Raten, siehe inventory-gaps.ts).
