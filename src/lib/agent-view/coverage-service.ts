@@ -36,6 +36,7 @@ import { applyGapBudget } from './gap-budget'
 import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders, quellenVerschwunden } from './inventory-gaps'
+import { checkLibraryOhneVorhaben, checkLibraryUnbekannt, type LibraryEintrag } from './libraries-regel'
 import { buildReferenceIndex } from './reference-audit'
 import { filesWithoutExtension, sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
@@ -69,6 +70,14 @@ export interface CoverageScanPorts {
     docs: ArchiveDocEntry[]
     fehler: Array<{ file: ArchiveFileEntry; error: string }>
   }>
+  /**
+   * Wunschliste 8, W8-4: die eigenen Libraries des Users (Id + Name) fuer
+   * `library_ohne_vorhaben` / `library_unbekannt`. OPTIONAL: ohne den Port
+   * bleiben beide Regeln stumm — der Server reicht ihn nur fuer Libraries mit
+   * Archivpflege herein (in einer fremd gebauten Library gibt es keine
+   * Berichte mit `libraries:`), Tests ohne Library-Dienst lassen ihn weg.
+   */
+  listeLibraries?(): Promise<LibraryEintrag[]>
   /** Zeitquelle (injiziert, damit Reports reproduzierbar testbar sind). */
   now(): string
 }
@@ -143,6 +152,12 @@ export async function runCoverageScan(
     ? await ports.readDocs([...zuLesen.values()].sort((a, b) => a.path.localeCompare(b.path)))
     : { docs: [], fehler: [] }
   const begleit = ordneBegleitdokumente(begleitAuswahl, gelesen.docs)
+
+  // Wunschliste 8, W8-4: nur im Library-weiten Scan — im Teilbaum fehlen die
+  // Berichte, die eine Library nennen koennten, und ohne Port (keine
+  // Archivpflege, Tests) bleiben die Regeln stumm (dokumentiert, kein Raten).
+  const libraries: LibraryEintrag[] | null =
+    request.scopeFolderId === null && ports.listeLibraries ? await ports.listeLibraries() : null
 
   const locations = new Map<string, SourceLocation>(
     [...fileIndex.entries()].map(([fileId, location]) => [fileId, { folderId: location.folderId, path: location.path }]),
@@ -231,6 +246,13 @@ export async function runCoverageScan(
     // `erschlossen` kein Thema tragen — die Regel braucht den Ordnerbaum
     // (Vorhabens-Vorfahre) und laeuft deshalb ueber `folders`, nicht je Knoten.
     ...checkThemaFehlt({ folders, vorhabenPattern, vokabularGepflegt: conventions.themenVokabularGepflegt }),
+    // Wunschliste 8, W8-4: Libraries gehoeren zu Vorhaben (siehe `libraries` oben).
+    ...(libraries === null
+      ? []
+      : [
+          ...checkLibraryOhneVorhaben({ folders, libraries, eigeneLibraryId: request.libraryId, rootFolderId: request.rootFolderId }),
+          ...checkLibraryUnbekannt({ folders, libraries }),
+        ]),
   ]
 
   const budget = applyGapBudget(folders, gaps)

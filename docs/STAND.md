@@ -309,6 +309,22 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
 
 Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
+- **Wunschliste 8 „Dateien über Library-Grenzen nachvollziehen"** (Cowork,
+  2026-10-13, im Archiv unter `24.09 KnowledgeScout/2026-10-13 Wunschliste 8 -
+  …md`; Programmiersicht und PR-Schnitt in
+  [`plans/dateien-ueber-library-grenzen.plan.md`](plans/dateien-ueber-library-grenzen.plan.md),
+  geprüft gegen den Code am 13.10.). Vier PRs in dieser Reihenfolge: W8-4
+  `libraries:` im Bericht + Befund `library_ohne_vorhaben`; W8-1 Quellkennung
+  am Twin (`sourceContentHash`, nicht `source_hash`, weil
+  `binaryFragments[].sourceHash` schon belegt ist); W8-2 `quelle_suchen` über
+  alle eigenen Libraries + `moeglicherweiseIn` an `quelle_verschwunden`; W8-3
+  `familie_uebergeben` mit Verweis-Datei, nie löschen, Vektoren nie kopieren.
+  **Vor PR 4 acht Owner-Entscheide** (Abschnitt 4 des Plans). Abschnitt 6
+  legt die Grundlage für Adressen über Library- und Instanz-Grenzen fest
+  (`[[@<slug>/<pfad>]]`, Slug je Library, Verzeichnis mit Heimat lokal/fremd,
+  Auflöser mit drei Antworten); gebaut wird davon jetzt nur Slug, Parser und
+  Verweis-Erkennung, der Klick und die Föderation sind reserviert (ADR 0009).
+  Die Skill-Patches bleiben im Archiv.
 - **Wunschliste 6 „Zustand und Verlauf trennen"** (Cowork, 2026-09-18, Owner-Auftrag
   per Handover; Plan: [`plans/zustand-und-verlauf-repo-bericht.plan.md`](plans/zustand-und-verlauf-repo-bericht.plan.md)).
   Code **erledigt** (Werkzeugsatz 2.30.0): Befunde `bericht_zu_lang`,
