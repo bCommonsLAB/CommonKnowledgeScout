@@ -223,3 +223,37 @@ Corbo-Index-Job vom 11.10. 22:18 (`2abe2a40…`, vor #376): `slide_images_resolv
 trägt `coverImageUrl: ""`, 58 Folien mit Blob-Adresse, einen Anhang als Paar.
 K4 bis K6 (App-Version in `bruecke_info`, Stempel `ingestedWith`/`generated_with`,
 drei Zahlen in `twins_pruefen`) folgen im zweiten PR.
+
+## Nachtrag 2.49.0 (13.10.2026): Webseite als Quelle
+
+Ein Artikel im Netz mit eingebettetem Audio oder Video wird zur Sammeldatei,
+nach demselben Muster wie die Vorträge einer Veranstaltung:
+
+- `webseite_erschliessen` (Brücke) und `POST /api/library/[id]/web-source`
+  (Oberfläche) rufen dieselbe Funktion (`src/lib/web-source/webseite-erschliessen.ts`).
+- **Seite ohne Sprachmodell lesen** (`page-extract.ts`): Titel, Beschreibung,
+  Datum, Autor, Bild aus Open Graph und JSON-LD; Absätze, Zwischenüberschriften
+  und Zitate wörtlich aus dem `<article>`-Block (sonst `<main>`, sonst `<body>`),
+  samt Vorspann im eigenen `<header>` des Artikels. Kurze Listenpunkte
+  (Schlagwort-Listen) und doppelte Absätze fallen weg.
+- **Medium über den Secretary**: `POST /api/media/resolve` löst die Seite per
+  yt-dlp zur direkten Medienadresse auf (Rai News, YouTube, Vimeo, PeerTube …),
+  lädt aber nichts; KnowledgeScout lädt die Datei und legt sie als
+  `<Basis> - Audio.mp3` neben die Sammeldatei, das Bild als `<Basis> - Cover.jpg`.
+  Kennt yt-dlp die Seite nicht, bleibt die von der Seite genannte Adresse,
+  wenn sie direkt Audio/Video liefert. Kein Medium = Grund in der Antwort.
+- **Nicht `<Basis>.mp3`**: Eine `<Basis>.md` neben `<Basis>.mp3` gilt im
+  Twin-System als Transkript des Mediums (Geschwister-Regel im
+  `artifact-resolver`), dann übergeht das Extract-Gate die Transkription.
+- **Audio und Cover rechnet die Pipeline**: `_media_files` registriert jetzt
+  auch Audio/Video als Fragment; der Ingest setzt `audio_url` aus dem
+  Audio-Fragment am eigenen Twin (Trace `audio_source`) und das Cover aus
+  einem Fragment `… - Cover.*`, `*.cover.*` oder `cover.*` (Trace
+  `cover_source: own_fragment`), vor dem Folien-/Flyer-Weg.
+- **Vorlage `artikel-de`** (Ereignis-Ansicht, Dokumentart artikel, Facetten wie
+  `vortrag-session-de`): Artikel wörtlich, Zusammenfassung nur aus wörtlichen
+  Sätzen, Zitate aus dem Interview-Transkript als `> **Name:** Zitat`.
+- Ablauf: `webseite_erschliessen` → `job_status` (Transkript) →
+  `transformation_starten` mit `artikel-de` und bewusstem `ingest`.
+  Live belegt 13.10. am Rai-Beitrag: 7/7 Absätze wörtlich, Audio-Player und
+  Cover in der Galerie.
