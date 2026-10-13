@@ -29,14 +29,14 @@ export function registerWebseiteTool(server: McpServer): void {
       description:
         'Legt aus einer Artikelseite eine Sammeldatei im Ordner an: Seite OHNE Sprachmodell gelesen ' +
         '(Titel, Quelle, Datum, Absaetze woertlich), eingebettetes Audio/Video per yt-dlp (Secretary) ' +
-        'aufgeloest und als <Basis>.mp3 daneben abgelegt, Coverbild der Seite als <Basis>.cover.jpg, ' +
+        'aufgeloest und als „<Basis> - Audio.mp3" daneben abgelegt, Coverbild der Seite als „<Basis> - Cover.jpg", ' +
         'Transkription des Mediums gestartet (nur Transkript, kein Ingest). Vorhandene Dateinamen werden ' +
         'nicht ueberschrieben. Danach: job_status abwarten, dann transformation_starten (Vorlage artikel-de) ' +
         'mit bewusstem ingest. Kein Medium oder kein Cover steht mit Grund in der Antwort. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         url: z.string().url().describe('Adresse der Artikelseite (http/https)'),
-        dateiname: z.string().min(1).max(200).describe('Dateiname der Sammeldatei, endet auf .md; Medium und Cover heissen <Basis>.mp3 / <Basis>.cover.jpg'),
+        dateiname: z.string().min(1).max(200).describe('Dateiname der Sammeldatei, endet auf .md; Medium und Cover heissen „<Basis> - Audio.mp3" / „<Basis> - Cover.jpg"'),
         ordner: z.string().min(1).optional().describe('Ordnerpfad (library-relativ)'),
         ordnerId: z.string().min(1).optional().describe('ALTERNATIVE: Storage-Id des Ordners'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache der Transkription, Default de'),

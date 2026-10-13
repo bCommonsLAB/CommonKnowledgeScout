@@ -59,7 +59,9 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   herkunft.push(`Link: ${seite.url}`)
 
   const zeilen: string[] = [`# ${seite.title}`, '']
-  if (seite.description) zeilen.push(`*${seite.description}*`, '')
+  // Die Kurzbeschreibung nur, wenn sie nicht schon der Vorspann des Artikels ist (sonst doppelt).
+  const beschreibungImText = seite.bloecke.some((b) => b.trim() === seite.description.trim())
+  if (seite.description && !beschreibungImText) zeilen.push(`*${seite.description}*`, '')
   zeilen.push(herkunft.join(' · '), '')
   zeilen.push('## Artikel', '')
   for (const block of seite.bloecke) zeilen.push(block, '')
@@ -75,7 +77,7 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   return createMarkdownWithFrontmatter(zeilen.join('\n').trimEnd() + '\n', meta)
 }
 
-/** Dateiname ohne Endung, als Basis fuer Medium und Cover (`<Basis>.mp3`, `<Basis>.cover.jpg`). */
+/** Dateiname ohne Endung, als Basis fuer Medium und Cover (`<Basis> - Audio.mp3`, `<Basis> - Cover.jpg`). */
 export function basisName(dateiname: string): string {
   return dateiname.replace(/\.md$/i, '')
 }

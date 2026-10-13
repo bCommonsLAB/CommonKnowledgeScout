@@ -7,8 +7,11 @@
  * (`POST /api/library/[id]/web-source`): Die Seite wird ohne Modell gelesen
  * (`page-extract.ts`), das eingebettete Medium ueber den Secretary (yt-dlp)
  * aufgeloest und hier geladen, das Coverbild der Seite geladen, alles neben der
- * Sammeldatei im Zielordner abgelegt (`<Basis>.mp3`, `<Basis>.cover.jpg`,
- * `<Basis>.md`). Fuer das Medium startet derselbe Transkriptions-Job wie bei
+ * Sammeldatei im Zielordner abgelegt (`<Basis> - Audio.mp3`, `<Basis> - Cover.jpg`,
+ * `<Basis>.md`). Medium und Cover tragen NICHT den Basisnamen der Sammeldatei
+ * mit Punkt dahinter: eine `<Basis>.md` neben `<Basis>.mp3` gilt im Twin-System
+ * als Transkript des Mediums (artifact-resolver, Geschwister-Regel) — dann
+ * wuerde die Transkription uebersprungen (Befund 13.10.2026). Fuer das Medium startet derselbe Transkriptions-Job wie bei
  * `quelle_erschliessen` (nur Transkript, kein Ingest). Die Transformation der
  * Sammeldatei ist ein eigener, bewusster Schritt (`transformation_starten`).
  * Jeder ausgelassene Teil (kein Medium, kein Cover) steht mit Grund im Ergebnis.
@@ -102,7 +105,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const basis = basisName(dateiname)
 
   const vorhanden = await provider.listItemsById(folderId)
-  const kollision = vorhanden.find((i) => i.type === 'file' && i.metadata.name.toLowerCase().startsWith(basis.toLowerCase() + '.'))
+  const kollision = vorhanden.find((i) => i.type === 'file' && i.metadata.name.toLowerCase().startsWith(basis.toLowerCase()))
   if (kollision) throw new Error(`"${kollision.metadata.name}" gibt es in diesem Ordner schon — anderen Dateinamen waehlen. Nichts geschrieben.`)
 
   const seite = extractWebPage(await ladeSeiteHtml(url), url)
@@ -112,8 +115,8 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const medium = medienHolen ? await holeMedium(seite) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
 
-  const medienDatei = 'datei' in medium ? `${basis}.${medium.datei.ext}` : null
-  const coverDatei = 'buffer' in cover ? `${basis}.cover.${cover.ext}` : null
+  const medienDatei = 'datei' in medium ? `${basis} - Audio.${medium.datei.ext}` : null
+  const coverDatei = 'buffer' in cover ? `${basis} - Cover.${cover.ext}` : null
   const markdown = baueArtikelSammeldatei({ seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null })
 
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null

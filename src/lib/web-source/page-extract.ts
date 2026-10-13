@@ -174,7 +174,11 @@ export function extractWebPage(html: string, url: string): WebPageExtract {
   const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)
   const titleTag = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)
   const htmlLang = html.match(/<html\b[^>]*\blang\s*=\s*["']([a-zA-Z-]+)["']/i)
-  const container = stripNonContentBlocks(pickContainer(stripNonContentBlocks(html)))
+  // Erst den Block waehlen, dann bereinigen: der eigene <header> eines <article>
+  // traegt oft den Vorspann (erster Absatz) — der gehoert zum Text. Den Seitenkopf
+  // mit Menue hat die Wahl von <article>/<main> schon ausgeschlossen.
+  const gewaehlt = pickContainer(html)
+  const container = /<article\b|<main\b/i.test(html) ? stripNonContentBlocks(gewaehlt, { keepHeader: true }) : stripNonContentBlocks(gewaehlt)
   return {
     url,
     title: og('og:title') || (h1 ? htmlToText(h1[1]) : '') || (titleTag ? htmlToText(titleTag[1]) : ''),

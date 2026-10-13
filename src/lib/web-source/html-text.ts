@@ -43,9 +43,15 @@ export function htmlToText(fragment: string): string {
   return decodeHtmlEntities(ohneTags).replace(/\s+/g, ' ').trim()
 }
 
-/** Entfernt ganze Bloecke (script, style, nav, header, footer, aside, form, noscript, svg, iframe-Inhalt). */
-export function stripNonContentBlocks(html: string): string {
-  return html.replace(/<(script|style|nav|header|footer|aside|form|noscript|svg|template)\b[\s\S]*?<\/\1>/gi, '')
+/**
+ * Entfernt ganze Bloecke (script, style, nav, header, footer, aside, form, noscript, svg, template).
+ * `keepHeader` laesst <header> stehen — innerhalb eines <article> traegt er den Vorspann.
+ */
+export function stripNonContentBlocks(html: string, options: { keepHeader?: boolean } = {}): string {
+  const re = options.keepHeader
+    ? /<(script|style|nav|footer|aside|form|noscript|svg|template)\b[\s\S]*?<\/\1>/gi
+    : /<(script|style|nav|header|footer|aside|form|noscript|svg|template)\b[\s\S]*?<\/\1>/gi
+  return html.replace(re, '')
 }
 
 /** Liest ein Attribut aus einem Start-Tag-String (doppelt oder einfach gequotet). */

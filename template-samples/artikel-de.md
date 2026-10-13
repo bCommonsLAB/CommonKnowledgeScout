@@ -32,7 +32,7 @@ topics: {{topics|Array der 4–8 wichtigsten inhaltlichen Stichworte, kebab-case
 
 ## Aus dem Interview
 
-{{interview_md|Nur wenn ein Audio-/Video-Transkript unter den Quellen ist: 4–8 WOERTLICHE Zitate aus dem Transkript als Blockquotes (> …), je 1–3 Saetze, mit der sprechenden Person davor in Fettschrift (Name, wenn im Artikel oder Transkript genannt, sonst Rolle wie „Interviewte Journalistin" oder „Moderation"). Zitate nur in Wortlaut des Transkripts, Fuellwoerter („ähm", Wiederholungen) weglassen, sonst nichts aendern. Reihenfolge wie im Gespraech. Kein Kommentar, keine Zusammenfassung. Ohne Transkript: ""}}
+{{interview_md|Nur wenn ein Audio-/Video-Transkript unter den Quellen ist: 4–8 WOERTLICHE Zitate aus dem Transkript, je 1–3 Saetze. Jedes Zitat ist ein eigener Blockquote-Absatz in genau dieser Form: "> **Name:** Zitat" (Name in Fettschrift INNERHALB der Blockquote-Zeile; Name, wenn im Artikel oder Transkript genannt, sonst Rolle wie „Interviewte Journalistin" oder „Moderation"). Zwischen den Zitaten eine Leerzeile. Zitate nur im Wortlaut des Transkripts, Fuellwoerter („ähm", Wiederholungen) weglassen, sonst nichts aendern. Reihenfolge wie im Gespraech. Kein Kommentar, keine Zusammenfassung. Ohne Transkript: ""}}
 
 --- systemprompt
 Rolle:
