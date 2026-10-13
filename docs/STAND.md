@@ -270,6 +270,14 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
 - **Stand 13.10.**: Plan auf `master` seit #386; die Aktivierung und die
   Start-Prompts in §9 kommen mit dem Folge-PR, der vor dem Start von B1
   gemergt sein muss. B1 startet als erste Cloud-Session.
+- **Stand 13.10. abends, B1 gebaut** (Branch
+  `claude/speicher-b1-seitenmenue-erweitert`, PR offen): Seitenmenü mit
+  zweiter Ebene, „Erweitert" hat sieben Unterseiten, die alte Route leitet
+  auf „Suche & KI" weiter; das Library-Formular ist in Teil-Formulare je
+  Seite zerlegt (jede schickt per PATCH nur ihre Schlüssel), „Inhalte
+  erfassen" liegt als Schritt 4 auf der Archive-Seite. Live-Prüfung im
+  Browser und `pnpm build` beim Owner vor dem Merge. Nächster Schritt: A1
+  Verbindungen + Konto-Seite (Start-Prompt im Hand-off der B1-PR).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
