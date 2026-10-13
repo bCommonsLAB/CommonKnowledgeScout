@@ -223,3 +223,31 @@ Corbo-Index-Job vom 11.10. 22:18 (`2abe2a40…`, vor #376): `slide_images_resolv
 trägt `coverImageUrl: ""`, 58 Folien mit Blob-Adresse, einen Anhang als Paar.
 K4 bis K6 (App-Version in `bruecke_info`, Stempel `ingestedWith`/`generated_with`,
 drei Zahlen in `twins_pruefen`) folgen im zweiten PR.
+
+## Nachtrag Wunschliste 8, erster Teil (2.49.0): Libraries gehören zu Vorhaben
+
+Owner 13.10.: Zwei Tage Arbeit in einer Library standen in keinem Bericht,
+weil aus „Arbeit in Library X" kein Vorhaben ableitbar war (Plan
+`docs/plans/dateien-ueber-library-grenzen.plan.md`, W8-4). Seither sagt ein
+Vorhaben selbst, welche Libraries zu ihm gehören:
+
+```yaml
+libraries: [Dachverband für Soziales – Neuaufbau, 72a883a0-d0d9-45be-8c19-6685c0ad8b95]
+```
+
+| Befund | Wo | Bedeutung |
+|---|---|---|
+| `library_ohne_vorhaben` | Library-Ebene, Akteur Cowork, `info`; `targetId` = Library-Id | eine eigene Library des Users, die kein `BERICHT.md` unter `libraries:` nennt — Arbeit dort erfährt kein Vorhaben |
+| `library_unbekannt` | Ordner-Ebene, Akteur Cowork, `info`; ein Sammelbefund je Bericht | ein Wert unter `libraries:`, der weder Id noch Name einer eigenen Library ist — genannt, nicht verschluckt |
+
+Regeln (`libraries-regel.ts`, pur): Ids exakt, Namen getrimmt und ohne
+Groß-/Kleinschreibung; die gescannte Archiv-Library zählt nicht als „ohne
+Vorhaben"; nur eigene Libraries, keine geteilten. Beide Befunde entstehen nur
+im Library-weiten Scan (im Teilbaum fehlen Berichte) und nur in Libraries
+mit Archivpflege (`config.agentView.enabled`, derselbe Schalter wie
+`stand_setzen`); die Library-Liste kommt als optionaler Port
+`listeLibraries` in den Scan. `abdeckung_lesen` nennt je Vorhaben
+`libraries` (roh; `null` = Report vor 2.49.0). Darauf bauen die
+Skill-Änderungen im Archiv auf (`chat-abschliessen`: leeres `vorhaben:` wird
+begründungspflichtig, Arbeit an einer Library ist Arbeit an dem Vorhaben,
+das sie nennt).

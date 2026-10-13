@@ -53,13 +53,15 @@ export function collectFolders(nodes: readonly CoverageTreeNode[], prefix: strin
 export function collectVorhabenThemen(
   vorhaben: readonly VorhabenCard[],
   prefix: string,
-): Array<{ path: string; folderId: string; themen: string[] | null }> {
+): Array<{ path: string; folderId: string; themen: string[] | null; libraries: string[] | null }> {
   return vorhaben
     .filter((karte) => prefix === '' || isInSubtree(karte.path, prefix))
     .map((karte) => ({
       path: karte.path,
       folderId: karte.folderId,
       themen: karte.gepflegteThemen ?? null,
+      // Wunschliste 8, W8-4: `libraries:` des Berichts, roh; null = Report vor 2.49.0.
+      libraries: karte.libraries ?? null,
     }))
 }
 

@@ -93,6 +93,14 @@ export type CoverageGapType =
    */
   | 'verlauf_fehlt'
   | 'entwicklung_unberichtet'
+  /**
+   * Wunschliste 8, W8-4: `library_ohne_vorhaben` (eine eigene Library des
+   * Users, die kein `BERICHT.md` unter `libraries:` nennt; Library-Ebene,
+   * nur im Voll-Scan) und `library_unbekannt` (ein Wert unter `libraries:`,
+   * der weder Id noch Name einer Library ist).
+   */
+  | 'library_ohne_vorhaben'
+  | 'library_unbekannt'
   | 'stand_widerspruch'
   // — Verweis-Audit (doppelte Buchhaltung) —
   | 'verweis_tot'
@@ -235,6 +243,12 @@ export interface VorhabenCard {
    * [] = kein Thema vergeben („Ohne Thema"); fehlt in Reports vor A6.
    */
   gepflegteThemen?: string[]
+  /**
+   * Wunschliste 8, W8-4: `libraries:` aus dem `BERICHT.md`-Frontmatter —
+   * die Libraries, die zu diesem Vorhaben gehoeren (Ids oder Namen, roh).
+   * [] = Feld fehlt oder leer; fehlt in Reports aus Scans vor 2.49.0.
+   */
+  libraries?: string[]
   /*
    * Aktuell-Sicht (Welle A7) — die Felder, die `AKTUELL.md` aus dem
    * `BERICHT.md`-Frontmatter zieht. Sie reisen auf der Karte mit, weil der

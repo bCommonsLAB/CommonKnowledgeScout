@@ -114,6 +114,10 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // sie sperren nichts.
   verlauf_fehlt: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Korrespondenz ohne Verlaufsdatei' },
   entwicklung_unberichtet: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Entwicklung steht nicht im Bericht' },
+  // Wunschliste 8, W8-4: beide `info` und bei Cowork — die Zuordnung einer
+  // Library zu einem Vorhaben kommt aus dem Inhalt, kein Job rechnet sie.
+  library_ohne_vorhaben: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'Library gehoert zu keinem Vorhaben' },
+  library_unbekannt: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'archiv-konvention', label: 'libraries: nennt eine unbekannte Library' },
   stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —

@@ -182,6 +182,16 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
       }
       return { docs, fehler }
     },
+    // Wunschliste 8, W8-4: nur Libraries mit Archivpflege fuehren Berichte
+    // mit `libraries:` — derselbe Schalter wie die Archivpflege-Werkzeuge
+    // der Bruecke (`config.agentView.enabled`). Nur EIGENE Libraries:
+    // geteilte sind fremde Arbeit, kein eigenes Vorhaben.
+    ...(library.config?.agentView?.enabled === true
+      ? {
+          listeLibraries: async () =>
+            (await LibraryService.getInstance().getUserLibraries(userEmail)).map((lib) => ({ id: lib.id, name: lib.label })),
+        }
+      : {}),
     now: args.now ?? (() => new Date().toISOString()),
   }
 
