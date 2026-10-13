@@ -65,7 +65,10 @@ const spaceCards = [
       "Einstellungen für Sie als Person — unabhängig von der ausgewählten " +
       "Bibliothek: der Claude-Zugang (MCP) mit fertiger Erweiterung zum " +
       "Herunterladen.",
-    links: [{ title: "Mein Zugang", href: "/settings/account" }],
+    links: [
+      { title: "Mein Zugang", href: "/settings/account" },
+      { title: "Speicher-Verbindungen", href: "/settings/account/storage-connections" },
+    ],
   },
 ]
 
