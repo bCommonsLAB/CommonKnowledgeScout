@@ -172,26 +172,22 @@ export async function POST(request: NextRequest) {
       };
     }
     
+    // Speicher-Verbindung (Teil A) gehoert nicht zur Config: ein Formular, das
+    // sie nicht mitschickt (Grundlagen, Verarbeitung), darf die Bindung nicht
+    // loesen. Geaendert wird sie nur ueber PATCH /api/libraries/[id].
+    if (existingLibrary?.storageConnectionId && libraryData.storageConnectionId === undefined) {
+      libraryData.storageConnectionId = existingLibrary.storageConnectionId;
+    }
+
     // Bei Updates: Existierende Config-Felder bewahren, die nicht im Request enthalten sind.
     // Verhindert, dass z.B. nextcloud-Credentials gelöscht werden, wenn das allgemeine
     // Library-Formular gespeichert wird (das keine Storage-Felder verwaltet).
     if (existingLibrary && existingLibrary.config && libraryData.config) {
       const mergedConfig = { ...existingLibrary.config };
+      // Speicher-Zugangsdaten liegen seit Teil A an der Speicher-Verbindung;
+      // die fruehere Sonderbehandlung von `nextcloud` entfaellt.
       for (const [key, value] of Object.entries(libraryData.config)) {
-        // Nextcloud-Config: Merge statt Überschreiben (Credentials schützen)
-        if (key === 'nextcloud' && typeof value === 'object' && value !== null) {
-          const existingNc = (mergedConfig.nextcloud || {}) as Record<string, unknown>;
-          const newNc = value as Record<string, string>;
-          const merged = { ...existingNc };
-          if (newNc.webdavUrl) merged.webdavUrl = newNc.webdavUrl;
-          if (newNc.username) merged.username = newNc.username;
-          if (newNc.appPassword && newNc.appPassword !== '********') {
-            merged.appPassword = newNc.appPassword;
-          }
-          mergedConfig.nextcloud = merged as { webdavUrl: string; username: string; appPassword?: string };
-        } else {
-          (mergedConfig as Record<string, unknown>)[key] = value;
-        }
+        (mergedConfig as Record<string, unknown>)[key] = value;
       }
       libraryData.config = mergedConfig;
     }

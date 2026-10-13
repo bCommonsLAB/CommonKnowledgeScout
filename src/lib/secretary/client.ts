@@ -38,6 +38,8 @@ import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout';
 // Pfad. Damit ist der frueher silent gefangene Fehler in client.ts:731
 // jetzt explizit dokumentiert und testbar.
 import { syncOneDriveTokensToServer } from './client-helpers';
+import { StorageFactory } from '@/lib/storage/storage-factory';
+import { resolveOneDriveTokenScope } from '@/lib/storage/onedrive/browser-token-key';
 
 export class SecretaryServiceError extends Error {
   constructor(message: string) {
@@ -698,7 +700,12 @@ export async function transformPdf(
     // OneDrive Token-Sync ausgelagert in client-helpers.ts (Welle 2.1).
     // Best-effort: Fehler werden geloggt, aber NICHT geworfen — der
     // eigentliche PDF-Transform soll auch ohne Sync starten koennen.
-    await syncOneDriveTokensToServer(libraryId);
+    // Nur OneDrive-Libraries tragen Browser-Tokens; Geltungsbereich ist die
+    // Speicher-Verbindung der Library (Teil A).
+    const bibliothek = StorageFactory.getInstance().getLibrary(libraryId);
+    if (bibliothek?.type === 'onedrive') {
+      await syncOneDriveTokensToServer(libraryId, resolveOneDriveTokenScope(bibliothek));
+    }
     
     // Fuer Mistral OCR: alle Bild-Flags standardmaessig true.
     // Hard-Rename auf neue Secretary-API: includePreviewPages + includeHighResPages

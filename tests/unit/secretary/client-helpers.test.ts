@@ -145,7 +145,7 @@ describe('syncOneDriveTokensToServer', () => {
   it('ist no-op wenn keine Tokens im Storage', async () => {
     setupLocalStorage()
     const fm = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
-    await syncOneDriveTokensToServer('lib-1')
+    await syncOneDriveTokensToServer('lib-1', 'lib-1')
     expect(fm).not.toHaveBeenCalled()
   })
 
@@ -158,7 +158,7 @@ describe('syncOneDriveTokensToServer', () => {
     const fm = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
     fm.mockResolvedValue(new Response('{}', { status: 200 }))
 
-    await syncOneDriveTokensToServer('lib-1')
+    await syncOneDriveTokensToServer('lib-1', 'lib-1')
 
     // Nur PATCH /api/libraries/lib-1/tokens, kein /refresh
     const calls = fm.mock.calls.map((c) => String(c[0]))
@@ -182,7 +182,7 @@ describe('syncOneDriveTokensToServer', () => {
       return new Response('{}', { status: 200 })
     })
 
-    await syncOneDriveTokensToServer('lib-1')
+    await syncOneDriveTokensToServer('lib-1', 'lib-1')
 
     const refreshCall = fm.mock.calls.find((c) => String(c[0]).includes('/refresh'))
     expect(refreshCall).toBeDefined()
@@ -209,7 +209,7 @@ describe('syncOneDriveTokensToServer', () => {
     })
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    await expect(syncOneDriveTokensToServer('lib-1')).resolves.toBeUndefined()
+    await expect(syncOneDriveTokensToServer('lib-1', 'lib-1')).resolves.toBeUndefined()
     expect(warnSpy).toHaveBeenCalled()
   })
 
@@ -225,7 +225,7 @@ describe('syncOneDriveTokensToServer', () => {
     )
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    await expect(syncOneDriveTokensToServer('lib-1')).resolves.toBeUndefined()
+    await expect(syncOneDriveTokensToServer('lib-1', 'lib-1')).resolves.toBeUndefined()
     expect(warnSpy).toHaveBeenCalled()
   })
 
@@ -239,7 +239,7 @@ describe('syncOneDriveTokensToServer', () => {
     fm.mockRejectedValue(new Error('network down'))
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    await expect(syncOneDriveTokensToServer('lib-1')).resolves.toBeUndefined()
+    await expect(syncOneDriveTokensToServer('lib-1', 'lib-1')).resolves.toBeUndefined()
     expect(warnSpy).toHaveBeenCalled()
   })
 })

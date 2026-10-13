@@ -28,20 +28,16 @@ function deepCloneConfig(config: StorageConfig): StorageConfig {
 
 /**
  * Entfernt alle geheimen Felder aus einer Library-Config (Deny-List).
- * Nicht-geheime Verbindungsdaten (z.B. Nextcloud `webdavUrl` + `username`,
- * OAuth `clientId`/`redirectUri`/`tenantId`) bleiben erhalten.
+ * Nicht-geheime Verbindungsdaten (Secretary-URL, Container-Name) bleiben erhalten.
  *
  * Verwendung: Library-Export.
  */
 export function stripLibraryConfigSecrets(config: StorageConfig): StorageConfig {
   const clone = deepCloneConfig(config)
 
-  // OAuth (OneDrive/GDrive): Client-Secret nie exportieren.
-  if (clone.clientSecret !== undefined) clone.clientSecret = undefined
-
-  // Nextcloud: App-Passwort ist Secret. URL + Username sind keine Secrets und
-  // bleiben erhalten, damit nach dem Import nur noch das Passwort fehlt.
-  if (clone.nextcloud) clone.nextcloud.appPassword = undefined
+  // Speicher-Zugangsdaten (OAuth-App, Nextcloud, Tokens) liegen seit Teil A an
+  // der Speicher-Verbindung der Person, nicht mehr in der Library-Config —
+  // der Export traegt nur noch die Verbindungs-Id (ausserhalb der Config).
 
   // Secretary Service: API-Key nie exportieren (apiUrl bleibt erhalten).
   if (clone.secretaryService) clone.secretaryService.apiKey = ''

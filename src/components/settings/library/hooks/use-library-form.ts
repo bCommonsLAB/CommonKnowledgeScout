@@ -60,11 +60,10 @@ export const libraryFormSchema = z.object({
   // Petra-Review Punkt 2). Wird nur bei isNew in config.chat.gallery gesendet.
   // Werteliste aus der zentralen Registry (Galerie-Audit, Befund 3c)
   detailViewType: detailViewTypeSchema.default("book"),
+  // Zugangsdaten (OAuth-App, Nextcloud) liegen seit Teil A an der
+  // Speicher-Verbindung; hier bleibt nur der lokale Basispfad.
   storageConfig: z.object({
     basePath: z.string().optional(),
-    clientId: z.string().optional(),
-    clientSecret: z.string().optional(),
-    redirectUri: z.string().optional(),
   }),
 });
 
@@ -72,23 +71,16 @@ export type LibraryFormValues = z.infer<typeof libraryFormSchema>;
 
 /**
  * Liest die Grundlagen einer Library in die Formularwerte. EINE Stelle fuer
- * alle reset-Sites (library-config-field.md Schritt 4). Ein maskiertes
- * clientSecret wird beim Abbruch der Anlage geleert, beim Befuellen behalten.
+ * alle reset-Sites (library-config-field.md Schritt 4).
  */
-function readLibraryForm(lib: ClientLibrary, maskedSecretAsEmpty: boolean): LibraryFormValues {
-  const rawClientSecret = (lib.config?.clientSecret as string) ?? "";
+function readLibraryForm(lib: ClientLibrary): LibraryFormValues {
   return {
     label: lib.label,
     path: lib.path,
     type: toLibraryFormStorageType(lib.type),
     isEnabled: lib.isEnabled,
     detailViewType: "book",
-    storageConfig: {
-      basePath: lib.path,
-      clientId: (lib.config?.clientId as string) ?? "",
-      clientSecret: maskedSecretAsEmpty && rawClientSecret === "********" ? "" : rawClientSecret,
-      redirectUri: (lib.config?.redirectUri as string) ?? "",
-    },
+    storageConfig: { basePath: lib.path },
   };
 }
 
@@ -118,12 +110,7 @@ export function useLibraryForm(createNew: boolean) {
       type: "local",
       isEnabled: true,
       detailViewType: "book",
-      storageConfig: {
-        basePath: "",
-        clientId: "",
-        clientSecret: "",
-        redirectUri: "",
-      },
+      storageConfig: { basePath: "" },
     }),
     []
   );
@@ -144,7 +131,7 @@ export function useLibraryForm(createNew: boolean) {
   const handleCancelNew = useCallback(() => {
     setIsNew(false);
     if (activeLibrary) {
-      form.reset(readLibraryForm(activeLibrary, true));
+      form.reset(readLibraryForm(activeLibrary));
     } else if (libraries.length > 0) {
       setActiveLibraryId(libraries[0].id);
     }
@@ -153,7 +140,7 @@ export function useLibraryForm(createNew: boolean) {
   // Form mit aktiver Library befüllen
   useEffect(() => {
     if (activeLibrary && !isNew) {
-      form.reset(readLibraryForm(activeLibrary, false));
+      form.reset(readLibraryForm(activeLibrary));
     }
   }, [activeLibrary, isNew, form]);
 
@@ -179,31 +166,9 @@ export function useLibraryForm(createNew: boolean) {
       setIsLoading(true);
 
       try {
-        let storageConfig = {};
-        const existingConfig = activeLibrary?.config ?? {};
-
-        switch (data.type) {
-          case "local":
-            storageConfig = { basePath: data.storageConfig.basePath };
-            break;
-          case "onedrive":
-          case "gdrive": {
-            const clientSecret = data.storageConfig.clientSecret;
-            const shouldSendSecret =
-              clientSecret && clientSecret !== "********" && clientSecret.trim() !== "";
-            storageConfig = {
-              clientId: data.storageConfig.clientId,
-              ...(shouldSendSecret ? { clientSecret: clientSecret.trim() } : {}),
-              redirectUri: data.storageConfig.redirectUri,
-            };
-            break;
-          }
-          case "nextcloud":
-            if (existingConfig.nextcloud) {
-              storageConfig = { nextcloud: existingConfig.nextcloud };
-            }
-            break;
-        }
+        // Nur local traegt einen Basispfad in der Config; nextcloud/onedrive
+        // liegen auf einer Speicher-Verbindung (Archive · 1 Quelle).
+        const storageConfig = data.type === "local" ? { basePath: data.storageConfig.basePath } : {};
 
         const newLibraryId = isNew ? uuidv4() : activeLibraryId;
 
@@ -275,7 +240,7 @@ export function useLibraryForm(createNew: boolean) {
         setIsLoading(false);
       }
     },
-    [user, activeLibrary, activeLibraryId, isNew, libraries, setLibraries, setActiveLibraryId, router]
+    [user, activeLibraryId, isNew, libraries, setLibraries, setActiveLibraryId, router]
   );
 
   /** Bibliothek löschen */
