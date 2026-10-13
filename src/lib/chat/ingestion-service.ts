@@ -11,6 +11,7 @@ import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ImageProcessor } from '@/lib/ingestion/image-processor'
 import { resolveSlideImagesFromTwinFragments } from '@/lib/ingestion/slide-image-resolver'
+import { medienAusEigenenFragmenten, type MedienAusEigenenFragmenten } from '@/lib/ingestion/medien-aus-eigenen-fragmenten'
 import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatter-json-lists'
 import { ladeGeordneteQuellen, type QuellenTwin } from '@/lib/ingestion/quellen-fragmente'
 import { waehleCover } from '@/lib/ingestion/cover-aus-quellen'
@@ -546,6 +547,32 @@ export class IngestionService {
             }
           }
           
+          // Webseite als Quelle: Medium und Cover liegen als Fragmente am EIGENEN Twin
+          // (aus _media_files). Einmal laden; Cover `cover.*`/`<Basis>.cover.*` geht
+          // vor dem Folien-/Flyer-Weg, Audio wird unten zu audio_url.
+          let eigeneMedien: MedienAusEigenenFragmenten | null = null
+          const ladeEigeneMedien = async (): Promise<MedienAusEigenenFragmenten> => {
+            if (eigeneMedien === null) eigeneMedien = await medienAusEigenenFragmenten(libraryId, fileId)
+            return eigeneMedien
+          }
+          const frontmatterCoverLeerVorab = !(typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0)
+          if (!coverImageUrl && frontmatterCoverLeerVorab) {
+            try {
+              const eigenesCover = (await ladeEigeneMedien()).cover
+              if (eigenesCover) {
+                coverImageUrl = eigenesCover.url
+                docMetaJsonObj.coverImageUrl = eigenesCover.url
+                FileLogger.info('ingestion', 'Cover aus eigenem Fragment', { fileId, name: eigenesCover.name })
+                if (jobId) {
+                  bufferLog(jobId, { phase: 'cover_image_processed', message: `Cover aus eigenem Fragment (${eigenesCover.name})` })
+                  await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'own_fragment', sourceId: fileId, sourceName: eigenesCover.name })
+                }
+              }
+            } catch (error) {
+              FileLogger.warn('ingestion', 'Eigene Fragmente nicht lesbar (Cover)', { fileId, error: error instanceof Error ? error.message : String(error) })
+            }
+          }
+
           // Welle J3: Kein Cover im Frontmatter → aus den Seitenbildern der Quellen
           // rechnen (zweite Seite der Folien-PDF, sonst erste; sonst Flyer). Die
           // Herkunft geht in den Trace (cover_source), ein Fehlschlag ebenso.
@@ -594,6 +621,25 @@ export class IngestionService {
             }
           }
           
+          // Webseite als Quelle: audio_url aus dem Audio-Fragment am eigenen Twin. Eine
+          // vollstaendige Adresse im Frontmatter bleibt; ein nackter Dateiname oder ein
+          // leeres Feld wird gerechnet. Nichts gefunden bei genanntem Namen = Ereignis none.
+          try {
+            const fmAudio = typeof metaEffective['audio_url'] === 'string' ? (metaEffective['audio_url'] as string).trim() : ''
+            if (!/^https?:\/\//i.test(fmAudio)) {
+              const eigenesAudio = (await ladeEigeneMedien()).audio
+              if (eigenesAudio && (!fmAudio || eigenesAudio.name === fmAudio)) {
+                docMetaJsonObj.audio_url = eigenesAudio.url
+                FileLogger.info('ingestion', 'audio_url aus eigenem Fragment', { fileId, name: eigenesAudio.name })
+                if (jobId) await emitIngestTraceEvent(repo, jobId, 'audio_source', { source: 'own_fragment', sourceId: fileId, sourceName: eigenesAudio.name })
+              } else if (fmAudio && jobId) {
+                await emitIngestTraceEvent(repo, jobId, 'audio_source', { source: 'none', grund: `audio_url "${fmAudio}" ist kein Fragment am Twin` })
+              }
+            }
+          } catch (error) {
+            FileLogger.warn('ingestion', 'Eigene Fragmente nicht lesbar (Audio)', { fileId, error: error instanceof Error ? error.message : String(error) })
+          }
+
           // Welle J4: Keine Anhaenge im Frontmatter → alle PDF-Quellen der Sammeldatei
           // (Folien, Unterlagen, Flyer zuletzt) als Dateinamen eintragen; STUFE-2 hebt
           // sie ueber die sourceId in den Blob. Ohne PDF-Quelle bleibt das Feld leer, gemeldet.

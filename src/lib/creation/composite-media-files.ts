@@ -12,8 +12,9 @@
  * sieht das Modell sie in „Verfuegbare Medien“, die Ingestion findet das Cover,
  * der Medien-Reiter zeigt sie — ohne Kopie in der Nextcloud.
  *
- * Bilder und PDFs (Anhaenge fuer `attachments_url`); alles andere wird
- * gemeldet, nicht still uebersprungen.
+ * Bilder, PDFs (Anhaenge fuer `attachments_url`), Audio und Video (daraus
+ * rechnet der Ingest `audio_url`); alles andere wird gemeldet, nicht still
+ * uebersprungen.
  */
 
 import { FileLogger } from '@/lib/debug/logger'
@@ -80,7 +81,9 @@ export async function registerCompositeMediaFragments(
   for (const entry of entries) {
     const item = found.get(entry.raw)
     const kind = item ? getMediaKindFromName(item.name) : 'unknown'
-    if (!item || (kind !== 'image' && kind !== 'pdf')) {
+    // Bild, PDF, Audio, Video: alles, was als Fragment eine Blob-Adresse bekommen kann
+    // (Audio/Video seit „Webseite als Quelle": daraus rechnet der Ingest audio_url).
+    if (!item || (kind !== 'image' && kind !== 'pdf' && kind !== 'audio' && kind !== 'video')) {
       unresolved.push(entry.raw)
       continue
     }
@@ -104,7 +107,9 @@ export async function registerCompositeMediaFragments(
     await service.uploadBinaryFragment({
       buffer,
       fileName: item.name,
-      mimeType: binary.mimeType || (kind === 'pdf' ? 'application/pdf' : 'image/png'),
+      mimeType:
+        binary.mimeType ||
+        (kind === 'pdf' ? 'application/pdf' : kind === 'audio' ? 'audio/mpeg' : kind === 'video' ? 'video/mp4' : 'image/png'),
       kind,
       variant: 'original',
     })
