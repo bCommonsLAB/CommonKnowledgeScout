@@ -41,7 +41,8 @@ function folienBefund(steps: readonly ExternalJobStep[], ereignisse: readonly Jo
 
 function coverBefund(ereignisse: readonly JobEreignis[]): string | null {
   const cover = coverQuelleAus(ereignisse)
-  if (!cover || cover.quelle === 'slides' || cover.quelle === 'flyer') return null
+  // own_fragment (2.51.0): Cover aus einem Bild-Fragment am eigenen Twin (Webseite als Quelle) — gueltige Herkunft.
+  if (!cover || cover.quelle === 'slides' || cover.quelle === 'flyer' || cover.quelle === 'own_fragment') return null
   if (cover.quelle === 'none') return `Cover: keine Quelle${cover.grund ? ` (${cover.grund})` : ''}`
   return `Cover: unbekannte Herkunft "${cover.quelle}"`
 }

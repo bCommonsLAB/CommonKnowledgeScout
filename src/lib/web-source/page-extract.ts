@@ -170,7 +170,14 @@ export function extractWebPage(html: string, url: string): WebPageExtract {
   const meta = readMetaTags(html)
   const og = (k: string): string => meta.find((m) => m.key === k)?.content.trim() ?? ''
   const nodes = flattenJsonLd(html)
-  const hauptknoten = nodes.find((n) => ['newsarticle', 'article', 'audioobject', 'videoobject', 'webpage'].includes(typeOf(n)))
+  // Rangfolge nach Typ, nicht nach Reihenfolge im Dokument: In einem @graph steht die
+  // WebPage oft vor dem VideoObject, traegt aber kein Datum (Befund Rai-Videoseite 13.10.).
+  const TYP_RANG = ['newsarticle', 'article', 'videoobject', 'audioobject', 'webpage']
+  const hauptknoten = TYP_RANG.map((t) => nodes.find((n) => typeOf(n) === t)).find((n) => n !== undefined)
+  const knotenDatum = TYP_RANG.flatMap((t) => nodes.filter((n) => typeOf(n) === t))
+    .map((n) => asString(n.datePublished) || asString(n.uploadDate))
+    .find((d) => d !== '') ?? ''
+  const timeTag = html.match(/<time\b[^>]*\bdatetime\s*=\s*["']([^"']+)["']/i)
   const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)
   const titleTag = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)
   const htmlLang = html.match(/<html\b[^>]*\blang\s*=\s*["']([a-zA-Z-]+)["']/i)
@@ -186,7 +193,8 @@ export function extractWebPage(html: string, url: string): WebPageExtract {
     siteName: og('og:site_name'),
     author: asString(hauptknoten?.author) || og('author') || og('article:author'),
     datePublished: toIsoDate(
-      og('article:published_time') || asString(hauptknoten?.datePublished) || asString(hauptknoten?.uploadDate) || og('date'),
+      og('article:published_time') || knotenDatum || og('video:release_date') || og('og:video:release_date') ||
+        og('date') || (timeTag ? timeTag[1] : ''),
     ),
     imageUrl: absolute(og('og:image') || asString(hauptknoten?.thumbnailUrl) || asString(hauptknoten?.image), url),
     language: (og('og:locale') || (htmlLang ? htmlLang[1] : '')).split(/[_-]/)[0].toLowerCase(),

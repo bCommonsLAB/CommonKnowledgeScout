@@ -84,3 +84,20 @@ describe('baueArtikelSammeldatei', () => {
     expect(() => baueArtikelSammeldatei({ seite: { ...seite, bloecke: [] }, medienDatei: null, coverDatei: null, medienDauerSekunden: null })).toThrow(/ohne Artikeltext/)
   })
 })
+
+describe('extractWebPage — Datum aus @graph (Befund Rai-Videoseite 13.10.)', () => {
+  it('nimmt das Datum des VideoObject, auch wenn die WebPage im @graph vorher steht', () => {
+    const html = `<html><head><script type="application/ld+json">{"@context":"https://schema.org","@graph":[
+      {"@type":"WebPage","name":"Seite"},
+      {"@type":"VideoObject","name":"Video","uploadDate":"2026-09-25T16:26:29+0000","contentUrl":"https://media.example/v"}
+    ]}</script></head><body><article><p>Ein Absatz Text.</p></article></body></html>`
+    expect(extractWebPage(html, 'https://example.org/v.html').datePublished).toBe('2026-09-25')
+  })
+
+  it('faellt auf video:release_date und <time datetime> zurueck', () => {
+    const meta = '<html><head><meta property="video:release_date" content="2026-09-24T10:00:00+0000"></head><body><article><p>Text hier.</p></article></body></html>'
+    expect(extractWebPage(meta, 'https://example.org/a').datePublished).toBe('2026-09-24')
+    const time = '<html><body><article><time datetime="2026-09-23T08:00:00Z">23.09.</time><p>Text hier.</p></article></body></html>'
+    expect(extractWebPage(time, 'https://example.org/b').datePublished).toBe('2026-09-23')
+  })
+})

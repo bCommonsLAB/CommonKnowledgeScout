@@ -86,4 +86,9 @@ describe('befundeFuerJob', () => {
     const befunde = befundeFuerJob({ status: 'completed', steps: [], ereignisse: ereignisse([{ name: 'cover_source', attributes: { source: 'generated' } }]) })
     expect(befunde).toEqual(['Cover: unbekannte Herkunft "generated"'])
   })
+
+  it('kennt das Cover aus einem eigenen Fragment (Webseite als Quelle, 2.51.0) als gueltige Herkunft', () => {
+    const befunde = befundeFuerJob({ status: 'completed', steps: [], ereignisse: ereignisse([{ name: 'cover_source', attributes: { source: 'own_fragment', sourceName: 'x - Cover.jpg' } }]) })
+    expect(befunde).toEqual([])
+  })
 })
