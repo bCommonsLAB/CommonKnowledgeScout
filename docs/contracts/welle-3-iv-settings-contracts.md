@@ -59,6 +59,13 @@ Settings-Formulare dürfen diese API-Endpunkte aufrufen:
   schicken. Geteilte Objekte (heute nur `secretaryService`) laden und
   schreiben ALLE Felder — Beleg `tests/unit/settings/advanced-page-config-keys.test.ts`.
 
+### Konto-Seite Speicher-Verbindungen (`/api/account/storage-connections`, Plan Teil A)
+- `GET`/`POST /api/account/storage-connections`, `PATCH`/`DELETE …/[id]`,
+  `POST …/[id]/test`, `GET`/`DELETE …/[id]/onedrive-login` über
+  `useStorageConnections` (`src/components/settings/account/storage-connections/`).
+  Antworten sind `StorageConnectionSummary` ohne Geheimnisse; die Seite kennt
+  den Typ nur im Formular (§4 gilt sinngemäß).
+
 ### Chat-Form (`/api/library/[id]/chat-config`)
 - `GET/PUT /api/library/[id]/chat-config` — Chat-Konfiguration
 

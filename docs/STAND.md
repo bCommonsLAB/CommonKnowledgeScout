@@ -275,9 +275,15 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   zweiter Ebene, „Erweitert" hat sieben Unterseiten, die alte Route leitet
   auf „Suche & KI" weiter; das Library-Formular ist in Teil-Formulare je
   Seite zerlegt (jede schickt per PATCH nur ihre Schlüssel), „Inhalte
-  erfassen" liegt als Schritt 4 auf der Archive-Seite. Live-Prüfung im
-  Browser und `pnpm build` beim Owner vor dem Merge. Nächster Schritt: A1
-  Verbindungen + Konto-Seite (Start-Prompt im Hand-off der B1-PR).
+  erfassen" liegt als Schritt 4 auf der Archive-Seite. Gemergt als #390.
+- **Stand 13.10. spät, A1 gebaut** (PR offen): Speicher-Verbindung als eigene
+  Entität (`storage_connections`, Geheimnisse AES-256-GCM-verschlüsselt,
+  Schlüssel `CREDENTIALS_ENCRYPTION_KEY`), Konto-Seite „Speicher-Verbindungen"
+  unter Mein Konto (anlegen, testen, OneDrive-Login an der Verbindung,
+  bearbeiten, löschen nur ohne abhängige Library). Noch nutzt keine Library
+  die Verbindung. Vor dem Merge: `CREDENTIALS_ENCRYPTION_KEY` in Dev und
+  Prod setzen, `pnpm build` lokal, Live-Prüfung. Nächster Schritt: A2
+  Library auf Verbindung + Migration (Start-Prompt im Hand-off der A1-PR).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
