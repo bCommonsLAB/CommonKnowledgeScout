@@ -74,8 +74,11 @@ async function holeMedium(seite: WebPageExtract): Promise<{ datei: DownloadedMed
   let secretaryFehler: string
   try {
     const resolved = await resolveMediaViaSecretary(seite.url)
-    // Direkte Datei (http/https) laden wir selbst; Streams (HLS/DASH, z. B. Rai-Videos) laedt der Secretary mit ffmpeg.
-    if (/^https?$/i.test(resolved.protocol)) {
+    // Direkte AUDIO-Datei (http/https) laden wir selbst. Alles andere — Streams (HLS/DASH)
+    // und Videos — laedt der Secretary und zieht dabei nur die Tonspur (m4a) heraus:
+    // gebraucht wird die Transkription, und Audio-Optionen gelten nur fuer Audio
+    // (Befund Cowork-Test 13.10.: Rai-Videoseite mit kontext/begriffe wurde abgewiesen).
+    if (/^https?$/i.test(resolved.protocol) && resolved.istAudio) {
       const datei = await downloadMedia(resolved.directUrl, { ext: resolved.ext, istAudio: resolved.istAudio, httpHeaders: resolved.httpHeaders })
       return { datei, dauer: resolved.duration, weg: 'secretary' }
     }
@@ -128,7 +131,16 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const medium = medienHolen ? await holeMedium(seite) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
 
-  const medienDatei = 'datei' in medium ? `${basis} - Audio.${medium.datei.ext}` : null
+  const istVideo = 'datei' in medium && medium.datei.mimeType.startsWith('video/')
+  // Audio-Optionen gibt es nur fuer Audio. Pruefen, BEVOR etwas geschrieben wird —
+  // sonst bliebe das Medium nach der Abweisung im Ordner liegen (Befund Cowork-Test 13.10.).
+  if (istVideo && Object.keys(audioContext).length > 0) {
+    throw new Error(
+      'Das Medium dieser Seite kam nur als Video (ohne extrahierbare Tonspur) — sprecherErkennung, kontext und begriffe ' +
+        'gelten nur fuer Audio. Ohne diese Angaben erneut aufrufen. Nichts geschrieben.',
+    )
+  }
+  const medienDatei = 'datei' in medium ? `${basis} - ${istVideo ? 'Video' : 'Audio'}.${medium.datei.ext}` : null
   const coverDatei = 'buffer' in cover ? `${basis} - Cover.${cover.ext}` : null
   const medienEinbetten = input.medienEinbetten !== false
   const videoEmbedUrl = medienEinbetten ? embedUrlFuerVideo(url, seite.media) : null
@@ -136,23 +148,51 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
     seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl, medienEinbetten,
   })
 
+  // Schreiben: scheitert ein Schritt, werden die schon hochgeladenen Dateien wieder
+  // entfernt — der Ordner bleibt wie vorher (Befund Cowork-Test 13.10.).
+  const geschrieben: Array<{ id: string; name: string }> = []
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
-  if ('datei' in medium && medienDatei) {
-    const item = await provider.uploadFile(folderId, new File([new Uint8Array(medium.datei.buffer)], medienDatei, { type: medium.datei.mimeType }))
-    const { jobId } = await enqueueSourceTranscribeJob({
-      libraryId, userEmail,
-      source: { itemId: item.id, parentId: folderId, name: medienDatei, mimeType: medium.datei.mimeType },
-      mediaType: medium.datei.mimeType.startsWith('video/') ? 'video' : 'audio',
-      template: undefined, llmModel, targetLanguage, audioContext, ingest: false,
-    })
-    mediumErgebnis = { sourceId: item.id, name: medienDatei, bytes: medium.datei.buffer.length, dauerSekunden: medium.dauer, weg: medium.weg, jobId }
-  }
   let coverErgebnis: WebseiteErschliessenResult['cover'] = null
-  if ('buffer' in cover && coverDatei) {
-    const item = await provider.uploadFile(folderId, new File([new Uint8Array(cover.buffer)], coverDatei, { type: cover.mimeType }))
-    coverErgebnis = { sourceId: item.id, name: coverDatei, bytes: cover.buffer.length }
+  let md: { id: string }
+  try {
+    let mediumItemId: string | null = null
+    if ('datei' in medium && medienDatei) {
+      const item = await provider.uploadFile(folderId, new File([new Uint8Array(medium.datei.buffer)], medienDatei, { type: medium.datei.mimeType }))
+      geschrieben.push({ id: item.id, name: medienDatei })
+      mediumItemId = item.id
+    }
+    if ('buffer' in cover && coverDatei) {
+      const item = await provider.uploadFile(folderId, new File([new Uint8Array(cover.buffer)], coverDatei, { type: cover.mimeType }))
+      geschrieben.push({ id: item.id, name: coverDatei })
+      coverErgebnis = { sourceId: item.id, name: coverDatei, bytes: cover.buffer.length }
+    }
+    md = await provider.uploadFile(folderId, new File([markdown], dateiname, { type: 'text/markdown' }))
+    geschrieben.push({ id: md.id, name: dateiname })
+    // Job zuletzt: erst wenn alle Dateien liegen, gibt es nichts mehr, das ihn verwaisen liesse.
+    if ('datei' in medium && medienDatei && mediumItemId) {
+      const { jobId } = await enqueueSourceTranscribeJob({
+        libraryId, userEmail,
+        source: { itemId: mediumItemId, parentId: folderId, name: medienDatei, mimeType: medium.datei.mimeType },
+        mediaType: istVideo ? 'video' : 'audio',
+        template: undefined, llmModel, targetLanguage, audioContext, ingest: false,
+      })
+      mediumErgebnis = { sourceId: mediumItemId, name: medienDatei, bytes: medium.datei.buffer.length, dauerSekunden: medium.dauer, weg: medium.weg, jobId }
+    }
+  } catch (error) {
+    const nichtEntfernt: string[] = []
+    for (const g of geschrieben) {
+      try {
+        await provider.deleteItem(g.id)
+      } catch {
+        nichtEntfernt.push(g.name)
+      }
+    }
+    const grund = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `${grund} — ${geschrieben.length - nichtEntfernt.length} schon hochgeladene Datei(en) wieder entfernt` +
+        (nichtEntfernt.length > 0 ? `; NICHT entfernt, bitte von Hand loeschen: ${nichtEntfernt.join(', ')}` : ''),
+    )
   }
-  const md = await provider.uploadFile(folderId, new File([markdown], dateiname, { type: 'text/markdown' }))
 
   return {
     sammeldatei: { sourceId: md.id, name: dateiname, ordnerId: folderId },

@@ -5,7 +5,7 @@ description: Einen Artikel im Netz (Presseseite mit eingebettetem Audio oder Vid
 
 # Webseite als Quelle erschließen
 
-Stand 13.10.2026, Werkzeugsatz 2.51.0. Original im Archiv unter
+Stand 13.10.2026, Werkzeugsatz 2.53.0. Original im Archiv unter
 `Organisation/Skills/webseite-erschliessen/SKILL.md`; in den
 Claude-Einstellungen die Ableitung, im Repo die Kopie. Ein Artikel mit eingebettetem Medium
 wird zur Sammeldatei nach demselben Muster wie ein Vortrag einer
@@ -21,7 +21,9 @@ Im Zielordner drei Dateien, nebeneinander:
   `_source_files`, `_media_files`): Titel, Quelle, Datum, Autor, Link, der
   Artikeltext wörtlich (Absätze, Zwischenüberschriften, Zitate), Verweis auf
   Medium und Cover, bei einbettbaren Videos die Zeile `Video: <Embed-Adresse>`.
-- `<Basis> - Audio.mp3` (oder m4a) — das Medium, bevorzugt die reine Tonspur.
+- `<Basis> - Audio.mp3` (oder m4a) — das Medium als Tonspur. Auch bei
+  Videoseiten zieht der Secretary nur den Ton heraus; ein `… - Video.mp4`
+  entsteht nur, wenn keine Tonspur extrahierbar war.
 - `<Basis> - Cover.jpg` — das Bild der Seite.
 
 Nach Transformation und Ingest: ein Eintrag der Ereignis-Ansicht (Dokumentart
@@ -39,11 +41,21 @@ Anhang in der Suche.
 2. **`webseite_erschliessen`** mit `url`, `ordner` (oder `ordnerId`),
    `dateiname`, optional `kontext` und `begriffe` (Namen, Fachwörter — helfen
    der Transkription), `sprecherErkennung` (Interview mit zwei Stimmen: true).
+   Diese drei gehen auch bei Videoseiten, weil das Medium als Tonspur kommt.
+   Nur wenn keine Tonspur extrahierbar war, weist das Werkzeug sie ab — dann
+   ohne sie wiederholen; der abgewiesene Aufruf hat nichts geschrieben.
    Die Antwort nennt `seite.bloecke` (Zahl der übernommenen Textblöcke),
    `medium` mit `jobId` und `weg` (`secretary` = direkte Datei, KS lädt;
-   `secretary-download` = Stream, der Secretary lädt mit ffmpeg; `seite` = ohne
+   `secretary-download` = Stream oder Video, der Secretary lädt mit ffmpeg nur
+   den Ton; `seite` = ohne
    yt-dlp), `videoEmbedUrl`, `cover`. Steht `mediumGrund` oder `coverGrund`,
-   fehlt etwas — dem Menschen nennen, nicht still weitermachen.
+   fehlt etwas — dem Menschen nennen, nicht still weitermachen. Bricht ein
+   Aufruf nach dem Hochladen ab, entfernt das Werkzeug die schon geschriebenen
+   Dateien wieder; die Fehlermeldung nennt, was gegebenenfalls von Hand zu
+   löschen ist.
+   `seite.datePublished` leer heißt: die Seite nennt kein Datum (Open Graph,
+   JSON-LD, `<time>`) — nicht raten, den Menschen fragen und mit
+   `dokument_felder_setzen` nachtragen.
 3. **`job_status`** mit der `jobId` des Mediums abwarten (`completed`,
    Schritt `extract_audio` nicht übersprungen). Transkript von Hand prüfen,
    wenn Namen oder Zahlen wichtig sind (`artefakt_lesen`, `transkript_korrigieren`).
@@ -52,8 +64,9 @@ Anhang in der Suche.
    (bewusst — ohne `ingest` kein Galerie-Eintrag). Die Vorlage muss in der
    Library liegen (`vorlagen_auflisten`; sonst `vorlage_uebernehmen` aus
    `templates/artikel-de.md` oder einer anderen Library).
-5. **Lesersicht prüfen:** `job_status` (Ereignisse `audio_source`,
-   `cover_source: own_fragment`, `befunde` leer) und `dokument_lesen` auf die
+5. **Lesersicht prüfen:** `job_status` (Ereignisse `cover_source: own_fragment`,
+   `audio_source` nur mit Einbetten; `befunde` leer — „Anhaenge: keine
+   PDF-Quelle" ist bei Artikeln ohne PDF normal) und `dokument_lesen` auf die
    Sammeldatei (Cover, Titel, Galerie-Adresse). Dem Menschen die
    Galerie-Adresse nennen.
 
@@ -76,9 +89,13 @@ Menschen fragen, ob eingebettet werden darf.
 - **Kein Medium aufgelöst**: yt-dlp kennt die Seite nicht (Grund in der
   Antwort). Direkte Medienadresse der Seite wird als dritter Weg probiert.
   Sonst Medium von Hand holen und als Quelle neben die Sammeldatei legen.
-- **Video ohne Embed** (z. B. Rai-Videos): Das Medium wird geladen und
+- **Video ohne Embed** (z. B. Rai-Videos): Die Tonspur wird geladen und
   transkribiert, im Eintrag erscheint der Audio-Player, kein Video-Embed —
   der Player kennt nur YouTube, Vimeo und PeerTube.
+- **Namen und Bild prüfen**: Das Cover ist das Bild, das die Seite nennt — oft
+  ein Archivbild, kein Foto des Anlasses. Namen kommen aus der Seite oder dem
+  Transkript; wo sie nicht zu bekannten Begriffen passen, dem Menschen zur
+  Prüfung nennen.
 - **Transkription übersprungen** (`shadow_twin_exists`): es liegt schon ein
   Twin für das Medium vor — `erzwingen: true` bei `quelle_erschliessen` auf das
   Medium, oder den fremden Twin prüfen.
