@@ -28,7 +28,7 @@ const spaceCards = [
       { title: "Archive", href: "/settings/archive" },
       { title: "Explore", href: "/settings/explore" },
       { title: "Story", href: "/settings/story" },
-      { title: "Erweitert", href: "/settings/advanced" },
+      { title: "Erweitert", href: "/settings/advanced/suche-ki" },
     ],
   },
   {

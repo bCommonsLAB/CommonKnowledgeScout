@@ -51,6 +51,14 @@ Settings-Formulare dürfen diese API-Endpunkte aufrufen:
 - `GET /api/library/[id]/shadow-twin/migration-runs` — Runs auflisten
 - `POST /api/library/[id]/export`, `POST /api/library/[id]/import` — Export/Import
 
+### Teil-Seiten unter „Erweitert" und Archive · 4 Erfassen (Plan Teil B)
+- `PATCH /api/libraries/[id]` mit `{ config: { …nur eigene Schlüssel… } }`
+  über `useLibraryConfigPatch` (`src/components/settings/library/advanced/`).
+  Die Route führt die Config auf oberster Ebene zusammen; ein mitgeschickter
+  Schlüssel ersetzt das gespeicherte Objekt als Ganzes, also vollständig
+  schicken. Geteilte Objekte (heute nur `secretaryService`) laden und
+  schreiben ALLE Felder — Beleg `tests/unit/settings/advanced-page-config-keys.test.ts`.
+
 ### Chat-Form (`/api/library/[id]/chat-config`)
 - `GET/PUT /api/library/[id]/chat-config` — Chat-Konfiguration
 

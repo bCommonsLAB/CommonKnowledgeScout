@@ -1,0 +1,25 @@
+import { Metadata } from "next"
+import { Suspense } from "react"
+import { Separator } from '@ks/ui'
+import { ExtractionForm } from "@/components/settings/library"
+
+export const metadata: Metadata = {
+  title: "Bibliothek - Erweitert · Extraktion",
+  description: "Voreinstellungen der Extraktion: Namen, Sprachen, Anhänge.",
+}
+
+// Erweitert · Extraktion (Plan speicher-verbindungen-und-library-anlage, Teil B)
+export default function Page() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium">Extraktion</h3>
+        <p className="text-sm text-muted-foreground">Bekannte Namen, Sprachen der Aufnahmen und Anhänge als Text in der Suche.</p>
+      </div>
+      <Separator />
+      <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
+        <ExtractionForm />
+      </Suspense>
+    </div>
+  )
+}

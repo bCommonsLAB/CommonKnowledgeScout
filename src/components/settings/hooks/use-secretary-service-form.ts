@@ -15,40 +15,24 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
 import { useState, useEffect } from "react"
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { toast } from '@ks/ui'
 import { mergeTemplateNames } from "@/lib/templates/template-options"
 import {
+  buildSecretaryServiceConfig,
+  readSecretaryServiceForm,
+  secretaryServiceFormSchema,
+  type SecretaryServiceFormValues,
+} from "./secretary-service-form-model"
+import {
   checkTemplateConsistency,
   type KnownTemplateMeta,
 } from "@/lib/templates/template-consistency"
 
-// Formular-Schema mit Validierung
-export const secretaryServiceFormSchema = z.object({
-  // Benutzerdefinierte Verbindung aktiv (false = ENV-Defaults)
-  useCustomConfig: z.boolean().optional(),
-  // Optional: Wenn gesetzt, muss es eine gültige URL sein
-  apiUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL ein." }).optional(),
-  // Optional: Leer lassen → ENV verwenden
-  apiKey: z.string().optional(),
-  pdfExtractionMethod: z.enum([
-    'native','ocr','both','preview','preview_and_native','llm','llm_and_ocr','mistral_ocr'
-  ]).optional(),
-  pdfTemplate: z.string().optional(),
-  /** Standard-LLM-Modell für Template-Transformation */
-  templateLlmModel: z.string().optional(),
-  /** Standard-Zielsprache für Transformation */
-  targetLanguage: z.enum(['de', 'en']).optional(),
-  /** Automatisch Cover-Bild bei Transformation generieren */
-  generateCoverImage: z.boolean().optional(),
-  coverImagePrompt: z.string().optional(),
-  /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook */
-  useDirectConnection: z.boolean().optional(),
-})
-
-export type SecretaryServiceFormValues = z.infer<typeof secretaryServiceFormSchema>
+// Schema, Lesen und Schreiben liegen im reinen Modell (testbar ohne React);
+// das Schema und der Werte-Typ bleiben hier re-exportiert.
+export { secretaryServiceFormSchema, type SecretaryServiceFormValues }
 
 export function useSecretaryServiceForm() {
   const libraries = useLibraries()
@@ -84,33 +68,11 @@ export function useSecretaryServiceForm() {
     },
   })
 
-  // Form mit aktiver Bibliothek befüllen
+  // Form mit aktiver Bibliothek befüllen — ALLE Felder, egal welche Teilmenge
+  // die Seite rendert (geteiltes Objekt, siehe secretary-service-form-model.ts)
   useEffect(() => {
     if (activeLibrary) {
-      // generateCoverImage: Lese aus secretaryService (chat-Fallback entfernt, da nicht im Typ)
-      const generateCoverImage =
-        typeof activeLibrary.config?.secretaryService?.generateCoverImage === 'boolean'
-          ? activeLibrary.config.secretaryService.generateCoverImage
-          : false
-
-      // targetLanguage: Lese aus secretaryService oder chat (Rückwärtskompatibilität)
-      const targetLanguage =
-        activeLibrary.config?.secretaryService?.targetLanguage ||
-        activeLibrary.config?.chat?.targetLanguage ||
-        'de'
-
-      form.reset({
-        useCustomConfig: activeLibrary.config?.secretaryService?.useCustomConfig ?? false,
-        apiUrl: activeLibrary.config?.secretaryService?.apiUrl || undefined,
-        apiKey: activeLibrary.config?.secretaryService?.apiKey || '',
-        pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfExtractionMethod || 'mistral_ocr',
-        pdfTemplate: activeLibrary.config?.secretaryService?.template || '',
-        templateLlmModel: activeLibrary.config?.secretaryService?.llmModel || '',
-        targetLanguage: targetLanguage as 'de' | 'en',
-        generateCoverImage,
-        coverImagePrompt: activeLibrary.config?.secretaryService?.coverImagePrompt || '',
-        useDirectConnection: activeLibrary.config?.secretaryService?.useDirectConnection ?? false,
-      })
+      form.reset(readSecretaryServiceForm(activeLibrary.config))
     }
   }, [activeLibrary, form])
 
@@ -226,27 +188,13 @@ export function useSecretaryServiceForm() {
         throw new Error("Keine Bibliothek ausgewählt")
       }
 
-      // Bibliotheksobjekt aktualisieren.
-      // apiUrl/apiKey/useDirectConnection werden immer gespeichert (auch bei useCustomConfig=false),
-      // damit beim Umschalten nichts verloren geht.
+      // Bibliotheksobjekt aktualisieren: secretaryService VOLLSTAENDIG
+      // (gespeicherte Felder der anderen Seite inklusive, da im Formular geladen).
       const updatedLibrary = {
         ...activeLibrary,
         config: {
           ...activeLibrary.config,
-          secretaryService: {
-            useCustomConfig: data.useCustomConfig ?? false,
-            ...(data.apiUrl ? { apiUrl: data.apiUrl } : {}),
-            ...(data.apiKey ? { apiKey: data.apiKey } : {}),
-            // Phase 1: Transkription
-            pdfExtractionMethod: data.pdfExtractionMethod,
-            // Phase 2: Transformation
-            template: data.pdfTemplate?.trim() || undefined,
-            llmModel: data.templateLlmModel?.trim() || undefined,
-            targetLanguage: data.targetLanguage || 'de',
-            generateCoverImage: data.generateCoverImage ?? false,
-            ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
-            useDirectConnection: data.useDirectConnection ?? false,
-          },
+          secretaryService: buildSecretaryServiceConfig(data),
         }
       }
 

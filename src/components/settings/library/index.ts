@@ -13,7 +13,17 @@
  * Welle 5d: "Aus Dateisystem laden" laeuft ueber die Sync-Engine (Preset
  * `import`) im Reconcile-Panel; Wizard, Run-Historie und Analyse-Loader
  * sind entfallen.
+ *
+ * Teil B (Plan speicher-verbindungen-und-library-anlage): die fruehere
+ * library-advanced-form.tsx ist in Teil-Formulare je Seite unter
+ * ./advanced/ zerlegt (Speicher & Twins, Extraktion, DIVA, Agentensicht,
+ * Wartung); „Inhalte erfassen" liegt in capture-wizards-form.tsx (Archive).
  */
 
 export { LibraryForm } from "./library-form";
-export { LibraryAdvancedForm } from "./library-advanced-form";
+export { CaptureWizardsForm } from "./capture-wizards-form";
+export { StorageTwinsForm } from "./advanced/storage-twins-form";
+export { ExtractionForm } from "./advanced/extraction-form";
+export { DivaForm } from "./advanced/diva-form";
+export { AgentViewForm } from "./advanced/agent-view-form";
+export { MaintenanceTools } from "./advanced/maintenance-tools";

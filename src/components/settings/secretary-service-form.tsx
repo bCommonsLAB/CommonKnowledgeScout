@@ -76,7 +76,7 @@ export function SecretaryServiceForm() {
                   Wie ein Journalist macht die Vorlage aus dem Rohmaterial einen
                   strukturierten Beitrag — passend zum Inhaltstyp Ihrer
                   Bibliothek. Eine andere Vorlage wählen nur Experten unter{" "}
-                  <Link href="/settings/advanced" className="underline">Erweitert</Link>.
+                  <Link href="/settings/advanced/verarbeitung" className="underline">Erweitert · Verarbeitung</Link>.
                 </p>
               </div>
             )
