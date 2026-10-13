@@ -39,6 +39,11 @@ import type { CoverageGap } from './types'
 export interface LibraryEintrag {
   id: string
   name: string
+  /**
+   * Wunschliste 8 (G3): Slugs, unter denen eine Adresse `[[@slug/…]]` auf
+   * diese Library trifft (aktuell + frueher). Fehlt = unbekannt.
+   */
+  adressSlugs?: readonly string[]
 }
 
 /** Liest `libraries:` aus einem Bericht-Frontmatter (leer = kein Feld). */

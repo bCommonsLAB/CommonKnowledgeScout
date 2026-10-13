@@ -50,6 +50,8 @@ export function waehleBegleitdateien(args: {
     const prefix = folder.path === '' ? '' : `${folder.path.toLowerCase()}/`
     const gewaehlt = new Map<string, ArchiveFileEntry>()
     for (const ref of uniqueReferences(parseReferences(bericht.body))) {
+      // Wunschliste 8 (G3): Adressen zeigen in andere Libraries — nie mitlesen.
+      if (ref.syntax === 'library-adresse') continue
       const hit = resolveReference(ref.target, bericht.path, args.index)
       if (!hit || hit.kind !== 'file' || !hit.name.toLowerCase().endsWith('.md')) continue
       if (hit.name === BERICHT_FILE_NAME || hit.name === INDEX_FILE_NAME) continue

@@ -95,6 +95,8 @@ export const TOOL_NAMES = [
   'bibliothek_anlegen',
   'speicher_pruefen',
   'vorlage_uebernehmen',
+  // Wunschliste 8 (G1) — Adress-Slug je Library.
+  'adresse_setzen',
   'sichten_regenerieren',
   'aenderungen_seit',
   'erschliessung_block_schreiben',

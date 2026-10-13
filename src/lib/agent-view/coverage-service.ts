@@ -153,11 +153,13 @@ export async function runCoverageScan(
     : { docs: [], fehler: [] }
   const begleit = ordneBegleitdokumente(begleitAuswahl, gelesen.docs)
 
-  // Wunschliste 8, W8-4: nur im Library-weiten Scan — im Teilbaum fehlen die
-  // Berichte, die eine Library nennen koennten, und ohne Port (keine
-  // Archivpflege, Tests) bleiben die Regeln stumm (dokumentiert, kein Raten).
-  const libraries: LibraryEintrag[] | null =
-    request.scopeFolderId === null && ports.listeLibraries ? await ports.listeLibraries() : null
+  // Wunschliste 8: die Library-Liste (Port nur bei Archivpflege). W8-4-Regeln
+  // nur im Library-weiten Scan — im Teilbaum fehlen die Berichte, die eine
+  // Library nennen koennten. Das Adress-Verzeichnis (G3) gilt in beiden
+  // Scopes; ohne Port bleiben Regeln und Adress-Pruefung stumm (kein Raten).
+  const alleLibraries: LibraryEintrag[] | null = ports.listeLibraries ? await ports.listeLibraries() : null
+  const libraries = request.scopeFolderId === null ? alleLibraries : null
+  const libraryAdressen = alleLibraries === null ? null : new Set(alleLibraries.flatMap((lib) => lib.adressSlugs ?? []))
 
   const locations = new Map<string, SourceLocation>(
     [...fileIndex.entries()].map(([fileId, location]) => [fileId, { folderId: location.folderId, path: location.path }]),
@@ -226,7 +228,7 @@ export async function runCoverageScan(
       }),
     ),
     ...auditAllDocuments({
-      folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex,
+      folders, families, fileIndex, vorhabenPattern, begleit, index: referenceIndex, libraryAdressen,
       // Im Teilbaum ist ein Verweis nach aussen nicht beurteilbar — das macht der Voll-Scan.
       teilbaum: request.scopeFolderId === null ? undefined : { scopePath: request.scopePath ?? null },
     }),
