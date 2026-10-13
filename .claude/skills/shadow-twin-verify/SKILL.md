@@ -87,7 +87,7 @@ Rename-/Split-Plaene auf sauberen Bestaenden; `errors` muss 0 sein).
 
 ### Schritt 4: UI-Sichtpruefung (5d)
 
-Dev-Server starten (launch.json `next-dev-3001`), `/settings/advanced` oeffnen.
+Dev-Server starten (launch.json `next-dev-3001`), `/settings/advanced/wartung` oeffnen.
 Ohne Login ist nur die Seitenstruktur pruefbar („Prüfen & Reparieren"-Karten
 rendern); den Klick-Test (Prüfen → Report; Disclosure zeigt „Aus Dateisystem
 laden" + „Ins Dateisystem exportieren") macht der User eingeloggt selbst —

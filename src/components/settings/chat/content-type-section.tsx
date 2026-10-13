@@ -245,7 +245,7 @@ export function ContentTypeSection({ form }: ContentTypeSectionProps) {
           <AlertDescription>
             Für DIVA-Inhalte gibt es zusätzliche Auswertungs-Optionen
             (Liefersystem-Daten, Archiv-Voreinstellungen) im Bereich{' '}
-            <Link href="/settings/advanced" className="underline">Erweitert</Link>.
+            <Link href="/settings/advanced/diva" className="underline">Erweitert · DIVA</Link>.
           </AlertDescription>
         </Alert>
       )}

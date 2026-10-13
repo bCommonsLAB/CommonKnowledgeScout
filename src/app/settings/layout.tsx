@@ -1,7 +1,7 @@
 "use client"
 
 import { Separator } from '@ks/ui'
-import { SidebarNav, type SidebarNavGroup } from "@/components/settings/sidebar-nav"
+import { SidebarNav, flattenNavItems, type SidebarNavGroup } from "@/components/settings/sidebar-nav"
 import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { useMemo } from "react"
 import { usePathname } from "next/navigation"
@@ -22,7 +22,22 @@ const sidebarGroups: SidebarNavGroup[] = [
       { title: "Archive", href: "/settings/archive" },
       { title: "Explore", href: "/settings/explore" },
       { title: "Story", href: "/settings/story" },
-      { title: "Erweitert", href: "/settings/advanced" },
+      {
+        // Zweite Ebene (Plan speicher-verbindungen-und-library-anlage, Teil B):
+        // sieben Unterseiten statt einer endlosen Seite; /settings/advanced
+        // leitet auf die erste weiter.
+        title: "Erweitert",
+        href: "/settings/advanced",
+        children: [
+          { title: "Suche & KI", href: "/settings/advanced/suche-ki" },
+          { title: "Speicher & Twins", href: "/settings/advanced/speicher-twins" },
+          { title: "Verarbeitung", href: "/settings/advanced/verarbeitung" },
+          { title: "Extraktion", href: "/settings/advanced/extraktion" },
+          { title: "DIVA", href: "/settings/advanced/diva" },
+          { title: "Agentensicht", href: "/settings/advanced/agentensicht" },
+          { title: "Wartung", href: "/settings/advanced/wartung" },
+        ],
+      },
     ],
   },
   {
@@ -78,12 +93,12 @@ export default function Layout({ children }: LayoutProps) {
     if (isCoCreator || !pathname || pathname === "/settings") return undefined
     // Moderatoren haben genau einen Verwaltungsbereich (E7)
     if (isModerator) return moderatorGroup
-    const exact = sidebarGroups.find(g => g.items.some(i => i.href === pathname))
+    const exact = sidebarGroups.find(g => flattenNavItems(g.items).some(i => i.href === pathname))
     if (exact) return exact
     // Fallback fuer kuenftige Unterrouten: laengster Pfad-Prefix gewinnt
     let best: { group: SidebarNavGroup; len: number } | undefined
     for (const group of sidebarGroups) {
-      for (const item of group.items) {
+      for (const item of flattenNavItems(group.items)) {
         if (pathname.startsWith(item.href + "/") && (!best || item.href.length > best.len)) {
           best = { group, len: item.href.length }
         }
