@@ -10,7 +10,7 @@
  * Selbstdeklaration (`bearbeitungsstand` im `_INDEX.md`), `_INDEX.md`-Pflicht
  * inaktiv, Bericht-Frische aktiv.
  *
- * Eigene Datei statt weiterem Wachstum der library-advanced-form (200-Zeilen-Regel).
+ * Eigene Datei (200-Zeilen-Regel); seit Teil B Section des Agentensicht-Formulars.
  */
 
 import type { UseFormReturn } from "react-hook-form"
@@ -27,9 +27,9 @@ import {
   Switch,
   Textarea,
 } from '@ks/ui'
-import type { LibraryFormValues } from "./hooks/use-library-form"
+import type { AgentViewFormValues } from "./advanced/agent-view-form-model"
 
-export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFormValues> }) {
+export function AgentViewConfigSection({ form }: { form: UseFormReturn<AgentViewFormValues> }) {
   return (
     <Card>
       <CardContent className="space-y-3 pt-6">

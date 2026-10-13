@@ -24,7 +24,7 @@ import {
   FormMessage,
   Input,
 } from '@ks/ui'
-import type { LibraryFormValues } from "./hooks/use-library-form"
+import type { AgentViewFormValues } from "./advanced/agent-view-form-model"
 
 type SchwellenFeld =
   | "agentViewBerichtMaxBytesAnwendung"
@@ -70,7 +70,7 @@ const FELDER: readonly FeldDefinition[] = [
   },
 ]
 
-export function AgentViewBerichtSection({ form }: { form: UseFormReturn<LibraryFormValues> }) {
+export function AgentViewBerichtSection({ form }: { form: UseFormReturn<AgentViewFormValues> }) {
   return (
     <Card>
       <CardContent className="space-y-3 pt-6">

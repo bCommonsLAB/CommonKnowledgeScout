@@ -1,16 +1,21 @@
 /**
- * @fileoverview Haupt-Hook für das Library-Settings-Formular.
+ * @fileoverview Haupt-Hook für das Library-Grundlagen-Formular.
  *
  * @description
- * Extrahiert aus library-form.tsx (Welle 3-IV-a Modul-Split).
+ * Extrahiert aus library-form.tsx (Welle 3-IV-a Modul-Split). Seit Teil B
+ * des Plans speicher-verbindungen-und-library-anlage haelt der Hook NUR noch
+ * die Grundlagen (Name, Aktiv, Speicherpfad/-typ, Inhaltstyp bei Anlage);
+ * die Experten-Felder haben je Seite unter „Erweitert" ein eigenes Formular
+ * (src/components/settings/library/advanced/**), „Inhalte erfassen" liegt
+ * auf der Archive-Seite (capture-wizards-form.tsx). Submit schickt nur die
+ * Config-Schluessel dieser Seite; der Server fuehrt die Config zusammen.
+ *
  * Enthält:
  * - Form-Schema und defaultValues
- * - Bibliothek-CRUD-Callbacks (create, update, delete, export, import)
- * - Azure-Strategie-Abruf
- * - Shadow-Twin-Config-State-Initialisierung aus activeLibrary
+ * - Bibliothek-CRUD-Callbacks (create, update, delete)
  */
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,10 +24,9 @@ import { useRouter } from "next/navigation";
 import { toast } from '@ks/ui'
 import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { StorageProviderType } from "@/types/library";
-import type { CaptureWizardsConfig } from "@/types/library";
+import type { ClientLibrary } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
 import { detailViewTypeSchema } from "@/lib/detail-view-types/registry";
-import { parseLanguagesText, readLanguageList } from "@/lib/external-jobs/audio-languages";
 
 /** Im Settings-Formular waehlbare Storage-Typen ('inbox' ist intern, ADR-0004 II). */
 const LIBRARY_FORM_STORAGE_TYPES = ["local", "onedrive", "gdrive", "nextcloud"] as const;
@@ -42,17 +46,7 @@ function toLibraryFormStorageType(
   return type;
 }
 
-/** Optionale Schwelle als Formular-String: leer = Regel aus, sonst ganze Zahl >= 1 mit hoechstens `stellen` Ziffern. */
-function schwellenFeld(stellen: number) {
-  return z
-    .string()
-    .refine((wert) => wert.trim() === "" || (/^[1-9][0-9]*$/.test(wert.trim()) && wert.trim().length <= stellen), {
-      message: "Ganze Zahl ab 1 oder leer (Regel aus)",
-    })
-    .default("")
-}
-
-// Formular-Schema (identisch mit dem in library-form.tsx)
+// Formular-Schema der Grundlagen-Seite
 export const libraryFormSchema = z.object({
   label: z
     .string({ required_error: "Bitte geben Sie einen Namen ein." })
@@ -66,95 +60,6 @@ export const libraryFormSchema = z.object({
   // Petra-Review Punkt 2). Wird nur bei isNew in config.chat.gallery gesendet.
   // Werteliste aus der zentralen Registry (Galerie-Audit, Befund 3c)
   detailViewType: detailViewTypeSchema.default("book"),
-  // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
-  analyzeDivaTextureInfo: z.boolean().default(false),
-  // Welle 0b: eine Zeile pro Muster (Form als Text, Persistenz als Array)
-  scanExcludeGlobs: z.string().default(""),
-  extractionKnownNames: z.string().default(""),
-  // P3a: Sprecher-Erkennung als Voreinstellung fuer Audio-Transkriptionen. Default false.
-  transcriptionSpeakerMode: z.boolean().default(false),
-  /** Sprachcodes, durch Komma getrennt (z. B. „de, it"); Pruefung beim Speichern. */
-  transcriptionLanguages: z
-    .string()
-    .refine((value) => parseLanguagesText(value).invalid.length === 0, "Nur Sprachcodes mit zwei Buchstaben, durch Komma getrennt (z. B. de, it).")
-    .default(""),
-  // P6: Voreinstellung „Anhaenge als Text in die Suche". Default AN (Owner 05.10.2026).
-  ingestSourceAppendix: z.boolean().default(true),
-  // Agentensicht (Welle 1/3): Archiv-Konventionen der Library. Das Muster wird
-  // clientseitig als Regex validiert — sonst wirft erst der Scan (laut, aber spaet).
-  agentViewVorhabenPattern: z
-    .string()
-    .default("")
-    .refine((value) => {
-      if (value.trim() === "") return true;
-      try {
-        new RegExp(value);
-        return true;
-      } catch {
-        return false;
-      }
-    }, "Kein gueltiger regulaerer Ausdruck."),
-  // Tiefe als String (leer = Regel inaktiv); nur ganze Zahlen >= 0.
-  agentViewIndexDepth: z
-    .string()
-    .default("")
-    .refine((value) => value.trim() === "" || /^\d+$/.test(value.trim()), "Ganze Zahl (0, 1, 2, ...) oder leer."),
-  agentViewEnabled: z.boolean().default(false),
-  agentViewBerichtFreshness: z.boolean().default(true),
-  // A7b: leer = Regel aus. Als String im Formular (wie agentViewIndexDepth),
-  // damit „leer" und „0" unterscheidbar bleiben.
-  agentViewPostfachMaxWochen: z
-    .string()
-    .refine(
-      (wert) => wert.trim() === "" || (/^\d{1,2}$/.test(wert.trim()) && Number(wert.trim()) <= 52),
-      { message: "Ganze Zahl 0–52 oder leer (Regel aus)" },
-    )
-    .default(""),
-  // Wunschliste 5, C1: leer = Regel aus; Tage als String (wie die Postfach-Wochen).
-  agentViewRepoMaxTage: z
-    .string()
-    .refine(
-      (wert) => wert.trim() === "" || (/^\d{1,3}$/.test(wert.trim()) && Number(wert.trim()) <= 365),
-      { message: "Ganze Zahl 0–365 oder leer (Regel aus)" },
-    )
-    .default(""),
-  // Wunschliste 6, A1–A3: leer = Regel aus; Zahlen als String (wie die Postfach-Wochen).
-  agentViewBerichtMaxBytesAnwendung: schwellenFeld(7),
-  agentViewBerichtMaxBytesPlattform: schwellenFeld(7),
-  agentViewStatusMaxZeilen: schwellenFeld(3),
-  agentViewUeberholtNachTagen: schwellenFeld(3),
-  agentViewLocalRootPath: z.string().default(""),
-  // A6: Themen-Vokabular — eine Zeile pro Thema (Persistenz als Array,
-  // Muster scanExcludeGlobs). Kommas/Klammern trennen die _INDEX-Liste.
-  agentViewThemen: z
-    .string()
-    .default("")
-    .refine(
-      (value) => !/[,\[\]]/.test(value),
-      "Ein Thema darf kein Komma und keine eckigen Klammern enthalten.",
-    ),
-  // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (optional).
-  captureWizards: z
-    .object({
-      wizards: z.array(
-        z.object({
-          flowId: z.string(),
-          schemaRef: z.string().optional(),
-          label: z.string().optional(),
-          icon: z.string().optional(),
-          enabled: z.boolean(),
-        }),
-      ),
-      defaultFlowId: z.string().optional(),
-    })
-    .optional(),
-  // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
-  // Bereich [0, 1], Default 0.9.
-  autoApplyConfidenceThreshold: z.number().min(0).max(1).default(0.9),
-  // DIVA-Archive-Defaults fuer das Toolbar-Popover in der Dateiliste.
-  divaArchiveFilterMode: z.enum(['all', 'with', 'without']).default('all'),
-  divaArchiveGroupByAttribute: z.string().default(''),
-  divaArchiveExtraColumns: z.array(z.string()).default([]),
   storageConfig: z.object({
     basePath: z.string().optional(),
     clientId: z.string().optional(),
@@ -166,90 +71,29 @@ export const libraryFormSchema = z.object({
 export type LibraryFormValues = z.infer<typeof libraryFormSchema>;
 
 /**
- * Liest die Agentensicht-Konventionen einer Library in die Formularwerte.
- * EINE Stelle fuer alle reset-Sites (library-config-field.mdc Schritt 4) —
- * fehlende Werte fallen sichtbar auf die dokumentierten Defaults.
+ * Liest die Grundlagen einer Library in die Formularwerte. EINE Stelle fuer
+ * alle reset-Sites (library-config-field.md Schritt 4). Ein maskiertes
+ * clientSecret wird beim Abbruch der Anlage geleert, beim Befuellen behalten.
  */
-function readAgentViewForm(config: Record<string, unknown> | undefined): {
-  agentViewEnabled: boolean;
-  agentViewVorhabenPattern: string;
-  agentViewIndexDepth: string;
-  agentViewBerichtFreshness: boolean;
-  agentViewPostfachMaxWochen: string;
-  agentViewRepoMaxTage: string;
-  agentViewBerichtMaxBytesAnwendung: string;
-  agentViewBerichtMaxBytesPlattform: string;
-  agentViewStatusMaxZeilen: string;
-  agentViewUeberholtNachTagen: string;
-  agentViewLocalRootPath: string;
-  agentViewThemen: string;
-} {
-  const agentView = (config?.agentView ?? null) as
-    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; postfachMaxRueckstandWochen?: unknown; repoMaxRueckstandTage?: unknown; berichtMaxBytes?: unknown; statusMaxZeilen?: unknown; ueberholtNachTagen?: unknown; localRootPath?: unknown; themen?: unknown }
-    | null;
-  const depth = agentView?.indexRequiredMaxDepth;
-  const postfachWochen = agentView?.postfachMaxRueckstandWochen;
-  const repoTage = agentView?.repoMaxRueckstandTage;
-  const zahlText = (wert: unknown): string => (typeof wert === "number" && Number.isFinite(wert) ? String(wert) : "");
-  const maxBytes = (agentView?.berichtMaxBytes ?? null) as { anwendung?: unknown; plattform?: unknown } | null;
+function readLibraryForm(lib: ClientLibrary, maskedSecretAsEmpty: boolean): LibraryFormValues {
+  const rawClientSecret = (lib.config?.clientSecret as string) ?? "";
   return {
-    // Default AUS: Agentensicht ist ein Opt-in pro Library (Pilot-Entscheid 2026-08-21).
-    agentViewEnabled: agentView?.enabled === true,
-    agentViewVorhabenPattern: typeof agentView?.vorhabenFolderPattern === "string" ? agentView.vorhabenFolderPattern : "",
-    agentViewIndexDepth: typeof depth === "number" && Number.isFinite(depth) ? String(depth) : "",
-    agentViewBerichtFreshness: agentView?.berichtFreshness !== false,
-    agentViewPostfachMaxWochen:
-      typeof postfachWochen === "number" && Number.isFinite(postfachWochen) ? String(postfachWochen) : "",
-    agentViewRepoMaxTage: typeof repoTage === "number" && Number.isFinite(repoTage) ? String(repoTage) : "",
-    agentViewBerichtMaxBytesAnwendung: zahlText(maxBytes?.anwendung),
-    agentViewBerichtMaxBytesPlattform: zahlText(maxBytes?.plattform),
-    agentViewStatusMaxZeilen: zahlText(agentView?.statusMaxZeilen),
-    agentViewUeberholtNachTagen: zahlText(agentView?.ueberholtNachTagen),
-    agentViewLocalRootPath: typeof agentView?.localRootPath === "string" ? agentView.localRootPath : "",
-    agentViewThemen: Array.isArray(agentView?.themen)
-      ? agentView.themen.filter((thema): thema is string => typeof thema === "string").join("\n")
-      : "",
+    label: lib.label,
+    path: lib.path,
+    type: toLibraryFormStorageType(lib.type),
+    isEnabled: lib.isEnabled,
+    detailViewType: "book",
+    storageConfig: {
+      basePath: lib.path,
+      clientId: (lib.config?.clientId as string) ?? "",
+      clientSecret: maskedSecretAsEmpty && rawClientSecret === "********" ? "" : rawClientSecret,
+      redirectUri: (lib.config?.redirectUri as string) ?? "",
+    },
   };
 }
 
 /**
- * Coerced den Auto-Uebernahme-Schwellwert (Stufe 4) auf [0, 1].
- * Default 0.9, wenn nicht gesetzt oder ausserhalb des Bereichs.
- */
-function coerceAutoApplyConfidenceThreshold(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0.9;
-  if (value < 0) return 0;
-  if (value > 1) return 1;
-  return value;
-}
-
-/**
- * Extrahiert die persistierten DIVA-Archive-Defaults aus einer Library-Config.
- * Kein silent fallback: leere/ungueltige Werte fuehren auf die Form-Defaults
- * ('all' / leerer String / leeres Array) zurueck.
- */
-function readDivaArchiveDefaults(config: Record<string, unknown> | undefined): {
-  filterMode: 'all' | 'with' | 'without';
-  groupByAttribute: string;
-  extraColumns: string[];
-} {
-  const defaults = (config?.divaArchiveDefaults ?? null) as
-    | { filterMode?: unknown; groupByAttribute?: unknown; extraColumns?: unknown }
-    | null;
-  const rawFilter = defaults?.filterMode;
-  const filterMode =
-    rawFilter === 'with' || rawFilter === 'without' || rawFilter === 'all' ? rawFilter : 'all';
-  const rawGroup = defaults?.groupByAttribute;
-  const groupByAttribute = typeof rawGroup === 'string' ? rawGroup : '';
-  const rawCols = defaults?.extraColumns;
-  const extraColumns = Array.isArray(rawCols)
-    ? rawCols.filter((c): c is string => typeof c === 'string')
-    : [];
-  return { filterMode, groupByAttribute, extraColumns };
-}
-
-/**
- * Haupt-Hook für das Library-Settings-Formular.
+ * Haupt-Hook für das Library-Grundlagen-Formular.
  * Gibt Form-Objekt, Zustand und alle Handler zurück.
  */
 export function useLibraryForm(createNew: boolean) {
@@ -258,44 +102,11 @@ export function useLibraryForm(createNew: boolean) {
   const [isLoading, setIsLoading] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const libraries = useLibraries();
   const setLibraries = useSetLibraries();
   const activeLibraryId = useActiveLibraryId();
   const setActiveLibraryId = useSetActiveLibraryId();
-
-  // Shadow-Twin-Flags (v2-only Runtime: mode und primaryStore sind fixiert
-  // — beim Speichern wird immer v2/Cache geschrieben, das UI zeigt nur noch
-  // die optionalen Dateisystem-Flags)
-  const [shadowTwinPersistToFilesystem, setShadowTwinPersistToFilesystem] = useState(true);
-  const [shadowTwinAllowFilesystemFallback, setShadowTwinAllowFilesystemFallback] =
-    useState(true);
-  const [azureConfigured, setAzureConfigured] = useState<boolean | null>(null);
-  const shadowTwinConfigRef = useRef<{
-    persistToFilesystem: boolean;
-    allowFilesystemFallback: boolean;
-  }>({
-    persistToFilesystem: true,
-    allowFilesystemFallback: true,
-  });
-
-  // Sprach-Bereinigung State
-  const [isLangCleanupOpen, setIsLangCleanupOpen] = useState(false);
-  const [langCleanupLang, setLangCleanupLang] = useState("");
-  const [isLangAnalyzing, setIsLangAnalyzing] = useState(false);
-  const [isLangDeleting, setIsLangDeleting] = useState(false);
-  const [langCleanupResult, setLangCleanupResult] = useState<{
-    dryRun: boolean;
-    targetLanguage: string;
-    totalArtifacts: number;
-    totalFiles: number;
-    storageDeleted: number | null;
-    affectedFiles: Array<{
-      sourceName: string;
-      artifacts: Array<{ kind: string; templateName: string | null }>;
-    }>;
-  } | null>(null);
 
   // Aktuelle Library
   const activeLibrary = libraries.find((lib) => lib.id === activeLibraryId);
@@ -307,29 +118,6 @@ export function useLibraryForm(createNew: boolean) {
       type: "local",
       isEnabled: true,
       detailViewType: "book",
-      analyzeDivaTextureInfo: false,
-      scanExcludeGlobs: "",
-      extractionKnownNames: "",
-      transcriptionSpeakerMode: false,
-      transcriptionLanguages: "",
-      ingestSourceAppendix: true,
-      agentViewEnabled: false,
-      agentViewVorhabenPattern: "",
-      agentViewIndexDepth: "",
-      agentViewBerichtFreshness: true,
-      agentViewPostfachMaxWochen: "",
-      agentViewRepoMaxTage: "",
-      agentViewBerichtMaxBytesAnwendung: "",
-      agentViewBerichtMaxBytesPlattform: "",
-      agentViewStatusMaxZeilen: "",
-      agentViewUeberholtNachTagen: "",
-      agentViewLocalRootPath: "",
-      agentViewThemen: "",
-      captureWizards: undefined,
-      autoApplyConfidenceThreshold: 0.9,
-      divaArchiveFilterMode: 'all' as const,
-      divaArchiveGroupByAttribute: "",
-      divaArchiveExtraColumns: [],
       storageConfig: {
         basePath: "",
         clientId: "",
@@ -345,101 +133,18 @@ export function useLibraryForm(createNew: boolean) {
     defaultValues,
   });
 
-  // Shadow-Twin-Flags aus Library ableiten (v2-only: mode/primaryStore fix)
-  useEffect(() => {
-    const configShadowTwin = activeLibrary?.config?.shadowTwin as
-      | {
-          persistToFilesystem?: boolean;
-          allowFilesystemFallback?: boolean;
-        }
-      | undefined;
-
-    const nextSnapshot = {
-      persistToFilesystem: configShadowTwin?.persistToFilesystem ?? true,
-      allowFilesystemFallback: configShadowTwin?.allowFilesystemFallback ?? true,
-    };
-    shadowTwinConfigRef.current = nextSnapshot;
-    setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
-    setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
-  }, [activeLibrary?.id, activeLibrary?.config]);
-
-  // Azure-Verfügbarkeit abrufen
-  useEffect(() => {
-    const id = activeLibrary?.id;
-    if (!id) {
-      setAzureConfigured(null);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/library/${id}/media-storage-strategy`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: unknown) => {
-        if (
-          !cancelled &&
-          data &&
-          typeof data === "object" &&
-          "azureConfigured" in data &&
-          typeof (data as Record<string, unknown>).azureConfigured === "boolean"
-        ) {
-          setAzureConfigured(
-            (data as Record<string, unknown>).azureConfigured as boolean
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setAzureConfigured(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeLibrary?.id]);
-
   /** Erstellt eine neue Bibliothek (leeres Formular) */
   const handleCreateNew = useCallback(() => {
     setIsNew(true);
     setActiveLibraryId("");
     form.reset(defaultValues);
-    setShadowTwinPersistToFilesystem(true);
-    setShadowTwinAllowFilesystemFallback(true);
   }, [form, defaultValues, setActiveLibraryId]);
 
   /** Bricht das Erstellen ab und kehrt zur aktiven Library zurück */
   const handleCancelNew = useCallback(() => {
     setIsNew(false);
     if (activeLibrary) {
-      const rawClientSecret = (activeLibrary.config?.clientSecret as string) ?? "";
-      const storageConfig = {
-        basePath: activeLibrary.path,
-        clientId: (activeLibrary.config?.clientId as string) ?? "",
-        clientSecret: rawClientSecret === "********" ? "" : rawClientSecret,
-        redirectUri: (activeLibrary.config?.redirectUri as string) ?? "",
-      };
-      form.reset({
-        label: activeLibrary.label,
-        path: activeLibrary.path,
-        type: toLibraryFormStorageType(activeLibrary.type),
-        isEnabled: activeLibrary.isEnabled,
-        analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
-        scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
-        extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
-        transcriptionSpeakerMode: activeLibrary.config?.transcriptionSpeakerMode === true,
-        transcriptionLanguages: (activeLibrary.config?.transcriptionLanguages ?? []).join(", "),
-        ingestSourceAppendix: activeLibrary.config?.ingestSourceAppendix !== false,
-        ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
-        captureWizards: activeLibrary.config?.captureWizards,
-        autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
-          activeLibrary.config?.autoApplyConfidenceThreshold,
-        ),
-        ...(() => {
-          const d = readDivaArchiveDefaults(activeLibrary.config as Record<string, unknown> | undefined);
-          return {
-            divaArchiveFilterMode: d.filterMode,
-            divaArchiveGroupByAttribute: d.groupByAttribute,
-            divaArchiveExtraColumns: d.extraColumns,
-          };
-        })(),
-        storageConfig,
-      });
+      form.reset(readLibraryForm(activeLibrary, true));
     } else if (libraries.length > 0) {
       setActiveLibraryId(libraries[0].id);
     }
@@ -448,38 +153,7 @@ export function useLibraryForm(createNew: boolean) {
   // Form mit aktiver Library befüllen
   useEffect(() => {
     if (activeLibrary && !isNew) {
-      const storageConfig = {
-        basePath: activeLibrary.path,
-        clientId: (activeLibrary.config?.clientId as string) ?? "",
-        clientSecret: (activeLibrary.config?.clientSecret as string) ?? "",
-        redirectUri: (activeLibrary.config?.redirectUri as string) ?? "",
-      };
-      form.reset({
-        label: activeLibrary.label,
-        path: activeLibrary.path,
-        type: toLibraryFormStorageType(activeLibrary.type),
-        isEnabled: activeLibrary.isEnabled,
-        analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
-        scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
-        extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
-        transcriptionSpeakerMode: activeLibrary.config?.transcriptionSpeakerMode === true,
-        transcriptionLanguages: (activeLibrary.config?.transcriptionLanguages ?? []).join(", "),
-        ingestSourceAppendix: activeLibrary.config?.ingestSourceAppendix !== false,
-        ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
-        captureWizards: activeLibrary.config?.captureWizards,
-        autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
-          activeLibrary.config?.autoApplyConfidenceThreshold,
-        ),
-        ...(() => {
-          const d = readDivaArchiveDefaults(activeLibrary.config as Record<string, unknown> | undefined);
-          return {
-            divaArchiveFilterMode: d.filterMode,
-            divaArchiveGroupByAttribute: d.groupByAttribute,
-            divaArchiveExtraColumns: d.extraColumns,
-          };
-        })(),
-        storageConfig,
-      });
+      form.reset(readLibraryForm(activeLibrary, false));
     }
   }, [activeLibrary, isNew, form]);
 
@@ -489,15 +163,6 @@ export function useLibraryForm(createNew: boolean) {
       handleCreateNew();
     }
   }, [createNew, handleCreateNew]);
-
-  /** Shadow-Twin-Config-Dirty-Check */
-  const isShadowTwinConfigDirty = useMemo(() => {
-    const current = shadowTwinConfigRef.current;
-    return (
-      shadowTwinPersistToFilesystem !== current.persistToFilesystem ||
-      shadowTwinAllowFilesystemFallback !== current.allowFilesystemFallback
-    );
-  }, [shadowTwinPersistToFilesystem, shadowTwinAllowFilesystemFallback]);
 
   /** Submit: Bibliothek speichern (neu erstellen oder aktualisieren) */
   const onSubmit = useCallback(
@@ -542,6 +207,9 @@ export function useLibraryForm(createNew: boolean) {
 
         const newLibraryId = isNew ? uuidv4() : activeLibraryId;
 
+        // Nur die Schluessel dieser Seite; der Server fuehrt die Config auf
+        // oberster Ebene zusammen (POST /api/libraries) und setzt fuer neue
+        // Libraries die Shadow-Twin-Vorgabe (v2/Mongo).
         const libraryData = {
           id: newLibraryId,
           label: data.label,
@@ -555,61 +223,6 @@ export function useLibraryForm(createNew: boolean) {
             ...(isNew
               ? { chat: { gallery: { detailViewType: data.detailViewType ?? "book" } } }
               : {}),
-            analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
-            scanExcludeGlobs: data.scanExcludeGlobs.split(/\r?\n/).map((g) => g.trim()).filter(Boolean),
-            extractionKnownNames: data.extractionKnownNames.split(/\r?\n/).map((n) => n.trim()).filter(Boolean),
-            transcriptionSpeakerMode: data.transcriptionSpeakerMode,
-            transcriptionLanguages: parseLanguagesText(data.transcriptionLanguages).codes,
-            ingestSourceAppendix: data.ingestSourceAppendix,
-            agentView: {
-              enabled: data.agentViewEnabled,
-              ...(data.agentViewVorhabenPattern.trim() !== ""
-                ? { vorhabenFolderPattern: data.agentViewVorhabenPattern.trim() }
-                : {}),
-              ...(data.agentViewIndexDepth.trim() !== ""
-                ? { indexRequiredMaxDepth: Number(data.agentViewIndexDepth.trim()) }
-                : {}),
-              berichtFreshness: data.agentViewBerichtFreshness,
-              ...(data.agentViewPostfachMaxWochen.trim() !== ""
-                ? { postfachMaxRueckstandWochen: Number(data.agentViewPostfachMaxWochen.trim()) }
-                : {}),
-              ...(data.agentViewRepoMaxTage.trim() !== ""
-                ? { repoMaxRueckstandTage: Number(data.agentViewRepoMaxTage.trim()) }
-                : {}),
-              // Wunschliste 6, A1: je Rolle; leer = null = Regel fuer diese Rolle aus.
-              berichtMaxBytes: {
-                anwendung: data.agentViewBerichtMaxBytesAnwendung.trim() !== "" ? Number(data.agentViewBerichtMaxBytesAnwendung.trim()) : null,
-                plattform: data.agentViewBerichtMaxBytesPlattform.trim() !== "" ? Number(data.agentViewBerichtMaxBytesPlattform.trim()) : null,
-              },
-              ...(data.agentViewStatusMaxZeilen.trim() !== ""
-                ? { statusMaxZeilen: Number(data.agentViewStatusMaxZeilen.trim()) }
-                : {}),
-              ...(data.agentViewUeberholtNachTagen.trim() !== ""
-                ? { ueberholtNachTagen: Number(data.agentViewUeberholtNachTagen.trim()) }
-                : {}),
-              ...(data.agentViewLocalRootPath.trim() !== ""
-                ? { localRootPath: data.agentViewLocalRootPath.trim() }
-                : {}),
-              themen: data.agentViewThemen.split(/\r?\n/).map((thema) => thema.trim()).filter(Boolean),
-            },
-            captureWizards: data.captureWizards,
-            autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
-            divaArchiveDefaults: {
-              filterMode: data.divaArchiveFilterMode,
-              groupByAttribute:
-                data.divaArchiveGroupByAttribute.trim() === ""
-                  ? null
-                  : data.divaArchiveGroupByAttribute,
-              extraColumns: data.divaArchiveExtraColumns,
-            },
-            shadowTwin: {
-              // v2-only Runtime: Speichern normalisiert Alt-Configs auf
-              // v2/Cache (User-Entscheid 2026-06-12, 04/C1).
-              mode: "v2",
-              primaryStore: "mongo",
-              persistToFilesystem: shadowTwinPersistToFilesystem,
-              allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
-            },
             ...storageConfig,
           },
         };
@@ -662,158 +275,7 @@ export function useLibraryForm(createNew: boolean) {
         setIsLoading(false);
       }
     },
-    [
-      user,
-      activeLibrary,
-      activeLibraryId,
-      isNew,
-      libraries,
-      setLibraries,
-      setActiveLibraryId,
-      router,
-      shadowTwinPersistToFilesystem,
-      shadowTwinAllowFilesystemFallback,
-    ]
-  );
-
-  /** Bibliothek exportieren */
-  const handleExportLibrary = useCallback(async () => {
-    if (!activeLibraryId || !user?.primaryEmailAddress?.emailAddress) {
-      toast({
-        title: "Fehler",
-        description: "Keine Bibliothek zum Exportieren ausgewählt oder Benutzer nicht angemeldet.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/libraries/${activeLibraryId}/export`);
-      if (!response.ok) {
-        throw new Error(`Fehler beim Exportieren: ${response.statusText}`);
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `library-${activeLibrary?.label.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast({
-        title: "Bibliothek exportiert",
-        description: `Die Bibliothek "${activeLibrary?.label}" wurde erfolgreich exportiert.`,
-      });
-    } catch (error) {
-      console.error("[LibraryForm] Fehler beim Exportieren der Bibliothek:", error);
-      toast({
-        title: "Fehler",
-        description:
-          error instanceof Error ? error.message : "Unbekannter Fehler beim Exportieren",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeLibraryId, user, activeLibrary]);
-
-  /** Bibliothek importieren */
-  const handleImportLibrary = useCallback(
-    async (file: File) => {
-      if (!user?.primaryEmailAddress?.emailAddress) {
-        toast({
-          title: "Fehler",
-          description: "Sie müssen angemeldet sein, um eine Bibliothek zu importieren.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const text = await file.text();
-        const libraryData = JSON.parse(text) as Record<string, unknown>;
-
-        const response = await fetch("/api/libraries/import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ libraryData }),
-        });
-
-        if (!response.ok) {
-          const errorData = (await response.json()) as { error?: string };
-          throw new Error(
-            errorData.error ?? `Fehler beim Importieren: ${response.statusText}`
-          );
-        }
-
-        const result = (await response.json()) as { library: Record<string, unknown> };
-        const importedLibrary = result.library;
-
-        const newLibrary = {
-          ...(importedLibrary as object),
-          // icon-Platzhalter: wird von der Client-Atom-Logik gesetzt
-        };
-        setLibraries([...libraries, newLibrary as Parameters<typeof setLibraries>[0][0]]);
-        setActiveLibraryId(importedLibrary.id as string);
-        setIsNew(false);
-        setIsImportDialogOpen(false);
-
-        const storageConfig = {
-          basePath: (importedLibrary.path as string) ?? "",
-          clientId: ((importedLibrary as { config?: Record<string, unknown> }).config?.clientId as string) ?? "",
-          clientSecret: ((importedLibrary as { config?: Record<string, unknown> }).config?.clientSecret as string) ?? "",
-          redirectUri: ((importedLibrary as { config?: Record<string, unknown> }).config?.redirectUri as string) ?? "",
-        };
-
-        form.reset({
-          label: importedLibrary.label as string,
-          path: importedLibrary.path as string,
-          type: importedLibrary.type as "local" | "onedrive" | "gdrive" | "nextcloud",
-          isEnabled: importedLibrary.isEnabled as boolean,
-          analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
-          scanExcludeGlobs: (((importedLibrary as { config?: Record<string, unknown> }).config?.scanExcludeGlobs as string[] | undefined) ?? []).join("\n"),
-          extractionKnownNames: (((importedLibrary as { config?: Record<string, unknown> }).config?.extractionKnownNames as string[] | undefined) ?? []).join("\n"),
-          transcriptionSpeakerMode: ((importedLibrary as { config?: Record<string, unknown> }).config?.transcriptionSpeakerMode as boolean | undefined) === true,
-          transcriptionLanguages: readLanguageList((importedLibrary as { config?: Record<string, unknown> }).config?.transcriptionLanguages).codes.join(", "),
-          ingestSourceAppendix: ((importedLibrary as { config?: Record<string, unknown> }).config?.ingestSourceAppendix as boolean | undefined) !== false,
-          ...readAgentViewForm((importedLibrary as { config?: Record<string, unknown> }).config),
-          captureWizards: (importedLibrary as { config?: Record<string, unknown> }).config?.captureWizards as CaptureWizardsConfig | undefined,
-          autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
-            (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,
-          ),
-          ...(() => {
-            const d = readDivaArchiveDefaults(
-              (importedLibrary as { config?: Record<string, unknown> }).config,
-            );
-            return {
-              divaArchiveFilterMode: d.filterMode,
-              divaArchiveGroupByAttribute: d.groupByAttribute,
-              divaArchiveExtraColumns: d.extraColumns,
-            };
-          })(),
-          storageConfig,
-        });
-
-        toast({
-          title: "Bibliothek importiert",
-          description: `Die Bibliothek "${importedLibrary.label as string}" wurde erfolgreich importiert.`,
-        });
-      } catch (error) {
-        console.error("[LibraryForm] Fehler beim Importieren der Bibliothek:", error);
-        toast({
-          title: "Fehler",
-          description:
-            error instanceof Error ? error.message : "Unbekannter Fehler beim Importieren",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [user, libraries, setLibraries, setActiveLibraryId, form]
+    [user, activeLibrary, activeLibraryId, isNew, libraries, setLibraries, setActiveLibraryId, router]
   );
 
   /** Bibliothek löschen */
@@ -878,38 +340,15 @@ export function useLibraryForm(createNew: boolean) {
     setIsNew,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
-    isImportDialogOpen,
-    setIsImportDialogOpen,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
     libraries,
     activeLibraryId,
     setActiveLibraryId,
     activeLibrary,
-    // Shadow-Twin Config
-    shadowTwinPersistToFilesystem,
-    setShadowTwinPersistToFilesystem,
-    shadowTwinAllowFilesystemFallback,
-    setShadowTwinAllowFilesystemFallback,
-    azureConfigured,
-    isShadowTwinConfigDirty,
-    shadowTwinConfigRef,
-    // Sprach-Bereinigung
-    isLangCleanupOpen,
-    setIsLangCleanupOpen,
-    langCleanupLang,
-    setLangCleanupLang,
-    isLangAnalyzing,
-    setIsLangAnalyzing,
-    isLangDeleting,
-    setIsLangDeleting,
-    langCleanupResult,
-    setLangCleanupResult,
     // Handlers
     handleCreateNew,
     handleCancelNew,
-    handleExportLibrary,
-    handleImportLibrary,
     handleDeleteLibrary,
   };
 }
