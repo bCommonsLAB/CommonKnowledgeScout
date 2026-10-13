@@ -175,3 +175,30 @@ Daraus folgen drei Pflichten:
 `abdeckung_scannen`) — fuer den Fall, dass ausserhalb von KnowledgeScout am
 Storage gearbeitet wurde. Die Zaehler `gelesen` und `wiederverwendet` im
 Report machen jeden Lauf pruefbar.
+
+## §9 Quellkennung (`sourceContentHash`, `sourceSize`, `sourceHashedAt`)
+
+Dieselbe Datei hat in zwei Libraries zwei Storage-Ids, und nichts verbindet
+sie (Wunschliste 8, 13.10.2026). Die Quellkennung ist das Merkmal, das in
+beiden gleich ist: SHA-256 ueber den Inhalt der Quelldatei (hex,
+Kleinbuchstaben), die Groesse in Bytes und der Zeitpunkt der Berechnung
+(`shadow-twin/quellkennung.ts`, Felder am `ShadowTwinDocument`).
+
+- **Wiedererkennung, kein Schluessel.** Identitaet innerhalb einer Library
+  bleibt die Provider-Id (`bruchstellen-katalog.md` §2). Die Kennung dient
+  der Suche ueber Library-Grenzen (`quelle_suchen`, W8-2) und der Verweis-
+  Datei bei der Uebergabe (W8-3) — nie als `sourceId`-Ersatz.
+- **Name.** `sourceContentHash`, nicht `sourceHash`: `binaryFragments[].sourceHash`
+  bedeutet „Hash des Originalbilds eines Thumbnails".
+- **Ein Lesen.** Gerechnet wird in der Start-Route aus dem Blob, der ohnehin
+  zum Secretary geht, am Job gemerkt (`job.quellkennung`) und beim Abschluss
+  ans Twin-Dokument geschrieben (`setzeQuellkennung`, kein Upsert — ein
+  Twin-Dokument ohne Artefakt gibt es nicht). Fehlt das Dokument oder
+  scheitert das Schreiben, steht es im Job-Log (`quellkennung_ohne_twin`,
+  `quellkennung_fehler`), der Job bleibt `completed`.
+- **Kein Migrationslauf.** Bestand bekommt die Kennung bei der naechsten
+  Erschliessung oder ueber `quelle_suchen nachrechnen: true` (W8-2).
+  Text-Feed-Jobs, Uebersetzungen und Recomputes lesen die Quelle nicht und
+  setzen nichts. `leseQuellkennung` wirft bei einem halben Satz
+  (Hash ohne Groesse/Zeitpunkt) statt zu raten.
+- **`updatedAt`** setzt auch dieser Schreibweg (§8).

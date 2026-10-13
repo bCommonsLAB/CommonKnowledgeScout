@@ -251,3 +251,19 @@ mit Archivpflege (`config.agentView.enabled`, derselbe Schalter wie
 Skill-Änderungen im Archiv auf (`chat-abschliessen`: leeres `vorhaben:` wird
 begründungspflichtig, Arbeit an einer Library ist Arbeit an dem Vorhaben,
 das sie nennt).
+
+## Nachtrag Wunschliste 8, zweiter Teil (2.49.1): Quellkennung am Twin
+
+Owner 13.10.: Acht Dateien lagen in zwei Libraries, mit zwei Storage-Ids,
+und nichts verband sie (Plan `docs/plans/dateien-ueber-library-grenzen.plan.md`,
+W8-1). Seither trägt das Twin-Dokument eine Quellkennung: `sourceContentHash`
+(SHA-256 über den Inhalt), `sourceSize`, `sourceHashedAt` (Contract
+`shadow-twin-contracts.md` §9). Gerechnet wird sie in der Start-Route aus dem
+Blob, der ohnehin zum Secretary geht, am Job gemerkt und beim Abschluss ans
+Twin-Dokument geschrieben; das Job-Log nennt `quellkennung_gesetzt`,
+`quellkennung_ohne_twin` oder `quellkennung_fehler`. `artefakt_lesen` zeigt
+`quellkennung` (`null` = seit 2.49.1 nicht neu erschlossen). Kein
+Migrationslauf; alte Bestände bekommen sie bei der nächsten Erschließung oder
+über `quelle_suchen nachrechnen: true` (W8-2, folgt). Die Kennung ist
+Wiedererkennung über Library-Grenzen, kein Schlüssel: Identität bleibt die
+Provider-Id.

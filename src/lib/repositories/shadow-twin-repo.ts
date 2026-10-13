@@ -12,6 +12,7 @@ import type { ArtifactKey, ArtifactKind } from '@/lib/shadow-twin/artifact-types
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { FileLogger } from '@/lib/debug/logger'
 import type { SourceSyncReportRow } from '@/lib/shadow-twin/sync-engine/report-types'
+import type { Quellkennung } from '@/lib/shadow-twin/quellkennung'
 
 /**
  * Merker des Fingerabdruck-Tors (check-Modus der Sync-Engine).
@@ -82,6 +83,16 @@ export interface ShadowTwinDocument {
   compositeSources?: string[]
   /** Merker des Fingerabdruck-Tors; siehe {@link ShadowTwinCheckStand}. */
   checkStand?: ShadowTwinCheckStand
+  /**
+   * Wunschliste 8, W8-1 — Quellkennung (Contract §9): SHA-256 ueber den
+   * Inhalt der Quelldatei, Groesse, Zeitpunkt der Berechnung. Wiedererkennung
+   * ueber Library-Grenzen, kein Schluessel. NICHT `sourceHash` — der Name ist
+   * an `binaryFragments[].sourceHash` (Originalbild eines Thumbnails) vergeben.
+   * Fehlt bei Bestand, der seit 2.49.1 nicht neu erschlossen wurde.
+   */
+  sourceContentHash?: string
+  sourceSize?: number
+  sourceHashedAt?: string
   createdAt: string
   /**
    * Aenderungsstand des Dokuments. JEDER Schreibweg setzt ihn — das
@@ -115,7 +126,30 @@ export async function ensureShadowTwinIndexes(libraryId: string): Promise<void> 
   await col.createIndex({ libraryId: 1, sourceId: 1 }, { unique: true })
   // Welle E: Rueckwaertsabfrage „Sammeldateien mit dieser Quelle" ohne Scan.
   await col.createIndex({ libraryId: 1, compositeSources: 1 })
+  // Wunschliste 8, W8-1: Suche nach Inhalt ueber Library-Grenzen (quelle_suchen, W8-2).
+  await col.createIndex({ libraryId: 1, sourceContentHash: 1 })
   indexCache.add(name)
+}
+
+/**
+ * Wunschliste 8, W8-1: Quellkennung ans Twin-Dokument schreiben. KEIN Upsert —
+ * ein Twin-Dokument ohne Artefakt gibt es nicht; fehlt das Dokument, sagt
+ * `gesetzt: false` es dem Aufrufer, der es benennt. Setzt `updatedAt`
+ * (Contract §8: jeder Schreibweg).
+ */
+export async function setzeQuellkennung(args: {
+  libraryId: string
+  sourceId: string
+  quellkennung: Quellkennung
+}): Promise<{ gesetzt: boolean }> {
+  const { libraryId, sourceId, quellkennung } = args
+  await ensureShadowTwinIndexes(libraryId)
+  const col = await getShadowTwinCollection(libraryId)
+  const result = await col.updateOne(
+    { libraryId, sourceId },
+    { $set: { ...quellkennung, updatedAt: new Date().toISOString() } },
+  )
+  return { gesetzt: result.matchedCount > 0 }
 }
 
 export function buildArtifactPath(key: ArtifactKey): string {

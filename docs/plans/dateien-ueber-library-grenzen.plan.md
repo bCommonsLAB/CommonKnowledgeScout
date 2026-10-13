@@ -5,11 +5,11 @@ vorhaben: [24.09 KnowledgeScout]
 status: geplant
 todos:
   - id: w8-4-libraries
-    content: "PR 1 (W8-4): Frontmatter-Feld libraries: im BERICHT.md lesen (Ids oder Namen); Befund library_ohne_vorhaben (scope library, Akteur Cowork, info) nur im Voll-Scan einer Archivpflege-Library; Port listeLibraries am Scan; VorhabenCard.libraries; abdeckung_lesen reicht es durch. Werkzeugsatz 2.49.0."
-    status: pending
+    content: "PR 1 (W8-4): Frontmatter-Feld libraries: im BERICHT.md lesen (Ids oder Namen); Befund library_ohne_vorhaben (scope library, Akteur Cowork, info) nur im Voll-Scan einer Archivpflege-Library; Port listeLibraries am Scan; VorhabenCard.libraries; abdeckung_lesen reicht es durch. Werkzeugsatz 2.49.0. PR #382."
+    status: completed
   - id: w8-1-kennung
-    content: "PR 2 (W8-1): Quellkennung am Twin-Dokument (sourceContentHash sha256, sourceSize, sourceHashedAt); gerechnet in der Start-Route aus dem ohnehin gelesenen Blob, über den Job zum Transkript-Upsert getragen; Index; Contract §9; artefakt_lesen und twins_pruefen zeigen sie. Werkzeugsatz 2.49.1."
-    status: pending
+    content: "PR 2 (W8-1): Quellkennung am Twin-Dokument (sourceContentHash sha256, sourceSize, sourceHashedAt); gerechnet in der Start-Route aus dem ohnehin gelesenen Blob, am Job gemerkt und beim Abschluss (finalize-completion) per setzeQuellkennung geschrieben; Index; Contract §9; artefakt_lesen zeigt sie. Werkzeugsatz 2.49.1."
+    status: completed
   - id: w8-2-suchen
     content: "PR 3 (W8-2): quelle_suchen über alle eigenen Libraries (Kennung, sonst Name + Größe, sonst Name); quelle_verschwunden bekommt moeglicherweiseIn aus einer Mongo-Suche (kein Storage-Zugriff im Scan); nachrechnen: true rechnet die Kennung für höchstens fünf Namenstreffer nach. Dazu die Grundlage aus Abschnitt 6: G1 Slug je Library, G2 library-adresse.ts ([[@slug/pfad]]), G3 Verweis-Parser erkennt die Adresse. Werkzeugsatz 2.50.0."
     status: pending
@@ -72,6 +72,14 @@ Migrationslauf (so die Wunschliste). Abweichung: Der Testfall der Wunschliste
 (dieselbe Audio-Datei in beiden Libraries hat denselben Hash) gilt für alte
 Bestände erst nach `nachrechnen` (W8-2), weil keine Transformation die Quelle
 liest.
+
+Gebaut (PR 2, 13.10.) mit zwei Abweichungen vom Absatz oben: Die Kennung
+geht nicht über `UpsertArtifactContext` zum Transkript-Upsert, sondern wird
+am Job gemerkt (`job.quellkennung`) und beim gemeinsamen Abschluss beider
+Pfade (`finalize-completion.ts`) per `setzeQuellkennung` ans Twin-Dokument
+geschrieben, ein Schreibweg statt drei Store-Pfade; und Markdown-Quellen
+(Text-Feed) bekommen keine Kennung, weil ihr Job die Quelle nicht liest,
+sie sind Ableitungen, keine Originale.
 
 **W8-2 `quelle_suchen`: bauen.** Ein lesendes Werkzeug über alle eigenen
 Libraries. Reihenfolge der Übereinstimmung: `hash` (Kennung in beiden),

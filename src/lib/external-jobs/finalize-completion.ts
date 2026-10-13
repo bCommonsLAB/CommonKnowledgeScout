@@ -32,6 +32,7 @@ import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { pruefeJobNichtAbgebrochen } from '@/lib/external-jobs/job-abbruch-waechter'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
+import { setzeQuellkennung } from '@/lib/repositories/shadow-twin-repo'
 
 /** Eingaben für den gemeinsamen Abschluss. */
 export interface FinalizeJobCompletionArgs {
@@ -94,6 +95,30 @@ export async function finalizeJobCompletion(args: FinalizeJobCompletionArgs): Pr
   }
   await repo.setResult(jobId, payload, resultRefs)
   await repo.setStatus(jobId, 'completed')
+
+  // Wunschliste 8, W8-1: Quellkennung ans Twin-Dokument. Frisch lesen — der
+  // uebergebene `job` stammt womoeglich vom Request-Anfang, die Start-Route
+  // setzt die Kennung erst nach dem Lesen des Blobs. Ohne Kennung (Text-Feed,
+  // Uebersetzung, Recompute) gibt es nichts zu schreiben; ohne Twin-Dokument
+  // wird es genannt, nicht verschluckt.
+  const sourceId = job.correlation?.source?.itemId
+  const quellkennung = (await repo.get(jobId))?.quellkennung ?? job.quellkennung
+  if (quellkennung && sourceId) {
+    try {
+      const { gesetzt } = await setzeQuellkennung({ libraryId: job.libraryId, sourceId, quellkennung })
+      bufferLog(jobId, {
+        phase: gesetzt ? 'quellkennung_gesetzt' : 'quellkennung_ohne_twin',
+        message: gesetzt
+          ? `Quellkennung ${quellkennung.sourceContentHash.slice(0, 12)}… (${quellkennung.sourceSize} Bytes) am Twin gesetzt`
+          : 'Quellkennung nicht gesetzt: kein Twin-Dokument zu dieser Quelle',
+      })
+    } catch (error) {
+      bufferLog(jobId, {
+        phase: 'quellkennung_fehler',
+        message: `Quellkennung nicht gesetzt: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }
 
   // 4) Logs drainen (keine Replays) + Watchdog stoppen.
   void drainBufferedLogs(jobId)

@@ -526,7 +526,21 @@ export async function POST(
     
     const filename = src.name || 'document.pdf'
     const file = new File([bin.blob], filename, { type: src.mimeType || bin.mimeType || 'application/pdf' })
-    
+
+    // Wunschliste 8, W8-1: Quellkennung aus dem Blob, der ohnehin zum
+    // Secretary geht — am Job gemerkt, beim Abschluss ans Twin-Dokument
+    // geschrieben. Ein Fehler hier bricht den Job nicht ab, bleibt aber laut.
+    try {
+      const { quellkennungAusBlob } = await import('@/lib/shadow-twin/quellkennung')
+      const quellkennung = await quellkennungAusBlob(bin.blob, new Date().toISOString())
+      await repo.setQuellkennung(jobId, quellkennung)
+    } catch (error) {
+      FileLogger.warn('start-route', 'Quellkennung nicht gerechnet (Job laeuft weiter)', {
+        jobId, itemId: src.itemId, fileName: filename,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+
     FileLogger.info('start-route', 'Datei geladen', {
       jobId,
       fileName: filename,
