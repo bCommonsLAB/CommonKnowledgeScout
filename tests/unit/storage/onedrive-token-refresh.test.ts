@@ -9,12 +9,17 @@
  *
  * Regel seither: Geloescht wird ausschliesslich bei `invalid_grant` (der
  * OAuth-Code fuer „dieses Refresh-Token ist tot").
+ *
+ * Seit Teil A (Speicher-Verbindungen) erneuert der Server direkt ueber den
+ * Token-Store (`refresh`), ohne HTTP-Selbst-Aufruf; diese Tests laufen im
+ * Server-Kontext und pruefen dieselbe Regel an diesem Weg.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { OneDriveProvider } from '@/lib/storage/onedrive-provider'
 import { StorageError } from '@/lib/storage/types'
 import type { ClientLibrary } from '@/types/library'
+import type { OneDriveTokenStore } from '@/lib/storage/onedrive/token-store'
 
 interface ProviderInternals {
   accessToken: string | null
@@ -32,8 +37,11 @@ function makeLibrary(): ClientLibrary {
   }
 }
 
+const refreshMock = vi.fn<OneDriveTokenStore['refresh']>()
+
 function providerMitTokens(): { provider: OneDriveProvider; internals: ProviderInternals; clear: ReturnType<typeof vi.fn> } {
   const provider = new OneDriveProvider(makeLibrary())
+  provider.setTokenStore({ load: vi.fn(), save: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), refresh: refreshMock })
   const internals = provider as unknown as ProviderInternals
   internals.accessToken = 'alt-access'
   internals.refreshToken = 'alt-refresh'
@@ -49,27 +57,27 @@ const fetchMock = vi.fn<(input: string | URL | Request, init?: RequestInit) => P
 
 beforeEach(() => {
   fetchMock.mockReset()
+  refreshMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
 })
 
-function antwort(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+/** Fehler wie aus refreshOneDriveTokens: OAuth-Code am Fehler. */
+function oauthFehler(message: string, code: string | null): Error {
+  return Object.assign(new Error(message), { code })
 }
 
 describe('refreshAccessToken — wann die Anmeldung geloescht wird', () => {
   it('behaelt die Anmeldung bei einem Netzwerkfehler (der gemessene Fall)', async () => {
     const { internals, clear } = providerMitTokens()
-    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'))
+    refreshMock.mockRejectedValueOnce(new TypeError('fetch failed'))
 
     await expect(internals.refreshAccessToken()).rejects.toThrow(/fetch failed/)
     expect(clear).not.toHaveBeenCalled()
   })
 
-  it('behaelt die Anmeldung, wenn die eigene Route 502 ohne invalid_grant meldet', async () => {
+  it('behaelt die Anmeldung, wenn Microsoft ohne invalid_grant ablehnt', async () => {
     const { internals, clear } = providerMitTokens()
-    fetchMock.mockResolvedValueOnce(
-      antwort(502, { error: 'Token-Refresh fehlgeschlagen', details: 'Gateway weg', code: null }),
-    )
+    refreshMock.mockRejectedValueOnce(oauthFehler('Token-Austausch fehlgeschlagen: Gateway weg', null))
 
     await expect(internals.refreshAccessToken()).rejects.toThrow(/BLEIBT erhalten/)
     expect(clear).not.toHaveBeenCalled()
@@ -77,9 +85,7 @@ describe('refreshAccessToken — wann die Anmeldung geloescht wird', () => {
 
   it('loescht die Anmeldung bei invalid_grant — dann ist das Refresh-Token wirklich tot', async () => {
     const { internals, clear } = providerMitTokens()
-    fetchMock.mockResolvedValueOnce(
-      antwort(502, { error: 'Token-Refresh fehlgeschlagen', details: '{"error":"invalid_grant"}', code: 'invalid_grant' }),
-    )
+    refreshMock.mockRejectedValueOnce(oauthFehler('Token-Austausch fehlgeschlagen: AADSTS70000', 'invalid_grant'))
 
     await expect(internals.refreshAccessToken()).rejects.toThrow(StorageError)
     expect(clear).toHaveBeenCalledTimes(1)
@@ -91,5 +97,15 @@ describe('refreshAccessToken — wann die Anmeldung geloescht wird', () => {
 
     await expect(internals.refreshAccessToken()).rejects.toThrow(/Kein Refresh-Token/)
     expect(clear).not.toHaveBeenCalled()
+  })
+
+  it('speichert erneuerte Tokens ueber den Token-Store, ohne HTTP-Selbst-Aufruf', async () => {
+    const { internals } = providerMitTokens()
+    refreshMock.mockResolvedValueOnce({ accessToken: 'neu-access', refreshToken: 'neu-refresh', expiresIn: 3600 })
+
+    await internals.refreshAccessToken()
+    expect(refreshMock).toHaveBeenCalledWith('alt-refresh')
+    expect(internals.accessToken).toBe('neu-access')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

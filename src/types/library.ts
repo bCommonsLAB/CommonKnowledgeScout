@@ -71,30 +71,14 @@ export interface FavoriteEntry {
  * Contains provider-specific settings and authentication details.
  */
 export interface StorageConfig {
-  /** OAuth client ID for authentication */
-  clientId?: string;
-
-  /** OAuth client secret (server-side only) */
-  clientSecret?: string;
-  
-  /** Tenant ID for enterprise providers (e.g., OneDrive Business) */
-  tenantId?: string;
-  
-  /** OAuth redirect URI for authentication flow */
-  redirectUri?: string;
-  
-  /** Required OAuth permission scopes */
-  scope?: string[];
-
-  /** Nextcloud/WebDAV Konfiguration */
-  nextcloud?: {
-    /** WebDAV-URL (z.B. https://cloud.example.com/remote.php/dav/files/username) */
-    webdavUrl: string;
-    /** Nextcloud-Benutzername */
-    username: string;
-    /** App-Passwort (server-seitig, nie an Client senden). Optional, da es bei der Erstellung noch fehlen kann. */
-    appPassword?: string;
-  };
+  /**
+   * Speicher-Zugangsdaten (OAuth-App, Nextcloud-Zugang, OneDrive-Tokens)
+   * liegen seit Teil A des Plans speicher-verbindungen-und-library-anlage
+   * NICHT mehr hier, sondern verschluesselt an der Speicher-Verbindung der
+   * Person (`Library.storageConnectionId`, `src/types/storage-connection.ts`).
+   * Alt-Felder (`clientId`, `clientSecret`, `tenantId`, `nextcloud`, Tokens)
+   * entfernt `scripts/migrate-storage-connections.ts`.
+   */
 
   /** Secretary Service Konfiguration */
   secretaryService?: {

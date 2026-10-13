@@ -45,29 +45,17 @@ describe('preserveMaskedSecrets', () => {
   })
 
   it('speichert neue echte Werte unveraendert', () => {
-    const incoming = lib({ secretaryService: { apiKey: 'sk-neuerkey' }, clientSecret: 'neues-secret' })
-    const existing = lib({ secretaryService: { apiKey: 'sk-alt' }, clientSecret: 'alt' })
+    const incoming = lib({ secretaryService: { apiKey: 'sk-neuerkey' } })
+    const existing = lib({ secretaryService: { apiKey: 'sk-alt' } })
     const result = preserveMaskedSecrets(incoming, existing)
     expect((result.config?.secretaryService as { apiKey?: string }).apiKey).toBe('sk-neuerkey')
-    expect((result.config as { clientSecret?: string }).clientSecret).toBe('neues-secret')
   })
 
-  it('behandelt alle Secret-Pfade (clientSecret, nextcloud, publicPublishing)', () => {
-    const incoming = lib({
-      clientSecret: '********',
-      nextcloud: { appPassword: '********', username: 'u' },
-      publicPublishing: { apiKey: '••••abcd', slugName: 's' },
-    })
-    const existing = lib({
-      clientSecret: 'cs-alt',
-      nextcloud: { appPassword: 'np-alt' },
-      publicPublishing: { apiKey: 'pk-alt' },
-    })
+  it('behandelt die Secret-Pfade der Library-Config (publicPublishing); Speicher-Zugaenge liegen an der Verbindung', () => {
+    const incoming = lib({ publicPublishing: { apiKey: '••••abcd', slugName: 's' } })
+    const existing = lib({ publicPublishing: { apiKey: 'pk-alt' } })
     const result = preserveMaskedSecrets(incoming, existing)
-    const cfg = result.config as Record<string, Record<string, unknown>> & { clientSecret?: string }
-    expect(cfg.clientSecret).toBe('cs-alt')
-    expect(cfg.nextcloud.appPassword).toBe('np-alt')
-    expect(cfg.nextcloud.username).toBe('u')
+    const cfg = result.config as Record<string, Record<string, unknown>>
     expect(cfg.publicPublishing.apiKey).toBe('pk-alt')
     expect(cfg.publicPublishing.slugName).toBe('s')
   })

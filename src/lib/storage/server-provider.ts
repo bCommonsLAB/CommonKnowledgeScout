@@ -41,6 +41,7 @@ import {
   validateIdentityMarker,
   writeIdentityMarker,
 } from '@/lib/storage/library-identity';
+import { toFactoryLibrary } from '@/lib/storage-connections/library-storage';
 import type { Library } from '@/types/library';
 
 /**
@@ -94,21 +95,16 @@ export async function getServerProvider(userEmail: string, libraryId: string): P
   // Server-Kontext aktivieren: Erstellt direkte Provider (z.B. WebDAV)
   // statt HTTP-Proxies, die eine Clerk-Session benoetigen wuerden.
   factory.setServerContext(true);
-  factory.setLibraries([{
-    id: lib.id,
-    label: lib.label,
-    type: lib.type,
-    // Effektiver Pfad: Owner-Pfad oder Co-Creator-Override (siehe oben).
-    path: effectivePath,
-    isEnabled: lib.isEnabled,
-    config: (lib.config as unknown as Record<string, unknown>) || {}
-  }]);
+  // nextcloud/onedrive: Zugangsdaten kommen aus der Speicher-Verbindung des
+  // Besitzers (Teil A); fehlt die Bindung, wirft toFactoryLibrary mit Verweis
+  // auf das Migrationsskript — kein Rueckfall auf Altfelder.
+  factory.setLibraries([await toFactoryLibrary(lib, effectivePath, isOwner ? userEmail : undefined)]);
 
-  // Kein pauschales clearProvider mehr: der Factory-Cache ist config-bewusst
-  // (Fingerprint aus Typ/Pfad/Config/Kontext). Geaenderte DB-Credentials oder ein
-  // anderer effektiver Pfad (Co-Creator-Override) weichen im Key ab und erzwingen
-  // automatisch einen Neubau; unveraenderte Config wird ueber den ganzen Batch
-  // wiederverwendet (kein WebDAV-Reconnect pro Aufruf).
+  // Kein pauschales clearProvider mehr: der Factory-Cache ist fingerabdruck-bewusst
+  // (Verbindungs-Id und -Stand plus Pfad/Kontext; bei local Typ/Pfad/Config).
+  // Eine geaenderte Verbindung oder ein anderer effektiver Pfad (Co-Creator-
+  // Override) weichen im Key ab und erzwingen automatisch einen Neubau;
+  // Unveraendertes wird ueber den ganzen Batch wiederverwendet.
   const provider = await factory.getProvider(lib.id);
 
   // Stelle sicher, dass userEmail im Provider gesetzt ist (fuer Token-Loading)

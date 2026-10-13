@@ -27,8 +27,22 @@ export interface OneDriveTokens {
   tokenExpiry: number
 }
 
+/** Ergebnis eines Token-Refresh (Form der Refresh-Route). */
+export interface OneDriveRefreshResult {
+  accessToken: string
+  refreshToken: string
+  /** Sekunden bis zum Ablauf. */
+  expiresIn: number
+}
+
 /** Direkter Server-Zugriff auf die Token-Ablage einer Library. */
 export interface OneDriveTokenStore {
+  /**
+   * Erneuert die Tokens mit der Azure-App der Speicher-Verbindung, ohne
+   * HTTP-Selbst-Aufruf. Wirft bei Fehlern; `code` am Fehler ist der
+   * OAuth-Code (`invalid_grant` = Refresh-Token tot).
+   */
+  refresh(refreshToken: string): Promise<OneDriveRefreshResult>
   /** Frische Tokens aus der DB; null = keine (Authentifizierung erforderlich). */
   load(): Promise<OneDriveTokens | null>
   save(tokens: OneDriveTokens): Promise<void>

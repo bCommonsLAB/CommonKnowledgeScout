@@ -60,6 +60,20 @@ interface TokenResponse {
   error_description?: string
 }
 
+/**
+ * Fehler des Microsoft-Token-Endpunkts mit OAuth-Fehlercode. NUR
+ * `invalid_grant` heisst „das Refresh-Token ist tot" — nur dann darf der
+ * Aufrufer die gespeicherte Anmeldung wegwerfen (Befund 27.08.2026).
+ */
+export class OneDriveTokenError extends Error {
+  readonly code: string | null
+  constructor(message: string, code: string | null) {
+    super(message)
+    this.name = 'OneDriveTokenError'
+    this.code = code
+  }
+}
+
 /** Fehlertext des Token-Endpunkts; der haeufige Fall „Secret-ID statt Secret-Value" bekommt einen Hinweis. */
 function tokenFehlertext(body: TokenResponse, statusText: string): string {
   const beschreibung = body.error_description || body.error || statusText
@@ -83,7 +97,10 @@ async function requestTokens(data: OneDriveConnectionData, grant: Record<string,
   })
   const body = (await response.json().catch(() => ({}))) as TokenResponse
   if (!response.ok) {
-    throw new Error(`Token-Austausch fehlgeschlagen: ${tokenFehlertext(body, response.statusText)}`)
+    throw new OneDriveTokenError(
+      `Token-Austausch fehlgeschlagen: ${tokenFehlertext(body, response.statusText)}`,
+      typeof body.error === 'string' ? body.error : null,
+    )
   }
   if (!body.access_token || !body.refresh_token) {
     throw new Error('Token-Austausch ohne Access- oder Refresh-Token — Antwort von Microsoft unvollstaendig.')

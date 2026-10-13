@@ -116,7 +116,7 @@ describe('OneDriveProvider error paths', () => {
     expect(unauthedProvider.isAuthenticated()).toBe(false)
   })
 
-  it('isAuthenticated() laedt OAuth-Session synchron aus localStorage (kein In-Memory-Token)', () => {
+  it('isAuthenticated() laedt OAuth-Session synchron aus localStorage je Speicher-Verbindung (kein In-Memory-Token)', () => {
     // Browser simulieren: tryHydrateTokensFromLocalStorage laeuft nur mit window + localStorage
     const store: Record<string, string> = {}
     const ls = {
@@ -139,15 +139,17 @@ describe('OneDriveProvider error paths', () => {
     // Minimaler Browser-Stub: localStorage + globales fetch (loadOAuthDefaults im Konstruktor)
     vi.stubGlobal('window', { ...globalThis, localStorage: ls } as unknown as Window)
     const libId = 'lib-ls-hydrate-only'
+    // Teil A: Tokens liegen im Browser je Speicher-Verbindung, nicht je Library
+    const connectionId = 'conn-ls-hydrate'
     ls.setItem(
-      `onedrive_tokens_${libId}`,
+      `onedrive_tokens_${connectionId}`,
       JSON.stringify({
         accessToken: 'from-localstorage',
         refreshToken: 'refresh-ls',
         expiry: Date.now() + 3_600_000,
       }),
     )
-    const provider = new OneDriveProvider(makeLibrary({ id: libId, config: {} }))
+    const provider = new OneDriveProvider(makeLibrary({ id: libId, storageConnectionId: connectionId, config: {} }))
     expect(provider.isAuthenticated()).toBe(true)
     vi.unstubAllGlobals()
     vi.stubGlobal('fetch', fetchMock)
