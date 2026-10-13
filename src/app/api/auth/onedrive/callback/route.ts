@@ -4,17 +4,21 @@ import { StorageFactory } from '@/lib/storage/storage-factory';
 import { LibraryService } from '@/lib/services/library-service';
 import { OneDriveServerProvider } from '@/lib/storage/onedrive/oauth-server';
 import { ClientLibrary } from '@/types/library';
+import { handleOneDriveConnectionCallback } from '@/lib/storage-connections/onedrive-callback';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
   let libraryId: string | undefined = undefined;
+  let connectionId: string | undefined = undefined;
   let redirectUrl: string | undefined = undefined;
   const stateRaw = searchParams.get('state');
   if (stateRaw) {
     try {
       const stateObj = JSON.parse(stateRaw);
       libraryId = stateObj.libraryId;
+      // Speicher-Verbindung (Plan Teil A, A1): Login an der Verbindung statt an der Library
+      connectionId = typeof stateObj.connectionId === 'string' ? stateObj.connectionId : undefined;
       redirectUrl = stateObj.redirect;
     } catch {
       // Fallback: state ist nur die ID
@@ -75,6 +79,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/settings/storage?authError=no_email', baseUrl));
   }
   const userEmail = user.emailAddresses[0].emailAddress;
+
+  // Login an einer Speicher-Verbindung: eigener Weg, Rueckweg auf die Konto-Seite
+  if (connectionId) {
+    const ziel = await handleOneDriveConnectionCallback({
+      userEmail,
+      connectionId,
+      code,
+      error,
+      errorDescription,
+      redirect: redirectUrl ?? null,
+      baseUrl,
+    });
+    return NextResponse.redirect(ziel);
+  }
 
   // Fehlerbehandlung
   if (error) {

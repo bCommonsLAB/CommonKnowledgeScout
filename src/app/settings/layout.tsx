@@ -50,7 +50,10 @@ const sidebarGroups: SidebarNavGroup[] = [
     id: "account",
     title: "Mein Konto",
     description: "Gilt für dich als Person — unabhängig von der ausgewählten Bibliothek.",
-    items: [{ title: "Mein Zugang", href: "/settings/account" }],
+    items: [
+      { title: "Mein Zugang", href: "/settings/account" },
+      { title: "Speicher-Verbindungen", href: "/settings/account/storage-connections" },
+    ],
   },
   {
     id: "usspace",
