@@ -14,6 +14,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
+import { leseQuellkennung } from '@/lib/shadow-twin/quellkennung'
 import { artefaktUebersicht, waehleArtefakt } from './artefakt-auswahl'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 import { resolveSourceItem } from './tools-erschliessen-shared'
@@ -56,7 +57,8 @@ export function registerArtefaktTool(server: McpServer): void {
         const sicht = waehleArtefakt({
           doc, art, sprache: sprache ?? 'de', vorlage, ohneFrontmatter: ohneFrontmatter ?? true, maxZeichen: maxZeichen ?? MAX_ZEICHEN_VORGABE,
         })
-        return jsonResult({ sourceId: source.itemId, quelle: source.name, ...sicht, vorhanden: artefaktUebersicht(doc) })
+        // Wunschliste 8, W8-1: Quellkennung sichtbar; null = seit 2.49.1 nicht neu erschlossen.
+        return jsonResult({ sourceId: source.itemId, quelle: source.name, ...sicht, vorhanden: artefaktUebersicht(doc), quellkennung: leseQuellkennung(doc) })
       } catch (error) {
         return errorResult(error)
       }

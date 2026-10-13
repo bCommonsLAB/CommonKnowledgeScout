@@ -251,3 +251,45 @@ mit Archivpflege (`config.agentView.enabled`, derselbe Schalter wie
 Skill-Änderungen im Archiv auf (`chat-abschliessen`: leeres `vorhaben:` wird
 begründungspflichtig, Arbeit an einer Library ist Arbeit an dem Vorhaben,
 das sie nennt).
+
+## Nachtrag Wunschliste 8, zweiter Teil (2.49.1): Quellkennung am Twin
+
+Owner 13.10.: Acht Dateien lagen in zwei Libraries, mit zwei Storage-Ids,
+und nichts verband sie (Plan `docs/plans/dateien-ueber-library-grenzen.plan.md`,
+W8-1). Seither trägt das Twin-Dokument eine Quellkennung: `sourceContentHash`
+(SHA-256 über den Inhalt), `sourceSize`, `sourceHashedAt` (Contract
+`shadow-twin-contracts.md` §9). Gerechnet wird sie in der Start-Route aus dem
+Blob, der ohnehin zum Secretary geht, am Job gemerkt und beim Abschluss ans
+Twin-Dokument geschrieben; das Job-Log nennt `quellkennung_gesetzt`,
+`quellkennung_ohne_twin` oder `quellkennung_fehler`. `artefakt_lesen` zeigt
+`quellkennung` (`null` = seit 2.49.1 nicht neu erschlossen). Kein
+Migrationslauf; alte Bestände bekommen sie bei der nächsten Erschließung oder
+über `quelle_suchen nachrechnen: true` (W8-2, folgt). Die Kennung ist
+Wiedererkennung über Library-Grenzen, kein Schlüssel: Identität bleibt die
+Provider-Id.
+
+## Nachtrag Wunschliste 8, dritter Teil (2.50.0): Quelle über Library-Grenzen finden, Adressen
+
+Owner 13.10.: `quelle_verschwunden` war eine Sackgasse; die acht Dateien des
+Anlasses wurden von Hand in einer anderen Library gefunden (Plan
+`docs/plans/dateien-ueber-library-grenzen.plan.md`, W8-2 und Abschnitt 6).
+
+| Werkzeug / Feld | Liest/Schreibt | Was |
+|---|---|---|
+| `quelle_suchen` | liest; `nachrechnen` schreibt die Kennung | eine Quelle in allen eigenen Libraries: Eingabe `hash` \| `dateiname` (+ `groesse`) \| `vonLibraryId` + `sourceId`; Rangfolge `hash` › `name_groesse` › `name`; je Treffer `adresse` `@<slug>/<pfad>`, `imSpeicher`, `erschliessung`; `inhaltVerschieden` für gleichen Namen mit belegt anderem Inhalt |
+| `quelle_verschwunden.moeglicherweiseIn` | Scan, nur MongoDB | bis fünf Orte (`libraryName`, `bibliothek` `@<slug>`, `sourceId`, `uebereinstimmung`); `[]` = gesucht, nichts gefunden; Feld fehlt = nicht gesucht |
+| `bibliotheken_auflisten` | liest | `slug`, `slugHerkunft` (`gesetzt` \| `veroeffentlicht` \| `abgeleitet`), `slugKonflikt`, `frueherSlugs` |
+| `adresse_setzen` | schreibt, nur Owner | Adress-Slug instanzweit eindeutig; der bisher wirksame Slug wandert nach `frueher` |
+| Verweis-Audit | Scan | `[[@<slug>/<pfad>]]` wird nur gegen die bekannten Slugs geprüft (unbekannt oder unlesbar = `verweis_tot`); ohne Library-Liste ungeprüft |
+
+Regeln: Die Suche läuft in MongoDB über `{ libraryId, sourceContentHash }`
+und `{ libraryId, sourceName }`; Namen werden exakt verglichen. Pfade und
+Größen holt erst `quelle_suchen` aus dem Speicher (höchstens 20 Treffer).
+`nachrechnen` liest höchstens fünf Treffer bis 50 MB und die gesuchte Quelle,
+wenn sie lesbar ist. **Grenze:** Eine verschwundene Quelle von vor 2.49.1
+trägt weder Kennung noch Größe, und ihr Inhalt ist nicht mehr lesbar; für sie
+bleibt es bei `name`, der Hinweis empfiehlt, die Transkripte beider Seiten mit
+`artefakt_lesen` zu vergleichen. Ein abgeleiteter Slug ändert sich mit dem
+Namen der Library; stabil wird er mit `adresse_setzen`. Das
+Einstellungsformular kennt den Slug nicht; der Server führt `config` beim
+Speichern mit dem Bestand zusammen, er bleibt also erhalten.

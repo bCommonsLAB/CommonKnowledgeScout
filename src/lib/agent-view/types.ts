@@ -15,6 +15,8 @@
  * @module agent-view
  */
 
+import type { MoeglicherOrt } from '@/lib/shadow-twin/quelle-suche'
+
 /** Zustaendiger Akteur eines Befunds (F2 Todo-Routing). */
 export type GapActor = 'mensch' | 'cowork' | 'knowledgescout'
 
@@ -141,6 +143,15 @@ export interface CoverageGap {
    * exakt rekonstruiert, statt den eigenen Message-Text zu parsen.
    */
   anzahl?: number
+  /**
+   * Wunschliste 8, W8-2 — nur `quelle_verschwunden`: wo dieselbe Quelle
+   * womoeglich liegt (andere oder dieselbe Library; nach Quellkennung, sonst
+   * Name). [] = gesucht, nichts gefunden; fehlt = nicht gesucht (Report vor
+   * 2.50.0 oder Scan ohne Such-Port). Pfade nennt erst `quelle_suchen`.
+   */
+  moeglicherweiseIn?: MoeglicherOrt[]
+  /** Gesamtzahl der Orte, wenn `moeglicherweiseIn` gekappt ist. */
+  moeglicherweiseInGesamt?: number
 }
 
 /** Erklaerter Ordner-Stand aus dem `_INDEX.md` (Zyklus §4). */

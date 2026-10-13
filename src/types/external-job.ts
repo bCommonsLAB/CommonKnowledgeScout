@@ -129,6 +129,13 @@ export interface ExternalJob {
   metaHistory?: Array<{ at: Date; meta: Record<string, unknown>; source: string }>;
   ingestion?: ExternalJobIngestionInfo;
   shadowTwinState?: ExternalJobShadowTwinState; // Neu: Shadow-Twin-State beim Job-Start berechnet
+  /**
+   * Wunschliste 8, W8-1: Quellkennung (SHA-256, Groesse, Zeitpunkt) aus dem Blob,
+   * den die Start-Route an den Secretary schickt. Beim Abschluss wird sie ans
+   * Twin-Dokument geschrieben (`finalize-completion.ts`). Fehlt bei Jobs, die
+   * die Quelle nicht lesen (Text-Feed, Uebersetzung, Recompute).
+   */
+  quellkennung?: import('@/lib/shadow-twin/quellkennung').Quellkennung;
   createdAt: Date;
   updatedAt: Date;
   error?: {

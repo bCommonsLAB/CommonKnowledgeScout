@@ -824,6 +824,29 @@ export class LibraryService {
   }
 
   /**
+   * Wunschliste 8 (G1): Wer traegt diesen Slug instanzweit — als gesetzten
+   * Adress-Slug, als frueheren Adress-Slug oder als Veroeffentlichungs-Slug?
+   * Ueber ALLE Konten, damit ein gesetzter Slug auf der Instanz eindeutig ist.
+   */
+  async findeAdressSlugBelegung(slug: string): Promise<Array<{ id: string; label: string }>> {
+    const collection = await getCollection<UserLibraries>(this.collectionName);
+    const pipeline = [
+      { $unwind: '$libraries' },
+      {
+        $match: {
+          $or: [
+            { 'libraries.config.adresse.slug': slug },
+            { 'libraries.config.adresse.frueher': slug },
+            { 'libraries.config.publicPublishing.slugName': slug },
+          ],
+        },
+      },
+      { $project: { _id: 0, id: '$libraries.id', label: '$libraries.label' } },
+    ];
+    return collection.aggregate<{ id: string; label: string }>(pipeline).toArray();
+  }
+
+  /**
    * Library nach publicPublishing.slugName abrufen (ohne isPublic-Filter).
    * Für authentifizierte Explore-Ansicht: Owner/Co-Creator können Slug testen, bevor die Library öffentlich ist.
    */
