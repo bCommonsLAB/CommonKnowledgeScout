@@ -24,6 +24,7 @@ export const LESERSICHT_EREIGNISSE = [
   'slide_images_resolved',
   'slide_images_unresolved',
   'cover_source',
+  'audio_source',
   'attachments_source',
   'attachments_links_rewritten',
   'extract_only_page_images_registered',
