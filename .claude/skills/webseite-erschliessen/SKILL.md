@@ -5,7 +5,9 @@ description: Einen Artikel im Netz (Presseseite mit eingebettetem Audio oder Vid
 
 # Webseite als Quelle erschließen
 
-Stand 13.10.2026, Werkzeugsatz 2.51.0. Ein Artikel mit eingebettetem Medium
+Stand 13.10.2026, Werkzeugsatz 2.51.0. Original im Archiv unter
+`Organisation/Skills/webseite-erschliessen/SKILL.md`; in den
+Claude-Einstellungen die Ableitung, im Repo die Kopie. Ein Artikel mit eingebettetem Medium
 wird zur Sammeldatei nach demselben Muster wie ein Vortrag einer
 Veranstaltung (siehe Skill `veranstaltung-aufbereiten`): Artikel wörtlich,
 Zusammenfassung nur aus wörtlichen Sätzen, Zitate aus dem Transkript, Cover
