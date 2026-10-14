@@ -53,8 +53,11 @@ function requireOwner(ownerEmail: string): string {
 const mapSecret = (value: string | undefined, fn: (v: string) => string): string | undefined =>
   typeof value === 'string' && value !== '' ? fn(value) : value
 
-/** Geheimnisse verschluesseln; alle anderen Felder unveraendert. */
-function toStored(conn: StorageConnection): StorageConnectionDoc {
+/**
+ * Geheimnisse verschluesseln; alle anderen Felder unveraendert. Exportiert
+ * fuer das Migrationsskript, das ausserhalb der App direkt schreibt.
+ */
+export function toStored(conn: StorageConnection): StorageConnectionDoc {
   const doc: StorageConnectionDoc = { ...conn }
   if (conn.nextcloud) {
     doc.nextcloud = { ...conn.nextcloud, appPassword: encryptSecret(conn.nextcloud.appPassword) }

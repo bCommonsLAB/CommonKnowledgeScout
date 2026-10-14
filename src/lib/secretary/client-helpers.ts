@@ -10,9 +10,12 @@
  * @module secretary/client-helpers
  */
 
+import { oneDriveTokenStorageKey } from '@/lib/storage/onedrive/browser-token-key';
+
 /**
  * Persistierte OneDrive-Tokens, wie sie im Browser-`localStorage`
- * unter dem Schluessel `onedrive_tokens_<libraryId>` liegen.
+ * unter dem Schluessel `onedrive_tokens_<connectionId>` liegen (Teil A:
+ * Tokens haengen an der Speicher-Verbindung, nicht an der Library).
  */
 export interface OneDriveTokens {
   accessToken: string;
@@ -33,10 +36,10 @@ export interface OneDriveTokens {
  *   wir nicht im Browser sind.
  */
 export function readOneDriveTokensFromStorage(
-  libraryId: string,
+  tokenScope: string,
 ): OneDriveTokens | null {
   if (typeof window === 'undefined') return null;
-  const key = `onedrive_tokens_${libraryId}`;
+  const key = oneDriveTokenStorageKey(tokenScope);
   const json = window.localStorage.getItem(key);
   if (!json) return null;
   try {
@@ -58,11 +61,11 @@ export function readOneDriveTokensFromStorage(
  * Server-Code-Pfade sind no-op.
  */
 export function writeOneDriveTokensToStorage(
-  libraryId: string,
+  tokenScope: string,
   tokens: OneDriveTokens,
 ): void {
   if (typeof window === 'undefined') return;
-  const key = `onedrive_tokens_${libraryId}`;
+  const key = oneDriveTokenStorageKey(tokenScope);
   window.localStorage.setItem(key, JSON.stringify(tokens));
 }
 
@@ -98,9 +101,11 @@ export function shouldRefreshOneDriveToken(
  */
 export async function syncOneDriveTokensToServer(
   libraryId: string,
+  /** Verbindungs-Id der Library = Geltungsbereich der Browser-Tokens. */
+  tokenScope: string,
 ): Promise<void> {
   try {
-    const tokens = readOneDriveTokensFromStorage(libraryId);
+    const tokens = readOneDriveTokensFromStorage(tokenScope);
     if (!tokens) return;
     const now = Date.now();
     let { accessToken, refreshToken } = tokens;
@@ -122,7 +127,7 @@ export async function syncOneDriveTokensToServer(
         refreshToken = data.refreshToken || refreshToken;
         // Secretary-Service liefert expiresIn in Sekunden
         expiryMs = now + Number(data.expiresIn || 0) * 1000;
-        writeOneDriveTokensToStorage(libraryId, {
+        writeOneDriveTokensToStorage(tokenScope, {
           accessToken,
           refreshToken,
           expiry: expiryMs,

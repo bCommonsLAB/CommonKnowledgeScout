@@ -1,190 +1,102 @@
+/**
+ * @fileoverview OneDrive-Tokens einer Library — gelesen und geschrieben an der
+ * Speicher-Verbindung des Besitzers (Plan speicher-verbindungen-und-library-anlage, Teil A).
+ *
+ * GET liefert dem Browser die Tokens der Verbindung (Bootstrap des
+ * localStorage nach einem Login auf der Konto-Seite), PATCH persistiert vom
+ * Browser erneuerte Tokens, DELETE meldet ab. Der fruehere POST (temporaere
+ * Tokens des Library-Logins) ist entfallen: angemeldet wird an der Verbindung.
+ *
+ * Nur mit Clerk-Session: die fruehere Umgehung ueber `X-Internal-Request`
+ * plus `?email=` ist entfallen (Plan Teil A, „Was mit umgeraeumt wird");
+ * serverseitige Provider gehen direkt ueber den Token-Store.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { StorageFactory } from '@/lib/storage/storage-factory'
+import { loadLibraryConnection } from '@/lib/storage-connections/library-storage'
+import { setOneDriveTokens } from '@/lib/storage-connections/connection-service'
+import { FileLogger } from '@/lib/debug/logger'
 
-// GET - Tokens aus der Library-Konfiguration abrufen (Server-intern)
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+type Params = { params: Promise<{ id: string }> }
+
+async function resolveEmail(): Promise<string | NextResponse> {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  const user = await currentUser()
+  const email = user?.emailAddresses?.[0]?.emailAddress
+  if (!email) return NextResponse.json({ error: 'E-Mail nicht gefunden' }, { status: 400 })
+  return email
+}
+
+/**
+ * Nur der Owner bekommt Tokens in den Browser: ein Mitglied arbeitet auf dem
+ * Server mit der Verbindung des Owners, sieht dessen Tokens aber nie
+ * (ADR 0005; eigene Verbindungen der Mitglieder kommen mit A4).
+ */
+async function connectionFor(email: string, libraryId: string) {
+  const library = (await LibraryService.getInstance().getUserLibraries(email)).find((l) => l.id === libraryId)
+  if (!library) return null
+  return loadLibraryConnection(library, email)
+}
+
+function fehler(scope: string, e: unknown): NextResponse {
+  const msg = e instanceof Error ? e.message : String(e)
+  FileLogger.error('library-tokens', scope, { error: msg })
+  return NextResponse.json({ error: msg }, { status: 500 })
+}
+
+// GET - Tokens der Verbindung (Browser-Bootstrap nach dem Login auf der Konto-Seite)
+export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params
-    const isInternal = req.headers.get('x-internal-request') === '1'
-    const emailParam = req.nextUrl.searchParams.get('email') || undefined
-    
-    if (!isInternal) {
-      const { userId } = await auth()
-      if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    const email = await resolveEmail()
+    if (email instanceof NextResponse) return email
+    const conn = await connectionFor(email, id)
+    if (!conn) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
+    const data = conn.onedrive
+    if (!data?.accessToken || !data.refreshToken) {
+      return NextResponse.json({ error: 'Keine Tokens an der Verbindung — bitte unter Mein Konto → Speicher-Verbindungen anmelden.' }, { status: 404 })
     }
-    
-    const user = isInternal ? null : await currentUser()
-    const email = emailParam || user?.emailAddresses?.[0]?.emailAddress
-    if (!email) return NextResponse.json({ error: 'E-Mail nicht gefunden' }, { status: 400 })
-
-    const svc = LibraryService.getInstance()
-    const libs = await svc.getUserLibraries(email)
-    const lib = libs.find(l => l.id === id)
-    if (!lib) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
-
-    const cfg = lib.config as unknown as Record<string, unknown> | undefined
-    const accessToken = cfg?.accessToken as string | undefined
-    const refreshToken = cfg?.refreshToken as string | undefined
-    const tokenExpiry = cfg?.tokenExpiry as number | string | undefined
-
-    // Debug-Informationen zurückgeben
-    const debugInfo = {
-      libraryId: id,
-      libraryLabel: lib.label,
-      hasConfig: !!cfg,
-      configKeys: cfg ? Object.keys(cfg) : [],
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
-      hasTokenExpiry: !!tokenExpiry,
-      tokenExpiryValue: tokenExpiry,
-      // Zeige erste/last 10 Zeichen der Tokens für Debugging (nicht vollständig aus Sicherheitsgründen)
-      accessTokenPreview: accessToken ? `${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 10)}` : null,
-      refreshTokenPreview: refreshToken ? `${refreshToken.substring(0, 10)}...${refreshToken.substring(refreshToken.length - 10)}` : null,
-    }
-
-    if (!accessToken || !refreshToken) {
-      return NextResponse.json({ 
-        error: 'Keine Tokens gefunden',
-        debug: debugInfo
-      }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      accessToken,
-      refreshToken,
-      tokenExpiry: Number(tokenExpiry || 0),
-      debug: debugInfo
-    })
+    return NextResponse.json({ accessToken: data.accessToken, refreshToken: data.refreshToken, tokenExpiry: Number(data.tokenExpiry ?? 0) })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    console.error('[GET /api/libraries/[id]/tokens] Fehler:', e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return fehler('GET fehlgeschlagen', e)
   }
 }
 
-// PATCH - Persistiert Tokens in der Library (Server-intern oder via Clerk)
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// PATCH - Vom Browser erneuerte Tokens an der Verbindung persistieren
+export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params
-    const isInternal = req.headers.get('x-internal-request') === '1'
-    const emailParam = req.nextUrl.searchParams.get('email') || undefined
-    if (!isInternal) {
-      const { userId } = await auth()
-      if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-    }
-    const user = isInternal ? null : await currentUser()
-    const email = emailParam || user?.emailAddresses?.[0]?.emailAddress
-    if (!email) return NextResponse.json({ error: 'E-Mail nicht gefunden' }, { status: 400 })
-
-    const { accessToken, refreshToken, tokenExpiry } = await req.json()
+    const email = await resolveEmail()
+    if (email instanceof NextResponse) return email
+    const { accessToken, refreshToken, tokenExpiry } = (await req.json()) as { accessToken?: string; refreshToken?: string; tokenExpiry?: string | number }
     if (!accessToken || !refreshToken || !tokenExpiry) {
       return NextResponse.json({ error: 'accessToken, refreshToken, tokenExpiry erforderlich' }, { status: 400 })
     }
-
-    const svc = LibraryService.getInstance()
-    const libs = await svc.getUserLibraries(email)
-    const lib = libs.find(l => l.id === id)
-    if (!lib) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
-
-    // Tokens typisiert ohne any in die Konfiguration schreiben
-    const cfg: Record<string, unknown> = { ...(lib.config || {}) }
-    cfg['accessToken'] = accessToken
-    cfg['refreshToken'] = refreshToken
-    cfg['tokenExpiry'] = Number(tokenExpiry)
-    lib.config = cfg as typeof lib.config
-
-    const ok = await svc.updateLibrary(email, lib)
-    if (!ok) return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 })
+    const conn = await connectionFor(email, id)
+    if (!conn) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
+    await setOneDriveTokens(conn.ownerEmail, conn.id, { accessToken, refreshToken, tokenExpiry: Number(tokenExpiry) })
     return NextResponse.json({ success: true })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return fehler('PATCH fehlgeschlagen', e)
   }
 }
 
-// DELETE - Tokens in der DB entfernen und Provider-Cache leeren
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// DELETE - Abmelden: Tokens an der Verbindung entfernen und Provider-Cache leeren
+export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params
-    const isInternal = req.headers.get('x-internal-request') === '1'
-    const emailParam = req.nextUrl.searchParams.get('email') || undefined
-    if (!isInternal) {
-      const { userId } = await auth()
-      if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-    }
-    const user = isInternal ? null : await currentUser()
-    const email = emailParam || user?.emailAddresses?.[0]?.emailAddress
-    if (!email) return NextResponse.json({ error: 'E-Mail nicht gefunden' }, { status: 400 })
-
-    const svc = LibraryService.getInstance()
-    const libs = await svc.getUserLibraries(email)
-    const lib = libs.find(l => l.id === id)
-    if (!lib) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
-
-    if (lib.config) {
-      const cfg = lib.config as unknown as Record<string, unknown>
-      delete cfg['accessToken']
-      delete cfg['refreshToken']
-      delete cfg['tokenExpiry']
-      lib.config = cfg as typeof lib.config
-    }
-
-    const ok = await svc.updateLibrary(email, lib)
-    if (!ok) return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 })
-
-    try {
-      const factory = StorageFactory.getInstance()
-      await factory.clearProvider(id)
-    } catch {}
-
+    const email = await resolveEmail()
+    if (email instanceof NextResponse) return email
+    const conn = await connectionFor(email, id)
+    if (!conn) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
+    await setOneDriveTokens(conn.ownerEmail, conn.id, null)
+    await StorageFactory.getInstance().clearProvider(id)
     return NextResponse.json({ success: true })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
-  }
-}
-
-// POST - Temporäre Tokens abrufen und aus DB entfernen (bestehende Logik beibehalten)
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-
-    const user = await currentUser()
-    if (!user?.emailAddresses?.length) return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 400 })
-    const userEmail = user.emailAddresses[0].emailAddress
-
-    const { id } = await params
-    const libraryService = LibraryService.getInstance()
-    // Token-Verwaltung ist nur für Owner zugänglich
-    const isOwner = await libraryService.isOwner(userEmail, id)
-    if (!isOwner) return NextResponse.json({ error: 'Keine Berechtigung. Nur Owner koennen Tokens verwalten.' }, { status: 403 })
-    const library = await libraryService.getLibrary(userEmail, id)
-    if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-
-    const config = library.config as Record<string, unknown>
-    const tempAccessToken = config?.tempAccessToken as string
-    const tempRefreshToken = config?.tempRefreshToken as string
-    const tempTokenExpiry = config?.tempTokenExpiry as string
-    const tempTokensAvailable = config?.tempTokensAvailable as boolean
-
-    if (!tempTokensAvailable || !tempAccessToken || !tempRefreshToken) {
-      return NextResponse.json({ error: 'Keine temporären Tokens verfügbar', hasTokens: false }, { status: 404 })
-    }
-
-    const updatedConfig = { ...config }
-    delete updatedConfig.tempAccessToken
-    delete updatedConfig.tempRefreshToken
-    delete updatedConfig.tempTokenExpiry
-    delete updatedConfig.tempTokensAvailable
-
-    const updatedLibrary = { ...library, config: updatedConfig }
-    await libraryService.updateLibrary(userEmail, updatedLibrary)
-
-    return NextResponse.json({ success: true, tokens: { accessToken: tempAccessToken, refreshToken: tempRefreshToken, tokenExpiry: tempTokenExpiry } })
-  } catch {
-    return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })
+    return fehler('DELETE fehlgeschlagen', e)
   }
 }

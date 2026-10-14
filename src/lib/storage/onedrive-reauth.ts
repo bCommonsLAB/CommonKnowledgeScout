@@ -1,65 +1,40 @@
 /**
  * OneDrive-Re-Auth — app-weit wiederverwendbarer Anmelde-Schritt
- * (Welle 3-IV-UX-3c, F2).
- *
- * Extrahiert den Kern des Anmelde-Flows aus den Storage-Settings:
- * - startOneDriveReauth: OAuth-Redirect mit Ruecksprung zur aktuellen
- *   Seite (state.redirect) — nutzbar von ueberall in der App.
- * - processOneDriveAuthReturn: holt nach der Rueckkehr die temporaer
- *   gespeicherten Tokens ab und legt sie in localStorage ab.
- *
- * Hinweis: use-storage-form.ts behaelt seinen eigenen Auth-Start
- * (zusaetzliche Formular-Logik: Dirty-Save, Credential-Pruefung).
+ * (Welle 3-IV-UX-3c, F2). Seit Teil A des Plans
+ * speicher-verbindungen-und-library-anlage laeuft die Anmeldung an der
+ * Speicher-Verbindung der Library: die Konto-Route liefert die Microsoft-URL,
+ * der Callback legt die Tokens an der Verbindung ab und kehrt an den
+ * Rueckweg zurueck; der Browser holt sich die Tokens dann von der Verbindung.
  */
 
 import { StorageFactory } from "@/lib/storage/storage-factory"
+import { resolveOneDriveTokenScope } from "@/lib/storage/onedrive/browser-token-key"
+import type { ClientLibrary } from "@/types/library"
 
-/** Startet den OAuth-Flow; kehrt danach zur aktuellen URL zurueck. */
-export async function startOneDriveReauth(libraryId: string): Promise<void> {
-  const response = await fetch(`/api/libraries/${libraryId}`)
+/** Startet den OAuth-Flow an der Verbindung der Library; kehrt danach zur aktuellen Seite zurueck. */
+export async function startOneDriveReauth(library: ClientLibrary): Promise<void> {
+  const connectionId = resolveOneDriveTokenScope(library)
+  const redirect = `${window.location.pathname}${window.location.search}`
+  const response = await fetch(
+    `/api/account/storage-connections/${connectionId}/onedrive-login?redirect=${encodeURIComponent(redirect)}`,
+  )
   if (!response.ok) {
-    throw new Error(`Bibliothek konnte nicht geladen werden: ${response.statusText}`)
+    const body = (await response.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error ?? `Anmelde-URL konnte nicht geladen werden (HTTP ${response.status})`)
   }
-  const library = await response.json()
-
-  const provider = StorageFactory.getInstance().createOneDriveProviderForAuth(library)
-  const authUrlString = await provider.getAuthUrl()
-
-  const stateObj = { libraryId, redirect: window.location.href }
-  const urlWithState = new URL(authUrlString)
-  urlWithState.searchParams.set("state", JSON.stringify(stateObj))
-
-  window.location.href = urlWithState.toString()
+  const { url } = (await response.json()) as { url: string }
+  window.location.href = url
 }
 
 /**
- * Verarbeitet die OAuth-Rueckkehr (?authSuccess=true&libraryId=...):
- * Tokens vom Server abholen, in localStorage ablegen, Provider-Cache
- * leeren. Gibt true zurueck, wenn Tokens uebernommen wurden.
+ * Verarbeitet die Rueckkehr (?onedrive=ok): Provider neu bauen und die Tokens
+ * der Verbindung in den Browser holen. Gibt true zurueck, wenn Tokens da sind.
  */
 export async function processOneDriveAuthReturn(libraryId: string): Promise<boolean> {
-  const tokenResponse = await fetch(`/api/libraries/${libraryId}/tokens`, { method: "POST" })
-  if (!tokenResponse.ok) {
-    throw new Error(`Tokens konnten nicht abgeholt werden: ${tokenResponse.statusText}`)
-  }
-  const tokenData = await tokenResponse.json()
-  if (!tokenData.success || !tokenData.tokens) return false
-
-  const localStorageKey = `onedrive_tokens_${libraryId}`
-  localStorage.setItem(
-    localStorageKey,
-    JSON.stringify({
-      accessToken: tokenData.tokens.accessToken,
-      refreshToken: tokenData.tokens.refreshToken,
-      expiry: parseInt(tokenData.tokens.tokenExpiry, 10),
-    })
-  )
-
-  try {
-    await StorageFactory.getInstance().clearProvider(libraryId)
-  } catch (error) {
-    console.error("[OneDriveReauth] Provider-Cache konnte nicht geleert werden:", error)
-  }
-
-  return true
+  const factory = StorageFactory.getInstance()
+  await factory.clearProvider(libraryId)
+  const provider = await factory.getProvider(libraryId)
+  const ensure = (provider as unknown as { ensureBrowserTokens?: () => Promise<boolean> }).ensureBrowserTokens
+  if (typeof ensure !== "function") return false
+  return ensure.call(provider)
 }

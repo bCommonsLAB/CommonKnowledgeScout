@@ -74,12 +74,10 @@ export function preserveMaskedSecrets(incoming: Library, existing: Library | und
     }
   };
 
-  // Top-Level-Secret (OneDrive/GDrive)
-  restore(cfg, prev, 'clientSecret');
-
+  // Speicher-Zugangsdaten (clientSecret, nextcloud.appPassword, Tokens) liegen
+  // seit Teil A an der Speicher-Verbindung, nicht mehr in der Library-Config.
   // Verschachtelte Secret-Traeger (Kopie, damit das Original unberuehrt bleibt)
   const nestedSecretPaths: Array<[string, string]> = [
-    ['nextcloud', 'appPassword'],
     ['secretaryService', 'apiKey'],
     ['ingestionStorage', 'connectionString'],
     ['publicPublishing', 'apiKey'],
@@ -541,63 +539,18 @@ export class LibraryService {
         } : undefined
       } as Record<string, unknown>;
       
-      // Zusätzliche Konfiguration basierend auf dem Bibliothekstyp
-      let config: Record<string, unknown> = { ...baseConfig };
-      
-      // Für OneDrive-Bibliotheken die OAuth-Parameter hinzufügen
-      if (lib.type === 'onedrive') {
-        config = {
-          ...config,
-          tenantId: lib.config?.tenantId,
-          clientId: lib.config?.clientId,
-          // Client Secret maskiert senden, wenn vorhanden
-          clientSecret: lib.config?.clientSecret ? '********' : undefined,
-          redirectUri: lib.config?.redirectUri,
-          // Tokens werden NICHT mehr in der Datenbank gespeichert
-          // Der Client muss den Token-Status aus localStorage prüfen
-        };
-      }
-      
-      // Gleiches für andere OAuth-Provider wie Google Drive
-      if (lib.type === 'gdrive') {
-        config = {
-          ...config,
-          clientId: lib.config?.clientId,
-          // Client Secret maskiert senden, wenn vorhanden
-          clientSecret: lib.config?.clientSecret ? '********' : undefined,
-          redirectUri: lib.config?.redirectUri,
-          // Tokens werden NICHT mehr in der Datenbank gespeichert
-          // Der Client muss den Token-Status aus localStorage prüfen
-        };
-      }
+      // Speicher-Zugangsdaten (OAuth-App, Nextcloud, Tokens) liegen seit Teil A
+      // an der Speicher-Verbindung des Besitzers; der Client sieht nur die
+      // Verbindungs-Id (storageConnectionId) — keine Maskierung mehr noetig.
+      const config: Record<string, unknown> = { ...baseConfig };
 
-      // Nextcloud: URL + Username an Client, App-Passwort maskiert
-      if (lib.type === 'nextcloud') {
-        const nc = (lib.config as Record<string, unknown>)?.nextcloud as { webdavUrl?: string; username?: string; appPassword?: string } | undefined;
-        console.log('[toClientLibraries] Nextcloud-Config aus DB:', {
-          libraryId: lib.id,
-          hasConfig: !!lib.config,
-          hasNextcloud: !!nc,
-          nextcloudKeys: nc ? Object.keys(nc) : [],
-        });
-        if (nc) {
-          config = {
-            ...config,
-            nextcloud: {
-              webdavUrl: nc.webdavUrl || '',
-              username: nc.username || '',
-              appPassword: nc.appPassword ? '********' : undefined,
-            },
-          };
-        }
-      }
-      
       const result = {
         id: lib.id,
         label: lib.label,
         type: lib.type,
         path: lib.path || '',
         isEnabled: lib.isEnabled,
+        ...(lib.storageConnectionId ? { storageConnectionId: lib.storageConnectionId } : {}),
         config
       };
       

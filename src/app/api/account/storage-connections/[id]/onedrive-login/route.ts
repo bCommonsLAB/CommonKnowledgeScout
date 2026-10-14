@@ -16,14 +16,20 @@ import { fehlerAntwort, requireUserEmail } from '@/lib/storage-connections/route
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function GET(_request: NextRequest, { params }: Params): Promise<NextResponse> {
+/** Rueckweg nach dem Login: nur ein Pfad der eigenen App (kein offener Redirect). */
+function rueckwegAus(request: NextRequest): string {
+  const gewuenscht = request.nextUrl.searchParams.get('redirect') ?? ''
+  return gewuenscht.startsWith('/') && !gewuenscht.startsWith('//') ? gewuenscht : STORAGE_CONNECTIONS_PATH
+}
+
+export async function GET(request: NextRequest, { params }: Params): Promise<NextResponse> {
   try {
     const userEmail = await requireUserEmail()
     if (userEmail instanceof NextResponse) return userEmail
     const { id } = await params
     const conn = await requireStorageConnection(userEmail, id)
     if (!conn.onedrive) return NextResponse.json({ error: 'Keine OneDrive-Verbindung.' }, { status: 400 })
-    const state = JSON.stringify({ connectionId: id, redirect: STORAGE_CONNECTIONS_PATH })
+    const state = JSON.stringify({ connectionId: id, redirect: rueckwegAus(request) })
     return NextResponse.json({ url: buildOneDriveAuthUrl(conn.onedrive, state) })
   } catch (error) {
     return fehlerAntwort('Anmelde-URL fehlgeschlagen', error)

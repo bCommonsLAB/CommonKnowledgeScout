@@ -3,6 +3,24 @@ import { LibraryService } from '@/lib/services/library-service';
 import { formatiereChatKonfigurationFehler, mergeChatKonfiguration, validiereChatKonfiguration } from '@/lib/services/chat-config-validation';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { ClientLibrary, Library } from '@/types/library';
+import { LEGACY_STORAGE_FIELDS } from '@/lib/storage-connections/migration-plan';
+
+/**
+ * Speicher-Zugangsdaten gehoeren seit Teil A an die Speicher-Verbindung der
+ * Person, nicht in die Library-Config. Kommt eines dieser Felder trotzdem,
+ * wird es laut abgewiesen statt still gespeichert oder ignoriert.
+ */
+function legacyStorageFieldsIn(config: unknown): string[] {
+  if (!config || typeof config !== 'object') return [];
+  return LEGACY_STORAGE_FIELDS.filter((feld) => (config as Record<string, unknown>)[feld] !== undefined);
+}
+
+function legacyStorageFieldsResponse(felder: string[]): NextResponse {
+  return NextResponse.json(
+    { error: `Zugangsdaten (${felder.join(', ')}) gehoeren an eine Speicher-Verbindung (Mein Konto → Speicher-Verbindungen), nicht in die Library-Config.` },
+    { status: 400 },
+  );
+}
 
 /**
  * GET /api/libraries/[id]
@@ -126,37 +144,16 @@ export async function PUT(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 });
     }
     
-    // Config verarbeiten - maskierte Secrets filtern
+    // Config verarbeiten
     let processedConfig = updatedClientLibrary.config;
     if (processedConfig && existingLibrary.config) {
       // Kopiere die existierende Config
       processedConfig = { ...existingLibrary.config };
       
-      // Übernehme nur nicht-maskierte Werte aus der neuen Config
+      // Speicher-Zugangsdaten liegen an der Speicher-Verbindung (Teil A)
+      const altfelder = legacyStorageFieldsIn(updatedClientLibrary.config);
+      if (altfelder.length > 0) return legacyStorageFieldsResponse(altfelder);
       for (const [key, value] of Object.entries(updatedClientLibrary.config)) {
-        if (key === 'clientSecret' && value === '********') {
-          // Maskiertes Secret ignorieren, existierenden Wert behalten
-          console.log(`[API] PUT: Ignoriere maskiertes clientSecret`);
-          continue;
-        }
-
-        // Nextcloud-Config: Merge statt Überschreiben (appPassword-Maske schützen)
-        if (key === 'nextcloud' && typeof value === 'object' && value !== null) {
-          const existingNc = (processedConfig.nextcloud || {}) as Record<string, string>;
-          const newNc = value as Record<string, string>;
-          const merged = { ...existingNc };
-          if (newNc.webdavUrl) merged.webdavUrl = newNc.webdavUrl;
-          if (newNc.username) merged.username = newNc.username;
-          // App-Passwort nur aktualisieren wenn nicht maskiert
-          if (newNc.appPassword && newNc.appPassword !== '********') {
-            merged.appPassword = newNc.appPassword;
-          }
-          processedConfig.nextcloud = merged as { webdavUrl: string; username: string; appPassword?: string };
-          console.log(`[API] PUT: Nextcloud-Config gemergt (appPassword ${newNc.appPassword === '********' ? 'maskiert → beibehalten' : 'aktualisiert'})`);
-          continue;
-        }
-
-        // Alle anderen Werte übernehmen
         processedConfig[key] = value;
       }
     }
@@ -274,15 +271,10 @@ export async function PATCH(
     
     console.log(`[API] === PATCH START ===`);
     console.log(`[API] PATCH /libraries/${libraryId} für Benutzer ${userEmail}`);
-    console.log(`[API] Request Body:`, JSON.stringify(patchData, null, 2));
+    // Kein Request-Body im Log: er kann Geheimnisse tragen (Secretary-Key u. a.).
     console.log(`[API] Config Keys:`, patchData.config ? Object.keys(patchData.config) : []);
-    if (patchData.config?.clientSecret) {
-      console.log(`[API] ClientSecret im Request:`, {
-        value: patchData.config.clientSecret,
-        length: patchData.config.clientSecret.length,
-        isMasked: patchData.config.clientSecret === '********'
-      });
-    }
+    const altfelder = legacyStorageFieldsIn(patchData.config);
+    if (altfelder.length > 0) return legacyStorageFieldsResponse(altfelder);
 
     // Bibliotheken des Benutzers laden
     const libraryService = LibraryService.getInstance();
@@ -295,56 +287,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 });
     }
     
-    // Debug: Zeige existierende Config
-    console.log(`[API] Existierende Config:`, {
-      hasClientSecret: !!existingLibrary.config?.clientSecret,
-      clientSecretValue: existingLibrary.config?.clientSecret,
-      configKeys: existingLibrary.config ? Object.keys(existingLibrary.config) : []
-    });
-    
     // Config-Updates vorbereiten
     const updatedConfig: Record<string, unknown> = { ...(existingLibrary.config || {}) };
     
     if (patchData.config) {
       // Für jedes Feld in der neuen Config
       for (const [key, value] of Object.entries(patchData.config)) {
-        console.log(`[API] Verarbeite Config-Feld: ${key} = ${key === 'clientSecret' ? '[REDACTED]' : value}`);
-        
-        // Spezielle Behandlung für clientSecret
-        if (key === 'clientSecret') {
-          // Ignoriere maskierte Werte (********)
-          if (value === '********') {
-            console.log(`[API] Ignoriere maskiertes clientSecret`);
-            // Behalte den existierenden Wert (falls vorhanden)
-            continue;
-          }
-          // Nur aktualisieren, wenn ein neuer Wert (nicht leer, nach trim) gesendet wurde
-          if (value && typeof value === 'string') {
-            const trimmedValue = value.trim();
-            if (trimmedValue !== '') {
-              console.log(`[API] Aktualisiere clientSecret mit neuem Wert (Länge: ${trimmedValue.length})`);
-              updatedConfig[key] = trimmedValue;
-            } else {
-              // Nur Whitespace gesendet: Wenn kein existierendes Secret vorhanden ist, entferne das Feld
-              const existingSecret = existingLibrary.config?.clientSecret;
-              if (!existingSecret || existingSecret === '' || existingSecret === '********') {
-                console.log(`[API] Entferne clientSecret aus Config (nur Whitespace gesendet, kein existierendes Secret)`);
-                delete updatedConfig[key];
-              } else {
-                console.log(`[API] Behalte existierendes clientSecret (nur Whitespace gesendet)`);
-              }
-            }
-          } else {
-            // Leerer/ungültiger Wert: Wenn kein existierendes Secret vorhanden ist, entferne das Feld
-            const existingSecret = existingLibrary.config?.clientSecret;
-            if (!existingSecret || existingSecret === '' || existingSecret === '********') {
-              console.log(`[API] Entferne clientSecret aus Config (leerer Wert gesendet, kein existierendes Secret)`);
-              delete updatedConfig[key];
-            } else {
-              console.log(`[API] Behalte existierendes clientSecret (leerer/ungültiger Wert gesendet)`);
-            }
-          }
-        } else if (key === 'chat' && value && typeof value === 'object' && !Array.isArray(value)) {
+        console.log(`[API] Verarbeite Config-Feld: ${key}`);
+        if (key === 'chat' && value && typeof value === 'object' && !Array.isArray(value)) {
           // Spezielle Behandlung für chat-Config: Merge statt Überschreiben —
           // und seit Welle D dieselbe Pruefung wie im Formular (chat-config-validation.ts):
           // ein Platzhalter auf eine unbekannte Facette darf nicht gespeichert werden,
@@ -360,18 +310,6 @@ export async function PATCH(
             existingKeys: existingChat ? Object.keys(existingChat) : [],
             newKeys: Object.keys(value as Record<string, unknown>),
           })
-        } else if (key === 'nextcloud' && value && typeof value === 'object' && !Array.isArray(value)) {
-          // Nextcloud-Config: Merge und App-Passwort-Maskierung beachten
-          const existingNc = updatedConfig[key] as Record<string, unknown> | undefined;
-          const newNc = value as Record<string, string>;
-          const merged = { ...(existingNc || {}) };
-          if (newNc.webdavUrl) merged.webdavUrl = newNc.webdavUrl;
-          if (newNc.username) merged.username = newNc.username;
-          // App-Passwort nur aktualisieren, wenn ein neuer (nicht-maskierter) Wert gesendet wird
-          if (newNc.appPassword && newNc.appPassword !== '********') {
-            merged.appPassword = newNc.appPassword;
-          }
-          updatedConfig[key] = merged;
         } else if (key === 'ingestionStorage' && value && typeof value === 'object' && !Array.isArray(value)) {
           // Merge: leerer connectionString überschreibt gespeichertes Secret nicht (wie Nextcloud appPassword)
           const existingIng = updatedConfig[key] as Record<string, unknown> | undefined;
@@ -391,21 +329,24 @@ export async function PATCH(
       }
     }
     
-    // Debug: Zeige finale Config
-    console.log(`[API] Finale Config vor Update:`, {
-      hasClientSecret: !!updatedConfig.clientSecret,
-      clientSecretValue: updatedConfig.clientSecret === '********' ? 'MASKED' : 
-                         updatedConfig.clientSecret ? 'SET' : 'NOT SET',
-      configKeys: Object.keys(updatedConfig)
-    });
-    
     // Bibliotheksdaten aktualisieren
+    // Speicher-Verbindung (Teil A): String setzt, null loest die Bindung,
+    // undefined laesst sie unberuehrt.
+    const connectionPatch = patchData.storageConnectionId
+    const storageConnectionId =
+      typeof connectionPatch === 'string' && connectionPatch.trim() !== ''
+        ? connectionPatch.trim()
+        : connectionPatch === null
+          ? undefined
+          : existingLibrary.storageConnectionId;
     const updatedLibrary: Library = {
       ...existingLibrary,
       type: patchData.type || existingLibrary.type,
       path: patchData.path !== undefined ? patchData.path : existingLibrary.path,
+      storageConnectionId,
       config: updatedConfig,
     };
+    if (storageConnectionId === undefined) delete updatedLibrary.storageConnectionId;
     
     console.log(`[API] Rufe updateLibrary auf...`);
     
@@ -421,10 +362,6 @@ export async function PATCH(
     // Aktualisierte Bibliothek zurückgeben
     const updatedClientLibraryResult = libraryService.toClientLibraries([updatedLibrary])[0];
     
-    console.log(`[API] Client-Response:`, {
-      hasClientSecret: !!updatedClientLibraryResult.config?.clientSecret,
-      clientSecretValue: updatedClientLibraryResult.config?.clientSecret
-    });
     console.log(`[API-PATCH] === PATCH END ===\n`);
     
     return NextResponse.json(updatedClientLibraryResult);

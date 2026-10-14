@@ -28,6 +28,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { NextcloudProvider } from '@/lib/storage/nextcloud-provider'
+import { loadLibraryConnection } from '@/lib/storage-connections/library-storage'
 import type { Library as LibraryType } from '@/types/library'
 
 export const dynamic = 'force-dynamic'
@@ -91,41 +92,26 @@ async function getNextcloudLibrary(
 }
 
 /**
- * Erstellt einen NextcloudProvider aus der Library-Config.
- * Gibt einen klaren 400-Fehler zurueck, wenn die Config unvollstaendig ist.
+ * Erstellt einen NextcloudProvider aus der Speicher-Verbindung der Library
+ * (Plan Teil A: Zugangsdaten liegen an der Verbindung des Besitzers, nicht
+ * mehr in `config.nextcloud`). Klarer 400-Fehler, wenn die Bindung fehlt.
  */
-function tryCreateProvider(library: LibraryType): NextcloudProvider | NextResponse {
-  const nc = (library.config as Record<string, unknown>)?.nextcloud as
-    | { webdavUrl?: string; username?: string; appPassword?: string }
-    | undefined
-
-  // Debug: Gespeicherte Credentials prüfen (Passwort nur Länge + Masken-Check)
-  console.log('[nextcloud] tryCreateProvider – Credentials:', {
-    webdavUrl: nc?.webdavUrl || '(leer)',
-    username: nc?.username || '(leer)',
-    appPasswordLength: nc?.appPassword?.length ?? 0,
-    appPasswordIsMasked: nc?.appPassword === '********',
-    appPasswordPrefix: nc?.appPassword ? nc.appPassword.substring(0, 3) + '...' : '(leer)',
-  })
-
-  const missing: string[] = []
-  if (!nc?.webdavUrl) missing.push('webdavUrl')
-  if (!nc?.username) missing.push('username')
-  if (!nc?.appPassword) missing.push('appPassword')
-
-  if (missing.length > 0) {
+async function tryCreateProvider(library: LibraryType): Promise<NextcloudProvider | NextResponse> {
+  try {
+    const conn = await loadLibraryConnection(library)
+    const nc = conn.nextcloud
+    if (!nc) throw new Error(`Speicher-Verbindung "${conn.label}" traegt keine Nextcloud-Zugangsdaten.`)
+    // library.path als Basispfad uebergeben, damit nur der konfigurierte Unterpfad sichtbar ist
+    return new NextcloudProvider(nc.webdavUrl, nc.username, nc.appPassword, library.id, library.path)
+  } catch (error) {
     return NextResponse.json(
       {
-        error: `Nextcloud-Konfiguration unvollständig. Fehlende Felder: ${missing.join(', ')}. Bitte in den Storage-Einstellungen konfigurieren.`,
-        errorCode: 'NEXTCLOUD_CONFIG_INCOMPLETE',
-        missingFields: missing,
+        error: error instanceof Error ? error.message : String(error),
+        errorCode: 'NEXTCLOUD_CONNECTION_MISSING',
       },
       { status: 400 },
     )
   }
-
-  // library.path als Basispfad uebergeben, damit nur der konfigurierte Unterpfad sichtbar ist
-  return new NextcloudProvider(nc!.webdavUrl!, nc!.username!, nc!.appPassword!, library.id, library.path)
 }
 
 /** Typ-Guard: prueft ob das Ergebnis ein Fehler-Response ist */
@@ -157,7 +143,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Nextcloud-Library nicht gefunden' }, { status: 404 })
   }
 
-  const result = tryCreateProvider(library)
+  const result = await tryCreateProvider(library)
   if (isErrorResponse(result)) return result
   const provider = result
 
@@ -245,7 +231,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Nextcloud-Library nicht gefunden' }, { status: 404 })
   }
 
-  const result = tryCreateProvider(library)
+  const result = await tryCreateProvider(library)
   if (isErrorResponse(result)) return result
   const provider = result
 
@@ -298,7 +284,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Nextcloud-Library nicht gefunden' }, { status: 404 })
   }
 
-  const result = tryCreateProvider(library)
+  const result = await tryCreateProvider(library)
   if (isErrorResponse(result)) return result
   const provider = result
 
@@ -334,7 +320,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Nextcloud-Library nicht gefunden' }, { status: 404 })
   }
 
-  const result = tryCreateProvider(library)
+  const result = await tryCreateProvider(library)
   if (isErrorResponse(result)) return result
   const provider = result
 

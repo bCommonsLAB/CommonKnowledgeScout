@@ -21,6 +21,20 @@
   `StorageConnectionSummary` („gesetzt/nicht gesetzt", Anmeldestatus); ein
   leeres Geheimnis beim Aendern heisst „beibehalten".
 
+## Laufzeit (seit A2)
+
+- Libraries vom Typ nextcloud/onedrive zeigen mit `storageConnectionId` auf
+  eine Verbindung ihres Besitzers. `toFactoryLibrary`
+  (`src/lib/storage-connections/library-storage.ts`) entschlüsselt die
+  Verbindung nur im Speicher und mischt die Zugangsdaten in die
+  Factory-Sicht; der Cache-Fingerabdruck enthält Verbindungs-Id und -Stand,
+  nie Geheimnisse.
+- OneDrive-Tokens liest und schreibt der Token-Store an der Verbindung; der
+  Browser holt sie (nur der Owner) über `GET /api/libraries/[id]/tokens` und
+  legt sie unter `onedrive_tokens_<connectionId>` ab.
+- Migration aus den Alt-Feldern: `scripts/migrate-storage-connections.ts`
+  (Probelauf, `--apply` mit Backup nach `backups/`).
+
 ## Regeln
 
 1. Fehlt der Schluessel, wirft der Cipher — kein stiller Rueckfall auf

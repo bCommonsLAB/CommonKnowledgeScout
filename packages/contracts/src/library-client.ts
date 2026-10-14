@@ -37,6 +37,14 @@ export interface ClientLibrary {
   
   /** Whether the library is currently active */
   isEnabled: boolean;
+
+  /**
+   * Speicher-Verbindung der Person, auf der die Library liegt (Plan
+   * speicher-verbindungen-und-library-anlage, Teil A). Pflicht bei
+   * nextcloud und onedrive, fehlt bei local. Der Browser nutzt sie als
+   * Schluessel fuer OneDrive-Tokens; Geheimnisse haengen an der Verbindung.
+   */
+  storageConnectionId?: string;
   
   /** Safe configuration data */
   config: {

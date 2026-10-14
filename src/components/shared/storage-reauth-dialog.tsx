@@ -60,14 +60,15 @@ export function StorageReauthDialog({
     if (pathname !== "/library") setDismissedForLibrary(null)
   }, [pathname])
 
-  // OAuth-Rueckkehr ausserhalb der Settings verarbeiten (in den
-  // Settings uebernimmt use-storage-form.ts diese Aufgabe).
+  // Rueckkehr vom Login an der Speicher-Verbindung (?onedrive=ok|error)
+  // ausserhalb der Settings verarbeiten (die Konto-Seite meldet selbst).
   useEffect(() => {
-    if (returnProcessed || inSettings || typeof window === "undefined") return
+    if (returnProcessed || inSettings || typeof window === "undefined" || !currentLibrary) return
     const params = new URLSearchParams(window.location.search)
-    const authSuccess = params.get("authSuccess") === "true"
-    const authError = params.get("authError")
-    const libraryId = params.get("libraryId")
+    const ergebnis = params.get("onedrive")
+    const authError = ergebnis === "error" ? params.get("message") || "Unbekannter Fehler" : null
+    const authSuccess = ergebnis === "ok"
+    const libraryId = currentLibrary.id
 
     if (!authSuccess && !authError) return
     setReturnProcessed(true)
@@ -94,13 +95,12 @@ export function StorageReauthDialog({
       }
       // URL bereinigen
       const url = new URL(window.location.href)
-      url.searchParams.delete("authSuccess")
-      url.searchParams.delete("authError")
-      url.searchParams.delete("libraryId")
-      url.searchParams.delete("errorDescription")
+      url.searchParams.delete("onedrive")
+      url.searchParams.delete("message")
+      url.searchParams.delete("connectionId")
       window.history.replaceState({}, "", url.toString())
     })()
-  }, [returnProcessed, inSettings, refreshAuthStatus])
+  }, [returnProcessed, inSettings, refreshAuthStatus, currentLibrary])
 
   const needsAuth =
     !!currentLibrary &&
@@ -119,7 +119,7 @@ export function StorageReauthDialog({
     if (!currentLibrary) return
     setIsStarting(true)
     try {
-      await startOneDriveReauth(currentLibrary.id)
+      await startOneDriveReauth(currentLibrary)
     } catch (error) {
       console.error("[StorageReauthDialog] Re-Auth konnte nicht gestartet werden:", error)
       toast.error("Anmeldung konnte nicht gestartet werden", {

@@ -1,49 +1,29 @@
 "use client"
 
 /**
- * StorageForm — Speicherort-Seite (meSpace, Welle 3-IV-UX-3b).
+ * StorageForm — Archive · 1 Quelle (meSpace, Welle 3-IV-UX-3b).
  *
  * Orchestriert zwei Ansichten:
  * - StorageSummary (Standard): Read-only-Zusammenfassung mit
- *   abgesicherten Aktionen (F3, D1, D2).
- * - StorageWizard: gefuehrte Einrichtung in 4 Schritten (F1) — aktiv
- *   bei unkonfigurierten Bibliotheken (kein Pfad), nach "Speicherort
- *   aendern" oder bei der Rueckkehr aus dem OneDrive-OAuth-Redirect
- *   (Resume ueber sessionStorage, siehe WIZARD_RESUME_KEY).
+ *   abgesicherten Aktionen (F3, D1).
+ * - StorageWizard: gefuehrte Einrichtung in 4 Schritten (F1) — aktiv bei
+ *   unkonfigurierten Bibliotheken oder nach "Quelle ändern".
+ *
+ * Seit Teil A des Plans speicher-verbindungen-und-library-anlage laeuft die
+ * OneDrive-Anmeldung an der Speicher-Verbindung (Mein Konto); der fruehere
+ * Wizard-Resume nach dem OAuth-Redirect entfaellt.
  */
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useState } from "react"
 import { Card, CardContent } from '@ks/ui'
 import { useStorageForm } from "./hooks/use-storage-form"
-import { StorageWizard, WIZARD_RESUME_KEY } from "./storage-wizard"
+import { StorageWizard } from "./storage-wizard"
 import { StorageSummary } from "./storage-summary"
 
 function StorageFormContent() {
   const hook = useStorageForm()
   const { activeLibrary, setTestDialogOpen } = hook
-
   const [wizardActive, setWizardActive] = useState(false)
-  const [wizardStep, setWizardStep] = useState(1)
-  const [resumeChecked, setResumeChecked] = useState(false)
-
-  // OAuth-Rueckkehr: gespeicherten Wizard-Zustand wiederherstellen
-  useEffect(() => {
-    if (resumeChecked || !activeLibrary) return
-    try {
-      const raw = sessionStorage.getItem(WIZARD_RESUME_KEY)
-      if (raw) {
-        sessionStorage.removeItem(WIZARD_RESUME_KEY)
-        const data = JSON.parse(raw) as { libraryId?: string; step?: number }
-        if (data.libraryId === activeLibrary.id) {
-          setWizardStep(typeof data.step === "number" ? data.step : 1)
-          setWizardActive(true)
-        }
-      }
-    } catch (error) {
-      console.warn("[StorageForm] Wizard-Resume konnte nicht gelesen werden:", error)
-    }
-    setResumeChecked(true)
-  }, [activeLibrary, resumeChecked])
 
   if (!activeLibrary) {
     return (
@@ -55,20 +35,19 @@ function StorageFormContent() {
     )
   }
 
-  // Ohne Pfad ist die Bibliothek nicht eingerichtet → Wizard erzwingen
-  const isConfigured = !!activeLibrary.path
+  // Eingerichtet heisst: Pfad gesetzt und — bei nextcloud/onedrive — eine Verbindung gewaehlt.
+  const brauchtVerbindung = activeLibrary.type === "nextcloud" || activeLibrary.type === "onedrive"
+  const isConfigured = !!activeLibrary.path && (!brauchtVerbindung || !!activeLibrary.storageConnectionId)
   const showWizard = wizardActive || !isConfigured
 
   if (showWizard) {
     return (
       <StorageWizard
         hook={hook}
-        initialStep={wizardStep}
         canCancel={isConfigured}
         onFinished={() => {
           setWizardActive(false)
-          setWizardStep(1)
-          // handleTest im Wizard setzt testDialogOpen — Dialog der Summary
+          // handleTest im Wizard setzt testDialogOpen — der Dialog der Summary
           // soll nach dem Wechsel nicht ungefragt aufgehen.
           setTestDialogOpen(false)
         }}
@@ -76,15 +55,7 @@ function StorageFormContent() {
     )
   }
 
-  return (
-    <StorageSummary
-      hook={hook}
-      onChangeStorage={() => {
-        setWizardStep(1)
-        setWizardActive(true)
-      }}
-    />
-  )
+  return <StorageSummary hook={hook} onChangeStorage={() => setWizardActive(true)} />
 }
 
 export function StorageForm() {

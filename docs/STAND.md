@@ -282,8 +282,17 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   unter Mein Konto (anlegen, testen, OneDrive-Login an der Verbindung,
   bearbeiten, löschen nur ohne abhängige Library). Noch nutzt keine Library
   die Verbindung. Vor dem Merge: `CREDENTIALS_ENCRYPTION_KEY` in Dev und
-  Prod setzen, `pnpm build` lokal, Live-Prüfung. Nächster Schritt: A2
-  Library auf Verbindung + Migration (Start-Prompt im Hand-off der A1-PR).
+  Prod setzen, `pnpm build` lokal, Live-Prüfung. Gemergt als #391.
+- **Stand 13.10. nachts, A2 gebaut** (PR offen): Libraries vom Typ
+  Nextcloud und OneDrive zeigen auf eine Speicher-Verbindung plus
+  Verzeichnis; Factory, Token-Store, Token-/Refresh-Route und
+  Nextcloud-Proxy lesen nur noch die Verbindung, Altfelder nicht mehr.
+  Archive · 1 Quelle wählt Verbindung und Verzeichnis, angemeldet wird auf der
+  Konto-Seite. **Vor dem Deploy Pflicht:** Migrationsskript
+  `scripts/migrate-storage-connections.ts` gegen Dev (Probelauf, dann
+  `--apply`), Prüfung, dann Prod — ohne Migration sind Nextcloud- und
+  OneDrive-Libraries nicht erreichbar. Nächster Schritt: A3 Brücke
+  (Start-Prompt im Hand-off der A2-PR).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 

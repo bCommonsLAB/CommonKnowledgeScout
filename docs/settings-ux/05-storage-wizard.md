@@ -1,5 +1,14 @@
 # Speicherort-Wizard (Festlegungen F1–F4, User-Review 2026-06-11)
 
+> **Stand 13.10.2026 (Plan speicher-verbindungen-und-library-anlage, A2):**
+> Zugangsdaten und OneDrive-Anmeldung gehören jetzt der Person und liegen an
+> der Speicher-Verbindung (Mein Konto → Speicher-Verbindungen). Der Wizard
+> heißt „1 Quelle" und hat die Schritte **1 Typ → 2 Verbindung wählen →
+> 3 Verzeichnis → 4 Test**; Schritt 2 wählt eine Verbindung des Kontos statt
+> Zugangsdaten einzugeben (lokal überspringt ihn). Der app-weite Re-Auth-Flow
+> (F2) meldet die Verbindung der Library an und kehrt zur Ausgangsseite zurück.
+> Die Abschnitte unten beschreiben den Stand vor A2.
+
 Der Speicherort wird vom frei editierbaren Formular zum **geführten Wizard**.
 Motivation: Die häufigsten Fehler heute entstehen (a) beim Anmelden am Storage
 (OneDrive-Token läuft ab, User steht nach Tagen ohne Zugriff da) und (b) beim

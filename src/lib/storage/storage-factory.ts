@@ -594,9 +594,19 @@ class NextcloudClientProvider implements StorageProvider {
   }
 }
 
+/**
+ * Library-Sicht der Factory. Im Server-Kontext mischt `toFactoryLibrary`
+ * (src/lib/storage-connections/library-storage.ts) die Zugangsdaten der
+ * Speicher-Verbindung in `config` und traegt Verbindungs-Id und -Stand als
+ * Cache-Fingerabdruck ohne Geheimnisse ein.
+ */
+export interface FactoryLibrary extends ClientLibrary {
+  storageConnectionUpdatedAt?: string;
+}
+
 export class StorageFactory {
   private static instance: StorageFactory;
-  private libraries: ClientLibrary[] = [];
+  private libraries: FactoryLibrary[] = [];
   private providers = new Map<string, StorageProvider>();
   // Config-Fingerprint je gecachtem Provider: weicht er ab (z.B. neue Credentials
   // oder geaenderter Pfad), wird der Provider neu gebaut statt wiederverwendet.
@@ -644,7 +654,7 @@ export class StorageFactory {
     });
   }
 
-  setLibraries(libraries: ClientLibrary[]) {
+  setLibraries(libraries: FactoryLibrary[]) {
     if (libraries.length === 0) {
       // Bibliotheksliste nicht leeren, wenn eine neue leere Liste übergeben wird
       // Dies verhindert Probleme, wenn die Komponente mit einer leeren Liste initialisiert wird
@@ -677,7 +687,7 @@ export class StorageFactory {
    * Der gecachte Provider wird verworfen; `getProvider` baut ihn aus der
    * neuen Config neu.
    */
-  updateLibrary(library: ClientLibrary): void {
+  updateLibrary(library: FactoryLibrary): void {
     const index = this.libraries.findIndex(lib => lib.id === library.id);
     if (index >= 0) {
       this.libraries[index] = library;
@@ -713,13 +723,29 @@ export class StorageFactory {
     console.log(`StorageFactory: Provider für ${libraryId} wurde aus dem Cache entfernt`);
   }
 
+  /** Bekannte Library der Factory (z. B. fuer den Token-Geltungsbereich im Browser). */
+  getLibrary(libraryId: string): FactoryLibrary | undefined {
+    return this.libraries.find(lib => lib.id === libraryId);
+  }
+
   /**
-   * Fingerprint aus den provider-relevanten Feldern (Typ, Pfad, Config inkl.
-   * Credentials, Server-/Client-Kontext). Aendert sich einer dieser Werte, weicht
-   * der Key ab und `getProvider` baut den Provider neu — statt den Cache vorsorglich
-   * bei jedem Aufruf zu leeren (siehe server-provider.ts).
+   * Fingerprint aus den provider-relevanten Feldern. Liegt die Library auf
+   * einer Speicher-Verbindung (nextcloud/onedrive seit Teil A), besteht er aus
+   * Typ, Pfad, Kontext, Verbindungs-Id und -Stand — die Config mit den
+   * Geheimnissen geht nicht mehr in den Schluessel ein. Sonst (local, inbox)
+   * wie bisher aus Typ, Pfad, Config und Kontext. Weicht der Key ab, baut
+   * `getProvider` den Provider neu, statt den Cache vorsorglich zu leeren.
    */
-  private buildProviderConfigKey(library: ClientLibrary): string {
+  private buildProviderConfigKey(library: FactoryLibrary): string {
+    if (library.storageConnectionId) {
+      return JSON.stringify({
+        type: library.type,
+        path: library.path ?? '',
+        server: this.serverContext,
+        connectionId: library.storageConnectionId,
+        connectionUpdatedAt: library.storageConnectionUpdatedAt ?? '',
+      });
+    }
     return JSON.stringify({
       type: library.type,
       path: library.path ?? '',
@@ -817,8 +843,8 @@ export class StorageFactory {
 
           if (missing.length > 0) {
             throw new Error(
-              `Nextcloud-Konfiguration unvollständig. Fehlende Felder: ${missing.join(', ')}. ` +
-              `Bitte in den Storage-Einstellungen konfigurieren.`
+              `Nextcloud-Zugangsdaten unvollständig (${missing.join(', ')}). ` +
+              `Die Library liegt auf einer Speicher-Verbindung; bitte unter Mein Konto → Speicher-Verbindungen prüfen.`
             );
           }
 
@@ -868,14 +894,5 @@ export class StorageFactory {
     this.providers.set(libraryId, provider);
     this.providerConfigKeys.set(libraryId, configKey);
     return provider;
-  }
-
-  /**
-   * Erstellt eine temporäre OneDrive-Provider-Instanz nur für den OAuth-Flow.
-   * Wird nicht gecacht und nicht in setLibraries/setUserEmail eingebunden.
-   * Typischer Aufruf: factory.createOneDriveProviderForAuth(library).getAuthUrl()
-   */
-  createOneDriveProviderForAuth(library: ClientLibrary): OneDriveProvider {
-    return new OneDriveProvider(library);
   }
 } 

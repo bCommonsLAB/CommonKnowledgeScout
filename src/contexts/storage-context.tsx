@@ -190,6 +190,14 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     }
   }, [activeLibraryId]);
 
+  // OneDrive seit Teil A: Tokens haengen an der Speicher-Verbindung; der
+  // Browser holt sie bei Bedarf einmalig vom Server (ensureBrowserTokens).
+  const ensureBrowserTokens = async (p: unknown): Promise<boolean> => {
+    const kandidat = p as { ensureBrowserTokens?: () => Promise<boolean>; isAuthenticated?: () => boolean };
+    if (typeof kandidat.ensureBrowserTokens === 'function') return kandidat.ensureBrowserTokens();
+    return typeof kandidat.isAuthenticated === 'function' ? kandidat.isAuthenticated() : true;
+  };
+
   // Provider-Validierung
   const validateProvider = (provider: ExtendedStorageProvider) => {
     if (!provider.listItemsById) {
@@ -585,6 +593,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       
       // Logging: Library-IDs vergleichen
       setLastRequestedLibraryId(currentLibrary?.id || null);
+      await ensureBrowserTokens(provider);
       
       // Prüfe zuerst, ob der Provider authentifiziert ist
       if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function' && !provider.isAuthenticated()) {
@@ -698,6 +707,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     }
     
     setLastRequestedLibraryId(currentLibrary?.id || null);
+    await ensureBrowserTokens(provider);
     
     // Prüfe zuerst, ob der Provider authentifiziert ist
     if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function' && !provider.isAuthenticated()) {
@@ -739,8 +749,8 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       const factory = StorageFactory.getInstance();
       const provider = await factory.getProvider(currentLibrary.id);
       
-      // Prüfe den Authentifizierungsstatus direkt beim Provider
-      const isAuth = provider.isAuthenticated();
+      // Prüfe den Authentifizierungsstatus direkt beim Provider (nach Bootstrap von der Verbindung)
+      const isAuth = await ensureBrowserTokens(provider);
       
       AuthLogger.debug('StorageContext', 'Provider Authentifizierungsstatus', {
         libraryId: currentLibrary.id,
@@ -804,39 +814,32 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         setLibraryStatus('ready');
         setLibraryStatusAtom('ready');
       } else if (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive') {
-        // OAuth-basierte Provider: Token-Status aus localStorage prüfen
-        let hasToken = false;
-        
-        if (typeof window !== 'undefined') {
+        // OAuth-basierte Provider: Tokens im Browser (localStorage je
+        // Speicher-Verbindung), sonst einmalig von der Verbindung holen —
+        // der Login laeuft seit Teil A auf der Konto-Seite.
+        let cancelled = false;
+        void (async () => {
+          let hasToken = false;
           try {
-            const localStorageKey = `onedrive_tokens_${currentLibrary.id}`;
-            const tokensJson = localStorage.getItem(localStorageKey);
-            hasToken = !!tokensJson;
-            
-            console.log('[StorageContext] 🔐 OneDrive Token-Check:', {
-              libraryId: currentLibrary.id.substring(0, 8) + '...',
-              localStorageKey,
-              hasToken,
-              tokenLength: tokensJson?.length || 0,
-              timestamp: new Date().toISOString()
-            });
+            const p = await StorageFactory.getInstance().getProvider(currentLibrary.id);
+            hasToken = await ensureBrowserTokens(p);
           } catch (error) {
             console.error('[StorageContext] ❌ Fehler beim Token-Check:', error);
-            AuthLogger.debug('StorageContext', 'Error checking tokens in localStorage', { error });
           }
-        } else {
-          console.log('[StorageContext] ⚠️ Window nicht verfügbar (SSR) - kann Token nicht prüfen');
-        }
-        
-        if (hasToken) {
-          console.log('[StorageContext] ✅ Token gefunden - Status: ready');
-          setLibraryStatus('ready');
-          setLibraryStatusAtom('ready');
-        } else {
-          console.warn('[StorageContext] ⚠️ Kein Token gefunden - Status: waitingForAuth');
-          setLibraryStatus('waitingForAuth');
-          setLibraryStatusAtom('waitingForAuth');
-        }
+          if (cancelled) return;
+          if (hasToken) {
+            console.log('[StorageContext] ✅ Token gefunden - Status: ready');
+            setLibraryStatus('ready');
+            setLibraryStatusAtom('ready');
+          } else {
+            console.warn('[StorageContext] ⚠️ Kein Token gefunden - Status: waitingForAuth');
+            setLibraryStatus('waitingForAuth');
+            setLibraryStatusAtom('waitingForAuth');
+          }
+        })();
+        return () => {
+          cancelled = true;
+        };
       } else {
         // Unbekannter Provider-Typ - sicherheitshalber auf ready setzen
         console.log('[StorageContext] ⚠️ Unbekannter Provider-Typ - Status: ready (Fallback)');
