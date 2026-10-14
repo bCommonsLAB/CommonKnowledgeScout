@@ -6,10 +6,9 @@
  * @module library-setup
  */
 
-import type { Library } from '@/types/library'
-import type { Entscheidung } from './typen'
+import type { EinrichtungsLibrary, Entscheidung } from './typen'
 
-function secretary(library: Library) {
+function secretary(library: EinrichtungsLibrary) {
   return library.config?.secretaryService
 }
 

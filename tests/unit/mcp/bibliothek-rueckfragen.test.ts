@@ -4,7 +4,7 @@
  * Antwortweg, bibliothek_pruefen zeigt denselben Stand fuer bestehende Libraries.
  */
 import { describe, it, expect } from 'vitest'
-import { baueLibrary } from '@/lib/mcp/bibliothek-anlegen'
+import { baueLibrary } from '@/lib/library-setup/entwurf'
 import { alsFragen, einrichtungsSicht } from '@/lib/mcp/bibliothek-rueckfragen'
 import { pruefeEinrichtung, wendeAntwortenAn } from '@/lib/library-setup/pruefung'
 

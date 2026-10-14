@@ -6,7 +6,10 @@
  */
 
 import type { z } from 'zod'
-import type { Library } from '@/types/library'
+import type { ClientLibrary, Library } from '@/types/library'
+
+/** Server- oder Client-Sicht einer Library — der Katalog liest nur Felder, die beide tragen. */
+export type EinrichtungsLibrary = Library | ClientLibrary
 
 /**
  * Pflicht = ohne Antwort laeuft nichts; empfohlen = laeuft mit Vorgabe, aber
@@ -56,9 +59,9 @@ export interface Entscheidung {
   vorgabe: string | null
   optionen?: readonly Option[]
   /** Reine Bedingung; fehlt sie, gilt die Frage immer. */
-  gilt?: (library: Library, kontext: EinrichtungsKontext) => boolean
+  gilt?: (library: EinrichtungsLibrary, kontext: EinrichtungsKontext) => boolean
   /** Ist die Frage an dieser Library beantwortet? */
-  beantwortet: (library: Library, kontext: EinrichtungsKontext) => boolean
+  beantwortet: (library: EinrichtungsLibrary, kontext: EinrichtungsKontext) => boolean
   /** Generischer Antwortweg (Bruecke, C3): Schema der Antwort und wie sie in die Library kommt. */
   antwort?: {
     schema: z.ZodType

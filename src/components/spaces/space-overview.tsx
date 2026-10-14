@@ -12,6 +12,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@ks/ui'
 import { BookOpen, Users, Globe, ChevronRight, KeyRound, Plus } from "lucide-react"
+import { LibrarySetupStatus } from "@/components/settings/library/library-setup-status"
 
 const spaceCards = [
   {
@@ -80,6 +81,7 @@ interface SpaceOverviewProps {
 export function SpaceOverview({ onCreateNew }: SpaceOverviewProps) {
   return (
     <div className="space-y-6">
+      <LibrarySetupStatus />
       <div className="grid gap-4 md:grid-cols-3">
         {spaceCards.map((card) => (
           <Card key={card.id} className="flex flex-col">

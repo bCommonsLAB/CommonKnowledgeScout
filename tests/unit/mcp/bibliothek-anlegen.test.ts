@@ -3,7 +3,8 @@
  * die Oberflaeche — ohne Geheimnisse, mit eigenem Vektor-Index bei vorlageVon.
  */
 import { describe, it, expect } from 'vitest'
-import { baueLibrary, bestimmeSpeicher, collectionNameFuer, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
+import { bestimmeSpeicher } from '@/lib/mcp/bibliothek-anlegen'
+import { baueLibrary, collectionNameFuer, uebernimmKonfiguration } from '@/lib/library-setup/entwurf'
 import type { StorageConnectionSummary } from '@/types/storage-connection'
 import type { Library } from '@/types/library'
 

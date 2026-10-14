@@ -15,9 +15,9 @@
 import type { Library } from '@/types/library'
 import { ENTSCHEIDUNGEN, entscheidung } from './entscheidungen'
 import { SCHRITTE } from './typen'
-import type { EinrichtungsKontext, EinrichtungsPruefung, Entscheidung, EntscheidungsStand, EntscheidungsStatus } from './typen'
+import type { EinrichtungsKontext, EinrichtungsLibrary, EinrichtungsPruefung, Entscheidung, EntscheidungsStand, EntscheidungsStatus } from './typen'
 
-function status(e: Entscheidung, library: Library, kontext: EinrichtungsKontext): EntscheidungsStatus {
+function status(e: Entscheidung, library: EinrichtungsLibrary, kontext: EinrichtungsKontext): EntscheidungsStatus {
   if (e.beantwortet(library, kontext)) return 'beantwortet'
   if (e.gewicht !== 'pflicht' && kontext.uebersprungen?.includes(e.schluessel)) return 'uebersprungen'
   return 'offen'
@@ -42,7 +42,7 @@ export function pruefeUebersprungen(uebersprungen: readonly string[]): void {
 }
 
 /** Stand aller geltenden Entscheidungen an dieser Library. */
-export function pruefeEinrichtung(library: Library, kontext: EinrichtungsKontext = {}): EinrichtungsPruefung {
+export function pruefeEinrichtung(library: EinrichtungsLibrary, kontext: EinrichtungsKontext = {}): EinrichtungsPruefung {
   if (kontext.uebersprungen) pruefeUebersprungen(kontext.uebersprungen)
   const geltend = ENTSCHEIDUNGEN.filter((e) => (e.gilt ? e.gilt(library, kontext) : true))
   const alle = geltend

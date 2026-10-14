@@ -12,8 +12,7 @@
  */
 
 import { isDetailViewType, type DetailViewType } from '@/lib/detail-view-types/registry'
-import type { Library } from '@/types/library'
-import type { EinrichtungsKontext } from './typen'
+import type { EinrichtungsKontext, EinrichtungsLibrary } from './typen'
 
 export interface InhaltstypMerkmale {
   /** Kommen typischerweise Aufnahmen (Audio/Video), die transkribiert werden? */
@@ -35,7 +34,7 @@ export const INHALTSTYP_MERKMALE: Record<DetailViewType, InhaltstypMerkmale> = {
 }
 
 /** Der Inhaltstyp der Library oder `null`, wenn (noch) keiner gesetzt ist. */
-export function inhaltstypVon(library: Library): DetailViewType | null {
+export function inhaltstypVon(library: EinrichtungsLibrary): DetailViewType | null {
   const typ = library.config?.chat?.gallery?.detailViewType
   if (typ === undefined) return null
   if (!isDetailViewType(typ)) throw new Error(`Library "${library.label}": unbekannter Inhaltstyp "${String(typ)}"`)
@@ -46,7 +45,7 @@ export function inhaltstypVon(library: Library): DetailViewType | null {
  * Audio erwartet? Ausdrueckliche Angabe im Kontext gewinnt; sonst zaehlt eine
  * schon gesetzte Transkriptions-Einstellung; sonst der Inhaltstyp.
  */
-export function audioErwartet(library: Library, kontext: EinrichtungsKontext): boolean {
+export function audioErwartet(library: EinrichtungsLibrary, kontext: EinrichtungsKontext): boolean {
   if (kontext.audioErwartet !== undefined) return kontext.audioErwartet
   const config = library.config
   if (config?.transcriptionSpeakerMode !== undefined || config?.transcriptionLanguages !== undefined) return true
@@ -55,7 +54,7 @@ export function audioErwartet(library: Library, kontext: EinrichtungsKontext): b
 }
 
 /** Bietet der Inhaltstyp „Inhalte erfassen"-Wizards an? */
-export function hatErfassenWizards(library: Library): boolean {
+export function hatErfassenWizards(library: EinrichtungsLibrary): boolean {
   const typ = inhaltstypVon(library)
   return typ !== null && INHALTSTYP_MERKMALE[typ].erfassenWizards
 }

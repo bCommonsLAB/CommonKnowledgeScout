@@ -23,12 +23,12 @@ import type { Library, StorageConfig } from '@/types/library'
 import { ENTSCHEIDUNGEN_SPAETER } from './entscheidungen-spaeter'
 import { audioErwartet, hatErfassenWizards, inhaltstypVon } from './inhaltstyp-merkmale'
 import { standardFacettenFuer } from './standard-facetten'
-import type { Entscheidung } from './typen'
+import type { EinrichtungsLibrary, Entscheidung } from './typen'
 
 type Chat = NonNullable<StorageConfig['chat']>
 type Galerie = NonNullable<Chat['gallery']>
 
-function chat(library: Library): Chat {
+function chat(library: EinrichtungsLibrary): Chat {
   return library.config?.chat ?? {}
 }
 
