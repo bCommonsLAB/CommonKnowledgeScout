@@ -110,6 +110,23 @@ Werkzeuge: sieben Stationen plus Nachziehen, drei Rückfragen an den Menschen
 und der Haltepunkt in Station 4, an dem der Mensch das Transkript im Reiter
 „Korrektur" prüft.
 
+## Nachtrag 2.55.0: Rückfragen statt halb eingerichteter Libraries (C3)
+
+`bibliothek_anlegen` prüft den Entwurf gegen den Entscheidungskatalog
+(`src/lib/library-setup/`, eine Quelle für App-Wizard, Brücke und Settings).
+Fehlen Pflicht- oder empfohlene Entscheidungen, legt es **nichts** an und
+antwortet mit `angelegt: false`, `einrichtung` („n von m") und
+`offeneEntscheidungen` (Schlüssel, Gewicht, Frage, Optionen, Vorgabe,
+Antwortweg). Der Agent fragt den Menschen und ruft erneut auf — mit
+`entscheidungen` (`{ facetten: "standard", graph: false, … }`) und/oder
+`ueberspringen` (nur empfohlene; dann gilt die Vorgabe). `vorlageVon`
+beantwortet, was die Vorlage trägt. MCP-Elicitation bleibt eine spätere
+Verschönerung (Owner-Entscheid E7).
+
+| Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
+|---|---|---|
+| `bibliothek_pruefen` | liest | Einrichtungs-Anzeige der Settings: `pruefeEinrichtung` für eine bestehende Library, dieselbe Fragenliste wie die Rückfragen |
+
 ## Nachtrag 2.54.0: Speicher-Verbindungen (Plan speicher-verbindungen-und-library-anlage, A3)
 
 Zugangsdaten gehören seit Teil A der Person: eine Verbindung (Nextcloud,

@@ -1,5 +1,5 @@
 /**
- * @fileoverview MCP-Werkzeuge `bibliothek_anlegen`, `speicher_pruefen`, `vorlage_uebernehmen`
+ * @fileoverview MCP-Werkzeuge `speicher_pruefen`, `bibliothek_pruefen`, `vorlage_uebernehmen`
  * (Handover Library-Anlage und Veranstaltungs-Flow, 08.10.).
  *
  * @description
@@ -18,7 +18,10 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { getSelfBaseUrl } from '@/lib/env'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { STORAGE_CONNECTIONS_PATH } from '@/lib/storage-connections/onedrive-callback'
+import { einrichtungsSicht } from './bibliothek-rueckfragen'
 import { beschreibeSpeicherVerbindung } from './speicher-verbindung-info'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { registerBibliothekAnlegenTool } from './tools-bibliothek-anlegen'
@@ -63,6 +66,32 @@ export function registerBibliothekTools(server: McpServer): void {
   )
 
   registerSpeicherVerbindungenTools(server)
+
+  server.registerTool(
+    'bibliothek_pruefen',
+    {
+      title: 'Einrichtung einer Library pruefen (liest nur)',
+      description:
+        'Prueft eine bestehende Library gegen den Entscheidungskatalog der Library-Anlage (dieselbe Liste wie die ' +
+        'Rueckfragen von bibliothek_anlegen): einrichtung „n von m" (Pflicht + empfohlen), offeneEntscheidungen mit ' +
+        'frage, optionen, vorgabe und antwortweg, dazu je Entscheidung der Status (beantwortet | offen). Findet ' +
+        'halb eingerichtete Libraries. Gesetzt wird ueber konfiguration_setzen, speicher_verbindung_zuweisen oder die Settings. Liest nur.',
+      inputSchema: {
+        libraryId: LIBRARY_ID,
+        audioErwartet: z.boolean().optional().describe('kommen Aufnahmen? Weglassen = aus Inhaltstyp und Transkriptions-Einstellungen'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ libraryId, audioErwartet }) => {
+      try {
+        const library = await requireLibrary(mcpUserEmail(), libraryId)
+        const sicht = einrichtungsSicht(library, { audioErwartet }, `${getSelfBaseUrl()}${STORAGE_CONNECTIONS_PATH}`)
+        return jsonResult({ libraryId, name: library.label, ...sicht })
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
 
   server.registerTool(
     'vorlage_uebernehmen',

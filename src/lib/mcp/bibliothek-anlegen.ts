@@ -108,21 +108,6 @@ export function bestimmeSpeicher(eingabe: SpeicherEingabe, kandidaten: StorageCo
   }
 }
 
-/** Liegt dieser Speichertyp auf einer Speicher-Verbindung (mit Geheimnis) statt auf einem lokalen Pfad? */
-export function brauchtVerbindung(typ: SpeicherTyp): boolean {
-  switch (typ) {
-    case 'nextcloud':
-    case 'onedrive':
-      return true
-    case 'local':
-      return false
-    default: {
-      const nie: never = typ
-      throw new Error(`Unbekannter Speicher-Typ "${String(nie)}"`)
-    }
-  }
-}
-
 export interface UebernahmeErgebnis {
   config: Record<string, unknown>
   uebernommen: string[]
@@ -164,7 +149,8 @@ export function uebernimmKonfiguration(vorlage: Library, neueId: string): Uebern
 export function baueLibrary(args: {
   id: string
   name: string
-  inhaltstyp: string
+  /** Fehlt er, ist die Library ein Entwurf, den `pruefeEinrichtung` als offen meldet. */
+  inhaltstyp?: string
   speicher: SpeicherAngaben
   uebernahme?: UebernahmeErgebnis
   /** Speicher-Verbindung, auf der die Library liegt (nextcloud/onedrive); fehlt = ausstehend. */
@@ -174,7 +160,10 @@ export function baueLibrary(args: {
   const chat = alsObjekt(basis.chat)
   const config: Record<string, unknown> = {
     ...basis,
-    chat: { ...chat, gallery: { ...alsObjekt(chat.gallery), detailViewType: args.inhaltstyp } },
+    chat: {
+      ...chat,
+      gallery: { ...alsObjekt(chat.gallery), ...(args.inhaltstyp ? { detailViewType: args.inhaltstyp } : {}) },
+    },
     shadowTwin: { mode: 'v2', primaryStore: 'mongo', persistToFilesystem: true, allowFilesystemFallback: true },
   }
   return {

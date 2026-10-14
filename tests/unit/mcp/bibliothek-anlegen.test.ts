@@ -3,7 +3,7 @@
  * die Oberflaeche — ohne Geheimnisse, mit eigenem Vektor-Index bei vorlageVon.
  */
 import { describe, it, expect } from 'vitest'
-import { baueLibrary, bestimmeSpeicher, brauchtVerbindung, collectionNameFuer, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
+import { baueLibrary, bestimmeSpeicher, collectionNameFuer, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
 import type { StorageConnectionSummary } from '@/types/storage-connection'
 import type { Library } from '@/types/library'
 
@@ -46,11 +46,6 @@ describe('bestimmeSpeicher', () => {
     expect(() => bestimmeSpeicher({ speicherTyp: 'local' }, kandidaten)).toThrow(/absoluter Pfad/)
     expect(bestimmeSpeicher({ speicherTyp: 'local', verzeichnis: 'C:/a' }, kandidaten).verbindung).toBeNull()
     expect(bestimmeSpeicher({ speicherTyp: 'nextcloud' }, kandidaten)).toEqual({ speicher: { typ: 'nextcloud', verzeichnis: undefined }, verbindung: null })
-  })
-  it('kennt, welche Typen eine Verbindung brauchen', () => {
-    expect(brauchtVerbindung('nextcloud')).toBe(true)
-    expect(brauchtVerbindung('onedrive')).toBe(true)
-    expect(brauchtVerbindung('local')).toBe(false)
   })
 })
 
