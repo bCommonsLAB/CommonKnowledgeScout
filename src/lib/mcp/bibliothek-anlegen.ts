@@ -7,10 +7,11 @@
  * Shadow-Twin v2/Mongo) plus Speicher-Schritt (`use-storage-form.ts`: `type`,
  * `path`, `storageConnectionId`). Zugangsdaten liegen seit Teil A des Plans
  * speicher-verbindungen-und-library-anlage an der Speicher-Verbindung der
- * Person; die Bruecke haengt eine Nextcloud-Library an die Verbindung mit
- * gleicher WebDAV-URL und gleichem Benutzer, sonst bleibt sie „ausstehend"
- * (Owner waehlt in Settings → Archive · 1 Quelle). Geheimnisse kommen NIE
- * ueber die Bruecke.
+ * Person; seit A3 nennt der Agent die Verbindung (Id oder Bezeichnung aus
+ * `speicher_verbindungen_auflisten`), der Typ folgt aus ihr. Ohne Verbindung
+ * bleibt eine nextcloud-/onedrive-Library „ausstehend", bis
+ * `speicher_verbindung_zuweisen` sie anhaengt. Geheimnisse kommen NIE ueber
+ * die Bruecke.
  *
  * Mit `vorlageVon` werden die Bereiche einer bestehenden Library uebernommen,
  * die NICHTS mit Zugangsdaten oder Aussenwirkung zu tun haben: Chat
@@ -23,17 +24,29 @@
  */
 
 import type { Library, StorageConfig, StorageProviderType } from '@/types/library'
-import { dedupeKeyFor } from '@/lib/storage-connections/migration-plan'
+import type { StorageConnectionSummary } from '@/types/storage-connection'
+import { waehleVerbindung } from './speicher-verbindung-wahl'
 
 export const SPEICHER_TYPEN = ['nextcloud', 'local', 'onedrive'] as const
 export type SpeicherTyp = (typeof SPEICHER_TYPEN)[number]
 
 export interface SpeicherAngaben {
   typ: SpeicherTyp
-  /** Nextcloud: Unterpfad im WebDAV-Root; local: absoluter Pfad auf dem Server. */
+  /** nextcloud/onedrive: Unterpfad auf der Verbindung; local: absoluter Pfad auf dem Server. */
   verzeichnis?: string
-  webdavUrl?: string
-  benutzer?: string
+}
+
+/** Was der Agent zum Speicher sagt (Eingabe von `bibliothek_anlegen`). */
+export interface SpeicherEingabe {
+  speicherTyp?: SpeicherTyp
+  speicherVerbindung?: string
+  verzeichnis?: string
+}
+
+/** Aufgeloester Speicher: Typ, Verzeichnis, Verbindung (null = ausstehend oder local). */
+export interface SpeicherWahl {
+  speicher: SpeicherAngaben
+  verbindung: StorageConnectionSummary | null
 }
 
 /** Verarbeitungs-Schluessel des Secretary-Blocks ohne Verbindung (apiUrl/apiKey bleiben). */
@@ -64,38 +77,47 @@ function alsObjekt(wert: unknown): Record<string, unknown> {
   return wert !== null && typeof wert === 'object' && !Array.isArray(wert) ? (wert as Record<string, unknown>) : {}
 }
 
-/** Prueft die Speicher-Angaben je Typ; wirft bei fehlenden Pflichtwerten. */
-export function pruefeSpeicher(speicher: SpeicherAngaben): void {
-  switch (speicher.typ) {
-    case 'nextcloud':
-      if (!speicher.webdavUrl?.trim()) throw new Error('Nextcloud: webdavUrl ist Pflicht')
-      if (!/^https?:\/\//.test(speicher.webdavUrl.trim())) throw new Error('Nextcloud: webdavUrl muss mit http(s):// beginnen')
-      if (!speicher.benutzer?.trim()) throw new Error('Nextcloud: benutzer ist Pflicht')
-      return
+/**
+ * Bestimmt den Speicher der neuen Library. Mit `speicherVerbindung` folgt der
+ * Typ aus der Verbindung (ein abweichender `speicherTyp` ist ein Fehler);
+ * ohne sie ist `speicherTyp` Pflicht, local braucht ein Verzeichnis, und
+ * nextcloud/onedrive bleiben ohne Verbindung (ausstehend).
+ */
+export function bestimmeSpeicher(eingabe: SpeicherEingabe, kandidaten: StorageConnectionSummary[]): SpeicherWahl {
+  const verzeichnis = eingabe.verzeichnis?.trim() || undefined
+  if (eingabe.speicherVerbindung !== undefined) {
+    const verbindung = waehleVerbindung(eingabe.speicherVerbindung, kandidaten)
+    if (eingabe.speicherTyp && eingabe.speicherTyp !== verbindung.type) {
+      throw new Error(`speicherTyp ${eingabe.speicherTyp} passt nicht zur Verbindung "${verbindung.label}" (${verbindung.type}) — speicherTyp weglassen`)
+    }
+    return { speicher: { typ: verbindung.type, verzeichnis }, verbindung }
+  }
+  const typ = eingabe.speicherTyp
+  if (!typ) throw new Error('speicherVerbindung (Id oder Bezeichnung) oder speicherTyp angeben')
+  switch (typ) {
     case 'local':
-      if (!speicher.verzeichnis?.trim()) throw new Error('local: verzeichnis (absoluter Pfad auf dem Server) ist Pflicht')
-      if (speicher.webdavUrl || speicher.benutzer) throw new Error('local: webdavUrl und benutzer gelten nur fuer nextcloud')
-      return
+      if (!verzeichnis) throw new Error('local: verzeichnis (absoluter Pfad auf dem Server) ist Pflicht')
+      return { speicher: { typ, verzeichnis }, verbindung: null }
+    case 'nextcloud':
     case 'onedrive':
-      if (speicher.webdavUrl || speicher.benutzer) throw new Error('onedrive: webdavUrl und benutzer gelten nur fuer nextcloud')
-      return
+      return { speicher: { typ, verzeichnis }, verbindung: null }
     default: {
-      const nie: never = speicher.typ
+      const nie: never = typ
       throw new Error(`Unbekannter Speicher-Typ "${String(nie)}"`)
     }
   }
 }
 
 /** Liegt dieser Speichertyp auf einer Speicher-Verbindung (mit Geheimnis) statt auf einem lokalen Pfad? */
-export function geheimnisFehlt(speicher: SpeicherAngaben): boolean {
-  switch (speicher.typ) {
+export function brauchtVerbindung(typ: SpeicherTyp): boolean {
+  switch (typ) {
     case 'nextcloud':
     case 'onedrive':
       return true
     case 'local':
       return false
     default: {
-      const nie: never = speicher.typ
+      const nie: never = typ
       throw new Error(`Unbekannter Speicher-Typ "${String(nie)}"`)
     }
   }
@@ -136,27 +158,6 @@ export function uebernimmKonfiguration(vorlage: Library, neueId: string): Uebern
     uebernommen.push(schluessel)
   }
   return { config, uebernommen }
-}
-
-/** Nicht-geheime Sicht einer Speicher-Verbindung, gegen die zugeordnet wird. */
-export interface VerbindungsKandidat {
-  id: string
-  label: string
-  type: string
-  nextcloud?: { webdavUrl: string; username: string }
-}
-
-/**
- * Nextcloud: die Verbindung des Kontos mit gleicher WebDAV-URL und gleichem
- * Benutzer (derselbe Schluessel wie das Zusammenlegen in der Migration).
- * OneDrive hat ueber die Bruecke keine Kennung — dort waehlt der Owner.
- */
-export function findePassendeVerbindung(speicher: SpeicherAngaben, kandidaten: VerbindungsKandidat[]): VerbindungsKandidat | null {
-  if (speicher.typ !== 'nextcloud') return null
-  const gesucht = dedupeKeyFor('nextcloud', { webdavUrl: speicher.webdavUrl?.trim(), username: speicher.benutzer?.trim() })
-  return (
-    kandidaten.find((k) => k.type === 'nextcloud' && k.nextcloud && dedupeKeyFor('nextcloud', k.nextcloud) === gesucht) ?? null
-  )
 }
 
 /** Die neue Library, bereit fuer `LibraryService.updateLibrary`. */

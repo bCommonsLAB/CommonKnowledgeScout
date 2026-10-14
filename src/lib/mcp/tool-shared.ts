@@ -49,6 +49,13 @@ export async function requireLibrary(userEmail: string, libraryId: string): Prom
   return library
 }
 
+/** Wirft, wenn `userEmail` nicht Owner der Library ist (Mitglieder duerfen nicht konfigurieren). */
+export async function requireOwner(userEmail: string, libraryId: string): Promise<void> {
+  if (!(await LibraryService.getInstance().isOwner(userEmail, libraryId))) {
+    throw new Error(`Nur der Owner der Library ${libraryId} darf das`)
+  }
+}
+
 export async function requireProvider(userEmail: string, libraryId: string): Promise<StorageProvider> {
   const provider = await getServerProvider(userEmail, libraryId)
   if (!provider) throw new Error('Storage-Provider nicht verfuegbar')

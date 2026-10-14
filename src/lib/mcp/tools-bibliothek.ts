@@ -8,117 +8,26 @@
  * anlegen, den Speicher eintragen und die Konfiguration von Hand
  * angleichen. Jetzt: `bibliothek_anlegen` legt an (optional mit den
  * geheimnisfreien Bereichen einer Vorlage-Library und ihren Vorlagen),
- * der Owner traegt NUR das Geheimnis in Settings → Archive ein,
- * `speicher_pruefen` bestaetigt die Verbindung ohne Werte zu zeigen.
+ * Zugangsdaten liegen seit Teil A an den Speicher-Verbindungen des Kontos
+ * (`tools-speicher-verbindungen.ts`), `speicher_pruefen` bestaetigt die
+ * Verbindung ohne Werte zu zeigen. `bibliothek_anlegen` steht seit A3 in
+ * `tools-bibliothek-anlegen.ts`.
  *
  * @module mcp
  */
 
-import crypto from 'crypto'
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { DETAIL_VIEW_TYPES } from '@/lib/detail-view-types/registry'
-import { getSelfBaseUrl } from '@/lib/env'
-import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { NICHT_UEBERNOMMEN, SPEICHER_TYPEN, baueLibrary, findePassendeVerbindung, geheimnisFehlt, pruefeSpeicher, uebernimmKonfiguration } from './bibliothek-anlegen'
-import { listStorageConnectionSummaries } from '@/lib/storage-connections/connection-service'
 import { beschreibeSpeicherVerbindung } from './speicher-verbindung-info'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
-import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+import { registerBibliothekAnlegenTool } from './tools-bibliothek-anlegen'
+import { registerSpeicherVerbindungenTools } from './tools-speicher-verbindungen'
+import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireOwner, requireProvider } from './tool-shared'
 import { uebernimmAusDatei, uebernimmAusLibrary } from './vorlage-uebernahme'
 
-const ARCHIV_SETTINGS = '/settings/archive'
-
-async function requireOwner(userEmail: string, libraryId: string): Promise<void> {
-  if (!(await LibraryService.getInstance().isOwner(userEmail, libraryId))) {
-    throw new Error(`Nur der Owner der Library ${libraryId} darf das`)
-  }
-}
-
 export function registerBibliothekTools(server: McpServer): void {
-  server.registerTool(
-    'bibliothek_anlegen',
-    {
-      title: 'Neue Library anlegen (SCHREIBT)',
-      description:
-        'Legt eine Library an wie Settings → „Neue Bibliothek erstellen" plus Speicher-Schritt: name, ' +
-        'inhaltstyp (detailViewType), speicherTyp (nextcloud | local | onedrive) mit den NICHT geheimen ' +
-        'Angaben verzeichnis, webdavUrl, benutzer. Zugangsdaten liegen an den Speicher-Verbindungen des Kontos: ' +
-        'eine Nextcloud-Library wird an die Verbindung mit gleicher WebDAV-URL und gleichem Benutzer gehaengt ' +
-        '(Antwort speicherVerbindung); sonst verbindung "ausstehend" mit dem Weg in die Oberflaeche, danach ' +
-        'speicher_pruefen. Geheimnisse nie ueber die Bruecke. Optional vorlageVon (libraryId): uebernimmt Chat (Facetten, Antwortregeln, ' +
-        'Galerie, Sprache), Verarbeitung (Standard-Vorlage, Zielsprache) und Ingest-Schalter — keine ' +
-        'Zugangsdaten, keine Veroeffentlichung; vorlagenKopieren: true kopiert zusaetzlich deren Vorlagen. ' +
-        'Gleichnamige Library wird abgewiesen. Nur nach Bestaetigung durch den Menschen.',
-      inputSchema: {
-        name: z.string().trim().min(3).max(120).describe('Anzeigename der Library'),
-        inhaltstyp: z.enum(DETAIL_VIEW_TYPES).optional().describe('detailViewType; Pflicht ohne vorlageVon, sonst Vorgabe der Vorlage-Library'),
-        speicherTyp: z.enum(SPEICHER_TYPEN),
-        verzeichnis: z.string().optional().describe('nextcloud: Unterpfad im WebDAV-Root (z. B. "/Archiv - Kopie"); local: absoluter Serverpfad'),
-        webdavUrl: z.string().optional().describe('nur nextcloud: https://…/remote.php/dav/files/<benutzer>'),
-        benutzer: z.string().optional().describe('nur nextcloud: Benutzername'),
-        vorlageVon: z.string().min(1).optional().describe('libraryId einer eigenen Library, deren Konfiguration uebernommen wird'),
-        vorlagenKopieren: z.boolean().optional().describe('mit vorlageVon: auch die Vorlagen (Templates) kopieren; Vorgabe false'),
-        begruendung: BEGRUENDUNG,
-      },
-      annotations: { readOnlyHint: false },
-    },
-    async ({ name, inhaltstyp, speicherTyp, verzeichnis, webdavUrl, benutzer, vorlageVon, vorlagenKopieren, begruendung }) => {
-      const libraryId = crypto.randomUUID()
-      try {
-        return await mitProtokoll({ werkzeug: 'bibliothek_anlegen', libraryId, akteur: mcpUserEmail(), begruendung, pfad: verzeichnis }, async () => {
-          const userEmail = mcpUserEmail()
-          const service = LibraryService.getInstance()
-          const speicher = { typ: speicherTyp, verzeichnis, webdavUrl, benutzer }
-          pruefeSpeicher(speicher)
-          if (vorlagenKopieren && !vorlageVon) throw new Error('vorlagenKopieren braucht vorlageVon')
-          const eigene = await service.getUserLibraries(userEmail)
-          const gleichnamig = eigene.find((l) => l.label.trim().toLowerCase() === name.trim().toLowerCase())
-          if (gleichnamig) throw new Error(`Es gibt schon eine Library "${gleichnamig.label}" (${gleichnamig.id}) — anderen Namen waehlen`)
-
-          let uebernahme
-          let typ = inhaltstyp
-          if (vorlageVon) {
-            const vorlage = eigene.find((l) => l.id === vorlageVon)
-            if (!vorlage) throw new Error(`vorlageVon ${vorlageVon} ist keine eigene Library`)
-            uebernahme = uebernimmKonfiguration(vorlage, libraryId)
-            typ = typ ?? vorlage.config?.chat?.gallery?.detailViewType
-          }
-          if (!typ) throw new Error('inhaltstyp ist Pflicht (die Vorlage-Library traegt keinen detailViewType)')
-
-          const verbindung = geheimnisFehlt(speicher)
-            ? findePassendeVerbindung(speicher, await listStorageConnectionSummaries(userEmail))
-            : null
-          const library = baueLibrary({ id: libraryId, name, inhaltstyp: typ, speicher, uebernahme, storageConnectionId: verbindung?.id })
-          if (!(await service.updateLibrary(userEmail, library))) throw new Error('Library konnte nicht gespeichert werden')
-
-          const vorlagen = vorlageVon && vorlagenKopieren
-            ? await uebernimmAusLibrary({ vonLibraryId: vorlageVon, zielLibraryId: libraryId, userEmail, ueberschreiben: false })
-            : null
-          const fehlt = geheimnisFehlt(speicher) && !verbindung
-          return jsonResult({
-            libraryId,
-            name: library.label,
-            inhaltstyp: typ,
-            speicher: { typ: speicherTyp, verzeichnis: library.path, webdavUrl: webdavUrl ?? null, benutzer: benutzer ?? null },
-            speicherVerbindung: verbindung ? { id: verbindung.id, bezeichnung: verbindung.label } : null,
-            ...(vorlageVon ? { vorlageVon, uebernommen: uebernahme?.uebernommen ?? [], nichtUebernommen: NICHT_UEBERNOMMEN } : {}),
-            ...(vorlagen ? { vorlagen } : {}),
-            geheimnisFehlt: fehlt,
-            verbindung: fehlt ? 'ausstehend' : 'ungeprueft',
-            naechsterSchritt: fehlt
-              ? `Owner: unter ${getSelfBaseUrl()}/settings/account/storage-connections eine ${speicherTyp === 'nextcloud' ? 'Nextcloud' : 'OneDrive'}-Verbindung ` +
-                `anlegen und testen${speicherTyp === 'onedrive' ? ' (bei Microsoft anmelden)' : ''}, dann Library "${library.label}" waehlen, ` +
-                `${getSelfBaseUrl()}${ARCHIV_SETTINGS} → 1 · Quelle: Verbindung waehlen — danach speicher_pruefen`
-              : 'speicher_pruefen, dann ordner_listen',
-          })
-        })
-      } catch (error) {
-        return errorResult(error)
-      }
-    },
-  )
+  registerBibliothekAnlegenTool(server)
 
   server.registerTool(
     'speicher_pruefen',
@@ -127,8 +36,8 @@ export function registerBibliothekTools(server: McpServer): void {
       description:
         'Prueft die Speicher-Verbindung einer Library wie der Knopf „Verbindung pruefen", aber ohne ' +
         'Testordner anzulegen: Konfiguration gueltig? Wurzel lesbar (Anzahl Eintraege)? Nennt Typ, ' +
-        'Verzeichnis und die Speicher-Verbindung (Bezeichnung, bei Nextcloud URL und Benutzer, ob ein ' +
-        'Geheimnis hinterlegt ist) — nie dessen Wert. Liest nur.',
+        'Verzeichnis und die Speicher-Verbindung (Id, Bezeichnung, letzter Test, bei Nextcloud URL und Benutzer, ob ein ' +
+        'Geheimnis hinterlegt ist) — nie dessen Wert. Ohne Verbindung: speicher_verbindung_zuweisen. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID },
       annotations: { readOnlyHint: true },
     },
@@ -152,6 +61,8 @@ export function registerBibliothekTools(server: McpServer): void {
       }
     },
   )
+
+  registerSpeicherVerbindungenTools(server)
 
   server.registerTool(
     'vorlage_uebernehmen',

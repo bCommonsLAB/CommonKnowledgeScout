@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.53.1'
+export const TOOLSET_VERSION = '2.54.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -100,6 +100,10 @@ export const TOOL_NAMES = [
   // Handover Library-Anlage (08.10.).
   'bibliothek_anlegen',
   'speicher_pruefen',
+  // A3 Speicher-Verbindungen am Konto (Plan speicher-verbindungen-und-library-anlage).
+  'speicher_verbindungen_auflisten',
+  'speicher_verbindung_testen',
+  'speicher_verbindung_zuweisen',
   'vorlage_uebernehmen',
   // Wunschliste 8 (G1) — Adress-Slug je Library.
   'adresse_setzen',
@@ -119,6 +123,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.54.0: Speicher-Verbindungen ueber die Bruecke (Plan speicher-verbindungen-und-library-anlage, A3). NEU: speicher_verbindungen_auflisten (Id, Bezeichnung, Typ, letzter Test, Nextcloud-URL/-Benutzer, Geheimnis hinterlegt ja/nein, OneDrive angemeldet, Libraries darauf — nie Werte), speicher_verbindung_testen (verbindung = Id oder Bezeichnung; speichert nur das Testergebnis), speicher_verbindung_zuweisen (libraryId, verbindung, optional verzeichnis; nur Owner, Typ muss passen; nennt vorher/nachher). Anlegen einer Verbindung bleibt in der Oberflaeche (Geheimnis). SCHEMA-AENDERUNG bibliothek_anlegen: webdavUrl und benutzer entfallen; stattdessen speicherVerbindung (Id oder Bezeichnung, der Typ folgt aus ihr) + verzeichnis; speicherTyp ist nur noch ohne Verbindung noetig (local mit absolutem Pfad, oder nextcloud/onedrive als ausstehend — naechsterSchritt nennt dann speicher_verbindung_zuweisen). Das Antwortfeld geheimnisFehlt entfaellt (verbindung "ausstehend" sagt dasselbe). speicher_pruefen nennt an der Verbindung zusaetzlich id und zuletztGeprueft',
   '2.53.1: Speicher-Verbindungen am Konto (Plan speicher-verbindungen-und-library-anlage, A2). Zugangsdaten liegen nicht mehr in der Library-Config, sondern verschluesselt an der Speicher-Verbindung der Person; die Library zeigt mit storageConnectionId darauf. bibliothek_anlegen (Schema unveraendert) haengt eine Nextcloud-Library an die Verbindung mit gleicher WebDAV-URL und gleichem Benutzer und nennt sie als speicherVerbindung { id, bezeichnung }; ohne passende Verbindung (und immer bei OneDrive) bleibt verbindung "ausstehend", naechsterSchritt nennt Konto-Seite und Archive · 1 Quelle. speicher_pruefen nennt statt webdavUrl/benutzer/geheimnisHinterlegt jetzt speicherVerbindung { bezeichnung, webdavUrl, benutzer, geheimnisHinterlegt, angemeldet (OneDrive) } oder { fehler } (nicht umgehaengte Library: Verweis auf das Migrationsskript). Eigene Werkzeuge fuer Verbindungen folgen mit A3',
   '2.53.0: Webseite als Quelle — Befunde aus dem Cowork-Test 13.10. (Rai-Videoseite mit medienEinbetten: false). TONSPUR BEI VIDEOS: webseite_erschliessen laedt Videos und Streams ueber den Secretary als reine Tonspur (POST /api/media/download mit nur_audio, Vorgabe true, ffmpeg → m4a; vorher kam die mp4 mit Bild). Die Datei heisst „<Basis> - Audio.m4a"; sprecherErkennung, kontext und begriffe gelten damit auch fuer Videoseiten. Nur wenn keine Tonspur extrahierbar war (Datei „<Basis> - Video.*"), weist das Werkzeug diese Optionen ab — und zwar BEVOR etwas geschrieben wird. AUFRAEUMEN: Scheitert ein Aufruf nach dem Hochladen, entfernt das Werkzeug die schon geschriebenen Dateien wieder und nennt in der Fehlermeldung, was gegebenenfalls von Hand zu loeschen ist; der Transkriptionsjob startet erst, wenn Medium, Cover und Sammeldatei liegen. DATUM: seite.datePublished kommt jetzt auch aus einem VideoObject/AudioObject im JSON-LD-@graph (Rangfolge nach Typ statt Reihenfolge — die WebPage stand davor und trug kein Datum), aus video:release_date und aus <time datetime>. job_status: cover_source own_fragment ist eine gueltige Herkunft (kein Befund „unbekannte Herkunft" mehr). Voraussetzung: Secretary mit nur_audio (CommonSecretaryServices #36)',
   '2.52.0: Wunschliste 8, W8-3 — familie_uebergeben gibt eine Quelle MIT Twin-Familie (Transkript, Transformationen, Transkript-Segmente, Quellkennung) von vonLibraryId in einen Ordner von nachLibraryId (nachOrdnerId | nachOrdnerPfad; Quelle per sourceId | quellPfad) und schreibt in den Herkunftsordner „Verweis – <Quellname>.md" (type: verweis, uebergeben_nach_library, uebergeben_nach_pfad, uebergeben_nach_adresse @<slug>/<pfad>, source_content_hash, generated_by/at; Link [[@<slug>/<pfad>]]). herkunft Pflicht ohne Vorgabe: behalten (Datei bleibt neben dem Verweis) | verwerfen (Quelle samt Familie nach „zu klären", derselbe Weg wie quelle_verwerfen). Nie geloescht; Vektoren und Seitenbilder werden nicht kopiert (danach index_aktualisieren in B). Antwort: plan, schritte (import_herkunft, quelle_kopiert, twin_angelegt, segmente_kopiert, export_ziel, kennung_herkunft, verweis_geschrieben, herkunft; je ok | uebersprungen | fehler), neueSourceId, offen. Scheitert twin_angelegt, wird die Kopie in B entfernt und A bleibt unveraendert. vorschau: true zeigt nur den Plan. Nur Owner beider Libraries; Grenze 250 MB. type: verweis gehoert zu den Begleittypen mit Pflichtstempel generated_by/generated_at (wie notiz, verlauf)',

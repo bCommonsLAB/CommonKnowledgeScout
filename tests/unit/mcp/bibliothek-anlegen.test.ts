@@ -3,10 +3,17 @@
  * die Oberflaeche — ohne Geheimnisse, mit eigenem Vektor-Index bei vorlageVon.
  */
 import { describe, it, expect } from 'vitest'
-import { baueLibrary, collectionNameFuer, findePassendeVerbindung, geheimnisFehlt, pruefeSpeicher, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
+import { baueLibrary, bestimmeSpeicher, brauchtVerbindung, collectionNameFuer, uebernimmKonfiguration } from '@/lib/mcp/bibliothek-anlegen'
+import type { StorageConnectionSummary } from '@/types/storage-connection'
 import type { Library } from '@/types/library'
 
-const nextcloud = { typ: 'nextcloud' as const, verzeichnis: '/Archiv - Kopie', webdavUrl: 'https://cloud.example.org/remote.php/dav/files/u', benutzer: 'u' }
+const nextcloud = { typ: 'nextcloud' as const, verzeichnis: '/Archiv - Kopie' }
+
+const zeit = '2026-10-14T00:00:00.000Z'
+const kandidaten: StorageConnectionSummary[] = [
+  { id: 'c1', label: 'Cloud privat', type: 'nextcloud', lastTest: null, createdAt: zeit, updatedAt: zeit },
+  { id: 'c2', label: 'Firmen-OneDrive', type: 'onedrive', lastTest: null, createdAt: zeit, updatedAt: zeit },
+]
 
 const vorlage = {
   id: 'alt', label: 'Alt', path: '/Archiv', type: 'nextcloud', isEnabled: true, transcription: 'shadowTwin',
@@ -23,18 +30,27 @@ const vorlage = {
   },
 } as unknown as Library
 
-describe('pruefeSpeicher', () => {
-  it('verlangt fuer nextcloud URL und Benutzer', () => {
-    expect(() => pruefeSpeicher({ typ: 'nextcloud', verzeichnis: '/a' })).toThrow(/webdavUrl/)
-    expect(() => pruefeSpeicher({ ...nextcloud, benutzer: '' })).toThrow(/benutzer/)
-    expect(() => pruefeSpeicher(nextcloud)).not.toThrow()
+describe('bestimmeSpeicher', () => {
+  it('nimmt den Typ aus der Verbindung (per Id oder Bezeichnung)', () => {
+    const perName = bestimmeSpeicher({ speicherVerbindung: 'cloud PRIVAT', verzeichnis: ' /Archiv ' }, kandidaten)
+    expect(perName.verbindung?.id).toBe('c1')
+    expect(perName.speicher).toEqual({ typ: 'nextcloud', verzeichnis: '/Archiv' })
+    expect(bestimmeSpeicher({ speicherVerbindung: 'c2' }, kandidaten).speicher.typ).toBe('onedrive')
   })
-  it('weist nextcloud-Angaben bei local ab', () => {
-    expect(() => pruefeSpeicher({ typ: 'local', verzeichnis: 'C:/a', benutzer: 'u' })).toThrow(/nur fuer nextcloud/)
+  it('weist einen abweichenden speicherTyp und unbekannte Verbindungen ab', () => {
+    expect(() => bestimmeSpeicher({ speicherVerbindung: 'c1', speicherTyp: 'onedrive' }, kandidaten)).toThrow(/passt nicht/)
+    expect(() => bestimmeSpeicher({ speicherVerbindung: 'gibt es nicht' }, kandidaten)).toThrow(/nicht gefunden.*Cloud privat/)
   })
-  it('kennt, welche Typen ein Geheimnis brauchen', () => {
-    expect(geheimnisFehlt(nextcloud)).toBe(true)
-    expect(geheimnisFehlt({ typ: 'local', verzeichnis: 'C:/a' })).toBe(false)
+  it('ohne Verbindung: speicherTyp Pflicht, local braucht Verzeichnis, nextcloud bleibt ausstehend', () => {
+    expect(() => bestimmeSpeicher({}, kandidaten)).toThrow(/speicherVerbindung/)
+    expect(() => bestimmeSpeicher({ speicherTyp: 'local' }, kandidaten)).toThrow(/absoluter Pfad/)
+    expect(bestimmeSpeicher({ speicherTyp: 'local', verzeichnis: 'C:/a' }, kandidaten).verbindung).toBeNull()
+    expect(bestimmeSpeicher({ speicherTyp: 'nextcloud' }, kandidaten)).toEqual({ speicher: { typ: 'nextcloud', verzeichnis: undefined }, verbindung: null })
+  })
+  it('kennt, welche Typen eine Verbindung brauchen', () => {
+    expect(brauchtVerbindung('nextcloud')).toBe(true)
+    expect(brauchtVerbindung('onedrive')).toBe(true)
+    expect(brauchtVerbindung('local')).toBe(false)
   })
 })
 
@@ -73,20 +89,5 @@ describe('baueLibrary', () => {
   it('behaelt bei Uebernahme die Facetten und setzt den gewaehlten Typ', () => {
     const lib = baueLibrary({ id: 'n', name: 'Neu', inhaltstyp: 'book', speicher: nextcloud, uebernahme: uebernimmKonfiguration(vorlage, 'n') })
     expect(lib.config?.chat?.gallery).toMatchObject({ detailViewType: 'book', facets: [{ metaKey: 'event' }] })
-  })
-})
-
-describe('findePassendeVerbindung', () => {
-  const kandidaten = [
-    { id: 'c1', label: 'Andere', type: 'nextcloud', nextcloud: { webdavUrl: 'https://andere.example/remote.php/dav/files/u', username: 'u' } },
-    { id: 'c2', label: 'Passt', type: 'nextcloud', nextcloud: { webdavUrl: 'https://CLOUD.example.org/remote.php/dav/files/u/', username: 'U' } },
-    { id: 'c3', label: 'OneDrive', type: 'onedrive' },
-  ]
-  it('findet die Nextcloud-Verbindung mit gleicher URL und gleichem Benutzer (ohne Gross-/Kleinschreibung, ohne Schluss-Slash)', () => {
-    expect(findePassendeVerbindung(nextcloud, kandidaten)?.id).toBe('c2')
-  })
-  it('liefert null ohne Treffer und immer bei OneDrive', () => {
-    expect(findePassendeVerbindung({ ...nextcloud, benutzer: 'x' }, kandidaten)).toBeNull()
-    expect(findePassendeVerbindung({ typ: 'onedrive' }, kandidaten)).toBeNull()
   })
 })
