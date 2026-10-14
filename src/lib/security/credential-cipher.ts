@@ -29,10 +29,13 @@
  * - decryptSecret: Entschluesselt ein Token (Legacy-Klartext bleibt unveraendert)
  *
  * @dependencies
- * - node:crypto: AES-256-GCM Primitive
+ * - crypto: AES-256-GCM Primitive. Bewusst ohne "node:"-Praefix: die Datei
+ *   liegt (per dynamischem Import ueber token-db) im Client-Graphen der
+ *   StorageFactory; next.config.js blendet "crypto" dort aus, das
+ *   "node:"-Schema kann Webpack nicht aufloesen (ci-main nach #392).
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 
 /** Versioniertes Praefix; erlaubt spaeter Schluessel-/Algorithmus-Rotation. */
 export const ENCRYPTED_SECRET_PREFIX = 'enc:v1:'
