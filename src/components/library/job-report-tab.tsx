@@ -25,6 +25,7 @@ import {
   Input,
 } from '@ks/ui'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
+import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
 import { useLibraries } from '@ks/shell/react'
 import { getDetailViewType } from '@ks/contracts'
@@ -1318,15 +1319,10 @@ export function JobReportTab({
                   onClick={async () => {
                     if (!effectiveMdId) return
                     // Body mit Frontmatter wieder zusammenführen
+                    // Ueber den EINEN Serializer (frontmatter-single-serializer):
+                    // der fruehere Eigenbau liess Zeilenumbrueche roh im Wert stehen.
                     const parsed = parseSecretaryMarkdownStrict(fullContent)
-                    const frontmatterYaml = Object.entries(parsed.meta || {})
-                      .map(([k, v]) => {
-                        if (Array.isArray(v)) return `${k}: ${JSON.stringify(v)}`
-                        if (typeof v === 'string' && (v.includes('\n') || v.includes(':'))) return `${k}: "${v.replace(/"/g, '\\"')}"`
-                        return `${k}: ${v}`
-                      })
-                      .join('\n')
-                    const newFullContent = `---\n${frontmatterYaml}\n---\n\n${editedContent}`
+                    const newFullContent = createMarkdownWithFrontmatter(editedContent, parsed.meta || {})
                     
                     setIsSaving(true)
                     try {

@@ -25,7 +25,7 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 | Pfad-Muster | Contracts (`docs/contracts/`) | Skill | ADR |
 |---|---|---|---|
 | `src/lib/external-jobs/**`, `src/app/api/external/jobs/**`, `src/app/api/pipeline/**`, `src/lib/transform/**`, `src/lib/markdown/**` | contracts-story-pipeline, external-jobs-integration-tests, ingest-mongo-only, no-error-as-artifact, frontmatter-single-serializer | `contracts-pipeline` | 0001 |
-| `src/lib/storage/**`, `src/app/api/storage/**` | storage-abstraction, storage-contracts | `contracts-storage-twin` | 0005 |
+| `src/lib/storage/**`, `src/app/api/storage/**` | storage-abstraction, storage-contracts | `contracts-storage-twin` | 0005, 0011 |
 | `src/lib/mcp/storage/**` | storage-abstraction, storage-contracts (§9) | `contracts-storage-twin` | — |
 | `src/lib/mcp/**` (Werkzeuge der Brücke außer `storage/`) | no-silent-fallbacks; Konzept [`docs/concepts/mcp-library-betrieb.md`](docs/concepts/mcp-library-betrieb.md); `TOOLSET_VERSION`, `TOOL_NAMES`, `NEU_IN_VERSION` in `tools-info.ts` bei jeder Werkzeug-/Schema-Änderung | — | 0007, 0008 |
 | `src/lib/shadow-twin/**`, `src/hooks/use-shadow-twin*` | shadow-twin-architecture, shadow-twin-contracts | `contracts-storage-twin` | — |
@@ -42,7 +42,7 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 | `**/detail-view*.tsx`, `**/registry.ts`, `**/doc-meta-mappers.ts`, `**/validation.ts` | detail-view-type-checklist | `checklisten-erweiterung` | 0010 |
 | `src/lib/events/**`, `src/app/api/event-job/**`, `src/components/event-monitor/**` | — | — | **0001 (Aktiv)** |
 | `src/lib/gallery/**`, `src/app/api/library/*/favorites/**` | welle-3-iii-galerie-chat-contracts | `contracts-ui` | **0002 (Aktiv)** |
-| `src/lib/library-access/**`, `src/app/api/libraries/*/members/**`, `.../invites/**` | — | — | 0005 |
+| `src/lib/library-access/**`, `src/app/api/libraries/*/members/**`, `.../invites/**` | — | — | 0005, **0011 (Akzeptiert)** |
 | `src/lib/graph/**`, `src/app/api/library/*/doc-relations/**` | — | — | 0009 |
 | `packages/module-story/**`, `src/components/library/story/**` | welle-3-iii-galerie-chat-contracts, chat-contracts | `contracts-ui` | 0007, 0008 |
 | `pnpm-workspace.yaml`, `packages/**`, `apps/**`, `next.config.js` | — | — | 0007, 0008 |

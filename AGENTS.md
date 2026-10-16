@@ -247,6 +247,13 @@ Detail (warum, Symptome, Ausnahmen):
 - Vorgeschlagen (geplant, M8): `docs/adr/0010-retrieval-profile.md` — Profile pro Library
   (UI-Variante + pluggbare Retrieval-Strategie + Sprachen), Laie/Experte;
   Ingestion-Post-Prozesse (z.B. Geo-Normalisierung) als Pipeline-Phasen
+- Akzeptiert (2026-10-16, Umsetzung ab 23.10.): `docs/adr/0011-zusammenarbeit-in-stufen.md` —
+  Co-Creators arbeiten bewusst und sichtbar mit dem Speicherzugang des Owners;
+  Urheberschaft `erstellt_von`/`im_namen_von` am Artefakt (kein zentrales
+  Register); Voreinstellungen Lesen/Eigenes/Mitgestalten, eine Prüfstelle auf
+  dem Server; Commons-Libraries mit unveränderlichen Originalen. Löst die
+  Richtung von ADR 0005 als Normalfall ab; Plan
+  `docs/plans/geplant/zusammenarbeit-in-stufen.plan.md`
 
 ## Branching, Commits, PRs (Kurz)
 
