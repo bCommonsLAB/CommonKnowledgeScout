@@ -106,7 +106,8 @@ describe('useFrontmatterEditor', () => {
     // onContentUpdated wurde mit neuem Content gerufen
     expect(onContentUpdated).toHaveBeenCalledTimes(1)
     const [newContent, meta, errors] = onContentUpdated.mock.calls[0]
-    expect(newContent).toContain('title: Neuer Titel')
+    // Einer Serializer (createMarkdownWithFrontmatter): Strings JSON-quotiert
+    expect(newContent).toContain('title: "Neuer Titel"')
     expect(meta).toBeDefined()
     expect(errors).toEqual([])
 
@@ -114,6 +115,19 @@ describe('useFrontmatterEditor', () => {
     expect(result.current.editingField).toBeNull()
     expect(result.current.editingValue).toBe('')
     expect(result.current.isSaving).toBe(false)
+  })
+
+  it('saveMetaField mit mehrzeiligem Wert schreibt EINE Zeile, keinen YAML-Block (Befund 16.10.2026)', async () => {
+    const onContentUpdated = vi.fn()
+    const { result } = renderHook(() => useFrontmatterEditor(makeArgs({ onContentUpdated })))
+
+    await act(async () => {
+      await result.current.saveMetaField('summary', 'Absatz eins: mit Doppelpunkt\n\nAbsatz zwei')
+    })
+
+    const [newContent] = onContentUpdated.mock.calls[0]
+    expect(newContent).toContain('summary: "Absatz eins: mit Doppelpunkt\\n\\nAbsatz zwei"')
+    expect(newContent).not.toContain('summary: |')
   })
 
   it('saveMetaField mit JSON-Array-Wert: Wert wird geparst', async () => {
