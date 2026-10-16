@@ -293,6 +293,17 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   `--apply`), Prüfung, dann Prod — ohne Migration sind Nextcloud- und
   OneDrive-Libraries nicht erreichbar. Nächster Schritt: A3 Brücke
   (Start-Prompt im Hand-off der A2-PR).
+- **Stand 14.10., A3, C1, C3, C2 gebaut** (Branch
+  `claude/sweet-bell-gr6fn8`, eine PR): Brücke 2.54.0 listet, testet und
+  weist Speicher-Verbindungen zu (`bibliothek_anlegen` nimmt
+  `speicherVerbindung` + `verzeichnis`); Entscheidungskatalog mit
+  Standard-Facetten je Inhaltstyp unter `src/lib/library-setup/` (C1, E6/E8);
+  Brücke 2.55.0: `bibliothek_anlegen` fragt mit `offeneEntscheidungen`
+  zurück statt halb eingerichtet anzulegen, neues `bibliothek_pruefen` (C3);
+  Anlege-Wizard in der App ersetzt beide Anlage-Dialoge, Settings-Übersicht
+  zeigt „Einrichtung: n von m" (C2). Vor dem Merge: `pnpm build` lokal,
+  Klickweg Wizard. Offen: A4 Mitglieder eigene Verbindung (Prüffall
+  ID-Konsistenz vorab, Opus).
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 

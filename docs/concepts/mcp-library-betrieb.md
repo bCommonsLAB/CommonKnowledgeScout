@@ -110,6 +110,41 @@ Werkzeuge: sieben Stationen plus Nachziehen, drei Rückfragen an den Menschen
 und der Haltepunkt in Station 4, an dem der Mensch das Transkript im Reiter
 „Korrektur" prüft.
 
+## Nachtrag 2.55.0: Rückfragen statt halb eingerichteter Libraries (C3)
+
+`bibliothek_anlegen` prüft den Entwurf gegen den Entscheidungskatalog
+(`src/lib/library-setup/`, eine Quelle für App-Wizard, Brücke und Settings).
+Fehlen Pflicht- oder empfohlene Entscheidungen, legt es **nichts** an und
+antwortet mit `angelegt: false`, `einrichtung` („n von m") und
+`offeneEntscheidungen` (Schlüssel, Gewicht, Frage, Optionen, Vorgabe,
+Antwortweg). Der Agent fragt den Menschen und ruft erneut auf — mit
+`entscheidungen` (`{ facetten: "standard", graph: false, … }`) und/oder
+`ueberspringen` (nur empfohlene; dann gilt die Vorgabe). `vorlageVon`
+beantwortet, was die Vorlage trägt. MCP-Elicitation bleibt eine spätere
+Verschönerung (Owner-Entscheid E7).
+
+| Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
+|---|---|---|
+| `bibliothek_pruefen` | liest | Einrichtungs-Anzeige der Settings: `pruefeEinrichtung` für eine bestehende Library, dieselbe Fragenliste wie die Rückfragen |
+
+## Nachtrag 2.54.0: Speicher-Verbindungen (Plan speicher-verbindungen-und-library-anlage, A3)
+
+Zugangsdaten gehören seit Teil A der Person: eine Verbindung (Nextcloud,
+OneDrive) liegt verschlüsselt am Konto, die Library zeigt mit
+`storageConnectionId` darauf. Die Brücke kann Verbindungen sehen, testen und
+zuweisen, aber **nicht anlegen** — dafür braucht es ein Geheimnis
+(App-Passwort, Client-Secret, Microsoft-Anmeldung), und Geheimnisse gehen nie
+über die Brücke. Anlegen bleibt die Konto-Seite `/settings/account/storage-connections`.
+
+| Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
+|---|---|---|
+| `speicher_verbindungen_auflisten` | liest | Liste der Konto-Seite: Id, Bezeichnung, Typ, letzter Test, Nextcloud-URL/-Benutzer, Geheimnis hinterlegt ja/nein, OneDrive angemeldet, Libraries darauf (`speicher-verbindung-wahl.ts`) |
+| `speicher_verbindung_testen` | speichert nur das Testergebnis | Knopf „Testen" der Konto-Seite (`testStorageConnection`) |
+| `speicher_verbindung_zuweisen` | schreibt (nur Owner) | Archive · 1 Quelle → Verbindung wählen; Typ muss passen, optional neues Verzeichnis, Antwort vorher/nachher |
+
+Eine Verbindung nennt der Agent per Id oder Bezeichnung; mehrdeutige oder
+unbekannte Angaben scheitern mit der Liste der vorhandenen Verbindungen.
+
 ## Nachtrag 2.45.0: Library anlegen, Vorlagen und Quellen übernehmen
 
 Ziel: den Flow „Veranstaltung erfassen" von null an über die Brücke fahren,
@@ -117,8 +152,8 @@ Geheimnisse bleiben in der Oberfläche.
 
 | Werkzeug | Liest/Schreibt | Dieselbe Funktion wie |
 |---|---|---|
-| `bibliothek_anlegen` | schreibt | Anlege-Dialog + Speicher-Schritt (`LibraryService.updateLibrary`, Shadow-Twin v2/Mongo); seit 2.53.1 hängt sie eine Nextcloud-Library an die Speicher-Verbindung mit gleicher WebDAV-URL und gleichem Benutzer (`storageConnectionId`), sonst Verbindung „ausstehend"; `vorlageVon` wie der Klon im Anlege-Dialog (eigener Vektor-Index), aber ohne Zugangsdaten, Secretary-Verbindung, Veröffentlichung, Binary-Storage, Agentensicht (`bibliothek-anlegen.ts`) |
-| `speicher_pruefen` | liest | Knopf „Verbindung prüfen" ohne Testordner: `validateConfiguration` + Wurzel listen; nennt die Speicher-Verbindung (Bezeichnung, ob ein Geheimnis hinterlegt bzw. OneDrive angemeldet ist), nie Werte |
+| `bibliothek_anlegen` | schreibt | Anlege-Dialog + Speicher-Schritt (`LibraryService.updateLibrary`, Shadow-Twin v2/Mongo); seit 2.54.0 nennt der Agent die Speicher-Verbindung (`speicherVerbindung`, Id oder Bezeichnung; der Typ folgt aus ihr) plus `verzeichnis`, ohne Verbindung bleibt eine nextcloud-/onedrive-Library „ausstehend" bis `speicher_verbindung_zuweisen`; `vorlageVon` wie der Klon im Anlege-Dialog (eigener Vektor-Index), aber ohne Zugangsdaten, Secretary-Verbindung, Veröffentlichung, Binary-Storage, Agentensicht (`bibliothek-anlegen.ts`) |
+| `speicher_pruefen` | liest | Knopf „Verbindung prüfen" ohne Testordner: `validateConfiguration` + Wurzel listen; nennt die Speicher-Verbindung (Id, Bezeichnung, letzter Test, ob ein Geheimnis hinterlegt bzw. OneDrive angemeldet ist), nie Werte |
 | `vorlage_uebernehmen` | schreibt | Klon-Kopie der Vorlagen bzw. Import-Knopf; `saveTemplateToMongoDB`/`updateTemplateInMongoDB` hinter dem Konsistenz-Contract |
 | `kopieren` | schreibt | Provider-Interface (lesen + hochladen); Twin-Ordner nie, `nurQuellen` mit dem Batch-Zaun |
 

@@ -1,132 +1,97 @@
 "use client"
 
 /**
- * CreateLibraryWizard — geführte Library-Anlage ("Petra-Flow") als Dialog.
+ * CreateLibraryWizard — Anlege-Wizard als Dialog (Plan
+ * speicher-verbindungen-und-library-anlage, C2).
  *
- * Schritt 1: Name + Inhaltstyp. Mehr braucht es nicht — Quelle, Vorlage und
- * Darstellung haben sinnvolle Standardwerte. Nach dem Erstellen leitet der
- * zugrunde liegende Hook automatisch ins Archiv weiter (Quelle einrichten =
- * nächster Petra-Schritt).
+ * Schritte: Grundlagen → Quelle → Verarbeitung → Finden → Story → Erfassen
+ * (nur Inhaltstypen mit Wizards) → Zusammenfassung. Welche Fragen es gibt,
+ * wie schwer sie wiegen und was ohne Antwort gilt, steht im
+ * Entscheidungskatalog (`src/lib/library-setup/`) — derselbe, gegen den die
+ * Bruecke bei `bibliothek_anlegen` prueft. Pflicht-Schritte blockieren
+ * „Weiter"; empfohlene lassen sich ueberspringen und stehen dann in der
+ * Zusammenfassung als „offen".
  *
- * Wiederverwendbar: wird vom Dashboard (/start), vom Top-Nav-Button "Neue
- * Bibliothek" und aus der Settings-Übersicht aufgerufen — statt drei
- * getrennter Anlage-Pfade. Die Anlage-Logik selbst liegt in useLibraryForm.
+ * Aufgerufen von Dashboard (/start), Top-Nav, Settings-Uebersicht, dem
+ * Library-Switcher und dem Library-Formular (ueber `CreateLibraryDialog`).
  */
 
-import {
-  Button,
-  Card,
-  CardContent,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-} from '@ks/ui'
-import { CORE_CONTENT_TYPES } from "@/components/settings/chat/content-type-section"
-import { useLibraryForm } from "@/components/settings/library/hooks/use-library-form"
+import { useState } from "react"
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@ks/ui"
+import { audioErwartet, hatErfassenWizards } from "@/lib/library-setup/inhaltstyp-merkmale"
+import type { Schritt } from "@/lib/library-setup/typen"
+import { SchrittErfassen, SchrittFinden, SchrittStory } from "./create-library/schritt-finden-story"
+import { SchrittGrundlagen } from "./create-library/schritt-grundlagen"
+import { SchrittQuelle } from "./create-library/schritt-quelle"
+import { SchrittVerarbeitung } from "./create-library/schritt-verarbeitung"
+import { SchrittZusammenfassung } from "./create-library/schritt-zusammenfassung"
+import { useCreateLibrary } from "./create-library/use-create-library"
+
+type WizardSchritt = Exclude<Schritt, "settings"> | "zusammenfassung"
+
+const TITEL: Record<WizardSchritt, string> = {
+  grundlagen: "Grundlagen", quelle: "Quelle", verarbeitung: "Verarbeitung", finden: "Finden",
+  story: "Story", erfassen: "Erfassen", zusammenfassung: "Zusammenfassung",
+}
 
 interface CreateLibraryWizardProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Nach erfolgreicher Anlage, vor der Weiterleitung ins Archiv. */
+  onCreated?: (libraryId: string) => void
 }
 
-/**
- * Innerer Form-Teil: nutzt useLibraryForm(true). Bewusst nur gerendert, wenn
- * der Dialog offen ist — so läuft die "neue Bibliothek"-Initialisierung des
- * Hooks (setzt activeLibraryId auf "") erst beim Öffnen, nicht schon beim
- * Mounten des Aufrufers.
- */
-function CreateLibraryWizardForm() {
-  const { form, onSubmit, isLoading } = useLibraryForm(true)
+function WizardInhalt({ onCreated, onAbbrechen }: { onCreated?: (libraryId: string) => void; onAbbrechen: () => void }) {
+  const { antworten, setze, entwurf, fehler, anlegen, isSaving, libraries } = useCreateLibrary(onCreated)
+  const [index, setIndex] = useState(0)
+
+  const mitWizards = entwurf ? hatErfassenWizards(entwurf.library) : false
+  const schritte: WizardSchritt[] = ["grundlagen", "quelle", "verarbeitung", "finden", "story", ...(mitWizards ? (["erfassen"] as const) : []), "zusammenfassung"]
+  const aktuell = schritte[Math.min(index, schritte.length - 1)]
+  const audioWirksam = entwurf ? audioErwartet(entwurf.library, entwurf.kontext) : antworten.audioErwartet === true
+  const pflichtHier = entwurf?.pruefung.offen.filter((s) => s.gewicht === "pflicht" && s.schritt === aktuell) ?? []
+  const letzter = aktuell === "zusammenfassung"
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="label"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input {...field} autoFocus placeholder="z. B. Mein Archiv" />
-              </FormControl>
-              <FormDescription>Geben Sie Ihrer Bibliothek einen treffenden Namen.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="detailViewType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Was wird Ihre Bibliothek enthalten?</FormLabel>
-              <FormControl>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {CORE_CONTENT_TYPES.map(option => (
-                    <Card
-                      key={option.value}
-                      role="button"
-                      onClick={() => field.onChange(option.value)}
-                      className={`cursor-pointer transition-colors ${
-                        field.value === option.value
-                          ? "border-primary ring-1 ring-primary"
-                          : "hover:border-muted-foreground/40"
-                      }`}
-                    >
-                      <CardContent className="p-4">
-                        <p className="text-sm font-medium">{option.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </FormControl>
-              <FormDescription>
-                Mehr braucht es nicht — Quelle, Vorlage und Darstellung haben sinnvolle
-                Standardwerte und lassen sich danach im Archiv anpassen.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Wird erstellt…" : "Bibliothek erstellen"}
+    <>
+      <p className="text-xs text-muted-foreground">Schritt {index + 1} von {schritte.length} · {TITEL[aktuell]}</p>
+      <div className="max-h-[60vh] overflow-y-auto pr-1">
+        {aktuell === "grundlagen" && <SchrittGrundlagen antworten={antworten} setze={setze} libraries={libraries} />}
+        {aktuell === "quelle" && <SchrittQuelle antworten={antworten} setze={setze} />}
+        {aktuell === "verarbeitung" && <SchrittVerarbeitung antworten={antworten} setze={setze} audioWirksam={audioWirksam} />}
+        {aktuell === "finden" && <SchrittFinden antworten={antworten} setze={setze} />}
+        {aktuell === "story" && <SchrittStory antworten={antworten} setze={setze} />}
+        {aktuell === "erfassen" && <SchrittErfassen />}
+        {aktuell === "zusammenfassung" && <SchrittZusammenfassung pruefung={entwurf?.pruefung ?? null} fehler={fehler} />}
+      </div>
+      {pflichtHier.length > 0 && (
+        <p className="text-xs text-destructive">Noch offen: {pflichtHier.map((s) => s.titel).join(", ")}</p>
+      )}
+      <DialogFooter className="gap-2">
+        <Button type="button" variant="ghost" disabled={isSaving} onClick={onAbbrechen}>Abbrechen</Button>
+        <Button type="button" variant="outline" disabled={index === 0 || isSaving} onClick={() => setIndex(index - 1)}>Zurück</Button>
+        {letzter ? (
+          <Button type="button" disabled={!entwurf || entwurf.pruefung.pflichtOffen || isSaving} onClick={() => void anlegen()}>
+            {isSaving ? "Wird angelegt …" : "Bibliothek anlegen"}
           </Button>
-        </div>
-      </form>
-    </Form>
+        ) : (
+          <Button type="button" disabled={pflichtHier.length > 0} onClick={() => setIndex(index + 1)}>Weiter</Button>
+        )}
+      </DialogFooter>
+    </>
   )
 }
 
-/**
- * Dialog-Hülle des Anlage-Wizards. Nach erfolgreicher Anlage navigiert der
- * Hook ins Archiv; der Dialog wird durch den Routenwechsel ohnehin verlassen.
- */
-export function CreateLibraryWizard({ open, onOpenChange }: CreateLibraryWizardProps) {
+/** Dialog-Huelle; der Inhalt wird nur bei offenem Dialog gerendert, so beginnt jede Anlage leer. */
+export function CreateLibraryWizard({ open, onOpenChange, onCreated }: CreateLibraryWizardProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px]">
+      <DialogContent className="sm:max-w-[680px]">
         <DialogHeader>
           <DialogTitle>Neue Bibliothek erstellen</DialogTitle>
-          <DialogDescription>
-            Name und Inhaltstyp genügen — danach richten Sie im Archiv die Quelle ein.
-          </DialogDescription>
+          <DialogDescription>Pflichtangaben sind mit * markiert; Empfohlenes dürfen Sie überspringen und später nachtragen.</DialogDescription>
         </DialogHeader>
-        {open && <CreateLibraryWizardForm />}
+        {open && <WizardInhalt onCreated={onCreated} onAbbrechen={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   )
