@@ -1,6 +1,8 @@
 # ADR 0005 — Co-Creator: eigene Storage-Authentifizierung + Trennung Galerie/Erkunden vs. Archiv
 
-- **Status**: Zurückgestellt (2026-09-09; deponiert seit 2026-06-03, nicht
+- **Status**: Als Normalfall abgelöst durch [ADR 0011](0011-zusammenarbeit-in-stufen.md)
+  (2026-10-16); die eigene Speicher-Verbindung je Mitglied bleibt eine spätere,
+  höhere Stufe. Vorher: Zurückgestellt (2026-09-09; deponiert seit 2026-06-03, nicht
   entschieden; wird aufgegriffen, sobald ein Vorhaben fremde Mitwirkende mit
   eigenem Storage braucht — siehe `docs/STAND.md`, Vorrat)
 - **Datum**: 2026-06-03
