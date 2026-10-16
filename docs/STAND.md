@@ -319,7 +319,8 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Migration), Z2 (Voreinstellung Lesen/Eigenes/Mitgestalten am Mitglied,
   eine Prüfstelle auf dem Server), Z3 (geliehener Speicherzugang sichtbar),
   Z4 (Commons: Original unveränderlich, Kopie mit Herkunft, Lizenz). A4 geht
-  darin auf.
+  darin auf. **ADR 0011 und Plan `plans/geplant/zusammenarbeit-in-stufen.plan.md`
+  angelegt; Umsetzung ab 23.10. (Owner).**
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
