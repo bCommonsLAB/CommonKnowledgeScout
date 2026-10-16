@@ -24,6 +24,7 @@
 
 import { extractFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { UILogger } from '@/lib/debug/logger'
+import { isBlockScalarHeader, readBlockScalar } from '@/lib/secretary/yaml-block-scalar'
 
 export interface FrontmatterParseResult {
   frontmatter: string | null
@@ -62,6 +63,14 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
       // - Zahlen/Booleans typisieren, damit Patch-Roundtrips `pages: 2` nicht zu `"2"` machen
       // - sonst Rohstring behalten
       let parsedValue: unknown = rawValue
+      if (isBlockScalarHeader(rawValue)) {
+        // YAML-Block-Scalar (`key: |` + eingerueckte Zeilen) ist EIN Wert; sonst
+        // wuerde jede Inhaltszeile mit Doppelpunkt ein eigener Key (Befund 16.10.2026).
+        const block = readBlockScalar(lines, i + 1, line, rawValue)
+        meta[k] = block.value
+        i = block.nextIndex - 1
+        continue
+      }
       if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
         try {
           parsedValue = JSON.parse(rawValue)

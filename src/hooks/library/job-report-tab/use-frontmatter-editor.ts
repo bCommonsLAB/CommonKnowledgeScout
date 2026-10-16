@@ -23,6 +23,7 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
+import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { updateShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -105,22 +106,13 @@ export function useFrontmatterEditor(
         }
         currentMeta[fieldName] = parsedValue
 
-        // Rekonstruiere Frontmatter
-        const frontmatterLines = Object.entries(currentMeta).map(([k, v]) => {
-          if (v === null || v === undefined) return `${k}: null`
-          if (Array.isArray(v)) return `${k}: ${JSON.stringify(v)}`
-          if (typeof v === 'object') return `${k}: ${JSON.stringify(v)}`
-          if (typeof v === 'string' && (v.includes('\n') || v.includes(':') || v.includes('"'))) {
-            // Multiline oder Sonderzeichen: YAML Block-Style oder Escaping
-            if (v.includes('\n')) {
-              return `${k}: |\n  ${v.split('\n').join('\n  ')}`
-            }
-            return `${k}: "${v.replace(/"/g, '\\"')}"`
-          }
-          return `${k}: ${v}`
-        })
+        // Frontmatter ueber den EINEN Serializer neu schreiben
+        // (docs/contracts/frontmatter-single-serializer.md). Hier stand ein
+        // eigener Serializer, der mehrzeilige Werte als YAML-Block (`key: |`)
+        // schrieb — der Parser zerlegte sie zeilenweise in eigene Keys
+        // (Befund 16.10.2026, Rueckblick-Twin).
         const body = stripFrontmatter(fullContent)
-        const newFullContent = `---\n${frontmatterLines.join('\n')}\n---\n\n${body}`
+        const newFullContent = createMarkdownWithFrontmatter(body, currentMeta)
 
         // Speichern
         if (isMongoShadowTwinId(effectiveMdId)) {
