@@ -312,6 +312,14 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   (Original bleibt, nur Kopien). Konzept „Zusammenarbeit in Stufen" entsteht
   im Archiv (Vorhabensordner); erst nach Abnahme ADR-Nachtrag und Wellen.
   Der A4-Start-Prompt gilt bis dahin nicht.
+- **Stand 16.10., Konzept abgenommen**: Owner hat die zehn Entscheide des
+  Konzepts „Zusammenarbeit in Stufen" (Archiv) wie vorgeschlagen bestätigt.
+  Nächster Schritt: ADR „Zusammenarbeit in Stufen" und Plan mit Wellen Z1
+  (Urheberschaft `erstellt_von`/`im_namen_von` an Artefakt und Index,
+  Migration), Z2 (Voreinstellung Lesen/Eigenes/Mitgestalten am Mitglied,
+  eine Prüfstelle auf dem Server), Z3 (geliehener Speicherzugang sichtbar),
+  Z4 (Commons: Original unveränderlich, Kopie mit Herkunft, Lizenz). A4 geht
+  darin auf.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
