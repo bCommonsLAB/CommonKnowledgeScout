@@ -304,6 +304,14 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   zeigt „Einrichtung: n von m" (C2). Vor dem Merge: `pnpm build` lokal,
   Klickweg Wizard. Offen: A4 Mitglieder eigene Verbindung (Prüffall
   ID-Konsistenz vorab, Opus).
+- **Stand 16.10., A4 angehalten** (Owner): #394 gemergt. Statt „Mitglieder
+  nur mit eigener Verbindung" sollen Co-Creators bewusst und sichtbar mit dem
+  Speicherzugang des Owners arbeiten können; Schreibrechte je Feature,
+  Urheberschaft (E-Mail, ggf. „im Namen von") an Datei, Transkript,
+  Transformation und Index-Eintrag selbst, Sonderfall Commons-Libraries
+  (Original bleibt, nur Kopien). Konzept „Zusammenarbeit in Stufen" entsteht
+  im Archiv (Vorhabensordner); erst nach Abnahme ADR-Nachtrag und Wellen.
+  Der A4-Start-Prompt gilt bis dahin nicht.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
