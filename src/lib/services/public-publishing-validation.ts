@@ -6,7 +6,8 @@
  * Die Bruecke (`veroeffentlichung_setzen`) braucht dieselben Regeln — zwei
  * Implementierungen wuerden auseinanderlaufen. Deshalb hier: reine
  * Funktionen, die Route und Werkzeug beide rufen. Semantik des Merges:
- * `undefined` = unveraendert, `''` bei URL-/Icon-Feldern = loeschen.
+ * `undefined` = unveraendert, `''` bei URL-/Icon-Feldern = loeschen,
+ * `''` in den Text-Gruppen `gallery` und `story` = Standardtext.
  * `apiKey` bleibt bewusst aussen vor: die Route behandelt ihn selbst, die
  * Bruecke setzt ihn nie.
  *
@@ -19,6 +20,10 @@ import { validiereSiteTheme } from '@/lib/website/site-theme'
 
 export type PublicPublishing = NonNullable<NonNullable<Library['config']>['publicPublishing']>
 export type GalleryTexte = NonNullable<PublicPublishing['gallery']>
+export type StoryTexte = NonNullable<PublicPublishing['story']>
+
+const GALLERY_KEYS: ReadonlyArray<keyof GalleryTexte> = ['headline', 'subtitle', 'description', 'filterDescription', 'menuLabel', 'moreLinkLabel']
+const STORY_KEYS: ReadonlyArray<keyof StoryTexte> = ['headline', 'subtitle', 'intro', 'topicsTitle', 'topicsIntro']
 
 export interface PublicPublishingEingabe {
   slugName?: string
@@ -31,6 +36,8 @@ export interface PublicPublishingEingabe {
   backgroundImageUrl?: string
   logoUrl?: string
   gallery?: Partial<GalleryTexte>
+  /** Story-Texte feldweise wie `gallery`; `''` = Standardtext. */
+  story?: Partial<StoryTexte>
   siteEnabled?: boolean
   /** Welle S2: Design-Profil; `undefined` = unveraendert, `null` = loeschen (Vorlage). */
   siteTheme?: SiteTheme | null
@@ -49,6 +56,8 @@ export function validierePublicPublishing(p: {
   isPublic?: boolean
   requiresAuth?: boolean
   showOnHomepage?: boolean
+  gallery?: unknown
+  story?: unknown
   siteTheme?: SiteTheme | null
 }): string | null {
   if (p.isPublic === true) {
@@ -59,6 +68,10 @@ export function validierePublicPublishing(p: {
   }
   if (p.requiresAuth === true && p.isPublic !== true) return 'requiresAuth kann nur aktiviert werden, wenn die Library öffentlich ist'
   if (p.showOnHomepage === false && p.isPublic !== true) return 'Show-on-Homepage kann nur gesetzt werden, wenn die Library öffentlich ist'
+  const galleryFehler = validiereTexte('gallery', p.gallery, GALLERY_KEYS)
+  if (galleryFehler) return galleryFehler
+  const storyFehler = validiereTexte('story', p.story, STORY_KEYS)
+  if (storyFehler) return storyFehler
   if (p.siteTheme) {
     try {
       validiereSiteTheme(p.siteTheme)
@@ -69,6 +82,31 @@ export function validierePublicPublishing(p: {
   return null
 }
 
+/**
+ * Text-Gruppen (gallery, story): ein Objekt nur mit bekannten Schluesseln und
+ * Text-Werten. Unbekannte Schluessel werden abgewiesen statt still verworfen.
+ */
+function validiereTexte(gruppe: string, wert: unknown, keys: ReadonlyArray<string>): string | null {
+  if (wert === undefined || wert === null) return null
+  if (typeof wert !== 'object' || Array.isArray(wert)) return `${gruppe} muss ein Objekt sein`
+  for (const [key, text] of Object.entries(wert as Record<string, unknown>)) {
+    if (!keys.includes(key)) return `${gruppe}: unbekanntes Feld "${key}" (erlaubt: ${keys.join(', ')})`
+    if (text !== undefined && typeof text !== 'string') return `${gruppe}.${key} muss ein Text sein`
+  }
+  return null
+}
+
+/** Text-Gruppe feldweise mergen; `undefined` laesst den alten Wert stehen, `''` bleibt `''` (= Standardtext). */
+function mergeTexte<T extends object>(alt: T | undefined, neu: Partial<T> | undefined, keys: ReadonlyArray<keyof T>): T | undefined {
+  if (!neu) return alt
+  const ergebnis = {} as T
+  for (const key of keys) {
+    const wert = neu[key] !== undefined ? neu[key] : alt?.[key]
+    if (wert !== undefined) ergebnis[key] = wert as T[keyof T]
+  }
+  return ergebnis
+}
+
 function urlFeld(neu: string | undefined, alt: string | undefined): string | undefined {
   if (neu === undefined) return alt
   return neu === '' ? undefined : neu
@@ -76,14 +114,12 @@ function urlFeld(neu: string | undefined, alt: string | undefined): string | und
 
 /** Galerie-Texte feldweise mergen; `undefined` laesst den alten Wert stehen. */
 export function mergeGalleryTexte(alt: GalleryTexte | undefined, neu: Partial<GalleryTexte> | undefined): GalleryTexte | undefined {
-  if (!neu) return alt
-  const keys: Array<keyof GalleryTexte> = ['headline', 'subtitle', 'description', 'filterDescription', 'menuLabel', 'moreLinkLabel']
-  const ergebnis: GalleryTexte = {}
-  for (const key of keys) {
-    const wert = neu[key] !== undefined ? neu[key] : alt?.[key]
-    if (wert !== undefined) ergebnis[key] = wert
-  }
-  return ergebnis
+  return mergeTexte(alt, neu, GALLERY_KEYS)
+}
+
+/** Story-Texte feldweise mergen, gleiche Semantik wie die Galerie-Texte. */
+export function mergeStoryTexte(alt: StoryTexte | undefined, neu: Partial<StoryTexte> | undefined): StoryTexte | undefined {
+  return mergeTexte(alt, neu, STORY_KEYS)
 }
 
 /**
@@ -107,18 +143,18 @@ export function mergePublicPublishing(
     backgroundImageUrl: urlFeld(neu.backgroundImageUrl, alt?.backgroundImageUrl),
     logoUrl: urlFeld(neu.logoUrl, alt?.logoUrl),
     gallery: mergeGalleryTexte(alt?.gallery, neu.gallery),
-    story: alt?.story,
+    story: mergeStoryTexte(alt?.story, neu.story),
     siteEnabled: neu.siteEnabled !== undefined ? neu.siteEnabled : alt?.siteEnabled === true,
     // S2: `null` loescht das Profil (zurueck zur Vorlage); gueltige Profile werden normalisiert.
     siteTheme: neu.siteTheme === undefined ? alt?.siteTheme : (neu.siteTheme === null ? undefined : validiereSiteTheme(neu.siteTheme)),
   }
 }
 
-/** Welche Felder sich zwischen zwei Zustaenden unterscheiden (flach, gallery als Ganzes). */
+/** Welche Felder sich zwischen zwei Zustaenden unterscheiden (flach, gallery und story als Ganzes). */
 export function geaenderteFelder(alt: PublicPublishing | undefined, neu: PublicPublishing): string[] {
   const keys: Array<keyof PublicPublishing> = [
     'slugName', 'publicName', 'description', 'icon', 'isPublic', 'showOnHomepage',
-    'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'siteEnabled', 'siteTheme',
+    'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'story', 'siteEnabled', 'siteTheme',
   ]
   return keys.filter((key) => JSON.stringify(alt?.[key] ?? null) !== JSON.stringify(neu[key] ?? null))
 }

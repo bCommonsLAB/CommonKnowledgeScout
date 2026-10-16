@@ -4,7 +4,8 @@
  * @description
  * Station 5 des Website-Wegs: `publicPublishing` der Library lesen und
  * setzen — mit derselben Validierung und demselben Merge wie das Formular
- * (`public-publishing-validation.ts`). Nur genannte Felder aendern sich.
+ * (`public-publishing-validation.ts`). Nur genannte Felder aendern sich;
+ * die Text-Gruppen `gallery` und `story` feldweise (`''` = Standardtext).
  * `apiKey` wird nie gesetzt und nur maskiert gelesen. `isPublic: true` ist
  * die eine Aktion mit Aussenwirkung; die Antwort sagt das ausdruecklich.
  *
@@ -26,6 +27,10 @@ const GALLERY = z.object({
   headline: TEXT.optional(), subtitle: TEXT.optional(), description: TEXT.optional(),
   filterDescription: TEXT.optional(), menuLabel: z.string().max(60).optional(), moreLinkLabel: z.string().max(60).optional(),
 }).strict()
+const STORY = z.object({
+  headline: TEXT.optional(), subtitle: TEXT.optional(), intro: TEXT.optional(),
+  topicsTitle: TEXT.optional(), topicsIntro: TEXT.optional(),
+}).strict()
 
 /** Sicht auf die Einstellungen ohne Geheimnis (CLAUDE.md: Token-Status statt Token-Wert). Auch fuer konfiguration_lesen (Welle D). */
 export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
@@ -41,6 +46,7 @@ export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
     backgroundImageUrl: pub?.backgroundImageUrl ?? null,
     logoUrl: pub?.logoUrl ?? null,
     gallery: pub?.gallery ?? null,
+    story: pub?.story ?? null,
     siteEnabled: pub?.siteEnabled === true,
     siteTheme: pub?.siteTheme ?? null,
     apiKeyGesetzt: Boolean(pub?.apiKey),
@@ -56,7 +62,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
       title: 'Veroeffentlichungs-Einstellungen lesen (liest nur)',
       description:
         'Liest publicPublishing der Library: isPublic, Slug, oeffentlicher Name, Beschreibung, Icon, ' +
-        'showOnHomepage, requiresAuth, Logo- und Hintergrundbild-URL, Galerie-Texte, siteEnabled, ' +
+        'showOnHomepage, requiresAuth, Logo- und Hintergrundbild-URL, Galerie-Texte, Story-Texte (story), siteEnabled, ' +
         'das Design-Profil siteTheme (null = Vorlage), ob ein API-Schluessel gesetzt ist (nie sein Wert) ' +
         'und die Adresse /explore/<slug>. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID },
@@ -81,7 +87,10 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         'Veroeffentlichung: Slug (Kleinbuchstaben, Zahlen, Bindestriche, ab 3 Zeichen, eindeutig), ' +
         'oeffentlicher Name ab 3, Beschreibung ab 10 Zeichen, sobald isPublic true ist; requiresAuth und ' +
         'showOnHomepage=false nur bei isPublic. Nur genannte Felder aendern sich; leere URL-Felder ' +
-        'loeschen den Wert. isPublic: true macht die Inhalte anonym lesbar — das ist die eine Aktion mit ' +
+        'loeschen den Wert. gallery und story sind Text-Gruppen, feldweise gesetzt; ein leerer String ' +
+        'heisst Standardtext. story: headline (Titel der Erklaerung im Story-Kopf), intro (Erklaerungstext ' +
+        'im Story-Kopf), topicsTitle und topicsIntro (Texte ueber den Themenkarten), subtitle (gespeichert, ' +
+        'derzeit nicht angezeigt). isPublic: true macht die Inhalte anonym lesbar — das ist die eine Aktion mit ' +
         'Aussenwirkung. siteTheme (Welle S2) ist das Design-Profil der Website: fontHeading/fontBody aus ' +
         'geist|newsreader|plus-jakarta, accent/accentHover/accentText als #rrggbb, buttonShape pill|rounded, ' +
         'surfaces je Flaeche (default, light, dark, brand, linen, mint, dark-green, neutral) mit bg, text, ' +
@@ -100,6 +109,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         backgroundImageUrl: z.string().max(1000).optional().describe('anonym lesbare URL; "" loescht'),
         logoUrl: z.string().max(1000).optional().describe('anonym lesbare URL; "" loescht'),
         gallery: GALLERY.optional().describe('Galerie-Texte feldweise; leerer String = Standardtext'),
+        story: STORY.optional().describe('Story-Texte feldweise; leerer String = Standardtext'),
         siteEnabled: z.boolean().optional().describe('true = /explore/<slug> zeigt die Website statt der Galerie'),
         siteTheme: SITE_THEME_SCHEMA.optional()
           .describe('Design-Profil als OBJEKT (kein JSON-Text); ersetzt das gespeicherte Profil als Ganzes; weglassen = unveraendert'),

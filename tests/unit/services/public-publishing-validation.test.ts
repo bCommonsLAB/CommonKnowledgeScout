@@ -4,13 +4,13 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  geaenderteFelder, mergeGalleryTexte, mergePublicPublishing, validierePublicPublishing,
+  geaenderteFelder, mergeGalleryTexte, mergePublicPublishing, mergeStoryTexte, validierePublicPublishing,
 } from '@/lib/services/public-publishing-validation'
 
 const ALT = {
   slugName: 'klima', publicName: 'Klima', description: 'Eine lange Beschreibung.', isPublic: true,
   showOnHomepage: true, requiresAuth: false, apiKey: 'geheim', logoUrl: 'https://blob/logo.png',
-  gallery: { headline: 'H', subtitle: 'S' }, siteEnabled: false,
+  gallery: { headline: 'H', subtitle: 'S' }, story: { headline: 'Story', topicsTitle: 'Themen' }, siteEnabled: false,
 }
 
 describe('validierePublicPublishing', () => {
@@ -53,6 +53,31 @@ describe('mergePublicPublishing', () => {
     expect(mergeGalleryTexte({ headline: 'H', subtitle: 'S' }, { subtitle: 'Neu' })).toEqual({ headline: 'H', subtitle: 'Neu' })
     expect(mergeGalleryTexte(undefined, undefined)).toBeUndefined()
     expect(mergeGalleryTexte({ headline: 'H' }, { headline: '' })).toEqual({ headline: '' })
+  })
+})
+
+describe('Story-Texte (Befund 16.10.)', () => {
+  it('werden feldweise gemergt wie die Galerie-Texte; leerer String bleibt (= Standardtext)', () => {
+    expect(mergeStoryTexte({ headline: 'H', intro: 'I' }, { intro: 'Neu', topicsIntro: 'T' })).toEqual({ headline: 'H', intro: 'Neu', topicsIntro: 'T' })
+    expect(mergeStoryTexte({ headline: 'H' }, undefined)).toEqual({ headline: 'H' })
+    expect(mergeStoryTexte(undefined, undefined)).toBeUndefined()
+    expect(mergeStoryTexte({ headline: 'H' }, { headline: '' })).toEqual({ headline: '' })
+  })
+
+  it('mergePublicPublishing setzt nur genannte Story-Felder und meldet story als geaendert', () => {
+    expect(mergePublicPublishing(ALT, {}, 'L').story).toEqual({ headline: 'Story', topicsTitle: 'Themen' })
+    const neu = mergePublicPublishing(ALT, { story: { topicsIntro: 'Worum es geht' } }, 'L')
+    expect(neu.story).toEqual({ headline: 'Story', topicsTitle: 'Themen', topicsIntro: 'Worum es geht' })
+    expect(neu.gallery).toEqual(ALT.gallery)
+    expect(geaenderteFelder(ALT, neu)).toEqual(['story'])
+  })
+
+  it('Validierung weist unbekannte Felder und Nicht-Text-Werte in story und gallery ab', () => {
+    expect(validierePublicPublishing({ story: { headline: 'H', intro: '' } })).toBeNull()
+    expect(validierePublicPublishing({ story: { titel: 'H' } })).toMatch(/story: unbekanntes Feld "titel"/)
+    expect(validierePublicPublishing({ story: { headline: 3 } })).toMatch(/story\.headline muss ein Text sein/)
+    expect(validierePublicPublishing({ story: 'Text' })).toMatch(/story muss ein Objekt sein/)
+    expect(validierePublicPublishing({ gallery: { intro: 'x' } })).toMatch(/gallery: unbekanntes Feld "intro"/)
   })
 })
 
