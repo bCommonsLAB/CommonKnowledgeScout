@@ -28,8 +28,12 @@ async function alle(name: string, filter: Document): Promise<Document[]> {
   return col.find(filter).toArray()
 }
 
-/** Schreibt die Sicherung nach backups/ und gibt den Dateipfad zurueck. */
-export async function schreibeSicherung(library: Library): Promise<string> {
+/**
+ * Schreibt die Sicherung in `zielOrdner` und gibt den Dateipfad zurueck.
+ * Der Ordner kommt vom aufrufenden Skript — Code unter src/ liest und
+ * schreibt nicht relativ zu process.cwd() (Riegel laufzeit-dateien-im-image).
+ */
+export async function schreibeSicherung(library: Library, zielOrdner: string): Promise<string> {
   const lib = library.id
   const daten: Record<string, Document[] | Library> = {
     library,
@@ -44,9 +48,8 @@ export async function schreibeSicherung(library: Library): Promise<string> {
     daten[name] = await alle(name, {})
   }
 
-  const dir = path.join(process.cwd(), 'backups')
-  fs.mkdirSync(dir, { recursive: true })
-  const datei = path.join(dir, `storage-remap-${lib}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+  fs.mkdirSync(zielOrdner, { recursive: true })
+  const datei = path.join(zielOrdner, `storage-remap-${lib}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
   fs.writeFileSync(datei, BSON.EJSON.stringify(daten, undefined, 0, { relaxed: false }), 'utf8')
   return datei
 }

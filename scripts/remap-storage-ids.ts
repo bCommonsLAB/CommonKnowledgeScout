@@ -87,7 +87,7 @@ async function main(): Promise<void> {
   for (const e of plan.ohnePartner.slice(0, 30)) console.log(`  ! ${e.relPath}: ${e.grund}`)
   if (plan.ohnePartner.length > 30) console.log(`  … und ${plan.ohnePartner.length - 30} weitere`)
 
-  if (apply) console.log(`\nSicherung: ${await schreibeSicherung(library)}`)
+  if (apply) console.log(`\nSicherung: ${await schreibeSicherung(library, path.join(process.cwd(), 'backups'))}`)
   const probelauf = !apply
   const twins = await remapShadowTwins(libraryId, plan.idMap, probelauf)
   const index = await remapIndex(library, plan.idMap, probelauf)
