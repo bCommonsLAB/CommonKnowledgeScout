@@ -50,6 +50,15 @@ import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/documen
 export const VECTOR_SEARCH_INDEX_NAME = 'vector_search_idx'
 
 const colCache = new Map<string, Collection<Document>>()
+/**
+ * Collections, deren Index-Setup (Basis-Indizes + Vector Search Index) in
+ * diesem Prozess gelaufen ist. Bewusst getrennt von `colCache`: den fuellt
+ * auch `getCollectionOnly()` auf reinen Lesepfaden (Galerie, Docs). Hing das
+ * Setup an `colCache`, bekam eine neue Library, deren Galerie vor dem ersten
+ * Ingest gelesen wurde, nie einen Suchindex (Befund 16.10.2026: sechs
+ * Collections in Prod ohne `vector_search_idx`, Story-Modus ohne Treffer).
+ */
+const vectorSetupDone = new Set<string>()
 const ensuredIndexKeys = new Set<string>()
 // Cache für Index-Erstellung in findDocs, um wiederholte Index-Checks zu vermeiden
 const ensuredIndexesForCollections = new Set<string>()
@@ -62,8 +71,9 @@ const ensuredIndexesForCollections = new Set<string>()
 export function clearVectorSearchIndexCache(libraryKey: string): void {
   const cacheKey = `${libraryKey}::${VECTOR_SEARCH_INDEX_NAME}`
   ensuredIndexKeys.delete(cacheKey)
-  // colCache muss ebenfalls geleert werden, damit getVectorCollection()
-  // nicht vorzeitig zurückkehrt und ensureVectorSearchIndex() übersprungen wird
+  // Setup-Marke ebenfalls leeren, damit getVectorCollection() das Index-Setup
+  // erneut ausfuehrt.
+  vectorSetupDone.delete(libraryKey)
   colCache.delete(libraryKey)
 }
 
@@ -207,13 +217,12 @@ export async function getVectorCollection(
 ): Promise<Collection<Document>> {
   validateDimension(dimension)
   validateLibrary(library)
-  
-  if (colCache.has(libraryKey)) {
-    return colCache.get(libraryKey) as Collection<Document>
+
+  const col = await getCollectionOnly(libraryKey)
+  if (vectorSetupDone.has(libraryKey)) {
+    return col
   }
-  
-  const col = await getCollection<Document>(libraryKey)
-  
+
   try {
     // Basis-Indizes für häufig verwendete Felder
     await Promise.all([
@@ -237,8 +246,8 @@ export async function getVectorCollection(
   
   // Vector Search Index erstellen mit expliziter Dimension und Library
   await ensureVectorSearchIndex(col, libraryKey, dimension, library)
-  
-  colCache.set(libraryKey, col)
+
+  vectorSetupDone.add(libraryKey)
   return col
 }
 
