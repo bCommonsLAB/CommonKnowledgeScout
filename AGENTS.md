@@ -6,31 +6,32 @@ Detaillierte Begruendungen + Beispiele:
 
 ## Aktueller Fahrplan (zuerst lesen)
 
-**Eine Quelle fuer den Stand: [`docs/STAND.md`](docs/STAND.md).** Dort steht,
-welches Vorhaben „jetzt" traegt, was geplant ist, was erledigt und was
-verworfen. Es gibt keinen Zustand „offen" mehr. Gearbeitet wird **ein
-Vorhaben nach dem anderen**; Agenten arbeiten nur am Vorhaben, das in
-`STAND.md` auf „jetzt" steht, es sei denn, der Owner sagt es anders.
+**Eine Quelle fuer den Stand: [`docs/STAND.md`](docs/STAND.md).** Dort steht
+je Vorhaben, was gemacht ist und was geplant ist, dazu Vorrat, Erledigt und
+Verworfen. Es gibt keinen Zustand „offen" mehr. **Termine, Reihenfolge und
+Prioritaet stehen NICHT im Repo**; sie setzt der Owner im Archiv und nennt
+im Auftrag, welches Vorhaben gerade traegt. Agenten arbeiten am Vorhaben,
+das der Owner nennt, und holen aus `STAND.md` nur, was dort fuer dieses
+Vorhaben als geplant steht.
 
-Stand der Durchsicht 13.10.2026:
+Vorhaben im Repo (Durchsicht 13.10.2026, Stand 18.10.):
 
 - **Vorhaben 1: AECED, Galerie als einbettbare Komponente (M5) — erledigt**
-  (bedient 15.09.; Brief
-  [`AGENT-BRIEF-M5.md`](docs/refactor/modularisierung/AGENT-BRIEF-M5.md)).
+  (Brief [`AGENT-BRIEF-M5.md`](docs/refactor/modularisierung/AGENT-BRIEF-M5.md)).
   Reste stehen im Vorrat von `STAND.md`.
-- **Vorhaben 2 (jetzt, Termin vorbei): Klimamaßnahmen Südtirol, Vortrag
-  30.09.** Offen sind Reste je Punkt (Status-Modalität messen,
-  Website-Sektionen S0/S4/S5, Live-Prüffall Welle J, Welle K PR 2,
-  unverändert publizieren); Liste unter „Stand 13.10." in `STAND.md`.
-- **Vorhaben 3: SHF Konsensieren-Modul** (Freeze 09.10. ohne Code
-  verstrichen); naechster Schritt sind die Owner-Entscheide O1, O2,
-  O10–O20; die Erfassung wird dort in einem Zug bereinigt (Alt-Endpunkte,
-  ADR 0003, Welle 3-VI).
-- **Zwischenschnitt Speicher-Verbindungen und Library-Anlage — erledigt
-  (18.10.)**: B1, A1–A3, C1–C3 gemergt (#390–#394), Migration in Dev und
-  Prod gelaufen. A4 (Mitglieder) geht in ADR 0011 und
+- **Vorhaben 2: Klimamaßnahmen Südtirol.** Gemacht: OneDrive-Anmeldung,
+  Status-Modalität (Code), Website-Sektionen S1–S3, Bruecke Wellen I, J, K
+  PR 1. Geplant: Golden-Set und Baseline, S0/S4/S5, Live-Prueffall Welle J,
+  Welle K PR 2, unveraendert publizieren; Liste in `STAND.md`.
+- **Vorhaben 3: SHF Konsensieren-Modul.** Gemacht: Konzepte, Plaene,
+  Pruefbericht, kein Code fuer das Modul. Geplant: Owner-Entscheide O1, O2,
+  O10–O20, dann Welle 0 nach dem Parallelisierungsplan; die Erfassung wird
+  dort in einem Zug bereinigt (Alt-Endpunkte, ADR 0003, Welle 3-VI).
+- **Zwischenschnitt Speicher-Verbindungen und Library-Anlage — erledigt**:
+  B1, A1–A3, C1–C3 gemergt (#390–#394), Migration in Dev und Prod gelaufen.
+  A4 (Mitglieder) geht in ADR 0011 und
   [`docs/plans/geplant/zusammenarbeit-in-stufen.plan.md`](docs/plans/geplant/zusammenarbeit-in-stufen.plan.md)
-  auf (Wellen Z1–Z4, Umsetzung ab 23.10.).
+  auf (Wellen Z1–Z4, geplant).
 
 **Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent mit Datum
 unter „Neu dazugekommen" des laufenden Vorhabens in
@@ -246,7 +247,7 @@ Detail (warum, Symptome, Ausnahmen):
 - Vorgeschlagen (geplant, M8): `docs/adr/0010-retrieval-profile.md` — Profile pro Library
   (UI-Variante + pluggbare Retrieval-Strategie + Sprachen), Laie/Experte;
   Ingestion-Post-Prozesse (z.B. Geo-Normalisierung) als Pipeline-Phasen
-- Akzeptiert (2026-10-16, Umsetzung ab 23.10.): `docs/adr/0011-zusammenarbeit-in-stufen.md` —
+- Akzeptiert (2026-10-16, Umsetzung geplant): `docs/adr/0011-zusammenarbeit-in-stufen.md` —
   Co-Creators arbeiten bewusst und sichtbar mit dem Speicherzugang des Owners;
   Urheberschaft `erstellt_von`/`im_namen_von` am Artefakt (kein zentrales
   Register); Voreinstellungen Lesen/Eigenes/Mitgestalten, eine Prüfstelle auf
