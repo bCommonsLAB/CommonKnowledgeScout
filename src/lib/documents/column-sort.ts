@@ -51,6 +51,8 @@ export function resolveColumnSort(
   sortDirRaw: string | null,
   defs: FacetDefLike[],
   isMember: boolean,
+  /** ADR 0012: Schalter der Library; gibt die Sterne-Spalte auch fuer Gaeste frei. */
+  starCountsPublic = false,
 ): ColumnSortResolution | null {
   if (!sortFieldRaw && !sortDirRaw) return null
   if (!sortFieldRaw || !sortDirRaw) {
@@ -65,7 +67,7 @@ export function resolveColumnSort(
     return { ok: true, spec: { field: sortFieldRaw, dir, numeric: false, source: 'top' } }
   }
   if (sortFieldRaw === 'favoriteCount') {
-    if (!isMember) {
+    if (!isMember && !starCountsPublic) {
       return { ok: false, status: 403, error: 'Sortierung nach Sternen ist Mitgliedern vorbehalten' }
     }
     return { ok: true, spec: { field: 'favoriteCount', dir, numeric: true, source: 'favorites' } }

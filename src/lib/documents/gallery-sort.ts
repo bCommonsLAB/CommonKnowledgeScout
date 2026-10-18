@@ -2,7 +2,8 @@
  * Default-Sortierung der Galerie-Liste (pure Funktion, unit-testbar).
  *
  * Prioritaet:
- *  1. URL-Sort (`?sort=stars` Member-only | `?sort=rating`) — unveraendert.
+ *  1. URL-Sort (`?sort=stars` fuer Mitglieder oder bei `starCountsPublic`,
+ *     ADR 0012 | `?sort=rating`) — unveraendert.
  *  2. Konfigurierte Default-Sortierung der Library
  *     (`config.chat.gallery.defaultSortField` + `defaultSortDirection`),
  *     z. B. `date` absteigend. Das Feld muss eine bekannte Facette sein —
@@ -26,14 +27,19 @@ export interface GalleryDefaultSortConfig {
 export function buildGallerySort(args: {
   rawSort: string | null
   isMember: boolean
+  /** ADR 0012: Schalter der Library; gibt `sort=stars` auch fuer Gaeste frei. */
+  starCountsPublic?: boolean
   config?: GalleryDefaultSortConfig | null
   facetDefs: ReadonlyArray<Pick<FacetDef, 'metaKey'>>
 }): GallerySortSpec {
-  const { rawSort, isMember, config, facetDefs } = args
+  const { rawSort, isMember, starCountsPublic, config, facetDefs } = args
 
-  // Member-only: `sort=stars` (keine weiche Privilege-Escalation fuer Gaeste).
-  if (rawSort === 'stars' && isMember) {
-    return { favoriteCount: -1, year: -1, upsertedAt: -1 }
+  // `sort=stars`: Mitglieder immer, Gaeste nur bei aktivem Schalter (die Route
+  // weist den Fall vorher mit 403 ab, sortStarsPruefen in stern-filter.ts).
+  // Tie-Break bei gleicher Sternezahl: Prioritaets-Index, dann juengste
+  // Aenderung — Libraries ohne Index sortieren damit wie bisher nach Datum.
+  if (rawSort === 'stars' && (isMember || starCountsPublic === true)) {
+    return { favoriteCount: -1, 'docMetaJson.prioritaets_index': -1, upsertedAt: -1 }
   }
   // Oeffentlich: Prioritaets-Indikator (Teil des veroeffentlichten Dokuments).
   if (rawSort === 'rating') {

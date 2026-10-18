@@ -17,14 +17,26 @@ describe('buildGallerySort', () => {
     })
   })
 
-  it('sort=stars nur fuer Member', () => {
+  it('sort=stars fuer Member: Tie-Break Prioritaets-Index, dann upsertedAt (ADR 0012)', () => {
     expect(buildGallerySort({ rawSort: 'stars', isMember: true, facetDefs: DEFS })).toEqual({
       favoriteCount: -1,
+      'docMetaJson.prioritaets_index': -1,
+      upsertedAt: -1,
+    })
+    // Gaeste ohne Schalter: kein stars-Sort (die Route weist vorher mit 403 ab).
+    expect(buildGallerySort({ rawSort: 'stars', isMember: false, facetDefs: DEFS })).toEqual({
       year: -1,
       upsertedAt: -1,
     })
-    // Gaeste: kein stars-Sort (Default), auch mit konfigurierter Sortierung.
-    expect(buildGallerySort({ rawSort: 'stars', isMember: false, facetDefs: DEFS })).toEqual({
+  })
+
+  it('sort=stars fuer Gaeste bei starCountsPublic', () => {
+    expect(buildGallerySort({ rawSort: 'stars', isMember: false, starCountsPublic: true, facetDefs: DEFS })).toEqual({
+      favoriteCount: -1,
+      'docMetaJson.prioritaets_index': -1,
+      upsertedAt: -1,
+    })
+    expect(buildGallerySort({ rawSort: 'stars', isMember: false, starCountsPublic: false, facetDefs: DEFS })).toEqual({
       year: -1,
       upsertedAt: -1,
     })

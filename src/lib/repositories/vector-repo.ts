@@ -39,7 +39,7 @@ import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { FileLogger } from '@/lib/debug/logger'
 import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-meta-formatter'
 import type { DocCardMeta } from '@ks/contracts'
-import { buildFavoriteLookupStages } from './source-user-states-repo'
+import { waehleSterneStages } from './source-user-states-count'
 import { buildCommentLookupStages } from './source-comments-repo'
 import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/documents/column-sort'
 
@@ -1179,6 +1179,12 @@ interface SharedFindDocsOptions {
    * gebraucht; bei anonymen Aufrufen leerer String oder undefined.
    */
   userEmail?: string
+  /**
+   * ADR 0012: `publicPublishing.starCountsPublic` der Library. Ohne
+   * `userEmail` (kein Mitglied) haengt der Lookup dann nur `favoriteCount`
+   * an — keine Voter-Namen, kein `isFavorite`.
+   */
+  starCountsPublic?: boolean
 }
 
 /**
@@ -1260,7 +1266,7 @@ export async function findDocs(
   }
 
   const lookupStages = [
-    ...buildFavoriteLookupStages(libraryId, options.userEmail),
+    ...waehleSterneStages({ libraryId, userEmail: options.userEmail, starCountsPublic: options.starCountsPublic }),
     ...buildCommentLookupStages(libraryId, options.userEmail),
   ]
   const columnSort = options.columnSort
@@ -1398,7 +1404,7 @@ export async function findDocsGrouped(
   }
 
   const lookupStages = [
-    ...buildFavoriteLookupStages(libraryId, options.userEmail),
+    ...waehleSterneStages({ libraryId, userEmail: options.userEmail, starCountsPublic: options.starCountsPublic }),
     ...buildCommentLookupStages(libraryId, options.userEmail),
   ]
   const lookupBeforeSort = sortNeedsFavoriteLookup(sortWithinGroup)
