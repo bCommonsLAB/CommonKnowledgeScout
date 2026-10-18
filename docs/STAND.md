@@ -1,169 +1,143 @@
 # Stand des Repos
 
-> Eine Quelle für die Frage „woran wird gerade gearbeitet, und was wartet?".
-> Gepflegt von Hand bei jedem Vorhabenswechsel und bei jedem neuen Punkt.
-> Stand: 2026-10-13 (Durchsicht gegen Code, Pläne und offene Branches). Die ausführliche Landkarte mit Legende und Motiven aller
-> Wellen liegt in Peters Archiv (`24.09 KnowledgeScout/THEMEN.md`), der
-> Verlauf je Vorhaben mit allen „Neu dazugekommen"-Einträgen in
+> Eine Quelle für die Frage „was ist gemacht, und was ist geplant?".
+> Gepflegt von Hand bei jedem neuen Punkt.
+> Stand: 2026-10-18 (Durchsicht gegen Code, Pläne und Branches zuletzt 13.10.).
+> Die ausführliche Landkarte mit Legende und Motiven aller Wellen liegt in
+> Peters Archiv (`24.09 KnowledgeScout/THEMEN.md`), der Verlauf je Vorhaben
+> mit allen „Neu dazugekommen"-Einträgen in
 > `24.09 KnowledgeScout/STAND-Vorhaben.md` (seit 15.09., Regel „Oeffentliches
-> Repo" in `AGENTS.md`); diese Datei ist der Repo-Auszug: Arbeitsliste,
-> Vorrat, Erledigt, ADRs.
+> Repo" in `AGENTS.md`); diese Datei ist der Repo-Auszug: je Vorhaben
+> Gemacht und Geplant, Vorrat, Erledigt, ADRs.
+>
+> **Termine und Reihenfolge stehen nicht hier.** Welches Vorhaben gerade
+> trägt und in welcher Reihenfolge gebaut wird, entscheidet der Owner
+> außerhalb des Repos (Archiv) und nennt es im Auftrag. Diese Datei sagt
+> nur, was im Code ist und was gewollt, aber nicht gebaut ist.
 
-## Vier Zustände, kein „offen"
+## Drei Zustände, kein „offen"
 
 | Zustand | Bedeutung |
 |---|---|
-| **aktiv** | wird jetzt bearbeitet; hat einen Termin oder einen wartenden Konsumenten |
-| **geplant** | gewollt, aber ohne Termin; niemand arbeitet daran, bis der Owner es aufruft |
 | **erledigt** | im Code und durch Nutzung abgenommen; Restpunkte stehen als Notiz dabei |
+| **geplant** | gewollt, aber nicht gebaut; niemand arbeitet daran, bis der Owner es aufruft |
 | **verworfen** | bewusst nicht weiterverfolgt, mit Grund |
 
 Code, der seit Monaten in Produktion läuft, gilt als abgenommen, auch ohne
 Abnahmedokument. Die `status:`-Marker in Plan-Dateien sind unzuverlässig;
 maßgeblich ist diese Datei und der Code.
 
-Die vier Wörter beschreiben **Arbeitspakete im Repo** (Pläne, Wellen, ADRs).
-Sie sind Prosa in dieser Datei. Peters Archiv kennt am Vorhaben `status:
-aktiv | ruhend | abgeschlossen` und an der Erschließung `bearbeitungsstand:`;
-sollten die vier Wörter je ins Frontmatter, heißt das Feld nicht `status`,
-sondern `arbeitsstand`, damit nichts kollidiert.
+Die Wörter beschreiben **Arbeitspakete im Repo** (Pläne, Wellen, ADRs). Sie
+sind Prosa in dieser Datei. Peters Archiv kennt am Vorhaben `status: aktiv |
+ruhend | abgeschlossen` und an der Erschließung `bearbeitungsstand:`; sollten
+die Wörter je ins Frontmatter, heißt das Feld nicht `status`, sondern
+`arbeitsstand`, damit nichts kollidiert.
 
-## Wie gearbeitet wird: ein Vorhaben nach dem anderen
+## Wie gearbeitet wird
 
-Die Einheit der Arbeit ist das **Vorhaben**, ein Anwendungsprojekt mit
-Termin, nicht das Thema und nicht der Plan. Jedes Vorhaben hat drei Sorten
-Arbeit:
+Die Einheit der Arbeit ist das **Vorhaben**, ein Anwendungsprojekt, nicht das
+Thema und nicht der Plan. Jedes Vorhaben hat drei Sorten Arbeit:
 
 1. **Bekannte Punkte**: was heute schon als nötig erkannt ist.
 2. **Mitgenommene alte Themen**: Punkte aus dem Vorrat „geplant", die
    denselben Code berühren. Regel: mitnehmen, was auf dem Weg liegt, nicht,
    was in der Nähe liegt.
 3. **Neu dazugekommen**: was erst beim Bauen sichtbar wird. Agenten tragen
-   solche Punkte hier ein, mit Datum, statt sie in Hand-offs zu verstreuen.
+   solche Punkte ein, mit Datum, statt sie in Hand-offs zu verstreuen.
 
-Ein Vorhaben ist fertig, wenn sein Termin bedient ist. Was von den
+Agenten arbeiten am Vorhaben, das der Owner im Auftrag nennt. Was von den
 mitgenommenen Themen übrig bleibt, geht mit Notiz zurück in den Vorrat.
 
-**Reihenfolge: 1 AECED → 2 Klimamaßnahmen/Vortrag 30.09. → 3 SHF.** Agenten arbeiten nur
-am Vorhaben, das „jetzt" trägt, es sei denn, der Owner sagt es anders.
+Vorhaben 1 AECED (Galerie als einbettbare Komponente) ist erledigt und steht
+unten unter „Erledigt", seine Reste im Vorrat. Daneben ist seit 15.09. viel
+Arbeit ohne eigenes Vorhaben entstanden (Story-Dreiteilung,
+Status-Modalität, Veranstaltung über die Brücke, Wunschliste 8); sie steht im
+Vorrat mit ihrem offenen Rest.
 
-**Durchsicht 13.10.2026.** Vorhaben 1 ist am 15.09. bedient und steht jetzt
-unter „Erledigt", seine Reste im Vorrat. Vorhaben 2 und 3 haben ihren Termin
-hinter sich (30.09. und 09.10.); beide tragen Reste weiter, die je Vorhaben
-unter „Stand 13.10." stehen. Nach der Pflege-Regel steht Vorhaben 2 auf
-„jetzt", bis der Owner ein anderes Vorhaben aufruft oder die Reste in den
-Vorrat schiebt. Daneben ist in den Wochen seit dem 15.09. viel Arbeit ohne
-eigenes Vorhaben entstanden (Story-Dreiteilung, Status-Modalität,
-Veranstaltung über die Brücke, Wunschliste 8); sie steht im Vorrat mit ihrem
-offenen Rest.
+## Vorhaben 2 · Klimamaßnahmen Südtirol
 
-## Vorhaben 2 · Klimamaßnahmen Südtirol: Vortrag 30.09. — jetzt (Termin vorbei, Reste)
-
-- **Termin**: 30.09.
 - **Was es ist**: ein Auftritt mit der Library „Klimamaßnahmen"; Konzept und
   Anforderungen im Vorhabensordner des Archivs, hier nur die Arbeitsliste.
-- **Ziel**: eine Vorführung, die eine Stunde lang nicht hängen bleibt, und
-  eine Library, die zeigt, was der Vortrag verspricht.
-- **Stand 13.10.**, Rest je Punkt der Liste unten:
-  1. OneDrive-Anmeldung: nicht begonnen. Wird vom Plan
-     [`speicher-verbindungen-und-library-anlage`](plans/speicher-verbindungen-und-library-anlage.plan.md)
-     Teil A abgelöst (ein Login je Verbindung statt je Library).
-  2. Status-Modalität: Code gebaut (#355). Offen sind Golden-Set,
-     Baseline und, nur bei Bedarf, der Kontrolldurchlauf (m6); Golden-Set
-     und Baseline sind Arbeit des Owners an der Library.
-  3. Website-Sektionen: S1 bis S3 gebaut; offen S0 Inhalt, S4 Fußzeile,
-     S5 Sprachumschalter.
-  4. Brücke: Wellen I und J gebaut und gemergt (Nachzüge #374 bis #376);
-     offen ist der Live-Prüffall von J (Index der fünf Seiten nachziehen,
-     Cover ansehen). Welle K: PR 1 (K1 bis K3, 2.48.0) gemergt, PR 2 (K4
-     bis K6) nicht begonnen.
-  5. Unverändert publizieren: P1 bis P4 offen, nichts gebaut.
+- **Ziel**: eine Vorführung, die nicht hängen bleibt, und eine Library, die
+  zeigt, was der Vortrag verspricht.
 
-Bekannte Punkte:
+**Gemacht:**
 
-1. OneDrive-Anmeldung stabil neu aufsetzen; sie fällt nach ein bis zwei
-   Wochen aus. Teilfortschritt 27.08. (Netzwerkfehler löschen die Anmeldung
-   nicht mehr) ist drin.
-2. Anpassungen an der Library „Klimamaßnahmen" (Umfang aus dem Konzept im
-   Archiv; noch nicht festgelegt). **Plan seit 06.10.:**
+1. OneDrive-Anmeldung: durch Teil A des Zwischenschnitts
+   „Speicher-Verbindungen und Library-Anlage" erledigt: ein Login je
+   Speicher-Verbindung am Konto statt je Library, Tokens verschlüsselt an der
+   Verbindung, Migration in Dev und Prod gelaufen. Vorher fiel die Anmeldung
+   nach ein bis zwei Wochen aus; Teilfortschritt 27.08. (Netzwerkfehler
+   löschen die Anmeldung nicht mehr).
+2. Status-Modalität: Code gebaut (#355) nach
    [`plans/story-status-modalitaet.plan.md`](plans/story-status-modalitaet.plan.md)
-   — der Story-Modus ignoriert den Status der Maßnahme (`lv_bewertung`) und
-   formuliert Abgelehntes wie Beschlossenes; Status wird zur Modalität der
-   Antwort — Bedeutungs-Wörterbuch je Facettenwert und Antwortregeln-Text
-   in der Library-Konfiguration, kein Code pro Typ (Owner 06.10.); geprüft
-   über ein Golden-Set je Library (m0 messen, dann Regeln + Nachprüfung,
-   dann Ingest-Kontext).
-3. Webseite für den Vortrag bzw. die Klimamaßnahmen (Site-Modus mit
-   Domain-Kopplung existiert seit Juli; was darüber hinaus nötig ist, steht
-   im Konzept). **Bau-Plan seit 26.09.:**
+   — der Story-Modus ignorierte den Status der Maßnahme (`lv_bewertung`) und
+   formulierte Abgelehntes wie Beschlossenes; Status wird zur Modalität der
+   Antwort — Bedeutungs-Wörterbuch je Facettenwert und Antwortregeln-Text in
+   der Library-Konfiguration, kein Code pro Typ (Owner 06.10.); geprüft über
+   ein Golden-Set je Library (m0 messen, dann Regeln + Nachprüfung, dann
+   Ingest-Kontext).
+3. Website-Sektionen S1 bis S3 nach
    [`plans/website-startseite-sektionen.plan.md`](plans/website-startseite-sektionen.plan.md)
-   (Owner 27.09.: das bestehende Banner um Fokus-Filter, Titel und
-   Position erweitern statt ein neues Raster bauen; Wellen S0 Inhalt ohne
-   Code, S1 Banner, S2 Hero, S3 Kacheln nur gelayoutet, S4 Fußzeile, S5
-   Sprache; Ampel-Skala und dynamische Kennzahlen im Vorrat); die
-   Abstimmung mit dem Partner und die Texte liegen im Vorhabensordner des
+   (Owner 27.09.: das bestehende Banner um Fokus-Filter, Titel und Position
+   erweitern statt ein neues Raster bauen; Ampel-Skala und dynamische
+   Kennzahlen im Vorrat). Der Site-Modus mit Domain-Kopplung existiert seit
+   Juli. Abstimmung mit dem Partner und Texte liegen im Vorhabensordner des
    Archivs.
-4. Brücke erweitern, damit eine Website aus Cowork heraus publiziert
-   werden kann (Owner 27.09.):
+4. Brücke, damit eine Website aus Cowork heraus publiziert werden kann
+   (Owner 27.09.):
    [`plans/mcp-bruecke-website-publizieren.plan.md`](plans/mcp-bruecke-website-publizieren.plan.md)
    (B1 publizieren, B2 Felder setzen, B3 Bilder in den Blob, B4
-   Veröffentlichung lesen/setzen, B5 Seite prüfen, B6 Skill).
-   **Seit 11.10.: Welle I Verlässlichkeit der Brücke** in
-   [`plans/geplant/bruecke-library-betrieb.plan.md`](plans/geplant/bruecke-library-betrieb.plan.md)
-   §3a, aus dem Live-Prüffall der Veranstaltung über die Brücke (Handover
-   im Archiv): Ingest als bewusster Schritt nach der Prüfung durch den
-   Menschen (`ingest: false` als sichtbare Vorgabe, dann
-   `index_aktualisieren`; kein Sonderfall für `test/`, weil Ingest nie
-   automatisch passiert), Text-Feed ehrlich, Fehlertexte vollständig,
-   Zaun-Abgleich. PR 1 (I1 + I2, Werkzeugsatz 2.46.0, #368) und PR 2 (I3 + I4,
-   2.46.1, #370) am 11.10. gemergt und live geprüft; Welle I abgeschlossen.
-   **Welle J Lesersicht** (Folienbilder, Cover, PDF-Anhänge) ist seit 11.10.
-   als §3b angelegt; PR 1 (J1 Slides als Liste lesen, J2 Folienbilder über
-   die Quellen-Twins, Viewer rät keinen Wurzel-Pfad mehr) und PR 2 (J3 Cover
-   aus der zweiten Folienseite, J4 PDF-Anhänge aus den Quellen in den Blob,
-   J5 Vorlagen ohne Dateinamen, Skill-Prüfpunkte, Werkzeugsatz 2.47.0) am
-   11.10. gebaut und gemergt (#372). Live-Prüffall 11.10. abends: 0 von 58
-   Folien aufgelöst, weil die PDF-Twins im Filesystem-Modus keine
-   Seitenbilder als Fragmente tragen (Befund und Nachzug in §3b: extract-only
-   registriert sie jetzt nach, Variante `preview` gilt als Vorschau; #374);
-   zweiter Nachzug: die Sync-Engine plante die Nachregistrierung nie, wenn
-   der Twin schon OCR-Fragmente hatte (#375). Neu-Extraktion der drei PDFs
-   am 11.10. spät: Folien 58/58 und 22/22, Anhänge und Flyer-Link stehen;
-   Cover fehlte, weil `uploadBinaryFragment` die Seitennummer nie speicherte
-   (dritter Nachzug #376: durchreichen plus Ableitung aus dem Namen). Danach
-   `index_aktualisieren` für die fünf Seiten und Sichtprüfung des Covers
-   beim Owner offen. **Welle K Prüfbarkeit** (Owner 12.10., §3c): die
-   Brücke zeigt, was der Leser sieht (`dokument_lesen`, Ereignisse und
-   Befunde in `job_status`, App-Version in `bruecke_info`, Stempel am
-   Meta-Dokument, drei Zahlen in `twins_pruefen`); K1–K3 gebaut (PR 1,
-   Werkzeugsatz 2.48.0, 12.10.), K4–K6 folgen in PR 2.
-5. Website-Seiten aus dem Archiv heraus unverändert publizieren (Owner
-   06.10., Anlass: zwei Seiten bekamen beim Neuschreiben neue Kennungen,
-   der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell):
+   Veröffentlichung lesen/setzen, B5 Seite prüfen, B6 Skill). Dazu aus
+   [`plans/geplant/bruecke-library-betrieb.plan.md`](plans/geplant/bruecke-library-betrieb.plan.md):
+   **Welle I Verlässlichkeit** (§3a; Ingest als bewusster Schritt nach der
+   Prüfung durch den Menschen, Text-Feed ehrlich, Fehlertexte vollständig,
+   Zaun-Abgleich; Werkzeugsatz 2.46.0/2.46.1, #368, #370, live geprüft),
+   **Welle J Lesersicht** (§3b; Slides als Liste, Folienbilder über die
+   Quellen-Twins, Cover aus der zweiten Folienseite, PDF-Anhänge aus den
+   Quellen, Vorlagen ohne Dateinamen; 2.47.0, #372, Nachzüge #374 bis #376:
+   Seitenbilder im Filesystem-Modus als Fragmente, Sync-Engine plant sie auch
+   neben OCR-Fragmenten, Seitennummer beim Fragment-Upload), **Welle K
+   Prüfbarkeit** PR 1 (§3c; K1–K3: `dokument_lesen` zeigt die Lesersicht,
+   Ereignisse und Befunde in `job_status`, App-Version in `bruecke_info`;
+   2.48.0).
+5. Unverändert publizieren: nur der Plan
    [`plans/website-unveraendert-publizieren.plan.md`](plans/website-unveraendert-publizieren.plan.md)
-   (P1 Route auf der B1-Funktion, P2 Knopf im Story-Tab, P3 `seite_pruefen`
-   meldet verwaiste Einträge, P4 Doku).
+   (Anlass, Owner 06.10.: zwei Seiten bekamen beim Neuschreiben neue
+   Kennungen, der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell).
+
+**Geplant:**
+
+1. Status-Modalität: Golden-Set, Baseline und, nur bei Bedarf, der
+   Kontrolldurchlauf (m6); Golden-Set und Baseline sind Arbeit des Owners an
+   der Library.
+2. Website-Sektionen S0 Inhalt, S4 Fußzeile, S5 Sprachumschalter.
+3. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
+   Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
+   Zahlen in `twins_pruefen`).
+4. Unverändert publizieren P1 bis P4 (P1 Route auf der B1-Funktion, P2 Knopf
+   im Story-Tab, P3 `seite_pruefen` meldet verwaiste Einträge, P4 Doku).
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294
 Zeilen), nur wenn die Anmeldung dort umgebaut wird; Klimamaßnahmen-Reste aus
 dem Vorrat (Mapper-Paritätstest, LLM-bereinigte Summe als dritte Zahl), wenn
-die Library ohnehin angefasst wird; ADR 0005 nur entscheiden.
+die Library ohnehin angefasst wird.
 
 Neu dazugekommen: siehe Archiv `STAND-Vorhaben.md` (noch nichts).
 
-## Vorhaben 3 · SHF: Konsensieren-Modul und Begleitfunktionen — Freeze vorbei, ohne Code
+## Vorhaben 3 · SHF: Konsensieren-Modul und Begleitfunktionen
 
-- **Termin**: Feature Freeze 09.10.; Termine des Partners im Archiv.
-- **Stand 13.10.**: Der Freeze ist verstrichen, ohne dass Code für das
-  Modul entstanden ist. Es liegen nur Konzepte vor (Abschnitte unten). Der
-  nächste Schritt ist unverändert eine Owner-Sache: die Entscheide O1, O2
-  und O10 bis O20 aus [`plans/beteiligung/README.md`](plans/beteiligung/README.md),
-  dann Welle 0 nach dem Parallelisierungsplan. Ob und mit welchem neuen
-  Termin das Vorhaben weiterläuft, entscheidet der Owner.
 - **Was es ist**: digitale Begleitung eines Beratungsgremiums mit
   Arbeitstischen (Steckbrief SHF). Anforderungen und Verfahrensdetails im
   Vorhabensordner des Archivs; im Repo liegen die abgenommenen Konzepte.
-- **Konzepte im Repo** (Stand 12.09., Owner-Entscheidungen 1–8 darin):
+- **Bekannte Punkte**: Modul Systemisches Konsensieren (Widerstandswerte,
+  Timer, iterative Runden, Auswertung) · geschützter Arbeitsbereich mit
+  Rollen · digitaler Check-out der Arbeitsgruppen · Gruppenbeiträge und
+  Kommentierung · anonymisierte öffentliche Sicht mit Rate-Limiting.
+
+**Gemacht (Konzepte und Pläne, kein Code für das Modul):**
+
+- Konzepte (12.09., Owner-Entscheidungen 1–8 darin):
   [`plans/erfassungs-architektur-stationen-datenhaltung.plan.md`](plans/erfassungs-architektur-stationen-datenhaltung.plan.md)
   (Regelsatz `capture.*`, Datenhaltung je Station, Verzeichnisstruktur,
   Wellen D0 und E0–E7, Abschnitt 6 Entscheidungen, Abschnitt 7 offen),
@@ -172,155 +146,111 @@ Neu dazugekommen: siehe Archiv `STAND-Vorhaben.md` (noch nichts).
   [`analysis/erfassungs-flow-wiederverwendung.md`](analysis/erfassungs-flow-wiederverwendung.md),
   [`analysis/erfassungs-flow-bauweisen-vergleich.md`](analysis/erfassungs-flow-bauweisen-vergleich.md),
   [`analysis/dialog-flow-bestand.md`](analysis/dialog-flow-bestand.md) mit
-  [`Nachtrag`](analysis/dialog-flow-bestand-nachtrag.md).
-
-Bekannte Punkte: Modul Systemisches Konsensieren (Widerstandswerte, Timer,
-iterative Runden, Auswertung) · geschützter Arbeitsbereich mit Rollen ·
-digitaler Check-out der Arbeitsgruppen · Gruppenbeiträge und Kommentierung ·
-anonymisierte öffentliche Sicht mit Rate-Limiting.
-
-Mitgenommene alte Themen, vom Owner am 09.09. entschieden: **Die Erfassung
-wird hier in einem Zug bereinigt**, nicht vorab. Dazu gehören die beiden
-Alt-Endpunkte `events/finalize` und `events/publish-final` (Phase 6 von
-generic-finalize-wizard; Befund 11.09.: nur `publish-final` wird in
-`creation-wizard.tsx` noch gerufen, `events/finalize` hat in `src/**` keinen
-Aufrufer mehr), ADR 0003 Wizard/Schema, und die Reste aus Welle 3-VI.
-Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
-
-- **Stand 15.09.**: Analysen und Konzepte sind auf `master` (#279); der
-  Gast-Zugang zum Testimonial-Recorder (Route + QR-Weiche) ist gebaut.
-  Nächster Schritt im Repo: **Kostenprüfung der Haltungsänderung am Code**
-  (Architektur-Konzept, Abschnitt 7, Punkt 1; Pflicht vor E0), danach Welle
-  E0 (Regelsatz) und D0 (Dialogfall auf dem Testimonial-Bestand).
-- **Stand 23.09.: Umsetzungsplan in drei Wellen** —
+  [`Nachtrag`](analysis/dialog-flow-bestand-nachtrag.md). Auf `master` seit
+  #279; der Gast-Zugang zum Testimonial-Recorder (Route + QR-Weiche) ist
+  gebaut.
+- **Umsetzungsplan in drei Wellen** (23.09.):
   [`plans/shf-umsetzung-wellen.plan.md`](plans/shf-umsetzung-wellen.plan.md)
-  (Designstudie 19.–21.09., vier Rollen, Zuordnung zur Laufzeit; am Code
-  geprüft gegen v1.2.262). Welle 1 (Zugang 05.10.: Weg der Teilnehmenden
-  live, Moderation bis 09.10.), Welle 2 (Einwandverfahren A mit Messung als
-  Objekt, Synthese, Tisch-Abschluss, Vertretung), Welle 3 (Redaktion,
-  Vision, Folgegruppen, Nachschlagen). Löst die Reihenfolge E0–E7 und C0–C10
-  der beiden Konzepte für das SHF ab.
+  (Designstudie, vier Rollen, Zuordnung zur Laufzeit; am Code geprüft gegen
+  v1.2.262). Welle 1 Weg der Teilnehmenden und Moderation, Welle 2
+  Einwandverfahren A mit Messung als Objekt, Synthese, Tisch-Abschluss,
+  Vertretung, Welle 3 Redaktion, Vision, Folgegruppen, Nachschlagen. Löst die
+  Reihenfolge E0–E7 und C0–C10 der beiden Konzepte für das SHF ab.
 - **Owner 23.09.: erst Grundlagen, dann Oberflächen** —
   [`plans/shf-grundlagen-datenhaltung-kernflows.plan.md`](plans/shf-grundlagen-datenhaltung-kernflows.plan.md):
-  Wizard-Stand und -Editor (was das SHF davon braucht: nur die Flow-Naht),
-  Datenmodell der Beteiligungs-Domäne (`meetings`, `meeting_tables`,
-  `table_participations`, `measurements`, `assessments`, `syntheses`;
-  Submission mit Anlagen und Kontext), Kernflüsse K1–K4 (Erfassen,
-  Verdichten mit Belegspur über den Secretary, Messen, Veröffentlichen),
-  Modul `@ks/module-deliberation`, Bau-Reihenfolge G0–G9 plus Nebenstrang W
-  „Wizard fertigstellen“. **Speicherweg B** (Owner 23.09.): Beiträge liegen
-  während des Ernte-Fensters in der Inbox und werden beim Schließen Dateien
-  im Storage; die Synthese läuft über das bestehende Sammeltranskript. Der 05.10. ist kein Schnittkriterium mehr.
-  Landkarte in Figma (intern): „KnowledgeScout — Modul-Landkarte“.
-  **Owner 23.09.: erst Detailkonzepte, dann Code.** Grundlage:
+  Wizard-Stand und -Editor (nur die Flow-Naht), Datenmodell der
+  Beteiligungs-Domäne (`meetings`, `meeting_tables`, `table_participations`,
+  `measurements`, `assessments`, `syntheses`; Submission mit Anlagen und
+  Kontext), Kernflüsse K1–K4 (Erfassen, Verdichten mit Belegspur über den
+  Secretary, Messen, Veröffentlichen), Modul `@ks/module-deliberation`,
+  Bau-Reihenfolge G0–G9 plus Nebenstrang W „Wizard fertigstellen“.
+  **Speicherweg B** (Owner 23.09.): Beiträge liegen während des
+  Ernte-Fensters in der Inbox und werden beim Schließen Dateien im Storage;
+  die Synthese läuft über das bestehende Sammeltranskript. Landkarte in
+  Figma (intern): „KnowledgeScout — Modul-Landkarte“.
+- **Owner 23.09.: erst Detailkonzepte, dann Code.** Grundlage:
   [`plans/beteiligung-objektmodell-original-und-kopie.plan.md`](plans/beteiligung-objektmodell-original-und-kopie.plan.md)
   (D0: fünf Klassen Planung · Verfahren · Beitrag · Ergebnis · abgeleitet,
   wo das Original liegt, stabile Kennungen, Verzeichnisstruktur mit
   Organisationsordnern, Liste D1–D11). E1–E6 entschieden (Planung „Datei
-  zuerst“). **Detailkonzepte D1–D11 geschrieben** (23.09.):
+  zuerst“). **Detailkonzepte D1–D11** (23.09.):
   [`plans/beteiligung/README.md`](plans/beteiligung/README.md) mit
   Eingriffen in den Bestand, offenen Entscheidungen O1–O9 und
   Bau-Reihenfolge (35–43,5 PT Fundament, Oberflächen zusätzlich).
-  **Prüfung 24.09.** ([`plans/beteiligung/pruefbericht-2026-09-24.md`](plans/beteiligung/pruefbericht-2026-09-24.md)):
+- **Prüfung 24.09.** ([`plans/beteiligung/pruefbericht-2026-09-24.md`](plans/beteiligung/pruefbericht-2026-09-24.md)):
   Code-Belege, Nahtstellen und Anforderungen unabhängig geprüft. Befund am
   Bestand: `getLibrary` lässt jedes aktive Mitglied durch, sechs Helfer
   nutzen es als Owner-Prüfung (O10, sicherheitsrelevant). Neun
   Anforderungen aus den Primärquellen fehlen (u. a. Vorschlag wird
-  eingesprochen, 13 Konfigurationsschalter, Verwaltungsbegleitung,
-  Dissens als Ergebnis), dreizehn Widersprüche an den Nähten (u. a.
+  eingesprochen, 13 Konfigurationsschalter, Verwaltungsbegleitung, Dissens
+  als Ergebnis), dreizehn Widersprüche an den Nähten (u. a.
   Promotion-Zeitpunkt, Identitätsmodell, Feldkatalog). Sachliche
   Korrekturen sind eingearbeitet; die Aufwandszahlen gelten bis zur
   Überarbeitung nicht. Lesefassung für den Owner: Word/PDF „Konzepte in
-  einfachen Worten“ (Archiv, Ordner der Nachhaltigkeits-Reihe).
-  Owner-Einwände aus dem Lesedurchgang 24.09. eingearbeitet (D1: Prüfen
-  entfällt; O17–O20 offen). **Bauweise (Owner 24.09.): parallel nach
+  einfachen Worten“ (Archiv). Owner-Einwände aus dem Lesedurchgang 24.09.
+  eingearbeitet (D1: Prüfen entfällt; O17–O20 offen).
+- **Bauweise (Owner 24.09.): parallel nach
   [`plans/beteiligung/parallelisierung.plan.md`](plans/beteiligung/parallelisierung.plan.md)**:
   Welle 0 Verträge (Feldkatalog, Paket `deliberation-contracts`, Fixtures,
   Spikes, Überarbeitung), dann Welle 1 mit sechs und Welle 2 mit vier
   Sessions gleichzeitig, zuletzt Verdrahtung; Start-Prompt je Session im
-  Plan. Cloud-Sessions können seit dem SessionStart-Hook Tests, Lint und
-  tsc selbst laufen lassen.
-  **Nächster Schritt:** Entscheidungen O1, O2 und O10–O20 durch den
-  Owner (README); dann Welle 0 mit dem Start-Prompt aus dem
-  Parallelisierungsplan.
-- **Verlauf und „Neu dazugekommen"** (Analyse-Befunde, Klickmodell,
-  Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
-  `24.09 KnowledgeScout/STAND-Vorhaben.md`.
+  Plan. Cloud-Sessions können seit dem SessionStart-Hook Tests, Lint und tsc
+  selbst laufen lassen.
 
-## Zwischenschnitt · Speicher-Verbindungen und Library-Anlage — aktiv (Owner 13.10.)
+**Geplant:**
+
+- Vor dem Code: die Owner-Entscheide O1, O2 und O10–O20 aus
+  [`plans/beteiligung/README.md`](plans/beteiligung/README.md).
+- Welle 0 nach dem Parallelisierungsplan, dann Wellen 1–3.
+- Kostenprüfung der Haltungsänderung am Code (Architektur-Konzept, Abschnitt
+  7, Punkt 1; Pflicht vor E0).
+- **Die Erfassung wird hier in einem Zug bereinigt** (Owner 09.09.), nicht
+  vorab: die beiden Alt-Endpunkte `events/finalize` und `events/publish-final`
+  (Phase 6 von generic-finalize-wizard; Befund 11.09.: nur `publish-final`
+  wird in `creation-wizard.tsx` noch gerufen, `events/finalize` hat in
+  `src/**` keinen Aufrufer mehr), ADR 0003 Wizard/Schema, und die Reste aus
+  Welle 3-VI.
+- Mehrsprachigkeit DE/IT: Entscheid des Partners steht aus.
+
+Verlauf und „Neu dazugekommen" (Analyse-Befunde, Klickmodell,
+Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
+`24.09 KnowledgeScout/STAND-Vorhaben.md`.
+
+## Zwischenschnitt · Speicher-Verbindungen und Library-Anlage — erledigt, A4 in „Zusammenarbeit in Stufen"
 
 - **Was**: Speicher-Zugänge (Nextcloud, OneDrive) gehören der Person und
-  werden einmal am Konto gepflegt, verschlüsselt; die Library zeigt nur
-  noch auf Verbindung plus Verzeichnis (Teil A, bündelt ADR 0005 und die
-  Verschlüsselung). „Erweitert" wird ein aufklappbarer Menüpunkt mit
-  sieben Unterseiten (Teil B). Eine neue Library wird vollständig angelegt:
-  Entscheidungskatalog, App-Wizard, Rückfragen von `bibliothek_anlegen`
-  (Teil C).
-- **Warum jetzt**: beim Arbeiten über die Brücke beobachtet (13.10.):
-  redundante Pflege delikater Zugangsdaten je Library, und jede über die
-  Brücke angelegte Library muss in den Settings nachkonfiguriert werden.
-  Teil A ersetzt zugleich Punkt 1 von Vorhaben 2 (OneDrive-Anmeldung).
+  werden einmal am Konto gepflegt, verschlüsselt; die Library zeigt nur noch
+  auf Verbindung plus Verzeichnis (Teil A). „Erweitert" ist ein aufklappbarer
+  Menüpunkt mit sieben Unterseiten (Teil B). Eine neue Library wird
+  vollständig angelegt: Entscheidungskatalog, App-Wizard, Rückfragen von
+  `bibliothek_anlegen` (Teil C).
 - **Plan**: [`plans/speicher-verbindungen-und-library-anlage.plan.md`](plans/speicher-verbindungen-und-library-anlage.plan.md);
-  die acht Owner-Entscheide (§6) sind am 13.10. wie empfohlen bestätigt.
-  Start-Prompts je Schritt in §9.
-- **Reihenfolge**: B1 Seitenmenü (an nichts gebunden, Cloud-Session) →
-  A1 Verbindungen + Konto-Seite → A2 Library auf Verbindung + Migration
-  (Prod-Lauf beim Owner) → A3 Brücke; C1 Entscheidungskatalog parallel
-  möglich, C2 nach A2, C3 nach C1; A4 Mitglieder zuletzt.
-- **Stand 13.10.**: Plan auf `master` seit #386; die Aktivierung und die
-  Start-Prompts in §9 kommen mit dem Folge-PR, der vor dem Start von B1
-  gemergt sein muss. B1 startet als erste Cloud-Session.
-- **Stand 13.10. abends, B1 gebaut** (Branch
-  `claude/speicher-b1-seitenmenue-erweitert`, PR offen): Seitenmenü mit
-  zweiter Ebene, „Erweitert" hat sieben Unterseiten, die alte Route leitet
-  auf „Suche & KI" weiter; das Library-Formular ist in Teil-Formulare je
-  Seite zerlegt (jede schickt per PATCH nur ihre Schlüssel), „Inhalte
-  erfassen" liegt als Schritt 4 auf der Archive-Seite. Gemergt als #390.
-- **Stand 13.10. spät, A1 gebaut** (PR offen): Speicher-Verbindung als eigene
-  Entität (`storage_connections`, Geheimnisse AES-256-GCM-verschlüsselt,
-  Schlüssel `CREDENTIALS_ENCRYPTION_KEY`), Konto-Seite „Speicher-Verbindungen"
-  unter Mein Konto (anlegen, testen, OneDrive-Login an der Verbindung,
-  bearbeiten, löschen nur ohne abhängige Library). Noch nutzt keine Library
-  die Verbindung. Vor dem Merge: `CREDENTIALS_ENCRYPTION_KEY` in Dev und
-  Prod setzen, `pnpm build` lokal, Live-Prüfung. Gemergt als #391.
-- **Stand 13.10. nachts, A2 gebaut** (PR offen): Libraries vom Typ
-  Nextcloud und OneDrive zeigen auf eine Speicher-Verbindung plus
-  Verzeichnis; Factory, Token-Store, Token-/Refresh-Route und
-  Nextcloud-Proxy lesen nur noch die Verbindung, Altfelder nicht mehr.
-  Archive · 1 Quelle wählt Verbindung und Verzeichnis, angemeldet wird auf der
-  Konto-Seite. **Vor dem Deploy Pflicht:** Migrationsskript
-  `scripts/migrate-storage-connections.ts` gegen Dev (Probelauf, dann
-  `--apply`), Prüfung, dann Prod — ohne Migration sind Nextcloud- und
-  OneDrive-Libraries nicht erreichbar. Nächster Schritt: A3 Brücke
-  (Start-Prompt im Hand-off der A2-PR).
-- **Stand 14.10., A3, C1, C3, C2 gebaut** (Branch
-  `claude/sweet-bell-gr6fn8`, eine PR): Brücke 2.54.0 listet, testet und
-  weist Speicher-Verbindungen zu (`bibliothek_anlegen` nimmt
-  `speicherVerbindung` + `verzeichnis`); Entscheidungskatalog mit
-  Standard-Facetten je Inhaltstyp unter `src/lib/library-setup/` (C1, E6/E8);
-  Brücke 2.55.0: `bibliothek_anlegen` fragt mit `offeneEntscheidungen`
-  zurück statt halb eingerichtet anzulegen, neues `bibliothek_pruefen` (C3);
-  Anlege-Wizard in der App ersetzt beide Anlage-Dialoge, Settings-Übersicht
-  zeigt „Einrichtung: n von m" (C2). Vor dem Merge: `pnpm build` lokal,
-  Klickweg Wizard. Offen: A4 Mitglieder eigene Verbindung (Prüffall
-  ID-Konsistenz vorab, Opus).
-- **Stand 16.10., A4 angehalten** (Owner): #394 gemergt. Statt „Mitglieder
-  nur mit eigener Verbindung" sollen Co-Creators bewusst und sichtbar mit dem
-  Speicherzugang des Owners arbeiten können; Schreibrechte je Feature,
-  Urheberschaft (E-Mail, ggf. „im Namen von") an Datei, Transkript,
-  Transformation und Index-Eintrag selbst, Sonderfall Commons-Libraries
-  (Original bleibt, nur Kopien). Konzept „Zusammenarbeit in Stufen" entsteht
-  im Archiv (Vorhabensordner); erst nach Abnahme ADR-Nachtrag und Wellen.
-  Der A4-Start-Prompt gilt bis dahin nicht.
-- **Stand 16.10., Konzept abgenommen**: Owner hat die zehn Entscheide des
-  Konzepts „Zusammenarbeit in Stufen" (Archiv) wie vorgeschlagen bestätigt.
-  Nächster Schritt: ADR „Zusammenarbeit in Stufen" und Plan mit Wellen Z1
-  (Urheberschaft `erstellt_von`/`im_namen_von` an Artefakt und Index,
-  Migration), Z2 (Voreinstellung Lesen/Eigenes/Mitgestalten am Mitglied,
-  eine Prüfstelle auf dem Server), Z3 (geliehener Speicherzugang sichtbar),
-  Z4 (Commons: Original unveränderlich, Kopie mit Herkunft, Lizenz). A4 geht
-  darin auf. **ADR 0011 und Plan `plans/geplant/zusammenarbeit-in-stufen.plan.md`
-  angelegt; Umsetzung ab 23.10. (Owner).**
+  Owner-Entscheide E1–E8 am 13.10. bestätigt.
+- **Gebaut und gemergt**:
+  - B1 Seitenmenü „Erweitert", Teil-Formulare je Seite (#390)
+  - A1 Speicher-Verbindungen als Entität, AES-256-GCM mit
+    `CREDENTIALS_ENCRYPTION_KEY`, Konto-Seite (#391)
+  - A2 Library auf Verbindung, Migrationsskript
+    `scripts/migrate-storage-connections.ts`, Token- und Refresh-Route ohne
+    `X-Internal-Request`-Umgehung und nur für den Owner (#392, Build-Fix
+    #393)
+  - A3 Brücke listet, testet und weist Verbindungen zu (2.54.0), C1
+    Entscheidungskatalog mit Standard-Facetten je Inhaltstyp, C2 Anlege-Wizard
+    in der App mit „Einrichtung: n von m", C3 `bibliothek_anlegen` fragt mit
+    `offeneEntscheidungen` zurück, neues `bibliothek_pruefen` (2.55.0) (#394)
+- **Betrieb (Owner 18.10.)**: Migrationsskript in Dev und Prod gelaufen,
+  `CREDENTIALS_ENCRYPTION_KEY` in beiden Umgebungen gesetzt,
+  `bibliothek_anlegen` mit Rückfragen über die Brücke live getestet.
+- **A4 Mitglieder mit eigener Verbindung**: angehalten. Co-Creators
+  arbeiten bewusst und sichtbar mit dem Speicherzugang des Owners; A4 geht in
+  [ADR 0011](adr/0011-zusammenarbeit-in-stufen.md) und
+  [`plans/geplant/zusammenarbeit-in-stufen.plan.md`](plans/geplant/zusammenarbeit-in-stufen.plan.md)
+  auf (Wellen Z1 Urheberschaft, Z2 Voreinstellung und Prüfstelle, Z3
+  geliehener Speicherzugang sichtbar, Z4 Commons).
+- **Rest im Vorrat**: Umschlüsselungs-Skript für einen Wechsel von
+  `CREDENTIALS_ENCRYPTION_KEY` (nicht gebaut; ohne es macht ein neuer
+  Schlüssel gespeicherte Geheimnisse unlesbar). Das Klartext-Backup der
+  Migration unter `backups/` nach der Prüfung löschen.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
@@ -338,7 +268,7 @@ hier übernommen; der Branch kann weg.
   Fingerabdruck aus dem Ordner-Listing plus Mongo-`updatedAt` soll das Lesen
   auf geänderte Quellen beschränken; ein zweiter Lauf über ein unverändertes
   Archiv macht null `getBinary`-Aufrufe.
-- **Warum jetzt**: beschleunigt die tägliche Archivarbeit mit Cowork und
+- **Warum**: beschleunigt die tägliche Archivarbeit mit Cowork und
   entschärft das 60-Sekunden-Limit, ohne den Job-Modus vorzuziehen. Kein
   Bezug zu M5, deshalb als Zwischenschnitt neben Vorhaben 1.
 - **Brief**: [`docs/refactor/twin-fingerabdruck/AGENT-BRIEF.md`](refactor/twin-fingerabdruck/AGENT-BRIEF.md)
@@ -385,9 +315,9 @@ hier übernommen; der Branch kann weg.
 
 ## Vorrat: geplant
 
-Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
+Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
-- **Reste aus Vorhaben 1 AECED** (bedient 15.09.): Live-Nachweis des
+- **Reste aus Vorhaben 1 AECED**: Live-Nachweis des
   Story-Modus in App und fremder App (`view="story"`, D6b/D6c); D6d toten
   App-Chat (`ChatPanel` ohne Montagepunkt) entfernen; D0 Abnahme des
   Klickmodells in Figma (Plan
@@ -398,13 +328,13 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 - **Von Menschen geprüfte Veranstaltung** (Plan
   [`von-menschen-gepruefte-veranstaltung`](plans/von-menschen-gepruefte-veranstaltung.plan.md);
   die Marker im Plan sind veraltet): P3a Kontext im Datei-Weg und P3b
-  Reiter „Korrektur" sind gebaut und gemergt (bis 10.10.). P4 Vorlage wartet
+  Reiter „Korrektur" sind gebaut und gemergt. P4 Vorlage wartet
   auf den Prüffall mit dem lokalen Secretary (Plan-Stand liegt ungemergt auf
   `claude/p4-vorlage-abnahme`); P5 Wizard-Schritt und P6 Optionen im Dialog
   „Aufbereiten & Publizieren" sind nicht begonnen
 - **Prompt-Inspektion der Transformation** (Plan
-  [`prompt-inspektion-transformation`](plans/prompt-inspektion-transformation.plan.md),
-  06.10.): Prompt-Protokoll je Transformation, Vorschau ohne Modellaufruf,
+  [`prompt-inspektion-transformation`](plans/prompt-inspektion-transformation.plan.md)):
+  Prompt-Protokoll je Transformation, Vorschau ohne Modellaufruf,
   Anzeige in der Datei-Vorschau, Brücken-Werkzeug. Nichts gebaut; I1 und I1b
   liegen im Secretary-Repo
 - **Branches aufgeräumt** (13.10., Owner-Auftrag): 22 Remote-Branches
@@ -516,10 +446,14 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   Job-Modus für Scans über dem 60-Sekunden-Limit (Q7) — der Twin-Fingerabdruck (Zwischenschnitt) nimmt den meisten Läufen den Grund; danach neu messen
 - Modularisierung: M6 Oldies-SiteConfig, M7 `@ks/module-agent-view`, M8
   Föderation (ADR 0009) + Retrieval-Profile (ADR 0010), `apps/`-Ebene
-- ADR 0005 Co-Creator mit eigener Storage-Auth und die Verschlüsselung der
-  Storage-Zugangsdaten (Commit 63a64bb9 auf `origin/claude/lucid-planck-b9i6gj`,
-  nie gemergt, der Branch bleibt als Grundlage stehen): seit 13.10. Teil A
-  des Zwischenschnitts „Speicher-Verbindungen und Library-Anlage" (oben)
+- **Zusammenarbeit in Stufen** (ADR 0011, Owner 16.10.):
+  [`plans/geplant/zusammenarbeit-in-stufen.plan.md`](plans/geplant/zusammenarbeit-in-stufen.plan.md),
+  Wellen Z1–Z4; nimmt A4 des Speicher-Zwischenschnitts auf und löst ADR 0005
+  als Normalfall ab
+- Umschlüsselungs-Skript für `CREDENTIALS_ENCRYPTION_KEY` (Rest aus dem
+  Speicher-Zwischenschnitt); die Verschlüsselung selbst ist seit A1 gebaut,
+  der Branch `origin/claude/lucid-planck-b9i6gj` (Commit 63a64bb9) wird nicht
+  mehr gebraucht
 - Settings-UX-Folgeplan: Start-Flow, automatisierte Oberflächentests
 - Dateigrößen-Reste der Refactor-Wellen: `onedrive-provider.ts` 2.294,
   `job-report-tab.tsx` 2.262, `phase-template.ts` 2.037, `file-list.tsx` 1.761,
@@ -544,15 +478,17 @@ Stufen 0–3 · Agentensicht W0–W5, Werkbank W1–W8, A1–A7b, ADR 0006, MCP
 Galerie-Vertrag, -Eine-Quelle, -Betrachter, Umzugs-Messung · Landingpage
 und Site-Modus · Favoriten und Kommentare · Settings-UX.
 
-Seit 15.09.: **Vorhaben 1 AECED** (M4f–M4i, M5, `@ks/embed`, bedient
-15.09.; Brief [`AGENT-BRIEF-M5.md`](refactor/modularisierung/AGENT-BRIEF-M5.md),
+Seit 15.09.: **Vorhaben 1 AECED** (M4f–M4i, M5, `@ks/embed`; Brief
+[`AGENT-BRIEF-M5.md`](refactor/modularisierung/AGENT-BRIEF-M5.md),
 Verlauf im Archiv) · Twin-Fingerabdruck Stufe 1 · Story-Dreiteilung D1–D7
 und Layout-Wellen D8–D12 · Status-Modalität Code (#355) · Brücke Wellen A,
 C, D, F (2.38–2.41), I (2.46), J (2.47 mit Nachzügen), K PR 1 (2.48) ·
 Transkript-Verlässlichkeit (#364 bis #366) · Reiter „Korrektur" am
 Audio-Transkript (P3b) · Wunschliste 6 Code (2.30) · Webseite als Quelle
 (`webseite_erschliessen`, #385, 2.49.0) · Wunschliste 8 W8-4, W8-1, W8-2,
-W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen).
+W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen) · Zwischenschnitt
+Speicher-Verbindungen und Library-Anlage B1, A1–A3, C1–C3 (#390–#394,
+2.54/2.55; Migration in Dev und Prod gelaufen).
 
 ## Die ADRs
 
@@ -562,19 +498,20 @@ W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen).
 | 0002 | Galerie-Sterne kommen aus MongoDB, nicht aus Clerk | akzeptiert |
 | 0003 | Wizard (Ablauf) und Schema-Template (Datenmodell) trennen | geplant, reserviert für Vorhaben 3 |
 | 0004 | Erfassen schreibt in eine Inbox, Veröffentlichen ist ein eigener Schritt | akzeptiert 2026-09-09 (gebaut seit Juni) |
-| 0005 | Co-Creator nutzen eigene Storage-Zugangsdaten | zurückgestellt |
+| 0005 | Co-Creator nutzen eigene Storage-Zugangsdaten | als Normalfall abgelöst durch 0011 |
 | 0006 | Maschinenarbeit gilt als angenommen, der Mensch markiert nur Fehler | akzeptiert |
 | 0007 | Monorepo mit Schale, Modul-Paketen und geteilten Bibliotheken | akzeptiert 2026-09-09 (M1–M4e gebaut) |
 | 0008 | Ein Deployment, viele Sites; Embed liefert nur Öffentliches | akzeptiert 2026-09-09 |
 | 0009 | Mehrere Libraries pro Site, Brücken dazwischen | geplant (nur Typfeld `federated?`) |
 | 0010 | Retrieval-Profil je Library: Zugang, Strategie, Sprachen | geplant |
+| 0011 | Zusammenarbeit in Stufen: Co-Creators arbeiten sichtbar mit dem Speicherzugang des Owners, Urheberschaft am Artefakt | akzeptiert 2026-10-16, Umsetzung geplant (Z1–Z4) |
 
 ## Pflege
 
 - Neuer Punkt beim Bauen ⇒ Zeile mit Datum unter „Neu dazugekommen" des
   laufenden Vorhabens in `24.09 KnowledgeScout/STAND-Vorhaben.md` im Archiv
-  (MCP-Brücke, `datei_patchen`); hier nur, wenn sich die Arbeitsliste oder
-  der nächste Schritt ändert. Ohne Archivzugang: in den Hand-off, der Owner
-  trägt nach.
-- Vorhaben fertig ⇒ Abschnitt nach „Erledigt" kürzen, Reste in den Vorrat, nächstes Vorhaben auf „jetzt".
+  (MCP-Brücke, `datei_patchen`); hier nur, wenn sich Gemacht oder Geplant
+  ändert. Ohne Archivzugang: in den Hand-off, der Owner trägt nach.
+- Vorhaben fertig ⇒ Abschnitt nach „Erledigt" kürzen, Reste in den Vorrat.
+- Termine, Reihenfolge und Priorität ⇒ nicht hier, sondern im Archiv beim Owner.
 - Plan-Dateien: aktiv unter `docs/plans/`, wartend unter `docs/plans/geplant/`, fertig unter `docs/plans/archiv/`.

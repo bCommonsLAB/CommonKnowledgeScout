@@ -80,8 +80,9 @@ auf `docs/contracts/` (Zuordnung siehe Routing-Index oben):
 
 ## Pläne
 
-Was gerade getragen wird, steht in [docs/STAND.md](docs/STAND.md): ein
-Vorhaben nach dem anderen, mit Brief. Aktive Pläne liegen unter
+Was gemacht ist und was geplant ist, steht in [docs/STAND.md](docs/STAND.md),
+je Vorhaben mit Brief. Termine und Reihenfolge setzt der Owner außerhalb des
+Repos und nennt sie im Auftrag. Aktive Pläne liegen unter
 [docs/plans/](docs/plans/), wartende unter [docs/plans/geplant/](docs/plans/geplant/),
 erledigte unter [docs/plans/archiv/](docs/plans/archiv/). Die `status:`-Marker
 in den Plan-Dateien sind nicht verlässlich gepflegt — maßgeblich sind
