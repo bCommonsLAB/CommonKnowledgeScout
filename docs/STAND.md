@@ -2,7 +2,7 @@
 
 > Eine Quelle für die Frage „woran wird gerade gearbeitet, und was wartet?".
 > Gepflegt von Hand bei jedem Vorhabenswechsel und bei jedem neuen Punkt.
-> Stand: 2026-10-13 (Durchsicht gegen Code, Pläne und offene Branches). Die ausführliche Landkarte mit Legende und Motiven aller
+> Stand: 2026-10-18 (Zwischenschnitt Speicher-Verbindungen abgeschlossen; Durchsicht gegen Code, Pläne und Branches zuletzt 13.10.). Die ausführliche Landkarte mit Legende und Motiven aller
 > Wellen liegt in Peters Archiv (`24.09 KnowledgeScout/THEMEN.md`), der
 > Verlauf je Vorhaben mit allen „Neu dazugekommen"-Einträgen in
 > `24.09 KnowledgeScout/STAND-Vorhaben.md` (seit 15.09., Regel „Oeffentliches
@@ -65,9 +65,10 @@ offenen Rest.
 - **Ziel**: eine Vorführung, die eine Stunde lang nicht hängen bleibt, und
   eine Library, die zeigt, was der Vortrag verspricht.
 - **Stand 13.10.**, Rest je Punkt der Liste unten:
-  1. OneDrive-Anmeldung: nicht begonnen. Wird vom Plan
-     [`speicher-verbindungen-und-library-anlage`](plans/speicher-verbindungen-und-library-anlage.plan.md)
-     Teil A abgelöst (ein Login je Verbindung statt je Library).
+  1. OneDrive-Anmeldung: durch Teil A des Zwischenschnitts
+     „Speicher-Verbindungen und Library-Anlage" erledigt (18.10.): ein Login
+     je Speicher-Verbindung am Konto statt je Library, Tokens verschlüsselt an
+     der Verbindung, Migration in Dev und Prod gelaufen.
   2. Status-Modalität: Code gebaut (#355). Offen sind Golden-Set,
      Baseline und, nur bei Bedarf, der Kontrolldurchlauf (m6); Golden-Set
      und Baseline sind Arbeit des Owners an der Library.
@@ -247,80 +248,42 @@ Mehrsprachigkeit DE/IT: entscheidet das Vorabtreffen.
   Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `24.09 KnowledgeScout/STAND-Vorhaben.md`.
 
-## Zwischenschnitt · Speicher-Verbindungen und Library-Anlage — aktiv (Owner 13.10.)
+## Zwischenschnitt · Speicher-Verbindungen und Library-Anlage — erledigt (18.10.), A4 in „Zusammenarbeit in Stufen"
 
 - **Was**: Speicher-Zugänge (Nextcloud, OneDrive) gehören der Person und
-  werden einmal am Konto gepflegt, verschlüsselt; die Library zeigt nur
-  noch auf Verbindung plus Verzeichnis (Teil A, bündelt ADR 0005 und die
-  Verschlüsselung). „Erweitert" wird ein aufklappbarer Menüpunkt mit
-  sieben Unterseiten (Teil B). Eine neue Library wird vollständig angelegt:
-  Entscheidungskatalog, App-Wizard, Rückfragen von `bibliothek_anlegen`
-  (Teil C).
-- **Warum jetzt**: beim Arbeiten über die Brücke beobachtet (13.10.):
-  redundante Pflege delikater Zugangsdaten je Library, und jede über die
-  Brücke angelegte Library muss in den Settings nachkonfiguriert werden.
-  Teil A ersetzt zugleich Punkt 1 von Vorhaben 2 (OneDrive-Anmeldung).
+  werden einmal am Konto gepflegt, verschlüsselt; die Library zeigt nur noch
+  auf Verbindung plus Verzeichnis (Teil A). „Erweitert" ist ein aufklappbarer
+  Menüpunkt mit sieben Unterseiten (Teil B). Eine neue Library wird
+  vollständig angelegt: Entscheidungskatalog, App-Wizard, Rückfragen von
+  `bibliothek_anlegen` (Teil C).
 - **Plan**: [`plans/speicher-verbindungen-und-library-anlage.plan.md`](plans/speicher-verbindungen-und-library-anlage.plan.md);
-  die acht Owner-Entscheide (§6) sind am 13.10. wie empfohlen bestätigt.
-  Start-Prompts je Schritt in §9.
-- **Reihenfolge**: B1 Seitenmenü (an nichts gebunden, Cloud-Session) →
-  A1 Verbindungen + Konto-Seite → A2 Library auf Verbindung + Migration
-  (Prod-Lauf beim Owner) → A3 Brücke; C1 Entscheidungskatalog parallel
-  möglich, C2 nach A2, C3 nach C1; A4 Mitglieder zuletzt.
-- **Stand 13.10.**: Plan auf `master` seit #386; die Aktivierung und die
-  Start-Prompts in §9 kommen mit dem Folge-PR, der vor dem Start von B1
-  gemergt sein muss. B1 startet als erste Cloud-Session.
-- **Stand 13.10. abends, B1 gebaut** (Branch
-  `claude/speicher-b1-seitenmenue-erweitert`, PR offen): Seitenmenü mit
-  zweiter Ebene, „Erweitert" hat sieben Unterseiten, die alte Route leitet
-  auf „Suche & KI" weiter; das Library-Formular ist in Teil-Formulare je
-  Seite zerlegt (jede schickt per PATCH nur ihre Schlüssel), „Inhalte
-  erfassen" liegt als Schritt 4 auf der Archive-Seite. Gemergt als #390.
-- **Stand 13.10. spät, A1 gebaut** (PR offen): Speicher-Verbindung als eigene
-  Entität (`storage_connections`, Geheimnisse AES-256-GCM-verschlüsselt,
-  Schlüssel `CREDENTIALS_ENCRYPTION_KEY`), Konto-Seite „Speicher-Verbindungen"
-  unter Mein Konto (anlegen, testen, OneDrive-Login an der Verbindung,
-  bearbeiten, löschen nur ohne abhängige Library). Noch nutzt keine Library
-  die Verbindung. Vor dem Merge: `CREDENTIALS_ENCRYPTION_KEY` in Dev und
-  Prod setzen, `pnpm build` lokal, Live-Prüfung. Gemergt als #391.
-- **Stand 13.10. nachts, A2 gebaut** (PR offen): Libraries vom Typ
-  Nextcloud und OneDrive zeigen auf eine Speicher-Verbindung plus
-  Verzeichnis; Factory, Token-Store, Token-/Refresh-Route und
-  Nextcloud-Proxy lesen nur noch die Verbindung, Altfelder nicht mehr.
-  Archive · 1 Quelle wählt Verbindung und Verzeichnis, angemeldet wird auf der
-  Konto-Seite. **Vor dem Deploy Pflicht:** Migrationsskript
-  `scripts/migrate-storage-connections.ts` gegen Dev (Probelauf, dann
-  `--apply`), Prüfung, dann Prod — ohne Migration sind Nextcloud- und
-  OneDrive-Libraries nicht erreichbar. Nächster Schritt: A3 Brücke
-  (Start-Prompt im Hand-off der A2-PR).
-- **Stand 14.10., A3, C1, C3, C2 gebaut** (Branch
-  `claude/sweet-bell-gr6fn8`, eine PR): Brücke 2.54.0 listet, testet und
-  weist Speicher-Verbindungen zu (`bibliothek_anlegen` nimmt
-  `speicherVerbindung` + `verzeichnis`); Entscheidungskatalog mit
-  Standard-Facetten je Inhaltstyp unter `src/lib/library-setup/` (C1, E6/E8);
-  Brücke 2.55.0: `bibliothek_anlegen` fragt mit `offeneEntscheidungen`
-  zurück statt halb eingerichtet anzulegen, neues `bibliothek_pruefen` (C3);
-  Anlege-Wizard in der App ersetzt beide Anlage-Dialoge, Settings-Übersicht
-  zeigt „Einrichtung: n von m" (C2). Vor dem Merge: `pnpm build` lokal,
-  Klickweg Wizard. Offen: A4 Mitglieder eigene Verbindung (Prüffall
-  ID-Konsistenz vorab, Opus).
-- **Stand 16.10., A4 angehalten** (Owner): #394 gemergt. Statt „Mitglieder
-  nur mit eigener Verbindung" sollen Co-Creators bewusst und sichtbar mit dem
-  Speicherzugang des Owners arbeiten können; Schreibrechte je Feature,
-  Urheberschaft (E-Mail, ggf. „im Namen von") an Datei, Transkript,
-  Transformation und Index-Eintrag selbst, Sonderfall Commons-Libraries
-  (Original bleibt, nur Kopien). Konzept „Zusammenarbeit in Stufen" entsteht
-  im Archiv (Vorhabensordner); erst nach Abnahme ADR-Nachtrag und Wellen.
-  Der A4-Start-Prompt gilt bis dahin nicht.
-- **Stand 16.10., Konzept abgenommen**: Owner hat die zehn Entscheide des
-  Konzepts „Zusammenarbeit in Stufen" (Archiv) wie vorgeschlagen bestätigt.
-  Nächster Schritt: ADR „Zusammenarbeit in Stufen" und Plan mit Wellen Z1
-  (Urheberschaft `erstellt_von`/`im_namen_von` an Artefakt und Index,
-  Migration), Z2 (Voreinstellung Lesen/Eigenes/Mitgestalten am Mitglied,
-  eine Prüfstelle auf dem Server), Z3 (geliehener Speicherzugang sichtbar),
-  Z4 (Commons: Original unveränderlich, Kopie mit Herkunft, Lizenz). A4 geht
-  darin auf. **ADR 0011 und Plan `plans/geplant/zusammenarbeit-in-stufen.plan.md`
-  angelegt; Umsetzung ab 23.10. (Owner).**
+  Owner-Entscheide E1–E8 am 13.10. bestätigt.
+- **Gebaut und gemergt**:
+  - B1 Seitenmenü „Erweitert", Teil-Formulare je Seite (#390, 13.10.)
+  - A1 Speicher-Verbindungen als Entität, AES-256-GCM mit
+    `CREDENTIALS_ENCRYPTION_KEY`, Konto-Seite (#391, 13.10.)
+  - A2 Library auf Verbindung, Migrationsskript
+    `scripts/migrate-storage-connections.ts`, Token- und Refresh-Route ohne
+    `X-Internal-Request`-Umgehung und nur für den Owner (#392, Build-Fix
+    #393, 14.10.)
+  - A3 Brücke listet, testet und weist Verbindungen zu (2.54.0), C1
+    Entscheidungskatalog mit Standard-Facetten je Inhaltstyp, C2 Anlege-Wizard
+    in der App mit „Einrichtung: n von m", C3 `bibliothek_anlegen` fragt mit
+    `offeneEntscheidungen` zurück, neues `bibliothek_pruefen` (2.55.0) (#394,
+    16.10.)
+- **Betrieb (Owner 18.10.)**: Migrationsskript in Dev und Prod gelaufen,
+  `CREDENTIALS_ENCRYPTION_KEY` in beiden Umgebungen gesetzt,
+  `bibliothek_anlegen` mit Rückfragen über die Brücke live getestet.
+- **A4 Mitglieder mit eigener Verbindung**: am 16.10. angehalten. Co-Creators
+  arbeiten bewusst und sichtbar mit dem Speicherzugang des Owners; A4 geht in
+  [ADR 0011](adr/0011-zusammenarbeit-in-stufen.md) und
+  [`plans/geplant/zusammenarbeit-in-stufen.plan.md`](plans/geplant/zusammenarbeit-in-stufen.plan.md)
+  auf (Wellen Z1 Urheberschaft, Z2 Voreinstellung und Prüfstelle, Z3
+  geliehener Speicherzugang sichtbar, Z4 Commons; Umsetzung ab 23.10.).
+- **Rest im Vorrat**: Umschlüsselungs-Skript für einen Wechsel von
+  `CREDENTIALS_ENCRYPTION_KEY` (nicht gebaut; ohne es macht ein neuer
+  Schlüssel gespeicherte Geheimnisse unlesbar). Das Klartext-Backup der
+  Migration unter `backups/` nach der Prüfung löschen.
 
 ## Zwischenschnitt · Twin-Fingerabdruck — erledigt (Stufe 1), Stufe 2 entfällt
 
@@ -516,10 +479,14 @@ Ohne Termin. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
   Job-Modus für Scans über dem 60-Sekunden-Limit (Q7) — der Twin-Fingerabdruck (Zwischenschnitt) nimmt den meisten Läufen den Grund; danach neu messen
 - Modularisierung: M6 Oldies-SiteConfig, M7 `@ks/module-agent-view`, M8
   Föderation (ADR 0009) + Retrieval-Profile (ADR 0010), `apps/`-Ebene
-- ADR 0005 Co-Creator mit eigener Storage-Auth und die Verschlüsselung der
-  Storage-Zugangsdaten (Commit 63a64bb9 auf `origin/claude/lucid-planck-b9i6gj`,
-  nie gemergt, der Branch bleibt als Grundlage stehen): seit 13.10. Teil A
-  des Zwischenschnitts „Speicher-Verbindungen und Library-Anlage" (oben)
+- **Zusammenarbeit in Stufen** (ADR 0011, Owner 16.10.):
+  [`plans/geplant/zusammenarbeit-in-stufen.plan.md`](plans/geplant/zusammenarbeit-in-stufen.plan.md),
+  Wellen Z1–Z4, Umsetzung ab 23.10.; nimmt A4 des Speicher-Zwischenschnitts
+  auf und löst ADR 0005 als Normalfall ab
+- Umschlüsselungs-Skript für `CREDENTIALS_ENCRYPTION_KEY` (Rest aus dem
+  Speicher-Zwischenschnitt); die Verschlüsselung selbst ist seit A1 gebaut,
+  der Branch `origin/claude/lucid-planck-b9i6gj` (Commit 63a64bb9) wird nicht
+  mehr gebraucht
 - Settings-UX-Folgeplan: Start-Flow, automatisierte Oberflächentests
 - Dateigrößen-Reste der Refactor-Wellen: `onedrive-provider.ts` 2.294,
   `job-report-tab.tsx` 2.262, `phase-template.ts` 2.037, `file-list.tsx` 1.761,
@@ -552,7 +519,9 @@ C, D, F (2.38–2.41), I (2.46), J (2.47 mit Nachzügen), K PR 1 (2.48) ·
 Transkript-Verlässlichkeit (#364 bis #366) · Reiter „Korrektur" am
 Audio-Transkript (P3b) · Wunschliste 6 Code (2.30) · Webseite als Quelle
 (`webseite_erschliessen`, #385, 2.49.0) · Wunschliste 8 W8-4, W8-1, W8-2,
-W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen).
+W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen) · Zwischenschnitt
+Speicher-Verbindungen und Library-Anlage B1, A1–A3, C1–C3 (#390–#394,
+2.54/2.55; Migration in Dev und Prod gelaufen).
 
 ## Die ADRs
 
@@ -562,12 +531,13 @@ W8-3 (2.50, 2.52; Live-Prüfung von W8-3 offen).
 | 0002 | Galerie-Sterne kommen aus MongoDB, nicht aus Clerk | akzeptiert |
 | 0003 | Wizard (Ablauf) und Schema-Template (Datenmodell) trennen | geplant, reserviert für Vorhaben 3 |
 | 0004 | Erfassen schreibt in eine Inbox, Veröffentlichen ist ein eigener Schritt | akzeptiert 2026-09-09 (gebaut seit Juni) |
-| 0005 | Co-Creator nutzen eigene Storage-Zugangsdaten | zurückgestellt |
+| 0005 | Co-Creator nutzen eigene Storage-Zugangsdaten | als Normalfall abgelöst durch 0011 |
 | 0006 | Maschinenarbeit gilt als angenommen, der Mensch markiert nur Fehler | akzeptiert |
 | 0007 | Monorepo mit Schale, Modul-Paketen und geteilten Bibliotheken | akzeptiert 2026-09-09 (M1–M4e gebaut) |
 | 0008 | Ein Deployment, viele Sites; Embed liefert nur Öffentliches | akzeptiert 2026-09-09 |
 | 0009 | Mehrere Libraries pro Site, Brücken dazwischen | geplant (nur Typfeld `federated?`) |
 | 0010 | Retrieval-Profil je Library: Zugang, Strategie, Sprachen | geplant |
+| 0011 | Zusammenarbeit in Stufen: Co-Creators arbeiten sichtbar mit dem Speicherzugang des Owners, Urheberschaft am Artefakt | akzeptiert 2026-10-16, Umsetzung ab 23.10. |
 
 ## Pflege
 

@@ -26,12 +26,11 @@ Stand der Durchsicht 13.10.2026:
   verstrichen); naechster Schritt sind die Owner-Entscheide O1, O2,
   O10–O20; die Erfassung wird dort in einem Zug bereinigt (Alt-Endpunkte,
   ADR 0003, Welle 3-VI).
-- **Zwischenschnitt (aktiv, Owner 13.10.): Speicher-Verbindungen und
-  Library-Anlage.** Plan
-  [`docs/plans/speicher-verbindungen-und-library-anlage.plan.md`](docs/plans/speicher-verbindungen-und-library-anlage.plan.md)
-  (Teil A Zugaenge am Konto, Teil B Seitenmenue „Erweitert", Teil C
-  vollstaendige Library-Anlage; Owner-Entscheide bestaetigt, Start-Prompts
-  in §9). Erster Schritt: B1 Seitenmenue.
+- **Zwischenschnitt Speicher-Verbindungen und Library-Anlage — erledigt
+  (18.10.)**: B1, A1–A3, C1–C3 gemergt (#390–#394), Migration in Dev und
+  Prod gelaufen. A4 (Mitglieder) geht in ADR 0011 und
+  [`docs/plans/geplant/zusammenarbeit-in-stufen.plan.md`](docs/plans/geplant/zusammenarbeit-in-stufen.plan.md)
+  auf (Wellen Z1–Z4, Umsetzung ab 23.10.).
 
 **Neue Punkte, die beim Bauen sichtbar werden**, traegt der Agent mit Datum
 unter „Neu dazugekommen" des laufenden Vorhabens in
