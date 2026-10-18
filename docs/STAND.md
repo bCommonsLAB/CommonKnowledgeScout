@@ -105,17 +105,30 @@ Vorrat mit ihrem offenen Rest.
    [`plans/website-unveraendert-publizieren.plan.md`](plans/website-unveraendert-publizieren.plan.md)
    (Anlass, Owner 06.10.: zwei Seiten bekamen beim Neuschreiben neue
    Kennungen, der Story-Tab kennt nur den Weg über Vorlage und Sprachmodell).
+6. Website-Sektion S0 Inhalt: die Website ist live (Owner über die Brücke,
+   Stand 18.10.).
+7. Fokus aus Sternen nach
+   [`plans/galerie-fokus-aus-sternen.plan.md`](plans/galerie-fokus-aus-sternen.plan.md)
+   (Owner 16.10.: ein Kriterium, die Sterne; die Fokus-Auswahl ist die Spitze
+   der Sterne-Rangliste der Mitglieder, kein Tag mehr): F0 Daten (16.10., die
+   36 Fokus-Maßnahmen als Sterne eines Mitglieds-Kontos) und F1 Server
+   (18.10., ADR 0012: Schalter `starCountsPublic`, Sterne-Zahl anonym ohne
+   Namen, `starred=<k>` und `sort=stars` serverseitig, Brücke 2.57.0).
 
 **Geplant:**
 
 1. Status-Modalität: Golden-Set, Baseline und, nur bei Bedarf, der
    Kontrolldurchlauf (m6); Golden-Set und Baseline sind Arbeit des Owners an
    der Library.
-2. Website-Sektionen S0 Inhalt, S4 Fußzeile, S5 Sprachumschalter.
-3. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
+2. Website-Sektionen S4 Fußzeile, S5 Sprachumschalter.
+3. Fokus aus Sternen F2 Galerie (Knopf „Im Fokus", Zahl auf den Karten), F3
+   Startseiten-Banner (`banner_sort: stars`), F4 Inhalt über die Brücke
+   (Schalter setzen, Startseite umstellen, Tag `fokus` entfernen); dazu die
+   Index-Bereinigung der Library (Doppelgänger, Freitext-`lv_bewertung`).
+4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).
-4. Unverändert publizieren P1 bis P4 (P1 Route auf der B1-Funktion, P2 Knopf
+5. Unverändert publizieren P1 bis P4 (P1 Route auf der B1-Funktion, P2 Knopf
    im Story-Tab, P3 `seite_pruefen` meldet verwaiste Einträge, P4 Doku).
 
 Mitgenommene alte Themen (Kandidaten): Split des OneDrive-Providers (2.294

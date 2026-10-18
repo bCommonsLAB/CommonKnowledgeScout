@@ -2,14 +2,14 @@
 name: galerie-fokus-aus-sternen
 overview: "Die Auswahl „Maßnahmen im Fokus“ ist keine redaktionelle Setzung mehr, sondern die Spitze der Sterne-Rangliste: Mitglieder vergeben Sterne im Bewertungsmodus, die Zahl der Sterne (ohne Namen) wird öffentlich, Galerie und Startseite zeigen die Rangliste live. Das Tag `fokus` entfällt, sobald die Startseite umgestellt ist. Owner-Entscheidung 16.10.2026 (Weg a). Vorhaben 2 in docs/STAND.md; Nachbar von website-startseite-sektionen.plan.md."
 vorhaben: [Klimamaßnahmen Südtirol]
-status: entwurf
+status: in-arbeit
 todos:
   - id: f0-daten
     content: "F0 Daten (erledigt 16.10.): die bisherige Fokus-Auswahl ist als Sterne eines Mitglieds-Kontos übernommen, Test-Bewertungen sind entfernt. Sicherung und Abgleich gehören ins Archiv, nicht ins Repo."
     status: completed
   - id: f1-server
-    content: "F1 Server: Library-Schalter `publicPublishing.starCountsPublic`; Docs-, Facetten- und Ids-Route liefern `favoriteCount` dann auch anonym (ohne Voter, ohne `isFavorite`); `sort=stars` öffentlich bei aktivem Schalter; `starred=<k>` wird serverseitig (mindestens k Sterne, über eine fileId-Liste aus `source_user_states`); Tie-Break nach Prioritäts-Index. ADR 0011."
-    status: pending
+    content: "F1 Server (gebaut 18.10., ADR 0012): Library-Schalter `publicPublishing.starCountsPublic`; Docs-, Facetten- und Ids-Route liefern `favoriteCount` dann auch anonym (ohne Voter, ohne `isFavorite`); `sort=stars` öffentlich bei aktivem Schalter; `starred=<k>` serverseitig (mindestens k Sterne, fileId-Liste aus `source_user_states`); Tie-Break nach Prioritäts-Index."
+    status: completed
   - id: f2-galerie
     content: "F2 Galerie: Knopf „Im Fokus“ für alle (setzt `starred=1&sort=stars`), Sterne-Zahl auf Karten und im Detail-Kopf für Anonyme nur lesend; der clientseitige `starred`-Filter fällt weg (behebt nebenbei die Seitenlücke bei Mitgliedern)."
     status: pending
@@ -103,7 +103,13 @@ Datensätze vorher) und Ergebnis gehören ins Archiv (Vorhabensordner), nicht
 ins Repo. Heute: 36 Einträge mit je
 einem Stern; die Rangliste entsteht, wenn weitere Mitglieder bewerten.
 
-### F1 · Server: Zahl öffentlich, Filter serverseitig
+### F1 · Server: Zahl öffentlich, Filter serverseitig (gebaut 18.10.2026)
+
+Dateien: `src/lib/repositories/source-user-states-count.ts` (Zähl-Stages,
+`waehleSterneStages`, `fileIdsMitMindestSternen`),
+`src/lib/documents/stern-filter.ts` (`starred`, `sort=stars`, Rechte),
+`gallery-sort.ts`, `column-sort.ts`, `vector-repo.ts`, die drei Routen,
+Schalter auf allen Stationen des Config-Feld-Contracts, Brücke 2.57.0.
 
 1. **Config-Feld** `publicPublishing.starCountsPublic?: boolean` in
    `@ks/contracts` (Typ), Validierung, Settings-Formular (Abschnitt
@@ -125,10 +131,10 @@ einem Stern; die Rangliste entsteht, wenn weitere Mitglieder bewerten.
    für Mitglieder wie heute und für alle bei aktivem Schalter. Tie-Break neu:
    `favoriteCount` ↓, `docMetaJson.prioritaets_index` ↓, `upsertedAt` ↓
    (Libraries ohne Index sortieren damit wie bisher nach Datum).
-5. **ADR 0011** „Sterne-Zahl öffentlich, Namen privat“: Entscheidung,
-   Schalter, was öffentlich wird und was nicht; Verweis aus ADR 0002.
-6. Cache prüfen: Antwortet die öffentliche Docs-Route mit Cache-Headern,
-   muss ein neuer Stern spätestens nach kurzer Frist sichtbar sein.
+5. **ADR 0012** „Sterne-Zahl öffentlich, Namen privat“ (0011 war schon
+   vergeben): Entscheidung, Schalter, was öffentlich wird und was nicht.
+6. Cache geprüft (18.10.): die Docs-Route antwortet ohne Cache-Header, ein
+   neuer Stern ist mit dem nächsten Aufruf sichtbar.
 
 Tests: `gallery-sort.test.ts` (stars mit/ohne Schalter, Tie-Break),
 `stern-filter.test.ts` (k gültig/ungültig, Mitglied/anonym/Schalter),

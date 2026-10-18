@@ -42,6 +42,7 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 | `**/detail-view*.tsx`, `**/registry.ts`, `**/doc-meta-mappers.ts`, `**/validation.ts` | detail-view-type-checklist | `checklisten-erweiterung` | 0010 |
 | `src/lib/events/**`, `src/app/api/event-job/**`, `src/components/event-monitor/**` | — | — | **0001 (Aktiv)** |
 | `src/lib/gallery/**`, `src/app/api/library/*/favorites/**` | welle-3-iii-galerie-chat-contracts | `contracts-ui` | **0002 (Aktiv)** |
+| `src/lib/documents/gallery-sort.ts`, `src/lib/documents/stern-filter.ts`, `src/lib/repositories/source-user-states*`, `src/app/api/chat/*/docs/**`, `src/app/api/chat/*/facets/**` | no-silent-fallbacks | — | 0002, **0012 (Akzeptiert)** |
 | `src/lib/library-access/**`, `src/app/api/libraries/*/members/**`, `.../invites/**` | — | — | 0005, **0011 (Akzeptiert)** |
 | `src/lib/graph/**`, `src/app/api/library/*/doc-relations/**` | — | — | 0009 |
 | `packages/module-story/**`, `src/components/library/story/**` | welle-3-iii-galerie-chat-contracts, chat-contracts | `contracts-ui` | 0007, 0008 |
