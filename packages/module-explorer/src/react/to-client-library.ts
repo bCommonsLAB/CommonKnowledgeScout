@@ -31,6 +31,7 @@ export function toClientLibrary(
         isPublic: context === 'public' ? true : (payload.isPublic === true),
         requiresAuth: payload.requiresAuth,
         siteEnabled: payload.siteEnabled,
+        starCountsPublic: payload.starCountsPublic === true,
         logoUrl: payload.logoUrl,
         gallery: payload.gallery,
         siteTheme: payload.siteTheme,

@@ -58,6 +58,8 @@ const publicFormSchema = z.object({
   isPublic: z.boolean().default(false),
   requiresAuth: z.boolean().default(false),
   siteEnabled: z.boolean().default(false),
+  // Fokus aus Sternen (ADR 0012): Sterne-Zahl anonym sichtbar, Namen nie.
+  starCountsPublic: z.boolean().default(false),
   // Welle S2: Design-Profil als JSON-Text; leer = Vorlage. Geprueft mit denselben Regeln wie die Bruecke.
   siteThemeJson: z.string().optional().superRefine((wert, ctx) => {
     if (!wert?.trim()) return
@@ -134,6 +136,7 @@ export function PublicForm() {
         isPublic: false,
         requiresAuth: false,
         siteEnabled: false,
+        starCountsPublic: false,
         siteThemeJson: "",
         showOnHomepage: true,
         backgroundImageUrl: "",
@@ -156,6 +159,7 @@ export function PublicForm() {
       isPublic: activeLibrary.config?.publicPublishing?.isPublic === true || false,
       requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
       siteEnabled: activeLibrary.config?.publicPublishing?.siteEnabled === true || false,
+      starCountsPublic: activeLibrary.config?.publicPublishing?.starCountsPublic === true,
       siteThemeJson: activeLibrary.config?.publicPublishing?.siteTheme
         ? JSON.stringify(activeLibrary.config.publicPublishing.siteTheme, null, 2)
         : "",
@@ -246,6 +250,7 @@ export function PublicForm() {
       isPublic: data.isPublic,
       requiresAuth: data.requiresAuth,
       siteEnabled: data.siteEnabled,
+      starCountsPublic: data.starCountsPublic,
       // S2: leeres Feld = Profil loeschen (null), sonst das geparste Profil (Schema hat es geprueft).
       siteTheme: data.siteThemeJson?.trim() ? (JSON.parse(data.siteThemeJson) as unknown) : null,
       showOnHomepage: data.showOnHomepage,
@@ -579,6 +584,27 @@ export function PublicForm() {
                     <FormLabel className="text-base">Zugriff nur für freigegebene Benutzer</FormLabel>
                     <FormDescription>
                       Benutzer müssen angemeldet sein und eine Freigabe erhalten (oder per Einladung eingeladen werden).
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="starCountsPublic"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Sterne-Zahl öffentlich zeigen</FormLabel>
+                    <FormDescription>
+                      Besucher sehen, wie viele Sterne ein Eintrag hat, und können nach Sternen sortieren und filtern. Wer bewertet hat, bleibt Mitgliedern vorbehalten; bewerten können weiterhin nur Mitglieder.
                     </FormDescription>
                   </div>
                   <FormControl>

@@ -41,6 +41,8 @@ export interface PublicPublishingEingabe {
   siteEnabled?: boolean
   /** Welle S2: Design-Profil; `undefined` = unveraendert, `null` = loeschen (Vorlage). */
   siteTheme?: SiteTheme | null
+  /** Fokus aus Sternen (ADR 0012): Sterne-Zahl anonym sichtbar; `undefined` = unveraendert. */
+  starCountsPublic?: boolean
 }
 
 export const SLUG_RE = /^[a-z0-9-]+$/
@@ -147,6 +149,10 @@ export function mergePublicPublishing(
     siteEnabled: neu.siteEnabled !== undefined ? neu.siteEnabled : alt?.siteEnabled === true,
     // S2: `null` loescht das Profil (zurueck zur Vorlage); gueltige Profile werden normalisiert.
     siteTheme: neu.siteTheme === undefined ? alt?.siteTheme : (neu.siteTheme === null ? undefined : validiereSiteTheme(neu.siteTheme)),
+    // ADR 0012: `undefined` bleibt `undefined` (Leser pruefen `=== true`), sonst
+    // meldete `geaenderteFelder` bei jeder Bestands-Library ohne das Feld eine
+    // Aenderung von null auf false.
+    starCountsPublic: neu.starCountsPublic !== undefined ? neu.starCountsPublic : alt?.starCountsPublic,
   }
 }
 
@@ -155,6 +161,7 @@ export function geaenderteFelder(alt: PublicPublishing | undefined, neu: PublicP
   const keys: Array<keyof PublicPublishing> = [
     'slugName', 'publicName', 'description', 'icon', 'isPublic', 'showOnHomepage',
     'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'story', 'siteEnabled', 'siteTheme',
+    'starCountsPublic',
   ]
   return keys.filter((key) => JSON.stringify(alt?.[key] ?? null) !== JSON.stringify(neu[key] ?? null))
 }

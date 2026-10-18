@@ -35,7 +35,10 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, story, siteEnabled, siteTheme } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, story, siteEnabled, siteTheme, starCountsPublic } = body;
+    if (starCountsPublic !== undefined && typeof starCountsPublic !== 'boolean') {
+      return NextResponse.json({ error: 'starCountsPublic muss true oder false sein' }, { status: 400 });
+    }
 
     // Validierung — dieselben Regeln wie die Bruecke (public-publishing-validation.ts).
     // S2: `siteTheme` fehlend = unveraendert, `null` = Profil loeschen.
@@ -94,6 +97,8 @@ export async function PUT(
       backgroundImageUrl, logoUrl, gallery, story, siteTheme,
       isPublic: isPublic !== undefined ? isPublic : false,
       siteEnabled: siteEnabled === true,
+      // ADR 0012: Formular sendet das Feld immer; fehlend => false wie siteEnabled.
+      starCountsPublic: starCountsPublic === true,
     }, library.label)
     const neuerApiKey = apiKey !== undefined && apiKey !== '' && !apiKey.includes('...') && !apiKey.includes('••••') && (apiKey.match(/\./g)?.length || 0) < 10
       ? apiKey

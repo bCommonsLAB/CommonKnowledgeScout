@@ -195,6 +195,8 @@ export interface ClientLibrary {
       siteEnabled?: boolean;
       /** Welle S2: Design-Profil der Landingpage (Farben, Schriften); fehlt = Vorlage */
       siteTheme?: SiteTheme;
+      /** Fokus aus Sternen (ADR 0012): Sterne-Zahl auch anonym sichtbar, Namen nie (fehlend = false) */
+      starCountsPublic?: boolean;
     };
     /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
     nextcloud?: {

@@ -37,6 +37,8 @@ export interface ExplorerLibraryPayload {
   /** Nur bei Member-Explore: ob die Library öffentlich geschaltet ist */
   isPublic?: boolean
   siteEnabled?: boolean
+  /** ADR 0012: Sterne-Zahl auch fuer Besucher sichtbar (Knopf „Im Fokus", Welle F2) */
+  starCountsPublic?: boolean
   /** Website-Logo (Phase C2): oeffentliche URL fuer die TopNav im Site-Kontext */
   logoUrl?: string
   /** Welle S2: Design-Profil der Website-Landingpage (fehlt = Vorlage) */
