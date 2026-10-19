@@ -316,7 +316,8 @@ describe('Galerie-Schnitt', () => {
     const overlay = readFileSync(join(komponenten, 'detail-overlay', 'detail-kopf.tsx'), 'utf-8')
 
     expect(wurzel).toContain('storyModusVerfuegbar={Boolean(storyPanel)}')
-    expect(wurzel).toContain("ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}")
+    // G5 (Plan galerie-buergeransicht): im gefuehrten Profil ersetzt das Mitreden-Band den Story-Knopf.
+    expect(wurzel).toContain("ctaLabel={storyPanel && profil !== 'gefuehrt' ? t('gallery.switchToStoryMode') : undefined}")
     expect(wurzel).not.toMatch(/ctaLabel=\{t\('gallery\.switchToStoryMode'\)\}/)
     expect(overlay).toMatch(/\{p\.storyModusVerfuegbar \? \(\s*<SwitchToStoryModeButton/)
 
