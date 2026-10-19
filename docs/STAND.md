@@ -115,9 +115,13 @@ Vorrat mit ihrem offenen Rest.
    (18.10., ADR 0012: Schalter `starCountsPublic`, Sterne-Zahl anonym ohne
    Namen, `starred=<k>` und `sort=stars` serverseitig, Brücke 2.57.0) und
    F2 Galerie (19.10.: Knopf „Im Fokus", Sterne-Zahl für Besucher lesend,
-   `starred` an den Server statt Filter im Browser; PR #402) und F3 Banner
+   `starred` an den Server statt Filter im Browser; PR #402), F3 Banner
    (19.10.: `banner_sort: stars` am Startseiten-Doc, Link nimmt die
-   Rangliste mit, `seite_pruefen` meldet fehlenden Schalter; Brücke 2.58.0).
+   Rangliste mit, `seite_pruefen` meldet fehlenden Schalter; PR #403, Brücke
+   2.58.0) und F4 Inhalt (19.10., über die Brücke: Schalter an, Startseite
+   auf der Rangliste, Tag `fokus` an den Quellen entfernt; anonym belegt).
+   Offen bleibt nur noch Inhaltsarbeit: Mitglieder einladen, damit aus den
+   Sternen eine Rangliste wird.
 
 **Geplant:**
 
@@ -125,9 +129,8 @@ Vorrat mit ihrem offenen Rest.
    Kontrolldurchlauf (m6); Golden-Set und Baseline sind Arbeit des Owners an
    der Library.
 2. Website-Sektionen S4 Fußzeile, S5 Sprachumschalter.
-3. Fokus aus Sternen F4 Inhalt über die Brücke
-   (Schalter setzen, Startseite umstellen, Tag `fokus` entfernen); dazu die
-   Index-Bereinigung der Library (Doppelgänger, Freitext-`lv_bewertung`).
+3. Index-Bereinigung der Library (Doppelgänger, Freitext-`lv_bewertung`),
+   Doppelgänger zusammenlegen (Sterne wandern mit).
 4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).
