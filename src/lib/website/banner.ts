@@ -50,6 +50,23 @@ export function bannerGalerieParams(sort: BannerSort | undefined): string {
 }
 
 /**
+ * Adress-Parameter fuer den Klick auf eine Banner-Karte: die Galerie mit der
+ * Liste, in der der Eintrag liegt, PLUS `doc`. Die Galerie loest `?doc=` nur
+ * unter den geladenen Karten auf — ohne die passende Liste (bei `stars` die
+ * Rangliste) traefe nur ein Eintrag, der zufaellig auf der ersten Seite
+ * steht (Befund 19.10.2026: fuenf von sechs Banner-Karten oeffneten nichts).
+ */
+export function bannerKartenParams(sort: BannerSort | undefined, slug: string): Record<string, string> {
+  const params = Object.fromEntries(new URLSearchParams(bannerGalerieParams(sort)))
+  return { ...params, doc: slug }
+}
+
+/** Dasselbe als Adresse im Root-Modus (`base` traegt schon `?view=gallery`). */
+export function bannerKartenHref(base: string, sort: BannerSort | undefined, slug: string): string {
+  return `${base}&${new URLSearchParams(bannerKartenParams(sort, slug)).toString()}`
+}
+
+/**
  * `banner_limit` aus dem Frontmatter lesen. Fehlend = Vorgabe; ausserhalb
  * 3..12 oder keine Zahl = Fehler mit dem Wert im Wortlaut.
  */
