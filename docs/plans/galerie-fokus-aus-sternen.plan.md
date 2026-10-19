@@ -11,8 +11,8 @@ todos:
     content: "F1 Server (gebaut 18.10., ADR 0012): Library-Schalter `publicPublishing.starCountsPublic`; Docs-, Facetten- und Ids-Route liefern `favoriteCount` dann auch anonym (ohne Voter, ohne `isFavorite`); `sort=stars` öffentlich bei aktivem Schalter; `starred=<k>` serverseitig (mindestens k Sterne, fileId-Liste aus `source_user_states`); Tie-Break nach Prioritäts-Index."
     status: completed
   - id: f2-galerie
-    content: "F2 Galerie: Knopf „Im Fokus“ für alle (setzt `starred=1&sort=stars`), Sterne-Zahl auf Karten und im Detail-Kopf für Anonyme nur lesend; der clientseitige `starred`-Filter fällt weg (behebt nebenbei die Seitenlücke bei Mitgliedern)."
-    status: pending
+    content: "F2 Galerie (gebaut 19.10.): Knopf „Im Fokus“ für alle (setzt `starred=1&sort=stars`), Sterne-Zahl auf Karten und im Detail-Kopf für Anonyme nur lesend; der clientseitige `starred`-Filter fällt weg (behebt nebenbei die Seitenlücke bei Mitgliedern)."
+    status: completed
   - id: f3-banner
     content: "F3 Startseiten-Banner: Frontmatter `banner_sort: stars` holt die Spitze der Rangliste (`sort=stars&starred=1`); der Galerie-Link trägt dieselben Parameter. `banner_tag` bleibt für andere Zwecke."
     status: pending
@@ -140,7 +140,14 @@ Tests: `gallery-sort.test.ts` (stars mit/ohne Schalter, Tie-Break),
 `stern-filter.test.ts` (k gültig/ungültig, Mitglied/anonym/Schalter),
 Zähl-Stages ohne Voter-Felder, Route-Test „anonym sieht keine Namen“.
 
-### F2 · Galerie: „Im Fokus“ für alle
+### F2 · Galerie: „Im Fokus“ für alle (gebaut 19.10.2026)
+
+Dateien: `fokus-filter-button.tsx` (Knopf, `fokusAktiv`, `fokusUmschalten`),
+`hooks/use-star-counts-public.ts` (`useSterneSichtbar`: Mitglied oder
+Schalter), `starred` durch `use-gallery-data`, `use-gallery-facets`,
+`use-gallery-sums` und die Bulk-Knöpfe; `source-stars-badge.tsx`,
+`source-stars-cell.tsx`, `items-table.tsx` zeigen Besuchern nur die Zahl.
+Live belegt 19.10. als Mitglied: Klick → `starred=1&sort=stars`, 36 Quellen.
 
 1. **Knopf** `fokus-filter-button.tsx` (neu), in `filter-context-bar.tsx`
    nur eingehängt: sichtbar für Mitglieder immer, für Anonyme bei aktivem
