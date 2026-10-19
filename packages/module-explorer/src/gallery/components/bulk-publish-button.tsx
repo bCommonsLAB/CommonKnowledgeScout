@@ -61,6 +61,8 @@ export interface BulkPublishButtonProps {
    * ist und der Server diesen Filter nicht kennt.
    */
   explicitFileIds?: string[]
+  /** „Im Fokus" aktiv (ADR 0012): `starred=1` geht an /docs/ids, der Server filtert. */
+  starred?: boolean
 }
 
 export function BulkPublishButton({
@@ -71,6 +73,7 @@ export function BulkPublishButton({
   searchQuery = '',
   hasTranslationTargets = false,
   explicitFileIds,
+  starred = false,
 }: BulkPublishButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
@@ -106,6 +109,7 @@ export function BulkPublishButton({
         if (searchQuery.trim()) {
           params.append('search', searchQuery.trim())
         }
+        if (starred) params.append('starred', '1')
 
         const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${
           params.toString() ? `?${params.toString()}` : ''

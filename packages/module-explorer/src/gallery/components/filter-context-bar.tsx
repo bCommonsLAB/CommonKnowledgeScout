@@ -1,7 +1,7 @@
 'use client'
 
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
-import { Filter, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
+import { Filter, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Gauge } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '../atoms/gallery-filters'
 import { useTranslation } from '@ks/i18n/react'
@@ -13,6 +13,7 @@ import { BulkDeleteButton } from './bulk-delete-button'
 import { FilterChips } from './filter-chips'
 import { BulkPublishButton } from './bulk-publish-button'
 import { RecomputeAllRelationsButton } from './recompute-all-relations-button'
+import { FokusFilterButton, fokusAktiv } from './fokus-filter-button'
 import type { DocCardMeta } from '../lib/types'
 import { useLibraryRole } from '../hooks/use-library-role'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
@@ -103,7 +104,9 @@ export function FilterContextBar({
   const { params: searchParams, pushParams } = useGalleryNavigation()
   const { isMember } = useLibraryRole(libraryId)
   const onlyFavoritesActive = searchParams?.get('favorites') === '1'
-  const onlyStarredActive = searchParams?.get('starred') === '1'
+  // „Im Fokus" (starred=1) filtert der Server (ADR 0012): die Bulk-Knoepfe
+  // reichen den Parameter an /docs/ids durch, damit sie dieselbe Menge treffen.
+  const fokusFilterAktiv = fokusAktiv(searchParams)
   const onlyCommentedActive = searchParams?.get('commented') === '1'
   const sortByStarsActive = searchParams?.get('sort') === 'stars'
   const sortByRatingActive = searchParams?.get('sort') === 'rating'
@@ -112,13 +115,6 @@ export function FilterContextBar({
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyFavoritesActive) params.delete('favorites')
     else params.set('favorites', '1')
-    pushParams(params)
-  }
-
-  const toggleOnlyStarred = () => {
-    const params = new URLSearchParams(searchParams?.toString() ?? '')
-    if (onlyStarredActive) params.delete('starred')
-    else params.set('starred', '1')
     pushParams(params)
   }
 
@@ -190,30 +186,10 @@ export function FilterContextBar({
             </span>
           </Button>
         )}
-        {/* "Mit Sternen": Team-Aggregat - alle Quellen mit mind. 1 Stern
-            (irgendein Mitglied). Eigenes Icon (Team) zur Abgrenzung vom
-            persoenlichen Stern. */}
-        {isMember && (
-          <Button
-            variant={onlyStarredActive ? 'secondary' : 'ghost'}
-            size="sm"
-            type="button"
-            onClick={toggleOnlyStarred}
-            aria-pressed={onlyStarredActive}
-            className={cn(
-              'h-7 px-2 shrink-0',
-              onlyStarredActive && 'text-amber-700 dark:text-amber-300',
-            )}
-            title={t('gallery.favorites.starredFilterTooltip', {
-              defaultValue: 'Alle Quellen, die mindestens ein Mitglied favorisiert hat',
-            })}
-          >
-            <Users className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
-            <span className="hidden lg:inline">
-              {t('gallery.favorites.starredFilter', { defaultValue: 'Mit Sternen' })}
-            </span>
-          </Button>
-        )}
+        {/* „Im Fokus" (Welle F2, ADR 0012): Rangliste aller Eintraege mit Stern,
+            serverseitig gefiltert und sortiert; ersetzt „Mit Sternen". Sichtbar
+            fuer Mitglieder immer, fuer Besucher bei starCountsPublic. */}
+        <FokusFilterButton libraryId={libraryId} />
         {/* "Mit Kommentaren": alle Quellen mit mind. 1 Kommentar. Member-only. */}
         {isMember && (
           <Button
@@ -313,6 +289,7 @@ export function FilterContextBar({
             searchQuery={searchQuery || ''}
             hasTranslationTargets={hasTranslationTargets}
             explicitFileIds={explicitBulkFileIds}
+            starred={fokusFilterAktiv}
           />
         </div>
       )}
@@ -339,6 +316,7 @@ export function FilterContextBar({
             filters={filters}
             searchQuery={searchQuery || ''}
             explicitFileIds={explicitBulkFileIds}
+            starred={fokusFilterAktiv}
           />
         </div>
       )}

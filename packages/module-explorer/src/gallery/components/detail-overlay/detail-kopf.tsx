@@ -60,8 +60,9 @@ export function DetailKopf(p: DetailKopfProps) {
           <h2 className='text-xl font-semibold truncate'>{p.displayTitle}</h2>
         </div>
         <div className='flex items-center gap-2 shrink-0'>
-          {/* Sterne-Cell: eigener Stern + Counter + Tooltip (Member-only). */}
-          {p.isMember && p.fileId && (
+          {/* Sterne-Cell: eigener Stern + Counter + Tooltip; fuer Besucher bei
+              starCountsPublic nur die Zahl (die Zelle entscheidet, ADR 0012). */}
+          {p.fileId && (
             <SourceStarsCell
               libraryId={p.libraryId}
               fileId={p.fileId}

@@ -44,6 +44,8 @@ export interface BulkDeleteButtonProps {
    * und der Server diesen Filter nicht kennt.
    */
   explicitFileIds?: string[]
+  /** „Im Fokus" aktiv (ADR 0012): `starred=1` geht an /docs/ids, der Server filtert. */
+  starred?: boolean
 }
 
 /**
@@ -60,6 +62,7 @@ export function BulkDeleteButton({
   filters,
   searchQuery = '',
   explicitFileIds,
+  starred = false,
 }: BulkDeleteButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -108,6 +111,7 @@ export function BulkDeleteButton({
         if (searchQuery.trim()) {
           params.append('search', searchQuery.trim())
         }
+        if (starred) params.append('starred', '1')
 
         const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${params.toString() ? `?${params.toString()}` : ''}`
         const idsResponse = await instanz.fetch(idsUrl)
