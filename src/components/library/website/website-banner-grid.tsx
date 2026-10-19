@@ -91,6 +91,7 @@ export function WebsiteBannerGrid({
             {moreLinkLabel} →
           </button>
         </div>
+        {/* Drei Spalten auf ~325 px: die Karten laufen in der kompakten Form (nur Titel, Status, Sterne). */}
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
           {docs.map((d) => {
             // Der Klick bringt die Liste mit, in der der Eintrag liegt (bei stars die
@@ -98,10 +99,10 @@ export function WebsiteBannerGrid({
             const slug = getEffectiveDocumentNavigationSlug(d) ?? ""
             return galleryBaseHref ? (
               // Root-Modus: Karte navigiert in die Explore-Galerie (Detail-Overlay dort).
-              <DocumentCard key={d.fileId ?? d.id} doc={d} onClick={() => router.push(bannerKartenHref(galleryBaseHref, sort, slug))} />
+              <DocumentCard key={d.fileId ?? d.id} doc={d} cardDensity="compact" onClick={() => router.push(bannerKartenHref(galleryBaseHref, sort, slug))} />
             ) : (
               // Site-Modus: Galerie-Ansicht mit Liste und Eintrag zugleich oeffnen.
-              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} onOpen={() => onShowGallery?.(bannerKartenParams(sort, slug))} />
+              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} cardDensity="compact" onOpen={() => onShowGallery?.(bannerKartenParams(sort, slug))} />
             )
           })}
         </div>

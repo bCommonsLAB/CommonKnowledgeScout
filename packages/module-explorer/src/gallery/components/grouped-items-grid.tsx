@@ -224,7 +224,7 @@ export function GroupedItemsGrid({
           {/* Breakpoints angepasst: Ab 400px 2 Spalten, damit 320px Thumbnails nicht zu stark vergrößert werden */}
           <div className={`mt-4 ${groupedItemsGridClassForDensity(cardDensity)}`}>
             {usedDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} cardDensity={cardDensity} />
             ))}
           </div>
         </div>
@@ -245,7 +245,7 @@ export function GroupedItemsGrid({
           {/* Breakpoints angepasst: Ab 400px 2 Spalten, damit 320px Thumbnails nicht zu stark vergrößert werden */}
           <div className={`mt-4 ${groupedItemsGridClassForDensity(cardDensity)}`}>
             {unusedDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} cardDensity={cardDensity} />
             ))}
           </div>
         </div>

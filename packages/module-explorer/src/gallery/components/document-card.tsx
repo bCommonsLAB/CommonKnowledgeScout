@@ -21,6 +21,7 @@
 
 import React from 'react'
 import type { DocCardMeta } from '../lib/types'
+import type { GalleryCardDensity } from '../lib/gallery-card-density'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { DivaTextureCard } from './document-card/diva-texture-card'
@@ -48,6 +49,11 @@ export interface DocumentCardProps {
   onToggleFavorite?: (fileId: string) => void | Promise<void>
   /** Stufe 4: Reload-Callback nach Per-Material-Korrektur (locked/rejected/Klasse). */
   onClassificationChanged?: () => void
+  /**
+   * Dichte des umgebenden Rasters (Default: comfortable). Karten, die eine
+   * kompakte Form haben (heute: climateAction), reduzieren damit ihren Inhalt.
+   */
+  cardDensity?: GalleryCardDensity
 }
 
 export function DocumentCard({
@@ -58,6 +64,7 @@ export function DocumentCard({
   libraryDetailViewType,
   onToggleFavorite,
   onClassificationChanged,
+  cardDensity = 'comfortable',
 }: DocumentCardProps) {
 
   const { openDocument } = useGalleryNavigation()
@@ -100,6 +107,7 @@ export function DocumentCard({
         onClick={handleClick}
         libraryId={libraryId}
         onToggleFavorite={onToggleFavorite}
+        density={cardDensity}
       />
     )
   }
