@@ -5,11 +5,11 @@ vorhaben: [Klimamaßnahmen Südtirol]
 status: in-arbeit
 todos:
   - id: g1-profil-layout
-    content: "G1 Profil und Layout: Hook `useGalerieProfil` (Config + Rolle + URL), ein Layout-Schalter statt Tailwind-Breakpoint (Spalte oder Lade), Lade von rechts; Expertenmodus bleibt Byte für Byte gleich."
-    status: pending
+    content: "G1 Profil und Layout (gebaut 19.10.): Hook `useGalerieProfil` (Config + Rolle + URL), ein Layout-Schalter statt Tailwind-Breakpoint (Spalte oder Lade), Lade von rechts; Expertenmodus bleibt Byte für Byte gleich."
+    status: completed
   - id: g2-leiste-karten
-    content: "G2 Leiste und Karten: Umschalter „Im Fokus | Alle“, reduzierte Werkzeugleiste, Filter nur als Symbol, Einleitung aus den Galerie-Texten, kompakte Karten als Vorgabe."
-    status: pending
+    content: "G2 Leiste und Karten (gebaut 19.10.): Umschalter „Im Fokus | Alle“, reduzierte Werkzeugleiste, Filter nur als Symbol, Einleitung aus den Galerie-Texten, kompakte Karten als Vorgabe."
+    status: completed
   - id: g3-config-bruecke
     content: "G3 Config und Brücke: Feld `chat.gallery.anonymProfil`, Settings-Formular, `konfiguration_lesen/setzen`, Contract und STAND."
     status: pending
@@ -70,7 +70,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
 
 ## 3. Wellen
 
-### G1 · Profil und Layout (ein Tag)
+### G1 · Profil und Layout (gebaut 19.10.2026)
 
 1. **Hook `useGalerieProfil(libraryId)`** (`hooks/use-galerie-profil.ts`):
    Reihenfolge Adresse `?ansicht=gefuehrt|experte` (der Umschalter schreibt
@@ -92,7 +92,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
 5. Tests: Hook (Adresse schlägt Config, unbekannt → Fehler geloggt),
    Layout-Helfer, Sheet-Seite, Umschalter.
 
-### G2 · Leiste und Karten (ein Tag)
+### G2 · Leiste und Karten (gebaut 19.10.2026)
 
 1. **Umschalter `fokus-umschalter.tsx`** (ersetzt im geführten Profil den
    Knopf aus F2, der Knopf bleibt für Experten): zwei Segmente „Im Fokus ·
@@ -104,12 +104,14 @@ Was der Bestand schon kann und was der Entwurf braucht:
    `fokus` in der Config, schreibt die Galerie beim ersten Rendern
    `starred=1&sort=stars` per `replaceParams` (kein Verlaufseintrag), damit
    der URL-Vertrag hält und „Alle“ eine echte Adresse ist. Ein leerer Fokus
-   wird leer gezeigt (Entscheid 2).
+   wird leer gezeigt (Entscheid 2). Bekannte Grenze: die Vorgabe greift einmal
+   je Montage; ein geteilter Link ohne Parameter öffnet wieder im Fokus.
 3. **Reduzierte Leiste.** `FilterContextBar` und `GalleryStickyHeader`
    bekommen `profil`: geführt zeigt Umschalter, Suche, Filter-Symbol, Zähler;
    weg sind Favoriten, Kommentare, beide Sortier-Knöpfe, Galerie/Tabelle/
-   Graph, Dichte, `kopfAktionen` (Inhalte erfassen). Die Suche wandert in die
-   Leiste (heute im Kopf).
+   Graph und Dichte. `kopfAktionen` (Inhalte erfassen) bleiben sichtbar —
+   die Einladung zum Beitragen sehen alle (Entscheid 1). Die Suche bleibt im
+   Kopf (Figma zeigt sie in der Leiste; kosmetisch, Vorrat).
 4. **Einleitung als Band** (`galerie-einleitung.tsx`): Kennzeile, Titel,
    Erklärung aus den Galerie-Texten (`headline`, `subtitle`, `description`);
    Experten sehen weiter die Kopfzeile von heute.

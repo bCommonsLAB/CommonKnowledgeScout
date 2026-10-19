@@ -8,7 +8,27 @@ import {
   layoutKlassen,
   profilAus,
   profilParams,
+  startParamsFuer,
 } from '@ks/module-explorer/gallery/lib/galerie-profil'
+
+describe('startParamsFuer (G2: Vorgabe Im Fokus aus der Config)', () => {
+  it('fokus ohne starred/sort in der Adresse setzt starred=1&sort=stars', () => {
+    expect(startParamsFuer('fokus', new URLSearchParams('view=gallery'))?.toString()).toBe('view=gallery&starred=1&sort=stars')
+    expect(startParamsFuer('fokus', null)?.toString()).toBe('starred=1&sort=stars')
+  })
+  it('laesst eine Adresse mit starred oder sort in Ruhe („Alle" bleibt eine echte Adresse)', () => {
+    expect(startParamsFuer('fokus', new URLSearchParams('starred=1&sort=stars'))).toBeNull()
+    expect(startParamsFuer('fokus', new URLSearchParams('sort=rating'))).toBeNull()
+  })
+  it('alle oder fehlend: nichts; unbekannt: gemeldet und nichts', () => {
+    expect(startParamsFuer('alle', new URLSearchParams(''))).toBeNull()
+    expect(startParamsFuer(undefined, new URLSearchParams(''))).toBeNull()
+    const fehler = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(startParamsFuer('sterne', new URLSearchParams(''))).toBeNull()
+    expect(String(fehler.mock.calls[0][0])).toMatch(/startAnsicht="sterne"/)
+    fehler.mockRestore()
+  })
+})
 
 describe('profilAus', () => {
   it('Adresse schlägt Config schlägt Vorgabe', () => {
