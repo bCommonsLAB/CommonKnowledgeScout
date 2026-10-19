@@ -14,6 +14,7 @@
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
+import { bannerSortAus } from '@/lib/website/banner'
 
 export interface DokumentPruefung {
   meta: Record<string, unknown>
@@ -83,6 +84,12 @@ export function pruefeMarkdownDokument(markdown: string): DokumentPruefung {
       } else if (heroLayout === 'none' && typeof heroBild === 'string' && heroBild.trim()) {
         warnungen.push('hero_layout none mit hero_image: das Bild wird nicht gezeigt — als Sektion full-image in den Body setzen oder hero_layout aendern')
       }
+    }
+    // banner_sort (F3): ein unbekannter Wert faellt im Renderer laut auf rating — hier wird er vorher genannt.
+    try {
+      bannerSortAus(meta['banner_sort'])
+    } catch (error) {
+      warnungen.push(`${error instanceof Error ? error.message : String(error)} — das Banner reiht nach rating`)
     }
     const kandidaten = [...bildUrls(body), ...(typeof heroBild === 'string' && heroBild ? [heroBild] : [])]
     for (const url of kandidaten) {

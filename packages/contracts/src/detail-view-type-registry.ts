@@ -607,6 +607,7 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'banner_tag',
       'banner_title',
       'banner_limit',
+      'banner_sort',
       'heading_case',
       'prioritaets_index',
       'coverImageUrl',

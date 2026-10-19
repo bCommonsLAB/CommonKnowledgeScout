@@ -173,14 +173,21 @@ Erweiterung in den Einstellungen aus- und einschalten.
    Ein zweiter Aufruf nach einer Textänderung aktualisiert den Eintrag.
    Der Text bleibt unverändert — kein Sprachmodell (anders als
    `transformation_starten`).
-4. **Auswahl markieren.** Soll das Banner eine kuratierte Auswahl zeigen,
-   `dokument_felder_setzen` mit `sourceIds` der Dokumente und
-   `listen: { tags: ["fokus"] }`; am Startseiten-Doc dann `banner_tag: "fokus"`,
-   optional `banner_title` und `banner_limit` (3–12), und die Seite neu
-   publizieren. `heading_case: "none"` schaltet die Großschreibung der
-   Überschriften ab. Nicht `prioritaets_index` setzen —
-   den rechnet die Pipeline und überschreibt ihn bei jedem Transform-Lauf.
-   Nicht publizierte Quellen meldet die Zeile als `nicht_publiziert`.
+4. **Auswahl zeigen.** Zwei Wege, am Startseiten-Doc gesetzt und die Seite
+   neu publiziert:
+   - **Rangliste der Mitglieder (ADR 0012, Vorzug):** `banner_sort: "stars"`
+     — das Banner zeigt die Einträge mit Stern, die meisten zuerst, der Link
+     darunter öffnet die ganze Rangliste. Vorher an der Library
+     `veroeffentlichung_setzen` mit `starCountsPublic: true` (Besucher sehen
+     die Zahl der Sterne, nie die Namen); ohne den Schalter bleibt das Banner
+     leer, `seite_pruefen` meldet es. Bewerten können nur Mitglieder.
+   - **Kuratierte Auswahl per Tag:** `dokument_felder_setzen` mit `sourceIds`
+     und `listen: { tags: ["fokus"] }`, am Startseiten-Doc `banner_tag: "fokus"`.
+   Optional `banner_title` und `banner_limit` (3–12). `heading_case: "none"`
+   schaltet die Großschreibung der Überschriften ab. Nicht `prioritaets_index`
+   setzen — den rechnet die Pipeline und überschreibt ihn bei jedem
+   Transform-Lauf. Nicht publizierte Quellen meldet die Zeile als
+   `nicht_publiziert`.
 4b. **Design-Profil übertragen** (wenn die Site nicht wie die Vorlage
    aussehen soll). Aus der Gestaltungsvorlage (Figma, Styleguide) ablesen:
    Überschriften- und Fließtextschrift, Akzentfarbe der Buttons, je Sektion

@@ -4,6 +4,7 @@ import * as React from "react"
 import { ArrowLeft } from "lucide-react"
 import { parseWebsiteSections } from "@/lib/website/parse-website-sections"
 import type { HeadingCase } from "@/lib/website/types"
+import type { BannerSort } from "@/lib/website/banner"
 import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
 import { SectionBlock, VideoEmbed } from "@/components/library/website/website-landing-blocks"
 import { SectionContent } from "@/components/library/website/section-content"
@@ -48,6 +49,8 @@ export interface WebsiteDetailData {
   bannerTag?: string
   bannerTitle?: string
   bannerLimit?: number
+  /** Welle F3 (ADR 0012): Reihung des Banners (Frontmatter `banner_sort`); fehlt = `rating`. */
+  bannerSort?: BannerSort
   /** Welle S1: Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
   headingCase?: HeadingCase
   fileId?: string

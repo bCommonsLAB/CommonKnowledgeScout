@@ -12,9 +12,17 @@ describe('mapToWebsiteDetail (S1)', () => {
     expect(d).toMatchObject({ bannerTag: 'fokus', bannerTitle: 'Im Fokus', bannerLimit: 9, headingCase: 'none' })
   })
 
+  it('F3: banner_sort stars wird gelesen, ungueltig laut gemeldet und zur Vorgabe', () => {
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Start', banner_sort: 'stars' } }).bannerSort).toBe('stars')
+    const fehler = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Start', banner_sort: 'sterne' } }).bannerSort).toBeUndefined()
+    expect(String(fehler.mock.calls[0][0])).toMatch(/banner_sort "sterne"/)
+  })
+
   it('fehlende Felder bleiben undefined (Vorgaben entscheidet der Renderer)', () => {
     const d = mapToWebsiteDetail({ docMetaJson: { title: 'Start' } })
     expect(d.bannerTag).toBeUndefined()
+    expect(d.bannerSort).toBe('rating')
     expect(d.bannerLimit).toBe(6)
     expect(d.headingCase).toBeUndefined()
   })

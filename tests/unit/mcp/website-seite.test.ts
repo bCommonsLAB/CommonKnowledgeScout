@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import type { DocCardMeta } from '@ks/contracts'
-import { baueSeitenBericht } from '@/lib/mcp/website-seite'
+import { baueSeitenBericht, bannerSortBefunde } from '@/lib/mcp/website-seite'
 
 function doc(over: Partial<DocCardMeta>): DocCardMeta {
   return { id: over.fileId ?? 'x', fileId: 'x', title: 'Doc', detailViewType: 'website', ...over } as DocCardMeta
@@ -58,6 +58,27 @@ describe('baueSeitenBericht', () => {
     const b = baueSeitenBericht([], new Map())
     expect(b.startseite).toBeNull()
     expect(b.hinweise[0]).toMatch(/Keine website-Docs/)
+  })
+
+  it('F3: banner_sort stars ohne starCountsPublic ist ein Fehler am Doc, mit Schalter nicht', () => {
+    // HOME_MD verlinkt ?site=kontakt — KONTAKT muss dabei sein, sonst ist das ein eigener Befund.
+    const docs = [HOME, KONTAKT]
+    const ohne = baueSeitenBericht(docs, new Map([['home', HOME_MD]]), {
+      starCountsPublic: false, bannerSortJeFileId: new Map([['home', 'stars']]),
+    })
+    expect(ohne.seiten[0].fehler.some((f) => f.includes('banner_sort stars') && f.includes('starCountsPublic'))).toBe(true)
+    const mit = baueSeitenBericht(docs, new Map([['home', HOME_MD]]), {
+      starCountsPublic: true, bannerSortJeFileId: new Map([['home', 'stars']]),
+    })
+    expect(mit.seiten[0].fehler).toEqual([])
+    // ohne Kontext (Tests ohne Library) keine Pruefung
+    expect(baueSeitenBericht(docs, new Map([['home', HOME_MD]])).seiten[0].fehler).toEqual([])
+  })
+
+  it('bannerSortBefunde: fehlend und rating sind sauber, Unbekanntes wird genannt', () => {
+    expect(bannerSortBefunde(undefined, false)).toEqual([])
+    expect(bannerSortBefunde('rating', false)).toEqual([])
+    expect(bannerSortBefunde('sterne', true)[0]).toMatch(/banner_sort "sterne"/)
   })
 
   it('nur Footer-Docs: kein Hauptmenue, keine Startseite', () => {

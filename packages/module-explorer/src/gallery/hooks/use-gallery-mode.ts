@@ -68,7 +68,11 @@ export function useGalleryMode(defaultMode: GalleryMode = 'gallery') {
     }
   }, [mode])
 
-  const setMode = (newMode: GalleryMode) => {
+  /**
+   * `extra`: Adress-Parameter, die der Wechsel mitnimmt — z. B. die
+   * Rangliste (`starred=1&sort=stars`) vom Banner der Website (F3).
+   */
+  const setMode = (newMode: GalleryMode, extra?: Record<string, string>) => {
     console.log('[useGalleryMode] 🔄 setMode aufgerufen:', {
       newMode,
       currentMode: mode,
@@ -82,6 +86,7 @@ export function useGalleryMode(defaultMode: GalleryMode = 'gallery') {
     // Adresse eindeutig bleibt; ob ein Verlaufseintrag entsteht, entscheidet
     // die Adressierung nach Route.
     const next = nextParamsForMode(navigation.params, newMode, defaultMode)
+    for (const [key, value] of Object.entries(extra ?? {})) next.set(key, value)
     console.log('[useGalleryMode] 🧭 Ansicht wechseln:', { newMode, paramsNachher: next.toString() })
     navigation.applyModeParams(next)
   }

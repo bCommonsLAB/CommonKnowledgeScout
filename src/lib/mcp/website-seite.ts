@@ -19,6 +19,28 @@ import {
 } from '@/lib/website/site-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { bildUrls } from './website-pruefung'
+import { bannerSortAus } from '@/lib/website/banner'
+
+/** Was der Bericht ueber die Library hinaus braucht (F3, ADR 0012). */
+export interface SeitenBerichtKontext {
+  /** `publicPublishing.starCountsPublic` — ohne ihn liefert `banner_sort: stars` anonym 403. */
+  starCountsPublic: boolean
+  /** `banner_sort` je Seite aus dem Meta-Dokument (`docMetaJson.banner_sort`). */
+  bannerSortJeFileId: Map<string, unknown>
+}
+
+/** Befunde zu `banner_sort` einer Seite: unbekannter Wert, oder `stars` ohne Schalter. */
+export function bannerSortBefunde(wert: unknown, starCountsPublic: boolean): string[] {
+  try {
+    const sort = bannerSortAus(wert)
+    if (sort === 'stars' && !starCountsPublic) {
+      return ['banner_sort stars, aber starCountsPublic ist aus — das Banner bleibt leer (die Docs-Route antwortet anonym 403); Schalter mit veroeffentlichung_setzen einschalten']
+    }
+    return []
+  } catch (error) {
+    return [`${error instanceof Error ? error.message : String(error)} — das Banner reiht nach rating`]
+  }
+}
 
 export interface SeitenEintrag {
   fileId: string
@@ -55,6 +77,7 @@ function titel(doc: DocCardMeta): string {
 export function baueSeitenBericht(
   docs: DocCardMeta[],
   markdownJeFileId: Map<string, string | undefined>,
+  kontext?: SeitenBerichtKontext,
 ): SeitenBericht {
   const hauptmenue = selectMainMenuDocs(docs)
   const hinweise: string[] = []
@@ -91,6 +114,8 @@ export function baueSeitenBericht(
       }
     }
     if (doc.menu_order === undefined) warnungen.push('menu_order fehlt — Doc steht am Ende des Menues')
+    // F3: banner_sort stars braucht den Library-Schalter; ohne Kontext (Tests ohne Library) keine Pruefung.
+    if (kontext) fehler.push(...bannerSortBefunde(kontext.bannerSortJeFileId.get(fileId), kontext.starCountsPublic))
     return {
       fileId,
       titel: titel(doc),

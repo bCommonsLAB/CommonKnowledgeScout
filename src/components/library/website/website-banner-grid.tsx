@@ -16,7 +16,7 @@ import { DocumentCard } from "@ks/module-explorer/react"
 import { getEffectiveDocumentNavigationSlug } from "@ks/util"
 import type { DocCardMeta } from "@ks/contracts"
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
-import { bannerQuery } from "@/lib/website/banner"
+import { bannerGalerieParams, bannerQuery, type BannerSort } from "@/lib/website/banner"
 import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
 import { BUTTON_STRONG, HEADING_FONT, surfaceStyle } from "@/lib/website/surface-style"
 import { cn } from "@/lib/utils"
@@ -30,9 +30,12 @@ interface WebsiteBannerGridProps {
   title?: string
   /** Kartenzahl (Frontmatter `banner_limit`, geprueft in `bannerLimitAus`). */
   limit: number
+  /** Reihung (Frontmatter `banner_sort`, F3/ADR 0012): `rating` oder `stars`. */
+  sort?: BannerSort
   /** Root-Modus: Galerie-Basis inkl. `?view=gallery`; sonst lokaler Galerie-Modus. */
   galleryBaseHref: string | null
-  onShowGallery?: () => void
+  /** Site-Modus: wechselt in die Galerie; `extra` sind Adress-Parameter, die mitgehen (z. B. die Rangliste). */
+  onShowGallery?: (extra?: Record<string, string>) => void
   moreLinkLabel: string
   /** Welle S2: Flaeche `light` und Akzent aus dem Profil. */
   theme?: SiteThemeResolved
@@ -41,7 +44,7 @@ interface WebsiteBannerGridProps {
 const STANDARD_TITEL = "Mehr aus dieser Bibliothek"
 
 export function WebsiteBannerGrid({
-  libraryId, locale, tag, title, limit, galleryBaseHref, onShowGallery, moreLinkLabel, theme = OLDIES_THEME,
+  libraryId, locale, tag, title, limit, sort = "rating", galleryBaseHref, onShowGallery, moreLinkLabel, theme = OLDIES_THEME,
 }: WebsiteBannerGridProps): React.ReactElement | null {
   const router = useRouter()
   const flaeche = surfaceStyle("light", theme)
@@ -49,7 +52,7 @@ export function WebsiteBannerGrid({
 
   React.useEffect(() => {
     let cancelled = false
-    fetchDocs(libraryId, bannerQuery({ tag, limit }), locale)
+    fetchDocs(libraryId, bannerQuery({ tag, limit, sort }), locale)
       .then((items) => {
         if (cancelled) return
         setDocs(items.filter((d) => d.detailViewType !== "website").slice(0, limit))
@@ -61,14 +64,23 @@ export function WebsiteBannerGrid({
     return () => {
       cancelled = true
     }
-  }, [libraryId, locale, tag, limit])
+  }, [libraryId, locale, tag, limit, sort])
 
   if (docs.length === 0) {
     if (tag) console.warn(`[website-banner] Kein Dokument traegt das Tag "${tag}" — Raster bleibt leer`)
+    if (sort === "stars") console.warn("[website-banner] banner_sort stars: noch kein Eintrag mit Stern (oder starCountsPublic ist aus) — Raster bleibt leer")
     return null
   }
 
-  const zurGalerie = () => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())
+  // „Alle ansehen" nimmt dieselbe Reihung mit: bei `stars` die ganze Rangliste.
+  const galerieParams = bannerGalerieParams(sort)
+  const zurGalerie = () => {
+    if (galleryBaseHref) {
+      router.push(galerieParams ? `${galleryBaseHref}&${galerieParams}` : galleryBaseHref)
+      return
+    }
+    onShowGallery?.(galerieParams ? Object.fromEntries(new URLSearchParams(galerieParams)) : undefined)
+  }
 
   return (
     <section className={cn("px-4 py-12", flaeche.className)} style={flaeche.style}>

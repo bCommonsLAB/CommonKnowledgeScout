@@ -40,8 +40,8 @@ interface WebsiteLandingLiveProps {
   libraryId: string
   /** Fallback-Locale aus library.config.translations.fallbackLocale (optional). */
   fallbackLocale?: string
-  /** Site-Modus (Explore-Galerie): wechselt in den lokalen Galerie-Modus. */
-  onShowGallery?: () => void
+  /** Site-Modus (Explore-Galerie): wechselt in den lokalen Galerie-Modus; `extra` = Adress-Parameter, die mitgehen (F3). */
+  onShowGallery?: (extra?: Record<string, string>) => void
   /**
    * Root-Modus (`/`): Banner-/„mehr Inhalte"-Navigation zeigt auf diese
    * Explore-Basis-URL (z. B. `/explore/oldiesforfuture`), statt in den lokalen
@@ -143,6 +143,7 @@ export function WebsiteLandingLive({
       tag={detail.bannerTag}
       title={detail.bannerTitle}
       limit={detail.bannerLimit ?? BANNER_LIMIT_DEFAULT}
+      sort={detail.bannerSort}
       galleryBaseHref={galleryBaseHref}
       onShowGallery={onShowGallery}
       moreLinkLabel={moreLinkLabel}

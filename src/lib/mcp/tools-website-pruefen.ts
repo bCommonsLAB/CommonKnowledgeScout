@@ -28,8 +28,9 @@ export function registerWebsitePruefenTool(server: McpServer): void {
         'Die Vorschau ohne Browser: listet die publizierten website-Docs als Menue (menu_order, ' +
         'menu_area), nennt Startseite, Footer-Links und Footer-Doc und zeigt je Seite die geparsten ' +
         'Sektionen (layout, bg, Bild) mit Befunden — ungueltige Marker, fehlendes Markdown, nicht ' +
-        'anonym ladbare Bilder, tote ?site=-Links, fehlender menu_order. Dazu die Veroeffentlichung ' +
-        '(isPublic, slug, siteEnabled) und die Adresse der Seite. Liest nur.',
+        'anonym ladbare Bilder, tote ?site=-Links, fehlender menu_order, banner_sort stars ohne ' +
+        'starCountsPublic (Banner bliebe leer). Dazu die Veroeffentlichung (isPublic, slug, siteEnabled, ' +
+        'starCountsPublic) und die Adresse der Seite. Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         fileId: z.string().min(1).optional().describe('Nur diese Seite (Storage-Id der Quelle)'),
@@ -45,26 +46,31 @@ export function registerWebsitePruefenTool(server: McpServer): void {
         const { items } = await findDocs(libraryKey, libraryId, filter, { limit: MAX_SEITEN })
 
         const markdownJeFileId = new Map<string, string | undefined>()
+        const bannerSortJeFileId = new Map<string, unknown>()
         for (const doc of items) {
           if (!doc.fileId) continue
           const meta = await getMetaByFileId(libraryKey, doc.fileId)
           const md = meta?.docMetaJson?.['markdown']
           markdownJeFileId.set(doc.fileId, typeof md === 'string' ? md : undefined)
+          bannerSortJeFileId.set(doc.fileId, meta?.docMetaJson?.['banner_sort'])
         }
 
         const pub = library.config?.publicPublishing
         const slug = pub?.slugName?.trim() || null
+        const starCountsPublic = pub?.starCountsPublic === true
         return jsonResult({
           veroeffentlichung: {
             isPublic: pub?.isPublic === true,
             slug,
             siteEnabled: pub?.siteEnabled === true,
+            // F3 (ADR 0012): Voraussetzung fuer banner_sort stars.
+            starCountsPublic,
             adresse: slug ? `/explore/${slug}` : null,
             hinweis: pub?.siteEnabled
               ? null
               : 'siteEnabled ist aus — /explore/<slug> zeigt die Galerie, nicht die Website',
           },
-          ...baueSeitenBericht(items, markdownJeFileId),
+          ...baueSeitenBericht(items, markdownJeFileId, { starCountsPublic, bannerSortJeFileId }),
         })
       } catch (error) {
         return errorResult(error)
