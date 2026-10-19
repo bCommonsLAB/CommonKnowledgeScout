@@ -200,6 +200,14 @@ Die Galerie nutzt URL-Parameter fuer Filter, View-Modus und Auswahl:
   Das Paket `@ks/module-story` liest die Adresse nicht, die App bindet
   `storyAuswahlAtom` per `nuqs` (`story-auswahl-url.tsx`)
 - `?perspective=<id>` — Story-/Perspective-Mode
+- `?ansicht=gefuehrt|experte` — Galerie-Profil (Plan `galerie-buergeransicht`,
+  G1–G3): der Umschalter im Kopf schreibt ihn für alle; fehlt er, gilt
+  `chat.gallery.standardProfil`, sonst `experte`. Unbekannte Werte werden
+  gemeldet und wie `experte` behandelt
+- `?starred=1&sort=stars` — Fokus (ADR 0012). Vorgabe-Parameter: steht
+  `chat.gallery.startAnsicht` auf `fokus` und die Adresse nennt weder
+  `starred` noch `sort`, setzt die Galerie beide einmal je Montage per
+  `replaceParams` (kein Verlaufseintrag); „Alle" bleibt eine echte Adresse
 
 **Vertrag**:
 

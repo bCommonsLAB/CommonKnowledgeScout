@@ -11,8 +11,8 @@ todos:
     content: "G2 Leiste und Karten (gebaut 19.10.): Umschalter „Im Fokus | Alle“, reduzierte Werkzeugleiste, Filter nur als Symbol, Einleitung aus den Galerie-Texten, kompakte Karten als Vorgabe."
     status: completed
   - id: g3-config-bruecke
-    content: "G3 Config und Brücke: Feld `chat.gallery.anonymProfil`, Settings-Formular, `konfiguration_lesen/setzen`, Contract und STAND."
-    status: pending
+    content: "G3 Config und Brücke (gebaut 19.10.): Felder `chat.gallery.standardProfil` und `startAnsicht`, Settings-Formular Erkunden, `konfiguration_lesen/setzen` (2.59.0), Contract §5 und STAND; Inhalt über die Brücke folgt."
+    status: completed
 ---
 
 # Galerie-Profil „geführt“: Bürgeransicht ohne zweiten Baustein
@@ -121,7 +121,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
 6. Tests: Umschalter (beide Parameter, Zahlen), Vorgabe-Adresse, Leiste je
    Profil (Snapshot-frei per Rollen-Abfragen), Experten-Vergleich unverändert.
 
-### G3 · Config, Brücke, Doku (ein halber Tag)
+### G3 · Config, Brücke, Doku (gebaut 19.10.2026; Punkt 3 ist Inhaltsarbeit des Owners)
 
 1. **Config-Felder** `chat.gallery.standardProfil?: 'gefuehrt' | 'experte'`
    und `chat.gallery.startAnsicht?: 'fokus' | 'alle'`

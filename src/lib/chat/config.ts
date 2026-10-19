@@ -134,6 +134,10 @@ const chatConfigObjectSchema = z.object({
     // Event-Sessions usw.). Die Werteliste kommt aus der zentralen Registry —
     // hier stand frueher eine eigene Kopie (Galerie-Audit, Befund 3c).
     detailViewType: detailViewTypeSchema.default('book'),
+    // Galerie-Profil und Start (Plan galerie-buergeransicht, G3): ohne Feld
+    // gilt experte bzw. alle; falsche Werte weist das Schema ab, nie still.
+    standardProfil: z.enum(['gefuehrt', 'experte']).optional(),
+    startAnsicht: z.enum(['fokus', 'alle']).optional(),
     facets: z.array(z.object({
       metaKey: z.string().min(1), // Top‑Level Feld in docMetaJson (gleichzeitig Query-Param-Name)
       label: z.string().min(1).optional(),

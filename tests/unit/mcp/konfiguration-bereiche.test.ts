@@ -56,3 +56,12 @@ describe('chatSicht', () => {
     expect(chatSicht(undefined, 'facetten')).toEqual([])
   })
 })
+
+describe('Bereich galerie / Galerie-Profil (G3)', () => {
+  it('setzt standardProfil und startAnsicht als Teil-Update und zeigt sie in der Lesesicht', () => {
+    const { chat, geaendert } = wendeKonfigurationAn(ALT, { galerie: { standardProfil: 'gefuehrt', startAnsicht: 'fokus' } })
+    expect(geaendert).toEqual(['galerie.standardProfil', 'galerie.startAnsicht'])
+    expect(chatSicht(chat, 'galerie')).toMatchObject({ standardProfil: 'gefuehrt', startAnsicht: 'fokus' })
+    expect(chatSicht(ALT, 'galerie')).toMatchObject({ standardProfil: null, startAnsicht: null })
+  })
+})

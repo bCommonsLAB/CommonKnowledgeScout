@@ -30,6 +30,8 @@ export const CHAT_SETZBAR: ReadonlySet<string> = new Set([
 /** Schluessel von `config.chat.gallery`, die der Bereich `galerie` setzen darf (facets gehoeren zu `facetten`). */
 export const GALERIE_SETZBAR: ReadonlySet<string> = new Set([
   'detailViewType', 'showSdgProfile', 'galleryCardDensity', 'groupByField', 'defaultSortField', 'defaultSortDirection',
+  // Plan galerie-buergeransicht, G3: Profil beim Oeffnen und Start ohne Adress-Parameter
+  'standardProfil', 'startAnsicht',
 ])
 
 export interface KonfigurationEingabe {
