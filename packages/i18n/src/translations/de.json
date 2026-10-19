@@ -176,9 +176,13 @@
       "alle": "Alle",
       "umschalter": "Im Fokus oder alle Einträge"
     },
+    "beitragen": "Beitragen",
+    "beitragenAnmelden": "Zum Beitragen anmelden",
     "profil": {
       "einfach": "Einfach",
       "experte": "Experte",
+      "zuExperte": "Expertenansicht",
+      "zuEinfach": "Einfache Ansicht",
       "umschalter": "Ansicht: einfach oder für Experten"
     },
     "reset": "Zurücksetzen",

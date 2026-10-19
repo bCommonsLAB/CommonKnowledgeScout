@@ -138,8 +138,9 @@ Vorrat mit ihrem offenen Rest.
    reduzierte Leiste, kompakte Karten; Wellen G1–G3). G1+G2 gebaut 19.10.
    (PR #406), G3 PR #407 (Felder `standardProfil`/`startAnsicht` im
    Formular und in der Brücke, 2.59.0); offen: die Klima-Library über die
-   Brücke auf `gefuehrt`/`fokus` schalten, Galerie-Texte für das Band setzen;
-   G4 Feinschliff nach Figma (Kopf, Knöpfe, Suche; Story/Mitreden offen).
+   Brücke auf `gefuehrt`/`fokus` schalten, Galerie-Texte für das Band setzen.
+   G4 Feinschliff nach Figma gebaut 19.10. (Kopf weg, ruhige Knöpfe, Suche in
+   der Leiste); offen: Mitreden-Band oder Story-Knopf (Owner-Entscheid).
 4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).

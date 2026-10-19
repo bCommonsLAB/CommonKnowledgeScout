@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { GalleryRoot, type GalleryRootProps } from '@ks/module-explorer/react'
 import { GalleryAppProviders } from '@/components/providers/gallery-app-providers'
 import { CaptureContentButton } from '@/components/submissions/capture-content-button'
+import { BeitragenEinladung } from '@/components/submissions/beitragen-einladung'
 import { DETAIL_RENDERERS } from '@/components/library/gallery-detail-renderers'
 import { WebsiteLandingLive } from '@/components/library/website/website-landing-live'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
@@ -60,7 +61,10 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
     <GalleryAppProviders>
       <GalleryRoot
         {...props}
-        kopfAktionen={(libraryId) => <CaptureContentButton libraryId={libraryId} />}
+        kopfAktionen={(libraryId, ctx) =>
+          ctx?.profil === 'gefuehrt'
+            ? <BeitragenEinladung libraryId={libraryId} />
+            : <CaptureContentButton libraryId={libraryId} />}
         storyPanel={(libraryId, ctx) => (
           <>
             <StoryAuswahlUrl libraryId={libraryId} />

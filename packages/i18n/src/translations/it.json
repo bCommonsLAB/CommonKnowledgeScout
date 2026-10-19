@@ -149,9 +149,13 @@
       "alle": "Tutte",
       "umschalter": "In primo piano o tutte le voci"
     },
+    "beitragen": "Contribuisci",
+    "beitragenAnmelden": "Accedi per contribuire",
     "profil": {
       "einfach": "Semplice",
       "experte": "Esperto",
+      "zuExperte": "Vista esperto",
+      "zuEinfach": "Vista semplice",
       "umschalter": "Vista: semplice o per esperti"
     },
     "reset": "Reimposta",

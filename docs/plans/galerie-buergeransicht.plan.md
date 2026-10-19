@@ -14,8 +14,8 @@ todos:
     content: "G3 Config und Brücke (gebaut 19.10.): Felder `chat.gallery.standardProfil` und `startAnsicht`, Settings-Formular Erkunden, `konfiguration_lesen/setzen` (2.59.0), Contract §5 und STAND; Inhalt über die Brücke folgt."
     status: completed
   - id: g4-feinschliff-figma
-    content: "G4 Feinschliff nach Figma (Owner 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter Einfach/Experte und Einladung zum Beitragen als ruhige Textknöpfe, Suche in die Leiste neben den Fokus-Umschalter. Story-Knopf und Mitreden-Band: Owner-Entscheid offen."
-    status: pending
+    content: "G4 Feinschliff nach Figma (gebaut 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter und Einladung als ruhige Textknöpfe in der Leiste, Suche in der Leiste (mobil eigene Zeile). Story-Knopf bleibt; Mitreden-Band: Owner-Entscheid offen."
+    status: completed
 ---
 
 # Galerie-Profil „geführt“: Bürgeransicht ohne zweiten Baustein
@@ -140,7 +140,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
    (§5 URL-Vertrag: `ansicht`, Vorgabe-Parameter), ADR 0010 als „Teil 1
    gebaut“ vermerken, STAND nachziehen.
 
-### G4 · Feinschliff nach Figma (Owner 19.10.2026, nach Sichtung von G1–G3)
+### G4 · Feinschliff nach Figma (gebaut 19.10.2026; Punkt 4 offen)
 
 Der Vergleich der gebauten Ansicht mit dem Entwurf zeigt drei Abweichungen,
 die am Galerie-Baustein hängen (Kopfnavigation, Schriften und Farben gehören
@@ -175,6 +175,19 @@ zur Website-Hülle, siehe Vorrat):
    bleibt der Knopf.
 5. Tests: Kopf je Profil (geführt ohne Seitenkopf), Leiste mit Suchfeld,
    Experten-Vergleich unverändert; Live-Prüfung bei 1280 px und mobil.
+
+**Gebaut (19.10.2026):** `gallery-root.tsx` rendert `GalleryStickyHeader` nur
+im Expertenmodus; `FilterContextBar` bekommt zwei Slots `suche` und
+`werkzeugeRechts` (vor dem Story-Knopf); neue Bausteine `galerie-suche.tsx`
+(Explorer-Paket) und `beitragen-einladung.tsx` (App: anonym Clerk-Anmeldung
+im Modal, danach `/library/create?from=gallery`; angemeldet der rechte-
+gegatete `CaptureContentButton` in der Variante `ruhig`); `ProfilUmschalter`
+Variante `ruhig` (ein Textknopf zum anderen Profil); der Slot `kopfAktionen`
+bekommt `{ profil }` als zweiten Parameter. Mobil (< lg): Zähler weg (die
+Fokus-Zahl zeigt ihn), „Im Fokus“ nur als Stern mit Zahl, Suche als eigene
+Zeile unter der Leiste — die Knopfzeile bricht nie um. Der Library-Kopf der
+öffentlichen Slug-Seite (`/explore/<slug>`, Name der Library) gehört zur
+Schale und bleibt (Figma: „Marke“).
 
 ## 4. Reihenfolge und Aufwand
 

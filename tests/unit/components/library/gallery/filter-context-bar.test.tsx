@@ -181,3 +181,28 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     expect(url).toContain('commented=1')
   })
 })
+
+describe('FilterContextBar / Slots des geführten Profils (G4)', () => {
+  afterEach(() => cleanup())
+
+  it('zeigt Suche und rechte Werkzeuge vor dem Story-Knopf; ohne Slots bleibt die Leiste wie bisher', () => {
+    render(
+      <FilterContextBar
+        docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" profil="gefuehrt"
+        suche={<input data-testid="suche" />} werkzeugeRechts={<button data-testid="rechts">Experte</button>}
+        ctaLabel="Story" onCta={() => {}}
+      />,
+    )
+    // Suche steht zweimal im Baum: in der Zeile (ab lg) und als eigene Zeile (unter lg)
+    const [suche, sucheMobil] = screen.getAllByTestId('suche')
+    expect(sucheMobil.parentElement?.className).toContain('lg:hidden')
+    const rechts = screen.getByTestId('rechts')
+    const story = screen.getByRole('button', { name: 'Story' })
+    expect(suche.compareDocumentPosition(rechts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(rechts.compareDocumentPosition(story) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    cleanup()
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" ctaLabel="Story" onCta={() => {}} />)
+    expect(screen.queryAllByTestId('suche')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Story' }).parentElement?.className).toContain('ml-auto')
+  })
+})

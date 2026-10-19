@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { Filter, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Gauge } from 'lucide-react'
 import { useAtomValue } from 'jotai'
@@ -72,6 +73,10 @@ interface FilterContextBarProps {
   profil?: GalerieProfil
   /** Typ, der aus den Zahlen des Umschalters bleibt (oeffentliche Slug-Galerie: `website`). */
   excludeDetailViewType?: string
+  /** G4, gefuehrtes Profil: Suchfeld in der Leiste (schrumpft zuerst). */
+  suche?: React.ReactNode
+  /** G4, gefuehrtes Profil: ruhige Knoepfe rechts (Profil-Wechsel, Einladung) vor dem Story-Knopf. */
+  werkzeugeRechts?: React.ReactNode
 }
 
 /**
@@ -108,6 +113,8 @@ export function FilterContextBar({
   showRatingSort = false,
   profil = 'experte',
   excludeDetailViewType,
+  suche,
+  werkzeugeRechts,
 }: FilterContextBarProps) {
   const gefuehrt = profil === 'gefuehrt'
   // Hole Filter aus Atom (zentrale Verwaltung)
@@ -161,7 +168,8 @@ export function FilterContextBar({
           Zeile bricht nie um — Knöpfe zeigen unter lg nur ihr Symbol (Text im Tooltip). */}
       <div className="flex items-center gap-2 min-w-0">
         {/* Titel mit Dokumentenanzahl - nur im Story-Modus */}
-        <h2 className="text-lg font-semibold shrink-0 whitespace-nowrap">
+        {/* G4: im gefuehrten Profil zeigt der Fokus-Umschalter die Zahl — unter lg faellt der Zaehler weg */}
+        <h2 className={cn('text-lg font-semibold shrink-0 whitespace-nowrap', gefuehrt && 'hidden lg:block')}>
           {mode === 'story' ? t('gallery.tocReferences') + ": " : ''}
           {docCount} {docCount === 1 ? t('gallery.source') : t('gallery.sources')}
         </h2>
@@ -207,6 +215,8 @@ export function FilterContextBar({
         {gefuehrt
           ? <FokusUmschalter libraryId={libraryId} excludeDetailViewType={excludeDetailViewType} />
           : <FokusFilterButton libraryId={libraryId} />}
+        {/* G4: Suche in der Zeile ab lg; unter lg als eigene Zeile darunter (nie umbrechende Knopfzeile) */}
+        {suche && <div className="hidden lg:contents">{suche}</div>}
         {/* "Mit Kommentaren": alle Quellen mit mind. 1 Kommentar. Member-only. */}
         {mitgliedKnoepfe && (
           <Button
@@ -338,9 +348,13 @@ export function FilterContextBar({
         </div>
       )}
 
+      {/* G4: ruhige Knoepfe des gefuehrten Profils, rechts vor dem Story-Knopf */}
+      {werkzeugeRechts && (
+        <div className="flex items-center gap-1 shrink-0 ml-auto">{werkzeugeRechts}</div>
+      )}
       {/* CTA-Button - immer rechtsbündig */}
       {ctaLabel && onCta && (
-        <div className="flex items-center shrink-0 ml-auto">
+        <div className={cn('flex items-center shrink-0', !werkzeugeRechts && 'ml-auto')}>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -365,6 +379,7 @@ export function FilterContextBar({
         </div>
       )}
       </div>
+      {suche && <div className="flex lg:hidden">{suche}</div>}
     </div>
   )
 }

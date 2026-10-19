@@ -61,9 +61,10 @@ import {
 } from './gallery-root/helpers'
 import { useIsMobile, useIstTelefon } from './gallery-root/hooks/use-is-mobile'
 import { useGalerieProfil } from '../hooks/use-galerie-profil'
-import { filterAnzeigeFuer, layoutKlassen, startParamsFuer } from '../lib/galerie-profil'
+import { filterAnzeigeFuer, layoutKlassen, startParamsFuer, type GalerieProfil } from '../lib/galerie-profil'
 import { GalerieEinleitung } from './galerie-einleitung'
 import { ProfilUmschalter } from './profil-umschalter'
+import { GalerieSuche } from './galerie-suche'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
@@ -94,7 +95,7 @@ export interface GalleryRootProps {
    * Bekommt die aufgeloeste `libraryId`, weil sie erst hier feststeht: Sie
    * kann aus `libraryIdProp` ODER aus dem Auswahl-Atom kommen.
    */
-  kopfAktionen?: (libraryId: string) => React.ReactNode
+  kopfAktionen?: (libraryId: string, ctx?: { profil: GalerieProfil }) => React.ReactNode
   /**
    * Das Story-Panel (der Chat in der eingebetteten Variante). Als Slot, weil
    * der Chat ein anderer Bereich ist und die Galerie ihn bisher per
@@ -1182,6 +1183,9 @@ export function GalleryRoot({
         {/* Gallery Mode: nur mounten wenn aktiv, um unnötige API-Last zu vermeiden */}
         {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
+          {/* G4: im geführten Profil kein Library-Kopf und keine Ansichtszeile — das Band
+              trägt Titel und Erklärung, Suche und Knöpfe stehen in der Leiste (Figma). */}
+          {profil !== 'gefuehrt' && (
           <GalleryStickyHeader
             verifikationsAbzeichen={seitenkopf ? verifikationsAbzeichen : undefined}
             headline={seitenkopf ? activeLibrary?.config?.publicPublishing?.publicName || activeLibrary?.label || '' : ''}
@@ -1211,6 +1215,7 @@ export function GalleryRoot({
             profilUmschalter={<ProfilUmschalter libraryId={libraryId} />}
             profil={profil}
           />
+          )}
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>
             {/* G2: Einleitungs-Band des geführten Profils aus den Galerie-Texten */}
@@ -1241,6 +1246,19 @@ export function GalleryRoot({
                 showRatingSort={showRatingSort}
                 profil={profil}
                 excludeDetailViewType={hideWebsiteDocs ? 'website' : undefined}
+                suche={profil === 'gefuehrt' ? (
+                  <GalerieSuche
+                    value={searchQuery}
+                    onChange={(value) => setSearchQuery(value.replace(/_refresh_\d+$/, ''))}
+                    placeholder={searchPlaceholder}
+                  />
+                ) : undefined}
+                werkzeugeRechts={profil === 'gefuehrt' ? (
+                  <>
+                    <ProfilUmschalter libraryId={libraryId} variant="ruhig" />
+                    {kopfAktionen?.(libraryId, { profil })}
+                  </>
+                ) : undefined}
               />
             </div>
 
