@@ -4,7 +4,7 @@ import React from 'react'
 import { Star } from 'lucide-react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { useLibraryRole } from '../hooks/use-library-role'
+import { useSterneSichtbar } from '../hooks/use-star-counts-public'
 import { cn } from '@ks/util'
 import type { FavoriteVoter } from '@ks/contracts'
 
@@ -30,7 +30,8 @@ export interface SourceStarsCellProps {
  * Kombinierte Stern-Spalte: eigener Stern-Toggle plus aggregierter
  * Counter mit Tooltip-Liste der Voter-Namen.
  *
- * Member-only: rendert nichts fuer Gaeste/Anonyme.
+ * Mitglieder: Toggle, Zahl, Namen. Besucher bei `starCountsPublic`
+ * (ADR 0012): nur die Zahl, lesend; sonst nichts.
  */
 export function SourceStarsCell({
   libraryId,
@@ -42,10 +43,25 @@ export function SourceStarsCell({
   size = 'sm',
 }: SourceStarsCellProps) {
   const { t } = useTranslation()
-  const { isMember } = useLibraryRole(libraryId)
+  const { isMember, starCountsPublic } = useSterneSichtbar(libraryId)
   const [isPending, setIsPending] = React.useState(false)
 
-  if (!isMember) return null
+  const iconSizeClass = size === 'md' ? 'h-5 w-5' : 'h-4 w-4'
+
+  if (!isMember) {
+    if (!starCountsPublic || count <= 0) return null
+    const label = t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })
+    return (
+      <span
+        className={cn('inline-flex items-center gap-1 tabular-nums select-none text-amber-700 dark:text-amber-300', size === 'md' ? 'text-sm' : 'text-xs')}
+        aria-label={label}
+        title={label}
+      >
+        <Star className={iconSizeClass} fill="currentColor" aria-hidden />
+        {count}
+      </span>
+    )
+  }
 
   const safeVoters = Array.isArray(voters) ? voters : []
 
@@ -64,7 +80,6 @@ export function SourceStarsCell({
     ? t('gallery.favorites.toggleRemove', { defaultValue: 'Aus Favoriten entfernen' })
     : t('gallery.favorites.toggleAdd', { defaultValue: 'Zu Favoriten hinzufuegen' })
 
-  const iconSizeClass = size === 'md' ? 'h-5 w-5' : 'h-4 w-4'
   const buttonSizeClass = size === 'md' ? 'h-9 w-9' : 'h-8 w-8'
 
   return (

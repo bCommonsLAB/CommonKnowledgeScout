@@ -38,10 +38,13 @@ export function useGallerySums(
     enabled?: boolean
     /** Refresh nach Loeschen/Publish (gleicher Mechanismus wie die Liste). */
     refreshKey?: number
+    /** „Im Fokus" (ADR 0012): `starred=1` wie bei der Liste, damit die Summe denselben Bestand sieht. */
+    starred?: boolean
   },
 ): GallerySumsState {
   const enabled = options?.enabled ?? false
   const refreshKey = options?.refreshKey ?? 0
+  const starred = options?.starred ?? false
   const instanz = useInstanz()
 
   const [state, setState] = useState<GallerySumsState>({
@@ -72,6 +75,7 @@ export function useGallerySums(
           if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
         })
         if (searchQuery.trim()) params.append('search', searchQuery.trim())
+        if (starred) params.append('starred', '1')
         params.append('aggregate', 'sums')
 
         const res = await instanz.fetch(
@@ -112,7 +116,7 @@ export function useGallerySums(
       cancelled = true
       controller.abort()
     }
-  }, [enabled, libraryId, filtersString, searchQuery, refreshKey, instanz])
+  }, [enabled, libraryId, filtersString, searchQuery, refreshKey, starred, instanz])
 
   return state
 }

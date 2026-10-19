@@ -10,6 +10,8 @@ export interface UseGalleryFacetsOptions {
    * (`useGalleryData`), sonst weichen Facetten und Liste voneinander ab.
    */
   excludeDetailViewType?: string
+  /** „Im Fokus" (ADR 0012): `starred=1` wie bei der Liste, damit die Zaehlwerte passen. */
+  starred?: boolean
 }
 
 export function useGalleryFacets(
@@ -19,6 +21,7 @@ export function useGalleryFacets(
 ) {
   const instanz = useInstanz()
   const excludeDetailViewType = options?.excludeDetailViewType
+  const starred = options?.starred ?? false
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
   // A4a — vorhandene Inhaltstypen (Leitfilter-Optionen, gemischte Libraries).
   const [viewTypes, setViewTypes] = useState<string[]>([])
@@ -36,6 +39,7 @@ export function useGalleryFacets(
         if (excludeDetailViewType) {
           params.append('excludeDetailViewType', excludeDetailViewType)
         }
+        if (starred) params.append('starred', '1')
         const url = `/api/chat/${encodeURIComponent(libraryId)}/facets${params.toString() ? `?${params.toString()}` : ''}`
         const res = await instanz.fetch(url, { cache: 'no-store' })
         const data = await res.json()
@@ -50,7 +54,7 @@ export function useGalleryFacets(
     loadFacets()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, JSON.stringify(filters || {}), instanz, excludeDetailViewType])
+  }, [libraryId, JSON.stringify(filters || {}), instanz, excludeDetailViewType, starred])
 
   return { facetDefs, setFacetDefs, viewTypes }
 }

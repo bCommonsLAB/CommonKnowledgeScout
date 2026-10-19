@@ -49,12 +49,19 @@ export function useGalleryData(
      * Hat Vorrang vor sortByStars/sortByRating.
      */
     sortByColumn?: { field: string; dir: 'asc' | 'desc' } | null
+    /**
+     * „Im Fokus" (ADR 0012): sendet `?starred=1`, der Server liefert nur
+     * Eintraege mit mindestens einem Stern — ueber ALLE Seiten, mit richtigem
+     * `total`. Ersetzt den frueheren Filter im Browser ueber die geladene Seite.
+     */
+    starred?: boolean
   }
 ) {
   const instanz = useInstanz()
   const setGalleryData = useSetAtom(galleryDataAtom)
   const galleryDataFromAtom = useAtomValue(galleryDataAtom)
   const skipApiCall = options?.skipApiCall ?? false
+  const starred = options?.starred ?? false
   const sortByStars = options?.sortByStars ?? false
   const sortByRating = options?.sortByRating ?? false
   const excludeDetailViewType = options?.excludeDetailViewType
@@ -95,7 +102,7 @@ export function useGalleryData(
     setGroups([])
     setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey, starred])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -124,6 +131,7 @@ export function useGalleryData(
         if (searchQuery.trim()) {
           params.append('search', searchQuery.trim())
         }
+        if (starred) params.append('starred', '1')
 
         if (useGroupedApi) {
           // Serverseitige Gruppierung: Pagination nach Gruppen, neue Blöcke werden unten angehängt
@@ -230,7 +238,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey, instanz])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey, starred, instanz])
 
 
   const loadMore = () => {

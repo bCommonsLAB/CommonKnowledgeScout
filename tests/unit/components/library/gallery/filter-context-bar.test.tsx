@@ -5,7 +5,8 @@
  *
  * Sicherheitsnetz fuer:
  * - Toggle "Nur Favoriten" (URL-Param `?favorites=1`)
- * - Toggle "Mit Sternen" (URL-Param `?starred=1`)
+ * - Knopf „Im Fokus" (URL-Params `?starred=1&sort=stars`, Welle F2 / ADR 0012):
+ *   fuer Mitglieder immer, fuer Besucher nur bei starCountsPublic
  * - Toggle "Mit Kommentaren" (URL-Param `?commented=1`)
  * - Toggle "Nach Sternen sortieren" (URL-Param `?sort=stars`)
  * - Alle Toggles sind nur fuer Member sichtbar.
@@ -28,12 +29,20 @@ vi.mock('@ks/module-explorer/gallery/contexts/gallery-navigation-context', () =>
 }))
 
 let mockIsMember = true
+let mockStarCountsPublic = false
 vi.mock('@ks/module-explorer/gallery/hooks/use-library-role', () => ({
   useLibraryRole: () => ({
     isMember: mockIsMember,
     isSignedIn: true,
     role: 'owner',
     isLoading: false,
+  }),
+}))
+vi.mock('@ks/module-explorer/gallery/hooks/use-star-counts-public', () => ({
+  useSterneSichtbar: () => ({
+    isMember: mockIsMember,
+    starCountsPublic: mockStarCountsPublic,
+    sterneSichtbar: mockIsMember || mockStarCountsPublic,
   }),
 }))
 
@@ -74,6 +83,7 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     pushMock.mockClear()
     currentSearch = ''
     mockIsMember = true
+    mockStarCountsPublic = false
   })
   afterEach(() => cleanup())
 
@@ -87,10 +97,18 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
     expect(screen.queryByTitle('Nach Sternen sortieren')).toBeNull()
     expect(screen.queryByTitle('Nur meine eigenen Favoriten')).toBeNull()
-    expect(
-      screen.queryByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
-    ).toBeNull()
+    expect(screen.queryByTitle('Einträge mit mindestens einem Stern, die meisten zuerst')).toBeNull()
     expect(screen.queryByTitle('Nur Quellen mit Kommentaren')).toBeNull()
+  })
+
+  it('zeigt „Im Fokus" fuer Besucher, wenn die Library die Sterne-Zahl freigibt (ADR 0012)', () => {
+    mockIsMember = false
+    mockStarCountsPublic = true
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
+    expect(screen.getByTitle('Einträge mit mindestens einem Stern, die meisten zuerst')).toBeTruthy()
+    // Mitglieder-Knoepfe bleiben verborgen
+    expect(screen.queryByTitle('Nur meine eigenen Favoriten')).toBeNull()
+    expect(screen.queryByTitle('Nach Sternen sortieren')).toBeNull()
   })
 
   it('Klick auf Sort-by-stars setzt URL-Param ?sort=stars', () => {
@@ -117,23 +135,21 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     expect(url).toContain('favorites=1')
   })
 
-  it('Klick auf Mit-Sternen setzt URL-Param ?starred=1', () => {
+  it('Klick auf „Im Fokus" setzt starred=1 UND sort=stars', () => {
     render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
-    fireEvent.click(
-      screen.getByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
-    )
+    fireEvent.click(screen.getByTitle('Einträge mit mindestens einem Stern, die meisten zuerst'))
     const url = String(pushMock.mock.calls[0][0])
     expect(url).toContain('starred=1')
+    expect(url).toContain('sort=stars')
   })
 
-  it('Klick auf Mit-Sternen entfernt starred, wenn schon aktiv', () => {
-    currentSearch = 'starred=1&favorites=1'
+  it('Klick auf „Im Fokus" entfernt starred und sort=stars, laesst andere Params stehen', () => {
+    currentSearch = 'starred=1&sort=stars&favorites=1'
     render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
-    fireEvent.click(
-      screen.getByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
-    )
+    fireEvent.click(screen.getByTitle('Einträge mit mindestens einem Stern, die meisten zuerst'))
     const url = String(pushMock.mock.calls[0][0])
     expect(url).not.toContain('starred=1')
+    expect(url).not.toContain('sort=stars')
     expect(url).toContain('favorites=1')
   })
 

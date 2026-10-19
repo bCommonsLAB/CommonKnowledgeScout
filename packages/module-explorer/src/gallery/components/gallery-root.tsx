@@ -44,6 +44,7 @@ import { anzahlBelegDokumente } from './beleg-liste/helpers'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
+import { useSterneSichtbar } from '../hooks/use-star-counts-public'
 import { useOwnFavoriteIds, useUserStates } from '../hooks/use-user-states'
 import { useGalleryViewer } from '../contexts/gallery-viewer-context'
 import { useInstanz } from '../contexts/gallery-host-context'
@@ -294,21 +295,25 @@ export function GalleryRoot({
   // Verwende refreshKey als Dependency, aber nicht als Teil des searchQuery
   // useGalleryData wird automatisch neu laden, wenn sich refreshKey ändert (über useEffect)
   const { isMember: isLibraryMember } = useLibraryRole(libraryId)
+  // ADR 0012: Sterne sieht, wer Mitglied ist oder dessen Library die Zahl
+  // oeffentlich zeigt (starCountsPublic).
+  const { sterneSichtbar } = useSterneSichtbar(libraryId)
   const onlyFavoritesParam = searchParams?.get('favorites') === '1'
   const onlyFavoritesActive = onlyFavoritesParam && isLibraryMember
-  // "Mit Sternen": Team-Aggregat-Filter (mind. 1 Stern von irgendeinem
-  // Mitglied, inkl. eigener). Unabhaengig von "Nur Favoriten" (= nur eigene);
-  // beide koennen kombiniert werden (Schnittmenge).
+  // „Im Fokus" (starred=1): alle Eintraege mit mindestens einem Stern. Seit
+  // Welle F2 filtert der SERVER (ueber alle Seiten, richtiges total) — der
+  // Parameter geht an Liste, Facetten, Summen und Bulk-Knoepfe. Kombinierbar
+  // mit „Nur Favoriten" (= nur eigene, weiterhin im Browser).
   const onlyStarredParam = searchParams?.get('starred') === '1'
-  const onlyStarredActive = onlyStarredParam && isLibraryMember
+  const onlyStarredActive = onlyStarredParam && sterneSichtbar
   // "Mit Kommentaren": Quellen mit mind. 1 (nicht-geloeschten) Kommentar
   // (commentCount kommt member-only per $lookup am Galerie-Doc).
   const onlyCommentedParam = searchParams?.get('commented') === '1'
   const onlyCommentedActive = onlyCommentedParam && isLibraryMember
-  const anyEngagementFilterActive =
-    onlyFavoritesActive || onlyStarredActive || onlyCommentedActive
+  // Nur die Filter, die der Browser selbst anwendet (der Server kennt sie nicht).
+  const anyEngagementFilterActive = onlyFavoritesActive || onlyCommentedActive
   const sortParam = searchParams?.get('sort')
-  const sortByStarsActive = sortParam === 'stars' && isLibraryMember
+  const sortByStarsActive = sortParam === 'stars' && sterneSichtbar
   const sortByRatingActive = sortParam === 'rating'
 
   // Globale Spalten-Sortierung der Tabellenansicht (serverseitig, ueber den
@@ -339,6 +344,7 @@ export function GalleryRoot({
     sortByRating: sortByRatingActive,
     excludeDetailViewType: hideWebsiteDocs ? 'website' : undefined,
     sortByColumn: tableSortForApi,
+    starred: onlyStarredActive,
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
 
@@ -353,15 +359,14 @@ export function GalleryRoot({
   // Summen-Fusszeile (Plan summen-und-synergie-aggregation): serverseitiges
   // Aggregat ueber den GESAMTEN gefilterten Bestand. Nur im Table-Mode und
   // nur, wenn der ViewType additive Summenfelder definiert. Bei aktiven
-  // Engagement-Filtern (nur clientseitig) waere die Server-Summe still
-  // falsch -> bewusst deaktivieren statt Falsches anzeigen.
+  // Browser-Filtern (Favoriten, Kommentare) waere die Server-Summe still
+  // falsch -> bewusst deaktivieren statt Falsches anzeigen; „Im Fokus"
+  // kennt der Server und bekommt ihn mit.
   const summableFields = useMemo(() => getSummableFields(detailViewType), [detailViewType])
   const tableSums = useGallerySums(filters, debouncedSearchQuery, libraryId, {
-    enabled:
-      viewMode === 'table' &&
-      summableFields.length > 0 &&
-      !(onlyFavoritesActive || onlyStarredActive || onlyCommentedActive),
+    enabled: viewMode === 'table' && summableFields.length > 0 && !anyEngagementFilterActive,
     refreshKey,
+    starred: onlyStarredActive,
   })
 
   // Eigene Favoriten-IDs nur laden, wenn der "Nur Favoriten"-Filter
@@ -371,16 +376,12 @@ export function GalleryRoot({
 
   // Gemeinsames Praedikat fuer die clientseitigen Engagement-Filter:
   // - "Nur Favoriten": nur eigene Sterne (isFavorite, favoriteIds als Fallback).
-  // - "Mit Sternen": Team-Aggregat (favoriteCount > 0).
   // - "Mit Kommentaren": Team-Aggregat (commentCount > 0).
-  // Mehrere aktiv = Schnittmenge.
+  // „Im Fokus" (starred) filtert seit F2 der Server. Mehrere aktiv = Schnittmenge.
   const matchesEngagementFilters = React.useCallback(
     (d: DocCardMeta): boolean => {
       if (!d.fileId) return false
       if (onlyFavoritesActive && !(d.isFavorite === true || favoriteIds.has(d.fileId))) {
-        return false
-      }
-      if (onlyStarredActive && (d.favoriteCount ?? 0) <= 0) {
         return false
       }
       if (onlyCommentedActive && (d.commentCount ?? 0) <= 0) {
@@ -388,7 +389,7 @@ export function GalleryRoot({
       }
       return true
     },
-    [onlyFavoritesActive, onlyStarredActive, onlyCommentedActive, favoriteIds],
+    [onlyFavoritesActive, onlyCommentedActive, favoriteIds],
   )
 
   const filteredDocsByYear = React.useMemo(() => {
@@ -464,6 +465,7 @@ export function GalleryRoot({
   // aber nur einen — und die Sidebar bleibt leer (Befund 30.09.2026).
   const { facetDefs, viewTypes } = useGalleryFacets(libraryId, filters, {
     excludeDetailViewType: hideWebsiteDocs ? 'website' : undefined,
+    starred: onlyStarredActive,
   })
 
   // Oeffentliche Slug-Galerie (hideWebsiteDocs): website-Docs sind aus der
@@ -991,6 +993,16 @@ export function GalleryRoot({
     if (error) return <div className='text-sm text-destructive'>{error}</div>
     if (loading) return <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
     if (docs.length === 0) {
+      // „Im Fokus" ohne Treffer: der Server hat gefiltert, die Liste ist leer,
+      // weil noch niemand einen Stern vergeben hat — das sagen, statt
+      // „Filter zuruecksetzen" anzubieten.
+      if (onlyStarredActive) {
+        return (
+          <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+            <div>{t('gallery.favorites.fokusEmptyHint', { defaultValue: 'Noch keine Maßnahme mit Stern.' })}</div>
+          </div>
+        )
+      }
       return (
         <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
           <div>Keine Dokumente gefunden.</div>
@@ -1009,13 +1021,10 @@ export function GalleryRoot({
     if (anyEngagementFilterActive && filteredFlat.length === 0) {
       // Genau ein Filter aktiv -> spezifischer Hinweis; kombiniert -> der
       // klassische Favoriten-Hinweis.
-      const commentedOnly = onlyCommentedActive && !onlyStarredActive && !onlyFavoritesActive
-      const starredOnly = onlyStarredActive && !onlyCommentedActive && !onlyFavoritesActive
+      const commentedOnly = onlyCommentedActive && !onlyFavoritesActive
       const emptyHint = commentedOnly
         ? t('gallery.comments.filterEmptyHint', { defaultValue: 'Noch keine Quelle mit Kommentaren.' })
-        : starredOnly
-          ? t('gallery.favorites.starredEmptyHint', { defaultValue: 'Noch keine Quelle mit Stern.' })
-          : t('gallery.favorites.emptyHint', { defaultValue: 'Noch keine Favoriten markiert.' })
+        : t('gallery.favorites.emptyHint', { defaultValue: 'Noch keine Favoriten markiert.' })
       return (
         <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
           <div>{emptyHint}</div>

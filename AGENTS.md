@@ -254,6 +254,11 @@ Detail (warum, Symptome, Ausnahmen):
   dem Server; Commons-Libraries mit unveränderlichen Originalen. Löst die
   Richtung von ADR 0005 als Normalfall ab; Plan
   `docs/plans/geplant/zusammenarbeit-in-stufen.plan.md`
+- Akzeptiert (2026-10-16, Welle F1 gebaut 18.10.): `docs/adr/0012-sterne-zahl-oeffentlich-namen-privat.md` —
+  Fokus aus Sternen: Library-Schalter `publicPublishing.starCountsPublic`
+  macht die ZAHL der Sterne anonym lesbar (nie die Namen), `sort=stars` und
+  `starred=<k>` laufen serverseitig; bewerten bleibt Mitgliedern vorbehalten;
+  kein Tag/Feld „fokus" mehr. Plan `docs/plans/galerie-fokus-aus-sternen.plan.md`
 
 ## Branching, Commits, PRs (Kurz)
 

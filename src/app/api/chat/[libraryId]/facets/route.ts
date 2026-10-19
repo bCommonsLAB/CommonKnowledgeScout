@@ -8,6 +8,8 @@ import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@ks/contracts'
 import { explorerGate } from '@ks/module-explorer'
+import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { sternFilterAnhaengen, sternFilterAusQuery } from '@/lib/documents/stern-filter'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
@@ -106,6 +108,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     // Counts ausgeschlossen, damit Filter-Zaehler konsistent zur Galerie-Liste sind.
     const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
     if (pubFilter) Object.assign(filter, pubFilter)
+
+    // ADR 0012: `starred=<k>` wie in der Docs-Route, damit die Facetten-Zahlen
+    // zur gefilterten Liste passen.
+    const isMember = userEmail ? await isCoCreatorOrOwner(libraryId, userEmail) : false
+    const starCountsPublic = ctx.library.config?.publicPublishing?.starCountsPublic === true
+    const sternFilter = await sternFilterAusQuery(url, { libraryId, isMember, starCountsPublic })
+    if (!sternFilter.ok) {
+      return NextResponse.json({ error: sternFilter.error }, { status: sternFilter.status })
+    }
+    sternFilterAnhaengen(filter, sternFilter.fileIds)
 
     const counts = await aggregateFacets(
       libraryKey,

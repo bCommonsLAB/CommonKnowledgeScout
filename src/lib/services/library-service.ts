@@ -536,6 +536,8 @@ export class LibraryService {
           siteEnabled: lib.config.publicPublishing.siteEnabled === true,
           // Welle S2: Design-Profil (Farben/Schriften, kein Secret)
           siteTheme: lib.config.publicPublishing.siteTheme,
+          // Fokus aus Sternen (ADR 0012): fehlend => false
+          starCountsPublic: lib.config.publicPublishing.starCountsPublic === true,
         } : undefined
       } as Record<string, unknown>;
       

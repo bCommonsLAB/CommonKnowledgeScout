@@ -63,6 +63,8 @@ export async function GET(
       gallery: pub?.gallery,
       // Welle S2: Design-Profil der Landingpage (Farben/Schriften, kein Secret)
       siteTheme: pub?.siteTheme,
+      // ADR 0012: ob Besucher die Sterne-Zahl sehen (Schalter, kein Secret)
+      starCountsPublic: pub?.starCountsPublic === true,
       // Chat-Config ist bereits öffentlich sicher (keine Secrets)
       chat: library.config?.chat,
     };

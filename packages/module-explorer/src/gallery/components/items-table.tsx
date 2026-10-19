@@ -11,6 +11,7 @@ import { PublishDocumentButton } from './publish-document-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '../hooks/use-is-library-owner'
 import { useLibraryRole } from '../hooks/use-library-role'
+import { useSterneSichtbar } from '../hooks/use-star-counts-public'
 import { useUserStates } from '../hooks/use-user-states'
 import { findDocInGroupedDocs } from '../lib/apply-favorite-optimistic'
 import { useSourceCommentCounts } from '../hooks/use-source-comment-counts'
@@ -58,7 +59,9 @@ export function ItemsTable({
   const { t, locale } = useTranslation()
   const { openDocument } = useGalleryNavigation()
   const { isOwner } = useIsLibraryOwner(libraryId)
-  const { isSignedIn, isMember } = useLibraryRole(libraryId)
+  const { isSignedIn } = useLibraryRole(libraryId)
+  // ADR 0012: Sterne-Spalte auch fuer Besucher, wenn die Library die Zahl freigibt.
+  const { sterneSichtbar } = useSterneSichtbar(libraryId)
   const visibleFileIds = React.useMemo(
     () =>
       docsByYear.flatMap(([, docs]) =>
@@ -136,7 +139,7 @@ export function ItemsTable({
                   {isSignedIn && (
                     <TableHead className="w-10 shrink-0" aria-label="Kommentare" />
                   )}
-                  {isMember && (
+                  {sterneSichtbar && (
                     <TableHead className="w-[88px] shrink-0" aria-label="Sterne" />
                   )}
                   <TableHead className="w-[35%]">{t('gallery.table.title')}</TableHead>
@@ -166,7 +169,7 @@ export function ItemsTable({
                 {yearDocs.map((doc) => {
                   const docFileId = doc.fileId
                   const isExpanded = Boolean(docFileId && expandedRows.has(docFileId))
-                  const leadingExtraCols = (isSignedIn ? 1 : 0) + (isMember ? 1 : 0)
+                  const leadingExtraCols = (isSignedIn ? 1 : 0) + (sterneSichtbar ? 1 : 0)
                   const baseCols = 5 + (showFormatColumn ? 1 : 0) // Title + (Format) + Year + Track + Upserted + Padding-Spalte
                   const ownerExtraCols = isOwner ? 3 : 0 // Status, Sprachen, Aktionen
                   const expandedColSpan = leadingExtraCols + baseCols + ownerExtraCols
@@ -187,7 +190,7 @@ export function ItemsTable({
                         ) : null}
                       </TableCell>
                     )}
-                    {isMember && (
+                    {sterneSichtbar && (
                       <TableCell className="w-[88px] shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
                         {docFileId && libraryId ? (
                           <SourceStarsCell

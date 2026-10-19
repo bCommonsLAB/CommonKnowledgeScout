@@ -411,6 +411,14 @@ export interface StorageConfig {
      * in `src/lib/website/site-theme.ts`, gesetzt ueber Formular und Bruecke.
      */
     siteTheme?: SiteTheme;
+    /**
+     * Fokus aus Sternen (ADR 0012): Ist der Schalter `true`, liefern die
+     * Lese-Routen die ZAHL der Sterne (`favoriteCount`) auch anonym — nie die
+     * Namen der Bewertenden; `sort=stars` und `starred=<k>` werden damit
+     * oeffentlich. Vorgabe `false`: ohne den Schalter aendert sich fuer keine
+     * Library etwas. Bewerten bleibt Mitgliedern vorbehalten.
+     */
+    starCountsPublic?: boolean;
   };
 }
 

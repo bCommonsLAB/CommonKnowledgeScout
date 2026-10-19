@@ -6,6 +6,8 @@ import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { explorerGate } from '@ks/module-explorer'
+import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { sternFilterAnhaengen, sternFilterAusQuery } from '@/lib/documents/stern-filter'
 
 /**
  * GET /api/chat/[libraryId]/docs/ids
@@ -105,6 +107,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     // damit z.B. „Alle anzeigen“-Listen anonyme keine Draft-IDs ausliefern.
     const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
     if (pubFilter) Object.assign(filter, pubFilter)
+
+    // ADR 0012: `starred=<k>` wie in der Docs-Route — Bulk-Aktionen auf
+    // „Im Fokus" treffen dieselbe Menge wie die Liste.
+    const isMember = userEmail ? await isCoCreatorOrOwner(libraryId, userEmail) : false
+    const starCountsPublic = ctx.library.config?.publicPublishing?.starCountsPublic === true
+    const sternFilter = await sternFilterAusQuery(url, { libraryId, isMember, starCountsPublic })
+    if (!sternFilter.ok) {
+      return NextResponse.json({ error: sternFilter.error }, { status: sternFilter.status })
+    }
+    sternFilterAnhaengen(filter, sternFilter.fileIds)
 
     // Hole alle Meta-Dokumente (ohne Pagination)
     const col = await getCollectionOnly(libraryKey)

@@ -44,9 +44,19 @@ describe('mergePublicPublishing', () => {
     expect(geaenderteFelder({ ...ALT, icon: 'leaf' }, neu).sort()).toEqual(['icon', 'logoUrl', 'siteEnabled'])
   })
 
-  it('ohne Vorzustand: Label als oeffentlicher Name, Homepage true, nicht oeffentlich', () => {
+  it('ohne Vorzustand: Label als oeffentlicher Name, Homepage true, nicht oeffentlich, Sterne-Zahl privat', () => {
     const neu = mergePublicPublishing(undefined, {}, 'Meine Library')
     expect(neu).toMatchObject({ publicName: 'Meine Library', isPublic: false, showOnHomepage: true, requiresAuth: false, siteEnabled: false })
+    expect(neu.starCountsPublic).toBeUndefined()
+  })
+
+  it('starCountsPublic (ADR 0012): undefined laesst stehen, true/false setzt, geaendert nennt das Feld', () => {
+    expect(mergePublicPublishing({ ...ALT, starCountsPublic: true }, {}, 'L').starCountsPublic).toBe(true)
+    const an = mergePublicPublishing(ALT, { starCountsPublic: true }, 'L')
+    expect(an.starCountsPublic).toBe(true)
+    expect(geaenderteFelder(ALT, an)).toEqual(['starCountsPublic'])
+    const aus = mergePublicPublishing({ ...ALT, starCountsPublic: true }, { starCountsPublic: false }, 'L')
+    expect(aus.starCountsPublic).toBe(false)
   })
 
   it('Galerie-Texte werden feldweise gemergt', () => {

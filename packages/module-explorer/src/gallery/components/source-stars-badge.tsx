@@ -4,7 +4,7 @@ import React from 'react'
 import { Star } from 'lucide-react'
 import { cn } from '@ks/util'
 import { useTranslation } from '@ks/i18n/react'
-import { useLibraryRole } from '../hooks/use-library-role'
+import { useSterneSichtbar } from '../hooks/use-star-counts-public'
 import { useUserStates } from '../hooks/use-user-states'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import type { FavoriteVoter } from '@ks/contracts'
@@ -30,7 +30,8 @@ export interface SourceStarsBadgeProps {
 /**
  * Dezente Stern-Badge fuer Galerie-Karten (alle 5 Card-Subtypen).
  *
- * Member-only: rendert nichts fuer Gaeste/Anonyme.
+ * Mitglieder: Stern zum Klicken, Zahl, Namen im Tooltip. Besucher sehen bei
+ * `starCountsPublic` (ADR 0012) nur die Zahl, lesend, ohne Namen; sonst nichts.
  */
 export function SourceStarsBadge({
   libraryId,
@@ -43,7 +44,7 @@ export function SourceStarsBadge({
   className,
 }: SourceStarsBadgeProps) {
   const { t } = useTranslation()
-  const role = useLibraryRole(libraryId ?? '')
+  const { isMember, starCountsPublic } = useSterneSichtbar(libraryId ?? '')
   const visibleForStateHook = React.useMemo(
     () => (onToggleFavorite ? [] : fileId ? [fileId] : []),
     [onToggleFavorite, fileId],
@@ -52,10 +53,39 @@ export function SourceStarsBadge({
   const [isPending, setIsPending] = React.useState(false)
 
   if (!libraryId || !fileId) return null
-  if (!role.isMember) return null
 
   const count = favoriteCount
   const voters = Array.isArray(favoriteVoters) ? favoriteVoters : []
+
+  const palette =
+    variant === 'light'
+      ? {
+          bg: 'bg-black/30 backdrop-blur-sm hover:bg-black/40',
+          activeIcon: 'text-amber-300',
+          idleIcon: 'text-white/70 hover:text-white',
+          counter: 'text-amber-200',
+        }
+      : {
+          bg: 'bg-background/80 backdrop-blur-sm hover:bg-background/90 border border-border/60',
+          activeIcon: 'text-amber-500',
+          idleIcon: 'text-muted-foreground hover:text-foreground',
+          counter: 'text-amber-700 dark:text-amber-300',
+        }
+
+  if (!isMember) {
+    // Besucher: nur die Zahl, nur wenn die Library sie freigibt und sie > 0 ist.
+    if (!starCountsPublic || count <= 0) return null
+    return (
+      <span
+        className={cn('inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 select-none', palette.bg, className)}
+        aria-label={t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })}
+        title={t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })}
+      >
+        <Star className={cn('h-3.5 w-3.5', palette.activeIcon)} fill="currentColor" aria-hidden />
+        <span className={cn('pr-1 text-[11px] font-semibold leading-none tabular-nums', palette.counter)}>{count}</span>
+      </span>
+    )
+  }
 
   const onToggle = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -73,21 +103,6 @@ export function SourceStarsBadge({
       setIsPending(false)
     }
   }
-
-  const palette =
-    variant === 'light'
-      ? {
-          bg: 'bg-black/30 backdrop-blur-sm hover:bg-black/40',
-          activeIcon: 'text-amber-300',
-          idleIcon: 'text-white/70 hover:text-white',
-          counter: 'text-amber-200',
-        }
-      : {
-          bg: 'bg-background/80 backdrop-blur-sm hover:bg-background/90 border border-border/60',
-          activeIcon: 'text-amber-500',
-          idleIcon: 'text-muted-foreground hover:text-foreground',
-          counter: 'text-amber-700 dark:text-amber-300',
-        }
 
   const toggleLabel = isFavorite
     ? t('gallery.favorites.toggleRemove', { defaultValue: 'Aus Favoriten entfernen' })

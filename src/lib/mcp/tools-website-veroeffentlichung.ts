@@ -49,6 +49,7 @@ export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
     story: pub?.story ?? null,
     siteEnabled: pub?.siteEnabled === true,
     siteTheme: pub?.siteTheme ?? null,
+    starCountsPublic: pub?.starCountsPublic === true,
     apiKeyGesetzt: Boolean(pub?.apiKey),
     adresse: slug ? `/explore/${slug}` : null,
     domainZuordnung: process.env.PUBLIC_DOMAIN_LIBRARY_MAP ? 'im Deployment konfiguriert (Wert nicht lesbar)' : 'keine',
@@ -63,7 +64,8 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
       description:
         'Liest publicPublishing der Library: isPublic, Slug, oeffentlicher Name, Beschreibung, Icon, ' +
         'showOnHomepage, requiresAuth, Logo- und Hintergrundbild-URL, Galerie-Texte, Story-Texte (story), siteEnabled, ' +
-        'das Design-Profil siteTheme (null = Vorlage), ob ein API-Schluessel gesetzt ist (nie sein Wert) ' +
+        'das Design-Profil siteTheme (null = Vorlage), starCountsPublic (Sterne-Zahl anonym sichtbar), ' +
+        'ob ein API-Schluessel gesetzt ist (nie sein Wert) ' +
         'und die Adresse /explore/<slug>. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID },
       annotations: { readOnlyHint: true },
@@ -96,6 +98,9 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         'surfaces je Flaeche (default, light, dark, brand, linen, mint, dark-green, neutral) mit bg, text, ' +
         'heading, paragraph, kicker als #rrggbb; nur genannte Flaechen weichen von der Vorlage ab, das ' +
         'Profil ersetzt das gespeicherte als Ganzes, siteThemeLoeschen: true loescht es. Ungueltige Werte werden abgewiesen. ' +
+        'starCountsPublic: true (ADR 0012) zeigt Besuchern die ZAHL der Sterne je Eintrag und gibt sort=stars und ' +
+        'starred=<k> in der Galerie frei; die Namen der Bewertenden bleiben Mitgliedern vorbehalten, bewerten koennen ' +
+        'weiterhin nur Mitglieder. ' +
         'Nur Owner; kein API-Schluessel ueber die Bruecke. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -114,6 +119,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         siteTheme: SITE_THEME_SCHEMA.optional()
           .describe('Design-Profil als OBJEKT (kein JSON-Text); ersetzt das gespeicherte Profil als Ganzes; weglassen = unveraendert'),
         siteThemeLoeschen: z.boolean().optional().describe('true = Design-Profil loeschen, die Website rendert wieder die Vorlage'),
+        starCountsPublic: z.boolean().optional().describe('true = Sterne-Zahl auch fuer Besucher sichtbar (Namen nie); sort=stars und starred=<k> oeffentlich'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false },

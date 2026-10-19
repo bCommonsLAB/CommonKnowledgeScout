@@ -14,6 +14,7 @@ import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 import { resolveColumnSort } from '@/lib/documents/column-sort'
 import { buildGallerySort } from '@/lib/documents/gallery-sort'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
+import { sortStarsPruefen, sternFilterAnhaengen, sternFilterAusQuery } from '@/lib/documents/stern-filter'
 import type { Document } from 'mongodb'
 import { explorerGate } from '@ks/module-explorer'
 
@@ -171,6 +172,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
     if (pubFilter) Object.assign(filter, pubFilter)
 
+    // ADR 0012 (Fokus aus Sternen): Sterne sind Mitglieder-Sache; mit dem
+    // Library-Schalter `starCountsPublic` wird die ZAHL oeffentlich (nie die
+    // Namen), und `starred=<k>` / `sort=stars` gelten fuer alle.
+    const isMember = userEmail ? await isCoCreatorOrOwner(libraryId, userEmail) : false
+    const starCountsPublic = ctx.library.config?.publicPublishing?.starCountsPublic === true
+    const sortRaw = url.searchParams.get('sort')
+    const sortStars = sortStarsPruefen(sortRaw, { isMember, starCountsPublic })
+    if (!sortStars.ok) {
+      return NextResponse.json({ error: sortStars.error }, { status: sortStars.status })
+    }
+    // `starred=<k>` serverseitig (mindestens k Sterne) — im Basisfilter, damit
+    // `total`, Summen und die Facetten-Route dieselbe Menge sehen.
+    const sternFilter = await sternFilterAusQuery(url, { libraryId, isMember, starCountsPublic })
+    if (!sternFilter.ok) {
+      return NextResponse.json({ error: sternFilter.error }, { status: sternFilter.status })
+    }
+    sternFilterAnhaengen(filter, sternFilter.fileIds)
+
     // ?aggregate=sums — Summen additiver Zahlenfelder ueber den GESAMTEN
     // gefilterten Bestand (Tabellen-Fusszeile). Nutzt exakt den oben gebauten
     // Filter (Facetten + Suche + Typ + Publication); Pagination/Sort/GroupBy
@@ -197,12 +216,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const headerLocale = req.headers.get('x-locale') || undefined
     const fallbackLocale = ctx.library.config?.translations?.fallbackLocale || 'en'
 
-    // Sterne sind Member-only: Counts/Voter werden nur Mitgliedern (Owner +
-    // aktive Co-Creator) angezeigt. Fuer alle anderen reichen wir keinen
-    // userEmail durch -> der $lookup laeuft trotzdem (Counts sind Lookup-
-    // unabhaengig), aber `isFavorite` ist immer false.
-    const isMember = userEmail ? await isCoCreatorOrOwner(libraryId, userEmail) : false
-    const sortRaw = url.searchParams.get('sort')
+    // Voter-Namen und `isFavorite` bekommen nur Mitglieder (Owner + aktive
+    // Co-Creator): fuer alle anderen reichen wir keinen userEmail durch; das
+    // Repo haengt bei aktivem Schalter dann nur die Zahl an (ADR 0012).
     const memberUserEmail = isMember ? userEmail : ''
 
     // Default-Sortierung der Library (Settings -> Wissensgalerie): z.B. `date`
@@ -214,6 +230,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const gallerySort = buildGallerySort({
       rawSort: sortRaw,
       isMember,
+      starCountsPublic,
       config: galleryCfg,
       facetDefs: defs,
     })
@@ -227,6 +244,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       url.searchParams.get('sortDir'),
       defs,
       isMember,
+      starCountsPublic,
     )
     if (columnSortRes && !columnSortRes.ok) {
       return NextResponse.json({ error: columnSortRes.error }, { status: columnSortRes.status })
@@ -249,10 +267,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
         locale: headerLocale,
         fallbackLocale,
         userEmail: memberUserEmail,
+        starCountsPublic,
       })
       return NextResponse.json(
-        { 
-          groups: groupedResult.groups, 
+        {
+          groups: groupedResult.groups,
           totalGroups: groupedResult.totalGroups,
           // Gesamtzahl aller Dokumente (unabhängig von Pagination) für korrekte Anzeige
           total: groupedResult.totalDocs,
@@ -270,8 +289,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       locale: headerLocale,
       fallbackLocale,
       userEmail: memberUserEmail,
+      starCountsPublic,
     })
-    
+
     // Wenn includeImageUrls=true, lade Image-URLs für alle Dokumente
     // Ansonsten werden sie lazy-loaded über die separate Route
     if (includeImageUrls) {
