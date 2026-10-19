@@ -2,7 +2,7 @@
 name: galerie-buergeransicht
 overview: "Die Galerie bekommt ein Profil „geführt“ für Bürger neben dem heutigen Expertenmodus — kein zweiter Baustein, sondern ein Schalter in der bestehenden `GalleryRoot`: Filter als Lade von rechts statt Spalte links, weniger Knöpfe, Umschalter „Im Fokus | Alle“, ruhige Karten. Anonym = geführt, Mitglied = Experte (ADR 0010). Entwurf in Figma (Owner 19.10.2026), Vorhaben 2 in docs/STAND.md."
 vorhaben: [Klimamaßnahmen Südtirol]
-status: entwurf
+status: in-arbeit
 todos:
   - id: g1-profil-layout
     content: "G1 Profil und Layout: Hook `useGalerieProfil` (Config + Rolle + URL), ein Layout-Schalter statt Tailwind-Breakpoint (Spalte oder Lade), Lade von rechts; Expertenmodus bleibt Byte für Byte gleich."
@@ -58,8 +58,9 @@ Was der Bestand schon kann und was der Entwurf braucht:
 - **Kein stiller Fallback.** Unbekannter Profilwert in Config oder Adresse
   wirft bzw. wird geloggt und als `experte` gerendert — nie still „irgendwas“.
 - **Vorgabe ist das heutige Verhalten.** Ohne Config-Feld bleibt jede
-  Library im Expertenmodus, auch anonym. Die Klima-Library schaltet bewusst
-  um (G3 über die Brücke).
+  Library im Expertenmodus. Die Klima-Library schaltet bewusst um (G3 über
+  die Brücke). Der Umschalter ist für alle sichtbar; Beitragen bleibt
+  Angemeldeten vorbehalten, die Einladung dazu sehen alle.
 - Dateien höchstens 200 Zeilen: `gallery-root.tsx` und
   `filter-context-bar.tsx` werden nicht erweitert, neue Teile kommen in
   eigene Dateien und werden nur eingehängt.
@@ -72,10 +73,10 @@ Was der Bestand schon kann und was der Entwurf braucht:
 ### G1 · Profil und Layout (ein Tag)
 
 1. **Hook `useGalerieProfil(libraryId)`** (`hooks/use-galerie-profil.ts`):
-   Reihenfolge Adresse `?ansicht=gefuehrt|experte` (Demo und Umschalter) →
-   Mitglied ⇒ `experte` → sonst `config.chat.gallery.anonymProfil`
-   (Vorgabe `experte`). Rückgabe `{ profil, quelle }`. Unbekannte Werte:
-   `console.error`, Ergebnis `experte`.
+   Reihenfolge Adresse `?ansicht=gefuehrt|experte` (der Umschalter schreibt
+   sie) → sonst `config.chat.gallery.standardProfil` (Vorgabe `experte`).
+   Keine Rollenlogik (Entscheid 1). Rückgabe `{ profil, quelle, setzen }`.
+   Unbekannte Werte: `console.error`, Ergebnis `experte`.
 2. **Layout-Schalter statt Breakpoint.** Heute: `lg:hidden` (mobil, Lade)
    und `hidden lg:grid` (Desktop, Spalte). Neu: eine Variable
    `filterAnzeige: 'spalte' | 'lade'` — `experte`: wie heute per
@@ -86,8 +87,10 @@ Was der Bestand schon kann und was der Entwurf braucht:
    (Vorgabe `left`, geführt `right`), Titel „Filter“, Hinweistext aus
    `gallery.filterDescription`, Fußzeile „Zurücksetzen“ und „N Maßnahmen
    zeigen“ (Zahl = `totalCount` der Facetten-Antwort, die es schon gibt).
-4. Tests: Hook (Adresse schlägt Rolle schlägt Config, unbekannt → Fehler
-   geloggt), Layout-Helfer, Sheet-Seite.
+4. **Umschalter „Einfach | Experte“** (`profil-umschalter.tsx`), für alle
+   sichtbar im Kopf der Galerie; schreibt `?ansicht=` per `pushParams`.
+5. Tests: Hook (Adresse schlägt Config, unbekannt → Fehler geloggt),
+   Layout-Helfer, Sheet-Seite, Umschalter.
 
 ### G2 · Leiste und Karten (ein Tag)
 
@@ -96,12 +99,12 @@ Was der Bestand schon kann und was der Entwurf braucht:
    N“ und „Alle Maßnahmen · M“; N aus der Facetten-Antwort mit `starred=1`,
    M aus `total` ohne. Schaltet `starred=1&sort=stars` an und aus wie
    `fokusUmschalten` in F2.
-2. **Vorgabe „Im Fokus“** im geführten Profil: Fehlen `starred` und `sort` in
-   der Adresse, schreibt die Galerie beim ersten Rendern `starred=1&sort=stars`
-   per `replaceParams` (kein Verlaufseintrag), damit der URL-Vertrag hält
-   und „Alle“ eine echte Adresse ist. Hat die Library keinen Schalter
-   `starCountsPublic`, bleibt die Vorgabe „Alle“ und der Umschalter fehlt
-   (kein leerer Fokus).
+2. **Vorgabe „Im Fokus“** aus `chat.gallery.startAnsicht` (`fokus` | `alle`,
+   Vorgabe `alle`): Fehlen `starred` und `sort` in der Adresse und steht
+   `fokus` in der Config, schreibt die Galerie beim ersten Rendern
+   `starred=1&sort=stars` per `replaceParams` (kein Verlaufseintrag), damit
+   der URL-Vertrag hält und „Alle“ eine echte Adresse ist. Ein leerer Fokus
+   wird leer gezeigt (Entscheid 2).
 3. **Reduzierte Leiste.** `FilterContextBar` und `GalleryStickyHeader`
    bekommen `profil`: geführt zeigt Umschalter, Suche, Filter-Symbol, Zähler;
    weg sind Favoriten, Kommentare, beide Sortier-Knöpfe, Galerie/Tabelle/
@@ -118,14 +121,15 @@ Was der Bestand schon kann und was der Entwurf braucht:
 
 ### G3 · Config, Brücke, Doku (ein halber Tag)
 
-1. **Config-Feld** `chat.gallery.anonymProfil?: 'gefuehrt' | 'experte'`
+1. **Config-Felder** `chat.gallery.standardProfil?: 'gefuehrt' | 'experte'`
+   und `chat.gallery.startAnsicht?: 'fokus' | 'alle'`
    nach [`../contracts/library-config-field.md`](../contracts/library-config-field.md)
    (Typ, Client-Steckbrief, Service, Formular Einstellungen → Erkunden,
    Validierung mit `chat-config-validation.ts`).
 2. **Brücke:** `konfiguration_lesen` (Bereich `galerie`) zeigt das Feld,
    `konfiguration_setzen` nimmt es; `TOOLSET_VERSION`, `NEU_IN_VERSION`.
-3. **Inhalt (Owner über die Brücke):** Klima-Library auf `gefuehrt`
-   schalten, Galerie-Texte für das Band setzen (`veroeffentlichung_setzen`
+3. **Inhalt (Owner über die Brücke):** Klima-Library auf `gefuehrt` und
+   `fokus` schalten, Galerie-Texte für das Band setzen (`veroeffentlichung_setzen`
    → `gallery.headline/subtitle/description`), anonym prüfen.
 4. Contract `welle-3-iii-galerie-chat-contracts.md` um das Profil ergänzen
    (§5 URL-Vertrag: `ansicht`, Vorgabe-Parameter), ADR 0010 als „Teil 1
@@ -155,11 +159,17 @@ Embed (`@ks/embed`) einmal montieren.
 - Mehr als drei Fragen in der Lade; welche Facetten die Lade zeigt, steuert
   heute schon `visible` in der Facetten-Konfiguration.
 
-## 6. Offene Entscheidungen (Owner)
+## 6. Entscheidungen (Owner 19.10.2026)
 
-1. **Profilwahl:** anonym = geführt, Mitglied = Experte, Adresse schlägt
-   beides (Empfehlung) — oder ein sichtbarer Umschalter für alle?
-2. **Vorgabe „Im Fokus“** nur bei aktivem `starCountsPublic` (Empfehlung)
-   oder immer, auch wenn die Rangliste leer wäre?
-3. **Band-Texte** aus den vorhandenen Galerie-Texten (Empfehlung) oder
-   eigene Felder für das geführte Profil?
+1. **Profilwahl: ein sichtbarer Umschalter für alle**, nicht an die Rolle
+   gebunden. Die Adresse (`?ansicht=`) trägt die Wahl, die Library-Config
+   die Vorgabe (`chat.gallery.standardProfil`). Beitragen (bewerten,
+   erfassen, mitreden) geht weiterhin nur angemeldet, aber die **Einladung
+   dazu sehen alle** — auch im geführten Profil ein Knopf, der zur Anmeldung
+   führt.
+2. **Vorgabe „Im Fokus“ kommt aus der Config** (`chat.gallery.startAnsicht`:
+   `fokus` | `alle`), unabhängig vom Schalter `starCountsPublic`. Ist der
+   Fokus leer, zeigt die Galerie das leer an („Noch keine Maßnahme mit
+   Stern.“) — dann muss jemand etwas in den Fokus legen; kein Ausweichen.
+3. **Bandtexte aus den vorhandenen Galerie-Texten** (`headline`, `subtitle`,
+   `description`), keine neuen Felder.
