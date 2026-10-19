@@ -41,6 +41,7 @@ import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
 import { facetWerteSchema, pruefeWerteZuTyp } from '@/lib/chat/facet-werte'
 import { pruefeAntwortregelnZuFacetten } from '@/lib/chat/antwortregeln'
 import { normalizeGalleryCardDensity } from '@ks/module-explorer/react'
+import { standardProfilAus, startAnsichtAus } from '../galerie-profil-werte'
 
 // Zod-Schema für Chat-Konfiguration
 export const chatFormSchema = z.object({
@@ -139,6 +140,10 @@ export const chatFormSchema = z.object({
     ),
     // Anzeige: Generisches SDG-Profil (SDG-Rad) in der Detailansicht. Default false.
     showSdgProfile: z.boolean().optional().default(false),
+    /** Galerie-Profil beim Oeffnen (Plan galerie-buergeransicht, G3); experte = heutige Ansicht. */
+    standardProfil: z.enum(['gefuehrt', 'experte']).default('experte'),
+    /** Start ohne Adress-Parameter: fokus = Sterne-Rangliste, alle = ungefilterte Liste. */
+    startAnsicht: z.enum(['fokus', 'alle']).default('alle'),
     /**
      * Generische Graph-Modus-Config (Zielbild §8). Komplexe Felder
      * (colorMap, edgeSources) werden in der Settings-UI nicht editiert, aber
@@ -297,6 +302,8 @@ export function useChatForm(): UseChatFormResult {
         facets: getDefaultFacets().slice(0, 6),
         galleryCardDensity: 'comfortable',
         showSdgProfile: false,
+        standardProfil: 'experte',
+        startAnsicht: 'alle',
         graph: { enabled: false, defaultEdgeSource: 'sharedMeta' },
       },
       ingestionStorageUseCustom: false,
@@ -321,6 +328,8 @@ export function useChatForm(): UseChatFormResult {
         facets?: unknown
         galleryCardDensity?: unknown
         showSdgProfile?: unknown
+        standardProfil?: unknown
+        startAnsicht?: unknown
         graph?: import('@/types/library').GalleryGraphConfig
       } | undefined
       const detailViewType = galleryConfig?.detailViewType
@@ -386,6 +395,8 @@ export function useChatForm(): UseChatFormResult {
           facets: facetsArray,
           galleryCardDensity: normalizeGalleryCardDensity(galleryConfig?.galleryCardDensity),
           showSdgProfile: galleryConfig?.showSdgProfile === true,
+          standardProfil: standardProfilAus(galleryConfig?.standardProfil),
+          startAnsicht: startAnsichtAus(galleryConfig?.startAnsicht),
           // Graph-Config vollständig durchreichen (inkl. colorMap/edgeSources),
           // damit beim Speichern keine Werte verloren gehen.
           graph: {

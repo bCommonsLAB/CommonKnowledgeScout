@@ -11,7 +11,10 @@ todos:
     content: "G2 Leiste und Karten (gebaut 19.10.): Umschalter „Im Fokus | Alle“, reduzierte Werkzeugleiste, Filter nur als Symbol, Einleitung aus den Galerie-Texten, kompakte Karten als Vorgabe."
     status: completed
   - id: g3-config-bruecke
-    content: "G3 Config und Brücke: Feld `chat.gallery.anonymProfil`, Settings-Formular, `konfiguration_lesen/setzen`, Contract und STAND."
+    content: "G3 Config und Brücke (gebaut 19.10.): Felder `chat.gallery.standardProfil` und `startAnsicht`, Settings-Formular Erkunden, `konfiguration_lesen/setzen` (2.59.0), Contract §5 und STAND; Inhalt über die Brücke folgt."
+    status: completed
+  - id: g4-feinschliff-figma
+    content: "G4 Feinschliff nach Figma (Owner 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter Einfach/Experte und Einladung zum Beitragen als ruhige Textknöpfe, Suche in die Leiste neben den Fokus-Umschalter. Story-Knopf und Mitreden-Band: Owner-Entscheid offen."
     status: pending
 ---
 
@@ -121,7 +124,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
 6. Tests: Umschalter (beide Parameter, Zahlen), Vorgabe-Adresse, Leiste je
    Profil (Snapshot-frei per Rollen-Abfragen), Experten-Vergleich unverändert.
 
-### G3 · Config, Brücke, Doku (ein halber Tag)
+### G3 · Config, Brücke, Doku (gebaut 19.10.2026; Punkt 3 ist Inhaltsarbeit des Owners)
 
 1. **Config-Felder** `chat.gallery.standardProfil?: 'gefuehrt' | 'experte'`
    und `chat.gallery.startAnsicht?: 'fokus' | 'alle'`
@@ -137,6 +140,42 @@ Was der Bestand schon kann und was der Entwurf braucht:
    (§5 URL-Vertrag: `ansicht`, Vorgabe-Parameter), ADR 0010 als „Teil 1
    gebaut“ vermerken, STAND nachziehen.
 
+### G4 · Feinschliff nach Figma (Owner 19.10.2026, nach Sichtung von G1–G3)
+
+Der Vergleich der gebauten Ansicht mit dem Entwurf zeigt drei Abweichungen,
+die am Galerie-Baustein hängen (Kopfnavigation, Schriften und Farben gehören
+zur Website-Hülle, siehe Vorrat):
+
+1. **Nur das Band, kein Library-Kopf.** Im geführten Profil zeigt
+   `GalleryStickyHeader` heute noch Titel, Beschreibung und die Ansichtszeile
+   „Inhalte erkunden ⓘ“ (`seitenkopf`, `ansicht` in `gallery-root.tsx`
+   ~1186), darunter erst das Band. Figma hat nur das Band. Neu: bei
+   `gefuehrt` entfallen Kopf und Ansichtszeile; das Band übernimmt Titel
+   und Erklärung; die Werkzeugzeile (Suche, Umschalter, Einladung) rückt
+   in die Leiste (Punkt 3). Experte unverändert.
+2. **Ruhige Knöpfe.** `profil-umschalter.tsx` (zwei Pillen mit Symbol) und
+   die Einladung zum Beitragen (`kopfAktionen`, `CaptureContentButton`,
+   heute derselbe Knopf wie für Experten) werden im geführten Profil zu
+   schlichten Textknöpfen am rechten Rand der Leiste: „Experte“ als
+   Textlink (zurück: „Einfach“), die Einladung als Text „Beitragen“ mit
+   Tooltip, der anonym zur Anmeldung führt (Entscheid 1). Form und Abstand
+   nach dem Figma-Rahmen Desktop (2:2); Knopfzeile ohne Umbruch
+   (Owner-Regel 08.10.).
+3. **Suche in die Leiste.** Das Suchfeld steht heute in der Ansichtszeile
+   des Kopfs (`werkzeuge` in `gallery-sticky-header.tsx`). Bei `gefuehrt`
+   wandert es in `FilterContextBar` neben Fokus-Umschalter und
+   Filter-Knopf, wie in Figma. Die Leiste bleibt einzeilig; unter `lg`
+   schrumpft zuerst das Suchfeld.
+4. **Offen, Owner-Entscheid vor dem Bau:** der Knopf „In Story Mode
+   ansehen“ (`ctaLabel` an der Leiste, `gallery-root.tsx` ~1225) steht in
+   Figma nicht; dort gibt es unten ein Mitreden-Band. Varianten: (a)
+   Story-Knopf im geführten Profil weg, Mitreden-Band als neuer Slot der
+   App (Text aus den Galerie-Texten oder eigenes Feld); (b) Story-Knopf
+   bleibt als Einstieg „Fragen stellen“; (c) beides. Bis zum Entscheid
+   bleibt der Knopf.
+5. Tests: Kopf je Profil (geführt ohne Seitenkopf), Leiste mit Suchfeld,
+   Experten-Vergleich unverändert; Live-Prüfung bei 1280 px und mobil.
+
 ## 4. Reihenfolge und Aufwand
 
 | Welle | Aufwand | Hängt an |
@@ -144,6 +183,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
 | G1 | ein Tag | PR #405 gemergt (kompakte Kachel) nicht nötig, aber hilfreich |
 | G2 | ein Tag | G1 (Profil-Hook), PR #405 für Punkt 5 |
 | G3 | ein halber Tag | G1 (Feldname), parallel zu G2 möglich |
+| G4 | ein halber Tag | G1–G3 gemergt; Punkt 4 erst nach Owner-Entscheid |
 
 Je Welle eine PR; `pnpm test`, `pnpm lint`, `npx tsc --noEmit` mit
 Vorher/Nachher-Vergleich; vor dem Merge `pnpm build` und
@@ -175,3 +215,6 @@ Embed (`@ks/embed`) einmal montieren.
    Stern.“) — dann muss jemand etwas in den Fokus legen; kein Ausweichen.
 3. **Bandtexte aus den vorhandenen Galerie-Texten** (`headline`, `subtitle`,
    `description`), keine neuen Felder.
+4. **G4 (19.10., nach Sichtung):** Library-Kopf im geführten Profil weg,
+   Umschalter und Einladung als ruhige Knöpfe, Suche in die Leiste.
+   **Noch offen:** Story-Knopf und Mitreden-Band (G4, Punkt 4).

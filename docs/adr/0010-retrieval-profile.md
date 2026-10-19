@@ -1,6 +1,11 @@
 # ADR 0010 — Retrieval-Profile: eine Library, mehrere Zugänge
 
-- **Status**: Vorgeschlagen
+- **Status**: Vorgeschlagen — Teil 1 (UI-Variante geführt/Experte) ist seit
+  19.10.2026 als Galerie-Profil gebaut (Plan
+  [`galerie-buergeransicht`](../plans/galerie-buergeransicht.plan.md),
+  Felder `chat.gallery.standardProfil` und `startAnsicht`); abweichend vom
+  Entwurf unten ohne Rollenlogik: der Umschalter ist für alle sichtbar
+  (Owner 19.10.2026). Retrieval-Strategie und Sprachen je Profil bleiben offen
 - **Datum**: 2026-08-25
 - **Kontext**: Erweitert [ADR 0007](0007-modularisierung-monorepo-schale-module.md).
   Getrieben von den Steckbriefen Umweltarchiv/Naturmuseum (§3), Klimamaßnahmen

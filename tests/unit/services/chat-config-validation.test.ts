@@ -46,3 +46,20 @@ describe('validiereChatKonfiguration', () => {
     if (!r.ok) expect(r.fehler.some((f) => f.startsWith('maxChars'))).toBe(true)
   })
 })
+
+describe('validiereChatKonfiguration / Galerie-Profil (Plan galerie-buergeransicht, G3)', () => {
+  it('nimmt standardProfil und startAnsicht an und reicht sie durch', () => {
+    const r = validiereChatKonfiguration({ gallery: { detailViewType: 'book', facets: [], standardProfil: 'gefuehrt', startAnsicht: 'fokus' } })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.config.gallery).toMatchObject({ standardProfil: 'gefuehrt', startAnsicht: 'fokus' })
+  })
+
+  it('weist unbekannte Werte mit Pfad ab — kein stiller Fallback auf experte/alle', () => {
+    const r = validiereChatKonfiguration({ gallery: { detailViewType: 'book', facets: [], standardProfil: 'buerger', startAnsicht: 'sterne' } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.fehler.some((f) => f.startsWith('gallery.standardProfil:'))).toBe(true)
+      expect(r.fehler.some((f) => f.startsWith('gallery.startAnsicht:'))).toBe(true)
+    }
+  })
+})
