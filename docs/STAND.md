@@ -136,9 +136,10 @@ Vorrat mit ihrem offenen Rest.
    (Owner 19.10., Figma-Entwurf; kein zweiter Baustein, ein Profil-Schalter
    in `GalleryRoot`: Filter als Lade von rechts, Umschalter Im Fokus/Alle,
    reduzierte Leiste, kompakte Karten; Wellen G1–G3). G1+G2 gebaut 19.10.
-   (PR #406), G3 gebaut 19.10. (Felder `standardProfil`/`startAnsicht` im
+   (PR #406), G3 PR #407 (Felder `standardProfil`/`startAnsicht` im
    Formular und in der Brücke, 2.59.0); offen: die Klima-Library über die
-   Brücke auf `gefuehrt`/`fokus` schalten und Galerie-Texte für das Band setzen.
+   Brücke auf `gefuehrt`/`fokus` schalten, Galerie-Texte für das Band setzen;
+   G4 Feinschliff nach Figma (Kopf, Knöpfe, Suche; Story/Mitreden offen).
 4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).
