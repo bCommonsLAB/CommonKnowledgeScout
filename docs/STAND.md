@@ -140,7 +140,9 @@ Vorrat mit ihrem offenen Rest.
    Formular und in der Brücke, 2.59.0); offen: die Klima-Library über die
    Brücke auf `gefuehrt`/`fokus` schalten, Galerie-Texte für das Band setzen.
    G4 Feinschliff nach Figma gebaut 19.10. (Kopf weg, ruhige Knöpfe, Suche in
-   der Leiste); offen: Mitreden-Band oder Story-Knopf (Owner-Entscheid).
+   der Leiste, PR #408); Band-Texte der Klima-Library über die Brücke gesetzt.
+   Geplant: G5 Mitreden-Band statt Story-Knopf (Text-Gruppe
+   `publicPublishing.mitreden`, Owner 19.10.).
 4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).
