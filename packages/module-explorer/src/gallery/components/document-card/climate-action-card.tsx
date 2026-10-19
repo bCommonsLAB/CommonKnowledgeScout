@@ -14,6 +14,10 @@
  * - Hover-Effekte: Scale, Schatten, Linie unten
  *
  * Verhalten 1:1 portiert — keine Logik-Aenderung.
+ *
+ * 19.10.2026: Bei `density='compact'` (dichtes Raster, Website-Banner) rendert
+ * die Karte die reduzierte Kachel {@link ClimateActionCardCompact}; die
+ * komfortable Form hier bleibt unveraendert.
  */
 
 import React from 'react'
@@ -22,25 +26,21 @@ import { Gauge } from 'lucide-react'
 import { cn } from '@ks/util'
 import type { DocCardMeta } from '../../lib/types'
 import { useTranslation } from '@ks/i18n/react'
-import type { BelegPlakette } from '@ks/contracts'
 import { belegKonfig, plaketteFuer } from '../beleg-liste/helpers'
 import { PLAKETTE_SYMBOL, plaketteLabelKey } from '../beleg-liste/plakette'
 import { SourceStarsBadge } from '../source-stars-badge'
 import { SourceCommentsBadge } from '../source-comments-badge'
-
-/** Farben der Plaketten auf dem Bild (weiss auf Farbe). */
-const PLAKETTE_KARTE: Record<BelegPlakette, string> = {
-  umsetzung: 'bg-green-600/90 text-white',
-  geplant: 'bg-blue-600/90 text-white',
-  pruefung: 'bg-amber-500/90 text-white',
-  abgelehnt: 'bg-red-500/90 text-white',
-}
+import type { GalleryCardDensity } from '../../lib/gallery-card-density'
+import { ClimateActionCardCompact } from './climate-action-card-compact'
+import { PLAKETTE_KARTE, PLAKETTE_ROH } from './climate-action-plakette'
 
 export interface ClimateActionCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /** Dichte des Rasters: `compact` schaltet auf die reduzierte Kachel (Default: comfortable). */
+  density?: GalleryCardDensity
 }
 
 export function ClimateActionCard({
@@ -48,7 +48,20 @@ export function ClimateActionCard({
   onClick,
   libraryId,
   onToggleFavorite,
+  density = 'comfortable',
 }: ClimateActionCardProps) {
+  if (density === 'compact') {
+    return <ClimateActionCardCompact doc={doc} onClick={onClick} libraryId={libraryId} onToggleFavorite={onToggleFavorite} />
+  }
+  return <ClimateActionCardComfortable doc={doc} onClick={onClick} libraryId={libraryId} onToggleFavorite={onToggleFavorite} />
+}
+
+function ClimateActionCardComfortable({
+  doc,
+  onClick,
+  libraryId,
+  onToggleFavorite,
+}: Omit<ClimateActionCardProps, 'density'>) {
   const { Bild } = useGalleryHost()
   const { t } = useTranslation()
   // D6: Status aus der Registry-Konfig (belegKarte) — dieselbe Zuordnung wie Belegkarte und Detailansicht.
@@ -136,7 +149,7 @@ export function ClimateActionCard({
             <div
               className={cn(
                 'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm',
-                plakette.art === 'plakette' ? PLAKETTE_KARTE[plakette.plakette] : 'bg-gray-500/90 text-white',
+                plakette.art === 'plakette' ? PLAKETTE_KARTE[plakette.plakette] : PLAKETTE_ROH,
               )}
             >
               {plakette.art === 'plakette' && (() => { const Symbol = PLAKETTE_SYMBOL[plakette.plakette]; return <Symbol className='w-3.5 h-3.5' /> })()}

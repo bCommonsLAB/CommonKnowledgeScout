@@ -8,6 +8,7 @@ import { useSterneSichtbar } from '../hooks/use-star-counts-public'
 import { useUserStates } from '../hooks/use-user-states'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import type { FavoriteVoter } from '@ks/contracts'
+import { VoterTooltipBody } from './source-stars-voter-tooltip'
 
 export interface SourceStarsBadgeProps {
   libraryId?: string
@@ -23,6 +24,8 @@ export interface SourceStarsBadgeProps {
   onToggleFavorite?: (fileId: string) => void | Promise<void>
   /** Visuelle Variante: hell (auf dunkler Karte) oder dunkel (auf heller Karte). */
   variant?: 'light' | 'dark'
+  /** Groesse: `compact` fuer die dichte Kachel (kleinerer Stern, kleinere Zahl). */
+  size?: 'default' | 'compact'
   /** Optionale CSS-Klassen fuer die Position (z.B. `absolute bottom-2 right-2`). */
   className?: string
 }
@@ -41,6 +44,7 @@ export function SourceStarsBadge({
   favoriteVoters,
   onToggleFavorite,
   variant = 'dark',
+  size = 'default',
   className,
 }: SourceStarsBadgeProps) {
   const { t } = useTranslation()
@@ -56,6 +60,11 @@ export function SourceStarsBadge({
 
   const count = favoriteCount
   const voters = Array.isArray(favoriteVoters) ? favoriteVoters : []
+  // Masse je Groesse — beide Werte explizit, kein Default-Zweig.
+  const masse =
+    size === 'compact'
+      ? { pill: 'px-1 py-0', button: 'h-5 w-5', icon: 'h-3 w-3', counter: 'text-[10px]' }
+      : { pill: 'px-1.5 py-0.5', button: 'h-6 w-6', icon: 'h-3.5 w-3.5', counter: 'text-[11px]' }
 
   const palette =
     variant === 'light'
@@ -77,12 +86,12 @@ export function SourceStarsBadge({
     if (!starCountsPublic || count <= 0) return null
     return (
       <span
-        className={cn('inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 select-none', palette.bg, className)}
+        className={cn('inline-flex items-center gap-1 rounded-full select-none', masse.pill, palette.bg, className)}
         aria-label={t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })}
         title={t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })}
       >
-        <Star className={cn('h-3.5 w-3.5', palette.activeIcon)} fill="currentColor" aria-hidden />
-        <span className={cn('pr-1 text-[11px] font-semibold leading-none tabular-nums', palette.counter)}>{count}</span>
+        <Star className={cn(masse.icon, palette.activeIcon)} fill="currentColor" aria-hidden />
+        <span className={cn('pr-1 font-semibold leading-none tabular-nums', masse.counter, palette.counter)}>{count}</span>
       </span>
     )
   }
@@ -112,7 +121,8 @@ export function SourceStarsBadge({
     <TooltipProvider delayDuration={200}>
       <div
         className={cn(
-          'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5',
+          'inline-flex items-center gap-1 rounded-full',
+          masse.pill,
           palette.bg,
           className,
         )}
@@ -126,12 +136,13 @@ export function SourceStarsBadge({
               aria-pressed={isFavorite}
               aria-label={toggleLabel}
               className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
+                'flex items-center justify-center rounded-full transition-colors',
+                masse.button,
                 isFavorite ? palette.activeIcon : palette.idleIcon,
               )}
             >
               <Star
-                className="h-3.5 w-3.5"
+                className={masse.icon}
                 fill={isFavorite ? 'currentColor' : 'none'}
                 aria-hidden
               />
@@ -145,7 +156,8 @@ export function SourceStarsBadge({
             <TooltipTrigger asChild>
               <span
                 className={cn(
-                  'pr-1 text-[11px] font-semibold leading-none tabular-nums select-none cursor-default',
+                  'pr-1 font-semibold leading-none tabular-nums select-none cursor-default',
+                  masse.counter,
                   palette.counter,
                 )}
                 aria-label={t('gallery.favorites.aggregatedCount', {
@@ -163,40 +175,5 @@ export function SourceStarsBadge({
         ) : null}
       </div>
     </TooltipProvider>
-  )
-}
-
-interface VoterTooltipBodyProps {
-  voters: FavoriteVoter[]
-}
-
-function emailPrefix(email: string): string {
-  const at = email.indexOf('@')
-  if (at <= 0) return email
-  return email.slice(0, at)
-}
-
-function VoterTooltipBody({ voters }: VoterTooltipBodyProps) {
-  const { t } = useTranslation()
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="text-xs font-medium opacity-70">
-        {t('gallery.favorites.voterTooltipHeader', {
-          count: voters.length,
-          defaultValue: 'Sterne ({{count}})',
-        })}
-      </div>
-      <ul className="flex flex-col gap-0.5">
-        {voters.map((voter) => {
-          const name = voter.name?.trim() || emailPrefix(voter.email)
-          return (
-            <li key={voter.email} className="truncate text-xs">
-              {name}
-            </li>
-          )
-        })}
-      </ul>
-    </div>
   )
 }

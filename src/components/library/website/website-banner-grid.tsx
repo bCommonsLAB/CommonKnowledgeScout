@@ -91,6 +91,7 @@ export function WebsiteBannerGrid({
             {moreLinkLabel} →
           </button>
         </div>
+        {/* Drei Spalten auf ~325 px: die Karten laufen in der kompakten Form (nur Titel, Status, Sterne). */}
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
           {docs.map((d) =>
             galleryBaseHref ? (
@@ -99,9 +100,10 @@ export function WebsiteBannerGrid({
                 key={d.fileId ?? d.id}
                 doc={d}
                 onClick={() => router.push(`${galleryBaseHref}&doc=${getEffectiveDocumentNavigationSlug(d) ?? ""}`)}
+                cardDensity="compact"
               />
             ) : (
-              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} />
+              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} cardDensity="compact" />
             ),
           )}
         </div>

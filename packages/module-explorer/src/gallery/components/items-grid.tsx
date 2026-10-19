@@ -229,6 +229,7 @@ export function ItemsGrid({
                 libraryDetailViewType={libraryDetailViewType}
                 onToggleFavorite={onToggleFavorite}
                 onClassificationChanged={onGroupClassified}
+                cardDensity={cardDensity}
               />
             ))}
           </div>
