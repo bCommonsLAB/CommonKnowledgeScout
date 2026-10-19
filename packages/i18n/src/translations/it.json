@@ -145,6 +145,10 @@
     "searchFieldTitle": "Titolo",
     "filter": "Filtro",
     "filterAnwenden": "Mostra {count} voci",
+    "fokus": {
+      "alle": "Tutte",
+      "umschalter": "In primo piano o tutte le voci"
+    },
     "profil": {
       "einfach": "Semplice",
       "experte": "Esperto",

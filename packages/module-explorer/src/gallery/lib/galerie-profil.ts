@@ -49,6 +49,29 @@ export function profilParams(aktuell: URLSearchParams | null | undefined, profil
   return next
 }
 
+export const START_ANSICHTEN = ['fokus', 'alle'] as const
+export type StartAnsicht = (typeof START_ANSICHTEN)[number]
+
+/**
+ * Vorgabe beim Start (G2, Owner 19.10.): steht `fokus` in der Config und
+ * traegt die Adresse weder `starred` noch `sort`, bekommt sie
+ * `starred=1&sort=stars` (einmal je Montage, ohne Verlaufseintrag). Sonst
+ * `null` = nichts tun. Unbekannter Wert wird gemeldet und wie `alle`
+ * behandelt. Ein leerer Fokus wird leer gezeigt — kein Ausweichen auf „alle“.
+ */
+export function startParamsFuer(startAnsicht: unknown, params: URLSearchParams | null | undefined): URLSearchParams | null {
+  if (startAnsicht === undefined || startAnsicht === null || startAnsicht === '' || startAnsicht === 'alle') return null
+  if (startAnsicht !== 'fokus') {
+    console.error(`[galerie-profil] Unbekannter Wert startAnsicht="${String(startAnsicht)}" in der Library-Config — erlaubt: ${START_ANSICHTEN.join(', ')}`)
+    return null
+  }
+  if (params?.has('starred') || params?.has('sort')) return null
+  const next = new URLSearchParams(params?.toString() ?? '')
+  next.set('starred', '1')
+  next.set('sort', 'stars')
+  return next
+}
+
 /** Wo die Filter stehen: als Spalte links (Desktop, Experte) oder als Lade (mobil, oder geführt auf jeder Breite). */
 export type FilterAnzeige = 'spalte' | 'lade'
 

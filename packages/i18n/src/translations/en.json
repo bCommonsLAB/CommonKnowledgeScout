@@ -145,6 +145,10 @@
     "searchFieldTitle": "Title",
     "filter": "Filter",
     "filterAnwenden": "Show {count} entries",
+    "fokus": {
+      "alle": "All",
+      "umschalter": "In focus or all entries"
+    },
     "profil": {
       "einfach": "Simple",
       "experte": "Expert",

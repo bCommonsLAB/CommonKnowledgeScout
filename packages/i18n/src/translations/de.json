@@ -172,6 +172,10 @@
     "searchFieldTitle": "Titel",
     "filter": "Filter",
     "filterAnwenden": "{count} Einträge zeigen",
+    "fokus": {
+      "alle": "Alle",
+      "umschalter": "Im Fokus oder alle Einträge"
+    },
     "profil": {
       "einfach": "Einfach",
       "experte": "Experte",

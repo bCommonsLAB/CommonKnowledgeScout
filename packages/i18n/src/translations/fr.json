@@ -145,6 +145,10 @@
     "searchFieldTitle": "Titre",
     "filter": "Filtre",
     "filterAnwenden": "Afficher {count} entrées",
+    "fokus": {
+      "alle": "Toutes",
+      "umschalter": "À la une ou toutes les entrées"
+    },
     "profil": {
       "einfach": "Simple",
       "experte": "Expert",

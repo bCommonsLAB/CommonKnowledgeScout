@@ -61,7 +61,8 @@ import {
 } from './gallery-root/helpers'
 import { useIsMobile, useIstTelefon } from './gallery-root/hooks/use-is-mobile'
 import { useGalerieProfil } from '../hooks/use-galerie-profil'
-import { filterAnzeigeFuer, layoutKlassen } from '../lib/galerie-profil'
+import { filterAnzeigeFuer, layoutKlassen, startParamsFuer } from '../lib/galerie-profil'
+import { GalerieEinleitung } from './galerie-einleitung'
 import { ProfilUmschalter } from './profil-umschalter'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
@@ -244,6 +245,8 @@ export function GalleryRoot({
     libraryId,
     configDefault: configCardDensity,
   })
+  // G2: geführt zeigt die kompakte Kachel ohne Umschalter; Experte behaelt Config/Session-Wahl.
+  const effectiveDensity = profil === 'gefuehrt' ? 'compact' : cardDensity
 
   // Facetten, die als Spalten in der Tabellenansicht angezeigt werden (showInTable === true)
   const tableColumnFacets = useMemo(
@@ -253,6 +256,16 @@ export function GalleryRoot({
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
+  // G2: Vorgabe „Im Fokus" aus der Config, einmal je Montage und ohne
+  // Verlaufseintrag; „Alle" bleibt danach eine echte Adresse ohne Parameter.
+  const startAngewandtRef = React.useRef(false)
+  useEffect(() => {
+    if (startAngewandtRef.current || mode !== 'gallery') return
+    startAngewandtRef.current = true
+    const next = startParamsFuer(rawGalleryConfig?.startAnsicht, navigation.params)
+    if (next) navigation.replaceParams(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
   // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
   const quellenLeiste = useQuellenOffen()
   // D12e/D12i: Klick auf eine Zitatmarke bei zugeklappten Quellen — am Desktop die Schicht
@@ -1105,7 +1118,7 @@ export function GalleryRoot({
           libraryId={libraryId || ''}
           onOpenDocument={handleOpenDocument}
           libraryDetailViewType={detailViewType}
-          cardDensity={cardDensity}
+          cardDensity={effectiveDensity}
           onCardDensityChange={handleCardDensityChange}
         />
       )
@@ -1130,7 +1143,7 @@ export function GalleryRoot({
       // Aktive Spalten-Sortierung = flache globale Rangliste ohne Gruppen-Header.
       groupByField={tableSortForApi ? 'none' : groupByField}
       tableColumnFacets={tableColumnFacets}
-      cardDensity={cardDensity}
+      cardDensity={effectiveDensity}
       expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
       onPublishChanged={handleDocumentDeleted}
       relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
@@ -1191,14 +1204,17 @@ export function GalleryRoot({
             queryValue={searchQuery}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            cardDensity={cardDensity}
+            cardDensity={effectiveDensity}
             onCardDensityChange={handleCardDensityChange}
             showGraph={graphEnabled}
             actions={kopfAktionen?.(libraryId)}
             profilUmschalter={<ProfilUmschalter libraryId={libraryId} />}
+            profil={profil}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>
+            {/* G2: Einleitungs-Band des geführten Profils aus den Galerie-Texten */}
+            {profil === 'gefuehrt' && <GalerieEinleitung texte={texts} />}
             {/* Leiste mit Filter-Knopf: mobil, oder geführt auf jeder Breite (Lade statt Spalte) */}
             <div className={layout.leiste}>
               <FilterContextBar
@@ -1223,6 +1239,8 @@ export function GalleryRoot({
                 explicitBulkFileIds={explicitBulkFileIds}
                 relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
                 showRatingSort={showRatingSort}
+                profil={profil}
+                excludeDetailViewType={hideWebsiteDocs ? 'website' : undefined}
               />
             </div>
 
@@ -1274,6 +1292,8 @@ export function GalleryRoot({
                     explicitBulkFileIds={explicitBulkFileIds}
                     relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
                     showRatingSort={showRatingSort}
+                    profil={profil}
+                    excludeDetailViewType={hideWebsiteDocs ? 'website' : undefined}
                   />
                 </div>
 
