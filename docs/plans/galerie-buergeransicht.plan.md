@@ -14,7 +14,10 @@ todos:
     content: "G3 Config und Brücke (gebaut 19.10.): Felder `chat.gallery.standardProfil` und `startAnsicht`, Settings-Formular Erkunden, `konfiguration_lesen/setzen` (2.59.0), Contract §5 und STAND; Inhalt über die Brücke folgt."
     status: completed
   - id: g4-feinschliff-figma
-    content: "G4 Feinschliff nach Figma (Owner 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter Einfach/Experte und Einladung zum Beitragen als ruhige Textknöpfe, Suche in die Leiste neben den Fokus-Umschalter. Story-Knopf und Mitreden-Band: Owner-Entscheid offen."
+    content: "G4 Feinschliff nach Figma (gebaut 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter und Einladung als ruhige Textknöpfe in der Leiste, Suche in der Leiste (mobil eigene Zeile). Story-Knopf bleibt; Mitreden-Band: Owner-Entscheid offen."
+    status: completed
+  - id: g5-mitreden-band
+    content: "G5 Mitreden-Band (Owner 19.10.): im geführten Profil der Story-Knopf weg, unten ein Band mit Überschrift, Zeile und Knopf „Mitreden“ wie in Figma; Texte und Ziel als Text-Gruppe `publicPublishing.mitreden` über Formular und Brücke; ohne Texte kein Band."
     status: pending
 ---
 
@@ -140,7 +143,7 @@ Was der Bestand schon kann und was der Entwurf braucht:
    (§5 URL-Vertrag: `ansicht`, Vorgabe-Parameter), ADR 0010 als „Teil 1
    gebaut“ vermerken, STAND nachziehen.
 
-### G4 · Feinschliff nach Figma (Owner 19.10.2026, nach Sichtung von G1–G3)
+### G4 · Feinschliff nach Figma (gebaut 19.10.2026; Punkt 4 → G5)
 
 Der Vergleich der gebauten Ansicht mit dem Entwurf zeigt drei Abweichungen,
 die am Galerie-Baustein hängen (Kopfnavigation, Schriften und Farben gehören
@@ -176,6 +179,55 @@ zur Website-Hülle, siehe Vorrat):
 5. Tests: Kopf je Profil (geführt ohne Seitenkopf), Leiste mit Suchfeld,
    Experten-Vergleich unverändert; Live-Prüfung bei 1280 px und mobil.
 
+**Gebaut (19.10.2026):** `gallery-root.tsx` rendert `GalleryStickyHeader` nur
+im Expertenmodus; `FilterContextBar` bekommt zwei Slots `suche` und
+`werkzeugeRechts` (vor dem Story-Knopf); neue Bausteine `galerie-suche.tsx`
+(Explorer-Paket) und `beitragen-einladung.tsx` (App: anonym Clerk-Anmeldung
+im Modal, danach `/library/create?from=gallery`; angemeldet der rechte-
+gegatete `CaptureContentButton` in der Variante `ruhig`); `ProfilUmschalter`
+Variante `ruhig` (ein Textknopf zum anderen Profil); der Slot `kopfAktionen`
+bekommt `{ profil }` als zweiten Parameter. Mobil (< lg): Zähler weg (die
+Fokus-Zahl zeigt ihn), „Im Fokus“ nur als Stern mit Zahl, Suche als eigene
+Zeile unter der Leiste — die Knopfzeile bricht nie um. Der Library-Kopf der
+öffentlichen Slug-Seite (`/explore/<slug>`, Name der Library) gehört zur
+Schale und bleibt (Figma: „Marke“).
+
+### G5 · Mitreden-Band statt Story-Knopf (Owner 19.10.2026)
+
+Figma-Rahmen Desktop (2:2), Gruppe „Mitreden-Band“ (2:159): ein Band über
+die volle Breite unter dem Kartenraster, dunkler Grund (Fläche `dark-green`
+des Site-Themes), links Überschrift und eine Zeile Text, rechts ein Knopf
+„Mitreden →“. Der Knopf „In Story Mode ansehen“ entfällt im geführten
+Profil; Experten behalten ihn.
+
+1. **Texte und Ziel aus der Config, nicht aus dem Code.** Neue Text-Gruppe
+   `publicPublishing.mitreden` mit `headline`, `text`, `buttonLabel`,
+   `href` — feldweise wie `gallery` und `story` (2.56.0): weggelassen =
+   unverändert, `''` = Feld leer, unbekannte Felder abgewiesen. `href` ist
+   ein relativer Pfad (`/…`) oder `https://…`, alles andere weist die
+   Prüfung ab (`public-publishing-validation.ts`). Fehlen `headline` oder
+   `href`, gibt es **kein Band** — nichts wird still erfunden. Setzbar über
+   `veroeffentlichung_setzen` (Brücke, `TOOLSET_VERSION` + `NEU_IN_VERSION`)
+   und im Formular Einstellungen → Veröffentlichung (Abschnitt neben den
+   Galerie-Texten, nach `library-config-field.md`).
+2. **Baustein `mitreden-band.tsx`** im Explorer-Paket, montiert in
+   `gallery-root.tsx` unter der Liste des geführten Profils (nur `lade`-
+   Zweig, nur `gefuehrt`, nur mit Texten). Ein `<a href>` — kein Router,
+   damit das Embed (anonym, ADR 0008 a) denselben Baustein zeigt; relative
+   Ziele laufen dort gegen den Host der Einbettung, das Embed-Readme nennt
+   das. Farben über die Theme-Tokens der Hülle (Site-Theme auf der
+   Website, Standard-Theme in der App), kein eigenes Grün im Code. Mobil:
+   Text und Knopf untereinander, Knopf volle Breite.
+3. **Story-Knopf weg im geführten Profil:** `ctaLabel`/`onCta` an beiden
+   `FilterContextBar`-Aufrufen nur bei `profil !== 'gefuehrt'`. Der
+   Story-Modus bleibt über die Schale (Reiter „Story Mode“) erreichbar.
+4. **Inhalt (Owner über die Brücke):** Klima-Library bekommt Überschrift,
+   Zeile und Knopf aus dem Figma-Text und als Ziel die Mitreden-Seite der
+   Website; anonym prüfen.
+5. Tests: Prüfung (`href`-Form, Pflichtfelder, feldweiser Merge), Band
+   mit/ohne Texte, Story-Knopf je Profil, Experten-Vergleich unverändert;
+   Live bei 1280 px, mobil und einmal im Embed.
+
 ## 4. Reihenfolge und Aufwand
 
 | Welle | Aufwand | Hängt an |
@@ -184,6 +236,7 @@ zur Website-Hülle, siehe Vorrat):
 | G2 | ein Tag | G1 (Profil-Hook), PR #405 für Punkt 5 |
 | G3 | ein halber Tag | G1 (Feldname), parallel zu G2 möglich |
 | G4 | ein halber Tag | G1–G3 gemergt; Punkt 4 erst nach Owner-Entscheid |
+| G5 | ein halber Tag | G4 gemergt (PR #408); Inhalt danach über die Brücke |
 
 Je Welle eine PR; `pnpm test`, `pnpm lint`, `npx tsc --noEmit` mit
 Vorher/Nachher-Vergleich; vor dem Merge `pnpm build` und
@@ -196,8 +249,8 @@ Embed (`@ks/embed`) einmal montieren.
 - Kopfnavigation der Schale (Archiv, Wartekorb, Library-Wechsler) je
   Profil — gehört zu `TopNav`/SiteConfig, nicht zur Galerie.
 - Retrieval-Strategie und Sprachen je Profil (ADR 0010, Teil 2 und 4).
-- Fragen stellen („Story“) als Knopf in der Bürgeransicht — Entscheid des
-  Owners, ob über „Mitreden“ oder eigener Einstieg.
+- Fragen stellen („Story“) als eigener Einstieg in der Bürgeransicht — mit
+  Entscheid 5 vorerst nur über den Reiter der Schale, nicht in der Galerie.
 - Mehr als drei Fragen in der Lade; welche Facetten die Lade zeigt, steuert
   heute schon `visible` in der Facetten-Konfiguration.
 
@@ -217,4 +270,7 @@ Embed (`@ks/embed`) einmal montieren.
    `description`), keine neuen Felder.
 4. **G4 (19.10., nach Sichtung):** Library-Kopf im geführten Profil weg,
    Umschalter und Einladung als ruhige Knöpfe, Suche in die Leiste.
-   **Noch offen:** Story-Knopf und Mitreden-Band (G4, Punkt 4).
+   Story-Knopf und Mitreden-Band: siehe Entscheid 5.
+5. **Mitreden-Band statt Story-Knopf (19.10., nach G4):** im geführten
+   Profil entfällt „In Story Mode ansehen“, unten steht das Mitreden-Band
+   aus Figma; Texte und Ziel kommen aus `publicPublishing.mitreden` (G5).

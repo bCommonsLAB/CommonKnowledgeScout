@@ -149,9 +149,13 @@
       "alle": "All",
       "umschalter": "In focus or all entries"
     },
+    "beitragen": "Contribute",
+    "beitragenAnmelden": "Sign in to contribute",
     "profil": {
       "einfach": "Simple",
       "experte": "Expert",
+      "zuExperte": "Expert view",
+      "zuEinfach": "Simple view",
       "umschalter": "View: simple or expert"
     },
     "reset": "Reset",

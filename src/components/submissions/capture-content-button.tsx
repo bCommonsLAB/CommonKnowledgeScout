@@ -23,9 +23,11 @@ import { Button } from '@ks/ui'
 
 export interface CaptureContentButtonProps {
   libraryId?: string;
+  /** `knopf` (Vorgabe): Rahmenknopf im Kopf. `ruhig` (G4): Textknopf „Beitragen" in der Leiste des geführten Profils. */
+  variant?: 'knopf' | 'ruhig';
 }
 
-export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
+export function CaptureContentButton({ libraryId, variant = 'knopf' }: CaptureContentButtonProps) {
   const router = useRouter();
   const [canCapture, setCanCapture] = useState(false);
 
@@ -54,6 +56,22 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
   }, [libraryId]);
 
   if (!libraryId || !canCapture) return null;
+
+  if (variant === 'ruhig') {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 shrink-0"
+        title="Inhalte erfassen"
+        aria-label="Inhalte erfassen"
+        onClick={() => router.push('/library/create?from=gallery')}
+      >
+        <FilePlus2 className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+        <span className="hidden lg:inline">Beitragen</span>
+      </Button>
+    );
+  }
 
   return (
     <Button

@@ -36,12 +36,13 @@ export function FokusUmschalter({ libraryId, excludeDetailViewType }: FokusUmsch
         aria-pressed={an}
         title={label}
         className={cn(
-          'inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors',
+          'inline-flex h-7 items-center gap-1.5 rounded-full px-2 lg:px-3 text-sm font-medium transition-colors',
           an ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
         )}
       >
         {istFokus && <Star className={cn('h-3.5 w-3.5', an && 'fill-current')} aria-hidden />}
-        <span>{label}</span>
+        {/* Owner-Regel 08.10.: unter lg traegt der Stern das Segment, der Text steht im Tooltip (G4, Mobil) */}
+        <span className={cn(istFokus && 'hidden lg:inline')}>{label}</span>
         {zahl !== null && (
           <span className={cn('rounded-full px-1.5 text-xs tabular-nums', an ? 'bg-primary-foreground/20' : 'bg-muted')}>{zahl}</span>
         )}

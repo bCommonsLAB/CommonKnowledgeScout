@@ -54,3 +54,12 @@ it('navigiert beim Klick in die kuratierte Wizard-Uebersicht (W-F)', async () =>
   fireEvent.click(await screen.findByRole('button', { name: /Inhalte erfassen/i }));
   expect(push).toHaveBeenCalledWith('/library/create?from=gallery');
 });
+
+it('Variante ruhig (G4): Textknopf „Beitragen" mit demselben Ziel', async () => {
+  mockCapture(true);
+  render(<CaptureContentButton libraryId="lib-1" variant="ruhig" />);
+  const knopf = await screen.findByRole('button', { name: /Inhalte erfassen/i });
+  expect(knopf.textContent).toContain('Beitragen');
+  fireEvent.click(knopf);
+  expect(push).toHaveBeenCalledWith('/library/create?from=gallery');
+});

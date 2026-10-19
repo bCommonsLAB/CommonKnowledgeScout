@@ -149,9 +149,13 @@
       "alle": "Todas",
       "umschalter": "En foco o todas las entradas"
     },
+    "beitragen": "Contribuir",
+    "beitragenAnmelden": "Inicia sesión para contribuir",
     "profil": {
       "einfach": "Sencillo",
       "experte": "Experto",
+      "zuExperte": "Vista experto",
+      "zuEinfach": "Vista sencilla",
       "umschalter": "Vista: sencilla o para expertos"
     },
     "reset": "Restablecer",

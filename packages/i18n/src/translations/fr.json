@@ -149,9 +149,13 @@
       "alle": "Toutes",
       "umschalter": "À la une ou toutes les entrées"
     },
+    "beitragen": "Contribuer",
+    "beitragenAnmelden": "Se connecter pour contribuer",
     "profil": {
       "einfach": "Simple",
       "experte": "Expert",
+      "zuExperte": "Vue expert",
+      "zuEinfach": "Vue simple",
       "umschalter": "Vue : simple ou expert"
     },
     "reset": "Réinitialiser",

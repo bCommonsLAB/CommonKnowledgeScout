@@ -61,3 +61,22 @@ describe('ProfilUmschalter', () => {
     expect(String(pushMock.mock.calls[0][0])).toBe('ansicht=gefuehrt&starred=1')
   })
 })
+
+describe('ProfilUmschalter / Variante ruhig (G4)', () => {
+  beforeEach(() => { pushMock.mockClear(); currentSearch = ''; mockStandardProfil = undefined })
+  afterEach(() => cleanup())
+
+  it('im geführten Profil ein Textknopf „Expertenansicht", der ansicht=experte schreibt', () => {
+    currentSearch = 'ansicht=gefuehrt'
+    render(<ProfilUmschalter libraryId="lib-1" variant="ruhig" />)
+    expect(screen.queryByRole('group')).toBeNull()
+    fireEvent.click(screen.getByTitle('Expertenansicht'))
+    expect(String(pushMock.mock.calls[0][0])).toBe('ansicht=experte')
+  })
+
+  it('im Expertenmodus führt der Knopf zur einfachen Ansicht', () => {
+    render(<ProfilUmschalter libraryId="lib-1" variant="ruhig" />)
+    fireEvent.click(screen.getByTitle('Einfache Ansicht'))
+    expect(String(pushMock.mock.calls[0][0])).toBe('ansicht=gefuehrt')
+  })
+})
