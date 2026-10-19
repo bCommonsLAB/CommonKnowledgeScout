@@ -60,6 +60,9 @@ import {
   resolveDetailViewTypeForDoc,
 } from './gallery-root/helpers'
 import { useIsMobile, useIstTelefon } from './gallery-root/hooks/use-is-mobile'
+import { useGalerieProfil } from '../hooks/use-galerie-profil'
+import { filterAnzeigeFuer, layoutKlassen } from '../lib/galerie-profil'
+import { ProfilUmschalter } from './profil-umschalter'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
@@ -173,6 +176,12 @@ export function GalleryRoot({
   // 2026-07-08). Das Eingabefeld bleibt an `searchQuery` gebunden.
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
   const isMobile = useIsMobile()
+  // Galerie-Profil (Plan galerie-buergeransicht, G1): geführt nutzt die Lade
+  // auf jeder Breite, Experte wie bisher die Spalte ab lg.
+  const { profil } = useGalerieProfil(libraryId)
+  const filterAnzeige = filterAnzeigeFuer(profil, isMobile)
+  const lade = filterAnzeige === 'lade'
+  const layout = layoutKlassen(filterAnzeige)
   // D12r: Telefon (< md) — Quellen als Blatt; Tablet und Desktop haben die Leiste rechts.
   const istTelefon = useIstTelefon()
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -1186,11 +1195,12 @@ export function GalleryRoot({
             onCardDensityChange={handleCardDensityChange}
             showGraph={graphEnabled}
             actions={kopfAktionen?.(libraryId)}
+            profilUmschalter={<ProfilUmschalter libraryId={libraryId} />}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>
-            {/* Mobile Filter Bar */}
-            <div className="lg:hidden">
+            {/* Leiste mit Filter-Knopf: mobil, oder geführt auf jeder Breite (Lade statt Spalte) */}
+            <div className={layout.leiste}>
               <FilterContextBar
                 docCount={effectiveDocCount}
                 onOpenFilters={() => setShowFilters(true)}
@@ -1219,8 +1229,8 @@ export function GalleryRoot({
             {/* Desktop: Grid-Layout. Nur mounten wenn Desktop aktiv — sonst
                 laufen Liste/Graph doppelt (CSS versteckt nur die Anzeige,
                 Hooks + D3 rechnen trotzdem; Befund 2026-07-08). */}
-            {!isMobile && (
-            <div className="hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-3 flex-1 min-h-0 overflow-hidden">
+            {!lade && (
+            <div className={layout.desktop}>
               {/* Filters Panel (linke Spalte): Typ-Leitfilter zuerst (A4a), dann Facetten */}
               <div className="flex flex-col min-h-0 overflow-hidden">
                 <ViewTypeLeadFilter
@@ -1277,9 +1287,9 @@ export function GalleryRoot({
             </div>
             )}
 
-            {/* Mobile: Items View. Gegenstueck zum Desktop-Mount oben. */}
-            {isMobile && (
-            <section className="lg:hidden w-full min-w-0 flex flex-col min-h-0 flex-1" data-gallery-section>
+            {/* Lade-Layout: Items View ohne Spalte. Gegenstueck zum Desktop-Mount oben. */}
+            {lade && (
+            <section className={layout.liste} data-gallery-section>
               {/* viewportClassName ueberschreibt Radix' internes display:table am
                   Inhalts-Wrapper -> block + volle Breite, damit der Tabellen-eigene
                   overflow-auto-Container horizontal scrollt statt auf 760px aufzublaehen. */}
@@ -1391,8 +1401,8 @@ export function GalleryRoot({
 
       {/* Mobile Filters Sheet */}
       <MobileFiltersSheet
-        open={showFilters && isMobile}
-        onOpenChange={(open) => setShowFilters(open && isMobile)}
+        open={showFilters && lade}
+        onOpenChange={(open) => setShowFilters(open && lade)}
         facetDefs={facetDefs}
         selected={filters as Record<string, string[] | undefined>}
         onChange={setFacet}
@@ -1401,6 +1411,14 @@ export function GalleryRoot({
         viewTypes={leadFilterViewTypes}
         selectedViewType={selectedViewType}
         onSelectViewType={handleSelectViewType}
+        // G1: geführt kommt die Lade von rechts und sagt, wie viele Einträge übrig bleiben.
+        side={profil === 'gefuehrt' ? 'right' : 'left'}
+        fuss={profil === 'gefuehrt' ? {
+          anzahl: effectiveTotalCount ?? effectiveDocCount,
+          anwendenLabel: t('gallery.filterAnwenden', { count: effectiveTotalCount ?? effectiveDocCount, defaultValue: '{count} Einträge zeigen' }),
+          resetLabel: t('gallery.reset'),
+          onReset: handleClearFilters,
+        } : undefined}
       />
 
       {/* Detail Overlay - reagiert nur auf URL-Parameter */}

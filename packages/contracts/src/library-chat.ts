@@ -167,6 +167,18 @@ export interface LibraryChatConfig {
      * Default in der App: comfortable, wenn nicht gesetzt.
      */
     galleryCardDensity?: 'compact' | 'comfortable';
+    /**
+     * Galerie-Profil (Plan galerie-buergeransicht, G1): `gefuehrt` = Bürgeransicht
+     * (Filter als Lade, weniger Knöpfe, ruhige Karten), `experte` = heutige
+     * Ansicht. Vorgabe ohne Feld: `experte`. Die Adresse (`?ansicht=`) schlägt
+     * die Vorgabe; der Umschalter ist für alle sichtbar (Owner 19.10.2026).
+     */
+    standardProfil?: 'gefuehrt' | 'experte';
+    /**
+     * Start der Galerie ohne Adress-Parameter (G2): `fokus` = Rangliste der
+     * Sterne (`starred=1&sort=stars`), `alle` = ungefilterte Liste (Vorgabe).
+     */
+    startAnsicht?: 'fokus' | 'alle';
     /** Gruppierungsfeld für die Galerie-Ansicht: 'none', 'year', oder ein Facetten-Key (z.B. 'category') */
     groupByField?: string;
     /**

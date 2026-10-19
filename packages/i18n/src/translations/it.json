@@ -144,6 +144,12 @@
     "searchPrefix": "Cerca per",
     "searchFieldTitle": "Titolo",
     "filter": "Filtro",
+    "filterAnwenden": "Mostra {count} voci",
+    "profil": {
+      "einfach": "Semplice",
+      "experte": "Esperto",
+      "umschalter": "Vista: semplice o per esperti"
+    },
     "reset": "Reimposta",
     "noFiltersAvailable": "Nessun filtro disponibile",
     "documents": "documenti",
@@ -293,7 +299,7 @@
       "fokusFilter": "In primo piano",
       "fokusFilterTooltip": "Voci con almeno una stella, prima le più votate",
       "fokusEmptyHint": "Ancora nessuna misura con stella.",
-      "publicCount": "{{count}} stelle",
+      "publicCount": "{count} stelle",
       "emptyHint": "Nessun preferito ancora.",
       "sortByStars": "Ordina per stelle",
       "voterTooltipHeader": "Stelle ({{count}})",

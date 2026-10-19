@@ -144,6 +144,12 @@
     "searchPrefix": "Buscar por",
     "searchFieldTitle": "Título",
     "filter": "Filtro",
+    "filterAnwenden": "Mostrar {count} entradas",
+    "profil": {
+      "einfach": "Sencillo",
+      "experte": "Experto",
+      "umschalter": "Vista: sencilla o para expertos"
+    },
     "reset": "Restablecer",
     "noFiltersAvailable": "No hay filtros disponibles",
     "documents": "documentos",
@@ -293,7 +299,7 @@
       "fokusFilter": "En foco",
       "fokusFilterTooltip": "Entradas con al menos una estrella, primero las más votadas",
       "fokusEmptyHint": "Aún ninguna medida con estrella.",
-      "publicCount": "{{count}} estrellas",
+      "publicCount": "{count} estrellas",
       "emptyHint": "Aún no hay favoritos.",
       "sortByStars": "Ordenar por estrellas",
       "voterTooltipHeader": "Estrellas ({{count}})",
