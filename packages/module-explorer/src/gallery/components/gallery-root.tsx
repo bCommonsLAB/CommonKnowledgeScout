@@ -65,6 +65,7 @@ import { filterAnzeigeFuer, layoutKlassen, startParamsFuer, type GalerieProfil }
 import { GalerieEinleitung } from './galerie-einleitung'
 import { ProfilUmschalter } from './profil-umschalter'
 import { GalerieSuche } from './galerie-suche'
+import { MitredenBand } from './mitreden-band'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
@@ -1227,8 +1228,8 @@ export function GalleryRoot({
                 onOpenFilters={() => setShowFilters(true)}
                 onClear={handleClearFilters}
                 facetDefs={facetDefs}
-                ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}
-                onCta={storyPanel ? () => setMode('story') : undefined}
+                ctaLabel={storyPanel && profil !== 'gefuehrt' ? t('gallery.switchToStoryMode') : undefined}
+                onCta={storyPanel && profil !== 'gefuehrt' ? () => setMode('story') : undefined}
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
                 viewMode={viewMode}
@@ -1293,8 +1294,8 @@ export function GalleryRoot({
                     onClear={handleClearFilters}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
-                    ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}
-                    onCta={storyPanel ? () => setMode('story') : undefined}
+                    ctaLabel={storyPanel && profil !== 'gefuehrt' ? t('gallery.switchToStoryMode') : undefined}
+                    onCta={storyPanel && profil !== 'gefuehrt' ? () => setMode('story') : undefined}
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
                     viewMode={viewMode}
@@ -1333,6 +1334,10 @@ export function GalleryRoot({
                   overflow-auto-Container horizontal scrollt statt auf 760px aufzublaehen. */}
               <ScrollArea className="flex-1 min-h-0" viewportClassName="[&>div]:!block">
                 <div className="pr-4 min-w-0">{renderItemsView()}</div>
+                {/* G5: Mitreden-Band unter der Liste des geführten Profils; ohne Texte kein Band */}
+                {profil === 'gefuehrt' && (
+                  <div className="pr-4"><MitredenBand texte={activeLibrary?.config?.publicPublishing?.mitreden} /></div>
+                )}
               </ScrollArea>
             </section>
             )}

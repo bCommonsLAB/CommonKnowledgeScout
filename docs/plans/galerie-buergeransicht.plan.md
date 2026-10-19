@@ -17,8 +17,8 @@ todos:
     content: "G4 Feinschliff nach Figma (gebaut 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter und Einladung als ruhige Textknöpfe in der Leiste, Suche in der Leiste (mobil eigene Zeile). Story-Knopf bleibt; Mitreden-Band: Owner-Entscheid offen."
     status: completed
   - id: g5-mitreden-band
-    content: "G5 Mitreden-Band (Owner 19.10.): im geführten Profil der Story-Knopf weg, unten ein Band mit Überschrift, Zeile und Knopf „Mitreden“ wie in Figma; Texte und Ziel als Text-Gruppe `publicPublishing.mitreden` über Formular und Brücke; ohne Texte kein Band."
-    status: pending
+    content: "G5 Mitreden-Band (Owner 19.10.): im geführten Profil der Story-Knopf weg, unten ein Band mit Überschrift, Zeile und Knopf „Mitreden“ wie in Figma; Texte und Ziel als Text-Gruppe `publicPublishing.mitreden` über Formular und Brücke; ohne Texte kein Band. Gebaut 19.10.; Inhalt (Punkt 4) folgt über die Brücke."
+    status: completed
 ---
 
 # Galerie-Profil „geführt“: Bürgeransicht ohne zweiten Baustein
@@ -192,7 +192,7 @@ Zeile unter der Leiste — die Knopfzeile bricht nie um. Der Library-Kopf der
 öffentlichen Slug-Seite (`/explore/<slug>`, Name der Library) gehört zur
 Schale und bleibt (Figma: „Marke“).
 
-### G5 · Mitreden-Band statt Story-Knopf (Owner 19.10.2026)
+### G5 · Mitreden-Band statt Story-Knopf (gebaut 19.10.2026; Punkt 4 Inhalt offen)
 
 Figma-Rahmen Desktop (2:2), Gruppe „Mitreden-Band“ (2:159): ein Band über
 die volle Breite unter dem Kartenraster, dunkler Grund (Fläche `dark-green`
@@ -227,6 +227,20 @@ Profil; Experten behalten ihn.
 5. Tests: Prüfung (`href`-Form, Pflichtfelder, feldweiser Merge), Band
    mit/ohne Texte, Story-Knopf je Profil, Experten-Vergleich unverändert;
    Live bei 1280 px, mobil und einmal im Embed.
+
+**Gebaut (19.10.2026):** Typen in `@ks/contracts`, `src/types/library.ts` und
+`ExplorerLibraryPayload`; `public-publishing-validation.ts` (Schlüssel,
+`MITREDEN_HREF_RE`, Merge, `geaenderteFelder`); PUT-Route, Client-Abbildung
+und beide Slug-Routen reichen `mitreden` durch; Brücke 2.60.0
+(`veroeffentlichung_setzen` nimmt `mitreden`, Sicht zeigt es); Formular
+Veröffentlichung mit `mitreden-fields.tsx` unter den Galerie-Texten;
+Baustein `mitreden-band.tsx` unter der Liste des `lade`-Zweigs, nur
+`gefuehrt`, nur mit Überschrift und Ziel; Story-Knopf an beiden Leisten nur
+bei `experte`. Farben: Standard-Tokens der Hülle (`bg-primary`), kein eigenes
+Grün — die Slug-Seite legt das Site-Theme nur auf die Website, nicht auf die
+Galerie (Vorrat). Live ohne Texte belegt (kein Band, Story-Knopf weg,
+Experte unverändert); das Band selbst nur im Test — sichtbar, sobald die
+Klima-Library die Texte bekommt (Punkt 4, nach Deploy 2.60.0).
 
 ## 4. Reihenfolge und Aufwand
 

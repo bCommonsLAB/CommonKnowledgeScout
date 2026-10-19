@@ -52,6 +52,8 @@ export interface ExplorerLibraryPayload {
     menuLabel?: string
     moreLinkLabel?: string
   }
+  /** G5: Mitreden-Band des geführten Profils (fehlt = kein Band) */
+  mitreden?: { headline?: string; text?: string; buttonLabel?: string; href?: string }
   exploreContext?: ExplorerContext
   chat?: {
     gallery?: {

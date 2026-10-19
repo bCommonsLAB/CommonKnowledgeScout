@@ -529,6 +529,8 @@ export class LibraryService {
           logoUrl: lib.config.publicPublishing.logoUrl,
           // Gallery-Texte übertragen
           gallery: lib.config.publicPublishing.gallery,
+          // G5: Mitreden-Band (oeffentlicher Inhalt, kein Secret)
+          mitreden: lib.config.publicPublishing.mitreden,
           // API-Key maskiert an den Client senden (letzte 4 Zeichen sichtbar)
           apiKey: lib.config.publicPublishing.apiKey 
             ? this.maskApiKey(lib.config.publicPublishing.apiKey)

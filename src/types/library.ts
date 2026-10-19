@@ -398,6 +398,17 @@ export interface StorageConfig {
       topicsIntro?: string;
     };
     /**
+     * Mitreden-Band im geführten Galerie-Profil (Plan galerie-buergeransicht, G5):
+     * Überschrift, Zeile, Knopftext, Ziel (`/…` oder `https://…`). Ohne
+     * headline oder href zeigt die Galerie kein Band.
+     */
+    mitreden?: {
+      headline?: string;
+      text?: string;
+      buttonLabel?: string;
+      href?: string;
+    };
+    /**
      * Website-Landingpage am Slug: Wenn `true`, zeigt `/explore/<slug>` die aus
      * Live-Dokumenten (`detailViewType: website`, Menue nach `menu_order`)
      * gerenderte Landingpage statt der Galerie. Ersetzt das fruehere

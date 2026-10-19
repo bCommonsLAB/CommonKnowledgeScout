@@ -34,6 +34,7 @@ export function toClientLibrary(
         starCountsPublic: payload.starCountsPublic === true,
         logoUrl: payload.logoUrl,
         gallery: payload.gallery,
+        mitreden: payload.mitreden,
         siteTheme: payload.siteTheme,
       },
     },

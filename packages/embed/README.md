@@ -57,6 +57,10 @@ export default function Galerie() {
   kommt aus der Chat-Konfiguration der Library, die Sprache aus `locale`.
   Sitzungen und Fragen hängen an einer anonymen Sitzungskennung (30 Tage,
   localStorage) — keine Anmeldung, kein Token.
+- Mitreden-Band (G5): Steht an der Library `publicPublishing.mitreden` mit
+  Überschrift und Ziel, zeigt die Galerie im geführten Profil unter der Liste
+  ein Band mit Link. Ein relatives Ziel (`/…`) läuft im Embed gegen den Host
+  der einbettenden Seite — für das Embed also eine `https://`-Adresse setzen.
 
 ## English
 
