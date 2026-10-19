@@ -10,7 +10,7 @@ import type { DivaDocumentDetailData } from '@/components/library/diva-document-
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
 import type { WebsiteDetailData } from '@/components/library/website-detail'
-import { bannerLimitAus } from '@/lib/website/banner'
+import { bannerLimitAus, bannerSortAus, type BannerSort } from '@/lib/website/banner'
 import { HEADING_CASES, type HeadingCase } from '@/lib/website/types'
 import { extractSdgValues, extractSdgBegruendung } from '@ks/util'
 
@@ -273,11 +273,23 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     bannerTag: toStr(docMetaJson.banner_tag),
     bannerTitle: toStr(docMetaJson.banner_title),
     bannerLimit: bannerLimitGeprueft(docMetaJson.banner_limit),
+    // F3 (ADR 0012): Reihung des Banners; ungueltig wird laut gemeldet, Vorgabe rating.
+    bannerSort: bannerSortGeprueft(docMetaJson.banner_sort),
     headingCase: headingCaseAus(docMetaJson.heading_case),
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),
     upsertedAt: toStr(root.upsertedAt),
   };
+}
+
+/** `banner_sort` lesen; ein ungueltiger Wert wird laut gemeldet, die Seite rendert mit der Vorgabe (rating). */
+function bannerSortGeprueft(wert: unknown): BannerSort | undefined {
+  try {
+    return bannerSortAus(wert);
+  } catch (error) {
+    console.error(`[website] ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
 }
 
 /** `banner_limit` lesen; ein ungueltiger Wert wird laut gemeldet, die Seite rendert mit der Vorgabe. */
