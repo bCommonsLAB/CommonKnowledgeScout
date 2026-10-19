@@ -32,6 +32,10 @@ export interface GalleryStickyHeaderProps {
   showGraph?: boolean
   /** Optionale Aktionen rechts in der Toolbar (z.B. „Inhalte erfassen"). */
   actions?: React.ReactNode
+  /** Umschalter Einfach | Experte (G1), steht vor den Ansichts-Knöpfen. */
+  profilUmschalter?: React.ReactNode
+  /** Galerie-Profil (G2): `gefuehrt` zeigt weder Ansichtswahl noch Dichte — nur Suche, Umschalter und Aktionen. */
+  profil?: 'gefuehrt' | 'experte'
   /**
    * Verifikations-Abzeichen neben der Ueberschrift. Als Slot (M4g): Es liest
    * die Rolle und die Verifikations-API der App — die Galerie zeigt nur, was
@@ -60,8 +64,11 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     onCardDensityChange,
     showGraph = false,
     actions,
+    profilUmschalter,
+    profil = 'experte',
     verifikationsAbzeichen,
   } = props
+  const gefuehrt = profil === 'gefuehrt'
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
   // isVisible === false bedeutet: Kopf der Seite ausblenden (condensed)
@@ -82,8 +89,9 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
           className="pl-10 text-sm sm:text-base"
         />
       </div>
+      {profilUmschalter}
       {/* Karten-Dichte vor Galerie/Tabelle (Dichte nur im Grid); Bezeichnungen nur in Tooltips */}
-      {onViewModeChange && (
+      {onViewModeChange && !gefuehrt && (
         <div className="flex shrink-0 items-center gap-2">
           {viewMode === 'grid' && onCardDensityChange && (
             <GalleryCardDensityToggle cardDensity={cardDensity} onCardDensityChange={onCardDensityChange} />

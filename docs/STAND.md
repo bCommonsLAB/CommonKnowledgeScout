@@ -131,6 +131,11 @@ Vorrat mit ihrem offenen Rest.
 2. Website-Sektionen S4 Fußzeile, S5 Sprachumschalter.
 3. Index-Bereinigung der Library (Doppelgänger, Freitext-`lv_bewertung`),
    Doppelgänger zusammenlegen (Sterne wandern mit).
+4. Galerie-Profil „geführt" für Bürger nach
+   [`plans/galerie-buergeransicht.plan.md`](plans/galerie-buergeransicht.plan.md)
+   (Owner 19.10., Figma-Entwurf; kein zweiter Baustein, ein Profil-Schalter
+   in `GalleryRoot`: Filter als Lade von rechts, Umschalter Im Fokus/Alle,
+   reduzierte Leiste, kompakte Karten; Wellen G1–G3).
 4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).

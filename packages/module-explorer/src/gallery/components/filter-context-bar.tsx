@@ -14,6 +14,8 @@ import { FilterChips } from './filter-chips'
 import { BulkPublishButton } from './bulk-publish-button'
 import { RecomputeAllRelationsButton } from './recompute-all-relations-button'
 import { FokusFilterButton, fokusAktiv } from './fokus-filter-button'
+import { FokusUmschalter } from './fokus-umschalter'
+import type { GalerieProfil } from '../lib/galerie-profil'
 import type { DocCardMeta } from '../lib/types'
 import { useLibraryRole } from '../hooks/use-library-role'
 import { useGalleryNavigation } from '../contexts/gallery-navigation-context'
@@ -62,6 +64,14 @@ interface FilterContextBarProps {
    * der Aufrufer (gallery-root) berechnet das aus den geladenen Docs.
    */
   showRatingSort?: boolean
+  /**
+   * Galerie-Profil (G2): `gefuehrt` zeigt nur Zaehler, Filter-Knopf, den
+   * Umschalter „Im Fokus | Alle" und die Chips; Favoriten, Kommentare und
+   * beide Sortier-Knoepfe bleiben dem Expertenmodus vorbehalten.
+   */
+  profil?: GalerieProfil
+  /** Typ, der aus den Zahlen des Umschalters bleibt (oeffentliche Slug-Galerie: `website`). */
+  excludeDetailViewType?: string
 }
 
 /**
@@ -96,13 +106,18 @@ export function FilterContextBar({
   explicitBulkFileIds,
   relationsEnabled = false,
   showRatingSort = false,
+  profil = 'experte',
+  excludeDetailViewType,
 }: FilterContextBarProps) {
+  const gefuehrt = profil === 'gefuehrt'
   // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
   // Adresse lesen und mit Verlaufseintrag schreiben — wohin, weiss die App (M4f)
   const { params: searchParams, pushParams } = useGalleryNavigation()
   const { isMember } = useLibraryRole(libraryId)
+  // Mitglieder-Knoepfe (Favoriten, Kommentare, Sortierung) nur im Expertenmodus.
+  const mitgliedKnoepfe = isMember && !gefuehrt
   const onlyFavoritesActive = searchParams?.get('favorites') === '1'
   // „Im Fokus" (starred=1) filtert der Server (ADR 0012): die Bulk-Knoepfe
   // reichen den Parameter an /docs/ids durch, damit sie dieselbe Menge treffen.
@@ -162,7 +177,7 @@ export function FilterContextBar({
         </Button>
         )}
         {/* "Nur Favoriten": nur die EIGENEN Sterne. Owner / Co-Creators only. */}
-        {isMember && (
+        {mitgliedKnoepfe && (
           <Button
             variant={onlyFavoritesActive ? 'secondary' : 'ghost'}
             size="sm"
@@ -189,9 +204,11 @@ export function FilterContextBar({
         {/* „Im Fokus" (Welle F2, ADR 0012): Rangliste aller Eintraege mit Stern,
             serverseitig gefiltert und sortiert; ersetzt „Mit Sternen". Sichtbar
             fuer Mitglieder immer, fuer Besucher bei starCountsPublic. */}
-        <FokusFilterButton libraryId={libraryId} />
+        {gefuehrt
+          ? <FokusUmschalter libraryId={libraryId} excludeDetailViewType={excludeDetailViewType} />
+          : <FokusFilterButton libraryId={libraryId} />}
         {/* "Mit Kommentaren": alle Quellen mit mind. 1 Kommentar. Member-only. */}
-        {isMember && (
+        {mitgliedKnoepfe && (
           <Button
             variant={onlyCommentedActive ? 'secondary' : 'ghost'}
             size="sm"
@@ -213,7 +230,7 @@ export function FilterContextBar({
           </Button>
         )}
         {/* Sortierung nach Sternen (Grid + Tabelle): Member-only. */}
-        {isMember && (
+        {mitgliedKnoepfe && (
           <Button
             variant={sortByStarsActive ? 'secondary' : 'ghost'}
             size="sm"
@@ -235,7 +252,7 @@ export function FilterContextBar({
         {/* Sortierung nach Rating (Prioritaets-Score): oeffentlich, aber nur
             wenn die Library das Feature nutzt (Docs mit prioritaets_index —
             z.B. Klimamassnahmen). Sonst waere der Toggle wirkungslos. */}
-        {showRatingSort && (
+        {showRatingSort && !gefuehrt && (
           <Button
             variant={sortByRatingActive ? 'secondary' : 'ghost'}
             size="sm"

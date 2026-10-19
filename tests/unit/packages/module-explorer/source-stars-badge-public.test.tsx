@@ -25,7 +25,7 @@ vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (!opts || !('defaultValue' in opts)) return key
-      return String(opts.defaultValue).replace('{{count}}', String(opts.count ?? ''))
+      return String(opts.defaultValue).replace('{count}', String(opts.count ?? ''))
     },
     locale: 'de',
   }),

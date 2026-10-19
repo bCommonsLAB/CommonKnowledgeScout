@@ -144,6 +144,16 @@
     "searchPrefix": "Search by",
     "searchFieldTitle": "Title",
     "filter": "Filter",
+    "filterAnwenden": "Show {count} entries",
+    "fokus": {
+      "alle": "All",
+      "umschalter": "In focus or all entries"
+    },
+    "profil": {
+      "einfach": "Simple",
+      "experte": "Expert",
+      "umschalter": "View: simple or expert"
+    },
     "reset": "Reset",
     "noFiltersAvailable": "No filters available",
     "documents": "documents",
@@ -293,7 +303,7 @@
       "fokusFilter": "In focus",
       "fokusFilterTooltip": "Entries with at least one star, most stars first",
       "fokusEmptyHint": "No measure with a star yet.",
-      "publicCount": "{{count}} stars",
+      "publicCount": "{count} stars",
       "emptyHint": "No favorites marked yet.",
       "sortByStars": "Sort by stars",
       "voterTooltipHeader": "Stars ({{count}})",

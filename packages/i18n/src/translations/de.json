@@ -171,6 +171,16 @@
     "searchPrefix": "Durchsuchen nach",
     "searchFieldTitle": "Titel",
     "filter": "Filter",
+    "filterAnwenden": "{count} Einträge zeigen",
+    "fokus": {
+      "alle": "Alle",
+      "umschalter": "Im Fokus oder alle Einträge"
+    },
+    "profil": {
+      "einfach": "Einfach",
+      "experte": "Experte",
+      "umschalter": "Ansicht: einfach oder für Experten"
+    },
     "reset": "Zurücksetzen",
     "noFiltersAvailable": "Keine Filter verfügbar",
     "documents": "Dokumente",
@@ -320,7 +330,7 @@
       "fokusFilter": "Im Fokus",
       "fokusFilterTooltip": "Einträge mit mindestens einem Stern, die meisten zuerst",
       "fokusEmptyHint": "Noch keine Maßnahme mit Stern.",
-      "publicCount": "{{count}} Sterne",
+      "publicCount": "{count} Sterne",
       "emptyHint": "Noch keine Favoriten markiert.",
       "sortByStars": "Nach Sternen sortieren",
       "voterTooltipHeader": "Sterne ({{count}})",

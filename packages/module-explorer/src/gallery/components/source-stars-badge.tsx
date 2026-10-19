@@ -87,8 +87,8 @@ export function SourceStarsBadge({
     return (
       <span
         className={cn('inline-flex items-center gap-1 rounded-full select-none', masse.pill, palette.bg, className)}
-        aria-label={t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })}
-        title={t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })}
+        aria-label={t('gallery.favorites.publicCount', { count, defaultValue: '{count} Sterne' })}
+        title={t('gallery.favorites.publicCount', { count, defaultValue: '{count} Sterne' })}
       >
         <Star className={cn(masse.icon, palette.activeIcon)} fill="currentColor" aria-hidden />
         <span className={cn('pr-1 font-semibold leading-none tabular-nums', masse.counter, palette.counter)}>{count}</span>

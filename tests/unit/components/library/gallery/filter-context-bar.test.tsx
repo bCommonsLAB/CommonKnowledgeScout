@@ -77,6 +77,9 @@ vi.mock('@ks/module-explorer/gallery/components/bulk-delete-button', () => ({
 vi.mock('@ks/module-explorer/gallery/components/bulk-publish-button', () => ({
   BulkPublishButton: () => <div data-testid="bulk-publish" />,
 }))
+vi.mock('@ks/module-explorer/gallery/components/fokus-umschalter', () => ({
+  FokusUmschalter: () => <div data-testid="fokus-umschalter" />,
+}))
 
 describe('FilterContextBar / Sterne-Toggles', () => {
   beforeEach(() => {
@@ -133,6 +136,24 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     fireEvent.click(screen.getByTitle('Nur meine eigenen Favoriten'))
     const url = String(pushMock.mock.calls[0][0])
     expect(url).toContain('favorites=1')
+  })
+
+  it('G2 geführt: Mitglieder-Knoepfe und Sortierung weg, Umschalter statt Fokus-Knopf', () => {
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" profil="gefuehrt" showRatingSort />)
+    expect(screen.getByTestId('fokus-umschalter')).toBeTruthy()
+    expect(screen.queryByTitle('Einträge mit mindestens einem Stern, die meisten zuerst')).toBeNull()
+    expect(screen.queryByTitle('Nur meine eigenen Favoriten')).toBeNull()
+    expect(screen.queryByTitle('Nach Sternen sortieren')).toBeNull()
+    expect(screen.queryByTitle('Nur Quellen mit Kommentaren')).toBeNull()
+    expect(screen.queryByTitle('Nach Prioritäts-Indikator sortieren')).toBeNull()
+    // Filter-Knopf bleibt (oeffnet die Lade)
+    expect(screen.getByText('gallery.filter')).toBeTruthy()
+  })
+
+  it('Experte: alles wie bisher, kein Umschalter', () => {
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" showRatingSort />)
+    expect(screen.queryByTestId('fokus-umschalter')).toBeNull()
+    expect(screen.getByTitle('Nach Prioritäts-Indikator sortieren')).toBeTruthy()
   })
 
   it('Klick auf „Im Fokus" setzt starred=1 UND sort=stars', () => {

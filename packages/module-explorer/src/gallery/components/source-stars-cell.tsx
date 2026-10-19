@@ -50,7 +50,7 @@ export function SourceStarsCell({
 
   if (!isMember) {
     if (!starCountsPublic || count <= 0) return null
-    const label = t('gallery.favorites.publicCount', { count, defaultValue: '{{count}} Sterne' })
+    const label = t('gallery.favorites.publicCount', { count, defaultValue: '{count} Sterne' })
     return (
       <span
         className={cn('inline-flex items-center gap-1 tabular-nums select-none text-amber-700 dark:text-amber-300', size === 'md' ? 'text-sm' : 'text-xs')}
