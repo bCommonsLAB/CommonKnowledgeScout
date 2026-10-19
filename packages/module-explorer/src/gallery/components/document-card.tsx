@@ -34,6 +34,13 @@ export interface DocumentCardProps {
   doc: DocCardMeta
   /** Optional: Fallback fuer Komponenten ohne slug */
   onClick?: (doc: DocCardMeta) => void
+  /**
+   * Optional: ERSETZT die Standard-Navigation (`openDocument(slug)`), auch
+   * wenn `libraryId` gesetzt ist. Fuer Karten ausserhalb der Galerie-Liste
+   * (Website-Banner): dort muss der Klick die Liste mitbringen, in der der
+   * Eintrag liegt, sonst findet die Galerie das Dokument nicht.
+   */
+  onOpen?: (doc: DocCardMeta) => void
   /** Optional: Falls nicht vorhanden, wird onClick verwendet */
   libraryId?: string
   /** Fallback-DetailViewType aus der Library-Config (wenn doc.detailViewType nicht gesetzt ist) */
@@ -52,6 +59,7 @@ export interface DocumentCardProps {
 export function DocumentCard({
   doc,
   onClick,
+  onOpen,
   libraryId,
   libraryDetailViewType,
   onToggleFavorite,
@@ -61,6 +69,10 @@ export function DocumentCard({
 
   const { openDocument } = useGalleryNavigation()
   const handleClick = () => {
+    if (onOpen) {
+      onOpen(doc)
+      return
+    }
     const slug = getEffectiveDocumentNavigationSlug(doc)
     if (slug && libraryId) {
       openDocument(slug)

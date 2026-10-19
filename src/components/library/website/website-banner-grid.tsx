@@ -16,7 +16,7 @@ import { DocumentCard } from "@ks/module-explorer/react"
 import { getEffectiveDocumentNavigationSlug } from "@ks/util"
 import type { DocCardMeta } from "@ks/contracts"
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
-import { bannerGalerieParams, bannerQuery, type BannerSort } from "@/lib/website/banner"
+import { bannerGalerieParams, bannerKartenHref, bannerKartenParams, bannerQuery, type BannerSort } from "@/lib/website/banner"
 import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
 import { BUTTON_STRONG, HEADING_FONT, surfaceStyle } from "@/lib/website/surface-style"
 import { cn } from "@/lib/utils"
@@ -93,19 +93,18 @@ export function WebsiteBannerGrid({
         </div>
         {/* Drei Spalten auf ~325 px: die Karten laufen in der kompakten Form (nur Titel, Status, Sterne). */}
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-          {docs.map((d) =>
-            galleryBaseHref ? (
+          {docs.map((d) => {
+            // Der Klick bringt die Liste mit, in der der Eintrag liegt (bei stars die
+            // Rangliste) — sonst findet die Galerie nur Eintraege der ersten Seite.
+            const slug = getEffectiveDocumentNavigationSlug(d) ?? ""
+            return galleryBaseHref ? (
               // Root-Modus: Karte navigiert in die Explore-Galerie (Detail-Overlay dort).
-              <DocumentCard
-                key={d.fileId ?? d.id}
-                doc={d}
-                onClick={() => router.push(`${galleryBaseHref}&doc=${getEffectiveDocumentNavigationSlug(d) ?? ""}`)}
-                cardDensity="compact"
-              />
+              <DocumentCard key={d.fileId ?? d.id} doc={d} cardDensity="compact" onClick={() => router.push(bannerKartenHref(galleryBaseHref, sort, slug))} />
             ) : (
-              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} cardDensity="compact" />
-            ),
-          )}
+              // Site-Modus: Galerie-Ansicht mit Liste und Eintrag zugleich oeffnen.
+              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} cardDensity="compact" onOpen={() => onShowGallery?.(bannerKartenParams(sort, slug))} />
+            )
+          })}
         </div>
         {/* Galerie-Link nach dem Raster wiederholen — der dezente Link oben wird leicht uebersehen. */}
         <div className="mt-8 flex justify-center">

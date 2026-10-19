@@ -3,7 +3,8 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  bannerGalerieParams, bannerLimitAus, bannerQuery, bannerSortAus, coverTitelGroesseVw, BANNER_LIMIT_DEFAULT,
+  bannerGalerieParams, bannerKartenHref, bannerKartenParams, bannerLimitAus, bannerQuery, bannerSortAus,
+  coverTitelGroesseVw, BANNER_LIMIT_DEFAULT,
 } from '@/lib/website/banner'
 
 describe('bannerQuery', () => {
@@ -62,6 +63,17 @@ describe('bannerGalerieParams', () => {
     expect(bannerGalerieParams('stars')).toBe('starred=1&sort=stars')
     expect(bannerGalerieParams('rating')).toBe('')
     expect(bannerGalerieParams(undefined)).toBe('')
+  })
+})
+
+describe('bannerKartenParams / bannerKartenHref (Befund 19.10.: Karte bringt ihre Liste mit)', () => {
+  it('stars: Rangliste plus doc', () => {
+    expect(bannerKartenParams('stars', 'abc-1')).toEqual({ starred: '1', sort: 'stars', doc: 'abc-1' })
+    expect(bannerKartenHref('/explore/x?view=gallery', 'stars', 'abc-1')).toBe('/explore/x?view=gallery&starred=1&sort=stars&doc=abc-1')
+  })
+  it('rating: nur doc', () => {
+    expect(bannerKartenParams('rating', 'abc-1')).toEqual({ doc: 'abc-1' })
+    expect(bannerKartenHref('/explore/x?view=gallery', undefined, 'abc-1')).toBe('/explore/x?view=gallery&doc=abc-1')
   })
 })
 
