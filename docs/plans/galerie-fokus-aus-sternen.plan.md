@@ -14,8 +14,8 @@ todos:
     content: "F2 Galerie (gebaut 19.10.): Knopf „Im Fokus“ für alle (setzt `starred=1&sort=stars`), Sterne-Zahl auf Karten und im Detail-Kopf für Anonyme nur lesend; der clientseitige `starred`-Filter fällt weg (behebt nebenbei die Seitenlücke bei Mitgliedern)."
     status: completed
   - id: f3-banner
-    content: "F3 Startseiten-Banner: Frontmatter `banner_sort: stars` holt die Spitze der Rangliste (`sort=stars&starred=1`); der Galerie-Link trägt dieselben Parameter. `banner_tag` bleibt für andere Zwecke."
-    status: pending
+    content: "F3 Startseiten-Banner (gebaut 19.10.): Frontmatter `banner_sort: stars` holt die Spitze der Rangliste (`sort=stars&starred=1`); der Galerie-Link trägt dieselben Parameter. `banner_tag` bleibt für andere Zwecke."
+    status: completed
   - id: f4-inhalt
     content: "F4 Inhalt ohne Code (Owner, Brücke): Schalter setzen, Startseite auf `banner_sort: stars` umstellen, Link „Alle Fokus-Maßnahmen“ auf `?view=gallery&starred=1&sort=stars`, danach Tag `fokus` an den 36 Quellen entfernen (`dokument_felder_setzen`, `entfernen`)."
     status: pending
@@ -170,7 +170,13 @@ Live belegt 19.10. als Mitglied: Klick → `starred=1&sort=stars`, 36 Quellen.
 Tests: Knopf setzt/entfernt beide Parameter, sichtbar je Rolle und Schalter;
 `use-gallery-data` sendet `starred`.
 
-### F3 · Startseiten-Banner aus der Rangliste
+### F3 · Startseiten-Banner aus der Rangliste (gebaut 19.10.2026)
+
+Dateien: `banner.ts` (`bannerSortAus`, `bannerQuery` mit `sort`,
+`bannerGalerieParams`), `website-banner-grid.tsx`, `website-landing-live.tsx`,
+`website-detail.tsx`, Mapper, Registry, `use-gallery-mode.ts` (`setMode`
+nimmt `extra`-Parameter mit), `website-seite.ts` (`bannerSortBefunde`),
+`tools-website-pruefen.ts`, `website-pruefung.ts`; Brücke 2.58.0.
 
 - Frontmatter `banner_sort` am Seiten-Doc: `rating` (Vorgabe, wie heute)
   oder `stars`. `stars` erzeugt `sort=stars&starred=1&limit=…`; ist der

@@ -23,6 +23,16 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   (`prioritaets_index`), anonym lesbar. `heading_case: none` schaltet das
   `capitalize` der Vorlage ab. Ungueltige Werte werden geloggt, nie still
   ersetzt (`src/lib/website/banner.ts`, `doc-meta-mappers.ts`).
+- **Banner aus der Rangliste (Welle F3, ADR 0012):** `banner_sort` am
+  Seiten-Doc: `rating` (Vorgabe, wie oben) oder `stars` — dann fragt das
+  Banner `sort=stars&starred=1` an (Eintraege mit Stern, die meisten zuerst)
+  und der Link „mehr Inhalte" nimmt `starred=1&sort=stars` mit, damit die
+  Galerie die ganze Rangliste zeigt (Root-Modus als Adresse, Site-Modus als
+  `extra` an `onShowGallery`). Voraussetzung ist
+  `publicPublishing.starCountsPublic`; ohne ihn antwortet die Docs-Route
+  anonym 403 und das Banner bleibt leer — `seite_pruefen` meldet das als
+  Fehler, nicht der Renderer still. Unbekannter Wert: `bannerSortAus` wirft,
+  Mapper loggt und rendert `rating`, `dokument_publizieren` warnt.
 - **Design-Profil (Welle S2):** Farben und Schriften der Landingpage kommen
   aus `publicPublishing.siteTheme` (`SiteTheme` in `@ks/contracts`), nicht
   aus dem Code. Der Code kennt die Stellschrauben (CSS-Variablen, Flaechen

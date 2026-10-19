@@ -53,6 +53,13 @@ describe('pruefeMarkdownDokument', () => {
     expect(p.fehler.some((f) => f.startsWith('Sektions-Marker:') && f.includes('kachel'))).toBe(true)
   })
 
+  it('F3: unbekannter banner_sort ist eine Warnung, stars und rating nicht', () => {
+    const mitSort = (wert: string) => SEITE.replace('title: "Startseite"', `title: "Startseite"\nbanner_sort: "${wert}"`)
+    const p = pruefeMarkdownDokument(mitSort('sterne'))
+    expect(p.warnungen.some((w) => w.includes('banner_sort "sterne"'))).toBe(true)
+    expect(pruefeMarkdownDokument(mitSort('stars')).warnungen).toEqual([])
+  })
+
   it('relative Bild-URLs auf Website-Seiten sind eine Warnung (anonyme Besucher)', () => {
     const md = SEITE.replace('https://example.blob.core.windows.net/x/gruppe.jpg', 'bilder/gruppe.jpg')
     const p = pruefeMarkdownDokument(md)
