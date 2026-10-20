@@ -65,6 +65,7 @@ import { filterAnzeigeFuer, layoutKlassen, startParamsFuer, type GalerieProfil }
 import { GalerieEinleitung } from './galerie-einleitung'
 import { ProfilUmschalter } from './profil-umschalter'
 import { GalerieSuche } from './galerie-suche'
+import { MitredenBand } from './mitreden-band'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
@@ -259,14 +260,17 @@ export function GalleryRoot({
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
   // G2: Vorgabe „Im Fokus" aus der Config, einmal je Montage und ohne
   // Verlaufseintrag; „Alle" bleibt danach eine echte Adresse ohne Parameter.
+  // Owner 20.10.: nur im geführten Profil — Experten starten mit allen Einträgen. Erst
+  // entscheiden, wenn die Library (und damit Profil und Vorgabe) bekannt ist.
   const startAngewandtRef = React.useRef(false)
   useEffect(() => {
-    if (startAngewandtRef.current || mode !== 'gallery') return
+    if (startAngewandtRef.current || mode !== 'gallery' || !activeLibrary) return
     startAngewandtRef.current = true
+    if (profil !== 'gefuehrt') return
     const next = startParamsFuer(rawGalleryConfig?.startAnsicht, navigation.params)
     if (next) navigation.replaceParams(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [mode, activeLibrary?.id, profil])
   // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
   const quellenLeiste = useQuellenOffen()
   // D12e/D12i: Klick auf eine Zitatmarke bei zugeklappten Quellen — am Desktop die Schicht
@@ -517,6 +521,11 @@ export function GalleryRoot({
   React.useEffect(() => {
     if (!graphEnabled && viewMode === 'graph') setViewMode('grid')
   }, [graphEnabled, viewMode])
+  // Owner 20.10.: das geführte Profil kennt nur das Kartenraster — eine im Expertenmodus
+  // gewählte Tabelle oder der Graph fällt beim Wechsel auf das Raster zurück.
+  useEffect(() => {
+    if (profil === 'gefuehrt' && viewMode !== 'grid') setViewMode('grid')
+  }, [profil, viewMode])
 
   // Graph-Modus braucht den GANZEN gefilterten Bestand, nicht nur die per
   // Scroll-Pagination geladenen Seiten (sonst fehlen Knoten unsichtbar).
@@ -1227,8 +1236,8 @@ export function GalleryRoot({
                 onOpenFilters={() => setShowFilters(true)}
                 onClear={handleClearFilters}
                 facetDefs={facetDefs}
-                ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}
-                onCta={storyPanel ? () => setMode('story') : undefined}
+                ctaLabel={storyPanel && profil !== 'gefuehrt' ? t('gallery.switchToStoryMode') : undefined}
+                onCta={storyPanel && profil !== 'gefuehrt' ? () => setMode('story') : undefined}
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
                 viewMode={viewMode}
@@ -1293,8 +1302,8 @@ export function GalleryRoot({
                     onClear={handleClearFilters}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
-                    ctaLabel={storyPanel ? t('gallery.switchToStoryMode') : undefined}
-                    onCta={storyPanel ? () => setMode('story') : undefined}
+                    ctaLabel={storyPanel && profil !== 'gefuehrt' ? t('gallery.switchToStoryMode') : undefined}
+                    onCta={storyPanel && profil !== 'gefuehrt' ? () => setMode('story') : undefined}
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
                     viewMode={viewMode}
@@ -1333,6 +1342,10 @@ export function GalleryRoot({
                   overflow-auto-Container horizontal scrollt statt auf 760px aufzublaehen. */}
               <ScrollArea className="flex-1 min-h-0" viewportClassName="[&>div]:!block">
                 <div className="pr-4 min-w-0">{renderItemsView()}</div>
+                {/* G5: Mitreden-Band unter der Liste des geführten Profils; ohne Texte kein Band */}
+                {profil === 'gefuehrt' && (
+                  <div className="pr-4"><MitredenBand texte={activeLibrary?.config?.publicPublishing?.mitreden} /></div>
+                )}
               </ScrollArea>
             </section>
             )}

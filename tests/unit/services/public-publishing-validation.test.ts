@@ -108,3 +108,23 @@ describe('siteTheme (Welle S2)', () => {
     expect(() => mergePublicPublishing(mitProfil, { siteTheme: { accent: 'rot' } }, 'L')).toThrow(/Hex/)
   })
 })
+
+describe('Mitreden-Band (G5)', () => {
+  it('merge feldweise; leerer String bleibt; geaendert nennt mitreden', () => {
+    const neu = mergePublicPublishing(ALT, { mitreden: { headline: 'Wer kommentiert, ist Expertin', href: '/explore/klima?site=mitreden' } }, 'L')
+    expect(neu.mitreden).toEqual({ headline: 'Wer kommentiert, ist Expertin', href: '/explore/klima?site=mitreden' })
+    expect(geaenderteFelder(ALT, neu)).toEqual(['mitreden'])
+    const geleert = mergePublicPublishing({ ...ALT, mitreden: neu.mitreden }, { mitreden: { href: '' } }, 'L')
+    expect(geleert.mitreden).toEqual({ headline: 'Wer kommentiert, ist Expertin', href: '' })
+    expect(mergePublicPublishing(ALT, {}, 'L').mitreden).toBeUndefined()
+  })
+
+  it('Validierung: unbekannte Felder, Nicht-Text und ein Ziel ohne "/" oder "https://" werden abgewiesen', () => {
+    expect(validierePublicPublishing({ mitreden: { knopf: 'x' } })).toMatch(/mitreden: unbekanntes Feld/)
+    expect(validierePublicPublishing({ mitreden: { headline: 7 } })).toMatch(/mitreden.headline muss ein Text sein/)
+    expect(validierePublicPublishing({ mitreden: { href: 'mitreden' } })).toMatch(/mitreden.href/)
+    expect(validierePublicPublishing({ mitreden: { href: 'http://unsicher.example' } })).toMatch(/mitreden.href/)
+    expect(validierePublicPublishing({ mitreden: { href: '/explore/klima?site=mitreden' } })).toBeNull()
+    expect(validierePublicPublishing({ mitreden: { href: 'https://example.org/mitreden', text: '' } })).toBeNull()
+  })
+})

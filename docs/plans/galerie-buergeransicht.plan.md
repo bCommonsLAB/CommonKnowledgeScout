@@ -17,8 +17,11 @@ todos:
     content: "G4 Feinschliff nach Figma (gebaut 19.10.): Library-Kopf im geführten Profil weg (nur das Band), Umschalter und Einladung als ruhige Textknöpfe in der Leiste, Suche in der Leiste (mobil eigene Zeile). Story-Knopf bleibt; Mitreden-Band: Owner-Entscheid offen."
     status: completed
   - id: g5-mitreden-band
-    content: "G5 Mitreden-Band (Owner 19.10.): im geführten Profil der Story-Knopf weg, unten ein Band mit Überschrift, Zeile und Knopf „Mitreden“ wie in Figma; Texte und Ziel als Text-Gruppe `publicPublishing.mitreden` über Formular und Brücke; ohne Texte kein Band."
-    status: pending
+    content: "G5 Mitreden-Band (Owner 19.10.): im geführten Profil der Story-Knopf weg, unten ein Band mit Überschrift, Zeile und Knopf „Mitreden“ wie in Figma; Texte und Ziel als Text-Gruppe `publicPublishing.mitreden` über Formular und Brücke; ohne Texte kein Band. Gebaut 19.10.; Inhalt (Punkt 4) folgt über die Brücke."
+    status: completed
+  - id: g6-kopf-und-band-buendig
+    content: "G6 Kopf und Band bündig (gebaut 20.10.): Logo in der TopNav folgt dem Bild (kein leerer 96-px-Kasten), der Kopf der Erkunden-Seite hält nur den tatsächlichen Logo-Überhang frei, das Band liegt ohne Kasten bündig mit Leiste und Karten."
+    status: completed
 ---
 
 # Galerie-Profil „geführt“: Bürgeransicht ohne zweiten Baustein
@@ -192,7 +195,7 @@ Zeile unter der Leiste — die Knopfzeile bricht nie um. Der Library-Kopf der
 öffentlichen Slug-Seite (`/explore/<slug>`, Name der Library) gehört zur
 Schale und bleibt (Figma: „Marke“).
 
-### G5 · Mitreden-Band statt Story-Knopf (Owner 19.10.2026)
+### G5 · Mitreden-Band statt Story-Knopf (gebaut 19.10.2026; Punkt 4 Inhalt offen)
 
 Figma-Rahmen Desktop (2:2), Gruppe „Mitreden-Band“ (2:159): ein Band über
 die volle Breite unter dem Kartenraster, dunkler Grund (Fläche `dark-green`
@@ -228,6 +231,48 @@ Profil; Experten behalten ihn.
    mit/ohne Texte, Story-Knopf je Profil, Experten-Vergleich unverändert;
    Live bei 1280 px, mobil und einmal im Embed.
 
+**Gebaut (19.10.2026):** Typen in `@ks/contracts`, `src/types/library.ts` und
+`ExplorerLibraryPayload`; `public-publishing-validation.ts` (Schlüssel,
+`MITREDEN_HREF_RE`, Merge, `geaenderteFelder`); PUT-Route, Client-Abbildung
+und beide Slug-Routen reichen `mitreden` durch; Brücke 2.60.0
+(`veroeffentlichung_setzen` nimmt `mitreden`, Sicht zeigt es); Formular
+Veröffentlichung mit `mitreden-fields.tsx` unter den Galerie-Texten;
+Baustein `mitreden-band.tsx` unter der Liste des `lade`-Zweigs, nur
+`gefuehrt`, nur mit Überschrift und Ziel; Story-Knopf an beiden Leisten nur
+bei `experte`. Farben: Standard-Tokens der Hülle (`bg-primary`), kein eigenes
+Grün — die Slug-Seite legt das Site-Theme nur auf die Website, nicht auf die
+Galerie (Vorrat). Live ohne Texte belegt (kein Band, Story-Knopf weg,
+Experte unverändert); das Band selbst nur im Test — sichtbar, sobald die
+Klima-Library die Texte bekommt (Punkt 4, nach Deploy 2.60.0).
+
+### G6 · Kopf und Band bündig (gebaut 20.10.2026, nach Sichtung mit Logo)
+
+Mit dem Website-Logo verschwindet der Textkopf der Erkunden-Seite (das war
+schon so gebaut), aber drei Reste blieben: ein 40-px-Platzhalter plus 12 px
+Hinweis-Polster unter der Navigation, das Logo in einem festen 96-px-Kasten
+(ein breites Logo saß darin mittig unter der Zeile) und das Band auf 1024 px
+zentriert mit eigenem grauen Kasten.
+
+1. `site-logo.tsx`: Bild mit `h-auto max-h-24 max-w-[7rem]` statt fester
+   Höhe; nach dem Laden misst die Komponente den Überhang unter der TopNav
+   (`h-16`, Logo `top-2`) und setzt ihn als CSS-Variable
+   `--site-logo-ueberhang` am Dokument (0 bei breiten, 40 px bei
+   quadratischen Logos).
+2. `explorer-header.tsx`: der Platzhalter ist so hoch wie diese Variable
+   (Vorgabe 2.5 rem ohne Wert, wie bisher); das Hinweis-Polster gibt es nur,
+   wenn der Slot etwas rendert (`[&:not(:empty)]:pb-2`).
+3. `galerie-einleitung.tsx`: kein Kasten, kein seitlicher Innenabstand,
+   keine zentrierte Spalte — Kennzeile, Titel und Erklärung stehen auf 16 px
+   wie „36 Quellen“ und die erste Karte (Figma: Einleitung direkt auf der
+   Seite).
+4. **Fokus-Vorgabe nur geführt (Owner 20.10.):** `startAnsicht: fokus`
+   greift nur im geführten Profil; Experten starten mit allen Einträgen und
+   schalten den Fokus bei Bedarf selbst ein. Der Umschalter räumt beim
+   Wechsel zu Experte `starred` und das zugehörige `sort=stars` weg und
+   setzt beim Wechsel zu Einfach die Start-Vorgabe (`profilParams` mit
+   `startAnsicht`; Start-Effekt in `gallery-root` erst, wenn die Library
+   bekannt ist).
+
 ## 4. Reihenfolge und Aufwand
 
 | Welle | Aufwand | Hängt an |
@@ -237,6 +282,7 @@ Profil; Experten behalten ihn.
 | G3 | ein halber Tag | G1 (Feldname), parallel zu G2 möglich |
 | G4 | ein halber Tag | G1–G3 gemergt; Punkt 4 erst nach Owner-Entscheid |
 | G5 | ein halber Tag | G4 gemergt (PR #408); Inhalt danach über die Brücke |
+| G6 | eine Stunde | Logo an der Library gesetzt (Owner 19.10.) |
 
 Je Welle eine PR; `pnpm test`, `pnpm lint`, `npx tsc --noEmit` mit
 Vorher/Nachher-Vergleich; vor dem Merge `pnpm build` und
@@ -274,3 +320,6 @@ Embed (`@ks/embed`) einmal montieren.
 5. **Mitreden-Band statt Story-Knopf (19.10., nach G4):** im geführten
    Profil entfällt „In Story Mode ansehen“, unten steht das Mitreden-Band
    aus Figma; Texte und Ziel kommen aus `publicPublishing.mitreden` (G5).
+6. **Experten starten mit allen Einträgen (20.10.):** die Fokus-Vorgabe der
+   Library gilt nur im geführten Profil; der Profil-Wechsel räumt bzw. setzt
+   den Fokus (G6, Punkt 4).

@@ -35,14 +35,14 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, story, siteEnabled, siteTheme, starCountsPublic } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, story, mitreden, siteEnabled, siteTheme, starCountsPublic } = body;
     if (starCountsPublic !== undefined && typeof starCountsPublic !== 'boolean') {
       return NextResponse.json({ error: 'starCountsPublic muss true oder false sein' }, { status: 400 });
     }
 
     // Validierung — dieselben Regeln wie die Bruecke (public-publishing-validation.ts).
     // S2: `siteTheme` fehlend = unveraendert, `null` = Profil loeschen.
-    const verletzung = validierePublicPublishing({ slugName, publicName, description, isPublic, requiresAuth, showOnHomepage, gallery, story, siteTheme });
+    const verletzung = validierePublicPublishing({ slugName, publicName, description, isPublic, requiresAuth, showOnHomepage, gallery, story, mitreden, siteTheme });
     if (verletzung) {
       return NextResponse.json({ error: verletzung }, { status: 400 });
     }
@@ -94,7 +94,7 @@ export async function PUT(
     // und nicht maskiert; sonst bleibt der alte Wert.
     const gemergt = mergePublicPublishing(prevPub, {
       slugName, publicName, description, icon, requiresAuth, showOnHomepage,
-      backgroundImageUrl, logoUrl, gallery, story, siteTheme,
+      backgroundImageUrl, logoUrl, gallery, story, mitreden, siteTheme,
       isPublic: isPublic !== undefined ? isPublic : false,
       siteEnabled: siteEnabled === true,
       // ADR 0012: Formular sendet das Feld immer; fehlend => false wie siteEnabled.

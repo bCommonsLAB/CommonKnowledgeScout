@@ -92,14 +92,14 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
               <AntwortText text={paar.antwort.text} belege={paar.antwort.belege} className="prose prose-sm max-w-none dark:prose-invert" />
               {fuss?.(paar.antwort)}
               {paar.antwort.anschlussfragen && paar.antwort.anschlussfragen.length > 0 && (
-                <div className="mt-4 rounded border bg-background/60 p-3">
-                  <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="mt-4 rounded border border-frage-foreground/20 bg-frage p-3 text-frage-foreground" data-anschlussfragen>
+                  <div className="mb-2 flex items-center gap-1 text-xs opacity-80">
                     <HelpCircle className="h-3 w-3" />
                     {t('suggestedQuestions.label')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {paar.antwort.anschlussfragen.map((frage) => (
-                      <Button key={frage} variant="outline" size="sm" className="h-auto whitespace-normal px-3 py-1.5 text-left text-xs" onClick={() => onFrage(frage)}>
+                      <Button key={frage} variant="outline" size="sm" className="h-auto whitespace-normal border-frage-foreground/30 bg-background/70 px-3 py-1.5 text-left text-xs text-frage-foreground hover:bg-background" onClick={() => onFrage(frage)}>
                         {frage}
                       </Button>
                     ))}

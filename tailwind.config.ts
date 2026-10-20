@@ -61,6 +61,11 @@ const config = {
   				DEFAULT: 'hsl(var(--accent))',
   				foreground: 'hsl(var(--accent-foreground))'
   			},
+  			// Fragen-Akzent des Story-Modus (globals.css --frage), Owner 20.10.
+  			frage: {
+  				DEFAULT: 'hsl(var(--frage))',
+  				foreground: 'hsl(var(--frage-foreground))'
+  			},
   			popover: {
   				DEFAULT: 'hsl(var(--popover))',
   				foreground: 'hsl(var(--popover-foreground))'

@@ -15,8 +15,10 @@ export function GalerieEinleitung({ texte }: GalerieEinleitungProps) {
   const { headline, subtitle, description } = texte
   if (!headline.trim() && !description.trim()) return null
   return (
-    <section className="border-b bg-muted/40 px-4 py-6 sm:px-6" data-galerie-einleitung>
-      <div className="mx-auto max-w-5xl space-y-2">
+    // G6 (Owner 19.10.): kein eigener Kasten, buendig mit Leiste und Karten (Figma: Einleitung
+    // liegt direkt auf der Seite); die Breite gibt die Liste vor, nicht eine zentrierte Spalte.
+    <section className="py-6 sm:py-8" data-galerie-einleitung>
+      <div className="space-y-2">
         {subtitle.trim() ? (
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">{subtitle}</p>
         ) : null}

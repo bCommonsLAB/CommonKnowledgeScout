@@ -114,6 +114,7 @@
   "gallery": {
     "gallery": "Contents",
     "sortByRating": "Sort by priority index",
+    "sortByRatingKurz": "Priority",
     "story": "Story Mode",
     "switchToStoryMode": "View in Story Mode",
     "storyModeTooltip": "In Story Mode, you can have the contents explained to you in your language, your interest profile, and your context.",
@@ -149,6 +150,7 @@
       "alle": "All",
       "umschalter": "In focus or all entries"
     },
+    "mitreden": "Join the conversation",
     "beitragen": "Contribute",
     "beitragenAnmelden": "Sign in to contribute",
     "profil": {
@@ -300,6 +302,7 @@
       "toggleAdd": "Add to favorites",
       "toggleRemove": "Remove from favorites",
       "filterOnly": "Favorites only",
+      "filterOnlyKurz": "Favorites",
       "filterOnlyTooltip": "Only my own favorites",
       "starredFilter": "With stars",
       "starredFilterTooltip": "All sources favorited by at least one member",
@@ -310,6 +313,7 @@
       "publicCount": "{count} stars",
       "emptyHint": "No favorites marked yet.",
       "sortByStars": "Sort by stars",
+      "sortByStarsKurz": "Stars",
       "voterTooltipHeader": "Stars ({{count}})",
       "aggregatedCount": "{{count}} stars from members"
     },
@@ -326,6 +330,7 @@
     },
     "comments": {
       "filter": "With comments",
+      "filterKurz": "Comments",
       "filterTooltip": "Only sources with comments",
       "filterEmptyHint": "No source with comments yet.",
       "badge": "{{count}} comments",

@@ -49,11 +49,20 @@ describe('profilAus', () => {
   })
 })
 
-describe('profilParams', () => {
-  it('setzt ansicht und lässt andere Parameter stehen', () => {
+describe('profilParams (Owner 20.10.: Experte startet mit allen Einträgen)', () => {
+  it('Wechsel zu gefuehrt setzt ansicht, lässt vorhandene Parameter stehen', () => {
     const next = profilParams(new URLSearchParams('view=gallery&starred=1'), 'gefuehrt')
     expect(next.get('ansicht')).toBe('gefuehrt')
     expect(next.get('starred')).toBe('1')
+  })
+  it('Wechsel zu gefuehrt setzt die Start-Vorgabe fokus, wenn die Adresse weder starred noch sort trägt', () => {
+    expect(profilParams(new URLSearchParams('view=gallery'), 'gefuehrt', 'fokus').toString()).toBe('view=gallery&ansicht=gefuehrt&starred=1&sort=stars')
+    expect(profilParams(new URLSearchParams('sort=rating'), 'gefuehrt', 'fokus').toString()).toBe('sort=rating&ansicht=gefuehrt')
+    expect(profilParams(null, 'gefuehrt', 'alle').toString()).toBe('ansicht=gefuehrt')
+  })
+  it('Wechsel zu experte räumt starred und das zugehörige sort=stars; andere Sortierung bleibt', () => {
+    expect(profilParams(new URLSearchParams('view=gallery&starred=1&sort=stars'), 'experte', 'fokus').toString()).toBe('view=gallery&ansicht=experte')
+    expect(profilParams(new URLSearchParams('starred=1&sort=rating'), 'experte').toString()).toBe('sort=rating&ansicht=experte')
     expect(profilParams(null, 'experte').toString()).toBe('ansicht=experte')
   })
 })

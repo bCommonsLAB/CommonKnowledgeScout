@@ -59,8 +59,9 @@ export function FokusFilterButton({ libraryId }: FokusFilterButtonProps) {
         defaultValue: 'Einträge mit mindestens einem Stern, die meisten zuerst',
       })}
     >
-      <Star className={cn('h-3.5 w-3.5 lg:mr-1', aktiv && 'fill-current')} aria-hidden />
-      <span className="hidden lg:inline">{label}</span>
+      <Star className={cn('h-3.5 w-3.5 xl:mr-1', aktiv && 'fill-current')} aria-hidden />
+      {/* Owner 20.10.: Beschriftung erst ab xl, wie die uebrigen Expertenknoepfe der Leiste */}
+      <span className="hidden xl:inline">{label}</span>
     </Button>
   )
 }

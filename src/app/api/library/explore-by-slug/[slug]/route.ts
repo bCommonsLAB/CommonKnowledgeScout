@@ -58,6 +58,8 @@ export async function GET(
       logoUrl: pub?.logoUrl,
       // Galerie-Texte aus den Public-Settings (oeffentlicher Inhalt, keine Secrets)
       gallery: pub?.gallery,
+      // G5: Mitreden-Band des gefuehrten Profils (oeffentlicher Inhalt)
+      mitreden: pub?.mitreden,
       // Welle S2: Design-Profil der Landingpage (Farben/Schriften, kein Secret)
       siteTheme: pub?.siteTheme,
       // ADR 0012: ob Besucher die Sterne-Zahl sehen (Schalter, kein Secret)

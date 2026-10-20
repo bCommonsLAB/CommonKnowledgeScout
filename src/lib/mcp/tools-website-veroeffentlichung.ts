@@ -31,6 +31,10 @@ const STORY = z.object({
   headline: TEXT.optional(), subtitle: TEXT.optional(), intro: TEXT.optional(),
   topicsTitle: TEXT.optional(), topicsIntro: TEXT.optional(),
 }).strict()
+const MITREDEN = z.object({
+  headline: TEXT.optional(), text: TEXT.optional(), buttonLabel: z.string().max(60).optional(),
+  href: z.string().max(1000).optional(),
+}).strict()
 
 /** Sicht auf die Einstellungen ohne Geheimnis (CLAUDE.md: Token-Status statt Token-Wert). Auch fuer konfiguration_lesen (Welle D). */
 export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
@@ -47,6 +51,7 @@ export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
     logoUrl: pub?.logoUrl ?? null,
     gallery: pub?.gallery ?? null,
     story: pub?.story ?? null,
+    mitreden: pub?.mitreden ?? null,
     siteEnabled: pub?.siteEnabled === true,
     siteTheme: pub?.siteTheme ?? null,
     starCountsPublic: pub?.starCountsPublic === true,
@@ -63,7 +68,7 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
       title: 'Veroeffentlichungs-Einstellungen lesen (liest nur)',
       description:
         'Liest publicPublishing der Library: isPublic, Slug, oeffentlicher Name, Beschreibung, Icon, ' +
-        'showOnHomepage, requiresAuth, Logo- und Hintergrundbild-URL, Galerie-Texte, Story-Texte (story), siteEnabled, ' +
+        'showOnHomepage, requiresAuth, Logo- und Hintergrundbild-URL, Galerie-Texte, Story-Texte (story), Mitreden-Band (mitreden), siteEnabled, ' +
         'das Design-Profil siteTheme (null = Vorlage), starCountsPublic (Sterne-Zahl anonym sichtbar), ' +
         'ob ein API-Schluessel gesetzt ist (nie sein Wert) ' +
         'und die Adresse /explore/<slug>. Liest nur.',
@@ -115,6 +120,9 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         logoUrl: z.string().max(1000).optional().describe('anonym lesbare URL; "" loescht'),
         gallery: GALLERY.optional().describe('Galerie-Texte feldweise; leerer String = Standardtext'),
         story: STORY.optional().describe('Story-Texte feldweise; leerer String = Standardtext'),
+        mitreden: MITREDEN.optional().describe(
+          'G5 Mitreden-Band im gefuehrten Galerie-Profil, feldweise: headline, text, buttonLabel (leer = „Mitreden"), ' +
+          'href ("/…" oder "https://…"); ohne headline oder href zeigt die Galerie kein Band; leerer String = Feld leer'),
         siteEnabled: z.boolean().optional().describe('true = /explore/<slug> zeigt die Website statt der Galerie'),
         siteTheme: SITE_THEME_SCHEMA.optional()
           .describe('Design-Profil als OBJEKT (kein JSON-Text); ersetzt das gespeicherte Profil als Ganzes; weglassen = unveraendert'),

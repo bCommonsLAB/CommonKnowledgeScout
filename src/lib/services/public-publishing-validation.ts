@@ -7,7 +7,8 @@
  * Implementierungen wuerden auseinanderlaufen. Deshalb hier: reine
  * Funktionen, die Route und Werkzeug beide rufen. Semantik des Merges:
  * `undefined` = unveraendert, `''` bei URL-/Icon-Feldern = loeschen,
- * `''` in den Text-Gruppen `gallery` und `story` = Standardtext.
+ * `''` in den Text-Gruppen `gallery`, `story` und `mitreden` = Standardtext
+ * bzw. leeres Feld (G5: ohne headline/href kein Band).
  * `apiKey` bleibt bewusst aussen vor: die Route behandelt ihn selbst, die
  * Bruecke setzt ihn nie.
  *
@@ -21,9 +22,13 @@ import { validiereSiteTheme } from '@/lib/website/site-theme'
 export type PublicPublishing = NonNullable<NonNullable<Library['config']>['publicPublishing']>
 export type GalleryTexte = NonNullable<PublicPublishing['gallery']>
 export type StoryTexte = NonNullable<PublicPublishing['story']>
+export type MitredenTexte = NonNullable<PublicPublishing['mitreden']>
 
 const GALLERY_KEYS: ReadonlyArray<keyof GalleryTexte> = ['headline', 'subtitle', 'description', 'filterDescription', 'menuLabel', 'moreLinkLabel']
 const STORY_KEYS: ReadonlyArray<keyof StoryTexte> = ['headline', 'subtitle', 'intro', 'topicsTitle', 'topicsIntro']
+const MITREDEN_KEYS: ReadonlyArray<keyof MitredenTexte> = ['headline', 'text', 'buttonLabel', 'href']
+/** Ziel des Mitreden-Bands: relativer Pfad oder https-Adresse — alles andere wird abgewiesen. */
+export const MITREDEN_HREF_RE = /^(\/|https:\/\/)/
 
 export interface PublicPublishingEingabe {
   slugName?: string
@@ -38,6 +43,8 @@ export interface PublicPublishingEingabe {
   gallery?: Partial<GalleryTexte>
   /** Story-Texte feldweise wie `gallery`; `''` = Standardtext. */
   story?: Partial<StoryTexte>
+  /** G5: Mitreden-Band feldweise wie `gallery`; `''` = Feld leer (ohne headline/href kein Band). */
+  mitreden?: Partial<MitredenTexte>
   siteEnabled?: boolean
   /** Welle S2: Design-Profil; `undefined` = unveraendert, `null` = loeschen (Vorlage). */
   siteTheme?: SiteTheme | null
@@ -60,6 +67,7 @@ export function validierePublicPublishing(p: {
   showOnHomepage?: boolean
   gallery?: unknown
   story?: unknown
+  mitreden?: unknown
   siteTheme?: SiteTheme | null
 }): string | null {
   if (p.isPublic === true) {
@@ -74,6 +82,12 @@ export function validierePublicPublishing(p: {
   if (galleryFehler) return galleryFehler
   const storyFehler = validiereTexte('story', p.story, STORY_KEYS)
   if (storyFehler) return storyFehler
+  const mitredenFehler = validiereTexte('mitreden', p.mitreden, MITREDEN_KEYS)
+  if (mitredenFehler) return mitredenFehler
+  const href = (p.mitreden as { href?: unknown } | undefined)?.href
+  if (typeof href === 'string' && href.trim() !== '' && !MITREDEN_HREF_RE.test(href.trim())) {
+    return 'mitreden.href muss mit "/" oder "https://" beginnen'
+  }
   if (p.siteTheme) {
     try {
       validiereSiteTheme(p.siteTheme)
@@ -119,6 +133,11 @@ export function mergeGalleryTexte(alt: GalleryTexte | undefined, neu: Partial<Ga
   return mergeTexte(alt, neu, GALLERY_KEYS)
 }
 
+/** Mitreden-Texte feldweise mergen (G5), gleiche Semantik wie die Galerie-Texte. */
+export function mergeMitredenTexte(alt: MitredenTexte | undefined, neu: Partial<MitredenTexte> | undefined): MitredenTexte | undefined {
+  return mergeTexte(alt, neu, MITREDEN_KEYS)
+}
+
 /** Story-Texte feldweise mergen, gleiche Semantik wie die Galerie-Texte. */
 export function mergeStoryTexte(alt: StoryTexte | undefined, neu: Partial<StoryTexte> | undefined): StoryTexte | undefined {
   return mergeTexte(alt, neu, STORY_KEYS)
@@ -146,6 +165,7 @@ export function mergePublicPublishing(
     logoUrl: urlFeld(neu.logoUrl, alt?.logoUrl),
     gallery: mergeGalleryTexte(alt?.gallery, neu.gallery),
     story: mergeStoryTexte(alt?.story, neu.story),
+    mitreden: mergeMitredenTexte(alt?.mitreden, neu.mitreden),
     siteEnabled: neu.siteEnabled !== undefined ? neu.siteEnabled : alt?.siteEnabled === true,
     // S2: `null` loescht das Profil (zurueck zur Vorlage); gueltige Profile werden normalisiert.
     siteTheme: neu.siteTheme === undefined ? alt?.siteTheme : (neu.siteTheme === null ? undefined : validiereSiteTheme(neu.siteTheme)),
@@ -160,7 +180,7 @@ export function mergePublicPublishing(
 export function geaenderteFelder(alt: PublicPublishing | undefined, neu: PublicPublishing): string[] {
   const keys: Array<keyof PublicPublishing> = [
     'slugName', 'publicName', 'description', 'icon', 'isPublic', 'showOnHomepage',
-    'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'story', 'siteEnabled', 'siteTheme',
+    'requiresAuth', 'backgroundImageUrl', 'logoUrl', 'gallery', 'story', 'mitreden', 'siteEnabled', 'siteTheme',
     'starCountsPublic',
   ]
   return keys.filter((key) => JSON.stringify(alt?.[key] ?? null) !== JSON.stringify(neu[key] ?? null))

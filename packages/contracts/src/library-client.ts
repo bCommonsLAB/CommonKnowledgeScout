@@ -191,6 +191,17 @@ export interface ClientLibrary {
         /** Erklärungstext zur Themenübersicht */
         topicsIntro?: string;
       };
+      /**
+       * Mitreden-Band im geführten Galerie-Profil (Plan galerie-buergeransicht, G5):
+       * Überschrift, Zeile, Knopftext, Ziel (`/…` oder `https://…`). Ohne
+       * headline oder href zeigt die Galerie kein Band.
+       */
+      mitreden?: {
+        headline?: string;
+        text?: string;
+        buttonLabel?: string;
+        href?: string;
+      };
       /** Website-Landingpage am Slug (siehe serverseitiges publicPublishing.siteEnabled) */
       siteEnabled?: boolean;
       /** Welle S2: Design-Profil der Landingpage (Farben, Schriften); fehlt = Vorlage */

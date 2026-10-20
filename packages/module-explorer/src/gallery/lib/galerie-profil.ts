@@ -42,18 +42,34 @@ export function profilAus(adresse: string | null | undefined, config: unknown): 
   return { profil: GALERIE_PROFIL_VORGABE, quelle: 'vorgabe' }
 }
 
-/** Nächste Adresse nach einem Wechsel; der Umschalter schreibt sie per `pushParams`. */
-export function profilParams(aktuell: URLSearchParams | null | undefined, profil: GalerieProfil): URLSearchParams {
+/**
+ * Nächste Adresse nach einem Wechsel; der Umschalter schreibt sie per `pushParams`.
+ * Owner 20.10.: Experten sehen standardmäßig alle Einträge — der Wechsel zu
+ * `experte` räumt `starred` und das zugehörige `sort=stars` weg (eine andere
+ * Sortierung bleibt); der Wechsel zu `gefuehrt` setzt die Start-Vorgabe der
+ * Library (`startAnsicht`), sofern die Adresse weder `starred` noch `sort` trägt.
+ */
+export function profilParams(
+  aktuell: URLSearchParams | null | undefined,
+  profil: GalerieProfil,
+  startAnsicht?: unknown,
+): URLSearchParams {
   const next = new URLSearchParams(aktuell?.toString() ?? '')
   next.set(ANSICHT_PARAM, profil)
-  return next
+  if (profil === 'experte') {
+    next.delete('starred')
+    if (next.get('sort') === 'stars') next.delete('sort')
+    return next
+  }
+  return startParamsFuer(startAnsicht, next) ?? next
 }
 
 export const START_ANSICHTEN = ['fokus', 'alle'] as const
 export type StartAnsicht = (typeof START_ANSICHTEN)[number]
 
 /**
- * Vorgabe beim Start (G2, Owner 19.10.): steht `fokus` in der Config und
+ * Vorgabe beim Start (G2, Owner 19.10.; seit 20.10. nur im geführten Profil —
+ * Experten starten mit allen Einträgen): steht `fokus` in der Config und
  * traegt die Adresse weder `starred` noch `sort`, bekommt sie
  * `starred=1&sort=stars` (einmal je Montage, ohne Verlaufseintrag). Sonst
  * `null` = nichts tun. Unbekannter Wert wird gemeldet und wie `alle`

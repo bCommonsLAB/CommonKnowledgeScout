@@ -30,6 +30,7 @@ import {
 } from '@ks/ui'
 import { WebsiteImageField } from "@/components/settings/public/website-image-upload"
 import { SiteThemeField } from "@/components/settings/public/site-theme-field"
+import { MitredenFields } from "@/components/settings/public/mitreden-fields"
 import { validiereSiteTheme } from "@/lib/website/site-theme"
 import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } from "lucide-react"
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
@@ -89,6 +90,13 @@ const publicFormSchema = z.object({
   // Beschriftungen: Galerie-Menüpunkt (TopNav) und „mehr Inhalte"-Link (Website)
   galleryMenuLabel: z.string().optional(),
   galleryMoreLinkLabel: z.string().optional(),
+  // G5: Mitreden-Band des geführten Galerie-Profils (leer = kein Band)
+  mitredenHeadline: z.string().optional(),
+  mitredenText: z.string().optional(),
+  mitredenButtonLabel: z.string().optional(),
+  mitredenHref: z.string().optional().refine((v) => !v || /^(\/|https:\/\/)/.test(v.trim()), {
+    message: 'Ziel muss mit „/“ oder „https://“ beginnen',
+  }),
 })
 
 type PublicFormValues = z.infer<typeof publicFormSchema>
@@ -148,6 +156,10 @@ export function PublicForm() {
         galleryFilterDescription: "",
         galleryMenuLabel: "",
         galleryMoreLinkLabel: "",
+        mitredenHeadline: "",
+        mitredenText: "",
+        mitredenButtonLabel: "",
+        mitredenHref: "",
       }
     }
 
@@ -174,6 +186,11 @@ export function PublicForm() {
       galleryFilterDescription: activeLibrary.config?.publicPublishing?.gallery?.filterDescription || "",
       galleryMenuLabel: activeLibrary.config?.publicPublishing?.gallery?.menuLabel || "",
       galleryMoreLinkLabel: activeLibrary.config?.publicPublishing?.gallery?.moreLinkLabel || "",
+      // G5: Mitreden-Band; leer = kein Band
+      mitredenHeadline: activeLibrary.config?.publicPublishing?.mitreden?.headline || "",
+      mitredenText: activeLibrary.config?.publicPublishing?.mitreden?.text || "",
+      mitredenButtonLabel: activeLibrary.config?.publicPublishing?.mitreden?.buttonLabel || "",
+      mitredenHref: activeLibrary.config?.publicPublishing?.mitreden?.href || "",
     }
   }, [activeLibrary])
 
@@ -265,6 +282,13 @@ export function PublicForm() {
         moreLinkLabel: data.galleryMoreLinkLabel || undefined,
         description: data.galleryDescription || undefined,
         filterDescription: data.galleryFilterDescription || undefined,
+      },
+      // G5: Mitreden-Band feldweise; leer = Feld leer (ohne Überschrift/Ziel kein Band)
+      mitreden: {
+        headline: data.mitredenHeadline ?? "",
+        text: data.mitredenText ?? "",
+        buttonLabel: data.mitredenButtonLabel ?? "",
+        href: data.mitredenHref ?? "",
       },
     }
 
@@ -956,6 +980,8 @@ export function PublicForm() {
                   </FormItem>
                 )}
               />
+              {/* G5: Mitreden-Band des geführten Galerie-Profils */}
+              <MitredenFields control={form.control} />
             </div>
           </>
         )}

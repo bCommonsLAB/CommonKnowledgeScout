@@ -90,7 +90,8 @@ export function StoryEingabe(p: StoryEingabeProps) {
       <div className="absolute bottom-4 right-4 z-[51]">
         <Button
           onClick={() => p.setOffen(!p.offen)}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full p-0 shadow-lg transition-all hover:shadow-xl"
+          // Owner 20.10.: derselbe Frage-Akzent wie die Fragen-Karten — hier stellt man Fragen.
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-frage-foreground/30 bg-frage p-0 text-frage-foreground shadow-lg transition-all hover:bg-frage/80 hover:shadow-xl"
           aria-label={p.offen ? t('chat.input.closeChat') : t('chat.input.askQuestion')}
         >
           {p.offen ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
