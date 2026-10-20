@@ -260,14 +260,17 @@ export function GalleryRoot({
   const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
   // G2: Vorgabe „Im Fokus" aus der Config, einmal je Montage und ohne
   // Verlaufseintrag; „Alle" bleibt danach eine echte Adresse ohne Parameter.
+  // Owner 20.10.: nur im geführten Profil — Experten starten mit allen Einträgen. Erst
+  // entscheiden, wenn die Library (und damit Profil und Vorgabe) bekannt ist.
   const startAngewandtRef = React.useRef(false)
   useEffect(() => {
-    if (startAngewandtRef.current || mode !== 'gallery') return
+    if (startAngewandtRef.current || mode !== 'gallery' || !activeLibrary) return
     startAngewandtRef.current = true
+    if (profil !== 'gefuehrt') return
     const next = startParamsFuer(rawGalleryConfig?.startAnsicht, navigation.params)
     if (next) navigation.replaceParams(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [mode, activeLibrary?.id, profil])
   // D11b: Quellen als fliegendes Verzeichnis — beim Einstieg zu, der Browser merkt sich „auf".
   const quellenLeiste = useQuellenOffen()
   // D12e/D12i: Klick auf eine Zitatmarke bei zugeklappten Quellen — am Desktop die Schicht

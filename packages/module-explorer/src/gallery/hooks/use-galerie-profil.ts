@@ -26,11 +26,14 @@ export function useGalerieProfil(libraryId?: string): UseGalerieProfilResult {
   const { params, pushParams } = useGalleryNavigation()
   const libraries = useLibraries()
   const adresse = params.get(ANSICHT_PARAM)
-  const config = libraries.find((lib) => lib.id === libraryId)?.config?.chat?.gallery?.standardProfil
+  const galerieConfig = libraries.find((lib) => lib.id === libraryId)?.config?.chat?.gallery
+  const config = galerieConfig?.standardProfil
+  const startAnsicht = galerieConfig?.startAnsicht
   const ergebnis = useMemo(() => profilAus(adresse, config), [adresse, config])
+  // Wechsel zu Experte räumt den Fokus, Wechsel zu Einfach setzt die Start-Vorgabe (Owner 20.10.).
   const setzen = useCallback(
-    (profil: GalerieProfil) => pushParams(profilParams(params, profil)),
-    [params, pushParams],
+    (profil: GalerieProfil) => pushParams(profilParams(params, profil, startAnsicht)),
+    [params, pushParams, startAnsicht],
   )
   return { ...ergebnis, setzen }
 }

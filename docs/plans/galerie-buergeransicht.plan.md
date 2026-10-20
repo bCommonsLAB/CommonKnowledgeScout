@@ -265,6 +265,13 @@ zentriert mit eigenem grauen Kasten.
    keine zentrierte Spalte — Kennzeile, Titel und Erklärung stehen auf 16 px
    wie „36 Quellen“ und die erste Karte (Figma: Einleitung direkt auf der
    Seite).
+4. **Fokus-Vorgabe nur geführt (Owner 20.10.):** `startAnsicht: fokus`
+   greift nur im geführten Profil; Experten starten mit allen Einträgen und
+   schalten den Fokus bei Bedarf selbst ein. Der Umschalter räumt beim
+   Wechsel zu Experte `starred` und das zugehörige `sort=stars` weg und
+   setzt beim Wechsel zu Einfach die Start-Vorgabe (`profilParams` mit
+   `startAnsicht`; Start-Effekt in `gallery-root` erst, wenn die Library
+   bekannt ist).
 
 ## 4. Reihenfolge und Aufwand
 
@@ -313,3 +320,6 @@ Embed (`@ks/embed`) einmal montieren.
 5. **Mitreden-Band statt Story-Knopf (19.10., nach G4):** im geführten
    Profil entfällt „In Story Mode ansehen“, unten steht das Mitreden-Band
    aus Figma; Texte und Ziel kommen aus `publicPublishing.mitreden` (G5).
+6. **Experten starten mit allen Einträgen (20.10.):** die Fokus-Vorgabe der
+   Library gilt nur im geführten Profil; der Profil-Wechsel räumt bzw. setzt
+   den Fokus (G6, Punkt 4).
