@@ -521,6 +521,11 @@ export function GalleryRoot({
   React.useEffect(() => {
     if (!graphEnabled && viewMode === 'graph') setViewMode('grid')
   }, [graphEnabled, viewMode])
+  // Owner 20.10.: das geführte Profil kennt nur das Kartenraster — eine im Expertenmodus
+  // gewählte Tabelle oder der Graph fällt beim Wechsel auf das Raster zurück.
+  useEffect(() => {
+    if (profil === 'gefuehrt' && viewMode !== 'grid') setViewMode('grid')
+  }, [profil, viewMode])
 
   // Graph-Modus braucht den GANZEN gefilterten Bestand, nicht nur die per
   // Scroll-Pagination geladenen Seiten (sonst fehlen Knoten unsichtbar).
