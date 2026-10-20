@@ -115,6 +115,7 @@
   "gallery": {
     "gallery": "Inhalte",
     "sortByRating": "Nach Prioritäts-Indikator sortieren",
+    "sortByRatingKurz": "Priorität",
     "story": "Story Mode",
     "switchToStoryMode": "In Story Mode ansehen",
     "storyModeTooltip": "Im Story Mode kannst du dir die Inhalte in deiner Sprache, deinem Interessenprofil und deinem Kontext erklären lassen.",
@@ -328,6 +329,7 @@
       "toggleAdd": "Zu Favoriten hinzufügen",
       "toggleRemove": "Aus Favoriten entfernen",
       "filterOnly": "Nur Favoriten",
+      "filterOnlyKurz": "Favoriten",
       "filterOnlyTooltip": "Nur meine eigenen Favoriten",
       "starredFilter": "Mit Sternen",
       "starredFilterTooltip": "Alle Quellen, die mindestens ein Mitglied favorisiert hat",
@@ -338,6 +340,7 @@
       "publicCount": "{count} Sterne",
       "emptyHint": "Noch keine Favoriten markiert.",
       "sortByStars": "Nach Sternen sortieren",
+      "sortByStarsKurz": "Sterne",
       "voterTooltipHeader": "Sterne ({{count}})",
       "aggregatedCount": "{{count}} Sterne von Mitgliedern"
     },
@@ -354,6 +357,7 @@
     },
     "comments": {
       "filter": "Mit Kommentaren",
+      "filterKurz": "Kommentare",
       "filterTooltip": "Nur Quellen mit Kommentaren",
       "filterEmptyHint": "Noch keine Quelle mit Kommentaren.",
       "badge": "{{count}} Kommentare",

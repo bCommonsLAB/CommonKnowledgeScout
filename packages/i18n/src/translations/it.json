@@ -114,6 +114,7 @@
   "gallery": {
     "gallery": "Contenuti",
     "sortByRating": "Ordina per indice di priorità",
+    "sortByRatingKurz": "Priorità",
     "story": "Modalità Storia",
     "switchToStoryMode": "Visualizza in modalità Storia",
     "storyModeTooltip": "Nella modalità Storia, puoi farti spiegare i contenuti nella tua lingua, nel tuo profilo di interessi e nel tuo contesto.",
@@ -301,6 +302,7 @@
       "toggleAdd": "Aggiungi ai preferiti",
       "toggleRemove": "Rimuovi dai preferiti",
       "filterOnly": "Solo preferiti",
+      "filterOnlyKurz": "Preferiti",
       "filterOnlyTooltip": "Solo i miei preferiti",
       "starredFilter": "Con stelle",
       "starredFilterTooltip": "Tutte le fonti preferite da almeno un membro",
@@ -311,6 +313,7 @@
       "publicCount": "{count} stelle",
       "emptyHint": "Nessun preferito ancora.",
       "sortByStars": "Ordina per stelle",
+      "sortByStarsKurz": "Stelle",
       "voterTooltipHeader": "Stelle ({{count}})",
       "aggregatedCount": "{{count}} stelle dai membri"
     },
@@ -327,6 +330,7 @@
     },
     "comments": {
       "filter": "Con commenti",
+      "filterKurz": "Commenti",
       "filterTooltip": "Solo fonti con commenti",
       "filterEmptyHint": "Ancora nessuna fonte con commenti.",
       "badge": "{{count}} commenti",

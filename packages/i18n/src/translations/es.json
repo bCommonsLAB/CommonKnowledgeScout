@@ -114,6 +114,7 @@
   "gallery": {
     "gallery": "Contenidos",
     "sortByRating": "Ordenar por índice de prioridad",
+    "sortByRatingKurz": "Prioridad",
     "story": "Modo Historia",
     "switchToStoryMode": "Ver en modo Historia",
     "storyModeTooltip": "En el modo Historia, puedes hacerte explicar los contenidos en tu idioma, tu perfil de intereses y tu contexto.",
@@ -301,6 +302,7 @@
       "toggleAdd": "Añadir a favoritos",
       "toggleRemove": "Quitar de favoritos",
       "filterOnly": "Solo favoritos",
+      "filterOnlyKurz": "Favoritos",
       "filterOnlyTooltip": "Solo mis propios favoritos",
       "starredFilter": "Con estrellas",
       "starredFilterTooltip": "Todas las fuentes marcadas como favoritas por al menos un miembro",
@@ -311,6 +313,7 @@
       "publicCount": "{count} estrellas",
       "emptyHint": "Aún no hay favoritos.",
       "sortByStars": "Ordenar por estrellas",
+      "sortByStarsKurz": "Estrellas",
       "voterTooltipHeader": "Estrellas ({{count}})",
       "aggregatedCount": "{{count}} estrellas de miembros"
     },
@@ -327,6 +330,7 @@
     },
     "comments": {
       "filter": "Con comentarios",
+      "filterKurz": "Comentarios",
       "filterTooltip": "Solo fuentes con comentarios",
       "filterEmptyHint": "Aún ninguna fuente con comentarios.",
       "badge": "{{count}} comentarios",

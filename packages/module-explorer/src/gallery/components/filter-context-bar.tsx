@@ -201,11 +201,12 @@ export function FilterContextBar({
             })}
           >
             <Star
-              className={cn('h-3.5 w-3.5 lg:mr-1', onlyFavoritesActive && 'fill-current')}
+              className={cn('h-3.5 w-3.5 xl:mr-1', onlyFavoritesActive && 'fill-current')}
               aria-hidden
             />
-            <span className="hidden lg:inline">
-              {t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+            {/* Owner 20.10.: neben der Filterspalte reicht lg nicht — kurze Beschriftung ab xl, Volltext im Tooltip */}
+            <span className="hidden xl:inline">
+              {t('gallery.favorites.filterOnlyKurz', { defaultValue: 'Favoriten' })}
             </span>
           </Button>
         )}
@@ -233,9 +234,9 @@ export function FilterContextBar({
               defaultValue: 'Nur Quellen mit Kommentaren',
             })}
           >
-            <MessageCircle className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
-            <span className="hidden lg:inline">
-              {t('gallery.comments.filter', { defaultValue: 'Mit Kommentaren' })}
+            <MessageCircle className="h-3.5 w-3.5 xl:mr-1" aria-hidden />
+            <span className="hidden xl:inline">
+              {t('gallery.comments.filterKurz', { defaultValue: 'Kommentare' })}
             </span>
           </Button>
         )}
@@ -253,9 +254,9 @@ export function FilterContextBar({
             )}
             title={t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
           >
-            <ArrowDownWideNarrow className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
-            <span className="hidden lg:inline">
-              {t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
+            <ArrowDownWideNarrow className="h-3.5 w-3.5 xl:mr-1" aria-hidden />
+            <span className="hidden xl:inline">
+              {t('gallery.favorites.sortByStarsKurz', { defaultValue: 'Sterne' })}
             </span>
           </Button>
         )}
@@ -275,9 +276,9 @@ export function FilterContextBar({
             )}
             title={t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
           >
-            <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
-            <span className="hidden lg:inline">
-              {t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
+            <Gauge className="h-3.5 w-3.5 xl:mr-1" aria-hidden />
+            <span className="hidden xl:inline">
+              {t('gallery.sortByRatingKurz', { defaultValue: 'Priorität' })}
             </span>
           </Button>
         )}
@@ -363,12 +364,12 @@ export function FilterContextBar({
                   size="sm"
                   onClick={onCta}
                   aria-label={ctaLabel}
-                  className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 lg:px-4 text-xs sm:text-sm h-7 sm:h-8"
+                  className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 xl:px-4 text-xs sm:text-sm h-7 sm:h-8"
                 >
                   <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                  {/* Owner-Regel 08.10.2026: unter lg nur Symbol, Text im Tooltip */}
-                  <span className="hidden lg:inline">{ctaLabel}</span>
-                  <ArrowRight className="hidden lg:inline h-3 w-3 sm:h-4 sm:w-4" />
+                  {/* Owner-Regel 08.10.2026: unter xl nur Symbol, Text im Tooltip (seit 20.10. xl statt lg) */}
+                  <span className="hidden xl:inline">{ctaLabel}</span>
+                  <ArrowRight className="hidden xl:inline h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
