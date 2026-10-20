@@ -10,7 +10,7 @@
  */
 
 import type { ReactNode } from 'react'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, MessageCircleQuestion } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { StoryQuestion, StoryTopic } from '@ks/contracts'
@@ -50,10 +50,13 @@ export function StoryThema({ thema, filterAnzeige, onFrageWaehlen, onZurueck }: 
               <button
                 type="button"
                 onClick={() => onFrageWaehlen(frage)}
-                className="group flex w-full items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+                // Owner 20.10.: Fragen tragen den Frage-Akzent (Token `frage`), damit man sie sofort von Antworten unterscheidet.
+                className="group flex w-full items-center gap-3 rounded-lg border border-frage-foreground/20 bg-frage px-4 py-3 text-left text-frage-foreground shadow-sm transition-all hover:border-frage-foreground/50 hover:shadow-md"
+                data-frage-karte
               >
-                <span className="whitespace-normal break-words leading-snug">{frage.text}</span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                <MessageCircleQuestion className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                <span className="flex-1 whitespace-normal break-words leading-snug">{frage.text}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5" />
               </button>
             </li>
           ))}
