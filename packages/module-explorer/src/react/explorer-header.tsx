@@ -26,7 +26,10 @@ export function ExplorerHeader({ library, renderNotice }: ExplorerHeaderProps) {
              Ueberhang Luft (kein voller Header-Block, sonst wird Platz verschwendet).
              Mobil rendert die TopNav kein Logo, darum bleibt der Titel dort. */}
           <h1 className="px-3 py-2 text-lg font-bold truncate sm:hidden">{library.label}</h1>
-          <div className="hidden sm:block sm:h-10" aria-hidden="true" />
+          {/* G6: Hoehe = tatsaechlicher Ueberhang des Logos unter der TopNav (CSS-Variable
+             `--site-logo-ueberhang`, setzt die SiteLogo der App nach dem Laden; ohne Wert 2.5rem
+             wie bisher). Ein breites Logo haengt nicht ueber — dann 0, kein leerer Streifen. */}
+          <div className="hidden sm:block" style={{ height: 'var(--site-logo-ueberhang, 2.5rem)' }} aria-hidden="true" />
         </>
       ) : (
         <div className="flex flex-col gap-3 px-3 py-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:py-4">
@@ -38,8 +41,9 @@ export function ExplorerHeader({ library, renderNotice }: ExplorerHeaderProps) {
           </div>
         </div>
       )}
-      {/* A1: Nicht-blockierende Warnung beim Öffnen, falls die Library nicht geprüft ist. */}
-      <div className="px-3 pb-2 sm:px-4 sm:pb-3">
+      {/* A1: Nicht-blockierende Warnung beim Öffnen, falls die Library nicht geprüft ist.
+         G6: Polster nur, wenn der Slot etwas rendert (sonst 12px Leerraum unter dem Logo). */}
+      <div className="px-3 sm:px-4 [&:not(:empty)]:pb-2 sm:[&:not(:empty)]:pb-3">
         {renderNotice?.({ libraryId: library.id })}
       </div>
     </div>

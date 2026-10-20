@@ -13,6 +13,9 @@ describe('GalerieEinleitung', () => {
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('36 Maßnahmen im Fokus')
     expect(screen.getByText('Maßnahmen im Fokus')).toBeTruthy()
     expect(screen.getByText('Ein Stern heißt …')).toBeTruthy()
+    // G6: buendig in voller Breite, nicht zentriert
+    const inner = screen.getByRole('heading', { level: 2 }).parentElement
+    expect(inner?.className).not.toMatch(/mx-auto|max-w-/)
   })
 
   it('ohne Titel und Erklaerung rendert nichts', () => {

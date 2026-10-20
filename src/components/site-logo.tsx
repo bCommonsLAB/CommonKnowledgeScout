@@ -27,6 +27,10 @@ interface SiteLogoProps {
   homeHref: string
 }
 
+/** Lage des Logos: `top-2` unter der Oberkante, TopNav ist `h-16` (top-nav.tsx). */
+const LOGO_OBEN_PX = 8
+const TOPNAV_HOEHE_PX = 64
+
 export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement | null {
   const libraries = useLibraries()
   const atomLibrary = libraries.find(
@@ -60,6 +64,20 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
   }, [slug, atomLibrary])
 
   const logoUrl = atomLogoUrl ?? fetchedLogoUrl
+
+  // G6: Der Kopf der Erkunden-Seite (ExplorerHeader) haelt unter der TopNav genau so viel
+  // Platz frei, wie das Logo ueberhaengt — ein breites Logo (z. B. 2048x768) haengt nicht
+  // ueber, ein quadratisches um 40px. Gemessen nach dem Laden, als CSS-Variable am
+  // Dokument; ohne Logo wird sie entfernt (dann gilt dort die Vorgabe).
+  const setzeUeberhang = React.useCallback((img: HTMLImageElement | null) => {
+    if (!img) return
+    const ueberhang = Math.max(0, Math.round(img.getBoundingClientRect().height + LOGO_OBEN_PX - TOPNAV_HOEHE_PX))
+    document.documentElement.style.setProperty('--site-logo-ueberhang', `${ueberhang}px`)
+  }, [])
+  React.useEffect(() => {
+    return () => { document.documentElement.style.removeProperty('--site-logo-ueberhang') }
+  }, [])
+
   if (!logoUrl) return null
 
   return (
@@ -71,7 +89,10 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
         <img
           src={logoUrl}
           alt="Logo"
-          className="h-24 w-auto max-w-[7rem] object-contain drop-shadow-sm"
+          // G6: Hoehe folgt dem Bild (max 96px, max 112px breit) statt fester 96px — sonst
+          // sitzt ein breites Logo mittig in einem leeren 96px-Kasten unter der Navigation.
+          className="h-auto w-auto max-h-24 max-w-[7rem] object-contain drop-shadow-sm"
+          onLoad={(e) => setzeUeberhang(e.currentTarget)}
         />
       </Link>
     </div>

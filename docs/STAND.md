@@ -142,8 +142,9 @@ Vorrat mit ihrem offenen Rest.
    G4 Feinschliff nach Figma gebaut 19.10. (Kopf weg, ruhige Knöpfe, Suche in
    der Leiste, PR #408); Band-Texte der Klima-Library über die Brücke gesetzt.
    G5 Mitreden-Band statt Story-Knopf gebaut 19.10. (Text-Gruppe
-   `publicPublishing.mitreden`, Brücke 2.60.0); offen: Band-Texte der
-   Klima-Library über die Brücke setzen, Kopfnavigation der Schale je Profil.
+   `publicPublishing.mitreden`, Brücke 2.60.0, PR #409); G6 Kopf und Band
+   bündig 20.10. (Logo-Überhang statt fester Platzhalter, Band ohne Kasten);
+   offen: Mitreden-Texte der Klima-Library über die Brücke nach Deploy.
 4. Brücke: Live-Prüffall von Welle J (Index der fünf Seiten nachziehen,
    Cover ansehen); Welle K PR 2 (K4–K6: Stempel am Meta-Dokument, drei
    Zahlen in `twins_pruefen`).
