@@ -34,6 +34,15 @@ describe('parseMediaMetadata (Welle K1)', () => {
     expect(parseMediaMetadata([])).toBeNull()
   })
 
+  it('Antwortform des Secretary (Welle S): upload_date schon als ISO oder null, Kapitel mit title/start_time/end_time', () => {
+    const m = parseMediaMetadata({
+      id: 'abc', description: null, upload_date: '2015-11-09', uploader: null, channel: 'Kanal', chapters: [{ title: 'Start', start_time: 0, end_time: 12 }],
+      tags: [], thumbnail: 'https://i.ytimg.com/vi/abc/maxresdefault.jpg', webpage_url: 'https://www.youtube.com/watch?v=abc',
+    })
+    expect(m).toMatchObject({ description: '', uploadDate: '2015-11-09', uploader: '', channel: 'Kanal', kapitel: [{ titel: 'Start', start: 0, ende: 12 }] })
+    expect(parseMediaMetadata({ upload_date: null })?.uploadDate).toBe('')
+  })
+
   it('leerer Block: alle Felder leer, kein Datum', () => {
     const m = parseMediaMetadata({})
     expect(m).toEqual({ description: '', uploadDate: '', uploader: '', channel: '', kapitel: [], tags: [], thumbnail: '', webpageUrl: '' })

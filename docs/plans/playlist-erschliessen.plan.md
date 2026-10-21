@@ -2,11 +2,11 @@
 name: playlist-erschliessen
 overview: "Eine Video-Playlist (YouTube, auch Vimeo/PeerTube, soweit yt-dlp sie kennt) über die Brücke in eine Library bringen: Playlist auflösen, je Video einen Ordner mit Sammeldatei, Tonspur, Cover und vollständigen Metadaten anlegen, Transkription starten — ohne Ingest. Anlass: eine Dialogreihe mit 32 Videos seit 2015, aufbereitet nach dem Muster einer Veranstaltungs-Library (ein Ordner je Einheit, eine Sammeldatei je Einheit, Prüfung durch den Menschen, erst dann Galerie und Startseite)."
 vorhaben: []
-status: in-arbeit
+status: gebaut-abnahme-offen
 todos:
   - id: s-secretary
-    content: "Welle S Secretary (Repo CommonSecretaryServices, src/api/routes/media_routes.py): neue Route POST /media/playlist (yt-dlp extract_flat 'in_playlist', liefert Playlist-Titel, Besitzer, Beschreibung, Anzahl und entries mit id, url, title, duration, position; nicht abrufbare Einträge mit grund); /media/resolve liefert zusätzlich einen Block metadata (description, upload_date, uploader, channel, chapters, tags, thumbnail, webpage_url). noplaylist bleibt für resolve/download true. Tests unter .tests/."
-    status: pending
+    content: "Welle S Secretary (Repo CommonSecretaryServices, src/api/routes/media_routes.py): Route POST /media/playlist (yt-dlp extract_flat, Kopf mit title, uploader, channel, description, webpage_url, anzahl, anzahl_verfuegbar; entries mit position, id, url, title, duration, verfuegbar, grund) und Block metadata in /media/resolve (id, description, upload_date als ISO oder null, uploader, channel, chapters, tags, thumbnail, webpage_url). noplaylist bleibt für resolve/download. Gebaut und gemergt (#44, 21.10.2026); KnowledgeScout-Parser gegen diese Form getestet."
+    status: done
   - id: k1-media-resolve
     content: "Welle K1 KnowledgeScout, src/lib/web-source/: resolvePlaylistViaSecretary (playlist-resolve.ts) und ResolvedMedia.metadata (media-metadata.ts); Fehler laut mit Grund (Secretary ohne Route, leere Playlist, privat). Gebaut 21.10.2026."
     status: done
@@ -59,7 +59,7 @@ Ein Werkzeug, zwei Stufen, derselbe Ablauf wie bei einer Veranstaltung:
 
 ## 3. Wellen
 
-### S Secretary (offen, Repo CommonSecretaryServices)
+### S Secretary (gebaut, CommonSecretaryServices #44)
 
 - `POST /media/playlist` mit `{ url }`: yt-dlp mit `extract_flat: 'in_playlist'`,
   ohne `noplaylist`. Antwort `{ status: 'success', data: { title, uploader,
@@ -155,7 +155,7 @@ yt-dlp-Metadaten, Playlist-Antwort mit privatem Eintrag, Stapelgrenze, kein
 
 ## 5. Abnahme
 
-An der echten Playlist (nach Welle S):
+An der echten Playlist (nach dem Deploy des Secretary mit #44):
 
 - Vorschau nennt 32 Einträge mit Titel und Dauer.
 - Pilotvideo: Sammeldatei mit vollständiger Beschreibung, Datum, Cover und

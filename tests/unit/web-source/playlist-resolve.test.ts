@@ -35,3 +35,19 @@ describe('parsePlaylistAntwort (Welle K1)', () => {
     expect(() => parsePlaylistAntwort({ entries: [{ title: 'ohne Adresse' }] }, URL)).toThrow(/Eintrag 1 ohne id\/url/)
   })
 })
+
+describe('parsePlaylistAntwort gegen die Antwortform des Secretary (Welle S, CommonSecretaryServices #44)', () => {
+  it('liest die echte Form: verfuegbar/grund je Eintrag, null-Felder, anzahl_verfuegbar und channel im Kopf', () => {
+    const p = parsePlaylistAntwort({
+      id: 'PL1', title: 'Dialogreihe', uploader: 'Kanal', channel: 'Kanal', description: null, webpage_url: URL, anzahl: 2, anzahl_verfuegbar: 1,
+      entries: [
+        { position: 1, id: 'aaa', url: 'https://www.youtube.com/watch?v=aaa', title: 'Abend 1', duration: null, verfuegbar: true, grund: null },
+        { position: 2, id: 'bbb', url: 'https://www.youtube.com/watch?v=bbb', title: '[Private video]', duration: null, verfuegbar: false, grund: 'privat' },
+      ],
+    }, URL)
+    expect(p.description).toBe('')
+    expect(p.anzahl).toBe(2)
+    expect(p.entries[0]).toMatchObject({ position: 1, title: 'Abend 1', duration: null, grund: null })
+    expect(p.entries[1]).toMatchObject({ position: 2, title: '[Private video]', grund: 'privat' })
+  })
+})
