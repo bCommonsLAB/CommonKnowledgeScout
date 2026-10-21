@@ -405,3 +405,32 @@ drei Lücken, alle behoben:
 - **Datum aus dem richtigen Knoten.** Im JSON-LD-`@graph` steht die WebPage
   oft vor dem VideoObject; die Rangfolge geht jetzt nach Typ, dazu
   `video:release_date` und `<time datetime>`.
+
+## Nachtrag 2.61.0 (21.10.2026): Playlist als Quelle, Metadaten aus yt-dlp
+
+Plan `docs/plans/playlist-erschliessen.plan.md` (Anlass: eine Dialogreihe mit
+32 Videos als YouTube-Playlist).
+
+- **`playlist_erschliessen`, zwei Modi.** `vorschau` liest nur: die Playlist
+  flach über den Secretary (`POST /api/media/playlist`, Welle S dort), je
+  Eintrag Position, Titel, Dauer, Adresse, Ordnervorschlag `NN Titel`; nicht
+  abrufbare Einträge stehen mit Grund in der Liste. `mitDatum` startet einen
+  Lesejob für `JJJJ-MM-TT Titel`. `anlegen` schreibt nach Bestätigung: je
+  gewähltem Video (bis 30, mehr ist eine Absage mit Hinweis auf zwei Aufrufe)
+  ein Ordner unter der Wurzel und ein Job `web-source`/`erschliessen`, der dort
+  den Kern von `webseite_erschliessen` fährt — als Phase in der Start-Route
+  (ADR 0001, wie golden-set), weil ein Download bis 15 Minuten dauert. Alle
+  Jobs und ihre Transkriptionen tragen dieselbe `batchId` (`batch_bilanz`,
+  `batch_neustart`). Vorhandene Ordner werden nicht überschrieben (Befund je
+  Zeile), kein Fehler bricht den Stapel ab. Dieselbe Service-Funktion
+  (`playlist-erschliessen.ts`) dient einer späteren UI-Route (ADR 0007).
+- **Metadaten-Quelle.** Meldet `media/resolve` einen Video-Extractor (youtube,
+  vimeo, peertube) und den Block `metadata`, kommen Titel, Beschreibung
+  (wörtlich, Absätze an Leerzeilen), Datum (`upload_date`), Kanal, Kapitel
+  (Zeitmarken) und Cover (Thumbnail) aus yt-dlp; der HTML-Weg bleibt für
+  Presseseiten. Die Antwort nennt `metadatenQuelle: ytdlp | seite` und
+  `hinweise` (Upload-Datum ist nicht das Datum des Anlasses; Secretary ohne
+  Block; Video ohne Beschreibung). Nichts wird geraten.
+- **Ordnernamen vor dem Erschließen.** Die Vorschau ist die Stelle, an der der
+  Mensch Auswahl und Namen bestätigt — ein Umbenennen danach setzt
+  Twin-Familien auf `twin_stale`.

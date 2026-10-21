@@ -3,18 +3,17 @@
  * holen, Sammeldatei anlegen, Transkription starten.
  *
  * @description
- * Ein Weg fuer Bruecke (`webseite_erschliessen`) und Oberflaeche
- * (`POST /api/library/[id]/web-source`): Die Seite wird ohne Modell gelesen
- * (`page-extract.ts`), das eingebettete Medium ueber den Secretary (yt-dlp)
- * aufgeloest und hier geladen, das Coverbild der Seite geladen, alles neben der
- * Sammeldatei im Zielordner abgelegt (`<Basis> - Audio.mp3`, `<Basis> - Cover.jpg`,
- * `<Basis>.md`). Medium und Cover tragen NICHT den Basisnamen der Sammeldatei
- * mit Punkt dahinter: eine `<Basis>.md` neben `<Basis>.mp3` gilt im Twin-System
- * als Transkript des Mediums (artifact-resolver, Geschwister-Regel) — dann
- * wuerde die Transkription uebersprungen (Befund 13.10.2026). Fuer das Medium startet derselbe Transkriptions-Job wie bei
- * `quelle_erschliessen` (nur Transkript, kein Ingest). Die Transformation der
- * Sammeldatei ist ein eigener, bewusster Schritt (`transformation_starten`).
- * Jeder ausgelassene Teil (kein Medium, kein Cover) steht mit Grund im Ergebnis.
+ * Ein Weg fuer Bruecke (`webseite_erschliessen`, `playlist_erschliessen`) und
+ * Oberflaeche (`POST /api/library/[id]/web-source`). Zwei Quellen fuer das
+ * Seitenbild (Welle K2): Kennt yt-dlp die Seite als Videoseite (youtube, vimeo,
+ * peertube) und liefert der Secretary den Metadaten-Block, kommen Titel,
+ * Beschreibung (woertlich), Datum (upload_date), Kanal, Kapitel und Cover aus
+ * yt-dlp (`metadatenQuelle: ytdlp`); sonst wird die Seite ohne Modell gelesen
+ * (`page-extract.ts`, `metadatenQuelle: seite`). Dateien im Zielordner:
+ * `<Basis> - Audio.m4a`, `<Basis> - Cover.jpg`, `<Basis>.md` — NICHT
+ * `<Basis>.mp3`, das gilt im Twin-System als Transkript (Geschwister-Regel,
+ * Befund 13.10.2026). Transkriptions-Job wie bei `quelle_erschliessen` (kein
+ * Ingest). Jeder ausgelassene Teil steht mit Grund im Ergebnis; nichts wird geraten.
  *
  * @module web-source
  */
@@ -23,11 +22,14 @@ import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretar
 import type { StorageProvider } from '@/lib/storage/types'
 import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
 import { basisName, baueArtikelSammeldatei } from './artikel-sammeldatei'
-import { downloadDeclaredMedia, downloadMedia, downloadMediaViaSecretary, resolveMediaViaSecretary, type DownloadedMedia } from './media-resolve'
+import { istVideoExtractor, type MediaKapitel } from './media-metadata'
+import { resolveMediaViaSecretary, type ResolvedMedia } from './media-resolve'
+import { holeCover, holeMedium, PAGE_USER_AGENT, type MediumWeg } from './medium-und-cover'
+import { seiteAusMetadaten } from './metadaten-seite'
 import { extractWebPage, type WebPageExtract } from './page-extract'
 import { embedUrlFuerVideo } from './video-embed'
 
-const PAGE_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 KnowledgeScout'
+export type MetadatenQuelle = 'ytdlp' | 'seite'
 
 export interface WebseiteErschliessenInput {
   libraryId: string
@@ -43,17 +45,22 @@ export interface WebseiteErschliessenInput {
   llmModel?: string
   /** false = Seite nur lesen und Sammeldatei anlegen, kein Medium holen. */
   medienHolen: boolean
-  /**
-   * false = Medium nur als Quelle (Transkription), ohne Player und Video-Embed;
-   * im Eintrag nur Vorschaubild und Link zum Original. Default true.
-   */
+  /** false = Medium nur als Quelle (Transkription), ohne Player und Video-Embed. Default true. */
   medienEinbetten?: boolean
+  /** Welle K3: Stapel-Zugehoerigkeit, die der Transkriptions-Job erbt. */
+  batch?: { batchId: string; batchName?: string }
 }
 
 export interface WebseiteErschliessenResult {
   sammeldatei: { sourceId: string; name: string; ordnerId: string }
   seite: Pick<WebPageExtract, 'title' | 'siteName' | 'author' | 'datePublished' | 'imageUrl' | 'language'> & { bloecke: number; medienGefunden: number }
-  medium: { sourceId: string; name: string; bytes: number; dauerSekunden: number | null; weg: 'secretary' | 'secretary-download' | 'seite'; jobId: string } | null
+  /** Woher Titel, Text, Datum und Cover kommen: yt-dlp-Metadaten oder das HTML der Seite. */
+  metadatenQuelle: MetadatenQuelle
+  /** Zahl der Kapitel aus yt-dlp (0 ohne). */
+  kapitel: number
+  /** Was der Mensch wissen sollte (Datum ist Upload-Datum, Video ohne Beschreibung, Secretary ohne Metadaten-Block). */
+  hinweise: string[]
+  medium: { sourceId: string; name: string; bytes: number; dauerSekunden: number | null; weg: MediumWeg; jobId: string } | null
   /** Embed-Adresse (YouTube/Vimeo/PeerTube) fuer video_url, sonst null. */
   videoEmbedUrl: string | null
   mediumGrund: string | null
@@ -70,48 +77,24 @@ export async function ladeSeiteHtml(url: string): Promise<string> {
   return res.text()
 }
 
-async function holeMedium(seite: WebPageExtract): Promise<{ datei: DownloadedMedia; dauer: number | null; weg: 'secretary' | 'secretary-download' | 'seite' } | { grund: string }> {
-  let secretaryFehler: string
-  try {
-    const resolved = await resolveMediaViaSecretary(seite.url)
-    // Direkte AUDIO-Datei (http/https) laden wir selbst. Alles andere — Streams (HLS/DASH)
-    // und Videos — laedt der Secretary und zieht dabei nur die Tonspur (m4a) heraus:
-    // gebraucht wird die Transkription, und Audio-Optionen gelten nur fuer Audio
-    // (Befund Cowork-Test 13.10.: Rai-Videoseite mit kontext/begriffe wurde abgewiesen).
-    if (/^https?$/i.test(resolved.protocol) && resolved.istAudio) {
-      const datei = await downloadMedia(resolved.directUrl, { ext: resolved.ext, istAudio: resolved.istAudio, httpHeaders: resolved.httpHeaders })
-      return { datei, dauer: resolved.duration, weg: 'secretary' }
-    }
-    const geladen = await downloadMediaViaSecretary(seite.url)
-    return { datei: { buffer: geladen.buffer, mimeType: geladen.mimeType, ext: geladen.ext }, dauer: geladen.duration ?? resolved.duration, weg: 'secretary-download' }
-  } catch (error) {
-    secretaryFehler = error instanceof Error ? error.message : String(error)
-  }
-  const direkt = seite.media.find((m) => m.art === 'audio' || m.art === 'video')
-  if (!direkt) return { grund: `yt-dlp: ${secretaryFehler}; die Seite nennt keine direkte Audio-/Video-Adresse` }
-  try {
-    const datei = await downloadDeclaredMedia(direkt.url, seite.url)
-    return { datei, dauer: null, weg: 'seite' }
-  } catch (error) {
-    const seitenFehler = error instanceof Error ? error.message : String(error)
-    return { grund: `yt-dlp: ${secretaryFehler}; Adresse der Seite (${direkt.herkunft}): ${seitenFehler}` }
-  }
-}
+interface Seitenbild { seite: WebPageExtract; metadatenQuelle: MetadatenQuelle; kapitel: MediaKapitel[]; hinweise: string[] }
 
-async function holeCover(imageUrl: string, pageUrl: string): Promise<{ buffer: Buffer; ext: string; mimeType: string } | { grund: string }> {
-  if (!imageUrl) return { grund: 'Seite nennt kein Bild (og:image/JSON-LD)' }
-  try {
-    const res = await fetchWithTimeout(imageUrl, { headers: { Referer: pageUrl, 'User-Agent': PAGE_USER_AGENT }, timeoutMs: 30_000 })
-    if (!res.ok) return { grund: `Bild HTTP ${res.status}` }
-    const mimeType = (res.headers.get('content-type') ?? '').split(';')[0].trim()
-    const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : mimeType === 'image/jpeg' ? 'jpg' : ''
-    if (!ext) return { grund: `Bild ist kein JPEG/PNG/WebP (Content-Type "${mimeType || 'unbekannt'}")` }
-    const buffer = Buffer.from(await res.arrayBuffer())
-    if (buffer.length === 0) return { grund: 'Bild lieferte 0 Bytes' }
-    return { buffer, ext, mimeType }
-  } catch (error) {
-    return { grund: error instanceof Error ? error.message : String(error) }
+/** Welle K2: Seitenbild aus yt-dlp bei Videoseiten, sonst aus dem HTML. */
+async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fehler: string } | null): Promise<Seitenbild> {
+  const hinweise: string[] = []
+  if (resolved && !('fehler' in resolved) && istVideoExtractor(resolved.extractor)) {
+    if (resolved.metadata) {
+      const seite = seiteAusMetadaten({ url, title: resolved.title, metadata: resolved.metadata })
+      if (seite.datePublished) hinweise.push('Datum ist das Upload-Datum (upload_date) — nicht unbedingt das Datum des Anlasses; der Mensch bestaetigt es')
+      else hinweise.push('yt-dlp nennt kein Upload-Datum — date bleibt leer, mit dokument_felder_setzen nachtragen')
+      if (seite.bloecke.length === 0) hinweise.push('Videoseite ohne Beschreibung — die Sammeldatei traegt keinen Artikeltext, das Transkript ist das Material')
+      return { seite, metadatenQuelle: 'ytdlp', kapitel: resolved.metadata.kapitel, hinweise }
+    }
+    hinweise.push(`yt-dlp kennt die Seite als ${resolved.extractor}, der Secretary liefert aber keinen metadata-Block (Welle S fehlt) — Seitenbild aus dem HTML`)
   }
+  const seite = extractWebPage(await ladeSeiteHtml(url), url)
+  if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze in article/main/body) — nichts geschrieben')
+  return { seite, metadatenQuelle: 'seite', kapitel: [], hinweise }
 }
 
 /** Fuehrt den ganzen Weg aus; wirft bei Seite ohne Text oder vorhandenem Dateinamen, nichts geschrieben. */
@@ -124,16 +107,23 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const kollision = vorhanden.find((i) => i.type === 'file' && i.metadata.name.toLowerCase().startsWith(basis.toLowerCase()))
   if (kollision) throw new Error(`"${kollision.metadata.name}" gibt es in diesem Ordner schon — anderen Dateinamen waehlen. Nichts geschrieben.`)
 
-  const seite = extractWebPage(await ladeSeiteHtml(url), url)
-  if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze in article/main/body) — nichts geschrieben')
+  // Erst yt-dlp fragen (ein Aufruf fuer Metadaten UND Medienadresse), dann das Seitenbild bauen.
+  let resolved: ResolvedMedia | { fehler: string } | null = null
+  if (medienHolen) {
+    try {
+      resolved = await resolveMediaViaSecretary(url)
+    } catch (error) {
+      resolved = { fehler: error instanceof Error ? error.message : String(error) }
+    }
+  }
+  const { seite, metadatenQuelle, kapitel, hinweise } = await leseSeitenbild(url, resolved)
 
   // Erst alles laden, dann schreiben: ein Fehler beim Laden laesst den Ordner unberuehrt.
-  const medium = medienHolen ? await holeMedium(seite) : { grund: 'medienHolen: false' }
+  const medium = medienHolen && resolved ? await holeMedium(seite, resolved) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
 
   const istVideo = 'datei' in medium && medium.datei.mimeType.startsWith('video/')
-  // Audio-Optionen gibt es nur fuer Audio. Pruefen, BEVOR etwas geschrieben wird —
-  // sonst bliebe das Medium nach der Abweisung im Ordner liegen (Befund Cowork-Test 13.10.).
+  // Audio-Optionen gibt es nur fuer Audio. Pruefen, BEVOR etwas geschrieben wird (Befund Cowork-Test 13.10.).
   if (istVideo && Object.keys(audioContext).length > 0) {
     throw new Error(
       'Das Medium dieser Seite kam nur als Video (ohne extrahierbare Tonspur) — sprecherErkennung, kontext und begriffe ' +
@@ -146,10 +136,10 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const videoEmbedUrl = medienEinbetten ? embedUrlFuerVideo(url, seite.media) : null
   const markdown = baueArtikelSammeldatei({
     seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl, medienEinbetten,
+    kapitel, ohneTextErlaubt: metadatenQuelle === 'ytdlp',
   })
 
-  // Schreiben: scheitert ein Schritt, werden die schon hochgeladenen Dateien wieder
-  // entfernt — der Ordner bleibt wie vorher (Befund Cowork-Test 13.10.).
+  // Schreiben: scheitert ein Schritt, werden die schon hochgeladenen Dateien wieder entfernt (Befund 13.10.).
   const geschrieben: Array<{ id: string; name: string }> = []
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
   let coverErgebnis: WebseiteErschliessenResult['cover'] = null
@@ -174,7 +164,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
         libraryId, userEmail,
         source: { itemId: mediumItemId, parentId: folderId, name: medienDatei, mimeType: medium.datei.mimeType },
         mediaType: istVideo ? 'video' : 'audio',
-        template: undefined, llmModel, targetLanguage, audioContext, ingest: false,
+        template: undefined, llmModel, targetLanguage, audioContext, ingest: false, batch: input.batch,
       })
       mediumErgebnis = { sourceId: mediumItemId, name: medienDatei, bytes: medium.datei.buffer.length, dauerSekunden: medium.dauer, weg: medium.weg, jobId }
     }
@@ -200,6 +190,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
       title: seite.title, siteName: seite.siteName, author: seite.author, datePublished: seite.datePublished,
       imageUrl: seite.imageUrl, language: seite.language, bloecke: seite.bloecke.length, medienGefunden: seite.media.length,
     },
+    metadatenQuelle, kapitel: kapitel.length, hinweise,
     medium: mediumErgebnis,
     videoEmbedUrl,
     mediumGrund: 'grund' in medium ? medium.grund : null,

@@ -87,8 +87,10 @@ export function registerJobTools(server: McpServer): void {
           ...(job.status === 'failed' ? fehlerBlock(job) : {}),
           // Welle B: bei Audio-Jobs die Transkriptions-Optionen, wie sie im Job liegen (Weg sichtbar).
           ...(job.job_type === 'audio' ? { audioKontext: audioKontextVonJob(job) } : {}),
-          // Welle F: in-process-Phasen (Golden-Set) legen ihr Ergebnis an den Job.
+          // Welle F / K3: in-process-Phasen (Golden-Set, Webseite, Playlist-Lesen) legen ihr Ergebnis an den Job.
           ...(job.cumulativeMeta?.goldenSet ? { ergebnis: job.cumulativeMeta.goldenSet } : {}),
+          ...(job.cumulativeMeta?.webSource ? { ergebnis: job.cumulativeMeta.webSource } : {}),
+          ...(job.cumulativeMeta?.playlist ? { ergebnis: job.cumulativeMeta.playlist } : {}),
           erstellt: job.createdAt ?? null,
           aktualisiert: job.updatedAt ?? null,
         })

@@ -17,6 +17,7 @@
 
 import { getSecretaryConfig } from '@/lib/env'
 import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
+import { parseMediaMetadata, type MediaMetadata } from './media-metadata'
 
 export interface ResolvedMedia {
   directUrl: string
@@ -29,6 +30,8 @@ export interface ResolvedMedia {
   protocol: string
   httpHeaders: Record<string, string>
   extractor: string
+  /** Welle K1: Beschreibung, Datum, Kanal, Kapitel, Thumbnail aus yt-dlp; null bei aelterem Secretary ohne Block. */
+  metadata: MediaMetadata | null
 }
 
 export interface DownloadedMedia {
@@ -58,7 +61,8 @@ export function mimeFuer(ext: string, istAudio: boolean, fallback: string): stri
   return base
 }
 
-function secretaryHeaders(): { baseUrl: string; headers: Record<string, string> } {
+/** Basis-Adresse und Kopfzeilen des Secretary; wirft ohne SECRETARY_SERVICE_URL. */
+export function secretaryHeaders(): { baseUrl: string; headers: Record<string, string> } {
   const { baseUrl, apiKey } = getSecretaryConfig()
   if (!baseUrl) throw new Error('SECRETARY_SERVICE_URL fehlt — Medien koennen nicht aufgeloest werden')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -69,7 +73,8 @@ function secretaryHeaders(): { baseUrl: string; headers: Record<string, string> 
   return { baseUrl, headers }
 }
 
-async function secretaryFehler(res: Response, weg: string): Promise<Error> {
+/** Fehler einer Secretary-Antwort mit Code und Meldung aus dem Body. */
+export async function secretaryFehler(res: Response, weg: string): Promise<Error> {
   const payload = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null
   const msg = payload?.error?.message ?? `HTTP ${res.status}`
   const code = payload?.error?.code ?? 'SECRETARY_ERROR'
@@ -100,6 +105,7 @@ export async function resolveMediaViaSecretary(pageUrl: string): Promise<Resolve
     protocol: typeof d['protocol'] === 'string' ? d['protocol'] : '',
     httpHeaders,
     extractor: typeof d['extractor'] === 'string' ? d['extractor'] : '',
+    metadata: parseMediaMetadata(d['metadata']),
   }
 }
 

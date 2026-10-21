@@ -5,7 +5,7 @@ description: Einen Artikel im Netz (Presseseite mit eingebettetem Audio oder Vid
 
 # Webseite als Quelle erschließen
 
-Stand 13.10.2026, Werkzeugsatz 2.53.0. Original im Archiv unter
+Stand 21.10.2026, Werkzeugsatz 2.61.0. Original im Archiv unter
 `Organisation/Skills/webseite-erschliessen/SKILL.md`; in den
 Claude-Einstellungen die Ableitung, im Repo die Kopie. Ein Artikel mit eingebettetem Medium
 wird zur Sammeldatei nach demselben Muster wie ein Vortrag einer
@@ -100,9 +100,59 @@ Menschen fragen, ob eingebettet werden darf.
   Twin für das Medium vor — `erzwingen: true` bei `quelle_erschliessen` auf das
   Medium, oder den fremden Twin prüfen.
 
+## Playlist (Werkzeugsatz 2.61.0)
+
+Eine Video-Playlist (YouTube, Vimeo, PeerTube — was yt-dlp kennt) wird wie
+eine Veranstaltung aufbereitet: ein Ordner je Video, darin die Sammeldatei,
+`<Ordner> - Audio.m4a` und `<Ordner> - Cover.jpg`, Transkription gestartet,
+kein Ingest. Werkzeug `playlist_erschliessen`, zwei Stufen:
+
+1. **Vorschau** (`modus: vorschau`, Vorgabe, liest nur): nennt je Eintrag
+   Position, Titel, Dauer, Adresse und den Ordnervorschlag `NN Titel`.
+   Nicht abrufbare Einträge (privat, gelöscht) stehen mit `grund` in der Liste
+   — dem Menschen nennen. Soll der Ordner das Datum tragen
+   (`JJJJ-MM-TT Titel`): `mitDatum: true` mit `ordner` startet einen Lesejob;
+   `job_status` liefert unter `ergebnis.playlist.eintraege` je Video Datum und
+   Vorschlag. Das Datum ist das Upload-Datum, nicht unbedingt das Datum des
+   Abends.
+2. **Rückfrage**: Auswahl (Positionen oder Video-Ids) und Ordnernamen mit dem
+   Menschen bestätigen. Ordnernamen werden HIER entschieden — ein Umbenennen
+   nach dem Erschließen setzt die Twin-Familien auf `twin_stale`.
+3. **Anlegen** (`modus: anlegen`, schreibt, nur nach Bestätigung): `ordner`
+   (Wurzel), `auswahl` (bis 30 je Aufruf; bei 32 Videos zwei Aufrufe — das
+   Werkzeug sagt das, es kürzt nicht), optional `ordnernamen`
+   (Position als Text → Name), dazu `sprecherErkennung` (Dialoge: true),
+   `kontext`, `begriffe`, `medienEinbetten` wie bei `webseite_erschliessen`,
+   gültig für alle Videos. Antwort sofort: `batchId` und je Zeile Ordner,
+   `ordnerId`, `jobId` oder `befund` (Ordner gibt es schon — nicht
+   überschrieben; nicht abrufbar; Position nicht in der Playlist).
+4. **Abwarten**: `batch_bilanz` mit der `batchId` — je Video ein
+   `web-source`-Job (Metadaten, Tonspur, Cover, Sammeldatei) und ein
+   Transkriptions-Job mit derselben `batchId`. Gescheiterte Zeilen mit
+   `batch_neustart` wiederholen (der Ordner bleibt; die Sammeldatei wird nicht
+   überschrieben — Reste vorher prüfen). `job_status` eines `web-source`-Jobs
+   zeigt unter `ergebnis` die Antwort von `webseite_erschliessen`
+   (`metadatenQuelle`, `hinweise`, `mediumGrund`, `coverGrund`).
+5. Weiter mit den Stationen 4–7 aus `veranstaltung-aufbereiten`: Transkripte
+   prüfen, `transformation_starten` je Sammeldatei (Vorlage nach
+   Owner-Entscheid, z. B. `artikel-de`), Rahmen, Publikation.
+
+**Metadaten aus yt-dlp** (gilt auch für `webseite_erschliessen` auf eine
+einzelne YouTube-/Vimeo-/PeerTube-Seite): Titel, Beschreibung wörtlich
+(Absätze an Leerzeilen — dort stehen Gäste und Thema), Datum (`upload_date`),
+Kanal (`source`), Kapitel (`## Kapitel` mit Zeitmarken) und Cover (Thumbnail)
+kommen aus yt-dlp, nicht aus dem HTML. Die Antwort nennt
+`metadatenQuelle: ytdlp | seite` und `hinweise`. Steht dort „Secretary liefert
+keinen metadata-Block", fehlt Welle S im Secretary — Seitenbild kam aus dem
+HTML, dem Menschen sagen. Eine Videoseite ohne Beschreibung ergibt eine
+Sammeldatei ohne Artikeltext; das Transkript ist dann das Material.
+
 ## Grenzen
 
 - 500 MB je Medium, Seitenabruf 30 s, Download bis 10 min (Secretary-Download 15 min).
 - Zugriffsgeschützte Seiten (Login, Paywall) werden nicht gelesen.
+- Playlist: 30 Videos je `anlegen`-Aufruf; die Vorschau holt nur die flache
+  Liste (keine Dauer, wenn yt-dlp sie dort nicht nennt). Braucht im Secretary
+  `POST /api/media/playlist` (Welle S) — fehlt sie, sagt das Werkzeug das.
 - Die Vorlage übernimmt den Artikel wörtlich; wer eine andere Darstellung will,
   nimmt eine andere Vorlage, nicht eine andere Sammeldatei.
