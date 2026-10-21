@@ -5,7 +5,7 @@ description: Einen Artikel im Netz (Presseseite mit eingebettetem Audio oder Vid
 
 # Webseite als Quelle erschließen
 
-Stand 21.10.2026, Werkzeugsatz 2.61.0. Original im Archiv unter
+Stand 21.10.2026, Werkzeugsatz 2.62.0. Original im Archiv unter
 `Organisation/Skills/webseite-erschliessen/SKILL.md`; in den
 Claude-Einstellungen die Ableitung, im Repo die Kopie. Ein Artikel mit eingebettetem Medium
 wird zur Sammeldatei nach demselben Muster wie ein Vortrag einer
@@ -148,6 +148,20 @@ kommen aus yt-dlp, nicht aus dem HTML. Die Antwort nennt
 keinen metadata-Block", fehlt Welle S im Secretary — Seitenbild kam aus dem
 HTML, dem Menschen sagen. Eine Videoseite ohne Beschreibung ergibt eine
 Sammeldatei ohne Artikeltext; das Transkript ist dann das Material.
+
+## Video-Anmeldung (YouTube-Bot-Sperre)
+
+YouTube weist Abrufe von Server-Adressen ab („Sign in to confirm you're not a
+bot"); die Playlist-Liste kommt oft noch durch, jeder Einzelabruf nicht. Die
+Lösung liegt bei der Person, nicht beim Server: unter `Einstellungen → Mein
+Zugang → Video-Anmeldung` die im Browser exportierte `cookies.txt` hinterlegen
+(eigenes YouTube-Konto, Erweiterung „Get cookies.txt LOCALLY"). Sie wird bei
+`webseite_erschliessen` und `playlist_erschliessen` automatisch mitgegeben.
+Vor einem Playlist-Lauf `video_anmeldung_lesen` aufrufen: `hinterlegt: false`
+oder `abgelaufen: true` dem Menschen nennen, bevor ein Stapel ins Leere läuft.
+Die Fehlerdeutung `youtube_anmeldung` in `job_status`/`batch_bilanz` heißt:
+Anmeldung hinterlegen oder erneuern, dann `batch_neustart`; ein Neustart ohne
+Anmeldung ist zwecklos.
 
 ## Grenzen
 

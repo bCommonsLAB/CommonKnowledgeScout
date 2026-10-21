@@ -81,10 +81,15 @@ export async function secretaryFehler(res: Response, weg: string): Promise<Error
   return new Error(`Secretary ${weg}: [${code}] ${msg}`)
 }
 
-/** Fragt den Secretary (yt-dlp) nach der direkten Medienadresse einer Seite. */
-export async function resolveMediaViaSecretary(pageUrl: string): Promise<ResolvedMedia> {
+/** Welle C3: Body eines Medien-Aufrufs — die Video-Anmeldung (cookies.txt) nur, wenn die Person eine hinterlegt hat. */
+export function medienAnfrageBody(url: string, cookies: string | null | undefined, extra: Record<string, unknown> = {}): string {
+  return JSON.stringify({ url, ...extra, ...(cookies && cookies.trim() ? { cookies } : {}) })
+}
+
+/** Fragt den Secretary (yt-dlp) nach der direkten Medienadresse einer Seite; `cookies` = Video-Anmeldung der Person. */
+export async function resolveMediaViaSecretary(pageUrl: string, cookies: string | null = null): Promise<ResolvedMedia> {
   const { baseUrl, headers } = secretaryHeaders()
-  const res = await fetchWithTimeout(`${baseUrl}/media/resolve`, { method: 'POST', headers, body: JSON.stringify({ url: pageUrl }), timeoutMs: 60_000 })
+  const res = await fetchWithTimeout(`${baseUrl}/media/resolve`, { method: 'POST', headers, body: medienAnfrageBody(pageUrl, cookies), timeoutMs: 60_000 })
   if (!res.ok) throw await secretaryFehler(res, 'media/resolve')
   const payload = (await res.json().catch(() => null)) as { status?: string; data?: Record<string, unknown> } | null
   if (!payload || payload.status !== 'success' || !payload.data) throw new Error('Secretary media/resolve: Antwort ohne data')
@@ -110,9 +115,9 @@ export async function resolveMediaViaSecretary(pageUrl: string): Promise<Resolve
 }
 
 /** Laesst den Secretary laden (Streams) und nimmt die Datei entgegen. */
-export async function downloadMediaViaSecretary(pageUrl: string, maxBytes = DEFAULT_MAX_BYTES): Promise<DownloadedMedia & { duration: number | null; istAudio: boolean }> {
+export async function downloadMediaViaSecretary(pageUrl: string, maxBytes = DEFAULT_MAX_BYTES, cookies: string | null = null): Promise<DownloadedMedia & { duration: number | null; istAudio: boolean }> {
   const { baseUrl, headers } = secretaryHeaders()
-  const res = await fetchWithTimeout(`${baseUrl}/media/download`, { method: 'POST', headers, body: JSON.stringify({ url: pageUrl }), timeoutMs: 15 * 60_000 })
+  const res = await fetchWithTimeout(`${baseUrl}/media/download`, { method: 'POST', headers, body: medienAnfrageBody(pageUrl, cookies), timeoutMs: 15 * 60_000 })
   if (!res.ok) throw await secretaryFehler(res, 'media/download')
   const ext = (res.headers.get('x-media-ext') ?? '').toLowerCase() || 'bin'
   const istAudio = res.headers.get('x-media-is-audio') === 'true'

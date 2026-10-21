@@ -20,6 +20,7 @@
 import crypto from 'crypto'
 import { enqueuePlaylistLesenJob, enqueueWebSourceJob } from '@/lib/external-jobs/enqueue-web-source'
 import type { StorageProvider } from '@/lib/storage/types'
+import { ladeVideoCookies } from '@/lib/video-login/video-login-service'
 import { ordnerVorschlag, planePlaylistAnlage, type PlaylistZeilePlan } from './playlist-auswahl'
 import { resolvePlaylistViaSecretary, type ResolvedPlaylist } from './playlist-resolve'
 
@@ -47,6 +48,8 @@ export interface PlaylistVorschauResult {
   eintraege: VorschauEintrag[]
   /** Lesejob fuer Ordnernamen mit Datum (nur mit mitDatum). */
   datumJob: { jobId: string } | null
+  /** Welle C3: ob die Video-Anmeldung der Person mitgegeben wurde. */
+  videoAnmeldung: boolean
 }
 
 function kopf(p: ResolvedPlaylist): PlaylistKopf {
@@ -54,7 +57,8 @@ function kopf(p: ResolvedPlaylist): PlaylistKopf {
 }
 
 export async function playlistVorschau(args: { libraryId: string; userEmail: string; url: string; mitDatum: boolean; wurzelId?: string }): Promise<PlaylistVorschauResult> {
-  const playlist = await resolvePlaylistViaSecretary(args.url)
+  const cookies = await ladeVideoCookies(args.userEmail)
+  const playlist = await resolvePlaylistViaSecretary(args.url, cookies)
   const eintraege: VorschauEintrag[] = playlist.entries.map((e) => ({
     position: e.position, id: e.id, url: e.url, titel: e.title, dauerSekunden: e.duration,
     ordnerVorschlag: e.grund ? '' : ordnerVorschlag(e.position, e.title), grund: e.grund,
@@ -64,7 +68,7 @@ export async function playlistVorschau(args: { libraryId: string; userEmail: str
     if (!args.wurzelId) throw new Error('mitDatum braucht ordner oder ordnerId (die Wurzel, unter der die Ordner entstehen)')
     datumJob = await enqueuePlaylistLesenJob({ libraryId: args.libraryId, userEmail: args.userEmail, optionen: { url: args.url, wurzelId: args.wurzelId, titel: playlist.title } })
   }
-  return { playlist: kopf(playlist), eintraege, datumJob }
+  return { playlist: kopf(playlist), eintraege, datumJob, videoAnmeldung: cookies !== null }
 }
 
 export interface PlaylistAnlegenInput {
@@ -97,7 +101,7 @@ export interface PlaylistAnlegenResult {
 
 export async function playlistAnlegen(input: PlaylistAnlegenInput): Promise<PlaylistAnlegenResult> {
   const { libraryId, userEmail, provider, wurzelId } = input
-  const playlist = await resolvePlaylistViaSecretary(input.url)
+  const playlist = await resolvePlaylistViaSecretary(input.url, await ladeVideoCookies(userEmail))
   const vorhandene = (await provider.listItemsById(wurzelId)).filter((i) => i.type === 'folder').map((i) => i.metadata.name)
   const plan = planePlaylistAnlage({ entries: playlist.entries, auswahl: input.auswahl, ordnernamen: input.ordnernamen, vorhandeneNamen: vorhandene })
   const batchId = crypto.randomUUID()

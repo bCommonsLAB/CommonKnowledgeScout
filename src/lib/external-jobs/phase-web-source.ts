@@ -17,6 +17,7 @@
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { ladeVideoCookies } from '@/lib/video-login/video-login-service'
 import { resolveMediaViaSecretary } from '@/lib/web-source/media-resolve'
 import { ordnerVorschlag } from '@/lib/web-source/playlist-auswahl'
 import { resolvePlaylistViaSecretary } from '@/lib/web-source/playlist-resolve'
@@ -88,7 +89,8 @@ export function playlistLesenBilanz(eintraege: ReadonlyArray<LesenZeile>): Playl
 
 async function lesePlaylist(job: ExternalJob, repo: ExternalJobsRepository): Promise<void> {
   const optionen = lesePlaylistLesenOptionen(job)
-  const playlist = await resolvePlaylistViaSecretary(optionen.url)
+  const cookies = await ladeVideoCookies(job.userEmail)
+  const playlist = await resolvePlaylistViaSecretary(optionen.url, cookies)
   const eintraege: LesenZeile[] = []
   for (const [index, e] of playlist.entries.entries()) {
     const basis = { position: e.position, id: e.id, titel: e.title, url: e.url }
@@ -97,7 +99,7 @@ async function lesePlaylist(job: ExternalJob, repo: ExternalJobsRepository): Pro
       continue
     }
     try {
-      const resolved = await resolveMediaViaSecretary(e.url)
+      const resolved = await resolveMediaViaSecretary(e.url, cookies)
       const datum = resolved.metadata?.uploadDate ?? ''
       const titel = resolved.title || e.title
       eintraege.push({ ...basis, titel, datum, ordnerVorschlag: ordnerVorschlag(e.position, titel, datum || undefined), grund: datum ? null : 'yt-dlp nennt kein Upload-Datum — Vorschlag nach Position' })

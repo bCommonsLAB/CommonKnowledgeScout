@@ -25,7 +25,7 @@ export type MediumErgebnis = { datei: DownloadedMedia; dauer: number | null; weg
 export type CoverErgebnis = { buffer: Buffer; ext: string; mimeType: string } | { grund: string }
 
 /** Laedt das Medium; `resolved` ist das Ergebnis von media/resolve oder dessen Fehler. */
-export async function holeMedium(seite: WebPageExtract, resolved: ResolvedMedia | { fehler: string }): Promise<MediumErgebnis> {
+export async function holeMedium(seite: WebPageExtract, resolved: ResolvedMedia | { fehler: string }, cookies: string | null = null): Promise<MediumErgebnis> {
   let secretaryFehler: string
   if ('fehler' in resolved) {
     secretaryFehler = resolved.fehler
@@ -35,7 +35,7 @@ export async function holeMedium(seite: WebPageExtract, resolved: ResolvedMedia 
         const datei = await downloadMedia(resolved.directUrl, { ext: resolved.ext, istAudio: resolved.istAudio, httpHeaders: resolved.httpHeaders })
         return { datei, dauer: resolved.duration, weg: 'secretary' }
       }
-      const geladen = await downloadMediaViaSecretary(seite.url)
+      const geladen = await downloadMediaViaSecretary(seite.url, undefined, cookies)
       return { datei: { buffer: geladen.buffer, mimeType: geladen.mimeType, ext: geladen.ext }, dauer: geladen.duration ?? resolved.duration, weg: 'secretary-download' }
     } catch (error) {
       secretaryFehler = error instanceof Error ? error.message : String(error)

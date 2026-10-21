@@ -16,7 +16,7 @@ describe('deuteFehler — youtube_anmeldung', () => {
       const d = deuteFehler([meldung])
       expect(d?.art, meldung).toBe('youtube_anmeldung')
       expect(d?.wiederholenSinnvoll).toBe(false)
-      expect(d?.empfehlung).toContain('YTDLP_COOKIES_FILE')
+      expect(d?.empfehlung).toContain('Mein Zugang')
     }
   })
 

@@ -174,8 +174,9 @@ export function deuteFehler(meldungen: readonly (string | null | undefined)[]): 
         'YouTube verlangt eine Anmeldung (Sign in to confirm you are not a bot) — die Adresse des Secretary-Servers ' +
         'gilt dort als Rechenzentrum. Die Playlist-Liste kommt oft noch durch, jeder Einzelabruf nicht. Weder Quelle noch Vorlage sind das Problem.',
       empfehlung:
-        'Am Secretary-Server eine Cookie-Datei (Netscape-Format, eigenes YouTube-Konto) hinterlegen, YTDLP_COOKIES_FILE darauf zeigen ' +
-        'lassen, yt-dlp aktualisieren, Dienst neu starten; dauerhaft ein PO-Token-Plugin. Neustart ohne diese Aenderung ist zwecklos.',
+        'Video-Anmeldung am Konto hinterlegen oder erneuern (Einstellungen → Mein Zugang: cookies.txt aus dem Browser, eigenes ' +
+        'YouTube-Konto; Status mit video_anmeldung_lesen), dann denselben Job neu starten. Ein Neustart ohne Anmeldung ist zwecklos; ' +
+        'haelt YouTube die Sperre trotz Anmeldung, braucht der Secretary ein PO-Token-Plugin (Admin).',
       wiederholenSinnvoll: false,
     }
   }
