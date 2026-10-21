@@ -20,16 +20,16 @@
 
 import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import type { StorageProvider } from '@/lib/storage/types'
-import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
+import { ladeVideoCookies } from '@/lib/video-login/video-login-service'
 import { basisName, baueArtikelSammeldatei } from './artikel-sammeldatei'
-import { istVideoExtractor, type MediaKapitel } from './media-metadata'
 import { resolveMediaViaSecretary, type ResolvedMedia } from './media-resolve'
-import { holeCover, holeMedium, PAGE_USER_AGENT, type MediumWeg } from './medium-und-cover'
-import { seiteAusMetadaten } from './metadaten-seite'
-import { extractWebPage, type WebPageExtract } from './page-extract'
+import { holeCover, holeMedium, type MediumWeg } from './medium-und-cover'
+import type { WebPageExtract } from './page-extract'
+import { leseSeitenbild, type MetadatenQuelle } from './seitenbild'
 import { embedUrlFuerVideo } from './video-embed'
 
-export type MetadatenQuelle = 'ytdlp' | 'seite'
+export type { MetadatenQuelle } from './seitenbild'
+export { ladeSeiteHtml } from './seitenbild'
 
 export interface WebseiteErschliessenInput {
   libraryId: string
@@ -49,6 +49,8 @@ export interface WebseiteErschliessenInput {
   medienEinbetten?: boolean
   /** Welle K3: Stapel-Zugehoerigkeit, die der Transkriptions-Job erbt. */
   batch?: { batchId: string; batchName?: string }
+  /** Welle C3: Video-Anmeldung (cookies.txt); weggelassen = vom Konto der Person laden, null = ohne. */
+  videoCookies?: string | null
 }
 
 export interface WebseiteErschliessenResult {
@@ -68,35 +70,6 @@ export interface WebseiteErschliessenResult {
   coverGrund: string | null
 }
 
-/** Laedt das HTML einer Seite (Browser-UA, Timeout). */
-export async function ladeSeiteHtml(url: string): Promise<string> {
-  const res = await fetchWithTimeout(url, { headers: { 'User-Agent': PAGE_USER_AGENT, Accept: 'text/html,*/*' }, timeoutMs: 30_000 })
-  if (!res.ok) throw new Error(`Seite nicht ladbar: HTTP ${res.status}`)
-  const type = res.headers.get('content-type') ?? ''
-  if (!/html|xml/i.test(type)) throw new Error(`Adresse liefert kein HTML (Content-Type "${type || 'unbekannt'}")`)
-  return res.text()
-}
-
-interface Seitenbild { seite: WebPageExtract; metadatenQuelle: MetadatenQuelle; kapitel: MediaKapitel[]; hinweise: string[] }
-
-/** Welle K2: Seitenbild aus yt-dlp bei Videoseiten, sonst aus dem HTML. */
-async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fehler: string } | null): Promise<Seitenbild> {
-  const hinweise: string[] = []
-  if (resolved && !('fehler' in resolved) && istVideoExtractor(resolved.extractor)) {
-    if (resolved.metadata) {
-      const seite = seiteAusMetadaten({ url, title: resolved.title, metadata: resolved.metadata })
-      if (seite.datePublished) hinweise.push('Datum ist das Upload-Datum (upload_date) — nicht unbedingt das Datum des Anlasses; der Mensch bestaetigt es')
-      else hinweise.push('yt-dlp nennt kein Upload-Datum — date bleibt leer, mit dokument_felder_setzen nachtragen')
-      if (seite.bloecke.length === 0) hinweise.push('Videoseite ohne Beschreibung — die Sammeldatei traegt keinen Artikeltext, das Transkript ist das Material')
-      return { seite, metadatenQuelle: 'ytdlp', kapitel: resolved.metadata.kapitel, hinweise }
-    }
-    hinweise.push(`yt-dlp kennt die Seite als ${resolved.extractor}, der Secretary liefert aber keinen metadata-Block (Welle S fehlt) — Seitenbild aus dem HTML`)
-  }
-  const seite = extractWebPage(await ladeSeiteHtml(url), url)
-  if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze in article/main/body) — nichts geschrieben')
-  return { seite, metadatenQuelle: 'seite', kapitel: [], hinweise }
-}
-
 /** Fuehrt den ganzen Weg aus; wirft bei Seite ohne Text oder vorhandenem Dateinamen, nichts geschrieben. */
 export async function webseiteErschliessen(input: WebseiteErschliessenInput): Promise<WebseiteErschliessenResult> {
   const { libraryId, userEmail, provider, url, folderId, dateiname, targetLanguage, audioContext, llmModel, medienHolen } = input
@@ -107,23 +80,22 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const kollision = vorhanden.find((i) => i.type === 'file' && i.metadata.name.toLowerCase().startsWith(basis.toLowerCase()))
   if (kollision) throw new Error(`"${kollision.metadata.name}" gibt es in diesem Ordner schon — anderen Dateinamen waehlen. Nichts geschrieben.`)
 
-  // Erst yt-dlp fragen (ein Aufruf fuer Metadaten UND Medienadresse), dann das Seitenbild bauen.
+  // Welle C3: Die Video-Anmeldung der Person geht mit jedem yt-dlp-Aufruf mit (Cookie-Datei am Konto, nie am Server).
+  const cookies = input.videoCookies === undefined ? await ladeVideoCookies(userEmail) : input.videoCookies
   let resolved: ResolvedMedia | { fehler: string } | null = null
   if (medienHolen) {
     try {
-      resolved = await resolveMediaViaSecretary(url)
+      resolved = await resolveMediaViaSecretary(url, cookies)
     } catch (error) {
       resolved = { fehler: error instanceof Error ? error.message : String(error) }
     }
   }
-  const { seite, metadatenQuelle, kapitel, hinweise } = await leseSeitenbild(url, resolved)
+  const { seite, metadatenQuelle, kapitel, hinweise } = await leseSeitenbild(url, resolved, cookies !== null)
 
-  // Erst alles laden, dann schreiben: ein Fehler beim Laden laesst den Ordner unberuehrt.
-  const medium = medienHolen && resolved ? await holeMedium(seite, resolved) : { grund: 'medienHolen: false' }
+  const medium = medienHolen && resolved ? await holeMedium(seite, resolved, cookies) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
 
   const istVideo = 'datei' in medium && medium.datei.mimeType.startsWith('video/')
-  // Audio-Optionen gibt es nur fuer Audio. Pruefen, BEVOR etwas geschrieben wird (Befund Cowork-Test 13.10.).
   if (istVideo && Object.keys(audioContext).length > 0) {
     throw new Error(
       'Das Medium dieser Seite kam nur als Video (ohne extrahierbare Tonspur) — sprecherErkennung, kontext und begriffe ' +
@@ -139,7 +111,6 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
     kapitel, ohneTextErlaubt: metadatenQuelle === 'ytdlp',
   })
 
-  // Schreiben: scheitert ein Schritt, werden die schon hochgeladenen Dateien wieder entfernt (Befund 13.10.).
   const geschrieben: Array<{ id: string; name: string }> = []
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
   let coverErgebnis: WebseiteErschliessenResult['cover'] = null
@@ -158,7 +129,6 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
     }
     md = await provider.uploadFile(folderId, new File([markdown], dateiname, { type: 'text/markdown' }))
     geschrieben.push({ id: md.id, name: dateiname })
-    // Job zuletzt: erst wenn alle Dateien liegen, gibt es nichts mehr, das ihn verwaisen liesse.
     if ('datei' in medium && medienDatei && mediumItemId) {
       const { jobId } = await enqueueSourceTranscribeJob({
         libraryId, userEmail,

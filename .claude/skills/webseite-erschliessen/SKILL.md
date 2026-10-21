@@ -1,11 +1,11 @@
 ---
 name: webseite-erschliessen
-description: Einen Artikel im Netz (Presseseite mit eingebettetem Audio oder Video, YouTube-, Vimeo- oder PeerTube-Seite) über die KnowledgeScout-MCP-Brücke als Dokument in die Galerie bringen — Seite ohne Sprachmodell lesen, Medium holen und transkribieren, Sammeldatei anlegen, mit der Vorlage artikel-de extraktiv transformieren, bewusst ingestieren und die Lesersicht prüfen. Diesen Skill verwenden, sobald von einer Webseite, einem Link, einem Online-Artikel, einem Interview im Netz, einem Rai-Beitrag, einem YouTube-/Vimeo-/PeerTube-Video oder davon die Rede ist, eine Seite „zu erfassen", „zu scrapen", „zu übernehmen" oder „als Dokument abzulegen".
+description: Einen Artikel im Netz (Presseseite mit eingebettetem Audio oder Video, YouTube-, Vimeo- oder PeerTube-Seite) oder eine ganze Video-Playlist über die KnowledgeScout-MCP-Brücke als Dokumente in die Galerie bringen — Seite ohne Sprachmodell lesen (bei Videoseiten Metadaten aus yt-dlp), Medium holen und transkribieren, Sammeldatei anlegen, mit der Vorlage artikel-de extraktiv transformieren, bewusst ingestieren und die Lesersicht prüfen; Playlists in zwei Stufen (Vorschau mit Ordnernamen, Anlegen als Stapel). Diesen Skill verwenden, sobald von einer Webseite, einem Link, einem Online-Artikel, einem Interview im Netz, einem Rai-Beitrag, einem YouTube-/Vimeo-/PeerTube-Video, einer Playlist, einer Videoreihe oder davon die Rede ist, eine Seite „zu erfassen", „zu scrapen", „zu übernehmen" oder „als Dokument abzulegen".
 ---
 
 # Webseite als Quelle erschließen
 
-Stand 21.10.2026, Werkzeugsatz 2.61.0. Original im Archiv unter
+Stand 21.10.2026, Werkzeugsatz 2.62.0. Original im Archiv unter
 `Organisation/Skills/webseite-erschliessen/SKILL.md`; in den
 Claude-Einstellungen die Ableitung, im Repo die Kopie. Ein Artikel mit eingebettetem Medium
 wird zur Sammeldatei nach demselben Muster wie ein Vortrag einer
@@ -21,6 +21,8 @@ Im Zielordner drei Dateien, nebeneinander:
   `_source_files`, `_media_files`): Titel, Quelle, Datum, Autor, Link, der
   Artikeltext wörtlich (Absätze, Zwischenüberschriften, Zitate), Verweis auf
   Medium und Cover, bei einbettbaren Videos die Zeile `Video: <Embed-Adresse>`.
+  Bei YouTube-, Vimeo- und PeerTube-Seiten kommen Titel, Beschreibung, Datum,
+  Kanal, Kapitel und Cover aus yt-dlp (siehe „Playlist" unten).
 - `<Basis> - Audio.mp3` (oder m4a) — das Medium als Tonspur. Auch bei
   Videoseiten zieht der Secretary nur den Ton heraus; ein `… - Video.mp4`
   entsteht nur, wenn keine Tonspur extrahierbar war.
@@ -146,6 +148,20 @@ kommen aus yt-dlp, nicht aus dem HTML. Die Antwort nennt
 keinen metadata-Block", fehlt Welle S im Secretary — Seitenbild kam aus dem
 HTML, dem Menschen sagen. Eine Videoseite ohne Beschreibung ergibt eine
 Sammeldatei ohne Artikeltext; das Transkript ist dann das Material.
+
+## Video-Anmeldung (YouTube-Bot-Sperre)
+
+YouTube weist Abrufe von Server-Adressen ab („Sign in to confirm you're not a
+bot"); die Playlist-Liste kommt oft noch durch, jeder Einzelabruf nicht. Die
+Lösung liegt bei der Person, nicht beim Server: unter `Einstellungen → Mein
+Zugang → Video-Anmeldung` die im Browser exportierte `cookies.txt` hinterlegen
+(eigenes YouTube-Konto, Erweiterung „Get cookies.txt LOCALLY"). Sie wird bei
+`webseite_erschliessen` und `playlist_erschliessen` automatisch mitgegeben.
+Vor einem Playlist-Lauf `video_anmeldung_lesen` aufrufen: `hinterlegt: false`
+oder `abgelaufen: true` dem Menschen nennen, bevor ein Stapel ins Leere läuft.
+Die Fehlerdeutung `youtube_anmeldung` in `job_status`/`batch_bilanz` heißt:
+Anmeldung hinterlegen oder erneuern, dann `batch_neustart`; ein Neustart ohne
+Anmeldung ist zwecklos.
 
 ## Grenzen
 

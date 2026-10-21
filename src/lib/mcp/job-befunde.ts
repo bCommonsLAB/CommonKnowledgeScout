@@ -77,6 +77,15 @@ function seitenbilderBefunde(ereignisse: readonly JobEreignis[]): string[] {
  * zu melden. Der bisherige `nichtsGeschrieben`-Hinweis (Transformation oder
  * alles uebersprungen) steht hier mit drin und bleibt zusaetzlich als Feld.
  */
+/** Welle K3 (Playlist-Lesejob): Schrittdetails `web_source.fehlgeschlagen` — Fehlschlaege je Video sind kein stummes completed. */
+function webSourceBefund(steps: readonly ExternalJobStep[]): string | null {
+  const d = steps.find((s) => s.name === 'web_source')?.details as { lesbar?: unknown; fehlgeschlagen?: unknown; ersterFehler?: unknown } | undefined
+  if (!d || typeof d.fehlgeschlagen !== 'number' || d.fehlgeschlagen === 0) return null
+  const lesbar = typeof d.lesbar === 'number' ? ` von ${d.lesbar}` : ''
+  const grund = typeof d.ersterFehler === 'string' && d.ersterFehler ? ` (erster Fehler: ${d.ersterFehler.slice(0, 200)})` : ''
+  return `Playlist: ${d.fehlgeschlagen}${lesbar} Videos nicht lesbar${grund}`
+}
+
 export function befundeFuerJob(args: {
   status: string
   steps: ExternalJobStep[] | undefined
@@ -86,7 +95,7 @@ export function befundeFuerJob(args: {
   const befunde: string[] = []
   const uebersprungen = uebersprungenHinweis({ status: args.status, steps })
   if (uebersprungen) befunde.push(uebersprungen)
-  for (const b of [folienBefund(steps, args.ereignisse), coverBefund(args.ereignisse), anhaengeBefund(args.ereignisse)]) {
+  for (const b of [folienBefund(steps, args.ereignisse), coverBefund(args.ereignisse), anhaengeBefund(args.ereignisse), webSourceBefund(steps)]) {
     if (b) befunde.push(b)
   }
   befunde.push(...seitenbilderBefunde(args.ereignisse))

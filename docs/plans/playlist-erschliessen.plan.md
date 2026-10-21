@@ -19,8 +19,17 @@ todos:
   - id: k4-skill-doku
     content: "Welle K4 Skill webseite-erschliessen um Abschnitt Playlist ergänzt (Repo-Kopie; Original im Archiv Organisation/Skills/webseite-erschliessen/SKILL.md nachziehen), Konzept docs/concepts/mcp-library-betrieb.md Nachtrag 2.61.0, TOOLSET_VERSION / TOOL_NAMES / NEU_IN_VERSION in tools-info.ts, Tests unter tests/unit/web-source/ und tests/unit/external-jobs/. Gebaut 21.10.2026."
     status: done
+  - id: c1-secretary-cookies
+    content: "Welle C1 Secretary (CommonSecretaryServices, media_routes.py): optionales Feld cookies (Text im Netscape-Format) im JSON-Body von /media/resolve, /media/playlist und /media/download; je Aufruf in eine temporäre Datei (0600) als cookiefile, danach löschen; Vorrang vor YTDLP_COOKIES_FILE; Inhalt nie loggen; Fehlermeldungen unverändert. Tests mit yt-dlp als Fake."
+    status: pending
+  - id: c2-konto-video-anmeldung
+    content: "Welle C2 KnowledgeScout Konto: cookies-datei.ts (Prüfung Netscape-Format, Beschreibung Zeilen/Domains/Ablauf, Status), Repository video_logins (AES-256-GCM über credential-cipher, ein Dokument je Person), video-login-service.ts, Route /api/account/video-login (GET Status, PUT { cookies }, DELETE), Abschnitt „Video-Anmeldung (YouTube)" unter Einstellungen → Mein Zugang (Datei wählen oder einfügen, Status, Entfernen). Gebaut 21.10.2026."
+    status: done
+  - id: c3-durchreichen
+    content: "Welle C3 KnowledgeScout Durchreichen: medienAnfrageBody in media-resolve.ts (cookies im Body von resolve/playlist/download); webseiteErschliessen lädt die Anmeldung der Person vom Konto, Lesejob und Anlege-Jobs mit dem Konto der startenden Person, Playlist-Vorschau nennt videoAnmeldung; Fehlermeldung einer Videoseite nennt, ob eine Anmeldung hinterlegt war; Fehlerdeutung youtube_anmeldung verweist auf die Konto-Einstellung; Werkzeug video_anmeldung_lesen (liest nur); 2.62.0. Gebaut 21.10.2026."
+    status: done
   - id: abnahme-start-klar
-    content: "Abnahme an der echten Playlist (braucht Welle S im Secretary): Vorschau 32 Einträge; Pilotvideo mit vollständiger Beschreibung, Datum, Cover und video_url in der Sammeldatei (metadatenQuelle: ytdlp); Stapel der übrigen Videos (zwei Aufrufe) ohne Fehlschlag in batch_bilanz oder mit benanntem Grund je Zeile; nach Freigabe zeigt dokument_lesen den Eintrag mit Video-Embed."
+    content: "Abnahme an der echten Playlist (braucht Welle C1 im Secretary und die hinterlegte Video-Anmeldung): Vorschau 32 Einträge; Pilotvideo mit vollständiger Beschreibung, Datum, Cover und video_url in der Sammeldatei (metadatenQuelle: ytdlp); Stapel der übrigen Videos (zwei Aufrufe) ohne Fehlschlag in batch_bilanz oder mit benanntem Grund je Zeile; nach Freigabe zeigt dokument_lesen den Eintrag mit Video-Embed."
     status: pending
 ---
 
@@ -171,3 +180,62 @@ Wie in `bruecke-library-betrieb`: dieselbe Service-Funktion für Brücke und
 spätere UI-Route (ADR 0007), schreibende Modi nur nach Bestätigung mit
 Protokoll-Eintrag, Stapelgrenze 30, Fehler je Zeile statt Abbruch, neue
 Funktionen in eigene Module.
+
+## 7. Befunde aus dem Cowork-Test (21.10.2026)
+
+- **YouTube-Bot-Sperre.** Die flache Playlist kam durch, jeder Einzelabruf
+  (Metadaten, Tonspur) nicht: „Sign in to confirm you're not a bot". Die
+  Adresse des Secretary-Servers gilt bei YouTube als Rechenzentrum. Lösung
+  ohne Code: Cookie-Datei (Netscape-Format, eigenes YouTube-Konto) auf den
+  Secretary-Server, `YTDLP_COOKIES_FILE` darauf zeigen lassen, yt-dlp
+  aktualisieren, Dienst neu starten; dauerhaft ein PO-Token-Plugin
+  (`bgutil-ytdlp-pot-provider`). Stapel nicht zu schnell fahren.
+- **Behoben in 2.61.1:** Der Lesejob zählte Fehlschläge nicht
+  (`ohneDatum: 0`, `completed` bei 32 Fehlern); jetzt `ohneDatum`,
+  `fehlgeschlagen`, `ersterFehler`, Befund „Playlist: N von M Videos nicht
+  lesbar", und `failed`, wenn kein einziges Video lesbar war. Neue
+  Fehlerdeutung `youtube_anmeldung`. Eine Videoseite, deren yt-dlp-Abruf
+  scheitert, meldet diesen Grund statt „Seite ohne Artikeltext".
+- **Nebenbefund:** Mit einer Vorlagen-Library kommen deren bekannte Namen
+  (Transkriptions-Begriffe) mit — vor der ersten Transkription durch die
+  Namen der Reihe ersetzen.
+
+## 8. Video-Anmeldung am Konto (Wellen C1–C3, Owner 21.10.2026)
+
+**Entscheidung:** Keine Cookie-Datei auf dem Secretary-Server und keine
+Admin-Rechte. Die Anmeldung gehört zur Person, die den Job startet, und
+geht mit jedem Medien-Aufruf mit.
+
+**Was nicht geht:** Eine Web-Anwendung kann die Cookies einer anderen Website
+nicht lesen (an youtube.com gebunden, HttpOnly). Der Export bleibt ein Klick
+in einer Browser-Erweiterung („Get cookies.txt LOCALLY") mit einem eigenen,
+nur dafür angelegten YouTube-Konto. Alles danach übernimmt KnowledgeScout.
+
+**C1 Secretary (offen):** Die drei Medien-Routen nehmen im JSON-Body das
+optionale Feld `cookies` (Text der Netscape-Datei). Der Secretary schreibt
+es je Aufruf in eine temporäre Datei (Rechte 0600), setzt `cookiefile`
+darauf, löscht sie nach dem Aufruf und loggt den Inhalt nie. Ist das Feld
+gesetzt, hat es Vorrang vor `YTDLP_COOKIES_FILE`; die Umgebungsvariable
+bleibt als Admin-Fallback. Antwort- und Fehlerformat bleiben gleich.
+
+**C2 Konto (gebaut):** `Einstellungen → Mein Zugang → Video-Anmeldung`:
+Datei wählen oder Inhalt einfügen, Status (Zeilen, Domains, gültig bis,
+abgelaufen, hinterlegt am), Entfernen. Gespeichert in `video_logins` als
+`enc:v1:`-Token (AES-256-GCM, `CREDENTIALS_ENCRYPTION_KEY` wie bei den
+Speicher-Verbindungen); der Inhalt geht nie an den Browser zurück. Eine
+Datei ohne YouTube-/Google-Cookie wird abgewiesen.
+
+**C3 Durchreichen (gebaut):** `webseiteErschliessen` lädt die Anmeldung der
+Person vom Konto und gibt sie an `media/resolve` und `media/download` mit;
+`playlist_erschliessen` an `media/playlist` (Vorschau, Lesejob) und über die
+Anlege-Jobs (Konto der startenden Person, `job.userEmail`). Die Vorschau
+nennt `videoAnmeldung: true | false`; scheitert eine Videoseite an yt-dlp,
+nennt die Fehlermeldung, ob eine Anmeldung hinterlegt war. Fehlerdeutung
+`youtube_anmeldung` zeigt auf die Konto-Einstellung. Werkzeug
+`video_anmeldung_lesen` liest den Status; Hinterlegen bleibt bewusst in der
+Oberfläche (Sitzungsschlüssel läuft nicht durch einen Chat).
+
+**Grenzen:** Cookies laufen ab (Status zeigt es), YouTube sperrt Konten, die
+viel laden (Stapel nicht zu schnell). Akzeptiert YouTube Cookies von der
+Server-Adresse nicht dauerhaft, ist das PO-Token-Plugin am Secretary der
+nächste Schritt (einmalig, Admin).

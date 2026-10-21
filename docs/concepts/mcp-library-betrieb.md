@@ -434,3 +434,15 @@ Plan `docs/plans/playlist-erschliessen.plan.md` (Anlass: eine Dialogreihe mit
 - **Ordnernamen vor dem Erschließen.** Die Vorschau ist die Stelle, an der der
   Mensch Auswahl und Namen bestätigt — ein Umbenennen danach setzt
   Twin-Familien auf `twin_stale`.
+
+## Nachtrag 2.62.0 (21.10.2026): Video-Anmeldung am Konto
+
+Owner-Entscheid nach dem Cowork-Test (YouTube-Bot-Sperre): keine Cookie-Datei
+auf dem Server, keine Admin-Rechte. Jede Person hinterlegt unter
+`Einstellungen → Mein Zugang` ihre im Browser exportierte `cookies.txt`
+(eigenes YouTube-Konto); KnowledgeScout speichert sie verschlüsselt wie die
+Speicher-Verbindungen und gibt sie bei jedem Medien-Aufrufe an den Secretary
+mit (`cookies` im Body, Welle C1 dort). Die Brücke sieht nur den Status
+(`video_anmeldung_lesen`): hinterlegt, Domains, gültig bis, abgelaufen. Die
+Fehlerdeutung `youtube_anmeldung` zeigt auf die Konto-Einstellung, nicht auf
+den Server. Plan `docs/plans/playlist-erschliessen.plan.md`, Abschnitt 8.

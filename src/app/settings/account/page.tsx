@@ -9,6 +9,7 @@
  */
 
 import { McpBridgeSection } from "@/components/settings/account/mcp-bridge-section"
+import { VideoLoginSection } from "@/components/settings/account/video-login-section"
 
 export default function AccountSettingsPage() {
   return (
@@ -20,6 +21,7 @@ export default function AccountSettingsPage() {
         </p>
       </div>
       <McpBridgeSection />
+      <VideoLoginSection />
     </div>
   )
 }

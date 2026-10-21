@@ -13,7 +13,7 @@
  */
 
 import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
-import { secretaryFehler, secretaryHeaders } from './media-resolve'
+import { medienAnfrageBody, secretaryFehler, secretaryHeaders } from './media-resolve'
 
 export interface PlaylistEintrag {
   /** 1-basiert, Reihenfolge der Playlist. */
@@ -68,9 +68,9 @@ export function parsePlaylistAntwort(data: unknown, url: string): ResolvedPlayli
 }
 
 /** Fragt den Secretary (yt-dlp, flach) nach den Eintraegen einer Playlist. */
-export async function resolvePlaylistViaSecretary(url: string): Promise<ResolvedPlaylist> {
+export async function resolvePlaylistViaSecretary(url: string, cookies: string | null = null): Promise<ResolvedPlaylist> {
   const { baseUrl, headers } = secretaryHeaders()
-  const res = await fetchWithTimeout(`${baseUrl}/media/playlist`, { method: 'POST', headers, body: JSON.stringify({ url }), timeoutMs: 55_000 })
+  const res = await fetchWithTimeout(`${baseUrl}/media/playlist`, { method: 'POST', headers, body: medienAnfrageBody(url, cookies), timeoutMs: 55_000 })
   if (res.status === 404 || res.status === 405) {
     throw new Error('Secretary kennt POST /api/media/playlist nicht — Welle S (CommonSecretaryServices) ist dort noch nicht ausgerollt')
   }
