@@ -84,6 +84,8 @@ export function buildSourceTranscribeJob(args: {
    * `true` ohne Template ist ein Widerspruch und wird abgewiesen.
    */
   ingest: boolean
+  /** Welle K3 (Playlist): Zugehoerigkeit zu einem Stapel, damit batch_bilanz auch die Transkriptionen sieht. */
+  batch?: { batchId: string; batchName?: string }
 }): EnqueueJob {
   const template = args.template?.trim() || undefined
   const llmModel = args.llmModel?.trim() || undefined
@@ -118,6 +120,7 @@ export function buildSourceTranscribeJob(args: {
         parentId: args.source.parentId,
       },
       options: { targetLanguage: args.targetLanguage ?? 'de', sourceLanguage: 'auto', useCache: true, ...audioContext },
+      ...(args.batch ? { batchId: args.batch.batchId, ...(args.batch.batchName ? { batchName: args.batch.batchName } : {}) } : {}),
     },
     parameters: {
       ...(template ? { template } : {}),
@@ -222,6 +225,7 @@ export async function enqueueSourceTranscribeJob(args: {
   audioContext?: Record<string, unknown>
   optionen?: TransformOptionen
   ingest: boolean
+  batch?: { batchId: string; batchName?: string }
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const { jobId, jobSecretHash } = newJobIdentity(repo)

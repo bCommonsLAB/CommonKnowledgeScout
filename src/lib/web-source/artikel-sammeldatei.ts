@@ -14,6 +14,7 @@
  */
 
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
+import { zeitmarke, type MediaKapitel } from './media-metadata'
 import type { WebPageExtract } from './page-extract'
 
 export interface ArtikelSammeldateiInput {
@@ -32,6 +33,13 @@ export interface ArtikelSammeldateiInput {
    * Vorschaubild und Link zum Original (rechtliche Vorgabe des Owners). Default true.
    */
   medienEinbetten?: boolean
+  /** Welle K2: Kapitel mit Zeitmarken aus yt-dlp, wenn vorhanden. */
+  kapitel?: MediaKapitel[]
+  /**
+   * Welle K2: true, wenn die Seite eine Videoseite ohne Beschreibung ist — dann ist
+   * das Transkript das Material und ein leerer Body kein Fehler. Default false.
+   */
+  ohneTextErlaubt?: boolean
 }
 
 function dauerText(sekunden: number | null): string {
@@ -47,7 +55,10 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   const einbetten = input.medienEinbetten !== false
   const videoEmbedUrl = einbetten ? (input.videoEmbedUrl ?? null) : null
   if (!seite.title.trim()) throw new Error('Seite ohne Titel — Sammeldatei nicht gebaut')
-  if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze gefunden) — Sammeldatei nicht gebaut')
+  if (seite.bloecke.length === 0 && input.ohneTextErlaubt !== true) {
+    throw new Error('Seite ohne Artikeltext (keine Absaetze gefunden) — Sammeldatei nicht gebaut')
+  }
+  const kapitel = input.kapitel ?? []
 
   const meta: Record<string, unknown> = {
     kind: 'composite-transcript',
@@ -74,8 +85,15 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   const beschreibungImText = seite.bloecke.some((b) => b.trim() === seite.description.trim())
   if (seite.description && !beschreibungImText) zeilen.push(`*${seite.description}*`, '')
   zeilen.push(herkunft.join(' · '), '')
-  zeilen.push('## Artikel', '')
-  for (const block of seite.bloecke) zeilen.push(block, '')
+  if (seite.bloecke.length > 0) {
+    zeilen.push('## Artikel', '')
+    for (const block of seite.bloecke) zeilen.push(block, '')
+  }
+  if (kapitel.length > 0) {
+    zeilen.push('## Kapitel', '')
+    for (const k of kapitel) zeilen.push(`- ${zeitmarke(k.start)} ${k.titel}`)
+    zeilen.push('')
+  }
   if (medienDatei) {
     const dauer = dauerText(medienDauerSekunden)
     zeilen.push(einbetten ? '## Eingebettetes Medium' : '## Medium (nur Quelle, nicht eingebettet)', '')
