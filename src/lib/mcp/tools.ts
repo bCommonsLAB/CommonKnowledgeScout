@@ -48,6 +48,7 @@ import { registerKonfigurationTools } from './tools-konfiguration'
 import { registerMessenTools } from './tools-messen'
 import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerWebseiteTool } from './tools-webseite'
+import { registerPlaylistTool } from './tools-playlist'
 import { registerArtefaktTool } from './tools-artefakt'
 import { registerBibliothekTools } from './tools-bibliothek'
 import { registerAdresseTools } from './tools-adresse'
@@ -104,6 +105,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   // Welle E (Veranstaltungen): Einheiten bilden und Abhaengige finden.
   registerSammeldateiTools(server)
   registerWebseiteTool(server)
+  registerPlaylistTool(server)
   // Welle G: Artefakte ohne Spiegel lesen.
   registerArtefaktTool(server)
   // Wunschliste 8, W8-2: Quelle ueber alle eigenen Libraries finden.

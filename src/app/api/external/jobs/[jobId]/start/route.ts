@@ -292,6 +292,17 @@ export async function POST(
       return NextResponse.json({ ok: true, phase: 'golden-set', started: true }, { status: 202 })
     }
 
+    // ─── Webseite/Playlist-Video (Welle K3, Bruecke): Download bis 15 Minuten ───
+    // Sofort 202, Phase detached; Status, Fortschritt (job.logs) und Ergebnis
+    // (cumulativeMeta.webSource bzw. .playlist) schreibt die Phase selbst — wie golden-set.
+    if (job.job_type === 'web-source') {
+      const { runWebSourcePhase } = await import('@/lib/external-jobs/phase-web-source')
+      void runWebSourcePhase(job).catch((err: unknown) => {
+        FileLogger.error('start-route', 'phase-web-source failed', { jobId, error: err instanceof Error ? err.message : String(err) })
+      })
+      return NextResponse.json({ ok: true, phase: 'web-source', started: true }, { status: 202 })
+    }
+
     // ─── Overlap-Bericht (Stufe 3): Long-Context-LLM-Pass + Markdown-Bericht ───
     // Schmale Phase ohne Storage/Secretary-Datei-Pfad (ADR 0001, analog
     // doc-relations): laedt den Katalog aus Mongo, ruft das LLM ueber den
