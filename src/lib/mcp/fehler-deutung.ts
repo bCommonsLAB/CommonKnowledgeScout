@@ -39,6 +39,7 @@ export type FehlerArt =
   | 'text_feed_failed'
   | 'kein_llm_aufruf'
   | 'secretary_abbruch'
+  | 'youtube_anmeldung'
 
 /** Was der Fehlschlag bedeutet und was daraus folgt. */
 export interface FehlerDeutung {
@@ -86,6 +87,9 @@ const SECRETARY_ABBRUCH: readonly RegExp[] = [
   /\bUND_ERR_(HEADERS|BODY)_TIMEOUT\b/,
   /\bZeitlimit\b/i,
 ]
+
+/** YouTube weist den Secretary als Bot ab (Cowork-Test 21.10.2026): Server-IP, nicht die Quelle — ein Neustart aendert nichts. */
+const YOUTUBE_ANMELDUNG: readonly RegExp[] = [/confirm you.?re not a bot/i, /cookies .*(no longer valid|are not valid)/i, /Use --cookies(-from-browser)?/i]
 
 function trifft(muster: readonly RegExp[], text: string): boolean {
   return muster.some((m) => m.test(text))
@@ -159,6 +163,19 @@ export function deuteFehler(meldungen: readonly (string | null | undefined)[]): 
       empfehlung:
         'NICHT die Vorlage aendern. llmModel der Library pruefen (konfiguration_lesen) und die ' +
         'Modell-Zuordnung im Secretary; dann denselben Job neu starten (batch_neustart oder transformation_starten).',
+      wiederholenSinnvoll: false,
+    }
+  }
+
+  if (trifft(YOUTUBE_ANMELDUNG, text)) {
+    return {
+      art: 'youtube_anmeldung',
+      deutung:
+        'YouTube verlangt eine Anmeldung (Sign in to confirm you are not a bot) — die Adresse des Secretary-Servers ' +
+        'gilt dort als Rechenzentrum. Die Playlist-Liste kommt oft noch durch, jeder Einzelabruf nicht. Weder Quelle noch Vorlage sind das Problem.',
+      empfehlung:
+        'Am Secretary-Server eine Cookie-Datei (Netscape-Format, eigenes YouTube-Konto) hinterlegen, YTDLP_COOKIES_FILE darauf zeigen ' +
+        'lassen, yt-dlp aktualisieren, Dienst neu starten; dauerhaft ein PO-Token-Plugin. Neustart ohne diese Aenderung ist zwecklos.',
       wiederholenSinnvoll: false,
     }
   }

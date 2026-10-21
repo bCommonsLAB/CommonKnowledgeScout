@@ -27,7 +27,7 @@ import { resolveMediaViaSecretary, type ResolvedMedia } from './media-resolve'
 import { holeCover, holeMedium, PAGE_USER_AGENT, type MediumWeg } from './medium-und-cover'
 import { seiteAusMetadaten } from './metadaten-seite'
 import { extractWebPage, type WebPageExtract } from './page-extract'
-import { embedUrlFuerVideo } from './video-embed'
+import { embedUrlAusAdresse, embedUrlFuerVideo } from './video-embed'
 
 export type MetadatenQuelle = 'ytdlp' | 'seite'
 
@@ -85,12 +85,17 @@ async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fehler: s
   if (resolved && !('fehler' in resolved) && istVideoExtractor(resolved.extractor)) {
     if (resolved.metadata) {
       const seite = seiteAusMetadaten({ url, title: resolved.title, metadata: resolved.metadata })
-      if (seite.datePublished) hinweise.push('Datum ist das Upload-Datum (upload_date) — nicht unbedingt das Datum des Anlasses; der Mensch bestaetigt es')
-      else hinweise.push('yt-dlp nennt kein Upload-Datum — date bleibt leer, mit dokument_felder_setzen nachtragen')
+      hinweise.push(seite.datePublished
+        ? 'Datum ist das Upload-Datum (upload_date) — nicht unbedingt das Datum des Anlasses; der Mensch bestaetigt es'
+        : 'yt-dlp nennt kein Upload-Datum — date bleibt leer, mit dokument_felder_setzen nachtragen')
       if (seite.bloecke.length === 0) hinweise.push('Videoseite ohne Beschreibung — die Sammeldatei traegt keinen Artikeltext, das Transkript ist das Material')
       return { seite, metadatenQuelle: 'ytdlp', kapitel: resolved.metadata.kapitel, hinweise }
     }
     hinweise.push(`yt-dlp kennt die Seite als ${resolved.extractor}, der Secretary liefert aber keinen metadata-Block (Welle S fehlt) — Seitenbild aus dem HTML`)
+  }
+  // Videoseite ohne yt-dlp (z. B. YouTube-Bot-Sperre): „Seite ohne Artikeltext" wuerde die Ursache verdecken (Cowork 21.10.).
+  if (resolved && 'fehler' in resolved && embedUrlAusAdresse(url)) {
+    throw new Error(`Videoseite, aber yt-dlp scheitert: ${resolved.fehler} — nichts geschrieben`)
   }
   const seite = extractWebPage(await ladeSeiteHtml(url), url)
   if (seite.bloecke.length === 0) throw new Error('Seite ohne Artikeltext (keine Absaetze in article/main/body) — nichts geschrieben')
@@ -107,7 +112,6 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const kollision = vorhanden.find((i) => i.type === 'file' && i.metadata.name.toLowerCase().startsWith(basis.toLowerCase()))
   if (kollision) throw new Error(`"${kollision.metadata.name}" gibt es in diesem Ordner schon — anderen Dateinamen waehlen. Nichts geschrieben.`)
 
-  // Erst yt-dlp fragen (ein Aufruf fuer Metadaten UND Medienadresse), dann das Seitenbild bauen.
   let resolved: ResolvedMedia | { fehler: string } | null = null
   if (medienHolen) {
     try {
@@ -118,12 +122,10 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   }
   const { seite, metadatenQuelle, kapitel, hinweise } = await leseSeitenbild(url, resolved)
 
-  // Erst alles laden, dann schreiben: ein Fehler beim Laden laesst den Ordner unberuehrt.
   const medium = medienHolen && resolved ? await holeMedium(seite, resolved) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
 
   const istVideo = 'datei' in medium && medium.datei.mimeType.startsWith('video/')
-  // Audio-Optionen gibt es nur fuer Audio. Pruefen, BEVOR etwas geschrieben wird (Befund Cowork-Test 13.10.).
   if (istVideo && Object.keys(audioContext).length > 0) {
     throw new Error(
       'Das Medium dieser Seite kam nur als Video (ohne extrahierbare Tonspur) — sprecherErkennung, kontext und begriffe ' +
@@ -139,7 +141,6 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
     kapitel, ohneTextErlaubt: metadatenQuelle === 'ytdlp',
   })
 
-  // Schreiben: scheitert ein Schritt, werden die schon hochgeladenen Dateien wieder entfernt (Befund 13.10.).
   const geschrieben: Array<{ id: string; name: string }> = []
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
   let coverErgebnis: WebseiteErschliessenResult['cover'] = null
@@ -158,7 +159,6 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
     }
     md = await provider.uploadFile(folderId, new File([markdown], dateiname, { type: 'text/markdown' }))
     geschrieben.push({ id: md.id, name: dateiname })
-    // Job zuletzt: erst wenn alle Dateien liegen, gibt es nichts mehr, das ihn verwaisen liesse.
     if ('datei' in medium && medienDatei && mediumItemId) {
       const { jobId } = await enqueueSourceTranscribeJob({
         libraryId, userEmail,

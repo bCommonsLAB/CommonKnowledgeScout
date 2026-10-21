@@ -61,11 +61,35 @@ async function erschliesseVideo(job: ExternalJob, repo: ExternalJobsRepository):
   })
 }
 
+export interface PlaylistLesenBilanz {
+  eintraege: number
+  /** Eintraege, die yt-dlp lesen konnte (nicht privat/geloescht). */
+  lesbar: number
+  /** Lesbare Eintraege ohne Datum — auch die, deren Abruf scheiterte. */
+  ohneDatum: number
+  /** Lesbare Eintraege, deren Abruf scheiterte (Fehler des Secretary/yt-dlp). */
+  fehlgeschlagen: number
+  ersterFehler: string | null
+}
+
+type LesenZeile = PlaylistLesenEintrag & { fehler?: boolean }
+
+/** Bilanz des Lesejobs (rein). Cowork-Befund 21.10.: 32 Fehlschlaege ergaben ohneDatum: 0 und completed. */
+export function playlistLesenBilanz(eintraege: ReadonlyArray<LesenZeile>): PlaylistLesenBilanz {
+  const lesbare = eintraege.filter((e) => !e.grund?.startsWith('nicht abrufbar:'))
+  const gescheitert = lesbare.filter((e) => e.fehler === true)
+  return {
+    eintraege: eintraege.length, lesbar: lesbare.length,
+    ohneDatum: lesbare.filter((e) => !e.datum).length,
+    fehlgeschlagen: gescheitert.length,
+    ersterFehler: gescheitert[0]?.grund ?? null,
+  }
+}
+
 async function lesePlaylist(job: ExternalJob, repo: ExternalJobsRepository): Promise<void> {
   const optionen = lesePlaylistLesenOptionen(job)
   const playlist = await resolvePlaylistViaSecretary(optionen.url)
-  const eintraege: PlaylistLesenEintrag[] = []
-  let ohneDatum = 0
+  const eintraege: LesenZeile[] = []
   for (const [index, e] of playlist.entries.entries()) {
     const basis = { position: e.position, id: e.id, titel: e.title, url: e.url }
     if (e.grund) {
@@ -76,15 +100,20 @@ async function lesePlaylist(job: ExternalJob, repo: ExternalJobsRepository): Pro
       const resolved = await resolveMediaViaSecretary(e.url)
       const datum = resolved.metadata?.uploadDate ?? ''
       const titel = resolved.title || e.title
-      if (!datum) ohneDatum += 1
       eintraege.push({ ...basis, titel, datum, ordnerVorschlag: ordnerVorschlag(e.position, titel, datum || undefined), grund: datum ? null : 'yt-dlp nennt kein Upload-Datum — Vorschlag nach Position' })
     } catch (error) {
-      eintraege.push({ ...basis, datum: '', ordnerVorschlag: ordnerVorschlag(e.position, e.title), grund: error instanceof Error ? error.message : String(error) })
+      eintraege.push({ ...basis, datum: '', ordnerVorschlag: ordnerVorschlag(e.position, e.title), grund: error instanceof Error ? error.message : String(error), fehler: true })
     }
     await repo.pushLog(job.jobId, { phase: WEB_SOURCE_STEP, progress: Math.round(((index + 1) / playlist.entries.length) * 100), message: `${index + 1}/${playlist.entries.length} ${e.title}` })
   }
-  await repo.appendMeta(job.jobId, { playlist: { url: playlist.url, title: playlist.title, uploader: playlist.uploader, anzahl: playlist.anzahl, ohneDatum, eintraege } }, 'phase-web-source')
-  await repo.updateStep(job.jobId, WEB_SOURCE_STEP, { status: 'completed', endedAt: new Date(), details: { eintraege: eintraege.length, ohneDatum } })
+  const bilanz = playlistLesenBilanz(eintraege)
+  const liste: PlaylistLesenEintrag[] = eintraege.map(({ position, id, titel, url, datum, ordnerVorschlag: vorschlag, grund }) => ({ position, id, titel, url, datum, ordnerVorschlag: vorschlag, grund }))
+  await repo.appendMeta(job.jobId, { playlist: { url: playlist.url, title: playlist.title, uploader: playlist.uploader, anzahl: playlist.anzahl, ...bilanz, eintraege: liste } }, 'phase-web-source')
+  // Alle lesbaren Eintraege gescheitert: der Lauf hat nichts gebracht — failed mit dem ersten Grund, nicht completed.
+  if (bilanz.lesbar > 0 && bilanz.fehlgeschlagen === bilanz.lesbar) {
+    throw new Error(`Kein einziges der ${bilanz.lesbar} Videos lesbar — erster Fehler: ${bilanz.ersterFehler ?? 'unbekannt'}`)
+  }
+  await repo.updateStep(job.jobId, WEB_SOURCE_STEP, { status: 'completed', endedAt: new Date(), details: { ...bilanz } })
 }
 
 export async function runWebSourcePhase(job: ExternalJob): Promise<void> {

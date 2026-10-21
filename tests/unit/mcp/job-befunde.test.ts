@@ -92,3 +92,12 @@ describe('befundeFuerJob', () => {
     expect(befunde).toEqual([])
   })
 })
+
+describe('befundeFuerJob — Playlist-Lesejob (2.61.1)', () => {
+  it('nennt gescheiterte Videos aus den Schrittdetails web_source; ohne Fehlschlag keine Zeile', () => {
+    const steps: ExternalJobStep[] = [{ name: 'web_source', status: 'completed', details: { eintraege: 32, lesbar: 30, ohneDatum: 5, fehlgeschlagen: 5, ersterFehler: 'Secretary media/resolve: [MEDIA_NOT_RESOLVABLE] Sign in to confirm you’re not a bot' } }]
+    expect(befundeFuerJob({ status: 'completed', steps, ereignisse: [] })).toEqual(['Playlist: 5 von 30 Videos nicht lesbar (erster Fehler: Secretary media/resolve: [MEDIA_NOT_RESOLVABLE] Sign in to confirm you’re not a bot)'])
+    const ok: ExternalJobStep[] = [{ name: 'web_source', status: 'completed', details: { eintraege: 32, lesbar: 32, ohneDatum: 0, fehlgeschlagen: 0, ersterFehler: null } }]
+    expect(befundeFuerJob({ status: 'completed', steps: ok, ereignisse: [] })).toEqual([])
+  })
+})

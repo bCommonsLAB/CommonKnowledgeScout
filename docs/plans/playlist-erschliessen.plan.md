@@ -171,3 +171,22 @@ Wie in `bruecke-library-betrieb`: dieselbe Service-Funktion für Brücke und
 spätere UI-Route (ADR 0007), schreibende Modi nur nach Bestätigung mit
 Protokoll-Eintrag, Stapelgrenze 30, Fehler je Zeile statt Abbruch, neue
 Funktionen in eigene Module.
+
+## 7. Befunde aus dem Cowork-Test (21.10.2026)
+
+- **YouTube-Bot-Sperre.** Die flache Playlist kam durch, jeder Einzelabruf
+  (Metadaten, Tonspur) nicht: „Sign in to confirm you're not a bot". Die
+  Adresse des Secretary-Servers gilt bei YouTube als Rechenzentrum. Lösung
+  ohne Code: Cookie-Datei (Netscape-Format, eigenes YouTube-Konto) auf den
+  Secretary-Server, `YTDLP_COOKIES_FILE` darauf zeigen lassen, yt-dlp
+  aktualisieren, Dienst neu starten; dauerhaft ein PO-Token-Plugin
+  (`bgutil-ytdlp-pot-provider`). Stapel nicht zu schnell fahren.
+- **Behoben in 2.61.1:** Der Lesejob zählte Fehlschläge nicht
+  (`ohneDatum: 0`, `completed` bei 32 Fehlern); jetzt `ohneDatum`,
+  `fehlgeschlagen`, `ersterFehler`, Befund „Playlist: N von M Videos nicht
+  lesbar", und `failed`, wenn kein einziges Video lesbar war. Neue
+  Fehlerdeutung `youtube_anmeldung`. Eine Videoseite, deren yt-dlp-Abruf
+  scheitert, meldet diesen Grund statt „Seite ohne Artikeltext".
+- **Nebenbefund:** Mit einer Vorlagen-Library kommen deren bekannte Namen
+  (Transkriptions-Begriffe) mit — vor der ersten Transkription durch die
+  Namen der Reihe ersetzen.
