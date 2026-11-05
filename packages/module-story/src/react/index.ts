@@ -39,6 +39,8 @@ export { AntwortText, type AntwortTextProps } from './konversation/antwort-text'
 export { mitMarkenTiteln, belegeNachDokument, belegTitel } from './konversation/zitat-titel'
 export { StoryKonversation, type StoryKonversationProps } from './konversation/story-konversation'
 export { StoryEingabe, type StoryEingabeProps } from './konversation/story-eingabe'
+// Welle N1: die Eingabe als sichtbares Feld (Startseite einer Library).
+export { StoryEingabeInline, type StoryEingabeInlineProps } from './konversation/story-eingabe-inline'
 export { useStorySitzungId, type UseStorySitzungIdResult } from './story-root/use-story-sitzung-id'
 export { useStoryKonversation, type UseStoryKonversationParams } from './story-root/use-story-konversation'
 export { StoryRoot, type StoryRootProps } from './story-root'

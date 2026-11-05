@@ -56,6 +56,9 @@ export {
   nextParamsForMode,
   normalizeGalleryCardDensity,
   mapItemToDocCardMeta,
+  // Welle N1: Belege fuer die Story-Sektion der Startseite (Plan website-story-sektion).
+  BelegListe,
+  ReferencesSheet,
 } from '../gallery'
 export type {
   GalleryRootProps,
@@ -75,6 +78,8 @@ export type {
   GalleryMode,
   GalleryCardDensity,
   GalleryItem,
+  BelegListeProps,
+  ReferencesSheetProps,
 } from '../gallery'
 
 // D6: Status-Plakette (Registry-Konfig `belegKarte`) fuer App-Detailansichten.

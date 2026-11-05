@@ -962,6 +962,23 @@
       "delete": "Delete question",
       "deleteConfirm": "Really delete this question?",
       "again": "Ask again"
+    },
+    "eingabeInline": {
+      "enterHint": "Enter sends · Shift+Enter for a new line"
+    }
+  },
+  "website": {
+    "story": {
+      "bereit": "Ready for your questions",
+      "fragenInSitzung": {
+        "one": "1 question in this session",
+        "many": "{count} questions in this session"
+      },
+      "anpassen": "Adjust answers",
+      "quellenAnzeigen": "Show sources ({count})",
+      "beispielfragen": "Example questions",
+      "vorschauHinweis": "The chat only runs on the live page of the library.",
+      "laden": "Loading the scout …"
     }
   }
 }

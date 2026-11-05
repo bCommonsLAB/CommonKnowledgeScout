@@ -962,6 +962,23 @@
       "delete": "Supprimer la question",
       "deleteConfirm": "Vraiment supprimer cette question ?",
       "again": "Reposer la question"
+    },
+    "eingabeInline": {
+      "enterHint": "Entrée envoie · Maj+Entrée pour un retour à la ligne"
+    }
+  },
+  "website": {
+    "story": {
+      "bereit": "Prêt pour vos questions",
+      "fragenInSitzung": {
+        "one": "1 question dans cette session",
+        "many": "{count} questions dans cette session"
+      },
+      "anpassen": "Adapter les réponses",
+      "quellenAnzeigen": "Afficher les sources ({count})",
+      "beispielfragen": "Exemples de questions",
+      "vorschauHinweis": "Le chat ne fonctionne que sur la page en ligne de la bibliothèque.",
+      "laden": "Chargement du scout …"
     }
   }
 }

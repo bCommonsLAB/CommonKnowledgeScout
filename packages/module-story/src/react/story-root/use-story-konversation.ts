@@ -40,6 +40,12 @@ export interface UseStoryKonversationParams {
   onBelege?: (belege: DocReference[], queryId: string | null) => void
   maxZeichen?: number
   maxZeichenHinweis?: string
+  /**
+   * Welle N1: keine Themenuebersicht holen — die Story-Sektion der Startseite
+   * braucht nur Frage und Antwort (spart den Modellaufruf; der Story-Modus
+   * berechnet die Uebersicht weiter). Ausdruecklich, kein Nebeneffekt von `dokumente`.
+   */
+  ohneUebersicht?: boolean
 }
 
 export function useStoryKonversation(p: UseStoryKonversationParams) {
@@ -102,13 +108,14 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
   // Themenuebersicht einmal je Stand holen — erst mit Dokumenten und Modell.
   const stand = JSON.stringify({ filter: filter ?? {}, perspektive })
   useEffect(() => {
+    if (p.ohneUebersicht) return
     if (dokumente === null || dokumente < 1 || !perspektive.llmModel || laeuft) return
     if (uebersichtStand.current === stand) return
     uebersichtStand.current = stand
     setGliederung(null)
     setUebersichtLaeuft(true)
     void uebersichtLaden()
-  }, [stand, dokumente, perspektive.llmModel, laeuft, uebersichtLaden, setGliederung])
+  }, [stand, dokumente, perspektive.llmModel, laeuft, uebersichtLaden, setGliederung, p.ohneUebersicht])
 
   const uebersichtNeu = useCallback(() => {
     if (laeuft) return
