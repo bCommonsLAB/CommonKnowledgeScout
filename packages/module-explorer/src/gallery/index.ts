@@ -74,3 +74,6 @@ export { mapItemToDocCardMeta, type GalleryItem } from './lib/types'
 // D6: Status-Plakette aus der Registry-Konfig `belegKarte` — fuer Karte und Detailansicht dieselbe Quelle.
 export { belegKonfig, plaketteFuer, kennzeileFuer, belegeAusReferenzen, type Beleg, type PlaketteErgebnis } from './components/beleg-liste/helpers'
 export { PLAKETTE_SYMBOL, plaketteLabelKey } from './components/beleg-liste/plakette'
+// Welle N1 (Plan website-story-sektion): Belege auch fuer Gastgeber ausserhalb der Galerie-Mitte (Story-Sektion der Startseite).
+export { BelegListe, type BelegListeProps } from './components/beleg-liste/beleg-liste'
+export { ReferencesSheet, type ReferencesSheetProps } from './components/references-sheet'

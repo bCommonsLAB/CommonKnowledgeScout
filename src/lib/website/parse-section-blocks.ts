@@ -15,6 +15,9 @@
  *   **Aus der Praxis** — Initiativen eintragen.
  *   <!-- /box -->
  *
+ *   <!-- questions -->          (Welle N1, nur in layout=story)
+ *   - Wie veraendert der Klimawandel die Artenvielfalt?
+ *
  * `stats` und `chips` nehmen die unmittelbar folgende Markdown-Liste; `box`
  * reicht bis `<!-- /box -->` (`kind` = `card` weiss mit Schatten, `note`
  * durchscheinender Streifen). Alles dazwischen bleibt Markdown. Fehler
@@ -35,8 +38,10 @@ export type SectionContentBlock =
   | { type: 'stats'; items: StatsItem[] }
   | { type: 'chips'; label?: string; items: string[] }
   | { type: 'box'; label?: string; kind: BoxKind; markdown: string }
+  /** Welle N1: Beispielfragen der Story-Sektion (`<!-- questions -->` + Liste); nur in `layout=story` erlaubt (Sektions-Parser). */
+  | { type: 'questions'; items: string[] }
 
-const BLOCK_RE = /<!--\s*(stats|chips|box)\b([^>]*?)-->/g
+const BLOCK_RE = /<!--\s*(stats|chips|box|questions)\b([^>]*?)-->/g
 const BOX_END_RE = /<!--\s*\/box\s*-->/
 const ATTR_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([\w-]+))/g
 const LIST_LINE_RE = /^\s*[-*]\s+(.*\S)\s*$/
@@ -102,6 +107,8 @@ export function parseSectionBlocks(markdown: string): SectionContentBlock[] {
         return { value: s[1].trim(), label: s[2].trim() }
       })
       blocks.push({ type: 'stats', items: stats })
+    } else if (name === 'questions') {
+      blocks.push({ type: 'questions', items: items.map((z) => z.replace(/\*\*/g, '').trim()) })
     } else {
       blocks.push({ type: 'chips', label: a.label?.trim() || undefined, items: items.map((z) => z.replace(/\*\*/g, '').trim()) })
     }

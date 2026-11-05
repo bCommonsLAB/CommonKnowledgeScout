@@ -131,3 +131,47 @@ describe('parseWebsiteSections — Kennzeile (S2)', () => {
     expect(() => parseWebsiteSections('<!-- section bg="petrol" -->x<!-- /section -->')).toThrow(/Ungueltiges section bg="petrol"/)
   })
 })
+
+describe('parseWebsiteSections — layout=story (Welle N1)', () => {
+  const STORY = `
+<!-- section layout=story bg=light placeholder="Stelle deine Frage …" kicker="Scout" -->
+## Frag einfach drauflos.
+Zum Beispiel eine dieser Fragen.
+
+<!-- questions -->
+- Wie veraendert der Klimawandel die Artenvielfalt?
+- Welche Arten sind gefaehrdet?
+
+✓ Antworten mit Quellenangaben
+<!-- /section -->`
+
+  it('parst Layout, placeholder, kicker und den questions-Block; kein Bild-Auszug', () => {
+    const [s] = parseWebsiteSections(STORY)
+    expect(s.layout).toBe('story')
+    expect(s.bg).toBe('light')
+    expect(s.placeholder).toBe('Stelle deine Frage …')
+    expect(s.kicker).toBe('Scout')
+    expect(s.imageUrl).toBeUndefined()
+    expect(s.blocks.map((b) => b.type)).toEqual(['markdown', 'questions', 'markdown'])
+  })
+
+  it('placeholder an einem anderen Layout wirft', () => {
+    expect(() => parseWebsiteSections('<!-- section layout=text-only placeholder="x" -->\nText\n<!-- /section -->')).toThrow(/placeholder gilt nur fuer layout=story/)
+  })
+
+  it('questions ausserhalb einer Story-Sektion wirft — auch ohne Marker', () => {
+    expect(() => parseWebsiteSections('<!-- section layout=text-only -->\n<!-- questions -->\n- Frage?\n<!-- /section -->')).toThrow(/nur in einer Sektion layout=story/)
+    expect(() => parseWebsiteSections('<!-- questions -->\n- Frage?')).toThrow(/nur in einer Sektion layout=story/)
+  })
+
+  it('zwei Story-Sektionen je Seite werfen', () => {
+    expect(() => parseWebsiteSections(`${STORY}\n${STORY}`)).toThrow(/Hoechstens eine Sektion layout=story/)
+  })
+
+  it('Story-Sektion ohne questions ist erlaubt (nur Eingabe)', () => {
+    const [s] = parseWebsiteSections('<!-- section layout=story -->\n## Frag.\n<!-- /section -->')
+    expect(s.layout).toBe('story')
+    expect(s.placeholder).toBeUndefined()
+    expect(s.blocks).toEqual([{ type: 'markdown', markdown: '## Frag.' }])
+  })
+})

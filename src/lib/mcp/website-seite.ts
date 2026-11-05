@@ -19,6 +19,7 @@ import {
 } from '@/lib/website/site-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { bildUrls } from './website-pruefung'
+import { storyBloecke } from '@/lib/website/story-section'
 import { bannerSortAus } from '@/lib/website/banner'
 
 /** Was der Bericht ueber die Library hinaus braucht (F3, ADR 0012). */
@@ -49,7 +50,8 @@ export interface SeitenEintrag {
   menu_order?: number
   menu_area?: string
   site_role?: string
-  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string }>
+  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`. */
+  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number }>
   fehler: string[]
   warnungen: string[]
 }
@@ -101,6 +103,7 @@ export function baueSeitenBericht(
           layout: s.layout, bg: s.bg, bild: Boolean(s.imageUrl),
           ...(s.imageWidth ? { bildBreite: s.imageWidth } : {}),
           ...(s.imageAlign ? { bildAusrichtung: s.imageAlign } : {}),
+          ...(s.layout === 'story' ? { fragen: storyBloecke(s).fragen.length } : {}),
         }))
       } catch (error) {
         fehler.push(`Sektions-Marker: ${error instanceof Error ? error.message : String(error)}`)

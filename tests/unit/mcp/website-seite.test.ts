@@ -87,3 +87,15 @@ describe('baueSeitenBericht', () => {
     expect(b.hinweise.some((h) => h.includes('Kein Doc im Hauptmenue'))).toBe(true)
   })
 })
+
+describe('baueSeitenBericht — Story-Sektion (Welle N1)', () => {
+  it('nennt je Story-Sektion die Zahl der Beispielfragen, an anderen Sektionen nicht', () => {
+    const md = '<!-- section layout=story placeholder="Frag …" -->\n## Frag.\n<!-- questions -->\n- A?\n- B?\n<!-- /section -->\n<!-- section layout=text-only -->\nText\n<!-- /section -->'
+    const b = baueSeitenBericht([HOME], new Map([['home', md]]))
+    expect(b.seiten[0].sektionen).toEqual([
+      { layout: 'story', bg: 'default', bild: false, fragen: 2 },
+      { layout: 'text-only', bg: 'default', bild: false },
+    ])
+    expect(b.seiten[0].fehler).toEqual([])
+  })
+})

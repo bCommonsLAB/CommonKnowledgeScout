@@ -962,6 +962,23 @@
       "delete": "Elimina domanda",
       "deleteConfirm": "Eliminare davvero questa domanda?",
       "again": "Ripeti la domanda"
+    },
+    "eingabeInline": {
+      "enterHint": "Invio invia · Maiusc+Invio per andare a capo"
+    }
+  },
+  "website": {
+    "story": {
+      "bereit": "Pronto per le tue domande",
+      "fragenInSitzung": {
+        "one": "1 domanda in questa sessione",
+        "many": "{count} domande in questa sessione"
+      },
+      "anpassen": "Adatta le risposte",
+      "quellenAnzeigen": "Mostra fonti ({count})",
+      "beispielfragen": "Domande di esempio",
+      "vorschauHinweis": "La chat funziona solo sulla pagina live della biblioteca.",
+      "laden": "Caricamento dello scout …"
     }
   }
 }

@@ -17,6 +17,10 @@
  *   siehe no-silent-fallbacks.mdc) — auch ein Bild-Attribut an einem
  *   Layout ohne Bildspalte.
  * - Body ohne Marker => eine einzige Default-Sektion (Robustheit).
+ * - `layout=story` (Welle N1): `placeholder="…"` fuer das Eingabefeld (nur
+ *   dort erlaubt); der Block `<!-- questions -->` darf NUR in einer
+ *   Story-Sektion stehen, und es gibt hoechstens EINE Story-Sektion je Seite
+ *   (Sitzung und Story-Zustand sind geteilt). Beides wirft.
  */
 
 import { SITE_SURFACES } from '@ks/contracts'
@@ -30,6 +34,7 @@ import {
   type WebsiteSection,
 } from './types'
 import { parseSectionBlocks } from './parse-section-blocks'
+import { pruefeStorySektionen } from './story-section'
 
 const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'image-left',
@@ -39,6 +44,7 @@ const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'video',
   'contact-form',
   'banner',
+  'story',
 ]
 const SECTION_BGS: readonly SectionBg[] = SITE_SURFACES
 
@@ -76,6 +82,7 @@ interface SectionAttrs {
   kicker?: string
   imageWidth?: SectionImageWidth
   imageAlign?: SectionImageAlign
+  placeholder?: string
 }
 
 function parseAttrs(raw: string): SectionAttrs {
@@ -84,6 +91,7 @@ function parseAttrs(raw: string): SectionAttrs {
   let kicker: string | undefined
   let imageWidth: SectionImageWidth | undefined
   let imageAlign: SectionImageAlign | undefined
+  let placeholder: string | undefined
   ATTR_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTR_RE.exec(raw)) !== null) {
@@ -115,7 +123,12 @@ function parseAttrs(raw: string): SectionAttrs {
         throw new Error(`Ungueltiges section image_align="${value}". Erlaubt: ${SECTION_IMAGE_ALIGNS.join(', ')}`)
       }
       imageAlign = value
+    } else if (key === 'placeholder') {
+      placeholder = value.trim() || undefined
     }
+  }
+  if (placeholder !== undefined && layout !== 'story') {
+    throw new Error(`section placeholder gilt nur fuer layout=story (hier: ${layout})`)
   }
   const hatBildspalte = layout === 'image-left' || layout === 'image-right'
   if (!hatBildspalte && (imageWidth || imageAlign)) {
@@ -123,7 +136,7 @@ function parseAttrs(raw: string): SectionAttrs {
       `section image_width/image_align gelten nur fuer layout=image-left oder image-right (hier: ${layout})`,
     )
   }
-  return { layout, bg, kicker, imageWidth, imageAlign }
+  return { layout, bg, kicker, imageWidth, imageAlign, placeholder }
 }
 
 function extractImage(markdown: string): {
@@ -158,8 +171,12 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
   SECTION_RE.lastIndex = 0
   let match: RegExpExecArray | null
   while ((match = SECTION_RE.exec(body)) !== null) {
-    const { layout, bg, kicker, imageWidth, imageAlign } = parseAttrs(match[1] ?? '')
-    if (layout === 'video') {
+    const { layout, bg, kicker, imageWidth, imageAlign, placeholder } = parseAttrs(match[1] ?? '')
+    if (layout === 'story') {
+      // Kein Bild-Auszug: Markdown bleibt ganz, der Rahmen zeigt es vor und nach dem Fragen-Block.
+      const rest = (match[2] ?? '').trim()
+      sections.push({ layout, bg, markdown: rest, kicker, blocks: parseSectionBlocks(rest), ...(placeholder ? { placeholder } : {}) })
+    } else if (layout === 'video') {
       const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
       sections.push({ layout, bg, markdown: rest, videoUrl, kicker, blocks: parseSectionBlocks(rest) })
     } else {
@@ -173,7 +190,10 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
   }
   if (sections.length === 0) {
     const { imageUrl, imageAlt, rest } = extractImage(body)
-    return [{ layout: DEFAULT_LAYOUT, bg: DEFAULT_BG, markdown: rest, imageUrl, imageAlt, blocks: parseSectionBlocks(rest) }]
+    const einzige: WebsiteSection[] = [{ layout: DEFAULT_LAYOUT, bg: DEFAULT_BG, markdown: rest, imageUrl, imageAlt, blocks: parseSectionBlocks(rest) }]
+    pruefeStorySektionen(einzige)
+    return einzige
   }
+  pruefeStorySektionen(sections)
   return sections
 }

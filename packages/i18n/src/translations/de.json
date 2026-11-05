@@ -1009,6 +1009,23 @@
       "delete": "Frage löschen",
       "deleteConfirm": "Diese Frage wirklich löschen?",
       "again": "Frage neu stellen"
+    },
+    "eingabeInline": {
+      "enterHint": "Enter sendet · Shift+Enter für Zeilenumbruch"
+    }
+  },
+  "website": {
+    "story": {
+      "bereit": "Bereit für deine Fragen",
+      "fragenInSitzung": {
+        "one": "1 Frage in dieser Sitzung",
+        "many": "{count} Fragen in dieser Sitzung"
+      },
+      "anpassen": "Antworten anpassen",
+      "quellenAnzeigen": "Quellen anzeigen ({count})",
+      "beispielfragen": "Beispielfragen",
+      "vorschauHinweis": "Der Chat läuft nur auf der Live-Seite der Library.",
+      "laden": "Lade den Scout …"
     }
   }
 }
