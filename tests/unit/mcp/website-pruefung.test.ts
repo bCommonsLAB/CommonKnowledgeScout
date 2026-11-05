@@ -87,3 +87,24 @@ describe('bildUrls', () => {
     expect(bildUrls('a ![x](https://a/b.png) b ![](c/d.jpg)')).toEqual(['https://a/b.png', 'c/d.jpg'])
   })
 })
+
+describe('pruefeMarkdownDokument — Story-Sektion (Welle N1)', () => {
+  const KOPF = ['---', 'detailViewType: "website"', 'title: "Startseite"', 'language: "de"', 'targetLanguage: "de"', '---'].join('\n')
+
+  it('Story-Sektion mit Fragen: keine Warnung', () => {
+    const p = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=story -->\n## Frag.\n<!-- questions -->\n- A?\n<!-- /section -->`)
+    expect(p.fehler).toEqual([])
+    expect(p.warnungen).toEqual([])
+  })
+
+  it('Story-Sektion ohne questions-Block ist eine Warnung', () => {
+    const p = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=story -->\n## Frag.\n<!-- /section -->`)
+    expect(p.fehler).toEqual([])
+    expect(p.warnungen.some((w) => w.includes('ohne <!-- questions -->'))).toBe(true)
+  })
+
+  it('zwei Story-Sektionen sind ein harter Fehler des Parsers', () => {
+    const p = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=story -->\nA\n<!-- /section -->\n<!-- section layout=story -->\nB\n<!-- /section -->`)
+    expect(p.fehler.some((f) => f.includes('Hoechstens eine Sektion layout=story'))).toBe(true)
+  })
+})

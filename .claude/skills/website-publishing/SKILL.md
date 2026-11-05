@@ -149,7 +149,9 @@ Erweiterung in den Einstellungen aus- und einschalten.
    - Impressum: `menu_area: "footer"`.
    - Fußzeile: `site_role: "footer-content"`, `menu_area: "hidden"`.
    Erlaubte `layout`: image-left, image-right, full-image, text-only, video,
-   contact-form, banner (Raster an dieser Stelle; ab Welle S1). Erlaubte `bg`: default, light, dark, brand, linen, mint,
+   contact-form, banner (Raster an dieser Stelle; ab Welle S1), story (der
+   Chat der Library an dieser Stelle; ab Werkzeugsatz 2.63.0, siehe unten).
+   Erlaubte `bg`: default, light, dark, brand, linen, mint,
    dark-green, neutral. Bei `image-left`/`image-right` zusätzlich
    `image_width=1/3` (ein Drittel Bild, zwei Drittel Text; Vorgabe `1/2`)
    und `image_align=top` (Bild obenbündig; Vorgabe `center`) — für Porträts
@@ -214,6 +216,42 @@ Erweiterung in den Einstellungen aus- und einschalten.
 
 Nicht über die Brücke: die Domain-Zuordnung (`PUBLIC_DOMAIN_LIBRARY_MAP`
 im Deployment, DNS) und der API-Schlüssel der Library.
+
+## Startseite mit Story-Sektion (Werkzeugsatz 2.63.0)
+
+„Erst fragen, dann einstellen" (Plan `docs/plans/website-story-sektion.plan.md`):
+der Chat der Library steht als Sektion auf der Startseite, meist direkt
+unter dem Hero. Alles steht im Markdown der Seite, nichts in der
+Library-Konfiguration:
+
+```markdown
+<!-- section layout=story bg=light placeholder="Stelle deine Frage zur Natur Südtirols …" -->
+## Frag einfach drauflos.
+Zum Beispiel eine dieser Fragen – oder stelle deine eigene.
+
+<!-- questions -->
+- Wie verändert der Klimawandel die Artenvielfalt Südtirols?
+- Welche Arten sind in Südtirol besonders gefährdet?
+
+✓ Antworten mit Quellenangaben · ✓ Inhalte des Naturmuseums
+<!-- /section -->
+```
+
+- Markdown VOR `<!-- questions -->` steht über der Eingabe, die Liste sind
+  die Beispielfragen (Klick fragt sofort), Markdown DANACH steht darunter.
+  `placeholder` ist der Text im leeren Eingabefeld; ohne Attribut gilt der
+  Platzhalter der Chat-Konfiguration.
+- Regeln (der Parser wirft, `seite_pruefen` und `dokument_publizieren`
+  melden es): `questions` nur in `layout=story`, `placeholder` nur dort,
+  höchstens EINE Story-Sektion je Seite. Eine Story-Sektion ohne Fragen ist
+  erlaubt, aber eine Warnung.
+- Belege einer Antwort und „Antworten anpassen" (Perspektive, Sprache,
+  Modell) öffnen sich als Blatt von rechts, nie von selbst. Die Sektion
+  nutzt dieselbe Sitzung wie der Story-Modus: Fragen von der Startseite
+  stehen dort in der Chronik.
+- `seite_pruefen` nennt je Story-Sektion `fragen` (Anzahl). Vier bis sechs
+  Fragen passen in zwei Spalten; die Fragen sollen zum Bestand passen (der
+  Scout antwortet nur aus den Dokumenten der Library).
 
 ## Veranstaltungs-Webseite aus Vortragsseiten (Werkzeugsatz 2.48.1)
 

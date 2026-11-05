@@ -6,7 +6,7 @@ status: entwurf
 todos:
   - id: n1-sektion-story
     content: "N1 Sektion `story`: Marker `layout=story` (+ `placeholder`), Block `<!-- questions -->` mit Liste, Client-Baustein `WebsiteStorySektion` (Fragen-Kacheln, sichtbare Eingabe, wachsende Konversation, Belege als Blatt von rechts, Knopf „Antworten anpassen“ öffnet den Perspektiv-Dialog), Slot in `WebsiteDetail`/`WebsiteLandingLive`, Prüfung in der Brücke, Contract, Skill, Tests."
-    status: pending
+    status: completed
   - id: n2-kacheln
     content: "N2 Kachel-Block `<!-- cards -->` (drei Karten nebeneinander: Titel, Text, Link) und die Zielauflösung `?view=gallery` / `?mode=story` / `?site=<slug>` ohne Neuladen; `onShowStory` im `siteView`-Slot der Galerie."
     status: pending
@@ -19,6 +19,16 @@ todos:
 ---
 
 # Website-Startseite mit Story-Sektion
+
+> **Stand 05.11.2026:** N1 gebaut (Parser `layout=story` + `placeholder`,
+> Block `questions`, `storyBloecke`, `StoryEingabeInline` und
+> `ohneUebersicht` im Story-Paket, `BelegListe`/`ReferencesSheet` exportiert,
+> `WebsiteStorySektion` + Rahmen + Belege-Blatt, `storySlot` in
+> `WebsiteDetail`, Brücke 2.63.0 mit Warnung und `fragen`, Contract, Skill,
+> Tests). Owner 05.11.: Blatt von rechts für Belege und Perspektive ist
+> beschlossen (N3 setzt es für die Perspektive um; N1 öffnet dort noch den
+> Dialog in der Mitte). Layout-Konzept in Figma: Klickmodell D0, Seite
+> „Startseite mit Story-Sektion · Naturmuseum (05.11.)".
 
 > Anlass: die Vorlage `knowledgescout_prototyp.html` des Museumsdirektors
 > (Mail vom 29.10.2026, abgelegt im Vorhabensordner `26.07 Naturmuseum

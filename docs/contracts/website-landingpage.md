@@ -71,6 +71,29 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Kachel ohne `**Wert**`, Block ohne Liste, Kasten ohne Ende oder unbekanntes
   `kind` werfen im Parser — `seite_pruefen` meldet sie vor dem Publizieren.
 
+- **Story-Sektion (Welle N1, Plan `website-story-sektion`):** `layout=story`
+  setzt den Chat der Library an diese Stelle der Seite — Beispielfragen als
+  Kacheln, immer sichtbare Eingabe, die Konversation waechst nach unten;
+  Belege einer Antwort und die Perspektive („Antworten anpassen") kommen als
+  Blatt, nie von selbst. Dokumentgetrieben: Markdown VOR dem Block
+  `<!-- questions -->` (+ Markdown-Liste) steht ueber der Eingabe, die Liste
+  sind die Beispielfragen, Markdown DANACH steht darunter; Marker-Attribut
+  `placeholder="…"` fuer das Eingabefeld. Keine Library-Einstellung, kein
+  Frontmatter-Feld. Regeln im Parser (`parse-website-sections.ts`, werfen):
+  `questions` nur in `layout=story`, `placeholder` nur dort, hoechstens EINE
+  Story-Sektion je Seite (Sitzung und Story-Zustand sind geteilt).
+  `seite_pruefen`/`dokument_publizieren` warnen bei einer Story-Sektion ohne
+  Fragen. Die Sektion ist der dritte Gastgeber der Story-Bausteine
+  (`@ks/module-story`: `useStoryKonversation` mit `ohneUebersicht`,
+  `StoryEingabeInline`, `StoryKonversation`; `@ks/module-explorer`:
+  `ReferencesSheet`/`BelegListe`) und teilt Sitzung und Perspektive mit dem
+  Story-Modus. Montage ueber `storySlot` in `WebsiteDetail`
+  (`website-landing-live.tsx`, faul geladen); ohne Slot (Archiv-Vorschau)
+  zeigt `WebsiteStorySektionRahmen` die Fragen als Liste. Ein Beleg oeffnet
+  sein Dokument wie eine Banner-Karte: Site-Modus `onShowGallery({ doc })`,
+  Root-Modus Galerie-Adresse mit `?doc=`; die zitierten Dokumente kommen
+  ueber `docs/by-fileids`.
+
 ## 2. Entferntes Legacy — NICHT wiedereinfuehren
 
 Das alte `web/`-Snapshot-Publishing (statischer HTML-Upload nach Azure, iframe-

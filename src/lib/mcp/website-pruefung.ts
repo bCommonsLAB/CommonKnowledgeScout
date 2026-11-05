@@ -15,6 +15,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
 import { bannerSortAus } from '@/lib/website/banner'
+import { storyBloecke } from '@/lib/website/story-section'
 
 export interface DokumentPruefung {
   meta: Record<string, unknown>
@@ -70,9 +71,15 @@ export function pruefeMarkdownDokument(markdown: string): DokumentPruefung {
 
   if (detailViewType === 'website') {
     try {
-      parseWebsiteSections(body)
+      const sektionen = parseWebsiteSections(body)
+      // N1: eine Story-Sektion ohne Beispielfragen ist erlaubt (nur Eingabe), aber selten gewollt.
+      for (const s of sektionen) {
+        if (s.layout === 'story' && storyBloecke(s).fragen.length === 0) {
+          warnungen.push('Sektion layout=story ohne <!-- questions -->-Block — Besucher sehen nur das Eingabefeld, keine Beispielfragen')
+        }
+      }
     } catch (error) {
-      // Der Parser wirft bei ungueltigem layout/bg — genau diese Meldung soll der Aufrufer sehen.
+      // Der Parser wirft bei ungueltigem layout/bg, questions ausserhalb von story, zwei Story-Sektionen — genau diese Meldung soll der Aufrufer sehen.
       fehler.push(`Sektions-Marker: ${error instanceof Error ? error.message : String(error)}`)
     }
     const heroBild = meta['hero_image']
