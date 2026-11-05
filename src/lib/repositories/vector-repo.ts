@@ -42,6 +42,7 @@ import type { DocCardMeta } from '@ks/contracts'
 import { waehleSterneStages } from './source-user-states-count'
 import { buildCommentLookupStages } from './source-comments-repo'
 import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/documents/column-sort'
+import { vectorSearchFilterAus } from './vector-search-filter'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -733,39 +734,15 @@ export async function queryVectors(
   const { kind, ...restFilter } = filter
   const kindFilter = kind || { $in: ['chunk', 'chapterSummary'] }
   
-  // Vector Search Filter: MongoDB Vector Search unterstützt direkte Werte und $eq/$in Operatoren
-  // Konvertiere direkte Werte zu $eq für bessere Kompatibilität
+  // Vector Search Filter: Operator-Objekte ($eq, $ne, $gt, $gte, $lt, $lte, $in, $nin)
+  // unveraendert, Arrays zu $in, direkte Werte zu $eq — reine Funktion mit Test
+  // (vector-search-filter.ts; Befund 05.11.2026: $nin landete in $eq).
+  const uebersetzt = vectorSearchFilterAus(restFilter, requiresTokenIndex)
   const vectorSearchFilter: Record<string, unknown> = {
     kind: kindFilter,
+    ...uebersetzt.filter,
   }
-  
-  // Prüfe, ob Array-Felder verwendet werden, die Token-Indexe benötigen
-  const arrayFieldsInFilter: string[] = []
-  
-  // Konvertiere restFilter zu Vector Search kompatiblem Format
-  for (const [key, value] of Object.entries(restFilter)) {
-    if (value === null || value === undefined) {
-      continue // Überspringe null/undefined Werte
-    }
-    
-    // Wenn bereits ein MongoDB-Operator ($eq, $in, etc.), verwende direkt
-    if (typeof value === 'object' && !Array.isArray(value) && ('$eq' in value || '$in' in value || '$ne' in value || '$gt' in value || '$lt' in value)) {
-      vectorSearchFilter[key] = value
-      // Prüfe, ob $in verwendet wird (kann auf Array-Feld hinweisen)
-      if ('$in' in value && requiresTokenIndex(key)) {
-        arrayFieldsInFilter.push(key)
-      }
-    } else if (Array.isArray(value)) {
-      // Arrays werden zu $in konvertiert
-      vectorSearchFilter[key] = { $in: value }
-      if (requiresTokenIndex(key)) {
-        arrayFieldsInFilter.push(key)
-      }
-    } else {
-      // Direkte Werte werden zu $eq konvertiert (für bessere Kompatibilität mit Vector Search)
-      vectorSearchFilter[key] = { $eq: value }
-    }
-  }
+  const arrayFieldsInFilter = uebersetzt.arrayFieldsInFilter
   
   // Warnung ausgeben, wenn Array-Felder verwendet werden (für Debugging)
   if (arrayFieldsInFilter.length > 0) {
