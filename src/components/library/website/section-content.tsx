@@ -43,6 +43,14 @@ function Chips({ label, items }: { label?: string; items: string[] }): React.Rea
   )
 }
 
+function Fragenliste({ items }: { items: string[] }): React.ReactElement {
+  return (
+    <ul className="not-prose my-4 list-disc space-y-1 pl-5 text-sm">
+      {items.map((f, i) => <li key={i}>{f}</li>)}
+    </ul>
+  )
+}
+
 function Box({ label, kind, markdown, bg, theme }: {
   label?: string; kind: 'card' | 'note'; markdown: string; bg: WebsiteSection['bg']; theme: SiteThemeResolved
 }): React.ReactElement {
@@ -76,6 +84,8 @@ export function SectionContent({ blocks, bg, headingCase = 'capitalize', theme =
         if (b.type === 'markdown') return <React.Fragment key={i}>{renderMarkdownText(b.markdown, bg, headingCase, theme)}</React.Fragment>
         if (b.type === 'stats') return <Stats key={i} items={b.items} />
         if (b.type === 'chips') return <Chips key={i} label={b.label} items={b.items} />
+        // N1: `questions` nimmt der Story-Rahmen heraus (storyBloecke); landet er doch hier, als Liste — sichtbar, nicht verschluckt.
+        if (b.type === 'questions') return <Fragenliste key={i} items={b.items} />
         return <Box key={i} label={b.label} kind={b.kind} markdown={b.markdown} bg={bg} theme={theme} />
       })}
     </>

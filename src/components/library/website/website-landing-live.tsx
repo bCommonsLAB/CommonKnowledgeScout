@@ -17,6 +17,7 @@
  */
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import { usePathname } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { useLibraries } from '@ks/shell/react'
@@ -35,6 +36,15 @@ import { BANNER_LIMIT_DEFAULT } from "@/lib/website/banner"
 import type { SiteTheme } from "@ks/contracts"
 import { resolveSiteTheme, siteThemeCssVars } from "@/lib/website/site-theme"
 import { SITE_FONT_FAMILIES } from "@/lib/website/site-fonts"
+import type { WebsiteSection } from "@/lib/website/types"
+
+// N1: Der Chat der Story-Sektion zieht Story-Paket und Clerk — faul laden, nur
+// Seiten mit `layout=story` zahlen dafuer. Ohne SSR: Sitzung und Perspektive
+// leben im Browser.
+const WebsiteStorySektion = dynamic(
+  () => import("@/components/library/website/story/website-story-sektion").then((m) => ({ default: m.WebsiteStorySektion })),
+  { ssr: false, loading: () => <div className="px-6 py-14 text-sm text-muted-foreground">Lade den Scout …</div> },
+)
 
 interface WebsiteLandingLiveProps {
   libraryId: string
@@ -151,6 +161,21 @@ export function WebsiteLandingLive({
     />
   ) : null
 
+  // N1: Story-Sektion mit dem Chat der Library; Belege und Katalog fuehren in
+  // die Galerie wie die Banner-Karten (Site-Modus Rueckruf, Root-Modus Adresse).
+  const storySlot = React.useCallback(
+    (section: WebsiteSection) => (
+      <WebsiteStorySektion
+        libraryId={libraryId}
+        section={section}
+        headingCase={detail?.headingCase}
+        theme={theme}
+        navigation={{ onShowGallery, galleryBaseHref }}
+      />
+    ),
+    [libraryId, detail?.headingCase, theme, onShowGallery, galleryBaseHref],
+  )
+
   const error = listError ?? detailError
   if (error) {
     return <div className="p-6 text-sm text-destructive">{error}</div>
@@ -177,6 +202,7 @@ export function WebsiteLandingLive({
           showBackLink={false}
           contactApiSlug={contactApiSlug}
           bannerSlot={bannerInSektion ? banner : undefined}
+          storySlot={storySlot}
           theme={theme}
         />
       )}

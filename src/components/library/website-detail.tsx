@@ -11,6 +11,8 @@ import { SectionContent } from "@/components/library/website/section-content"
 import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
 import { HeroCover } from "@/components/library/website/hero-cover"
 import { HeroCampaign } from "@/components/library/website/hero-campaign"
+import { WebsiteStorySektionRahmen } from "@/components/library/website/story/website-story-sektion-rahmen"
+import type { WebsiteSection } from "@/lib/website/types"
 import { OLDIES_THEME, siteThemeCssVars, type SiteThemeResolved } from "@/lib/website/site-theme"
 import { BUTTON_PRIMARY, KICKER_CLASS, surfaceStyle } from "@/lib/website/surface-style"
 import { cn } from "@/lib/utils"
@@ -72,6 +74,12 @@ interface WebsiteDetailProps {
    * nur ihre Einleitung.
    */
   bannerSlot?: React.ReactNode
+  /**
+   * Welle N1: der Chat der Library, der an der Stelle einer `story`-Sektion
+   * montiert wird (Live-Seite). Fehlt er (Archiv-Vorschau), zeigt der Rahmen
+   * die Fragen als Liste und einen Hinweis.
+   */
+  storySlot?: (section: WebsiteSection) => React.ReactNode
   /** Welle S2: aufgeloestes Design-Profil; fehlt = Vorlage (Archiv-Vorschau). */
   theme?: SiteThemeResolved
 }
@@ -89,7 +97,7 @@ export function hatBannerSektion(markdown: string | undefined): boolean {
  * Markdown-Body (Sektions-Marker) und ein eingebettetes Video — letzteres nur,
  * wenn die URL eine sichere Embed-URL ist (kein relativer Dateiname im iframe).
  */
-export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
+export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, storySlot, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
   const sections = React.useMemo(
     () => (data.markdown ? parseWebsiteSections(data.markdown) : []),
     [data.markdown],
@@ -174,6 +182,14 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
               contactEmail={data.contactEmail}
               theme={theme}
             />
+          )
+        }
+        if (s.layout === "story") {
+          // N1: der Chat an dieser Stelle (Live-Seite) — oder der Rahmen mit den Fragen als Liste (Vorschau).
+          return (
+            <React.Fragment key={i}>
+              {storySlot ? storySlot(s) : <WebsiteStorySektionRahmen section={s} headingCase={headingCase} theme={theme} />}
+            </React.Fragment>
           )
         }
         if (s.layout === "banner") {
