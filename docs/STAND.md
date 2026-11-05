@@ -350,6 +350,13 @@ hier übernommen; der Branch kann weg.
 
 Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg liegt.
 
+- **Website-Startseite mit Story-Sektion** (Plan
+  [`website-story-sektion`](plans/website-story-sektion.plan.md), 05.11.):
+  Chat mit Beispielfragen als Sektion `story` der Landingpage, Belege und
+  Perspektive als Blatt von rechts, Kachel-Block `cards` für Galerie,
+  Story-Modus und Seiten; Wellen N1–N3 Code, N4 Inhalt über die Brücke.
+  Anlass ist die Vorlage des Partners im Vorhaben Naturmuseum (Archiv);
+  Zielbild für weitere Libraries. Nichts gebaut
 - **Reste aus Vorhaben 1 AECED**: Live-Nachweis des
   Story-Modus in App und fremder App (`view="story"`, D6b/D6c); D6d toten
   App-Chat (`ChatPanel` ohne Montagepunkt) entfernen; D0 Abnahme des
