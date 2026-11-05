@@ -47,3 +47,18 @@ describe('parseSectionBlocks', () => {
     expect(() => parseWebsiteSections('<!-- section -->\n<!-- stats -->\nx\n<!-- /section -->')).toThrow(/stats-Block ohne Liste/)
   })
 })
+
+describe('parseSectionBlocks — questions (Welle N1)', () => {
+  it('questions: Liste wird zu Beispielfragen, Text davor und danach bleibt', () => {
+    const blocks = parseSectionBlocks(`## Frag drauflos.\n\nZum Beispiel:\n\n<!-- questions -->\n- Wie veraendert der Klimawandel die Artenvielfalt?\n- **Welche Arten** sind gefaehrdet?\n\n✓ Mit Quellen`)
+    expect(blocks).toEqual([
+      { type: 'markdown', markdown: '## Frag drauflos.\n\nZum Beispiel:' },
+      { type: 'questions', items: ['Wie veraendert der Klimawandel die Artenvielfalt?', 'Welche Arten sind gefaehrdet?'] },
+      { type: 'markdown', markdown: '✓ Mit Quellen' },
+    ])
+  })
+
+  it('questions ohne Liste wirft', () => {
+    expect(() => parseSectionBlocks('<!-- questions -->\nKeine Liste.')).toThrow(/questions-Block ohne Liste/)
+  })
+})

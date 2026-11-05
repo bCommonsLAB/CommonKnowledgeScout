@@ -16,6 +16,10 @@ import type { SectionContentBlock } from './parse-section-blocks'
  * `banner` (Welle S1): setzt das Dokument-Raster („Mehr aus dieser
  * Bibliothek") an diese Stelle der Seite; das Sektions-Markdown steht als
  * Einleitung darueber. Ohne banner-Sektion bleibt das Raster unter der Seite.
+ * `story` (Welle N1, Plan website-story-sektion): der Chat der Library auf
+ * der Startseite — Markdown vor dem Block `<!-- questions -->` steht ueber
+ * der Eingabe, die Liste des Blocks sind die Beispielfragen, Markdown danach
+ * steht unter der Eingabe. Hoechstens eine je Seite (Parser).
  */
 export type SectionLayout =
   | 'image-left'
@@ -25,6 +29,7 @@ export type SectionLayout =
   | 'video'
   | 'contact-form'
   | 'banner'
+  | 'story'
 
 /**
  * Bildspalte der Sektionen image-left/image-right (Marker-Attribut
@@ -67,6 +72,8 @@ export interface WebsiteSection {
   imageWidth?: SectionImageWidth
   /** Bildausrichtung bei image-left/image-right; fehlt = `center`. Nur gesetzt, wenn der Marker es nennt. */
   imageAlign?: SectionImageAlign
+  /** Welle N1, nur `layout=story`: Platzhalter des Eingabefelds (Marker-Attribut `placeholder="…"`). */
+  placeholder?: string
   /**
    * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
    * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;
