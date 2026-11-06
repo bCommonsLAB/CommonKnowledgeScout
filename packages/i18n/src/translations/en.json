@@ -994,6 +994,8 @@
       "quellenAnzeigenKurz": "Show sources",
       "belegnummern": "Show source numbers in the text",
       "kiHinweis": "AI-generated answer from {count} documents",
+      "verarbeitungAnsehen": "Show processing",
+      "verarbeitungLeer": "No processing steps available",
       "beispielfragen": "Example questions",
       "vorschauHinweis": "The chat only runs on the live page of the library.",
       "laden": "Loading the scout …"

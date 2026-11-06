@@ -1041,6 +1041,8 @@
       "quellenAnzeigenKurz": "Quellen anzeigen",
       "belegnummern": "Belegnummern im Text anzeigen",
       "kiHinweis": "KI-generierte Antwort aus {count} Dokumenten",
+      "verarbeitungAnsehen": "Verarbeitung ansehen",
+      "verarbeitungLeer": "Keine Verarbeitungsschritte verfügbar",
       "beispielfragen": "Beispielfragen",
       "vorschauHinweis": "Der Chat läuft nur auf der Live-Seite der Library.",
       "laden": "Lade den Scout …"
