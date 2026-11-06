@@ -18,16 +18,29 @@
  *   <!-- questions -->          (Welle N1, nur in layout=story)
  *   - Wie veraendert der Klimawandel die Artenvielfalt?
  *
- * `stats` und `chips` nehmen die unmittelbar folgende Markdown-Liste; `box`
+ *   <!-- cards -->              (Welle N2, in jeder Sektion)
+ *   - **Das Archiv entdecken** Stoebere in Studien. [Zum Archiv →](?view=gallery)
+ *
+ * `stats`, `chips`, `questions` und `cards` nehmen die unmittelbar folgende Markdown-Liste; `box`
  * reicht bis `<!-- /box -->` (`kind` = `card` weiss mit Schatten, `note`
  * durchscheinender Streifen). Alles dazwischen bleibt Markdown. Fehler
  * (Kachel ohne `**Wert**`, Block ohne Liste, Kasten ohne Ende) werfen —
  * `seite_pruefen` und der Renderer melden sie, nichts wird still verschluckt.
  */
 
+import { loeseKartenziel } from './kartenziel'
+
 export interface StatsItem {
   value: string
   label: string
+}
+
+/** Eine Kachel des Blocks `cards` (Welle N2); `href` ist schon gegen `loeseKartenziel` geprueft. */
+export interface CardItem {
+  title: string
+  text: string
+  linkLabel: string
+  href: string
 }
 
 export type BoxKind = 'card' | 'note'
@@ -40,12 +53,15 @@ export type SectionContentBlock =
   | { type: 'box'; label?: string; kind: BoxKind; markdown: string }
   /** Welle N1: Beispielfragen der Story-Sektion (`<!-- questions -->` + Liste); nur in `layout=story` erlaubt (Sektions-Parser). */
   | { type: 'questions'; items: string[] }
+  /** Welle N2: Kacheln mit Titel, Text und Link (`<!-- cards -->` + Liste); in jeder Sektion erlaubt. */
+  | { type: 'cards'; items: CardItem[] }
 
-const BLOCK_RE = /<!--\s*(stats|chips|box|questions)\b([^>]*?)-->/g
+const BLOCK_RE = /<!--\s*(stats|chips|box|questions|cards)\b([^>]*?)-->/g
 const BOX_END_RE = /<!--\s*\/box\s*-->/
 const ATTR_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([\w-]+))/g
 const LIST_LINE_RE = /^\s*[-*]\s+(.*\S)\s*$/
 const STAT_RE = /^\*\*(.+?)\*\*\s+(.+)$/
+const CARD_RE = /^\*\*(.+?)\*\*\s*(.*?)\s*\[([^\]]+)\]\(([^)\s]+)\)$/
 
 function attrs(raw: string): Record<string, string> {
   const out: Record<string, string> = {}
@@ -69,6 +85,15 @@ function nimmListe(text: string, block: string): { items: string[]; rest: string
   }
   if (items.length === 0) throw new Error(`${block}-Block ohne Liste: direkt nach <!-- ${block} --> muss eine Markdown-Liste ("- …") stehen`)
   return { items, rest: lines.slice(i).join('\n') }
+}
+
+/** Eine Zeile "**Titel** Text [Linktext](Ziel)"; ohne Titel oder Link, mit unbekanntem Ziel wirft sie. */
+function kachel(zeile: string): CardItem {
+  const m = zeile.match(CARD_RE)
+  if (!m) throw new Error(`Karten-Zeile "${zeile}" — erwartet "- **Titel** Text [Linktext](Ziel)"`)
+  const href = m[4]
+  loeseKartenziel(href)
+  return { title: m[1].trim(), text: m[2].trim(), linkLabel: m[3].trim(), href }
 }
 
 function pushMarkdown(blocks: SectionContentBlock[], text: string): void {
@@ -107,6 +132,8 @@ export function parseSectionBlocks(markdown: string): SectionContentBlock[] {
         return { value: s[1].trim(), label: s[2].trim() }
       })
       blocks.push({ type: 'stats', items: stats })
+    } else if (name === 'cards') {
+      blocks.push({ type: 'cards', items: items.map(kachel) })
     } else if (name === 'questions') {
       blocks.push({ type: 'questions', items: items.map((z) => z.replace(/\*\*/g, '').trim()) })
     } else {

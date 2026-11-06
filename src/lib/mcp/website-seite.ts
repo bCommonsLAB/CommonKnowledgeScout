@@ -11,6 +11,7 @@
 
 import type { DocCardMeta } from '@ks/contracts'
 import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
+import type { WebsiteSection } from '@/lib/website/types'
 import {
   findFooterContentDoc,
   resolveSiteParamDoc,
@@ -50,8 +51,8 @@ export interface SeitenEintrag {
   menu_order?: number
   menu_area?: string
   site_role?: string
-  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`. */
-  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number }>
+  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`; `karten` (N2) nur bei Sektionen mit Block `cards`: Zahl der Kacheln. */
+  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number; karten?: number }>
   fehler: string[]
   warnungen: string[]
 }
@@ -67,6 +68,12 @@ export interface SeitenBericht {
 
 const SITE_LINK_RE = /\(\?site=([^)&\s]+)\)/g
 const ANONYM_LESBAR = /^https?:\/\//i
+
+/** N2: Zahl der Kacheln einer Sektion (alle `cards`-Bloecke zusammen); nur genannt, wenn es welche gibt. */
+function kartenAnzahl(s: WebsiteSection): { karten?: number } {
+  const n = s.blocks.reduce((summe, b) => (b.type === 'cards' ? summe + b.items.length : summe), 0)
+  return n > 0 ? { karten: n } : {}
+}
 
 function titel(doc: DocCardMeta): string {
   return doc.title ?? doc.fileName ?? doc.fileId ?? '(ohne Titel)'
@@ -104,6 +111,7 @@ export function baueSeitenBericht(
           ...(s.imageWidth ? { bildBreite: s.imageWidth } : {}),
           ...(s.imageAlign ? { bildAusrichtung: s.imageAlign } : {}),
           ...(s.layout === 'story' ? { fragen: storyBloecke(s).fragen.length } : {}),
+          ...kartenAnzahl(s),
         }))
       } catch (error) {
         fehler.push(`Sektions-Marker: ${error instanceof Error ? error.message : String(error)}`)

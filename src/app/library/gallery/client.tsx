@@ -73,8 +73,8 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
         )}
         storyChronik={(libraryId, ctx) => <StoryChronikMount libraryId={libraryId} onGewaehlt={ctx?.schliessen} />}
         detailRenderers={DETAIL_RENDERERS}
-        siteView={({ libraryId, onShowGallery }) => (
-          <WebsiteLandingLive libraryId={libraryId} onShowGallery={onShowGallery} />
+        siteView={({ libraryId, onShowGallery, onShowStory }) => (
+          <WebsiteLandingLive libraryId={libraryId} onShowGallery={onShowGallery} onShowStory={onShowStory} />
         )}
         storyHeader={({ libraryId, onBackToGallery, onOpenChronik, onOpenQuellen }) => (
           <StoryModeHeader libraryId={libraryId} onBackToGallery={onBackToGallery} onOpenChronik={onOpenChronik} onOpenQuellen={onOpenQuellen} />

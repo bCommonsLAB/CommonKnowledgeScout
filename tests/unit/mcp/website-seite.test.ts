@@ -99,3 +99,28 @@ describe('baueSeitenBericht — Story-Sektion (Welle N1)', () => {
     expect(b.seiten[0].fehler).toEqual([])
   })
 })
+
+describe('baueSeitenBericht — Kacheln (Welle N2)', () => {
+  const KACHELN = '<!-- section layout=text-only -->\n<!-- cards -->\n- **Archiv** Stoebern. [Hin](?view=gallery)\n- **Themen** Gliederung. [Hin](?mode=story)\n- **Hilfe** Erklaerung. [Hin](?site=kontakt)\n<!-- /section -->'
+
+  it('nennt die Zahl der Kacheln, an Sektionen ohne Kacheln nicht', () => {
+    const b = baueSeitenBericht([HOME, KONTAKT], new Map([['home', `${KACHELN}\n<!-- section layout=text-only -->\nText\n<!-- /section -->`], ['kontakt', 'x']]))
+    expect(b.seiten[0].sektionen).toEqual([
+      { layout: 'text-only', bg: 'default', bild: false, karten: 3 },
+      { layout: 'text-only', bg: 'default', bild: false },
+    ])
+    expect(b.seiten[0].fehler).toEqual([])
+  })
+
+  it('meldet ein ungueltiges Ziel als Fehler der Seite', () => {
+    const md = '<!-- section layout=text-only -->\n<!-- cards -->\n- **Archiv** [Hin](/explore/x)\n<!-- /section -->'
+    const b = baueSeitenBericht([HOME], new Map([['home', md]]))
+    expect(b.seiten[0].fehler.some((f) => f.includes('Kachel-Ziel "/explore/x" ist unbekannt'))).toBe(true)
+  })
+
+  it('meldet eine Kachel auf eine unbekannte Seite als toten Link', () => {
+    const md = '<!-- section layout=text-only -->\n<!-- cards -->\n- **Hilfe** [Hin](?site=gibt-es-nicht)\n<!-- /section -->'
+    const b = baueSeitenBericht([HOME], new Map([['home', md]]))
+    expect(b.seiten[0].fehler).toContain('Link ?site=gibt-es-nicht trifft kein website-Doc')
+  })
+})

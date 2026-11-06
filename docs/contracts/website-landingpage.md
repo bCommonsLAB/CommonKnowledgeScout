@@ -94,6 +94,21 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Root-Modus Galerie-Adresse mit `?doc=`; die zitierten Dokumente kommen
   ueber `docs/by-fileids`.
 
+- **Kacheln mit Link (Welle N2, Plan `website-story-sektion`):**
+  `<!-- cards -->` + Liste `- **Titel** Text [Linktext](Ziel)` in JEDER
+  Sektion (nicht nur Story): drei Karten nebeneinander ab `md`, Karte im Stil
+  `box kind=card` (`section-cards.tsx`). Ziele (`kartenziel.ts`, reine
+  Funktion): `?view=gallery`, `?mode=story`, `?site=<slug>` oder eine
+  absolute `http(s)`-Adresse; alles andere wirft. Eintrag ohne `**Titel**`
+  oder ohne Link und ein Block ohne Liste werfen ebenfalls — beim Lesen, also
+  vor dem Publizieren. Der Text darf fehlen. Der Klick wechselt im Site-Modus
+  ohne Neuladen (`onShowGallery`, `onShowStory` aus dem `siteView`-Slot der
+  Galerie, `?site=` ueber nuqs); im Root-Modus fuehren `?view=gallery` und
+  `?mode=story` auf die Adresse der Explore-Seite; ohne Navigation (Archiv-
+  Vorschau, Kacheln in einer Story-Sektion) bleibt es ein gewoehnlicher
+  Link. `seite_pruefen` nennt je Sektion `karten` (Anzahl) und meldet ein
+  `?site=`-Ziel ohne website-Doc als toten Link.
+
 ## 2. Entferntes Legacy — NICHT wiedereinfuehren
 
 Das alte `web/`-Snapshot-Publishing (statischer HTML-Upload nach Azure, iframe-
