@@ -74,6 +74,9 @@ describe('pruefeMarkdownDokument', () => {
     expect(none.warnungen.some((w) => w.includes('hero_layout none mit hero_image'))).toBe(true)
     const sauber = pruefeMarkdownDokument(basis + 'hero_layout: "none"\n---\n# T')
     expect(sauber.warnungen.filter((w) => w.includes('hero_layout'))).toEqual([])
+    // band ist ein bekannter Wert und braucht kein hero_image — keine Warnung.
+    const band = pruefeMarkdownDokument(basis + 'hero_layout: "band"\n---\n# T')
+    expect(band.warnungen.filter((w) => w.includes('hero_layout'))).toEqual([])
   })
 
   it('leerer Body ist ein harter Fehler', () => {

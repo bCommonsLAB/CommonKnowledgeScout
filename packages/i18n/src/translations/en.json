@@ -968,7 +968,15 @@
     "konversation": {
       "delete": "Delete question",
       "deleteConfirm": "Really delete this question?",
-      "again": "Ask again"
+      "again": "Ask again",
+      "deineFrage": "Your question",
+      "belegnummern": "Show source numbers in the text",
+      "antwort": "Answer",
+      "quellenZitiert": {
+        "one": "1 source cited",
+        "many": "{count} sources cited"
+      },
+      "weiterfragen": "Follow-up questions"
     },
     "eingabeInline": {
       "enterHint": "Enter sends · Shift+Enter for a new line"
@@ -983,6 +991,9 @@
       },
       "anpassen": "Adjust answers",
       "quellenAnzeigen": "Show sources ({count})",
+      "quellenAnzeigenKurz": "Show sources",
+      "belegnummern": "Show source numbers in the text",
+      "kiHinweis": "AI-generated answer from {count} documents",
       "beispielfragen": "Example questions",
       "vorschauHinweis": "The chat only runs on the live page of the library.",
       "laden": "Loading the scout …"

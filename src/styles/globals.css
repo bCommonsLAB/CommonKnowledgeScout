@@ -20,6 +20,8 @@
     /* Fragen-Akzent (Story-Modus, Owner 20.10.): dezentes Blau, hebt Fragen und den Frage-Knopf von Antworten ab */
     --frage: 212 100% 94%;
     --frage-foreground: 216 60% 24%;
+    /* N5: Farbe der umrandeten Zitatmarke im Antworttext; die Website ueberschreibt sie mit ihrem Akzent (gruen). */
+    --zitat-mark: hsl(215.4 16.3% 46.9%);
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -50,6 +52,7 @@
     --accent: 217.2 32.6% 17.5%;
     --frage: 216 45% 17%;
     --frage-foreground: 212 90% 84%;
+    --zitat-mark: hsl(215 20.2% 65.1%);
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;

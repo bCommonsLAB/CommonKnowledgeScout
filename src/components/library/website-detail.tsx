@@ -11,6 +11,7 @@ import { SectionContent } from "@/components/library/website/section-content"
 import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
 import { HeroCover } from "@/components/library/website/hero-cover"
 import { HeroCampaign } from "@/components/library/website/hero-campaign"
+import { HeroBand } from "@/components/library/website/hero-band"
 import { WebsiteStorySektionRahmen } from "@/components/library/website/story/website-story-sektion-rahmen"
 import type { WebsiteSection } from "@/lib/website/types"
 import type { KartenNavigation } from "@/lib/website/kartenziel"
@@ -29,8 +30,9 @@ export interface WebsiteDetailData {
    * - `overlay` (Default): Bild full-bleed mit dunklem Overlay + zentriertem Text.
    * - `cover`: helle Flaeche, grosser gestapelter Titel, kleineres ueberlagertes Bild.
    * - `campaign` (S2): Bild oben mit Kennzeile, darunter Titel, Zweitzeile, zwei Buttons.
+   * - `band` (N4): schlankes farbiges Band mit Kennzeile, Titel, Unterzeile — ohne Bild.
    */
-  heroLayout?: string // overlay (Vorgabe) | cover | campaign | none (kein Kopf, erste Sektion beginnt oben)
+  heroLayout?: string // overlay (Vorgabe) | cover | campaign | band | none (kein Kopf, erste Sektion beginnt oben)
   videoUrl?: string
   ctaLabel?: string
   ctaUrl?: string
@@ -54,6 +56,8 @@ export interface WebsiteDetailData {
   bannerLimit?: number
   /** Welle F3 (ADR 0012): Reihung des Banners (Frontmatter `banner_sort`); fehlt = `rating`. */
   bannerSort?: BannerSort
+  /** Welle N4: `banner_hidden: true` unterdrueckt das Galerie-Raster ganz (kein Banner in der Sektion, keines angehaengt). */
+  bannerHidden?: boolean
   /** Welle S1: Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
   headingCase?: HeadingCase
   fileId?: string
@@ -124,7 +128,9 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
         </button>
       )}
 
-      {data.heroLayout === "none" ? null : data.heroLayout === "campaign" && data.heroImageUrl ? (
+      {data.heroLayout === "none" ? null : data.heroLayout === "band" ? (
+        <HeroBand title={heroTitle} subtitle={data.heroSubtitle} kicker={data.heroKicker} />
+      ) : data.heroLayout === "campaign" && data.heroImageUrl ? (
         <HeroCampaign
           title={heroTitle}
           title2={data.heroTitle2}

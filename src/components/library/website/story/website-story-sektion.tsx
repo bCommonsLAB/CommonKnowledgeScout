@@ -14,16 +14,17 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useSetAtom } from 'jotai'
-import { SlidersHorizontal } from 'lucide-react'
+import { List, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
-import { StoryEingabeInline, StoryKonversation, type Nachricht } from '@ks/module-story/react'
+import { StoryEingabeInline, StoryKonversation, type AntwortKopfApi, type Nachricht } from '@ks/module-story/react'
 import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
 import type { SiteThemeResolved } from '@/lib/website/site-theme'
 import { storyBloecke } from '@/lib/website/story-section'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
-import { StoryAntwortFuss } from '@/components/library/story/story-fuss'
+import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
+import { AppLogo } from '@/components/shared/app-logo'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { WebsiteStoryBelege, type WebsiteStoryNavigation } from './website-story-belege'
@@ -70,21 +71,45 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     [setChatReferences],
   )
 
+  // N5: „Quellen anzeigen" steht in der Kopfzeile der Antwort. Der Klick blendet
+  // die Zitatmarken ein (die Plakette „N Quellen zitiert" ist selbst der Umschalter)
+  // UND oeffnet die Belege als Blatt von rechts.
+  const kopfAktion = useCallback(
+    (antwort: Nachricht, api: AntwortKopfApi) => {
+      const dokumente = new Set((antwort.belege ?? []).map((b) => b.fileId)).size
+      if (dokumente === 0) return null
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          data-story-belege-knopf
+          onClick={() => {
+            api.setSichtbar(true)
+            belegeOeffnen(antwort)
+          }}
+        >
+          <List className="h-4 w-4" aria-hidden="true" />
+          {t('website.story.quellenAnzeigenKurz')}
+        </Button>
+      )
+    },
+    [belegeOeffnen, t],
+  )
+
+  // N5: schlanke Fusszeile — eine dezente Zeile statt KI-Block, Parameter-Liste und
+  // Logs/Debug. Perspektive/Modell kommen aus der Query-Anzeige (dezent).
   const fuss = useCallback(
     (antwort: Nachricht) => {
       const dokumente = new Set((antwort.belege ?? []).map((b) => b.fileId)).size
       return (
-        <div className="mt-3 space-y-2">
-          {dokumente > 0 && (
-            <Button variant="outline" size="sm" onClick={() => belegeOeffnen(antwort)} data-story-belege-knopf>
-              {t('website.story.quellenAnzeigen', { count: dokumente })}
-            </Button>
-          )}
-          <StoryAntwortFuss libraryId={p.libraryId} antwort={antwort} llmModel={s.llmModel} />
+        <div className="mt-3 border-t border-black/5 pt-2 text-xs text-neutral-500" data-story-antwort-fuss>
+          <p>{t('website.story.kiHinweis', { count: dokumente })}</p>
+          {antwort.queryId && <ChatConfigDisplay libraryId={p.libraryId} queryId={antwort.queryId} llmModel={s.llmModel} />}
         </div>
       )
     },
-    [belegeOeffnen, p.libraryId, s.llmModel, t],
+    [p.libraryId, s.llmModel, t],
   )
 
   const anzahl = s.paare.length
@@ -110,7 +135,13 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
       <>
         <StoryFragenKacheln fragen={fragen} onFrage={senden} gesperrt={s.k.laeuft} />
         {konversation && (
-          <div className="mt-6" data-story-konversation>
+          <div
+            className="mt-6"
+            data-story-konversation
+            // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
+            // Zitatmarken) folgt dem Grün der Site; ausserhalb der Website gilt die Vorgabe.
+            style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-strong)' }}
+          >
             <StoryKonversation
               paare={s.paare}
               laeuft={s.k.laeuft}
@@ -120,6 +151,9 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
               onFrage={setText}
               onErneut={setText}
               fuss={fuss}
+              kopfAktion={kopfAktion}
+              markenAnfangsVerborgen
+              antwortAvatar={<AppLogo size={32} />}
             />
           </div>
         )}

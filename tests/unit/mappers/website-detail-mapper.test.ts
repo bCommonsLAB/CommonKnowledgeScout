@@ -48,6 +48,15 @@ describe('mapToWebsiteDetail (S2, Hero campaign)', () => {
   })
 })
 
+describe('mapToWebsiteDetail (N4, banner_hidden)', () => {
+  it('banner_hidden: true schaltet das Banner aus; fehlend/false bleibt sichtbar', () => {
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Start', banner_hidden: true } }).bannerHidden).toBe(true)
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Start', banner_hidden: 'true' } }).bannerHidden).toBe(true)
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Start' } }).bannerHidden).toBe(false)
+    expect(mapToWebsiteDetail({ docMetaJson: { title: 'Start', banner_hidden: false } }).bannerHidden).toBe(false)
+  })
+})
+
 describe('mapToWebsiteDetail (S2-Nachtrag, hero_title)', () => {
   it('hero_title ist die Hero-Ueberschrift, title bleibt der Menuepunkt', () => {
     const d = mapToWebsiteDetail({ docMetaJson: { title: 'Kurz', hero_title: 'Lange Hero-Zeile.' } })

@@ -10,11 +10,21 @@
  */
 
 import * as React from 'react'
-import { ArrowRight } from 'lucide-react'
+import {
+  ArrowRight, Archive, ListTree, HelpCircle, BookOpen, Search, MapPin, Info, Compass, Leaf, Users, FileText, Calendar, Image, MessageCircle, Sparkles,
+  type LucideIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { CardItem } from '@/lib/website/parse-section-blocks'
+import type { CardIconName, CardItem } from '@/lib/website/parse-section-blocks'
 import { kartenaktion, loeseKartenziel, type Kartenaktion, type KartenNavigation } from '@/lib/website/kartenziel'
 import { HEADING_FONT } from '@/lib/website/surface-style'
+
+/** Welle N4: Karten-Symbole (`:name:`) auf Lucide-Icons. Deckt `CARD_ICON_NAMES` vollstaendig ab (Typpruefung). */
+const CARD_ICONS: Record<CardIconName, LucideIcon> = {
+  archive: Archive, list: ListTree, help: HelpCircle, book: BookOpen, search: Search, map: MapPin,
+  info: Info, compass: Compass, leaf: Leaf, users: Users, file: FileText, calendar: Calendar,
+  image: Image, message: MessageCircle, sparkles: Sparkles,
+}
 
 /** Normaler Linksklick (ohne Umschalt-, Strg-, Alt-, Meta-Taste): den Rueckruf nehmen, sonst folgt der Browser dem Link. */
 function istPlainClick(e: React.MouseEvent): boolean {
@@ -33,8 +43,10 @@ function Karte({ item, navigation }: { item: CardItem; navigation?: KartenNaviga
     )
   }
   const { ausfuehren } = aktion
+  const Icon = item.icon ? CARD_ICONS[item.icon] : null
   return (
     <div className="group relative flex flex-col rounded-xl bg-white p-5 text-neutral-900 shadow-sm transition-shadow hover:shadow-md" data-website-karte>
+      {Icon && <Icon className="mb-3 h-6 w-6 text-[color:var(--site-accent-strong)]" aria-hidden="true" />}
       <h3 className={cn('text-lg leading-snug text-neutral-900', HEADING_FONT)}>{item.title}</h3>
       {item.text && <p className="mt-2 flex-1 text-sm leading-relaxed text-neutral-700">{item.text}</p>}
       <a
