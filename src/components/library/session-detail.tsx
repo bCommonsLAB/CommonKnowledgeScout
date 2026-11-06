@@ -30,10 +30,19 @@ import { useRouter } from "next/navigation";
 import { TestimonialList } from "@/components/shared/testimonial-list";
 import { useTestimonials } from "@/hooks/use-testimonials";
 import { ReferenceList } from "@/components/library/story/reference-list";
+import { SessionProgrammeBar } from "@/components/library/session-programme-bar";
 // Media-Resolution-Logik (Cover/Attachments/Gallery) wurde in
 // src/hooks/library/session-detail/use-resolved-session-media.ts
 // ausgegliedert (Welle 3-II-Hooks-c, Schritt 1/3).
 import { useResolvedSessionMedia } from "@/hooks/library/session-detail/use-resolved-session-media";
+
+/**
+ * Entwickler-Angaben am Ende der Ansicht (gelber Kasten, File-ID) nur mit
+ * ausdruecklichem Schalter `NEXT_PUBLIC_DEBUG_DETAIL=true` in der .env — nicht
+ * mehr an NODE_ENV gebunden (Owner 06.11.2026: in der normalen Anwendung, auch
+ * lokal, soll davon nichts zu sehen sein). Wird beim Build eingebrannt.
+ */
+const DEBUG_DETAIL = process.env.NEXT_PUBLIC_DEBUG_DETAIL === 'true'
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -71,6 +80,8 @@ export interface SessionDetailData {
   endtime?: string;
   duration?: string | number;
   location?: string;
+  /** Raum im Haus (z. B. "Seminar 3"); location bleibt der Veranstaltungsort */
+  room?: string;
   event?: string;
   track?: string;
   session?: string;
@@ -404,6 +415,10 @@ export function SessionDetail({
                 <p className="text-lg text-muted-foreground mb-6 text-pretty">{data.teaser}</p>
               )}
 
+              {/* Programm-Kopf: Datum, Uhrzeit, Raum, Track mit eigener Beschriftung
+                  (Owner 06.11.2026) — vor Anhaengen und Sprechern. */}
+              <SessionProgrammeBar data={data} />
+
               {/* Organisation (z.B. "Universität Innsbruck") */}
               {data.organisation && (
                 <p className="text-sm text-muted-foreground mb-4">{data.organisation}</p>
@@ -411,13 +426,15 @@ export function SessionDetail({
 
               {/* Anhänge je Format gerendert (A4c). Klassifikation nach dem
                   Original-Dateinamen, Link auf die aufgelöste (Blob-)URL. */}
-              {attachmentNames.length > 0 && (() => {
+              {(attachmentNames.length > 0 || !!data.url) && (() => {
                 const resolvedRefs = attachmentNames
                   .map((fileName, idx) => ({ name: data.attachments_names?.[idx] || getDisplayFileName(fileName), url: resolvedAttachments[idx]?.url }))
                   .filter((x): x is { name: string; url: string } => typeof x.url === 'string' && x.url.length > 0)
+                // Link zur Originalseite der Veranstaltung steht bei den Anhaengen (Owner 06.11.2026)
+                if (data.url) resolvedRefs.push({ name: t('event.originalPage'), url: data.url })
                 return (
                   <div className="mb-6">
-                    <ReferenceList references={resolvedRefs} title="Anhänge" />
+                    <ReferenceList references={resolvedRefs} title="Anhänge" kompakt />
                     {unresolvedAttachmentNames.length > 0 && (
                       <p className="text-xs text-amber-700 dark:text-amber-400">
                         Nicht auflösbare Anhänge in der Vorschau: {unresolvedAttachmentNames.join(", ")}
@@ -772,8 +789,8 @@ export function SessionDetail({
       {!hideDebug ? (
       <div className="w-full px-4 pb-8">
         <div className="text-[10px] text-muted-foreground/50 text-center pt-4 border-t break-words space-y-1">
-          {/* Debug-Modus: Detailansicht-Info */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* Entwickler-Angaben nur mit NEXT_PUBLIC_DEBUG_DETAIL=true */}
+          {DEBUG_DETAIL && (
             <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded text-left">
               <div className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">🔍 Debug: SessionDetail</div>
               <div className="space-y-0.5 text-yellow-700 dark:text-yellow-300">
@@ -819,8 +836,8 @@ export function SessionDetail({
                 </div>
               )}
               <div className="flex items-center gap-1 flex-wrap">
-                <span>{t('event.fileId')}:</span>
-                {data.fileId ? (
+                {DEBUG_DETAIL && <span>{t('event.fileId')}:</span>}
+                {DEBUG_DETAIL && data.fileId ? (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>

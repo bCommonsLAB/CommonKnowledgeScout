@@ -22,6 +22,12 @@ interface AttachmentListProps {
   title?: string
   /** Womit die Bild-Vorschauen gerendert werden (App: `next/image`, Embed: `<img>`). */
   Bild: ComponentType<GalleryImageProps>
+  /**
+   * Kompakt (Session-Ansicht, Owner 06.11.2026): keine Abschnitts- und
+   * Gruppen-Ueberschriften, flacher Rahmen, Links und Dokumente nebeneinander —
+   * das Symbol sagt, was es ist (Dokument-Blatt, Weltkugel).
+   */
+  kompakt?: boolean
 }
 
 /** Deutsche Gruppen-Labels — exhaustiv ueber ReferenceFormat (kein Default-Loch). */
@@ -47,13 +53,25 @@ const FORMAT_LABEL: Record<ReferenceFormat, string> = {
  * des Embeds zeigt damit ihre Anhaenge. Anderer Name, weil die Galerie mit
  * `reference-list.tsx` schon eine Liste hat — die der Chat-Quellen.
  */
-export function AttachmentList({ references, title = "Anhänge", Bild }: AttachmentListProps) {
+export function AttachmentList({ references, title = "Anhänge", Bild, kompakt = false }: AttachmentListProps) {
   const groups = React.useMemo(
     () => groupReferencesByFormat(classifyReferences(references)),
     [references],
   )
 
   if (groups.length === 0) return null
+
+  if (kompakt) {
+    return (
+      <section data-testid="attachment-list-kompakt" aria-label={title} className="bg-card border border-border rounded-lg px-4 py-3 mb-6">
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+          {groups.map((group) => (
+            <ReferenceGroup key={group.format} format={group.format} items={group.items} Bild={Bild} kompakt />
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="bg-card border border-border rounded-lg p-5 mb-6">
@@ -74,14 +92,17 @@ interface ReferenceGroupProps {
   format: ReferenceFormat
   items: ClassifiedReference[]
   Bild: ComponentType<GalleryImageProps>
+  kompakt?: boolean
 }
 
-function ReferenceGroup({ format, items, Bild }: ReferenceGroupProps) {
+function ReferenceGroup({ format, items, Bild, kompakt = false }: ReferenceGroupProps) {
   return (
     <div data-format={format}>
-      <h3 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-        {FORMAT_LABEL[format]}
-      </h3>
+      {!kompakt && (
+        <h3 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+          {FORMAT_LABEL[format]}
+        </h3>
+      )}
       {format === "image" ? (
         <ImageGrid items={items} Bild={Bild} />
       ) : format === "video" ? (
@@ -89,7 +110,7 @@ function ReferenceGroup({ format, items, Bild }: ReferenceGroupProps) {
       ) : format === "audio" ? (
         <MediaPlayers items={items} kind="audio" />
       ) : (
-        <LinkList items={items} format={format} />
+        <LinkList items={items} format={format} kompakt={kompakt} />
       )}
     </div>
   )
@@ -139,16 +160,17 @@ function MediaPlayers({ items, kind }: { items: ClassifiedReference[]; kind: "vi
   )
 }
 
-function LinkList({ items, format }: { items: ClassifiedReference[]; format: ReferenceFormat }) {
+function LinkList({ items, format, kompakt = false }: { items: ClassifiedReference[]; format: ReferenceFormat; kompakt?: boolean }) {
   const Icon = format === "web" ? Globe : FileText
   return (
-    <ul className="space-y-1.5">
+    <ul className={kompakt ? "flex flex-wrap gap-x-6 gap-y-1" : "space-y-1.5"}>
       {items.map((item, idx) => (
         <li key={idx}>
           <a
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
+            title={FORMAT_LABEL[format]}
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
           >
             <Icon className="w-3.5 h-3.5 flex-shrink-0" />

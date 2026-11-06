@@ -147,8 +147,12 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     date: toStr(docMetaJson.date),
     starttime: toStr(docMetaJson.starttime),
     endtime: toStr(docMetaJson.endtime),
-    duration: toStr(docMetaJson.duration) || toNum(docMetaJson.duration),
+    // Dauer: `duration` (Alt-Vorlage) oder `duration_min` (Konferenz-Vorlage talk-sfscon-en)
+    duration: toStr(docMetaJson.duration) || toNum(docMetaJson.duration)
+      || toStr((docMetaJson as { duration_min?: unknown }).duration_min) || toNum((docMetaJson as { duration_min?: unknown }).duration_min),
     location: toStr(docMetaJson.location),
+    // Raum im Haus (Programm-Kopf, Owner 06.11.2026) — getrennt vom Veranstaltungsort
+    room: toStr((docMetaJson as { room?: unknown }).room),
     
     // Event-Kontext (alle aus docMetaJson)
     event: toStr(docMetaJson.event),
@@ -166,7 +170,8 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     attachments_url: toStrArr(docMetaJson.attachments_url),
     attachments_names: toStrArr((docMetaJson as { attachments_names?: unknown }).attachments_names),
     galleryImageUrls: toStrArr((docMetaJson as { galleryImageUrls?: unknown }).galleryImageUrls),
-    url: toStr(docMetaJson.url),
+    // Link zur Originalseite: `url` (Alt-Vorlage) oder `source_url` (Webseite als Quelle)
+    url: toStr(docMetaJson.url) || toStr((docMetaJson as { source_url?: unknown }).source_url),
     
     // Slides
     slides: slides.length > 0 ? slides : undefined,
