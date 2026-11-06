@@ -30,6 +30,12 @@ export interface AntwortTextProps {
   text: string
   belege?: DocReference[]
   className?: string
+  /**
+   * N5: Zitatmarken ausblenden, bis der Leser „Quellen anzeigen" waehlt. Der
+   * Text bleibt lesbar; die Marken sind im DOM, aber per CSS verborgen
+   * (`display:none`), damit sie nach dem Enthuellen an ihrer Stelle erscheinen.
+   */
+  markenVerborgen?: boolean
 }
 
 /** Die Belegkarte zur Marke — `document.getElementById`, weil Mitte und Karten in getrennten Slots haengen. */
@@ -37,7 +43,7 @@ function belegKarte(nummer: string): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById(`beleg-${nummer}`)
 }
 
-export function AntwortText({ text, belege = [], className }: AntwortTextProps) {
+export function AntwortText({ text, belege = [], className, markenVerborgen = false }: AntwortTextProps) {
   const { t } = useTranslation()
   const html = useMemo(() => {
     const nummern = dokumentNummern(belege)
@@ -74,5 +80,15 @@ export function AntwortText({ text, belege = [], className }: AntwortTextProps) 
   }, [])
 
   // Der Text kommt vom Sprachmodell der Instanz — wie in der App mit `html: true` gerendert.
-  return <div className={className} data-antwort-text onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
+  // markenVerborgen: die Zitatmarken (a[data-beleg]) bleiben im DOM, werden aber per CSS verborgen.
+  const klasse = markenVerborgen ? `${className ?? ''} [&_[data-beleg]]:hidden`.trim() : className
+  return (
+    <div
+      className={klasse}
+      data-antwort-text
+      data-marken-verborgen={markenVerborgen ? 'true' : undefined}
+      onClick={onClick}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
 }

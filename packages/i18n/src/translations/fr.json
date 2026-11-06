@@ -961,7 +961,13 @@
     "konversation": {
       "delete": "Supprimer la question",
       "deleteConfirm": "Vraiment supprimer cette question ?",
-      "again": "Reposer la question"
+      "again": "Reposer la question",
+      "antwort": "Réponse",
+      "quellenZitiert": {
+        "one": "1 source citée",
+        "many": "{count} sources citées"
+      },
+      "weiterfragen": "Autres questions"
     },
     "eingabeInline": {
       "enterHint": "Entrée envoie · Maj+Entrée pour un retour à la ligne"
@@ -976,6 +982,8 @@
       },
       "anpassen": "Adapter les réponses",
       "quellenAnzeigen": "Afficher les sources ({count})",
+      "quellenAnzeigenKurz": "Afficher les sources",
+      "kiHinweis": "Réponse générée par IA à partir de {count} documents",
       "beispielfragen": "Exemples de questions",
       "vorschauHinweis": "Le chat ne fonctionne que sur la page en ligne de la bibliothèque.",
       "laden": "Chargement du scout …"

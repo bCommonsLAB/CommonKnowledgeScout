@@ -1008,7 +1008,13 @@
     "konversation": {
       "delete": "Frage löschen",
       "deleteConfirm": "Diese Frage wirklich löschen?",
-      "again": "Frage neu stellen"
+      "again": "Frage neu stellen",
+      "antwort": "Antwort",
+      "quellenZitiert": {
+        "one": "1 Quelle zitiert",
+        "many": "{count} Quellen zitiert"
+      },
+      "weiterfragen": "Weiterfragen"
     },
     "eingabeInline": {
       "enterHint": "Enter sendet · Shift+Enter für Zeilenumbruch"
@@ -1023,6 +1029,8 @@
       },
       "anpassen": "Antworten anpassen",
       "quellenAnzeigen": "Quellen anzeigen ({count})",
+      "quellenAnzeigenKurz": "Quellen anzeigen",
+      "kiHinweis": "KI-generierte Antwort aus {count} Dokumenten",
       "beispielfragen": "Beispielfragen",
       "vorschauHinweis": "Der Chat läuft nur auf der Live-Seite der Library.",
       "laden": "Lade den Scout …"

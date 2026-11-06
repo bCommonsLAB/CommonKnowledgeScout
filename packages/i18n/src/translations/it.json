@@ -961,7 +961,13 @@
     "konversation": {
       "delete": "Elimina domanda",
       "deleteConfirm": "Eliminare davvero questa domanda?",
-      "again": "Ripeti la domanda"
+      "again": "Ripeti la domanda",
+      "antwort": "Risposta",
+      "quellenZitiert": {
+        "one": "1 fonte citata",
+        "many": "{count} fonti citate"
+      },
+      "weiterfragen": "Altre domande"
     },
     "eingabeInline": {
       "enterHint": "Invio invia · Maiusc+Invio per andare a capo"
@@ -976,6 +982,8 @@
       },
       "anpassen": "Adatta le risposte",
       "quellenAnzeigen": "Mostra fonti ({count})",
+      "quellenAnzeigenKurz": "Mostra fonti",
+      "kiHinweis": "Risposta generata dall'IA da {count} documenti",
       "beispielfragen": "Domande di esempio",
       "vorschauHinweis": "La chat funziona solo sulla pagina live della biblioteca.",
       "laden": "Caricamento dello scout …"

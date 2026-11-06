@@ -961,7 +961,13 @@
     "konversation": {
       "delete": "Eliminar pregunta",
       "deleteConfirm": "¿Eliminar realmente esta pregunta?",
-      "again": "Volver a preguntar"
+      "again": "Volver a preguntar",
+      "antwort": "Respuesta",
+      "quellenZitiert": {
+        "one": "1 fuente citada",
+        "many": "{count} fuentes citadas"
+      },
+      "weiterfragen": "Más preguntas"
     },
     "eingabeInline": {
       "enterHint": "Intro envía · Mayús+Intro para salto de línea"
@@ -976,6 +982,8 @@
       },
       "anpassen": "Ajustar respuestas",
       "quellenAnzeigen": "Mostrar fuentes ({count})",
+      "quellenAnzeigenKurz": "Mostrar fuentes",
+      "kiHinweis": "Respuesta generada por IA a partir de {count} documentos",
       "beispielfragen": "Preguntas de ejemplo",
       "vorschauHinweis": "El chat solo funciona en la página en vivo de la biblioteca.",
       "laden": "Cargando el scout …"

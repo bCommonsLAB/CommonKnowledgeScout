@@ -37,7 +37,7 @@ export { streamAdresse, streamKoerper, gespraechsverlauf, fehlerText } from './k
 export { sseSchritte } from './konversation/sse'
 export { AntwortText, type AntwortTextProps } from './konversation/antwort-text'
 export { mitMarkenTiteln, belegeNachDokument, belegTitel } from './konversation/zitat-titel'
-export { StoryKonversation, type StoryKonversationProps } from './konversation/story-konversation'
+export { StoryKonversation, type StoryKonversationProps, type AntwortKopfApi } from './konversation/story-konversation'
 export { StoryEingabe, type StoryEingabeProps } from './konversation/story-eingabe'
 // Welle N1: die Eingabe als sichtbares Feld (Startseite einer Library).
 export { StoryEingabeInline, type StoryEingabeInlineProps } from './konversation/story-eingabe-inline'
