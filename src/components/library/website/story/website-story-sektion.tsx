@@ -142,7 +142,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
       <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf}>
         {inhalt}
       </WebsiteStorySektionRahmen>
-      {perspektiveOffen && <PerspektiveDialogApp open={perspektiveOffen} onOpenChange={setPerspektiveOffen} onProfil={profil.speichern} />}
+      {perspektiveOffen && <PerspektiveDialogApp open={perspektiveOffen} onOpenChange={setPerspektiveOffen} onProfil={profil.speichern} darstellung="blatt" />}
       {blatt && (
         <WebsiteStoryBelege
           libraryId={p.libraryId}

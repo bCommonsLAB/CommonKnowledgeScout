@@ -45,12 +45,15 @@ describe('PerspektiveDialog', () => {
     expect(screen.getByText('chat.perspectivePage.socialContextSectionTitle')).toBeTruthy()
   })
 
-  it('mit Wahl: Sprache und Modell erscheinen', () => {
+  it('mit Wahl: Sprache sofort, Modell erst unter „Erweiterte Einstellungen"', () => {
     zeigen({
       sprachwahl: { sprachen: ['global', 'de'], labels: { global: 'Global', de: 'Deutsch' } as Record<TargetLanguage, string> },
       modellwahl: { modelle: [], laedt: false },
     })
     expect(screen.getByText('chat.perspectivePage.languageSectionTitle')).toBeTruthy()
+    // Technik ist ans Ende gerueckt und zugeklappt: das Modell erscheint erst nach Klick.
+    expect(screen.queryByText('chat.perspectivePage.noModelsAvailable')).toBeNull()
+    fireEvent.click(screen.getByText('configPopover.advancedSettings'))
     expect(screen.getByText('chat.perspectivePage.noModelsAvailable')).toBeTruthy()
   })
 
@@ -68,6 +71,16 @@ describe('PerspektiveDialog', () => {
     zeigen({ wert: { ...WERT, character: ['ecology'] } })
     const offen = screen.getByText('chat.characterLabels.undefined').closest('button') as HTMLButtonElement
     expect(offen.disabled).toBe(true)
+  })
+
+  it('als Blatt (darstellung="blatt"): dieselben Abschnitte, Speichern funktioniert', () => {
+    const { onSpeichern, onOpenChange } = zeigen({ darstellung: 'blatt' })
+    expect(screen.getByText('chat.perspectivePage.characterSectionTitle')).toBeTruthy()
+    expect(screen.getByText('chat.perspectivePage.socialContextSectionTitle')).toBeTruthy()
+    fireEvent.click(screen.getByText('chat.characterLabels.ecology'))
+    fireEvent.click(screen.getByText('chat.perspectivePage.saveButton'))
+    expect(onSpeichern).toHaveBeenCalledWith({ ...WERT, character: ['ecology'] })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })
 
