@@ -1009,6 +1009,7 @@
       "delete": "Frage löschen",
       "deleteConfirm": "Diese Frage wirklich löschen?",
       "again": "Frage neu stellen",
+      "deineFrage": "Deine Frage",
       "antwort": "Antwort",
       "quellenZitiert": {
         "one": "1 Quelle zitiert",

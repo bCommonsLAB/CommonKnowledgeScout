@@ -962,6 +962,7 @@
       "delete": "Delete question",
       "deleteConfirm": "Really delete this question?",
       "again": "Ask again",
+      "deineFrage": "Your question",
       "antwort": "Answer",
       "quellenZitiert": {
         "one": "1 source cited",

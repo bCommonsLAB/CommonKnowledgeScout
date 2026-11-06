@@ -127,20 +127,35 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <User className="h-4 w-4" />
               </div>
-              <div className="min-w-0 flex-1 rounded-lg border bg-background p-3">
-                <p className="whitespace-pre-wrap break-words text-sm font-medium">{paar.frage.text}</p>
+              <div
+                className="min-w-0 flex-1 rounded-xl border p-4"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--story-accent, hsl(var(--muted-foreground))) 7%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--story-accent, hsl(var(--muted-foreground))) 18%, transparent)',
+                }}
+              >
+                <p className="mb-1 text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: 'var(--story-accent, hsl(var(--muted-foreground)))' }}>
+                  {t('story.konversation.deineFrage')}
+                </p>
+                <p className="whitespace-pre-wrap break-words text-base font-semibold">{paar.frage.text}</p>
               </div>
               <FrageAktionen paar={paar} onLoeschen={onLoeschen} onErneut={onErneut} />
             </div>
             {antwort ? (
               <div className="flex gap-3" data-antwort={antwortId}>
                 <div className="shrink-0" aria-hidden="true">{avatar}</div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 rounded-xl border bg-background p-4 sm:p-5">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold">{t('story.konversation.antwort')}</span>
                       {quellen > 0 && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        <span
+                          className="rounded-full px-2 py-0.5 text-xs font-medium"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--story-accent, hsl(var(--primary))) 10%, transparent)',
+                            color: 'var(--story-accent, hsl(var(--primary)))',
+                          }}
+                        >
                           {quellen === 1 ? t('story.konversation.quellenZitiert.one') : t('story.konversation.quellenZitiert.many', { count: quellen })}
                         </span>
                       )}

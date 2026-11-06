@@ -16,16 +16,23 @@ import { cn } from '@ks/util'
 export type ZitatmarkeGroesse = 'text' | 'karte'
 
 const GRUND =
-  'inline-flex shrink-0 items-center justify-center rounded-full bg-primary font-bold leading-none !text-primary-foreground !no-underline'
+  'inline-flex shrink-0 items-center justify-center rounded-full font-bold leading-none !no-underline'
 
 const GROESSE: Record<ZitatmarkeGroesse, string> = {
   text: 'mx-px h-5 min-w-5 px-1 align-text-bottom text-xs',
   karte: 'h-7 min-w-7 px-1.5 text-sm',
 }
 
+// N5: im Antworttext eine umrandete Marke (leicht, `--zitat-mark`, Website gruen);
+// an der Belegkarte weiterhin gefuellt (kraeftig, klar als Nummer lesbar).
+const FARBE: Record<ZitatmarkeGroesse, string> = {
+  text: 'border border-[color:var(--zitat-mark)] bg-transparent font-semibold !text-[color:var(--zitat-mark)]',
+  karte: 'bg-primary !text-primary-foreground',
+}
+
 /** Tailwind-Klassen der Marke — fuer HTML, das nicht durch React laeuft. */
 export function zitatmarkeKlasse(groesse: ZitatmarkeGroesse): string {
-  return `${GRUND} ${GROESSE[groesse]}`
+  return `${GRUND} ${FARBE[groesse]} ${GROESSE[groesse]}`
 }
 
 export interface ZitatmarkeProps extends HTMLAttributes<HTMLSpanElement> {

@@ -134,7 +134,13 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
       <>
         <StoryFragenKacheln fragen={fragen} onFrage={senden} gesperrt={s.k.laeuft} />
         {konversation && (
-          <div className="mt-6" data-story-konversation>
+          <div
+            className="mt-6"
+            data-story-konversation
+            // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
+            // Zitatmarken) folgt dem Grün der Site; ausserhalb der Website gilt die Vorgabe.
+            style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-strong)' }}
+          >
             <StoryKonversation
               paare={s.paare}
               laeuft={s.k.laeuft}
