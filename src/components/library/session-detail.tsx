@@ -30,6 +30,7 @@ import { useRouter } from "next/navigation";
 import { TestimonialList } from "@/components/shared/testimonial-list";
 import { useTestimonials } from "@/hooks/use-testimonials";
 import { ReferenceList } from "@/components/library/story/reference-list";
+import { SessionProgrammeBar } from "@/components/library/session-programme-bar";
 // Media-Resolution-Logik (Cover/Attachments/Gallery) wurde in
 // src/hooks/library/session-detail/use-resolved-session-media.ts
 // ausgegliedert (Welle 3-II-Hooks-c, Schritt 1/3).
@@ -71,6 +72,8 @@ export interface SessionDetailData {
   endtime?: string;
   duration?: string | number;
   location?: string;
+  /** Raum im Haus (z. B. "Seminar 3"); location bleibt der Veranstaltungsort */
+  room?: string;
   event?: string;
   track?: string;
   session?: string;
@@ -404,6 +407,10 @@ export function SessionDetail({
                 <p className="text-lg text-muted-foreground mb-6 text-pretty">{data.teaser}</p>
               )}
 
+              {/* Programm-Kopf: Datum, Uhrzeit, Raum, Track mit eigener Beschriftung
+                  (Owner 06.11.2026) — vor Anhaengen und Sprechern. */}
+              <SessionProgrammeBar data={data} />
+
               {/* Organisation (z.B. "Universität Innsbruck") */}
               {data.organisation && (
                 <p className="text-sm text-muted-foreground mb-4">{data.organisation}</p>
@@ -411,10 +418,12 @@ export function SessionDetail({
 
               {/* Anhänge je Format gerendert (A4c). Klassifikation nach dem
                   Original-Dateinamen, Link auf die aufgelöste (Blob-)URL. */}
-              {attachmentNames.length > 0 && (() => {
+              {(attachmentNames.length > 0 || !!data.url) && (() => {
                 const resolvedRefs = attachmentNames
                   .map((fileName, idx) => ({ name: data.attachments_names?.[idx] || getDisplayFileName(fileName), url: resolvedAttachments[idx]?.url }))
                   .filter((x): x is { name: string; url: string } => typeof x.url === 'string' && x.url.length > 0)
+                // Link zur Originalseite der Veranstaltung steht bei den Anhaengen (Owner 06.11.2026)
+                if (data.url) resolvedRefs.push({ name: t('event.originalPage'), url: data.url })
                 return (
                   <div className="mb-6">
                     <ReferenceList references={resolvedRefs} title="Anhänge" />
