@@ -23,9 +23,11 @@ export interface PerspektiveDialogAppProps {
   onOpenChange: (open: boolean) => void
   /** Legt die Wahl im Profil ab (angemeldet; `useProfilPerspektive`). */
   onProfil: (wahl: PerspektivWahl) => void
+  /** Zentrierter Dialog (Default) oder Blatt von rechts (Website-Story-Sektion, Welle N3). */
+  darstellung?: 'dialog' | 'blatt'
 }
 
-export function PerspektiveDialogApp({ open, onOpenChange, onProfil }: PerspektiveDialogAppProps) {
+export function PerspektiveDialogApp({ open, onOpenChange, onProfil, darstellung }: PerspektiveDialogAppProps) {
   const { locale } = useTranslation()
   const { isSignedIn } = useUser()
   const ctx = useStoryContext()
@@ -66,6 +68,7 @@ export function PerspektiveDialogApp({ open, onOpenChange, onProfil }: Perspekti
       onSpeichern={speichern}
       sprachwahl={{ sprachen, labels: ctx.targetLanguageLabels }}
       modellwahl={{ modelle: modelle.data ?? [], laedt: modelle.isLoading }}
+      darstellung={darstellung}
     />
   )
 }

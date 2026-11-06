@@ -1,13 +1,15 @@
 'use client'
 
 /**
- * Bausteine des Perspektiv-Dialogs: ein Abschnitt (Symbol, Titel, Hilfe) und
- * eine Plaketten-Wahl mit Tooltip je Wert. Die Tooltips brauchen einen
- * `TooltipProvider` weiter oben — App-Layout bzw. Embed-Rahmen setzen ihn.
+ * Bausteine des Perspektiv-Dialogs: ein Abschnitt (Symbol, Titel, Hilfe hinter
+ * einem `?`-Symbol) und eine Plaketten-Wahl mit Tooltip je Wert. Die Tooltips
+ * brauchen einen `TooltipProvider` weiter oben — App-Layout bzw. Embed-Rahmen
+ * setzen ihn. Kompakt gehalten (Welle N3): die Hilfe steht im Tooltip statt als
+ * Fliesstext, damit das Blatt von rechts ohne Scrollen auskommt.
  */
 
 import type { ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import { HelpCircle, type LucideIcon } from 'lucide-react'
 import { Badge, Tooltip, TooltipContent, TooltipTrigger } from '@ks/ui'
 
 export interface AbschnittProps {
@@ -19,15 +21,28 @@ export interface AbschnittProps {
 
 export function Abschnitt({ symbol: Symbol, titel, hilfe, children }: AbschnittProps) {
   return (
-    <section className="rounded-lg border p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Symbol className="h-5 w-5 text-primary" aria-hidden="true" />
+    <section className="rounded-lg border p-3">
+      <div className="flex items-start gap-2.5">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+          <Symbol className="h-4 w-4 text-primary" aria-hidden="true" />
         </div>
-        <div className="min-w-0 flex-1 space-y-3">
-          <div>
-            <h3 className="text-base font-semibold">{titel}</h3>
-            <p className="text-sm text-muted-foreground">{hilfe}</p>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold">{titel}</h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={hilfe}
+                  className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">{hilfe}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           {children}
         </div>
@@ -47,7 +62,7 @@ export interface PlakettenWahlProps<T extends string> {
 
 export function PlakettenWahl<T extends string>({ werte, label, tooltip, gewaehlt, gesperrt, onWahl }: PlakettenWahlProps<T>) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {werte.map((wert) => {
         const an = gewaehlt(wert)
         const aus = gesperrt?.(wert) ?? false
@@ -63,7 +78,7 @@ export function PlakettenWahl<T extends string>({ werte, label, tooltip, gewaehl
               >
                 <Badge
                   variant={an ? 'default' : 'outline'}
-                  className={`px-3 py-1.5 text-sm transition-all ${aus ? 'opacity-40' : an ? '' : 'hover:bg-primary/10'}`}
+                  className={`px-2.5 py-0.5 text-xs transition-all ${aus ? 'opacity-40' : an ? '' : 'hover:bg-primary/10'}`}
                 >
                   {label(wert)}
                 </Badge>
