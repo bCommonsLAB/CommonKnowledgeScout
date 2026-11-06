@@ -14,7 +14,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useSetAtom } from 'jotai'
-import { List, SlidersHorizontal } from 'lucide-react'
+import { CircleEllipsis, List, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
@@ -78,19 +78,37 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
       const dokumente = new Set((antwort.belege ?? []).map((b) => b.fileId)).size
       if (dokumente === 0) return null
       return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          data-story-belege-knopf
-          onClick={() => {
-            api.enthuellen()
-            belegeOeffnen(antwort)
-          }}
-        >
-          <List className="h-4 w-4" aria-hidden="true" />
-          {t('website.story.quellenAnzeigenKurz')}
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {/* N5: Belegnummern ein-/ausblenden, ohne die Quellenspalte zu oeffnen. */}
+          <button
+            type="button"
+            aria-pressed={api.sichtbar}
+            title={t('website.story.belegnummern')}
+            aria-label={t('website.story.belegnummern')}
+            onClick={() => api.setSichtbar(!api.sichtbar)}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={
+              api.sichtbar
+                ? { backgroundColor: 'color-mix(in srgb, var(--site-accent) 14%, transparent)', borderColor: 'var(--site-accent)', color: 'var(--site-accent-strong)' }
+                : { borderColor: 'transparent', color: 'rgb(115 115 115)' }
+            }
+          >
+            <CircleEllipsis className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            data-story-belege-knopf
+            onClick={() => {
+              api.setSichtbar(true)
+              belegeOeffnen(antwort)
+            }}
+          >
+            <List className="h-4 w-4" aria-hidden="true" />
+            {t('website.story.quellenAnzeigenKurz')}
+          </Button>
+        </div>
       )
     },
     [belegeOeffnen, t],

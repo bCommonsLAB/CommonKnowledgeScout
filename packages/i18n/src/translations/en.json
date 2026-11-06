@@ -984,6 +984,7 @@
       "anpassen": "Adjust answers",
       "quellenAnzeigen": "Show sources ({count})",
       "quellenAnzeigenKurz": "Show sources",
+      "belegnummern": "Show source numbers in the text",
       "kiHinweis": "AI-generated answer from {count} documents",
       "beispielfragen": "Example questions",
       "vorschauHinweis": "The chat only runs on the live page of the library.",

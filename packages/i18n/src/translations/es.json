@@ -984,6 +984,7 @@
       "anpassen": "Ajustar respuestas",
       "quellenAnzeigen": "Mostrar fuentes ({count})",
       "quellenAnzeigenKurz": "Mostrar fuentes",
+      "belegnummern": "Mostrar los números de fuente en el texto",
       "kiHinweis": "Respuesta generada por IA a partir de {count} documentos",
       "beispielfragen": "Preguntas de ejemplo",
       "vorschauHinweis": "El chat solo funciona en la página en vivo de la biblioteca.",

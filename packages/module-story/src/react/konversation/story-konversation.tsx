@@ -18,12 +18,12 @@ import { VerarbeitungEinfach } from '../verarbeitung-einfach'
 import { AntwortText } from './antwort-text'
 import type { FrageAntwort, Nachricht } from './types'
 
-/** N5: was der Gastgeber in der Kopfzeile der Antwort rechts platziert (z. B. „Quellen anzeigen"). */
+/** N5: was der Gastgeber in der Kopfzeile der Antwort rechts platziert (z. B. „Quellen anzeigen", Marken-Umschalter). */
 export interface AntwortKopfApi {
-  /** Die Zitatmarken im Text dauerhaft einblenden (bleibt auch nach dem Schliessen der Belege). */
-  enthuellen: () => void
-  /** Sind die Marken dieser Antwort schon enthuellt? */
-  enthuellt: boolean
+  /** Sind die Zitatmarken dieser Antwort eingeblendet? */
+  sichtbar: boolean
+  /** Marken ein- oder ausblenden (unabhaengig vom Belege-Blatt). */
+  setSichtbar: (sichtbar: boolean) => void
 }
 
 export interface StoryKonversationProps {
@@ -109,17 +109,24 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
       <Sparkles className="h-4 w-4" />
     </div>
   )
-  // N5: welche Antworten haben ihre Zitatmarken enthuellt — nur hinzufuegen, nie
-  // entfernen, damit die Marken nach dem Schliessen der Belege stehen bleiben.
-  const [enthuelltIds, setEnthuelltIds] = useState<ReadonlySet<string>>(() => new Set())
+  // N5: welche Antworten haben ihre Zitatmarken eingeblendet (umschaltbar: der
+  // Leser zeigt und verbirgt sie, unabhaengig vom Belege-Blatt).
+  const [sichtbarIds, setSichtbarIds] = useState<ReadonlySet<string>>(() => new Set())
 
   return (
     <div className="space-y-6" data-story-konversation>
       {paare.map((paar) => {
         const antwort = paar.antwort
         const antwortId = antwort ? (antwort.queryId ?? antwort.id) : ''
-        const enthuellt = enthuelltIds.has(antwortId)
-        const enthuellen = () => setEnthuelltIds((s) => (s.has(antwortId) ? s : new Set(s).add(antwortId)))
+        const sichtbar = sichtbarIds.has(antwortId)
+        const setSichtbar = (zeigen: boolean) =>
+          setSichtbarIds((s) => {
+            if (zeigen === s.has(antwortId)) return s
+            const n = new Set(s)
+            if (zeigen) n.add(antwortId)
+            else n.delete(antwortId)
+            return n
+          })
         const quellen = antwort ? quellenZahl(antwort) : 0
         return (
           <article key={paar.kennung} data-konversation-id={paar.kennung} className="space-y-4">
@@ -160,12 +167,12 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
                         </span>
                       )}
                     </div>
-                    {kopfAktion?.(antwort, { enthuellen, enthuellt })}
+                    {kopfAktion?.(antwort, { sichtbar, setSichtbar })}
                   </div>
                   <AntwortText
                     text={antwort.text}
                     belege={antwort.belege}
-                    markenVerborgen={markenAnfangsVerborgen && !enthuellt}
+                    markenVerborgen={markenAnfangsVerborgen && !sichtbar}
                     className="prose prose-sm max-w-none dark:prose-invert"
                   />
                   {fuss?.(antwort)}

@@ -88,14 +88,26 @@ export function StoryFragenKacheln({
   const { t } = useTranslation()
   if (fragen.length === 0) return null
   return (
-    <div className="not-prose mt-6 grid gap-3 sm:grid-cols-2" role="group" aria-label={t("website.story.beispielfragen")} data-story-fragen>
+    <div
+      className="not-prose mt-6 grid gap-3 sm:grid-cols-2"
+      role="group"
+      aria-label={t("website.story.beispielfragen")}
+      data-story-fragen
+      // N5: zartes Gruen der Site, damit die Beispielfragen sich abheben; die gewaehlte
+      // Frage traegt dann das kraeftigere „Deine Frage"-Gruen.
+      style={{
+        ['--kachel-bg' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 6%, white)',
+        ['--kachel-bg-hover' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 13%, white)',
+        ['--kachel-border' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 22%, white)',
+      }}
+    >
       {fragen.map((frage, i) => (
         <button
           key={i}
           type="button"
           disabled={gesperrt}
           onClick={() => onFrage(frage)}
-          className="flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-neutral-50 px-4 py-3 text-left text-sm leading-snug text-neutral-800 transition-colors hover:border-[color:var(--site-accent)] hover:bg-white disabled:opacity-60"
+          className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--kachel-border)] bg-[color:var(--kachel-bg)] px-4 py-3 text-left text-sm leading-snug text-neutral-800 transition-colors hover:border-[color:var(--site-accent)] hover:bg-[color:var(--kachel-bg-hover)] disabled:opacity-60"
         >
           <span>{frage}</span>
           <ArrowUpRight className="h-4 w-4 shrink-0 text-[color:var(--site-accent)]" aria-hidden="true" />
