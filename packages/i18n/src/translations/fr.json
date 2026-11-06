@@ -994,6 +994,8 @@
       "quellenAnzeigenKurz": "Afficher les sources",
       "belegnummern": "Afficher les numéros de source dans le texte",
       "kiHinweis": "Réponse générée par IA à partir de {count} documents",
+      "verarbeitungAnsehen": "Voir le traitement",
+      "verarbeitungLeer": "Aucune étape de traitement disponible",
       "beispielfragen": "Exemples de questions",
       "vorschauHinweis": "Le chat ne fonctionne que sur la page en ligne de la bibliothèque.",
       "laden": "Chargement du scout …"

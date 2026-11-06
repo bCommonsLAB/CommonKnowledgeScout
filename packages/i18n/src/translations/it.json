@@ -994,6 +994,8 @@
       "quellenAnzeigenKurz": "Mostra fonti",
       "belegnummern": "Mostra i numeri delle fonti nel testo",
       "kiHinweis": "Risposta generata dall'IA da {count} documenti",
+      "verarbeitungAnsehen": "Mostra l'elaborazione",
+      "verarbeitungLeer": "Nessun passaggio di elaborazione disponibile",
       "beispielfragen": "Domande di esempio",
       "vorschauHinweis": "La chat funziona solo sulla pagina live della biblioteca.",
       "laden": "Caricamento dello scout …"

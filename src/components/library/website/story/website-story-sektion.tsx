@@ -14,6 +14,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useSetAtom } from 'jotai'
+import { useUser } from '@clerk/nextjs'
 import { List, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
@@ -24,6 +25,7 @@ import type { SiteThemeResolved } from '@/lib/website/site-theme'
 import { storyBloecke } from '@/lib/website/story-section'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
+import { StoryVerarbeitungAufklapper } from '@/components/library/story/story-verarbeitung-aufklapper'
 import { AppLogo } from '@/components/shared/app-logo'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
@@ -40,6 +42,7 @@ export interface WebsiteStorySektionProps {
 
 export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const { t } = useTranslation()
+  const { isSignedIn } = useUser()
   const s = useWebsiteStory(p.libraryId)
   const profil = useProfilPerspektive()
   const setChatReferences = useSetAtom(chatReferencesAtom)
@@ -106,10 +109,12 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
         <div className="mt-3 border-t border-black/5 pt-2 text-xs text-neutral-500" data-story-antwort-fuss>
           <p>{t('website.story.kiHinweis', { count: dokumente })}</p>
           {antwort.queryId && <ChatConfigDisplay libraryId={p.libraryId} queryId={antwort.queryId} llmModel={s.llmModel} />}
+          {/* N5: die Berechnungsschritte bleiben an der fertigen Antwort einsehbar (dezent, nur fuer Angemeldete). */}
+          {antwort.queryId && isSignedIn && <StoryVerarbeitungAufklapper libraryId={p.libraryId} queryId={antwort.queryId} />}
         </div>
       )
     },
-    [p.libraryId, s.llmModel, t],
+    [p.libraryId, s.llmModel, t, isSignedIn],
   )
 
   const anzahl = s.paare.length

@@ -23,6 +23,8 @@ import { StoryRoot, type Nachricht, type Perspektive } from '@ks/module-story/re
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
+import { resolveSiteTheme } from '@/lib/website/site-theme'
+import { AppLogo } from '@/components/shared/app-logo'
 import { StoryAntwortFuss, StoryUebersichtFuss } from './story-fuss'
 
 export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string; filterAnzeige?: ReactNode }) {
@@ -60,6 +62,13 @@ export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string
     }
   }, [libraries, libraryId])
 
+  // N5: Akzent der Antwort-Bausteine (Plakette, umrandete Zitatmarken, „Deine Frage")
+  // folgt dem Design-Profil der Library — wie die Website; ohne Profil der Vorlagen-Akzent.
+  const storyAccent = useMemo(() => {
+    const library = libraries.find((lib) => lib.id === libraryId)
+    return resolveSiteTheme(library?.config?.publicPublishing?.siteTheme).accentStrong
+  }, [libraries, libraryId])
+
   // D12e: folgt der gezeigten Antwort; ohne Antwort leer (rechts der Katalog).
   const onBelege = useCallback((references: DocReference[], queryId: string | null) => setBelege({ references, queryId: queryId ?? undefined }), [setBelege])
   const antwortFuss = useCallback(
@@ -76,21 +85,25 @@ export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string
   if (!cfg) return <div className="p-6 text-sm text-muted-foreground">Keine Konfiguration gefunden.</div>
 
   return (
-    <StoryRoot
-      libraryId={libraryId}
-      instanz={SAME_ORIGIN_API}
-      viewer={{ isSignedIn: isSignedIn === true }}
-      perspektive={perspektive}
-      kopf={kopf}
-      // D12x: solange die Galerie laedt, keine Zahl (sonst stand kurz „0 Dokumente").
-      dokumente={galerie.loading ? null : galerie.totalCount || 0}
-      filter={filter}
-      filterAnzeige={filterAnzeige}
-      eingabe={{ placeholder: cfg.config.placeholder, maxZeichen: cfg.config.maxChars, maxZeichenHinweis: cfg.config.maxCharsWarningMessage }}
-      onBelege={onBelege}
-      antwortFuss={antwortFuss}
-      uebersichtFuss={uebersichtFuss}
-      loeschenErlaubt
-    />
+    // display:contents — kein Layout-Kasten, aber die Akzent-Variablen vererben an die Antwort-Bausteine.
+    <div className="contents" style={{ ['--story-accent' as string]: storyAccent, ['--zitat-mark' as string]: storyAccent }}>
+      <StoryRoot
+        libraryId={libraryId}
+        instanz={SAME_ORIGIN_API}
+        viewer={{ isSignedIn: isSignedIn === true }}
+        perspektive={perspektive}
+        kopf={kopf}
+        // D12x: solange die Galerie laedt, keine Zahl (sonst stand kurz „0 Dokumente").
+        dokumente={galerie.loading ? null : galerie.totalCount || 0}
+        filter={filter}
+        filterAnzeige={filterAnzeige}
+        eingabe={{ placeholder: cfg.config.placeholder, maxZeichen: cfg.config.maxChars, maxZeichenHinweis: cfg.config.maxCharsWarningMessage }}
+        onBelege={onBelege}
+        antwortFuss={antwortFuss}
+        uebersichtFuss={uebersichtFuss}
+        loeschenErlaubt
+        antwortAvatar={<AppLogo size={32} />}
+      />
+    </div>
   )
 }

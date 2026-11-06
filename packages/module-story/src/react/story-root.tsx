@@ -50,6 +50,8 @@ export interface StoryRootProps {
   uebersichtFuss?: (info: { queryId: string | null }) => ReactNode
   /** D6c: Fragen duerfen geloescht werden (eigene Sitzung); Standard aus. */
   loeschenErlaubt?: boolean
+  /** N5: Avatar der Antwort (der Gastgeber reicht sein Logo herein); ohne: neutraler Funke. */
+  antwortAvatar?: ReactNode
 }
 
 export function StoryRoot(p: StoryRootProps) {
@@ -133,6 +135,7 @@ export function StoryRoot(p: StoryRootProps) {
           fuss={p.antwortFuss}
           onErneut={frageUebernehmen}
           onLoeschen={p.loeschenErlaubt ? k.frageLoeschen : undefined}
+          antwortAvatar={p.antwortAvatar}
         />
       )
   } else if (thema) {
