@@ -14,7 +14,9 @@
  *   damit als sichtbar (lax/backwards-compatible Regel).
  *
  * Single Source of Truth fuer alle Lese-Endpunkte (`docs`, `facets`,
- * `by-fileids`, `ids`, `doc-meta`, `doc-by-slug`, `stream`/RAG). Nicht in der
+ * `by-fileids`, `ids`, `doc-meta`, `doc-by-slug`, `stream`/RAG). Meta-Dokumente
+ * tragen `docMetaJson.publication.status`, Chunks den Spiegel
+ * `publicationStatus` (chunk-publication-status.ts). Nicht in der
  * Owner-Pfad-Logik (`/docs/publish`, `/docs/delete`) verwenden – die haben
  * eigene Permission-Checks.
  *
@@ -22,8 +24,6 @@
  */
 
 import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
-import { getCollectionOnly } from '@/lib/repositories/vector-repo'
-import type { Document } from 'mongodb'
 
 /**
  * Liefert das MongoDB-Filter-Fragment, das Drafts ausschliesst.
@@ -83,49 +83,32 @@ export async function maybePublicationFilter(
 }
 
 /**
- * Listet alle fileIds, die in der Library aktuell als `'draft'` markiert sind.
+ * Filter-Fragment fuer Chunks und Kapitel-Zusammenfassungen (Befund 06.11.2026).
  *
- * Hintergrund: Chunks (`kind: 'chunk'`) und Chapter-Summaries (`kind: 'chapterSummary'`)
- * tragen KEIN `docMetaJson.publication.status`-Feld – das liegt nur auf den Meta-
- * Dokumenten (`kind: 'meta'`). Deshalb funktioniert das Filter-Fragment aus
- * `publicationVisibilityFilter()` fuer Chunk-/Summary-Queries NICHT direkt: ein
- * `$ne: 'draft'`-Test wuerde alle Chunks durchlassen, weil das Feld fehlt.
- *
- * Die korrekte Loesung fuer RAG/Chunk-Suchen ist, vorab die Liste der Draft-
- * fileIds zu ermitteln und sie via `fileId: { $nin: [...] }` aus dem Chunk-
- * Filter auszuschliessen. Dieser Helper kapselt das.
+ * Chunks tragen den Status als Spiegel `publicationStatus` (gesetzt von
+ * `setDocPublication`, vom Ingest und vom Bestandsskript
+ * `scripts/mirror-publication-status-to-chunks.ts`). Vorher musste vor
+ * jeder Gast-Frage die Liste ALLER Entwurfs-Ids abgefragt und als
+ * `fileId: { $nin: [...] }` in den Vektorsuch-Filter gesteckt werden —
+ * zwei Datenbankrunden je Frage und ein Filter, der mit der Zahl der
+ * Entwuerfe waechst. Jetzt ist es EIN Feld, dieselbe laxe Regel wie am
+ * Meta-Dokument: `$ne: 'draft'` laesst Chunks ohne Feld durch.
+ * `publicationStatus` steht als Token im Suchindex (vector-search-index.ts).
  */
-export async function listDraftFileIds(
-  libraryKey: string,
-  libraryId: string,
-): Promise<string[]> {
-  const col = await getCollectionOnly(libraryKey)
-  const rows = await col
-    .find(
-      {
-        kind: 'meta',
-        libraryId,
-        'docMetaJson.publication.status': 'draft',
-      } as Partial<Document>,
-      { projection: { _id: 0, fileId: 1 } },
-    )
-    .toArray()
-  return rows
-    .map((r) => (r as { fileId?: unknown }).fileId)
-    .filter((v): v is string => typeof v === 'string' && v.length > 0)
+export function chunkPublicationVisibilityFilter(): Record<string, unknown> {
+  return { publicationStatus: { $ne: 'draft' } }
 }
 
 /**
  * Wendet den Draft-Ausschluss auf einen Chunk-/Summary-Filter an.
  *
  * - Wenn `userEmail` Owner/Mod ist: macht nichts (Owner sehen alles).
- * - Sonst: laedt die Draft-fileIds und mergt `fileId: { $nin: [...] }` in den
- *   Filter. Falls bereits ein `fileId`-Filter besteht (z.B. aus einer
- *   Facetten-Auswahl), wird er kombiniert: `$in` bleibt erhalten und wir
- *   subtrahieren die Drafts aus der `$in`-Liste; ein leerer Schnitt bleibt
- *   leer und liefert konsequenterweise keine Ergebnisse.
+ * - Sonst: setzt `publicationStatus: { $ne: 'draft' }` in den Filter.
+ *   Traegt der Filter das Feld schon, ist das ein Verdrahtungsfehler und
+ *   wirft — kein stilles Ueberschreiben (no-silent-fallbacks).
  *
  * Der Filter wird IN-PLACE veraendert und auch zurueckgegeben (fluent style).
+ * `libraryKey` bleibt in der Signatur fuer die Aufrufer; gelesen wird nichts mehr.
  */
 export async function applyDraftExclusionToChunkFilter(
   filter: Record<string, unknown>,
@@ -133,54 +116,12 @@ export async function applyDraftExclusionToChunkFilter(
   libraryId: string,
   userEmail: string | undefined | null,
 ): Promise<Record<string, unknown>> {
+  void libraryKey
   const allowed = await canSeeDrafts(libraryId, userEmail)
   if (allowed) return filter
-
-  const draftIds = await listDraftFileIds(libraryKey, libraryId)
-  if (draftIds.length === 0) return filter
-
-  const existing = filter.fileId as
-    | { $in?: string[]; $nin?: string[]; $eq?: string }
-    | string
-    | undefined
-
-  // Kein bestehender fileId-Filter → einfacher $nin.
-  if (existing === undefined) {
-    filter.fileId = { $nin: draftIds }
-    return filter
+  if (filter.publicationStatus !== undefined) {
+    throw new Error(`applyDraftExclusionToChunkFilter: Filter traegt schon publicationStatus (${JSON.stringify(filter.publicationStatus)})`)
   }
-
-  // Bestehender konkreter fileId (string oder $eq) → wenn er ein Draft ist,
-  // wird der Filter unmoeglich (Doc nicht sichtbar). Sonst unveraendert.
-  if (typeof existing === 'string') {
-    if (draftIds.includes(existing)) {
-      filter.fileId = { $in: [] }
-    }
-    return filter
-  }
-  if (typeof existing === 'object' && existing !== null && '$eq' in existing && typeof existing.$eq === 'string') {
-    if (draftIds.includes(existing.$eq)) {
-      filter.fileId = { $in: [] }
-    }
-    return filter
-  }
-
-  // Bestehende Whitelist → aus der Liste entfernen.
-  if (typeof existing === 'object' && existing !== null && Array.isArray(existing.$in)) {
-    const draftSet = new Set(draftIds)
-    const keep = existing.$in.filter((id) => !draftSet.has(id))
-    filter.fileId = { ...existing, $in: keep }
-    return filter
-  }
-
-  // Bestehende Blacklist → erweitern.
-  if (typeof existing === 'object' && existing !== null && Array.isArray(existing.$nin)) {
-    const merged = Array.from(new Set([...existing.$nin, ...draftIds]))
-    filter.fileId = { ...existing, $nin: merged }
-    return filter
-  }
-
-  // Unbekanntes Format → defensiv nichts machen, lieber zu offen als zu falsch.
+  Object.assign(filter, chunkPublicationVisibilityFilter())
   return filter
 }
-

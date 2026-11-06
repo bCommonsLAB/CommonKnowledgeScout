@@ -6,6 +6,7 @@ import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getTopLevelValue, validateAndSanitizeFrontmatter } from '@/lib/chat/dynamic-facets'
 import { upsertVectors, upsertVectorMeta, deleteVectorsByFileId, ensureFacetIndexes, getMetaByFileId } from '@/lib/repositories/vector-repo'
+import { publicationStatusAus, setChunkPublicationStatus } from '@/lib/repositories/chunk-publication-status'
 import { getRetrieverContext } from '@/lib/chat/retriever-context'
 import type { DocMeta, ChapterMetaEntry } from '@ks/contracts'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -1596,9 +1597,19 @@ export class IngestionService {
         preserved: false,
         preservedThumbnail: false,
       }
+      // Bestehendes Meta-Dokument EINMAL lesen — fuer die Cover-Bewahrung unten
+      // und den Veroeffentlichungs-Status (upsertVectorMeta ersetzt docMetaJson komplett).
+      let existingMetaDoc: Awaited<ReturnType<typeof getMetaByFileId>> = null
+      if (!isSessionMode) {
+        try {
+          existingMetaDoc = await getMetaByFileId(libraryKey, fileId)
+        } catch (error) {
+          coverPreserveDiag.error = error instanceof Error ? error.message : String(error)
+          FileLogger.warn('ingestion', 'Bestehendes Meta-Dokument nicht lesbar', { fileId, error: coverPreserveDiag.error })
+        }
+      }
       if (!isSessionMode && !coverPreserveDiag.newCoverPresent) {
         try {
-          const existingMetaDoc = await getMetaByFileId(libraryKey, fileId)
           coverPreserveDiag.existingDocFound = !!existingMetaDoc
           const existingDocMeta = existingMetaDoc?.docMetaJson as Record<string, unknown> | undefined
           const prevCover = existingDocMeta?.coverImageUrl
@@ -1630,6 +1641,15 @@ export class IngestionService {
           })
         } catch { /* Trace-Fehler nicht eskalieren */ }
       }
+
+      // Veroeffentlichungs-Status bewahren (Befund 06.11.2026): ein Entwurf bleibt
+      // beim Neu-Einlesen ein Entwurf — vorher ging `publication` mit dem
+      // ersetzten docMetaJson verloren und der Eintrag wurde fuer Gaeste sichtbar.
+      const existingPublication = (existingMetaDoc?.docMetaJson as Record<string, unknown> | undefined)?.publication
+      if (docMetaJsonObj.publication === undefined && existingPublication && typeof existingPublication === 'object') {
+        docMetaJsonObj.publication = existingPublication
+      }
+      const publicationStatus = publicationStatusAus(docMetaJsonObj)
 
       // Meta-Dokument erstellen und speichern (ersetzt doc_meta Collection)
       const metaDoc = buildMetaDocument(
@@ -1665,6 +1685,9 @@ export class IngestionService {
       
       try {
         await upsertVectorMeta(libraryKey, metaDoc, dimension, retrieverCtx.ctx.library)
+        // Spiegel an den Chunks (siehe chunk-publication-status.ts); die Chunks liegen schon in MongoDB.
+        const chunksMitStatus = await setChunkPublicationStatus(libraryKey, fileId, publicationStatus)
+        FileLogger.info('ingestion', 'Veroeffentlichungs-Status an Chunks gespiegelt', { fileId, publicationStatus, chunks: chunksMitStatus })
         FileLogger.info('ingestion', 'Meta-Dokument gespeichert', { fileId, chunks: chunksUpserted, hasEmbedding: !!documentEmbedding })
         if (jobId) {
           bufferLog(jobId, { phase: 'meta_doc_upserted', message: `Meta-Dokument gespeichert: chunks=${chunksUpserted}, chapters=${chaptersCount}, embedding=${documentEmbedding ? 'ja' : 'nein'}` })
