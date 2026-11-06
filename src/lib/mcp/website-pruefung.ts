@@ -29,7 +29,7 @@ export interface DokumentPruefung {
 }
 
 /** Werte von `hero_layout`, die der Renderer kennt (website-detail.tsx); `none` = kein Kopf. */
-export const HERO_LAYOUTS: readonly string[] = ['overlay', 'cover', 'campaign', 'none']
+export const HERO_LAYOUTS: readonly string[] = ['overlay', 'cover', 'campaign', 'band', 'none']
 
 /** Bild-URL, die ein anonymer Besucher laden kann: absolut, http(s). */
 const ANONYM_LESBAR = /^https?:\/\//i

@@ -51,6 +51,11 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   die Hero-Ueberschrift, `title` bleibt der Menuepunkt. Marker-Attribut
   `kicker="…"` setzt eine Versalzeile ueber die Sektions-Ueberschrift;
   Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
+- **Hero `band` (N4, 2.65.0):** `hero_layout: band` rendert ein schlankes
+  farbiges Band (kraeftiger Akzent des Profils, `--site-accent-strong`) mit
+  `hero_kicker`, `hero_title` und `hero_subtitle` — OHNE `hero_image` und
+  niedriger als `campaign`. Fuer Startseiten, die zuerst die Frage stellen und
+  die Story-Sektion gleich darunter zeigen (Figma S1).
 - **Kein Kopf (2.48.1):** `hero_layout: none` rendert keinen `<header>`;
   die erste Sektion beginnt oben. Ein unbekannter `hero_layout`-Wert faellt
   im Renderer weiterhin auf `overlay` zurueck, `pruefeMarkdownDokument`
