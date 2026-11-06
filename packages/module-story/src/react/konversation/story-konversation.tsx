@@ -155,17 +155,27 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold">{t('story.konversation.antwort')}</span>
-                      {quellen > 0 && (
-                        <span
-                          className="rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={{
-                            backgroundColor: 'color-mix(in srgb, var(--story-accent, hsl(var(--primary))) 10%, transparent)',
-                            color: 'var(--story-accent, hsl(var(--primary)))',
-                          }}
-                        >
-                          {quellen === 1 ? t('story.konversation.quellenZitiert.one') : t('story.konversation.quellenZitiert.many', { count: quellen })}
-                        </span>
-                      )}
+                      {quellen > 0 && (() => {
+                        const label = quellen === 1 ? t('story.konversation.quellenZitiert.one') : t('story.konversation.quellenZitiert.many', { count: quellen })
+                        const gruen = { backgroundColor: 'color-mix(in srgb, var(--story-accent, hsl(var(--primary))) 12%, transparent)', color: 'var(--story-accent, hsl(var(--primary)))' }
+                        // N5: Verbirgt der Gastgeber die Marken anfangs, ist die Plakette zugleich der
+                        // Umschalter — grün = Nummern sichtbar, neutral = verborgen. Sonst nur Anzeige.
+                        if (markenAnfangsVerborgen) {
+                          return (
+                            <button
+                              type="button"
+                              aria-pressed={sichtbar}
+                              onClick={() => setSichtbar(!sichtbar)}
+                              title={t('story.konversation.belegnummern')}
+                              className="rounded-full px-2 py-0.5 text-xs font-medium transition-colors"
+                              style={sichtbar ? gruen : { backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }}
+                            >
+                              {label}
+                            </button>
+                          )
+                        }
+                        return <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={gruen}>{label}</span>
+                      })()}
                     </div>
                     {kopfAktion?.(antwort, { sichtbar, setSichtbar })}
                   </div>
@@ -179,13 +189,21 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
                   {antwort.anschlussfragen && antwort.anschlussfragen.length > 0 && (
                     <div className="mt-4" data-anschlussfragen>
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('story.konversation.weiterfragen')}</p>
-                      <div className="flex flex-wrap gap-2">
+                      <div
+                        className="flex flex-wrap gap-2"
+                        // N5: Weiterfragen sind auch Fragen — dasselbe zarte Gruen wie die Beispielfragen.
+                        style={{
+                          ['--story-pill-bg' as string]: 'color-mix(in srgb, var(--story-accent, white) 5%, white)',
+                          ['--story-pill-bg-hover' as string]: 'color-mix(in srgb, var(--story-accent, white) 12%, white)',
+                          ['--story-pill-border' as string]: 'color-mix(in srgb, var(--story-accent, hsl(var(--border))) 24%, white)',
+                        }}
+                      >
                         {antwort.anschlussfragen.map((frage) => (
                           <button
                             key={frage}
                             type="button"
                             onClick={() => onFrage(frage)}
-                            className="rounded-full border bg-background px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:border-primary hover:bg-muted"
+                            className="rounded-full border border-[color:var(--story-pill-border)] bg-[color:var(--story-pill-bg)] px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:border-[color:var(--story-accent)] hover:bg-[color:var(--story-pill-bg-hover)]"
                           >
                             {frage}
                           </button>

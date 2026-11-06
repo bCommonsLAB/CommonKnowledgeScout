@@ -963,6 +963,7 @@
       "deleteConfirm": "Really delete this question?",
       "again": "Ask again",
       "deineFrage": "Your question",
+      "belegnummern": "Show source numbers in the text",
       "antwort": "Answer",
       "quellenZitiert": {
         "one": "1 source cited",

@@ -963,6 +963,7 @@
       "deleteConfirm": "¿Eliminar realmente esta pregunta?",
       "again": "Volver a preguntar",
       "deineFrage": "Tu pregunta",
+      "belegnummern": "Mostrar los números de fuente en el texto",
       "antwort": "Respuesta",
       "quellenZitiert": {
         "one": "1 fuente citada",

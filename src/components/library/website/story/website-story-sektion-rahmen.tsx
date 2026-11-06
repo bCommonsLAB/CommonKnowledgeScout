@@ -96,9 +96,9 @@ export function StoryFragenKacheln({
       // N5: zartes Gruen der Site, damit die Beispielfragen sich abheben; die gewaehlte
       // Frage traegt dann das kraeftigere „Deine Frage"-Gruen.
       style={{
-        ['--kachel-bg' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 6%, white)',
-        ['--kachel-bg-hover' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 13%, white)',
-        ['--kachel-border' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 22%, white)',
+        ['--kachel-bg' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 4%, white)',
+        ['--kachel-bg-hover' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 10%, white)',
+        ['--kachel-border' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 18%, white)',
       }}
     >
       {fragen.map((frage, i) => (

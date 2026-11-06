@@ -963,6 +963,7 @@
       "deleteConfirm": "Vraiment supprimer cette question ?",
       "again": "Reposer la question",
       "deineFrage": "Ta question",
+      "belegnummern": "Afficher les numéros de source dans le texte",
       "antwort": "Réponse",
       "quellenZitiert": {
         "one": "1 source citée",
