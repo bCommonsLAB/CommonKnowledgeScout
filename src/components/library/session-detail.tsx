@@ -37,6 +37,14 @@ import { SessionProgrammeBar } from "@/components/library/session-programme-bar"
 import { useResolvedSessionMedia } from "@/hooks/library/session-detail/use-resolved-session-media";
 
 /**
+ * Entwickler-Angaben am Ende der Ansicht (gelber Kasten, File-ID) nur mit
+ * ausdruecklichem Schalter `NEXT_PUBLIC_DEBUG_DETAIL=true` in der .env — nicht
+ * mehr an NODE_ENV gebunden (Owner 06.11.2026: in der normalen Anwendung, auch
+ * lokal, soll davon nichts zu sehen sein). Wird beim Build eingebrannt.
+ */
+const DEBUG_DETAIL = process.env.NEXT_PUBLIC_DEBUG_DETAIL === 'true'
+
+/**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
  */
 export interface SessionDetailData {
@@ -781,8 +789,8 @@ export function SessionDetail({
       {!hideDebug ? (
       <div className="w-full px-4 pb-8">
         <div className="text-[10px] text-muted-foreground/50 text-center pt-4 border-t break-words space-y-1">
-          {/* Debug-Modus: Detailansicht-Info */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* Entwickler-Angaben nur mit NEXT_PUBLIC_DEBUG_DETAIL=true */}
+          {DEBUG_DETAIL && (
             <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded text-left">
               <div className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">🔍 Debug: SessionDetail</div>
               <div className="space-y-0.5 text-yellow-700 dark:text-yellow-300">
@@ -828,8 +836,8 @@ export function SessionDetail({
                 </div>
               )}
               <div className="flex items-center gap-1 flex-wrap">
-                <span>{t('event.fileId')}:</span>
-                {data.fileId ? (
+                {DEBUG_DETAIL && <span>{t('event.fileId')}:</span>}
+                {DEBUG_DETAIL && data.fileId ? (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
