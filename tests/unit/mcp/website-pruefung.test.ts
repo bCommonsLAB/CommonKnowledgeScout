@@ -108,3 +108,20 @@ describe('pruefeMarkdownDokument — Story-Sektion (Welle N1)', () => {
     expect(p.fehler.some((f) => f.includes('Hoechstens eine Sektion layout=story'))).toBe(true)
   })
 })
+
+describe('pruefeMarkdownDokument — Kacheln (Welle N2)', () => {
+  const KOPF = ['---', 'detailViewType: "website"', 'title: "Startseite"', 'language: "de"', 'targetLanguage: "de"', '---'].join('\n')
+
+  it('Kacheln mit gueltigen Zielen: weder Fehler noch Warnung', () => {
+    const p = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=text-only -->\n<!-- cards -->\n- **Archiv** Stoebern. [Hin](?view=gallery)\n<!-- /section -->`)
+    expect(p.fehler).toEqual([])
+    expect(p.warnungen).toEqual([])
+  })
+
+  it('Kachel ohne Link oder mit unbekanntem Ziel verhindert das Publizieren', () => {
+    const ohneLink = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=text-only -->\n<!-- cards -->\n- **Archiv** Nur Text\n<!-- /section -->`)
+    expect(ohneLink.fehler.some((f) => f.includes('Karten-Zeile'))).toBe(true)
+    const falschesZiel = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=text-only -->\n<!-- cards -->\n- **Archiv** [Hin](?view=karte)\n<!-- /section -->`)
+    expect(falschesZiel.fehler.some((f) => f.includes('view="karte"'))).toBe(true)
+  })
+})

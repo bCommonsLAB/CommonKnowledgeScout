@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
 import { OLDIES_THEME, type SiteThemeResolved } from '@/lib/website/site-theme'
 import { KICKER_CLASS, surfaceStyle } from '@/lib/website/surface-style'
+import type { KartenNavigation } from '@/lib/website/kartenziel'
 import { SectionContent } from './section-content'
 
 // S3: `renderMarkdownText` wohnt in `markdown-text.tsx` (Bestandsimporte bleiben gueltig).
@@ -24,10 +25,13 @@ export function SectionBlock({
   section,
   headingCase = 'capitalize',
   theme = OLDIES_THEME,
+  navigation,
 }: {
   section: WebsiteSection
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
+  /** N2: wohin Kachel-Links fuehren (`<!-- cards -->`). */
+  navigation?: KartenNavigation
 }): React.ReactElement | null {
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'
@@ -48,7 +52,7 @@ export function SectionBlock({
         <div className="mx-auto max-w-4xl">
           {kicker}
           {section.markdown && (
-            <div className="mb-6"><SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} /></div>
+            <div className="mb-6"><SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} navigation={navigation} /></div>
           )}
           {safeVideo && (
             <div className="aspect-video overflow-hidden rounded-xl bg-black/10">
@@ -107,7 +111,7 @@ export function SectionBlock({
           )}
         >
           {kicker}
-          <SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} />
+          <SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} navigation={navigation} />
         </div>
       </div>
     </section>

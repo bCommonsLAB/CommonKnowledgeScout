@@ -13,6 +13,7 @@ import { HeroCover } from "@/components/library/website/hero-cover"
 import { HeroCampaign } from "@/components/library/website/hero-campaign"
 import { WebsiteStorySektionRahmen } from "@/components/library/website/story/website-story-sektion-rahmen"
 import type { WebsiteSection } from "@/lib/website/types"
+import type { KartenNavigation } from "@/lib/website/kartenziel"
 import { OLDIES_THEME, siteThemeCssVars, type SiteThemeResolved } from "@/lib/website/site-theme"
 import { BUTTON_PRIMARY, KICKER_CLASS, surfaceStyle } from "@/lib/website/surface-style"
 import { cn } from "@/lib/utils"
@@ -80,6 +81,8 @@ interface WebsiteDetailProps {
    * die Fragen als Liste und einen Hinweis.
    */
   storySlot?: (section: WebsiteSection) => React.ReactNode
+  /** Welle N2: wohin Kachel-Links (`<!-- cards -->`) fuehren; fehlt er (Archiv-Vorschau), sind sie reine Links. */
+  kartenNavigation?: KartenNavigation
   /** Welle S2: aufgeloestes Design-Profil; fehlt = Vorlage (Archiv-Vorschau). */
   theme?: SiteThemeResolved
 }
@@ -97,7 +100,7 @@ export function hatBannerSektion(markdown: string | undefined): boolean {
  * Markdown-Body (Sektions-Marker) und ein eingebettetes Video — letzteres nur,
  * wenn die URL eine sichere Embed-URL ist (kein relativer Dateiname im iframe).
  */
-export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, storySlot, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
+export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, storySlot, kartenNavigation, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
   const sections = React.useMemo(
     () => (data.markdown ? parseWebsiteSections(data.markdown) : []),
     [data.markdown],
@@ -202,7 +205,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
                 <section className={cn("px-6 pt-14", flaeche.className)} style={flaeche.style}>
                   <div className="mx-auto max-w-5xl">
                     {s.kicker && <p className={KICKER_CLASS}>{s.kicker}</p>}
-                    {s.markdown && <SectionContent blocks={s.blocks} bg={s.bg} headingCase={headingCase} theme={theme} />}
+                    {s.markdown && <SectionContent blocks={s.blocks} bg={s.bg} headingCase={headingCase} theme={theme} navigation={kartenNavigation} />}
                   </div>
                 </section>
               )}
@@ -210,7 +213,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             </React.Fragment>
           )
         }
-        return <SectionBlock key={i} section={s} headingCase={headingCase} theme={theme} />
+        return <SectionBlock key={i} section={s} headingCase={headingCase} theme={theme} navigation={kartenNavigation} />
       })}
       {embeddableVideo && <VideoEmbed url={embeddableVideo} />}
     </div>

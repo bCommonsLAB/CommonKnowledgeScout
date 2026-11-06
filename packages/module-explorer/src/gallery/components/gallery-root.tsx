@@ -128,7 +128,12 @@ export interface GalleryRootProps {
    * Die Website-Landingpage im Modus `site` (M4g). Sie liegt in der App
    * (`website/website-landing-live`) und liest dort ihre eigenen APIs.
    */
-  siteView?: (opts: { libraryId: string; onShowGallery: (extra?: Record<string, string>) => void }) => React.ReactNode
+  siteView?: (opts: {
+    libraryId: string
+    onShowGallery: (extra?: Record<string, string>) => void
+    /** Welle N2: wechselt in den Story-Modus (Kachel `?mode=story`); ohne Story-Panel nicht erreichbar, dann fehlt der Rueckruf. */
+    onShowStory?: () => void
+  }) => React.ReactNode
   /**
    * Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht
    * mit dem Story-Modus um. `onOpenChronik` (D4) gibt es nur mit Chronik-Slot:
@@ -1179,7 +1184,11 @@ export function GalleryRoot({
           {/* Phase 3 (E4/E7): Statt des alten web/-Snapshot-iframes rendert die
              „Startseite" jetzt die produktive website-Landingpage aus Live-Daten. */}
           {libraryId && siteView ? (
-            siteView({ libraryId, onShowGallery: (extra) => setMode('gallery', extra) })
+            siteView({
+              libraryId,
+              onShowGallery: (extra) => setMode('gallery', extra),
+              onShowStory: storyPanel ? () => setMode('story') : undefined,
+            })
           ) : libraryId ? (
             // Kein stiller Leerraum: Site-Modus erlaubt, aber keine Landingpage montiert.
             <div className="p-6 text-sm text-muted-foreground">Keine Website-Ansicht montiert.</div>

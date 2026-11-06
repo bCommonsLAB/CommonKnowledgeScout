@@ -62,3 +62,50 @@ describe('parseSectionBlocks — questions (Welle N1)', () => {
     expect(() => parseSectionBlocks('<!-- questions -->\nKeine Liste.')).toThrow(/questions-Block ohne Liste/)
   })
 })
+
+describe('parseSectionBlocks — cards (Welle N2)', () => {
+  const DREI = [
+    '<!-- cards -->',
+    '- **Das Wissensarchiv entdecken** Stoebere in Studien und Berichten. [Zum Archiv →](?view=gallery)',
+    '- **Inhaltsverzeichnis** Die Themen des Bestands. [Zu den Themen →](?mode=story)',
+    '- **Wie funktioniert der KnowledgeScout?** Was der Scout kann. [Mehr erfahren →](?site=wie-funktioniert)',
+  ].join('\n')
+
+  it('cards: Liste "- **Titel** Text [Linktext](Ziel)" wird zu Karten, Text davor und danach bleibt', () => {
+    const blocks = parseSectionBlocks(`## Drei Wege\n\n${DREI}\n\nDanach.`)
+    expect(blocks).toEqual([
+      { type: 'markdown', markdown: '## Drei Wege' },
+      {
+        type: 'cards',
+        items: [
+          { title: 'Das Wissensarchiv entdecken', text: 'Stoebere in Studien und Berichten.', linkLabel: 'Zum Archiv →', href: '?view=gallery' },
+          { title: 'Inhaltsverzeichnis', text: 'Die Themen des Bestands.', linkLabel: 'Zu den Themen →', href: '?mode=story' },
+          { title: 'Wie funktioniert der KnowledgeScout?', text: 'Was der Scout kann.', linkLabel: 'Mehr erfahren →', href: '?site=wie-funktioniert' },
+        ],
+      },
+      { type: 'markdown', markdown: 'Danach.' },
+    ])
+  })
+
+  it('cards: Text darf fehlen, absolute Adresse ist ein gueltiges Ziel', () => {
+    const [block] = parseSectionBlocks('<!-- cards -->\n- **Museum** [Zur Website](https://example.org/museum)')
+    expect(block).toEqual({
+      type: 'cards',
+      items: [{ title: 'Museum', text: '', linkLabel: 'Zur Website', href: 'https://example.org/museum' }],
+    })
+  })
+
+  it('cards wirft bei Eintrag ohne **Titel**, ohne Link, bei Block ohne Liste und bei unbekanntem Ziel', () => {
+    expect(() => parseSectionBlocks('<!-- cards -->\n- Archiv [Hin](?view=gallery)')).toThrow(/Karten-Zeile "Archiv \[Hin\]\(\?view=gallery\)"/)
+    expect(() => parseSectionBlocks('<!-- cards -->\n- **Archiv** Nur Text, kein Link')).toThrow(/Karten-Zeile/)
+    expect(() => parseSectionBlocks('<!-- cards -->\n\nKeine Liste')).toThrow(/cards-Block ohne Liste/)
+    expect(() => parseSectionBlocks('<!-- cards -->\n- **Archiv** [Hin](/explore/x)')).toThrow(/Kachel-Ziel "\/explore\/x" ist unbekannt/)
+    expect(() => parseSectionBlocks('<!-- cards -->\n- **Archiv** [Hin](?view=map)')).toThrow(/view="map"/)
+  })
+
+  it('cards sind in jeder Sektion erlaubt, auch ohne Story-Sektion', () => {
+    const [s] = parseWebsiteSections(`<!-- section layout=text-only bg=default -->\n${DREI}\n<!-- /section -->`)
+    expect(s.blocks).toHaveLength(1)
+    expect(s.blocks[0].type).toBe('cards')
+  })
+})

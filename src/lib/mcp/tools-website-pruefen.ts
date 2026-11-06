@@ -27,7 +27,7 @@ export function registerWebsitePruefenTool(server: McpServer): void {
       description:
         'Die Vorschau ohne Browser: listet die publizierten website-Docs als Menue (menu_order, ' +
         'menu_area), nennt Startseite, Footer-Links und Footer-Doc und zeigt je Seite die geparsten ' +
-        'Sektionen (layout, bg, Bild; bei layout=story die Zahl der Beispielfragen) mit Befunden — ungueltige Marker, fehlendes Markdown, nicht ' +
+        'Sektionen (layout, bg, Bild; bei layout=story die Zahl der Beispielfragen, bei Kachel-Bloecken die Zahl der Kacheln) mit Befunden — ungueltige Marker, fehlendes Markdown, nicht ' +
         'anonym ladbare Bilder, tote ?site=-Links, fehlender menu_order, banner_sort stars ohne ' +
         'starCountsPublic (Banner bliebe leer). Dazu die Veroeffentlichung (isPublic, slug, siteEnabled, ' +
         'starCountsPublic) und die Adresse der Seite. Liest nur.',

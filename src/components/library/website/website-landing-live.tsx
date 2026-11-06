@@ -37,6 +37,7 @@ import type { SiteTheme } from "@ks/contracts"
 import { resolveSiteTheme, siteThemeCssVars } from "@/lib/website/site-theme"
 import { SITE_FONT_FAMILIES } from "@/lib/website/site-fonts"
 import type { WebsiteSection } from "@/lib/website/types"
+import type { KartenNavigation } from "@/lib/website/kartenziel"
 
 // N1: Der Chat der Story-Sektion zieht Story-Paket und Clerk — faul laden, nur
 // Seiten mit `layout=story` zahlen dafuer. Ohne SSR: Sitzung und Perspektive
@@ -52,6 +53,8 @@ interface WebsiteLandingLiveProps {
   fallbackLocale?: string
   /** Site-Modus (Explore-Galerie): wechselt in den lokalen Galerie-Modus; `extra` = Adress-Parameter, die mitgehen (F3). */
   onShowGallery?: (extra?: Record<string, string>) => void
+  /** Welle N2, Site-Modus: wechselt in den Story-Modus (Kachel `?mode=story`). */
+  onShowStory?: () => void
   /**
    * Root-Modus (`/`): Banner-/„mehr Inhalte"-Navigation zeigt auf diese
    * Explore-Basis-URL (z. B. `/explore/oldiesforfuture`), statt in den lokalen
@@ -74,6 +77,7 @@ export function WebsiteLandingLive({
   libraryId,
   fallbackLocale,
   onShowGallery,
+  onShowStory,
   exploreBaseHref,
   librarySlug,
   siteTheme,
@@ -89,6 +93,7 @@ export function WebsiteLandingLive({
   // Website (Site-Mode). Fuer „mehr Inhalte"/Banner-Karten muss daher explizit
   // `?view=gallery` gesetzt werden, sonst landet man wieder auf der Website.
   const galleryBaseHref = exploreBaseHref ? `${exploreBaseHref}?view=gallery` : null
+  const storyBaseHref = exploreBaseHref ? `${exploreBaseHref}?mode=story` : null
 
   // Per-Library-Text des Galerie-Links (z. B. „mehr Aktionen"). Quelle: Atom
   // (Explore-Seite laedt die Library dorthin). Auf der anonymen Domain-Root
@@ -131,6 +136,13 @@ export function WebsiteLandingLive({
     }
     setSelectedFileId(mainMenuDocs[0]?.fileId ?? allDocs[0]?.fileId ?? null)
   }, [allDocs, mainMenuDocs, siteParam])
+
+  // N2: Kachel-Links (`<!-- cards -->`): Site-Modus wechselt ueber Rueckrufe ohne Neuladen,
+  // Root-Modus faellt auf Adressen der Explore-Seite zurueck; `?site=` geht in beiden ueber nuqs.
+  const kartenNavigation = React.useMemo<KartenNavigation>(
+    () => ({ onShowGallery, onShowStory, onShowSite: (slug) => void setSiteParam(slug), galleryBaseHref, storyBaseHref }),
+    [onShowGallery, onShowStory, setSiteParam, galleryBaseHref, storyBaseHref],
+  )
 
   const { detail, detailError } = useWebsiteDetail(libraryId, selectedFileId, locale, fallbackLocale)
 
@@ -203,6 +215,7 @@ export function WebsiteLandingLive({
           contactApiSlug={contactApiSlug}
           bannerSlot={bannerInSektion ? banner : undefined}
           storySlot={storySlot}
+          kartenNavigation={kartenNavigation}
           theme={theme}
         />
       )}

@@ -9,7 +9,7 @@ todos:
     status: completed
   - id: n2-kacheln
     content: "N2 Kachel-Block `<!-- cards -->` (drei Karten nebeneinander: Titel, Text, Link) und die Zielauflösung `?view=gallery` / `?mode=story` / `?site=<slug>` ohne Neuladen; `onShowStory` im `siteView`-Slot der Galerie."
-    status: pending
+    status: completed
   - id: n3-perspektive-blatt
     content: "N3 Perspektive als Blatt von rechts: `PerspektiveDialog` bekommt die Darstellung `blatt`; die Story-Sektion nutzt sie, der Story-Modus auf Owner-Entscheid."
     status: pending
@@ -20,6 +20,13 @@ todos:
 
 # Website-Startseite mit Story-Sektion
 
+> **Stand 06.11.2026:** N2 gebaut (Block `cards` im Sektions-Parser,
+> `kartenziel.ts` mit `loeseKartenziel`/`kartenaktion`, Renderer
+> `section-cards.tsx`, `onShowStory` im `siteView`-Slot der Galerie, durchgereicht
+> über `client.tsx` und `website-landing-live.tsx` als `kartenNavigation` in
+> `WebsiteDetail`; Brücke 2.64.0 mit `karten` je Sektion, Contract §1, Skill,
+> Tests). Kacheln in einer Story-Sektion bleiben gewöhnliche Links.
+>
 > **Stand 05.11.2026:** N1 gebaut (Parser `layout=story` + `placeholder`,
 > Block `questions`, `storyBloecke`, `StoryEingabeInline` und
 > `ohneUebersicht` im Story-Paket, `BelegListe`/`ReferencesSheet` exportiert,
@@ -186,7 +193,7 @@ Verhalten im Detail:
 |---|---|
 | `src/lib/website/parse-section-blocks.ts` | Block `cards` → `{ type: 'cards'; items: { title; text; linkLabel; href }[] }` |
 | `src/lib/website/kartenziel.ts` | reine Funktion: `?view=gallery` / `?mode=story` / `?site=…` / `http(s)` → `{ art, …}`; alles andere wirft |
-| `src/components/library/website/section-content.tsx` | `Cards`: Raster `md:grid-cols-3`, Karte wie `box kind=card`; Klick ruft im Site-Modus die Rückrufe (`onShowGallery`, `onShowStory`, `setSiteParam`), im Root-Modus `href` mit `exploreBaseHref` |
+| `src/components/library/website/section-cards.tsx` (eigene Datei, Dateigrenze 200 Zeilen; `section-content.tsx` ruft sie) | `Cards`: Raster `md:grid-cols-3`, Karte wie `box kind=card`; Klick ruft im Site-Modus die Rückrufe (`onShowGallery`, `onShowStory`, `setSiteParam`), im Root-Modus `href` mit `exploreBaseHref` |
 | `packages/module-explorer/src/gallery/components/gallery-root.tsx` | `siteView` bekommt `onShowStory: () => setMode('story')` |
 | `src/app/library/gallery/client.tsx`, `website-landing-live.tsx` | reichen `onShowStory` durch; `SectionContent` bekommt die Navigation als Prop (ohne Prop: reine Links) |
 | Brücke, Contract, Skill, Tests | Block in `seite_pruefen` (Anzahl Karten, ungültiges Ziel als Fehler); Doku |

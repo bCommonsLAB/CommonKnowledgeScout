@@ -168,6 +168,11 @@ Erweiterung in den Einstellungen aus- und einschalten.
    ergibt eine weiße Karte (`kind=note`: durchscheinender Hinweis-Streifen);
    ein Blockquote (`> …`) bekommt einen Randstreifen. Kacheln brauchen
    `**Wert**` am Zeilenanfang, sonst weist `seite_pruefen` die Seite ab.
+   Link-Karten (ab Werkzeugsatz 2.64.0, Welle N2): `<!-- cards -->` gefolgt
+   von `- **Titel** Text [Linktext](Ziel)`, drei nebeneinander. Ziel ist
+   `?view=gallery` (Galerie), `?mode=story` (Story-Modus), `?site=<slug>`
+   (andere Website-Seite) oder eine absolute `https://`-Adresse; jedes andere
+   Ziel, ein Eintrag ohne `**Titel**` oder ohne Link weist der Parser ab.
 3. **Publizieren.** `dokument_publizieren` mit `quellPfad` oder `sourceIds`
    (bis 30). Die Antwort nennt je Seite Warnungen (fehlende Felder,
    relative Bilder) und harte Fehler (ungültiger Marker). Warnungen erst
@@ -252,6 +257,28 @@ Zum Beispiel eine dieser Fragen – oder stelle deine eigene.
 - `seite_pruefen` nennt je Story-Sektion `fragen` (Anzahl). Vier bis sechs
   Fragen passen in zwei Spalten; die Fragen sollen zum Bestand passen (der
   Scout antwortet nur aus den Dokumenten der Library).
+
+### Drei Kacheln unter der Story-Sektion (Werkzeugsatz 2.64.0)
+
+Die drei Wege des Besuchs — Archiv, Inhaltsverzeichnis, Erklärseite — stehen
+als eigene Sektion unter dem Chat:
+
+```markdown
+<!-- section layout=text-only bg=default -->
+<!-- cards -->
+- **Das Wissensarchiv entdecken** Stöbere in Studien, Berichten und Quellen. [Zum Archiv →](?view=gallery)
+- **Inhaltsverzeichnis des Wissensarchivs** Die Themen des Bestands. [Zu den Themen →](?mode=story)
+- **Wie funktioniert der KnowledgeScout?** Was der Scout kann. [Mehr erfahren →](?site=wie-funktioniert)
+<!-- /section -->
+```
+
+- Die Seite hinter `?site=` muss als website-Doc publiziert sein (Slug oder
+  Dateikennung); sonst meldet `seite_pruefen` „Link ?site=… trifft kein
+  website-Doc". Erst die Zielseite publizieren, dann die Startseite prüfen.
+- Kacheln gehören in eine eigene Sektion, nicht in die Story-Sektion: dort
+  wären sie nur gewöhnliche Links (Seite lädt neu).
+- `seite_pruefen` nennt je Sektion `karten` (Anzahl). Drei Kacheln füllen die
+  Zeile; mehr umbrechen auf die nächste, auf dem Telefon steht jede allein.
 
 ## Veranstaltungs-Webseite aus Vortragsseiten (Werkzeugsatz 2.48.1)
 
