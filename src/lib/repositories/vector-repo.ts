@@ -43,6 +43,7 @@ import { waehleSterneStages } from './source-user-states-count'
 import { buildCommentLookupStages } from './source-comments-repo'
 import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/documents/column-sort'
 import { vectorSearchFilterAus } from './vector-search-filter'
+import { chunkPublicationUpdate } from './chunk-publication-status'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -1648,8 +1649,9 @@ export async function setDocTranslationForLocale(
 /**
  * Patchet die Publikations-Metadaten eines Dokuments (Doc-Translations Refactor).
  *
- * Setzt `docMetaJson.publication.{status,publishedAt,publishedBy}` und
- * (optional) initialisiert `docMetaJson.translationStatus.<locale> = 'pending'`
+ * Setzt `docMetaJson.publication.{status,publishedAt,publishedBy}` am
+ * Meta-Dokument, spiegelt den Status als `publicationStatus` an die Chunks
+ * und Kapitel-Zusammenfassungen der Quelle und (optional) initialisiert `docMetaJson.translationStatus.<locale> = 'pending'`
  * fuer alle uebergebenen Ziel-Locales – damit die UI direkt nach dem
  * Publish-Klick die Status-Chips zeigen kann, bevor die Worker beginnen.
  *
@@ -1680,7 +1682,12 @@ export async function setDocPublication(
     { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
     { $set: set },
   )
-  return res.matchedCount > 0
+  if (res.matchedCount === 0) return false
+  // Spiegel an den Chunks (Befund 06.11.2026): der Gast-Filter der Vektorsuche
+  // prueft `publicationStatus` statt einer Liste aller Entwurfs-Ids.
+  const spiegel = chunkPublicationUpdate(fileId, patch.status)
+  await col.updateMany(spiegel.filter as Partial<Document>, spiegel.update)
+  return true
 }
 
 /**

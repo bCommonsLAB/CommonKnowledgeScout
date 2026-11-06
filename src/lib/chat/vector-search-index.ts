@@ -70,6 +70,9 @@ export function buildVectorSearchIndexDefinition(
     fileId: {
       type: 'token', // Token statt string, da in Filtern mit $in verwendet (z.B. fileId: { $in: [...] })
     },
+    publicationStatus: {
+      type: 'token', // Gast-Filter der Chunks: publicationStatus: { $ne: 'draft' } (chunk-publication-status.ts, 06.11.2026)
+    },
   }
   
   // Dynamisch: Indexe für ALLE Facetten basierend auf ihrem Typ

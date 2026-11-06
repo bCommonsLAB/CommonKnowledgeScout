@@ -65,7 +65,14 @@ Pure Helper sind **strikt seiteneffekt-frei**:
 - `normalizeSuggestedQuestions` (aus
   `common/normalize-suggested-questions.ts`).
 - `parseTocFromMarkdown` (aus `common/toc-parser.ts`).
-- `buildPublicationFilter` (aus `publication-filter.ts`).
+- `publicationVisibilityFilter`, `chunkPublicationVisibilityFilter` (aus
+  `publication-filter.ts`): Meta-Dokumente filtern auf
+  `docMetaJson.publication.status`, Chunks auf den Spiegel
+  `publicationStatus` (`$ne: 'draft'`, fehlend = sichtbar). Der Spiegel wird
+  von `setDocPublication`, vom Ingest (nach `upsertVectorMeta`, Status beim
+  Neu-Einlesen bewahrt) und vom Bestandsskript
+  `scripts/mirror-publication-status-to-chunks.ts` geschrieben; das Feld steht
+  als Token im Suchindex. Keine Id-Listen im Vektorsuch-Filter (06.11.2026).
 - `buildVectorSearchCacheKey`, `buildCacheHash` deterministisch.
 
 Service-Funktionen mit Mongo/HTTP-I/O sind NICHT pure.
