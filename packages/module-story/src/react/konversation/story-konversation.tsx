@@ -52,6 +52,11 @@ export interface StoryKonversationProps {
    * „Quellen anzeigen"-Knopf; `enthuellen` blendet zugleich die Marken ein.
    */
   kopfAktion?: (antwort: Nachricht, api: AntwortKopfApi) => ReactNode
+  /**
+   * N5: Avatar der Antwort — der Gastgeber reicht sein Logo herein (die App das
+   * KnowledgeScout-Logo). Ohne: ein neutraler Funke. Das Paket kennt kein Logo.
+   */
+  antwortAvatar?: ReactNode
 }
 
 /** Zahl der verschiedenen zitierten Dokumente einer Antwort. */
@@ -96,8 +101,14 @@ function FrageAktionen({ paar, onLoeschen, onErneut }: Pick<StoryKonversationPro
   )
 }
 
-export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut, markenAnfangsVerborgen = false, kopfAktion }: StoryKonversationProps) {
+export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut, markenAnfangsVerborgen = false, kopfAktion, antwortAvatar }: StoryKonversationProps) {
   const { t } = useTranslation()
+  // Avatar der Antwort: das Logo des Gastgebers, sonst ein neutraler Funke.
+  const avatar = antwortAvatar ?? (
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+      <Sparkles className="h-4 w-4" />
+    </div>
+  )
   // N5: welche Antworten haben ihre Zitatmarken enthuellt — nur hinzufuegen, nie
   // entfernen, damit die Marken nach dem Schliessen der Belege stehen bleiben.
   const [enthuelltIds, setEnthuelltIds] = useState<ReadonlySet<string>>(() => new Set())
@@ -123,9 +134,7 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
             </div>
             {antwort ? (
               <div className="flex gap-3" data-antwort={antwortId}>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden="true">
-                  <Sparkles className="h-4 w-4" />
-                </div>
+                <div className="shrink-0" aria-hidden="true">{avatar}</div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -166,9 +175,7 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
               </div>
             ) : laeuft ? (
               <div className="flex gap-3" data-antwort-laeuft>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
-                  <Sparkles className="h-4 w-4" />
-                </div>
+                <div className="shrink-0" aria-hidden="true">{avatar}</div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-muted-foreground">{t('chatMessages.processing')}</div>
                   {schritte.length > 0 && (

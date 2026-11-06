@@ -24,6 +24,7 @@ import type { SiteThemeResolved } from '@/lib/website/site-theme'
 import { storyBloecke } from '@/lib/website/story-section'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
+import { AppLogo } from '@/components/shared/app-logo'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { WebsiteStoryBelege, type WebsiteStoryNavigation } from './website-story-belege'
@@ -145,6 +146,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
               fuss={fuss}
               kopfAktion={kopfAktion}
               markenAnfangsVerborgen
+              antwortAvatar={<AppLogo size={32} />}
             />
           </div>
         )}
