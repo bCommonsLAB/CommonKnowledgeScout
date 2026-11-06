@@ -426,7 +426,7 @@ export function SessionDetail({
                 if (data.url) resolvedRefs.push({ name: t('event.originalPage'), url: data.url })
                 return (
                   <div className="mb-6">
-                    <ReferenceList references={resolvedRefs} title="Anhänge" />
+                    <ReferenceList references={resolvedRefs} title="Anhänge" kompakt />
                     {unresolvedAttachmentNames.length > 0 && (
                       <p className="text-xs text-amber-700 dark:text-amber-400">
                         Nicht auflösbare Anhänge in der Vorschau: {unresolvedAttachmentNames.join(", ")}
