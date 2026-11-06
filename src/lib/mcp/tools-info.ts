@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.65.0'
+export const TOOLSET_VERSION = '2.66.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -129,6 +129,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.66.0: Kacheln mit Symbol und Startseite ohne Galerie-Raster (Welle N4). Eine Karte `<!-- cards -->` nimmt ein fuehrendes Symbol am Textanfang: `- **Titel** :archive: Text [Link](Ziel)` — erlaubt sind archive, list, help, book, search, map, info, compass, leaf, users, file, calendar, image, message, sparkles; ein unbekannter Name wirft (seite_pruefen, dokument_publizieren). Der Pfeil der Karte kommt vom Renderer — kein „→" mehr in den Linktext schreiben. Neues Frontmatter-Feld `banner_hidden: true` nimmt das Galerie-Raster („Mehr aus dieser Bibliothek") ganz von der Seite (renderer-seitig, nicht von seite_pruefen geprueft). Kein neues Werkzeug',
   '2.65.0: Neue Hero-Variante `band` der Website-Landingpage (Welle N4; Anlass: Figma S1 Naturmuseum, Owner 06.11.). hero_layout: band rendert ein schlankes farbiges Band (kraeftiger Akzent des Profils) mit hero_kicker, hero_title und hero_subtitle — OHNE hero_image, niedriger als campaign: fuer Startseiten, die zuerst die Frage stellen. seite_pruefen und dokument_publizieren akzeptieren band ohne Warnung (erlaubte hero_layout-Werte jetzt overlay, cover, campaign, band, none). Kein neues Werkzeug, kein neues Frontmatter-Feld',
   '2.64.0: Kacheln der Website-Landingpage (Plan website-story-sektion, Welle N2). Neuer Block <!-- cards --> + Liste in JEDER Sektion: Eintrag `- **Titel** Text [Linktext](Ziel)`, drei Karten nebeneinander ab md, Karte im Stil box kind=card. Ziele: ?view=gallery (Galerie), ?mode=story (Story-Modus), ?site=<slug> (andere Website-Seite) oder eine absolute http(s)-Adresse — alles andere, ein Eintrag ohne **Titel** oder ohne Link und ein Block ohne Liste ist ein Fehler des Parsers (dokument_publizieren, seite_pruefen); ein ?site=-Ziel ohne passendes website-Doc meldet seite_pruefen wie jeden toten Link. seite_pruefen nennt je Sektion `karten` (Anzahl). Die Seite wechselt im Site-Modus ohne Neuladen. Kein neues Werkzeug, kein neues Frontmatter-Feld',
   '2.63.0: Story-Sektion der Website-Landingpage (Plan website-story-sektion, Welle N1; Anlass: Vorlage des Naturmuseums, Owner 05.11.). Neues Sektions-Layout `story` mit Attribut placeholder="…" und dem Block <!-- questions --> + Liste (Beispielfragen): der Chat der Library steht damit auf der Startseite — Markdown vor dem Block ueber der Eingabe, danach darunter; Belege als Blatt von rechts, Perspektive ueber den Knopf, nie von selbst. Regeln im Parser (dokument_publizieren, seite_pruefen): questions nur in layout=story, hoechstens EINE Story-Sektion je Seite, placeholder nur dort; Warnung bei Story-Sektion ohne Fragen. seite_pruefen nennt je Story-Sektion `fragen` (Anzahl). Kein neues Werkzeug, kein neues Frontmatter-Feld',

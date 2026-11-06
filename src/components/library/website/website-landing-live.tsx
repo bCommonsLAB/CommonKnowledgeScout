@@ -158,7 +158,10 @@ export function WebsiteLandingLive({
   // (banner_tag, banner_title, banner_limit) und steht entweder in einer
   // `banner`-Sektion des Bodys oder — ohne Sektion — unter der Seite.
   const bannerInSektion = React.useMemo(() => hatBannerSektion(detail?.markdown), [detail?.markdown])
-  const banner = detail ? (
+  // N4: `banner_hidden: true` nimmt das Galerie-Raster ganz von der Seite — fuer
+  // Startseiten, bei denen es nur um die Frage geht (nicht um die Galerie).
+  const bannerHidden = detail?.bannerHidden ?? false
+  const banner = detail && !bannerHidden ? (
     <WebsiteBannerGrid
       libraryId={libraryId}
       locale={locale}
@@ -213,7 +216,7 @@ export function WebsiteLandingLive({
           data={detail}
           showBackLink={false}
           contactApiSlug={contactApiSlug}
-          bannerSlot={bannerInSektion ? banner : undefined}
+          bannerSlot={bannerInSektion && !bannerHidden ? banner : undefined}
           storySlot={storySlot}
           kartenNavigation={kartenNavigation}
           theme={theme}

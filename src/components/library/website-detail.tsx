@@ -56,6 +56,8 @@ export interface WebsiteDetailData {
   bannerLimit?: number
   /** Welle F3 (ADR 0012): Reihung des Banners (Frontmatter `banner_sort`); fehlt = `rating`. */
   bannerSort?: BannerSort
+  /** Welle N4: `banner_hidden: true` unterdrueckt das Galerie-Raster ganz (kein Banner in der Sektion, keines angehaengt). */
+  bannerHidden?: boolean
   /** Welle S1: Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
   headingCase?: HeadingCase
   fileId?: string

@@ -62,7 +62,9 @@ export function WebsiteStorySektionRahmen({
             {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
             {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}
             {nach.length > 0 && (
-              <div className="mt-6 text-sm text-neutral-600">
+              // Legende/Vertrauenszeile: klein und dezent (Vorlage) — ueberschreibt die
+              // Prose-Groesse der Absaetze, die sonst 20 px betraegt.
+              <div className="mt-6 [&_p]:mb-0 [&_p]:!text-xs [&_p]:leading-relaxed [&_p]:text-neutral-500 sm:[&_p]:!text-sm">
                 <SectionContent blocks={nach} bg="default" headingCase={headingCase} theme={theme} />
               </div>
             )}

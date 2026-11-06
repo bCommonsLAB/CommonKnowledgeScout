@@ -23,6 +23,11 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   (`prioritaets_index`), anonym lesbar. `heading_case: none` schaltet das
   `capitalize` der Vorlage ab. Ungueltige Werte werden geloggt, nie still
   ersetzt (`src/lib/website/banner.ts`, `doc-meta-mappers.ts`).
+- **Banner ganz aus (Welle N4):** `banner_hidden: true` am Seiten-Doc nimmt
+  das Galerie-Raster komplett von der Seite — weder in einer `banner`-Sektion
+  noch angehaengt. Fuer Startseiten, bei denen es nur um die Frage geht und der
+  Galerie-Link schon als Kachel steht (`?view=gallery`). Fehlt das Feld oder
+  ist es nicht `true`, bleibt es beim Standard (Banner wird gezeigt).
 - **Banner aus der Rangliste (Welle F3, ADR 0012):** `banner_sort` am
   Seiten-Doc: `rating` (Vorgabe, wie oben) oder `stars` — dann fragt das
   Banner `sort=stars&starred=1` an (Eintraege mit Stern, die meisten zuerst)
@@ -112,7 +117,15 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   `?mode=story` auf die Adresse der Explore-Seite; ohne Navigation (Archiv-
   Vorschau, Kacheln in einer Story-Sektion) bleibt es ein gewoehnlicher
   Link. `seite_pruefen` nennt je Sektion `karten` (Anzahl) und meldet ein
-  `?site=`-Ziel ohne website-Doc als toten Link.
+  `?site=`-Ziel ohne website-Doc als toten Link. Der Pfeil der Karte kommt vom
+  Renderer — kein `→` in den Linktext schreiben (sonst doppelt).
+- **Karten-Symbol (Welle N4):** ein fuehrendes `:name:` am Textanfang gibt der
+  Karte ein Symbol (gruen, ueber dem Titel): `- **Titel** :archive: Text
+  [Link](Ziel)`. Erlaubt sind `CARD_ICON_NAMES` (archive, list, help, book,
+  search, map, info, compass, leaf, users, file, calendar, image, message,
+  sparkles) — ein unbekannter Name wirft beim Lesen (kein stiller Fallback).
+  Neue Symbole: `CARD_ICON_NAMES` (`parse-section-blocks.ts`) UND die Map in
+  `section-cards.tsx` ergaenzen.
 
 ## 2. Entferntes Legacy — NICHT wiedereinfuehren
 

@@ -275,6 +275,8 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     bannerLimit: bannerLimitGeprueft(docMetaJson.banner_limit),
     // F3 (ADR 0012): Reihung des Banners; ungueltig wird laut gemeldet, Vorgabe rating.
     bannerSort: bannerSortGeprueft(docMetaJson.banner_sort),
+    // N4: Galerie-Raster ganz unterdruecken (Startseiten, die nur die Frage zeigen).
+    bannerHidden: docMetaJson.banner_hidden === true || docMetaJson.banner_hidden === 'true',
     headingCase: headingCaseAus(docMetaJson.heading_case),
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),

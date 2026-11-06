@@ -87,6 +87,21 @@ describe('parseSectionBlocks — cards (Welle N2)', () => {
     ])
   })
 
+  it('cards: fuehrendes :symbol: am Textanfang wird zum Icon, Rest bleibt Text', () => {
+    const [block] = parseSectionBlocks('<!-- cards -->\n- **Archiv** :archive: Stöbere in Studien. [Zum Archiv](?view=gallery)\n- **Themen** :list: Die Themen. [Zu den Themen](?mode=story)')
+    expect(block).toEqual({
+      type: 'cards',
+      items: [
+        { title: 'Archiv', text: 'Stöbere in Studien.', linkLabel: 'Zum Archiv', href: '?view=gallery', icon: 'archive' },
+        { title: 'Themen', text: 'Die Themen.', linkLabel: 'Zu den Themen', href: '?mode=story', icon: 'list' },
+      ],
+    })
+  })
+
+  it('cards: unbekanntes :symbol: wirft (kein stiller Fallback)', () => {
+    expect(() => parseSectionBlocks('<!-- cards -->\n- **Archiv** :rakete: Text [Hin](?view=gallery)')).toThrow(/Unbekanntes Karten-Symbol ":rakete:"/)
+  })
+
   it('cards: Text darf fehlen, absolute Adresse ist ein gueltiges Ziel', () => {
     const [block] = parseSectionBlocks('<!-- cards -->\n- **Museum** [Zur Website](https://example.org/museum)')
     expect(block).toEqual({

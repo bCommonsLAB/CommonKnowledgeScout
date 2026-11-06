@@ -35,12 +35,25 @@ export interface StatsItem {
   label: string
 }
 
+/**
+ * Erlaubte Symbole einer Kachel (Welle N4, `:name:` am Anfang des Textes).
+ * Kuratierte Liste — der Renderer (`section-cards.tsx`) bildet jeden Namen auf
+ * ein Lucide-Icon ab; ein unbekannter Name wirft beim Parsen (kein stiller
+ * Fallback). Neue Symbole: hier UND in der Map im Renderer ergaenzen.
+ */
+export const CARD_ICON_NAMES = [
+  'archive', 'list', 'help', 'book', 'search', 'map', 'info', 'compass', 'leaf', 'users', 'file', 'calendar', 'image', 'message', 'sparkles',
+] as const
+export type CardIconName = (typeof CARD_ICON_NAMES)[number]
+
 /** Eine Kachel des Blocks `cards` (Welle N2); `href` ist schon gegen `loeseKartenziel` geprueft. */
 export interface CardItem {
   title: string
   text: string
   linkLabel: string
   href: string
+  /** Welle N4: optionales Symbol (`:name:` am Textanfang), aus `CARD_ICON_NAMES`. */
+  icon?: CardIconName
 }
 
 export type BoxKind = 'card' | 'note'
@@ -87,13 +100,26 @@ function nimmListe(text: string, block: string): { items: string[]; rest: string
   return { items, rest: lines.slice(i).join('\n') }
 }
 
-/** Eine Zeile "**Titel** Text [Linktext](Ziel)"; ohne Titel oder Link, mit unbekanntem Ziel wirft sie. */
+/** Ein fuehrendes `:name:` am Textanfang (Welle N4); unbekannter Name wirft. */
+const CARD_ICON_RE = /^:([a-z0-9-]+):\s*([\s\S]*)$/
+
+/** Eine Zeile "**Titel** [:symbol:] Text [Linktext](Ziel)"; ohne Titel oder Link, mit unbekanntem Ziel/Symbol wirft sie. */
 function kachel(zeile: string): CardItem {
   const m = zeile.match(CARD_RE)
   if (!m) throw new Error(`Karten-Zeile "${zeile}" — erwartet "- **Titel** Text [Linktext](Ziel)"`)
   const href = m[4]
   loeseKartenziel(href)
-  return { title: m[1].trim(), text: m[2].trim(), linkLabel: m[3].trim(), href }
+  let text = m[2].trim()
+  let icon: CardIconName | undefined
+  const im = text.match(CARD_ICON_RE)
+  if (im) {
+    if (!(CARD_ICON_NAMES as readonly string[]).includes(im[1])) {
+      throw new Error(`Unbekanntes Karten-Symbol ":${im[1]}:" — erlaubt: ${CARD_ICON_NAMES.join(', ')}`)
+    }
+    icon = im[1] as CardIconName
+    text = im[2].trim()
+  }
+  return { title: m[1].trim(), text, linkLabel: m[3].trim(), href, icon }
 }
 
 function pushMarkdown(blocks: SectionContentBlock[], text: string): void {
