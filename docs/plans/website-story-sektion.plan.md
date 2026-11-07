@@ -11,8 +11,8 @@ todos:
     content: "N2 Kachel-Block `<!-- cards -->` (drei Karten nebeneinander: Titel, Text, Link) und die Zielauflösung `?view=gallery` / `?mode=story` / `?site=<slug>` ohne Neuladen; `onShowStory` im `siteView`-Slot der Galerie."
     status: completed
   - id: n3-perspektive-blatt
-    content: "N3 Perspektive als Blatt von rechts: `PerspektiveDialog` bekommt die Darstellung `blatt`; die Story-Sektion nutzt sie, der Story-Modus auf Owner-Entscheid."
-    status: pending
+    content: "N3 Perspektive als Blatt von rechts: `PerspektiveDialog` bekommt die Darstellung `blatt`; die Story-Sektion nutzt sie, der Story-Modus seit 07.11. ebenso (Owner-Entscheid)."
+    status: completed
   - id: n4-inhalt
     content: "N4 Inhalt über die Brücke (kein Code): Startseite der Library Naturmuseum mit Hero, Story-Sektion (vier Fragen), Kacheln und Seite „Wie funktioniert der KnowledgeScout?“; `siteEnabled`; Rückmeldung an den Museumsdirektor."
     status: pending
@@ -205,7 +205,7 @@ Verhalten im Detail:
 | `packages/module-story/src/react/perspektive/perspektive-dialog.tsx` | Prop `darstellung?: 'dialog' \| 'blatt'`; `blatt` rendert `Sheet` von rechts (`@ks/ui`), Inhalt unverändert |
 | `src/components/library/story/perspektive-dialog-app.tsx` | reicht `darstellung` durch |
 | `website-story-sektion.tsx` | `darstellung="blatt"` |
-| Story-Modus | auf Owner-Entscheid dieselbe Darstellung (ein Blatt für Perspektive wie für Quellen); sonst bleibt der Dialog |
+| `src/components/library/story/story-perspektive-dialog.tsx` | `darstellung="blatt"` — der Story-Modus zeigt die Perspektive seit 07.11. als Blatt von rechts (Owner-Entscheid). Das Embed (`embed-galerie.tsx`) bleibt beim zentrierten Dialog |
 
 ### N4 Inhalt (kein Code)
 

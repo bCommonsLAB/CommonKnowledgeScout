@@ -79,5 +79,6 @@ export function StoryPerspektiveDialog() {
     setOffen(neu)
   }
 
-  return offen ? <PerspektiveDialogApp open={offen} onOpenChange={offenSetzen} onProfil={profil.speichern} /> : null
+  // N3 (Owner-Entscheid 07.11.): die Perspektive fliegt wie die Belege als Blatt von rechts herein.
+  return offen ? <PerspektiveDialogApp open={offen} onOpenChange={offenSetzen} onProfil={profil.speichern} darstellung="blatt" /> : null
 }
