@@ -27,6 +27,7 @@ import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { callTemplateTransform } from '@/lib/secretary/adapter'
 import { getSecretaryConfig } from '@/lib/env'
+import { validateCompositeContextWindow } from '@/lib/external-jobs/composite-context-window'
 
 /**
  * Beschreibt die FORM einer Transformer-Antwort fuer die Fehlermeldung.
@@ -169,35 +170,6 @@ function normalizeStructuredData(raw: unknown): Frontmatter | null {
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0
-}
-
-function validateCompositeContextWindow(text: string): { ok: true } | { ok: false; message: string } {
-  if (!text || !text.includes('# Quellenübersicht')) {
-    return { ok: true }
-  }
-
-  // Quellenzeilen aus der Übersichtstabelle zählen, z.B. "| 1 | datei | Typ |"
-  const sourceRows = text.match(/^\|\s*\d+\s*\|.*\|.*\|$/gm) || []
-  const expectedSources = sourceRows.length
-  if (expectedSources < 2) {
-    return { ok: true }
-  }
-
-  const openSources = (text.match(/<source file="/g) || []).length
-  const closeSources = (text.match(/<\/source>/g) || []).length
-
-  const hasSourceMarkerMismatch = openSources !== closeSources
-  const hasMissingOpenMarkers = closeSources > 0 && openSources === 0
-  const hasTooFewSourceBlocks = openSources < expectedSources
-
-  if (hasSourceMarkerMismatch || hasMissingOpenMarkers || hasTooFewSourceBlocks) {
-    return {
-      ok: false,
-      message: `Composite-Kontext ungültig: Quellenübersicht meldet ${expectedSources} Quelle(n), aber Source-Blöcke sind inkonsistent (open=<source file= ${openSources}, close=</source> ${closeSources}). Bitte Composite-Resolution/Quelle prüfen.`,
-    }
-  }
-
-  return { ok: true }
 }
 
 export async function runTemplateTransform(args: TemplateRunArgs): Promise<TemplateRunResult> {

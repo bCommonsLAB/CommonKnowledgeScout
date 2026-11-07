@@ -22,7 +22,7 @@ export interface EigenesFragment {
 
 const AUDIO_ENDUNG = /\.(mp3|m4a|wav|ogg|opus|flac)$/i
 const VIDEO_ENDUNG = /\.(mp4|webm|mov|mkv)$/i
-const COVER_NAME = /(^|[\s._-])cover\.(jpe?g|png|webp)$/i
+export const COVER_DATEINAME = /(^|[\s._-])cover\.(jpe?g|png|webp)$/i
 
 /** Erstes Audio-Fragment (Original-Variante) — oder null. */
 export function waehleAudio(fragmente: ReadonlyArray<MongoBinaryFragment>): EigenesFragment | null {
@@ -42,7 +42,7 @@ export function waehleVideo(fragmente: ReadonlyArray<MongoBinaryFragment>): Eige
 
 /** Bild-Fragment mit Cover-Namen (`cover.jpg`, `<Basis> - Cover.jpg`, `<Basis>.cover.jpg`) — oder null. */
 export function waehleCoverFragment(fragmente: ReadonlyArray<MongoBinaryFragment>): EigenesFragment | null {
-  const hit = fragmente.find((f) => !!f.url && f.variant !== 'thumbnail' && COVER_NAME.test(f.name))
+  const hit = fragmente.find((f) => !!f.url && f.variant !== 'thumbnail' && COVER_DATEINAME.test(f.name))
   return hit?.url ? { name: hit.name, url: hit.url } : null
 }
 

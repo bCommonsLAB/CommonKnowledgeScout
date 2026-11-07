@@ -30,6 +30,27 @@ describe('extractForwardedTemplateSourceFrontmatter', () => {
     })
   })
 
+  it('reicht _media_files neben _source_files durch (Cover-Ersatzweg im Ingest)', () => {
+    expect(extractForwardedTemplateSourceFrontmatter({
+      _source_files: ['talk.md'],
+      _media_files: ['cover.jpg', 'speaker-1.jpg'],
+      _include_self: true,
+      kind: 'composite-transcript',
+    })).toEqual({
+      _source_files: ['talk.md'],
+      _media_files: ['cover.jpg', 'speaker-1.jpg'],
+    })
+  })
+
+  it('reicht _media_files auch ohne _source_files und als JSON-Text durch', () => {
+    expect(extractForwardedTemplateSourceFrontmatter({
+      _media_files: '["cover.jpg"]',
+      kind: 'talk-page',
+    })).toEqual({
+      _media_files: ['cover.jpg'],
+    })
+  })
+
   it('ignoriert transcript-spezifische Felder ohne _source_files', () => {
     expect(extractForwardedTemplateSourceFrontmatter({
       kind: 'composite-transcript',
