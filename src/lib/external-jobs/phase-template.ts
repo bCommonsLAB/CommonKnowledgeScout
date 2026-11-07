@@ -38,6 +38,7 @@ import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
 import { computeRatingRaw } from '@/lib/documents/rating'
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
+import { fehlertextOhneStructuredData } from '@/lib/external-jobs/template-fehlertext'
 import { buildDocumentSlugFallback } from '@ks/util'
 
 // Helper extractFixedFieldsFromTemplate wurde in eigene Datei
@@ -1015,9 +1016,10 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
     } else {
-      // runTemplateTransform sollte jetzt einen Fehler werfen, wenn kein gültiges Meta zurückgegeben wird
-      // Falls es doch null zurückgibt, werfe explizit einen Fehler
-      const errorMsg = 'Transformer lieferte kein gültiges structured_data'
+      // runTemplateTransform gibt im Fehlerfall `{ metadata: null, error }` zurueck —
+      // `error` ist die Ursache (Vorpruefung, HTTP-Status, Secretary-Meldung) und
+      // gehoert in die Job-Fehlermeldung, sonst zeigt job_status nur den Rahmen-Satz.
+      const errorMsg = fehlertextOhneStructuredData(tr)
       bufferLog(jobId, { phase: 'transform_meta_failed', message: errorMsg })
       throw new Error(errorMsg)
     }

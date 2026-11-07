@@ -16,6 +16,7 @@ import { medienAusEigenenFragmenten, type MedienAusEigenenFragmenten } from '@/l
 import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatter-json-lists'
 import { ladeGeordneteQuellen, type QuellenTwin } from '@/lib/ingestion/quellen-fragmente'
 import { waehleCover } from '@/lib/ingestion/cover-aus-quellen'
+import { coverKandidatAusMedienliste } from '@/lib/ingestion/cover-aus-medienliste'
 import { anhaengeAusQuellen, ersetzePdfLinks } from '@/lib/ingestion/anhaenge-aus-quellen'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
@@ -578,6 +579,10 @@ export class IngestionService {
           // rechnen (zweite Seite der Folien-PDF, sonst erste; sonst Flyer). Die
           // Herkunft geht in den Trace (cover_source), ein Fehlschlag ebenso.
           const frontmatterCoverLeer = !(typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0)
+          // Letzter Ersatzweg (07.11.2026): ein Cover-Name aus `_media_files` der Quelle
+          // (die Template-Phase reicht das Feld in den Twin durch). Das Ereignis
+          // „none" faellt erst, wenn auch dieser Weg nichts findet.
+          const coverKandidatMedienliste = coverKandidatAusMedienliste(metaEffective)
           if (!coverImageUrl && frontmatterCoverLeer) {
             try {
               const cover = waehleCover(await ladeQuellenTwins())
@@ -590,11 +595,33 @@ export class IngestionService {
                   bufferLog(jobId, { phase: 'cover_image_processed', message: `Cover aus ${cover.quelle === 'slides' ? 'Folien' : 'Flyer'} (${cover.sourceName}, Seite ${cover.page})` })
                   await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: cover.quelle, sourceId: cover.sourceId, sourceName: cover.sourceName, page: cover.page })
                 }
-              } else if (jobId) {
+              } else if (jobId && !coverKandidatMedienliste) {
                 await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'none', grund: 'keine PDF-Quelle mit Seitenbildern' })
               }
             } catch (error) {
               FileLogger.warn('ingestion', 'Cover aus Quellen-Twins nicht rechenbar', { fileId, error: error instanceof Error ? error.message : String(error) })
+            }
+          }
+
+          if (!coverImageUrl && frontmatterCoverLeer && coverKandidatMedienliste) {
+            try {
+              // Aufloesung wie beim expliziten Frontmatter-Namen: Twin-Ordner, dann Nachbar der Quelle.
+              const coverAusListe = await ImageProcessor.processCoverImage(
+                storageProvider, shadowTwinFolderId, libraryId, fileId, jobId, isSessionMode, coverKandidatMedienliste, libraryConfig,
+              )
+              if (coverAusListe) {
+                coverImageUrl = coverAusListe
+                docMetaJsonObj.coverImageUrl = coverAusListe
+                FileLogger.info('ingestion', 'Cover aus _media_files der Quelle', { fileId, name: coverKandidatMedienliste })
+                if (jobId) {
+                  bufferLog(jobId, { phase: 'cover_image_processed', message: `Cover aus _media_files (${coverKandidatMedienliste})` })
+                  await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'media_files', sourceId: fileId, sourceName: coverKandidatMedienliste })
+                }
+              } else if (jobId) {
+                await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'none', grund: `_media_files nennt "${coverKandidatMedienliste}", aber die Datei liegt weder im Twin-Ordner noch neben der Quelle` })
+              }
+            } catch (error) {
+              FileLogger.warn('ingestion', 'Cover aus _media_files nicht ladbar', { fileId, name: coverKandidatMedienliste, error: error instanceof Error ? error.message : String(error) })
             }
           }
 
