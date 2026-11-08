@@ -25,7 +25,8 @@ import { STORY_UEBERSICHT } from '../types'
 import { ANTWORT_LAENGE_STANDARD, type AntwortLaenge, type Nachricht, type Perspektive } from '../konversation/types'
 import { useStoryStream } from '../konversation/use-story-stream'
 import { useStoryVerlauf } from '../konversation/use-story-verlauf'
-import { fragenAusVerlauf, frageZurAuswahl, konversationAuswaehlen, paare } from '../konversation/verlauf'
+import { fragenAusVerlauf, konversationAuswaehlen, paare } from '../konversation/verlauf'
+import { useAuswahlAbgleich } from './use-auswahl-abgleich'
 import { useStorySitzungId } from './use-story-sitzung-id'
 
 export interface UseStoryKonversationParams {
@@ -50,7 +51,7 @@ export interface UseStoryKonversationParams {
 
 export function useStoryKonversation(p: UseStoryKonversationParams) {
   const { libraryId, instanz, isSignedIn, perspektive, filter, dokumente, onBelege } = p
-  const { chatId, setChatId } = useStorySitzungId(libraryId)
+  const { chatId, setChatId, gelesen: sitzungGelesen } = useStorySitzungId(libraryId)
   const [auswahl, setAuswahl] = useAtom(storyAuswahlAtom)
   const [gliederung, setGliederung] = useAtom(storyGliederungAtom)
   const setAktiveSitzung = useSetAtom(storyAktiveSitzungAtom)
@@ -137,15 +138,8 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
     onBelegeRef.current?.(gezeigteAntwort?.belege ?? [], gezeigteAntwort?.queryId ?? null)
   }, [gezeigteAntwort])
 
-  // Gespeicherte Kennung und Thema nachtragen, sobald bekannt.
-  useEffect(() => {
-    if (auswahl.art !== 'konversation') return
-    const frage = frageZurAuswahl(nachrichten, auswahl)
-    if (!frage) return
-    const queryId = auswahl.queryId ?? frage.queryId
-    const themaId = auswahl.themaId ?? themaZuFrage(gliederung, frage.text) ?? undefined
-    if (queryId !== auswahl.queryId || themaId !== auswahl.themaId) setAuswahl({ ...auswahl, queryId, themaId })
-  }, [auswahl, nachrichten, gliederung, setAuswahl])
+  // Kennung/Thema nachtragen; unaufloesbare lokale Auswahl faellt aufs juengste Paar zurueck (08.11.2026).
+  useAuswahlAbgleich({ auswahl, setAuswahl, nachrichten, gliederung, laeuft, verlaufLadend: verlauf.ladend, geladenFuer: verlauf.geladenFuer, chatId, sitzungGelesen })
 
   const frageSenden = useCallback(
     async (text: string) => {
