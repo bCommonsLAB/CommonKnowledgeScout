@@ -6,28 +6,40 @@
  * juengste Paar, die Chronik liegt im Story-Modus). Das Ziel loest
  * `kartenaktion` wie bei den Kacheln: Site-Modus Rueckruf ohne Neuladen,
  * Root-Modus Adresse; Mittelklick und Kontextmenue folgen dem `href`.
+ *
+ * Der Story-Modus zeigt ohne `q` in der Adresse die Themenuebersicht
+ * (`StoryAuswahlUrl`, D2). Damit der Leser bei der zuletzt verdeckten Frage
+ * landet, traegt der Verweis `q=<queryId>` der juengsten frueheren,
+ * beantworteten Frage — im `href` und im Site-Modus als `extra` an
+ * `onShowStory` (ein Adresswechsel, kein zweiter Schreiber neben dem Modus).
  */
 
 import { useTranslation } from '@ks/i18n/react'
+import type { FrageAntwort } from '@ks/module-story/react'
 import { kartenaktion } from '@/lib/website/kartenziel'
+import { juengsteFruehereKennung, sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
 import { istPlainClick } from '@/components/library/website/section-cards'
 import type { WebsiteStoryNavigation } from './website-story-belege'
 
 export interface StoryFruehereFragenProps {
-  /** Zahl der aelteren Paare der Sitzung; bei 0 wird nichts gezeigt. */
-  fruehere: number
+  /** Alle Paare der Sitzung (aelteste zuerst); bei hoechstens einem wird nichts gezeigt. */
+  paare: FrageAntwort[]
   navigation: WebsiteStoryNavigation
 }
 
-export function StoryFruehereFragen({ fruehere, navigation }: StoryFruehereFragenProps) {
+export function StoryFruehereFragen({ paare, navigation }: StoryFruehereFragenProps) {
   const { t } = useTranslation()
+  const { fruehere } = sichtbaresPaar(paare)
   if (fruehere <= 0) return null
+  const kennung = juengsteFruehereKennung(paare)
   const ziel = kartenaktion({ art: 'story' }, navigation)
-  const wechsel = ziel.ausfuehren
+  const href = kennung ? `${ziel.href}${ziel.href.includes('?') ? '&' : '?'}q=${encodeURIComponent(kennung)}` : ziel.href
+  const { onShowStory } = navigation
+  const wechsel = onShowStory ? () => onShowStory(kennung ? { q: kennung } : undefined) : undefined
   return (
     <p className="mt-3 text-xs text-neutral-500" data-story-fruehere-fragen>
       <a
-        href={ziel.href}
+        href={href}
         className="underline decoration-neutral-300 underline-offset-2 hover:text-[color:var(--site-accent-strong)]"
         onClick={wechsel ? (e) => { if (istPlainClick(e)) { e.preventDefault(); wechsel() } } : undefined}
       >

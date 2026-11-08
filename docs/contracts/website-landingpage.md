@@ -88,7 +88,9 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   neue Frage ersetzt die Anzeige; `sichtbaresPaar` in
   `src/lib/website/story-sichtbares-paar.ts`); aeltere Fragen erreicht der
   Verweis „N fruehere Fragen dieser Sitzung im Story-Modus" unter der
-  Antwort (`?mode=story`, Zielaufloesung wie die Kacheln), kein Loesch-Knopf;
+  Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
+  aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die
+  Uebersicht), kein Loesch-Knopf;
   Belege einer Antwort und die Perspektive („Antworten anpassen") kommen als
   Blatt, nie von selbst. Dokumentgetrieben: Markdown VOR dem Block
   `<!-- questions -->` (+ Markdown-Liste) steht ueber der Eingabe, die Liste
