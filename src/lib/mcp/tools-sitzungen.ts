@@ -17,12 +17,11 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { ArchiveFolderNode } from '@/lib/agent-view/archive-types'
 import { berichteScan } from '@/lib/agent-view/sichten/regenerate-sichten'
+import { eintraegeFuerVorhaben, type SitzungsEintrag } from '@/lib/agent-view/sichten/sitzungen-gruppen'
+import { ladeSitzungen } from '@/lib/agent-view/sichten/sitzungen-laden'
 import { sitzungenBlock } from '@/lib/agent-view/sichten/sitzungen-render'
-import { elternVonProvider, ordneSitzungenZu } from '@/lib/agent-view/sichten/sitzungen-sammeln'
-import { SITZUNGS_SPRACHE, SITZUNGS_VORLAGE, type SitzungsDatensatz } from '@/lib/agent-view/sichten/sitzungen-types'
 import { isoHeute } from '@/lib/agent-view/sichten/types'
 import { berichtMitSitzungenBlock, type AlterBlockStatus } from '@/lib/agent-view/sitzungen-block'
-import { findeTransformationenNachVorlage } from '@/lib/repositories/shadow-twin-transformationen'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ersetzeTextDatei } from '@/lib/storage/update-text-file'
 import { ARCHIVPFLEGE_HINWEIS, pruefeArchivpflege } from './archivpflege'
@@ -45,16 +44,16 @@ interface BerichtZeile {
 async function berichtSchreiben(args: {
   provider: StorageProvider
   folder: ArchiveFolderNode
-  sitzungen: SitzungsDatensatz[]
+  eintraege: SitzungsEintrag[]
   heute: string
   nurVorschau: boolean
   alteBloeckeUebernehmen: boolean
 }): Promise<BerichtZeile> {
   const { folder } = args
   const pfad = folder.path || '(Scope-Wurzel)'
-  const basis = { pfad, folderId: folder.folderId, sitzungen: args.sitzungen.length, alterBlock: null, alteUeberschrift: null }
+  const basis = { pfad, folderId: folder.folderId, sitzungen: args.eintraege.length, alterBlock: null, alteUeberschrift: null }
   if (!folder.bericht) return { ...basis, status: 'kein_bericht' }
-  const block = sitzungenBlock(args.sitzungen, args.heute)
+  const block = sitzungenBlock(args.eintraege, args.heute)
   if (args.nurVorschau) return { ...basis, status: 'vorschau', block }
   const { blob } = await args.provider.getBinary(folder.bericht.fileId)
   const text = await blob.text()
@@ -102,23 +101,17 @@ export function registerSitzungenTool(server: McpServer): void {
           const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
           const started = Date.now()
           const { scan, vorhabenMuster } = await berichteScan(library, provider, scope ?? 'root')
-          const alleZeilen = await findeTransformationenNachVorlage({ libraryId: library.id, template: SITZUNGS_VORLAGE, language: SITZUNGS_SPRACHE })
           // Im Teilbaum: nur Belege in gescannten Ordnern — alles andere liegt ausserhalb des Scopes oder tiefer.
-          const gescannt = new Set(scan.folders.map((f) => f.folderId))
-          const zeilen = scope ? alleZeilen.filter((z) => gescannt.has(z.parentId)) : alleZeilen
-          const zuordnung = await ordneSitzungenZu({ zeilen, folders: scan.folders, vorhabenMuster, elternVon: elternVonProvider(provider) })
-          const jeVorhaben = new Map<string, SitzungsDatensatz[]>()
-          for (const s of zuordnung.sitzungen) {
-            if (s.vorhabenFolderId !== null) jeVorhaben.set(s.vorhabenFolderId, [...(jeVorhaben.get(s.vorhabenFolderId) ?? []), s])
-          }
-          const byId = new Map(scan.folders.map((f) => [f.folderId, f]))
+          const { zuordnung, belegKoepfe, nichtImScope } = await ladeSitzungen({
+            libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: scope !== undefined,
+          })
           const heute = isoHeute(new Date())
           const berichte: BerichtZeile[] = []
-          for (const [vorhabenId, sitzungen] of jeVorhaben) {
-            const folder = byId.get(vorhabenId)
-            if (!folder) throw new Error(`Vorhabensordner ${vorhabenId} nicht im Scan — Zuordnung inkonsistent`)
+          for (const folder of scan.folders) {
+            const eintraege = eintraegeFuerVorhaben(zuordnung.sitzungen, folder.folderId)
+            if (eintraege.length === 0) continue
             berichte.push(await berichtSchreiben({
-              provider, folder, sitzungen, heute,
+              provider, folder, eintraege, heute,
               nurVorschau: nurVorschau === true, alteBloeckeUebernehmen: alteBloeckeUebernehmen === true,
             }))
           }
@@ -131,7 +124,9 @@ export function registerSitzungenTool(server: McpServer): void {
             gescannteOrdner: scan.folders.length,
             sitzungen: zuordnung.sitzungen.length,
             ohneVorhaben: zuordnung.sitzungen.filter((s) => s.vorhabenPfad === null).length,
-            nichtImScope: alleZeilen.length - zeilen.length,
+            nichtImScope,
+            querverweise: zuordnung.sitzungen.reduce((n, s) => n + s.weitereVorhaben.length, 0),
+            belegKoepfe,
             berichte,
             geschrieben: berichte.filter((b) => b.status === 'geschrieben').map((b) => b.pfad),
             unveraendert: berichte.filter((b) => b.status === 'unveraendert').map((b) => b.pfad),

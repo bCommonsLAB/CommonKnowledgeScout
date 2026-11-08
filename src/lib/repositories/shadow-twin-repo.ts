@@ -93,6 +93,14 @@ export interface ShadowTwinDocument {
   sourceContentHash?: string
   sourceSize?: number
   sourceHashedAt?: string
+  /**
+   * S1b (Plan sitzungen-sichten-und-befunde): Frontmatter der QUELLDATEI
+   * (Beleg-Kopf: vorhaben, hauptvorhaben, ende …), vom Sichten-Lauf einmal aus
+   * dem Storage gelesen und hier gemerkt. `sourceModifiedAt` ist der
+   * Listing-Zeitstempel der Datei beim Lesen (null = unbekannt). Nur ein
+   * Merker: fehlt er oder ist die Datei juenger, liest der naechste Lauf neu.
+   */
+  sourceFrontmatter?: { fields: Record<string, unknown>; sourceModifiedAt: string | null; readAt: string }
   createdAt: string
   /**
    * Aenderungsstand des Dokuments. JEDER Schreibweg setzt ihn — das
