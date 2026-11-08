@@ -96,13 +96,23 @@ export function erschliessungsBloecke(args: {
     })
 }
 
-/** Ersetzt den Block zwischen den Markern (oder haengt ihn an); wirft bei Start ohne Ende. */
-export function indexMitBlock(text: string, block: string): string {
-  if (text.includes(BLOCK_START)) {
-    if (!text.includes(BLOCK_END)) throw new Error('Start-Marker ohne Ende-Marker im _INDEX.md')
-    const [vorher, rest] = text.split(BLOCK_START, 2)
-    const nachher = rest.split(BLOCK_END, 2)[1] ?? ''
+/**
+ * Ersetzt den Block zwischen zwei Markern (oder haengt ihn an); wirft bei
+ * Start ohne Ende. Generisch (S1): dieselbe Mechanik fuer den
+ * Erschliessungs-Block im `_INDEX.md` und den Sitzungen-Block im `BERICHT.md`.
+ * `block` traegt die Marker selbst; der Text ausserhalb bleibt byteidentisch.
+ */
+export function ersetzeBlock(text: string, startMarker: string, endMarker: string, block: string): string {
+  if (text.includes(startMarker)) {
+    if (!text.includes(endMarker)) throw new Error(`Start-Marker ${startMarker} ohne Ende-Marker ${endMarker}`)
+    const [vorher, rest] = text.split(startMarker, 2)
+    const nachher = rest.split(endMarker, 2)[1] ?? ''
     return vorher + block + nachher
   }
   return `${text.replace(/\n+$/, '')}\n\n${block}\n`
+}
+
+/** Erschliessungs-Block im `_INDEX.md` (bestehende Aufrufer, W5b). */
+export function indexMitBlock(text: string, block: string): string {
+  return ersetzeBlock(text, BLOCK_START, BLOCK_END, block)
 }

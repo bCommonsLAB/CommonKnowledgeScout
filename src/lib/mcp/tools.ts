@@ -60,6 +60,7 @@ import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerInfoTool } from './tools-info'
 import { registerSichtenTools } from './tools-sichten'
 import { registerAenderungenTools } from './tools-aenderungen'
+import { registerSitzungenTool } from './tools-sitzungen'
 import { registerStandTool } from './tools-stand'
 import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
@@ -118,6 +119,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerAdresseTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
+  // S1 (Plan sitzungen-sichten-und-befunde): Block „Sitzungen" je BERICHT.md.
+  registerSitzungenTool(server)
   registerStandTool(server)
   registerThemenTool(server)
   registerProtokollTool(server)
@@ -129,7 +132,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       description:
         'Listet die KnowledgeScout-Libraries des Users (Id + Name + archivpflege + Adress-Slug). archivpflege=false: ' +
         'die Library fuehrt keine Archiv-Konventionen — stand_setzen, themen_setzen, ' +
-        'erschliessung_block_schreiben und sichten_regenerieren sind dort gesperrt. slug ist der Teil von ' +
+        'erschliessung_block_schreiben, sitzungen_block_schreiben und sichten_regenerieren sind dort gesperrt. slug ist der Teil von ' +
         '[[@<slug>/<pfad>]], mit dem Dokumente auf diese Library verweisen; slugHerkunft gesetzt | ' +
         'veroeffentlicht | abgeleitet (abgeleitet = aus dem Namen, aendert sich mit ihm — stabil machen mit ' +
         'adresse_setzen); slug null = Konflikt, Grund in slugKonflikt. Liest nur.',

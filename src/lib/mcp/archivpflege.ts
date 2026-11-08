@@ -22,6 +22,8 @@ export const ARCHIVPFLEGE_WERKZEUGE = [
   'themen_setzen',
   'erschliessung_block_schreiben',
   'sichten_regenerieren',
+  // S1: schreibt den Sitzungen-Block in BERICHT.md.
+  'sitzungen_block_schreiben',
 ] as const
 
 export type ArchivpflegeWerkzeug = (typeof ARCHIVPFLEGE_WERKZEUGE)[number]

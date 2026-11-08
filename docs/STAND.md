@@ -365,6 +365,15 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   der Galerie-Loader könnte fehlende PDF-Transkripte selbst anstoßen
   (Job-Kette); Manifest der fremden App zur Laufzeit aus der öffentlichen
   Dokument-API (eigenes Vorhaben mit Brief, wenn der Partner es aufruft)
+- **Sitzungen: Sichten statt Kopien, Befunde statt Hoffen** (Plan
+  [`sitzungen-sichten-und-befunde`](plans/geplant/sitzungen-sichten-und-befunde.plan.md),
+  08.11.): Sitzungsbelege (`type: chatverlauf`, Vorlage `chatverlauf-de`)
+  bekommen eine erzeugte Chronik `Organisation/SITZUNGEN.md` und einen Block
+  „Sitzungen" je BERICHT.md aus den Transformationen in MongoDB (S1), dazu
+  fünf Sitzungs-Befunde im Abdeckungsscan (S2) und einen kürzeren Skill (S3).
+  **S1 gebaut 08.11.** (Brücke 2.67.0: `sichten_regenerieren` mit `sichten`,
+  neu `sitzungen_block_schreiben`; Owner-Entscheide E1–E4 im Archiv-Konzept),
+  Live-Abnahme im Archiv offen; S2 und S3 geplant
 - **Von Menschen geprüfte Veranstaltung** (Plan
   [`von-menschen-gepruefte-veranstaltung`](plans/von-menschen-gepruefte-veranstaltung.plan.md);
   die Marker im Plan sind veraltet): P3a Kontext im Datei-Weg und P3b
