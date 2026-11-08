@@ -17,14 +17,19 @@
 
 import { berichtLinkInTabelle, datumKurz, datumLesbar, isoHeute, istUeberfaellig, type ProjektDatensatz } from './types'
 
-/** Flaches Frontmatter der erzeugten Sicht (AGENTS.md: snake_case, eine Ebene). */
-export function sichtFrontmatter(sicht: 'aktuell' | 'projekte', now: Date): string {
+/** Flaches Frontmatter der erzeugten Sicht (AGENTS.md: snake_case, eine Ebene); `zusatz` haengt weitere Skalare an. */
+export function sichtFrontmatter(
+  sicht: 'aktuell' | 'projekte' | 'sitzungen',
+  now: Date,
+  zusatz: ReadonlyArray<readonly [string, string | number]> = [],
+): string {
   return [
     '---',
     'type: sicht',
     `sicht: ${sicht}`,
     'generated_by: knowledgescout/sichten',
     `generated_at: ${now.toISOString()}`,
+    ...zusatz.map(([key, value]) => `${key}: ${value}`),
     '---',
     '',
   ].join('\n')
