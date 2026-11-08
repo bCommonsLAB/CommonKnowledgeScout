@@ -989,6 +989,10 @@
         "one": "1 domanda in questa sessione",
         "many": "{count} domande in questa sessione"
       },
+      "fruehereFragen": {
+        "one": "1 domanda precedente di questa sessione in modalità Story",
+        "many": "{count} domande precedenti di questa sessione in modalità Story"
+      },
       "anpassen": "Adatta le risposte",
       "quellenAnzeigen": "Mostra fonti ({count})",
       "quellenAnzeigenKurz": "Mostra fonti",

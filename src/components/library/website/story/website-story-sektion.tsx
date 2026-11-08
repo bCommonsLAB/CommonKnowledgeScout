@@ -3,10 +3,10 @@
 /**
  * Die Story-Sektion der Website-Landingpage (Welle N1, Plan
  * website-story-sektion): der Chat der Library auf der Startseite —
- * Beispielfragen als Kacheln, immer sichtbare Eingabe, die Konversation
- * waechst nach unten. „Erst fragen, dann einstellen": kein Dialog beim
- * Betreten; die Perspektive oeffnet nur der Knopf im Kopf der Karte, die
- * Belege einer Antwort kommen als Blatt von rechts.
+ * Beispielfragen als Kacheln, sichtbare Eingabe, darunter NUR das juengste
+ * Frage-Antwort-Paar (Owner 08.11.2026: wie eine Suche, nicht wie ein Chat;
+ * aeltere Fragen erreicht der Verweis in den Story-Modus). „Erst fragen, dann
+ * einstellen": kein Dialog beim Betreten, Perspektive nur per Knopf, Belege als Blatt.
  *
  * Dritter Gastgeber der Story-Bausteine (nach Galerie-Mitte und Embed):
  * komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`.
@@ -30,6 +30,7 @@ import { AppLogo } from '@/components/shared/app-logo'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { WebsiteStoryBelege, type WebsiteStoryNavigation } from './website-story-belege'
+import { StoryFruehereFragen } from './website-story-fruehere'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
 
 export interface WebsiteStorySektionProps {
@@ -148,7 +149,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-strong)' }}
           >
             <StoryKonversation
-              paare={s.paare}
+              paare={s.sichtbar.paar ? [s.sichtbar.paar] : []}
               laeuft={s.k.laeuft}
               schritte={s.k.schritte}
               fehler={s.k.fehler}
@@ -160,6 +161,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
               markenAnfangsVerborgen
               antwortAvatar={<AppLogo size={32} />}
             />
+            <StoryFruehereFragen fruehere={s.sichtbar.fruehere} navigation={p.navigation} />
           </div>
         )}
         <StoryEingabeInline

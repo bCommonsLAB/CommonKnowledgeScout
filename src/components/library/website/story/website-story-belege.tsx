@@ -21,6 +21,10 @@ export interface WebsiteStoryNavigation {
   onShowGallery?: (extra?: Record<string, string>) => void
   /** Root-Modus: Galerie-Adresse, traegt schon `?view=gallery`; null im Site-Modus. */
   galleryBaseHref: string | null
+  /** Site-Modus: wechselt in den Story-Modus (Verweis „fruehere Fragen", 08.11.2026). */
+  onShowStory?: () => void
+  /** Root-Modus: Adresse des Story-Modus, traegt schon `?mode=story`; null im Site-Modus. */
+  storyBaseHref: string | null
 }
 
 export interface WebsiteStoryBelegeProps {

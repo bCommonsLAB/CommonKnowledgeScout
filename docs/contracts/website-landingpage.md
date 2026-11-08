@@ -83,7 +83,12 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
 
 - **Story-Sektion (Welle N1, Plan `website-story-sektion`):** `layout=story`
   setzt den Chat der Library an diese Stelle der Seite — Beispielfragen als
-  Kacheln, immer sichtbare Eingabe, die Konversation waechst nach unten;
+  Kacheln, immer sichtbare Eingabe, darunter NUR das juengste
+  Frage-Antwort-Paar der Sitzung (Owner 08.11.2026: wie eine Suche — eine
+  neue Frage ersetzt die Anzeige; `sichtbaresPaar` in
+  `src/lib/website/story-sichtbares-paar.ts`); aeltere Fragen erreicht der
+  Verweis „N fruehere Fragen dieser Sitzung im Story-Modus" unter der
+  Antwort (`?mode=story`, Zielaufloesung wie die Kacheln), kein Loesch-Knopf;
   Belege einer Antwort und die Perspektive („Antworten anpassen") kommen als
   Blatt, nie von selbst. Dokumentgetrieben: Markdown VOR dem Block
   `<!-- questions -->` (+ Markdown-Liste) steht ueber der Eingabe, die Liste

@@ -1036,6 +1036,10 @@
         "one": "1 Frage in dieser Sitzung",
         "many": "{count} Fragen in dieser Sitzung"
       },
+      "fruehereFragen": {
+        "one": "1 frühere Frage dieser Sitzung im Story-Modus",
+        "many": "{count} frühere Fragen dieser Sitzung im Story-Modus"
+      },
       "anpassen": "Antworten anpassen",
       "quellenAnzeigen": "Quellen anzeigen ({count})",
       "quellenAnzeigenKurz": "Quellen anzeigen",
