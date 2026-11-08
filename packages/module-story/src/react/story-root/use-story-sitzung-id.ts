@@ -37,6 +37,8 @@ function speichern(libraryId: string, chatId: string | null): void {
 export interface UseStorySitzungIdResult {
   chatId: string | null
   setChatId: (chatId: string | null) => void
+  /** Der gespeicherte Stand ist gelesen — vorher ist `chatId` nur vorlaeufig null. */
+  gelesen: boolean
 }
 
 export function useStorySitzungId(libraryId: string): UseStorySitzungIdResult {
@@ -60,5 +62,5 @@ export function useStorySitzungId(libraryId: string): UseStorySitzungIdResult {
     [libraryId, setIds],
   )
 
-  return { chatId, setChatId }
+  return { chatId, setChatId, gelesen }
 }

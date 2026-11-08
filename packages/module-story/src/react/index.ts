@@ -30,7 +30,7 @@ export { auswahlZuKennung, auswahlAusKennung, istNachtrag } from './auswahl-kenn
 // D6b: die Konversation im Paket — Verlauf, Stream und reine Helfer.
 export type { AntwortLaenge, Perspektive, Nachricht, FrageAntwort, AnfrageRahmen } from './konversation/types'
 export { ANTWORT_LAENGEN, ANTWORT_LAENGE_STANDARD } from './konversation/types'
-export { verlaufZuNachrichten, paare, fragenAusVerlauf, frageZurAuswahl, konversationAuswaehlen, VERLAUF_LIMIT, type VerlaufEintrag } from './konversation/verlauf'
+export { verlaufZuNachrichten, paare, fragenAusVerlauf, frageZurAuswahl, konversationAuswaehlen, auswahlRueckfall, VERLAUF_LIMIT, type VerlaufEintrag } from './konversation/verlauf'
 export { useStoryVerlauf, verlaufMischen, type UseStoryVerlaufParams, type UseStoryVerlaufResult } from './konversation/use-story-verlauf'
 export { useStoryStream, type UseStoryStreamParams, type UseStoryStreamResult } from './konversation/use-story-stream'
 export { streamAdresse, streamKoerper, gespraechsverlauf, fehlerText } from './konversation/anfrage'

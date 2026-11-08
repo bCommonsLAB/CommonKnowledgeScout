@@ -30,6 +30,8 @@ export interface UseStoryVerlaufResult {
   setNachrichten: Dispatch<SetStateAction<Nachricht[]>>
   ladend: boolean
   fehler: string | null
+  /** Sitzung, fuer die der Verlauf zuletzt fertig geladen wurde (auch 404) — null vor dem ersten Laden. */
+  geladenFuer: string | null
 }
 
 /** Verlauf unter die lokalen Nachrichten mischen: Lokales ohne gespeicherte Kennung bleibt. */
@@ -45,6 +47,7 @@ export function useStoryVerlauf({ libraryId, instanz, isSignedIn, chatId }: UseS
   const [nachrichten, setNachrichten] = useState<Nachricht[]>([])
   const [ladend, setLadend] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
+  const [geladenFuer, setGeladenFuer] = useState<string | null>(null)
   const vorherigeChatId = useRef<string | null>(chatId)
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export function useStoryVerlauf({ libraryId, instanz, isSignedIn, chatId }: UseS
     vorherigeChatId.current = chatId
     if (chatId === null) {
       if (vorher !== null) setNachrichten([])
+      setGeladenFuer(null)
       return
     }
     // D12c: Wechsel in eine andere Sitzung — nur Lokales ohne gespeicherte Kennung
@@ -78,7 +82,10 @@ export function useStoryVerlauf({ libraryId, instanz, isSignedIn, chatId }: UseS
       } catch (e) {
         if (aktuell) setFehler(e instanceof Error ? e.message : String(e))
       } finally {
-        if (aktuell) setLadend(false)
+        if (aktuell) {
+          setLadend(false)
+          setGeladenFuer(chatId)
+        }
       }
     }
     void laden()
@@ -87,5 +94,5 @@ export function useStoryVerlauf({ libraryId, instanz, isSignedIn, chatId }: UseS
     }
   }, [libraryId, instanz, sessionHeaders, chatId])
 
-  return { nachrichten, setNachrichten, ladend, fehler }
+  return { nachrichten, setNachrichten, ladend, fehler, geladenFuer }
 }

@@ -8,7 +8,7 @@
  */
 
 import type { DocReference } from '@ks/contracts'
-import type { ChronikFrage, StoryAuswahl } from '../types'
+import { STORY_UEBERSICHT, type ChronikFrage, type StoryAuswahl } from '../types'
 import type { FrageAntwort, Nachricht } from './types'
 
 /** Hoechstzahl, die die Liste liefert (Server-Grenze). */
@@ -105,4 +105,19 @@ export function konversationAuswaehlen(nachrichten: Nachricht[], auswahl: StoryA
   const frage = frageZurAuswahl(nachrichten, auswahl)
   if (!frage) return []
   return nachrichten.filter((m) => m === frage || (frage.queryId !== undefined && m.queryId === frage.queryId))
+}
+
+/**
+ * Rueckfall fuer eine Konversations-Auswahl, die nur eine LOKALE Frage-Kennung
+ * traegt (noch keine gespeicherte `queryId`) und im Verlauf nicht vorkommt —
+ * sie stammt aus einem anderen Gastgeber (08.11.2026: Startseite → Story-Modus,
+ * waehrend die Frage noch lief). Ergebnis: das juengste gespeicherte Paar der
+ * Sitzung, sonst die Uebersicht; `null`, wenn kein Rueckfall noetig ist. Eine
+ * gespeicherte Kennung, die fehlt, bleibt gewaehlt (geteilter Link, D2).
+ */
+export function auswahlRueckfall(nachrichten: Nachricht[], auswahl: StoryAuswahl): StoryAuswahl | null {
+  if (auswahl.art !== 'konversation' || auswahl.queryId !== undefined) return null
+  if (frageZurAuswahl(nachrichten, auswahl)) return null
+  const letztes = [...paare(nachrichten)].reverse().find((p) => p.frage.queryId !== undefined)
+  return letztes ? { art: 'konversation', queryId: letztes.frage.queryId, frageId: letztes.frage.id } : STORY_UEBERSICHT
 }
