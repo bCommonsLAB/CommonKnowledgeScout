@@ -131,8 +131,11 @@ export interface GalleryRootProps {
   siteView?: (opts: {
     libraryId: string
     onShowGallery: (extra?: Record<string, string>) => void
-    /** Welle N2: wechselt in den Story-Modus (Kachel `?mode=story`); ohne Story-Panel nicht erreichbar, dann fehlt der Rueckruf. */
-    onShowStory?: () => void
+    /**
+     * Welle N2: wechselt in den Story-Modus (Kachel `?mode=story`); ohne Story-Panel nicht erreichbar, dann fehlt der Rueckruf.
+     * `extra`: Adress-Parameter, die mitgehen — z. B. `q` fuer eine bestimmte Frage (Verweis der Story-Sektion, 09.11.2026).
+     */
+    onShowStory?: (extra?: Record<string, string>) => void
   }) => React.ReactNode
   /**
    * Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht
@@ -1187,7 +1190,7 @@ export function GalleryRoot({
             siteView({
               libraryId,
               onShowGallery: (extra) => setMode('gallery', extra),
-              onShowStory: storyPanel ? () => setMode('story') : undefined,
+              onShowStory: storyPanel ? (extra) => setMode('story', extra) : undefined,
             })
           ) : libraryId ? (
             // Kein stiller Leerraum: Site-Modus erlaubt, aber keine Landingpage montiert.

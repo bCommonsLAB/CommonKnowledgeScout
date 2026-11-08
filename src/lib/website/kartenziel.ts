@@ -65,8 +65,8 @@ export function loeseKartenziel(href: string): Kartenziel {
 export interface KartenNavigation {
   /** Site-Modus (Explore-Galerie): wechselt in den Galerie-Modus. */
   onShowGallery?: (extra?: Record<string, string>) => void
-  /** Site-Modus: wechselt in den Story-Modus. */
-  onShowStory?: () => void
+  /** Site-Modus: wechselt in den Story-Modus; `extra` = Adress-Parameter, die mitgehen (z. B. `q`). */
+  onShowStory?: (extra?: Record<string, string>) => void
   /** Wechselt die Website-Seite (`?site=`), mit und ohne Galerie-Wirt. */
   onShowSite?: (slug: string) => void
   /** Root-Modus: Adresse der Galerie (`/explore/<slug>?view=gallery`). */
@@ -96,7 +96,7 @@ export function kartenaktion(ziel: Kartenziel, nav: KartenNavigation = {}): Kart
     case 'story':
       return {
         href: nav.storyBaseHref ?? '?mode=story',
-        ausfuehren: nav.onShowStory,
+        ausfuehren: nav.onShowStory ? () => nav.onShowStory?.() : undefined,
         extern: false,
       }
     case 'seite':

@@ -191,8 +191,10 @@ Verhalten im Detail:
   der über `kartenaktion({ art: 'story' })` ohne Neuladen in den Story-Modus
   wechselt (Site-Modus `onShowStory`, Root-Modus `storyBaseHref`). Er gibt
   `q=<queryId>` der jüngsten früheren, beantworteten Frage mit
-  (`juengsteFruehereKennung`), denn ohne `q` zeigt der Story-Modus per Design
-  die Themenübersicht (`StoryAuswahlUrl`, D2).
+  (`juengsteFruehereKennung`; Root-Modus im `href`, Site-Modus als `extra`
+  an `onShowStory`, das `useGalleryMode.setMode('story', extra)` in die
+  Adresse schreibt), denn ohne `q` zeigt der Story-Modus per Design die
+  Themenübersicht (`StoryAuswahlUrl`, D2).
 - **Belege.** `onBelege` liefert die Belege der zuletzt gezeigten Antwort;
   die Sektion zeigt je Antwort einen Zähler („3 Quellen“) und öffnet das
   Blatt. `BelegListe` kommt ohne `DocCardMeta` aus (Titel aus
