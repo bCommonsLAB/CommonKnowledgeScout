@@ -27,3 +27,23 @@ export function sichtbaresPaar<P>(paare: ReadonlyArray<P>): SichtbaresPaar<P> {
   if (paare.length === 0) return { paar: null, fruehere: 0 }
   return { paar: paare[paare.length - 1], fruehere: paare.length - 1 }
 }
+
+/** Minimale Form eines Paars fuer die Kennungssuche (wie `FrageAntwort` aus `@ks/module-story`). */
+export interface PaarMitKennung {
+  frage: { queryId?: string }
+  antwort?: { queryId?: string }
+}
+
+/**
+ * Gespeicherte Kennung der juengsten FRUEHEREN, beantworteten Frage — das Ziel
+ * des Verweises in den Story-Modus (`?mode=story&q=…`). Das sichtbare (letzte)
+ * Paar zaehlt nicht; ohne beantwortete fruehere Frage null (dann zeigt der
+ * Story-Modus seine Uebersicht).
+ */
+export function juengsteFruehereKennung(paare: ReadonlyArray<PaarMitKennung>): string | null {
+  for (let i = paare.length - 2; i >= 0; i--) {
+    const kennung = paare[i].antwort?.queryId ?? paare[i].frage.queryId
+    if (kennung) return kennung
+  }
+  return null
+}

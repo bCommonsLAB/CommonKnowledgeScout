@@ -161,7 +161,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
               markenAnfangsVerborgen
               antwortAvatar={<AppLogo size={32} />}
             />
-            <StoryFruehereFragen fruehere={s.sichtbar.fruehere} navigation={p.navigation} />
+            <StoryFruehereFragen paare={s.paare} navigation={p.navigation} />
           </div>
         )}
         <StoryEingabeInline

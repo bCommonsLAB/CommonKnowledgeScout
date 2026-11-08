@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { paare, type Nachricht } from '@ks/module-story/react'
-import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
+import { juengsteFruehereKennung, sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
 
 function frage(id: string, text: string, queryId?: string): Nachricht {
   return { id, art: 'frage', text, createdAt: '2026-11-08T10:00:00.000Z', queryId }
@@ -39,6 +39,17 @@ describe('sichtbaresPaar', () => {
 
   it('hat ohne Fragen kein Paar und nichts Frueheres', () => {
     expect(sichtbaresPaar([])).toEqual({ paar: null, fruehere: 0 })
+  })
+
+  it('Verweis-Ziel ist die juengste fruehere beantwortete Frage, nicht die sichtbare', () => {
+    const alle = paare([
+      frage('f1', 'Erste?', 'q1'), antwort('a1', 'Eins.', 'q1'),
+      frage('f2', 'Zweite?', 'q2'), antwort('a2', 'Zwei.', 'q2'),
+      frage('f3', 'Laeuft gerade?'),
+    ])
+    expect(juengsteFruehereKennung(alle)).toBe('q2')
+    expect(juengsteFruehereKennung(alle.slice(0, 1))).toBeNull()
+    expect(juengsteFruehereKennung([])).toBeNull()
   })
 
   it('zaehlt bei genau einer Frage nichts Frueheres', () => {
