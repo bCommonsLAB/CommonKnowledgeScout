@@ -10,11 +10,10 @@
  * Der Story-Modus zeigt ohne `q` in der Adresse die Themenuebersicht
  * (`StoryAuswahlUrl`, D2). Damit der Leser bei der zuletzt verdeckten Frage
  * landet, traegt der Verweis `q=<queryId>` der juengsten frueheren,
- * beantworteten Frage — als Adresse und im Site-Modus ueber `nuqs`, bevor
- * der Modus wechselt.
+ * beantworteten Frage — im `href` und im Site-Modus als `extra` an
+ * `onShowStory` (ein Adresswechsel, kein zweiter Schreiber neben dem Modus).
  */
 
-import { parseAsString, useQueryState } from 'nuqs'
 import { useTranslation } from '@ks/i18n/react'
 import type { FrageAntwort } from '@ks/module-story/react'
 import { kartenaktion } from '@/lib/website/kartenziel'
@@ -30,28 +29,19 @@ export interface StoryFruehereFragenProps {
 
 export function StoryFruehereFragen({ paare, navigation }: StoryFruehereFragenProps) {
   const { t } = useTranslation()
-  const [, setQ] = useQueryState('q', parseAsString)
   const { fruehere } = sichtbaresPaar(paare)
   if (fruehere <= 0) return null
   const kennung = juengsteFruehereKennung(paare)
   const ziel = kartenaktion({ art: 'story' }, navigation)
   const href = kennung ? `${ziel.href}${ziel.href.includes('?') ? '&' : '?'}q=${encodeURIComponent(kennung)}` : ziel.href
-  const wechsel = ziel.ausfuehren
+  const { onShowStory } = navigation
+  const wechsel = onShowStory ? () => onShowStory(kennung ? { q: kennung } : undefined) : undefined
   return (
     <p className="mt-3 text-xs text-neutral-500" data-story-fruehere-fragen>
       <a
         href={href}
         className="underline decoration-neutral-300 underline-offset-2 hover:text-[color:var(--site-accent-strong)]"
-        onClick={
-          wechsel
-            ? (e) => {
-                if (!istPlainClick(e)) return
-                e.preventDefault()
-                if (kennung) void setQ(kennung, { history: 'push' })
-                wechsel()
-              }
-            : undefined
-        }
+        onClick={wechsel ? (e) => { if (istPlainClick(e)) { e.preventDefault(); wechsel() } } : undefined}
       >
         {fruehere === 1 ? t('website.story.fruehereFragen.one') : t('website.story.fruehereFragen.many', { count: fruehere })}
       </a>

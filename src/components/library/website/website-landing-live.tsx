@@ -53,8 +53,8 @@ interface WebsiteLandingLiveProps {
   fallbackLocale?: string
   /** Site-Modus (Explore-Galerie): wechselt in den lokalen Galerie-Modus; `extra` = Adress-Parameter, die mitgehen (F3). */
   onShowGallery?: (extra?: Record<string, string>) => void
-  /** Welle N2, Site-Modus: wechselt in den Story-Modus (Kachel `?mode=story`). */
-  onShowStory?: () => void
+  /** Welle N2, Site-Modus: wechselt in den Story-Modus (Kachel `?mode=story`); `extra` = Adress-Parameter, die mitgehen (z. B. `q`). */
+  onShowStory?: (extra?: Record<string, string>) => void
   /**
    * Root-Modus (`/`): Banner-/„mehr Inhalte"-Navigation zeigt auf diese
    * Explore-Basis-URL (z. B. `/explore/oldiesforfuture`), statt in den lokalen
