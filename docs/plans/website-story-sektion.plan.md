@@ -20,6 +20,17 @@ todos:
 
 # Website-Startseite mit Story-Sektion
 
+> **Stand 08.11.2026 (Owner-Entscheid):** Die Story-Sektion verhält sich wie
+> eine Suche, nicht wie ein Chat. Sichtbar ist nur das jüngste
+> Frage-Antwort-Paar der Sitzung; eine neue Frage ersetzt die Anzeige
+> (`sichtbaresPaar` in `src/lib/website/story-sichtbares-paar.ts`). Die
+> Sitzung bleibt vollständig und geteilt mit dem Story-Modus; ältere Fragen
+> erreicht der Verweis „N frühere Fragen dieser Sitzung im Story-Modus"
+> unter der Antwort (`?mode=story`, Zielauflösung wie die Kacheln). Kein
+> Lösch-Knopf auf der Startseite, keine neue Einstellung. Begründung: Die
+> Startseite ist Visitenkarte, der wachsende Verlauf schob Kacheln und
+> Erklärseite nach unten; der Verlauf gehört in die Chronik des Story-Modus.
+>
 > **Stand 06.11.2026:** N2 gebaut (Block `cards` im Sektions-Parser,
 > `kartenziel.ts` mit `loeseKartenziel`/`kartenaktion`, Renderer
 > `section-cards.tsx`, `onShowStory` im `siteView`-Slot der Galerie, durchgereicht
@@ -153,7 +164,7 @@ Zum Beispiel eine dieser Fragen — oder stelle deine eigene.
 | `packages/module-story/src/react/konversation/story-eingabe-inline.tsx` | Eingabe als sichtbares Feld (Textarea + Knopf; Enter sendet, Shift+Enter Zeilenumbruch); Antwortlänge wie `StoryEingabe`; Export im Paket-Index. Kein `next/*`, kein Clerk (`paket-schnitt.test.ts`) |
 | `packages/module-story/src/react/story-root/use-story-konversation.ts` | Option `ohneUebersicht?: boolean` — die Sektion braucht keine Themenübersicht (spart den Modellaufruf, der Story-Modus berechnet sie weiter) |
 | `packages/module-explorer/src/gallery/index.ts` | `BelegListe` und `ReferencesSheet` exportieren (bisher nur die Helfer) |
-| `src/components/library/website/story/website-story-sektion.tsx` | Client-Baustein: `useStoryContext` (Perspektive, Modell), `useStoryKonversation` mit `ohneUebersicht`, Fragen-Kacheln, `StoryEingabeInline`, `StoryKonversation` über **alle** Paare der Sitzung (`paare(nachrichten)`, nicht nur die Auswahl — die Konversation wächst), Belege-Zähler je Antwort und Blatt `ReferencesSheet` (Modus `answer`), Knopf „Antworten anpassen“ → `PerspektiveDialogApp`; KI-Hinweis als `fuss` wie `StoryAntwortFuss`. Farben nur über `--site-*` und `surfaceStyle()` |
+| `src/components/library/website/story/website-story-sektion.tsx` | Client-Baustein: `useStoryContext` (Perspektive, Modell), `useStoryKonversation` mit `ohneUebersicht`, Fragen-Kacheln, `StoryEingabeInline`, `StoryKonversation` über das **jüngste** Paar der Sitzung (`sichtbaresPaar(paare(nachrichten))`; bis 08.11. alle Paare — die Konversation wuchs), darunter der Verweis auf die früheren Fragen im Story-Modus, Belege-Zähler je Antwort und Blatt `ReferencesSheet` (Modus `answer`), Knopf „Antworten anpassen“ → `PerspektiveDialogApp`; KI-Hinweis als `fuss` wie `StoryAntwortFuss`. Farben nur über `--site-*` und `surfaceStyle()` |
 | `src/components/library/website/story/website-story-sektion-rahmen.tsx` | Rahmen (Fläche, Kennzeile, Markdown vor/nach, Karte) — getrennt, damit die Archiv-Vorschau ohne Chat dieselbe Hülle zeigt (Dateigrenze 200 Zeilen) |
 | `src/components/library/website-detail.tsx` | Slot `storySlot?: (section) => ReactNode` wie `bannerSlot`; ohne Slot (Archiv-Vorschau) Einleitung, Fragen als Liste und Hinweis „Chat nur auf der Live-Seite“ |
 | `src/components/library/website/website-landing-live.tsx` | reicht den Slot im Site- und Root-Modus; Beleg öffnen → `onShowGallery({ doc: <slug> })` bzw. Original über `useDokumentOeffnen` |
@@ -172,6 +183,13 @@ Verhalten im Detail:
 - **Sitzung.** `useStorySitzungId(libraryId)` wie im Story-Modus — eine
   Sitzung je Browser und Library. Die Fragen der Startseite stehen danach in
   der Chronik des Story-Modus.
+- **Wie eine Suche (08.11.2026).** Die Sektion zeigt nur das jüngste
+  Frage-Antwort-Paar; während eine neue Antwort läuft, steht die neue Frage
+  mit den Verarbeitungsschritten da, die alte Antwort ist weg. Hat die
+  Sitzung mehr als ein Paar, steht unter der Antwort der Verweis
+  „N frühere Fragen dieser Sitzung im Story-Modus" (`website.story.fruehereFragen`),
+  der über `kartenaktion({ art: 'story' })` ohne Neuladen in den Story-Modus
+  wechselt (Site-Modus `onShowStory`, Root-Modus `storyBaseHref`).
 - **Belege.** `onBelege` liefert die Belege der zuletzt gezeigten Antwort;
   die Sektion zeigt je Antwort einen Zähler („3 Quellen“) und öffnet das
   Blatt. `BelegListe` kommt ohne `DocCardMeta` aus (Titel aus

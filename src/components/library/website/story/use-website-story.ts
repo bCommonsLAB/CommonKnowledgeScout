@@ -15,6 +15,7 @@ import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API, useSessionHeaders } from '@ks/api-client'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
 import { paare, useStoryKonversation, type Perspektive } from '@ks/module-story/react'
+import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
@@ -62,8 +63,10 @@ export function useWebsiteStory(libraryId: string) {
     maxZeichen: cfg?.config.maxChars,
     maxZeichenHinweis: cfg?.config.maxCharsWarningMessage,
   })
-  // Alle Paare der Sitzung, nicht nur die Auswahl: die Konversation waechst nach unten.
+  // Alle Paare der Sitzung fuer Zaehler und Verweis; sichtbar ist nur das
+  // juengste (wie eine Suche, Owner 08.11.2026).
   const alle = useMemo(() => paare(k.nachrichten), [k.nachrichten])
+  const sichtbar = useMemo(() => sichtbaresPaar(alle), [alle])
 
   // Zahl des Katalogs fuer den Weg „alle Quellen" in der Belegliste (anonym lesbar).
   const [katalogAnzahl, setKatalogAnzahl] = useState<number>(0)
@@ -79,7 +82,7 @@ export function useWebsiteStory(libraryId: string) {
     return () => { abgebrochen = true }
   }, [libraryId, sessionHeaders])
 
-  return { k, paare: alle, perspektive, cfg, loading, error, llmModel: story.llmModel, katalogAnzahl, sessionHeaders }
+  return { k, paare: alle, sichtbar, perspektive, cfg, loading, error, llmModel: story.llmModel, katalogAnzahl, sessionHeaders }
 }
 
 /**

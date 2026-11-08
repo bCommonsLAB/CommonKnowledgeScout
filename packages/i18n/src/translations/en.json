@@ -989,6 +989,10 @@
         "one": "1 question in this session",
         "many": "{count} questions in this session"
       },
+      "fruehereFragen": {
+        "one": "1 earlier question from this session in Story mode",
+        "many": "{count} earlier questions from this session in Story mode"
+      },
       "anpassen": "Adjust answers",
       "quellenAnzeigen": "Show sources ({count})",
       "quellenAnzeigenKurz": "Show sources",

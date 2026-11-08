@@ -27,7 +27,7 @@ const CARD_ICONS: Record<CardIconName, LucideIcon> = {
 }
 
 /** Normaler Linksklick (ohne Umschalt-, Strg-, Alt-, Meta-Taste): den Rueckruf nehmen, sonst folgt der Browser dem Link. */
-function istPlainClick(e: React.MouseEvent): boolean {
+export function istPlainClick(e: React.MouseEvent): boolean {
   return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
 }
 
