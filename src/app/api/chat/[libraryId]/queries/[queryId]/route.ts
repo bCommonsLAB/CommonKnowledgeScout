@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getQueryLogById, deleteQueryLog } from '@/lib/db/queries-repo'
+import { leseEintragFuerVerwaltung } from '@/lib/db/queries-verwaltung'
+import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
 import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(
@@ -43,8 +45,14 @@ export async function GET(
 
     try {
       const log = await getQueryLogById({ libraryId, queryId, userEmail, sessionId })
-      if (!log) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-      return NextResponse.json(log)
+      if (log) return NextResponse.json(log)
+      // Verwaltungssicht „Fragen & Antworten": Owner/Moderator lesen jeden
+      // Eintrag ihrer Library (Antwort, Quellen) — ohne Erstellerdaten.
+      if (userEmail && (await isModeratorOrOwner(libraryId, userEmail))) {
+        const fuerVerwaltung = await leseEintragFuerVerwaltung(libraryId, queryId)
+        if (fuerVerwaltung) return NextResponse.json(fuerVerwaltung)
+      }
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     } catch (queryError) {
       // Wenn getQueryLogById einen Fehler wirft (z.B. "Entweder userEmail oder sessionId muss angegeben werden"),
       // gib 404 zurück statt Fehler (für bessere UX)

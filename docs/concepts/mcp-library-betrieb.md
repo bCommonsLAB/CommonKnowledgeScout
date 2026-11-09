@@ -24,6 +24,8 @@ Funktion wie das UI (ADR 0007), keine zweite Logik.
 | **2 Messen** | `frage_stellen` | schreibt Query-Log | Stream-Route: `bruecke-frage.ts` (Filter, Retriever-Entscheidung, Regeln, Nachprüfung, Cache-Hash) |
 | | `golden_set_fahren` | schreibt (Job) | `golden-set/lauf.ts` — derselbe Kern wie `scripts/golden-set-run.ts`; Phase `phase-golden-set.ts` |
 | | `frage_log_lesen` | liest | `getQueryLogById` |
+| **2a Antworten verwalten** | `fragen_log` | liest | Verwaltungssicht wie der Reiter „Fragen & Antworten": `queries-verwaltung.ts` (Hash-Gruppen), `cache-aktualitaet.ts` (Hash gegen heutige Regeln, Facetten, Dokumentzahl) |
+| | `antworten_verwerfen` | schreibt | `verwerfeAntworten`: setzt `cacheInvalidatedAt`, löscht nichts; dieselbe Route wie der Knopf (`queries/invalidate`) |
 
 ## Regeln, die alle Werkzeuge einhalten
 

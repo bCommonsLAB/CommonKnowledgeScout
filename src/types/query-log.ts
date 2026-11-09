@@ -141,6 +141,13 @@ export interface QueryLog {
   cacheHash?: string;
   /** Cache-Parameter zusammengefasst (für einfaches Debugging - einfach kopieren und posten) */
   cacheParams?: CacheParams;
+  /**
+   * Verwerfen statt löschen (Verwaltungssicht „Fragen & Antworten"):
+   * Ist das Datum gesetzt, gilt der Eintrag NICHT mehr als Cache-Treffer
+   * (`findQueryByQuestionAndContext`). Chronik, Sitzungen und populäre
+   * Fragen lesen den Eintrag weiter — Besucher verlieren nichts.
+   */
+  cacheInvalidatedAt?: Date;
   createdAt: Date;
   status: 'pending' | 'ok' | 'error';
   error?: { message: string; stage?: string };

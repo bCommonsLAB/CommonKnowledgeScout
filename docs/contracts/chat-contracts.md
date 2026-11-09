@@ -142,6 +142,30 @@ Komponenten sollen vorzugsweise via API-Routen kommunizieren.
   Kurztitel `shortTitle` — gehoeren NICHT hinein und nicht in den
   Query-Log-Vergleich; sonst entwerten sich alle Zwischenspeicher. Test:
   `tests/unit/chat/cache-key-utils.test.ts`.
+- **Der Antwort-Cache IST das Fragen-Log** (Collection `queries`). Es gibt
+  keinen zweiten Speicher; `findQueryByQuestionAndContext` liefert den
+  juengsten Eintrag mit gleichem `cacheHash` in der Library, der eine
+  Antwort oder Themenuebersicht traegt.
+- **Verwerfen statt loeschen.** Eine gespeicherte Antwort wird nie geloescht,
+  um den Cache zu leeren: `cacheInvalidatedAt` (Datum) am Eintrag nimmt ihn
+  aus der Treffer-Suche (`cacheTrefferFilter` in
+  `src/lib/db/query-cache-regel.ts`); Chronik, Sitzungen und populaere
+  Fragen lesen ihn unveraendert. Verwerfen trifft ALLE Eintraege mit
+  demselben Hash (jeder Cache-Treffer legt seit D12b ein eigenes Log an),
+  sonst kaeme die Antwort ueber einen Zwilling zurueck
+  (`verwerfeAntworten` in `queries-verwaltung.ts`). Loeschen bleibt dem
+  eigenen Eintrag im Story-Modus vorbehalten (DELETE `queries/[queryId]`).
+  Wege: Reiter „Fragen & Antworten" (Settings, Owner/Moderator), Routen
+  GET `queries/admin` und POST `queries/invalidate`, Bruecke `fragen_log`
+  und `antworten_verwerfen`. Tests:
+  `tests/unit/chat/query-cache-regel.test.ts`,
+  `tests/unit/api/queries-admin-route.test.ts`.
+- **Aktualitaet eines Eintrags** („aktuell"/„veraltet") heisst: der Hash
+  aus seinen `cacheParams` mit den HEUTIGEN Werten fuer Antwortregeln,
+  Facetten-Kontext und Dokumentzahl neu gerechnet ist gleich dem
+  gespeicherten (`cache-aktualitaet.ts`). „veraltet" ist kein Fehler: der
+  Eintrag bleibt Chronik, trifft aber keine neue Frage mehr. Test:
+  `tests/unit/chat/cache-aktualitaet.test.ts`.
 
 ## §6 Test-Vertrag
 

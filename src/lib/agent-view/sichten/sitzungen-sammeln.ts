@@ -1,5 +1,5 @@
 /**
- * @fileoverview Sitzungsnotizen ihren Vorhaben zuordnen (S1).
+ * @fileoverview Sitzungsnotizen ihren Vorhaben zuordnen (S1/S1b).
  *
  * @description
  * Der Vorhabensordner eines Belegs steht nicht im Twin, sondern im Pfad der
@@ -9,6 +9,9 @@
  * `isVorhaben`). Liegt der Beleg tiefer als der Scan (Ereignisordner), holt
  * `elternVon` die Eltern-Id aus dem Storage; scheitert das, wird es als
  * Hinweis ausgewiesen und der Beleg zaehlt „ohne Vorhaben" — nicht still.
+ * S1b: `vorhaben:` im Beleg-Kopf nennt weitere Vorhaben per ORDNERNAME; sie
+ * werden gegen die Vorhaben des Scans aufgeloest (unbekannt oder mehrdeutig
+ * → Hinweis, kein Raten).
  *
  * @module agent-view/sichten
  */
@@ -16,7 +19,7 @@
 import { isVorhaben } from '../archive-rules'
 import type { ArchiveFolderNode } from '../archive-types'
 import type { TransformationZeile } from '@/lib/repositories/shadow-twin-transformationen'
-import { sitzungAusTransformation, type SitzungsDatensatz } from './sitzungen-types'
+import { belegVorhaben, sitzungAusTransformation, type SitzungsDatensatz, type VorhabenRef } from './sitzungen-types'
 
 /** Schutz gegen Zyklen in fremden Eltern-Ketten. */
 const MAX_AUFSTIEG = 30
@@ -25,12 +28,22 @@ export interface SitzungenZuordnung {
   sitzungen: SitzungsDatensatz[]
   /** Belege, aus denen kein Datensatz wurde (z. B. ohne Datum). */
   uebersprungen: Array<{ beleg: string; grund: string }>
-  /** Eltern-Ketten, die nicht aufloesbar waren — die Belege stehen dann unter „Ohne Vorhaben". */
+  /** Nicht aufloesbare Eltern-Ketten oder Vorhaben-Namen — ausgewiesen, nicht geraten. */
   hinweise: string[]
 }
 
 function istVorhaben(folder: ArchiveFolderNode, muster: RegExp | null): boolean {
   return folder.bericht !== null || isVorhaben(folder, muster)
+}
+
+/** Vorhaben des Scans nach Ordnername (mehrere gleichnamige bleiben als Liste sichtbar). */
+function vorhabenNachName(folders: readonly ArchiveFolderNode[], muster: RegExp | null): Map<string, VorhabenRef[]> {
+  const byName = new Map<string, VorhabenRef[]>()
+  for (const f of folders) {
+    if (!istVorhaben(f, muster)) continue
+    byName.set(f.name, [...(byName.get(f.name) ?? []), { pfad: f.path, folderId: f.folderId }])
+  }
+  return byName
 }
 
 /**
@@ -45,6 +58,7 @@ export async function ordneSitzungenZu(args: {
   elternVon: (folderId: string) => Promise<string | null>
 }): Promise<SitzungenZuordnung> {
   const byId = new Map(args.folders.map((f) => [f.folderId, f]))
+  const byName = vorhabenNachName(args.folders, args.vorhabenMuster)
   const elternCache = new Map<string, Promise<string | null>>()
   const elternVon = (id: string): Promise<string | null> => {
     const cached = elternCache.get(id)
@@ -54,7 +68,7 @@ export async function ordneSitzungenZu(args: {
     return frisch
   }
 
-  async function vorhabenFuer(startId: string): Promise<{ pfad: string; folderId: string } | null> {
+  async function vorhabenFuer(startId: string): Promise<VorhabenRef | null> {
     let id: string | null = startId
     for (let schritt = 0; id !== null && schritt < MAX_AUFSTIEG; schritt += 1) {
       const folder = byId.get(id)
@@ -71,7 +85,7 @@ export async function ordneSitzungenZu(args: {
 
   const ergebnis: SitzungenZuordnung = { sitzungen: [], uebersprungen: [], hinweise: [] }
   for (const zeile of args.zeilen) {
-    let vorhaben: { pfad: string; folderId: string } | null = null
+    let vorhaben: VorhabenRef | null = null
     if (zeile.parentId === '') {
       ergebnis.hinweise.push(`${zeile.sourceName}: Twin ohne parentId — ohne Vorhaben gefuehrt`)
     } else {
@@ -83,7 +97,20 @@ export async function ordneSitzungenZu(args: {
         )
       }
     }
-    const s = sitzungAusTransformation(zeile, vorhaben)
+    const ablageName = vorhaben !== null ? byId.get(vorhaben.folderId)?.name ?? null : null
+    const { vorhaben: namen, hauptvorhaben } = belegVorhaben(zeile.sourceFrontmatter?.fields ?? null)
+    if (hauptvorhaben !== null && ablageName !== null && hauptvorhaben !== ablageName) {
+      ergebnis.hinweise.push(`${zeile.sourceName}: liegt in „${ablageName}", hauptvorhaben sagt „${hauptvorhaben}" — Ablage gilt`)
+    }
+    const weitereVorhaben: VorhabenRef[] = []
+    for (const name of namen) {
+      if (name === ablageName) continue
+      const treffer = byName.get(name) ?? []
+      if (treffer.length === 1) weitereVorhaben.push(treffer[0])
+      else if (treffer.length === 0) ergebnis.hinweise.push(`${zeile.sourceName}: Vorhaben „${name}" aus vorhaben: nicht im Scan — Querverweis entfaellt`)
+      else ergebnis.hinweise.push(`${zeile.sourceName}: Vorhaben „${name}" ist mehrdeutig (${treffer.map((t) => t.pfad).join(', ')}) — Querverweis entfaellt`)
+    }
+    const s = sitzungAusTransformation(zeile, { vorhaben, belegOrdnerPfad: byId.get(zeile.parentId)?.path ?? null, weitereVorhaben })
     if (s.ok) ergebnis.sitzungen.push(s.sitzung)
     else ergebnis.uebersprungen.push({ beleg: s.beleg, grund: s.grund })
   }

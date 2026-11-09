@@ -1,20 +1,21 @@
 /**
- * @fileoverview Datenmodell der Sitzungs-Sicht (Plan sitzungen-sichten-und-befunde, S1).
+ * @fileoverview Datenmodell der Sitzungs-Sicht (Plan sitzungen-sichten-und-befunde, S1/S1b).
  *
  * @description
  * Eine Arbeitssitzung mit Claude liegt als Beleg `JJJJ-MM-TT Code|Chat <Titel>.md`
  * im Vorhabensordner; KnowledgeScout erzeugt daraus mit der Vorlage
  * `chatverlauf-de` eine Sitzungsnotiz (Transformation am Twin). Der
  * `SitzungsDatensatz` ist die Zeile, die Chronik und Bericht-Block daraus
- * rendern — gelesen aus Beleg-Dateiname (Datum, Art-Wort, Titel) und
- * Transformations-Frontmatter (teaser, werkzeug, sitzung, date, ende).
- * Reine Funktionen, kein I/O.
+ * rendern — gelesen aus Beleg-Dateiname (Datum, Art-Wort, Titel), Beleg-Kopf
+ * (`vorhaben`, `hauptvorhaben`, `ende`; S1b, Owner 09.11.2026: Nebenvorhaben
+ * erscheinen in jedem genannten Vorhaben) und Notiz-Frontmatter (teaser,
+ * werkzeug, sitzung). Reine Funktionen, kein I/O.
  *
  * @module agent-view/sichten
  */
 
 import type { TransformationZeile } from '@/lib/repositories/shadow-twin-transformationen'
-import { asString } from './bericht-lesen'
+import { asList, asString } from './bericht-lesen'
 
 /** Dateiname der Chronik in `SICHTEN_ORDNER`. */
 export const SITZUNGEN_FILE_NAME = 'SITZUNGEN.md'
@@ -27,19 +28,29 @@ export type ArtWort = 'Code' | 'Chat'
 export type SichtName = 'aktuell' | 'projekte' | 'sitzungen'
 export const ALLE_SICHTEN: readonly SichtName[] = ['aktuell', 'projekte', 'sitzungen']
 
+/** Ein Vorhabensordner aus dem Scan. */
+export interface VorhabenRef {
+  pfad: string
+  folderId: string
+}
+
 export interface SitzungsDatensatz {
-  /** `JJJJ-MM-TT` aus dem Beleg-Namen (ersatzweise `date` der Notiz). */
+  /** `JJJJ-MM-TT` aus dem Beleg-Namen (ersatzweise `datum` des Belegs, dann `date` der Notiz). */
   datum: string
-  /** Letzter Tag einer mehrtaegigen Sitzung (`ende` der Notiz); null = eintaegig/unbekannt. */
+  /** Letzter Tag einer mehrtaegigen Sitzung (`ende` des Belegs oder der Notiz); null = eintaegig/unbekannt. */
   ende: string | null
   titel: string
   /** Aus dem Beleg-Namen; null = Name ohne Art-Wort UND werkzeug unbekannt (Renderer schreibt „?"). */
   artWort: ArtWort | null
   werkzeug: string | null
   sitzungId: string | null
-  /** Library-relativer Pfad des Vorhabensordners; null = Beleg liegt ausserhalb eines Vorhabens. */
+  /** Vorhaben, in dessen Ordner der Beleg liegt; null = ausserhalb eines Vorhabens. */
   vorhabenPfad: string | null
   vorhabenFolderId: string | null
+  /** Pfad des Ordners, in dem der Beleg liegt (Querverweis „Beleg liegt in …"); null = Ordner nicht im Scan. */
+  belegOrdnerPfad: string | null
+  /** Weitere Vorhaben aus `vorhaben:` des Belegs, ohne das Ablage-Vorhaben, gegen den Scan aufgeloest. */
+  weitereVorhaben: VorhabenRef[]
   /** Beleg-Dateiname ohne `.md` — das Ziel des Wikilinks. */
   belegName: string
   teaser: string
@@ -68,70 +79,61 @@ export function belegOhneEndung(name: string): string {
   return name.replace(/\.md$/i, '')
 }
 
+/** `vorhaben:` (Ordnernamen, Hauptvorhaben zuerst) und `hauptvorhaben:` aus dem Beleg-Kopf. */
+export function belegVorhaben(fields: Record<string, unknown> | null): { vorhaben: string[]; hauptvorhaben: string | null } {
+  if (fields === null) return { vorhaben: [], hauptvorhaben: null }
+  return { vorhaben: asList(fields.vorhaben), hauptvorhaben: asString(fields.hauptvorhaben) }
+}
+
+function isoTag(wert: string | null): string | null {
+  return wert !== null && ISO_TAG.test(wert) ? wert : null
+}
+
 export type SitzungErgebnis =
   | { ok: true; sitzung: SitzungsDatensatz }
   | { ok: false; beleg: string; grund: string }
 
+/** Ablageort und Querverweise eines Belegs, vom Zuordner aufgeloest. */
+export interface BelegOrt {
+  vorhaben: VorhabenRef | null
+  belegOrdnerPfad: string | null
+  weitereVorhaben: VorhabenRef[]
+}
+
 /**
  * Baut den Datensatz aus einer Transformations-Zeile. Ohne lesbares Datum
- * (weder Name noch `date`) wird der Beleg mit Grund zurueckgegeben, nicht
- * still an das Ende sortiert.
+ * (weder Name noch Beleg noch Notiz) wird der Beleg mit Grund zurueckgegeben,
+ * nicht still an das Ende sortiert.
  */
-export function sitzungAusTransformation(
-  zeile: TransformationZeile,
-  vorhaben: { pfad: string; folderId: string } | null,
-): SitzungErgebnis {
+export function sitzungAusTransformation(zeile: TransformationZeile, ort: BelegOrt): SitzungErgebnis {
   const fm = zeile.frontmatter ?? {}
+  const beleg = zeile.sourceFrontmatter?.fields ?? {}
   const name = belegNameLesen(zeile.sourceName)
-  const fmDatum = asString(fm.date)
   const datum =
-    name?.datum ??
-    zeile.sourceName.match(DATUM_PREFIX)?.[1] ??
-    (fmDatum !== null && ISO_TAG.test(fmDatum) ? fmDatum : null)
+    name?.datum ?? zeile.sourceName.match(DATUM_PREFIX)?.[1] ?? isoTag(asString(beleg.datum)) ?? isoTag(asString(fm.date))
   if (datum === null) {
-    return { ok: false, beleg: zeile.sourceName, grund: 'kein Datum: Name ohne JJJJ-MM-TT und Notiz ohne date' }
+    return { ok: false, beleg: zeile.sourceName, grund: 'kein Datum: Name ohne JJJJ-MM-TT, Beleg ohne datum, Notiz ohne date' }
   }
   const werkzeug = asString(fm.werkzeug)
   const artWort = name?.artWort ?? (werkzeug !== null ? WERKZEUG_ART[werkzeug] ?? null : null)
-  const fmEnde = asString(fm.ende)
+  const ende = isoTag(asString(beleg.ende)) ?? isoTag(asString(fm.ende))
   return {
     ok: true,
     sitzung: {
       datum,
-      ende: fmEnde !== null && ISO_TAG.test(fmEnde) && fmEnde !== datum ? fmEnde : null,
+      ende: ende !== null && ende !== datum ? ende : null,
       titel: asString(fm.title) ?? name?.titel ?? belegOhneEndung(zeile.sourceName),
       artWort,
       werkzeug,
       sitzungId: asString(fm.sitzung),
-      vorhabenPfad: vorhaben?.pfad ?? null,
-      vorhabenFolderId: vorhaben?.folderId ?? null,
+      vorhabenPfad: ort.vorhaben?.pfad ?? null,
+      vorhabenFolderId: ort.vorhaben?.folderId ?? null,
+      belegOrdnerPfad: ort.belegOrdnerPfad,
+      weitereVorhaben: ort.weitereVorhaben,
       belegName: belegOhneEndung(zeile.sourceName),
       teaser: asString(fm.teaser) ?? '',
       transformationAktualisiert: zeile.updatedAt,
       sourceId: zeile.sourceId,
     },
   }
-}
-
-/** Chronologisch, aelteste zuerst; gleicher Tag nach Beleg-Name. */
-export function sortiereSitzungen(sitzungen: readonly SitzungsDatensatz[]): SitzungsDatensatz[] {
-  return [...sitzungen].sort((a, b) => a.datum.localeCompare(b.datum) || a.belegName.localeCompare(b.belegName, 'de'))
-}
-
-export interface VorhabenGruppe {
-  /** null = „Ohne Vorhaben" (immer zuletzt). */
-  pfad: string | null
-  sitzungen: SitzungsDatensatz[]
-}
-
-/** Je Vorhaben eine Gruppe in Archiv-Ordnung (Pfad, numerisch: „9." vor „10."), Sitzungen chronologisch. */
-export function gruppiereNachVorhaben(sitzungen: readonly SitzungsDatensatz[]): VorhabenGruppe[] {
-  const gruppen = new Map<string | null, SitzungsDatensatz[]>()
-  for (const s of sitzungen) gruppen.set(s.vorhabenPfad, [...(gruppen.get(s.vorhabenPfad) ?? []), s])
-  const mitVorhaben = [...gruppen.entries()]
-    .filter((e): e is [string, SitzungsDatensatz[]] => e[0] !== null)
-    .sort((a, b) => a[0].localeCompare(b[0], 'de', { numeric: true }))
-    .map(([pfad, liste]) => ({ pfad, sitzungen: sortiereSitzungen(liste) }))
-  const ohne = gruppen.get(null)
-  return ohne ? [...mitVorhaben, { pfad: null, sitzungen: sortiereSitzungen(ohne) }] : mitVorhaben
 }

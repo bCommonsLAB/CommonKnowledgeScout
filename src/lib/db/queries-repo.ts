@@ -38,6 +38,7 @@ import type { Library } from '@/types/library'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { logFuerLeser } from './query-log-zugriff'
+import { cacheTrefferFilter } from './query-cache-regel'
 
 const COLLECTION_NAME = 'queries'
 
@@ -447,21 +448,10 @@ export async function findQueryByQuestionAndContext(args: {
   // Cache-Suche: Nur nach cacheHash + libraryId (benutzerübergreifend)
   // userEmail und sessionId werden nicht mehr für Cache-Suche verwendet
   // WICHTIG: Suche nur nach Einträgen mit answer oder storyTopicsData (unabhängig vom Status)
-  const filter: Record<string, unknown> = {
-    cacheHash,
-    libraryId: args.libraryId,
-    $or: [
-      { answer: { $exists: true, $nin: [''] } },
-      { storyTopicsData: { $exists: true, $ne: null as unknown as import('@/types/story-topics').StoryTopicsData } }
-    ],
-  }
+  const filter = cacheTrefferFilter(cacheHash, args.libraryId)
   
   // Suche nach der neuesten passenden Query (sortiert nach createdAt)
   const cachedQuery = await col.findOne(filter, { sort: { createdAt: -1 } })
   
   return cachedQuery || null
 }
-
-
-
-
