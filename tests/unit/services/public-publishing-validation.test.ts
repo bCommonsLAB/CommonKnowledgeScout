@@ -128,3 +128,12 @@ describe('Mitreden-Band (G5)', () => {
     expect(validierePublicPublishing({ mitreden: { href: 'https://example.org/mitreden', text: '' } })).toBeNull()
   })
 })
+
+describe('validierePublicPublishing / Bezeichnung der Eintraege (Owner 09.11.2026)', () => {
+  it('nimmt Einzahl und Mehrzahl zusammen an, weist eine Haelfte allein ab, erlaubt beide leer', () => {
+    expect(validierePublicPublishing({ gallery: { itemLabel: 'Talk', itemLabelPlural: 'Talks' } })).toBeNull()
+    expect(validierePublicPublishing({ gallery: { itemLabel: '', itemLabelPlural: '' } })).toBeNull()
+    expect(validierePublicPublishing({ gallery: { itemLabel: 'Talk' } })).toMatch(/itemLabel und gallery.itemLabelPlural gehoeren zusammen/)
+    expect(validierePublicPublishing({ gallery: { itemLabelPlural: 'Talks' } })).toMatch(/gehoeren zusammen/)
+  })
+})

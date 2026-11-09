@@ -24,7 +24,7 @@ export type GalleryTexte = NonNullable<PublicPublishing['gallery']>
 export type StoryTexte = NonNullable<PublicPublishing['story']>
 export type MitredenTexte = NonNullable<PublicPublishing['mitreden']>
 
-const GALLERY_KEYS: ReadonlyArray<keyof GalleryTexte> = ['headline', 'subtitle', 'description', 'filterDescription', 'menuLabel', 'moreLinkLabel']
+const GALLERY_KEYS: ReadonlyArray<keyof GalleryTexte> = ['headline', 'subtitle', 'description', 'filterDescription', 'menuLabel', 'moreLinkLabel', 'itemLabel', 'itemLabelPlural']
 const STORY_KEYS: ReadonlyArray<keyof StoryTexte> = ['headline', 'subtitle', 'intro', 'topicsTitle', 'topicsIntro']
 const MITREDEN_KEYS: ReadonlyArray<keyof MitredenTexte> = ['headline', 'text', 'buttonLabel', 'href']
 /** Ziel des Mitreden-Bands: relativer Pfad oder https-Adresse — alles andere wird abgewiesen. */
@@ -80,6 +80,12 @@ export function validierePublicPublishing(p: {
   if (p.showOnHomepage === false && p.isPublic !== true) return 'Show-on-Homepage kann nur gesetzt werden, wenn die Library öffentlich ist'
   const galleryFehler = validiereTexte('gallery', p.gallery, GALLERY_KEYS)
   if (galleryFehler) return galleryFehler
+  // Bezeichnung der Eintraege (09.11.2026): Einzahl und Mehrzahl gehoeren zusammen — eins allein
+  // waere ein stiller Rueckfall auf das andere.
+  const g = (p.gallery ?? {}) as { itemLabel?: unknown; itemLabelPlural?: unknown }
+  const einzahl = typeof g.itemLabel === 'string' && g.itemLabel.trim() !== ''
+  const mehrzahl = typeof g.itemLabelPlural === 'string' && g.itemLabelPlural.trim() !== ''
+  if (einzahl !== mehrzahl) return 'gallery.itemLabel und gallery.itemLabelPlural gehoeren zusammen: beide setzen oder beide leer lassen'
   const storyFehler = validiereTexte('story', p.story, STORY_KEYS)
   if (storyFehler) return storyFehler
   const mitredenFehler = validiereTexte('mitreden', p.mitreden, MITREDEN_KEYS)

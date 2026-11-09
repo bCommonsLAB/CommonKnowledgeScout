@@ -90,6 +90,9 @@ const publicFormSchema = z.object({
   // Beschriftungen: Galerie-Menüpunkt (TopNav) und „mehr Inhalte"-Link (Website)
   galleryMenuLabel: z.string().optional(),
   galleryMoreLinkLabel: z.string().optional(),
+  // Bezeichnung der Einträge in der Website-Story-Sektion (Owner 09.11.2026): beide oder keins
+  galleryItemLabel: z.string().max(40).optional(),
+  galleryItemLabelPlural: z.string().max(40).optional(),
   // G5: Mitreden-Band des geführten Galerie-Profils (leer = kein Band)
   mitredenHeadline: z.string().optional(),
   mitredenText: z.string().optional(),
@@ -156,6 +159,8 @@ export function PublicForm() {
         galleryFilterDescription: "",
         galleryMenuLabel: "",
         galleryMoreLinkLabel: "",
+        galleryItemLabel: "",
+        galleryItemLabelPlural: "",
         mitredenHeadline: "",
         mitredenText: "",
         mitredenButtonLabel: "",
@@ -186,6 +191,8 @@ export function PublicForm() {
       galleryFilterDescription: activeLibrary.config?.publicPublishing?.gallery?.filterDescription || "",
       galleryMenuLabel: activeLibrary.config?.publicPublishing?.gallery?.menuLabel || "",
       galleryMoreLinkLabel: activeLibrary.config?.publicPublishing?.gallery?.moreLinkLabel || "",
+      galleryItemLabel: activeLibrary.config?.publicPublishing?.gallery?.itemLabel || "",
+      galleryItemLabelPlural: activeLibrary.config?.publicPublishing?.gallery?.itemLabelPlural || "",
       // G5: Mitreden-Band; leer = kein Band
       mitredenHeadline: activeLibrary.config?.publicPublishing?.mitreden?.headline || "",
       mitredenText: activeLibrary.config?.publicPublishing?.mitreden?.text || "",
@@ -282,6 +289,9 @@ export function PublicForm() {
         moreLinkLabel: data.galleryMoreLinkLabel || undefined,
         description: data.galleryDescription || undefined,
         filterDescription: data.galleryFilterDescription || undefined,
+        // '' statt undefined: ein geleertes Feld soll den gespeicherten Wert loeschen (Merge feldweise).
+        itemLabel: data.galleryItemLabel?.trim() ?? "",
+        itemLabelPlural: data.galleryItemLabelPlural?.trim() ?? "",
       },
       // G5: Mitreden-Band feldweise; leer = Feld leer (ohne Überschrift/Ziel kein Band)
       mitreden: {
@@ -980,6 +990,40 @@ export function PublicForm() {
                   </FormItem>
                 )}
               />
+              {/* Bezeichnung der Einträge (Owner 09.11.2026): Story-Sektion der Website */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="galleryItemLabel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bezeichnung eines Eintrags (Einzahl)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="z. B. Vortrag" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="galleryItemLabelPlural"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bezeichnung (Mehrzahl)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="z. B. Vorträge" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <p className="-mt-2 text-xs text-muted-foreground">
+                Ersetzt in der Story-Sektion der Website das Wort „Quellen&ldquo; (Plakette „N … zitiert&ldquo;,
+                Knopf „… anzeigen&ldquo;, Spaltentitel, Verweis, Blatt-Titel). Einsprachig: gilt in jeder
+                Oberflächensprache gleich. Beide Felder füllen oder beide leer lassen; leer = heutige Texte.
+              </p>
               {/* G5: Mitreden-Band des geführten Galerie-Profils */}
               <MitredenFields control={form.control} />
             </div>

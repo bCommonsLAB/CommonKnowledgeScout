@@ -839,7 +839,8 @@
     "character": "Thematic Interests:",
     "accessPerspective": "Access Perspective:",
     "context": "Language Style:",
-    "llmModel": "Model:"
+    "llmModel": "Model:",
+    "regelsatz": "Rule set"
   },
   "configPopover": {
     "advancedSettings": "Advanced Settings",
@@ -1006,7 +1007,14 @@
       "populaer": "Popular right now · asked most often",
       "populaerZaehler": "Asked {count} times",
       "vorschauHinweis": "The chat only runs on the live page of the library.",
-      "laden": "Loading the scout …"
+      "laden": "Loading the scout …",
+      "quellenSpalte": "Sources mentioned",
+      "quellenWeitere": "more sources with passages",
+      "bezeichnungZitiertEins": "1 {label} cited",
+      "bezeichnungZitiert": "{count} {label} cited",
+      "bezeichnungAnzeigen": "Show {label}",
+      "bezeichnungSpalte": "{label} mentioned",
+      "bezeichnungWeitere": "more {label} with passages"
     }
   }
 }

@@ -39,7 +39,7 @@ import { useTranslation } from '@ks/i18n/react'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
 import { facetWerteSchema, pruefeWerteZuTyp } from '@/lib/chat/facet-werte'
-import { pruefeAntwortregelnZuFacetten } from '@/lib/chat/antwortregeln'
+import { pruefeAntwortregelnFormular, variantenAlsRecord } from '@/lib/chat/antwortregeln-formular'
 import { normalizeGalleryCardDensity } from '@ks/module-explorer/react'
 import { standardProfilAus, startAnsichtAus } from '../galerie-profil-werte'
 
@@ -51,6 +51,8 @@ export const chatFormSchema = z.object({
   footerText: z.string().optional(),
   /** Antwortregeln der Library (Markdown mit {{facette:…}} / {{legende:…}}); Platzhalter-Prüfung im superRefine unten */
   antwortregeln: z.string().optional(),
+  /** Benannte Regelsätze (Owner 09.11.2026) als Liste fürs Formular; gespeichert als Record name → text */
+  antwortregelnVarianten: z.array(z.object({ name: z.string(), text: z.string() })).optional(),
   companyLink: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
   embeddings: z.object({
     embeddingModel: z.string().optional(),
@@ -186,7 +188,7 @@ export const chatFormSchema = z.object({
 })
   // Platzhalter in antwortregeln müssen auf gallery.facets zeigen (Legende nur
   // mit Wörterbuch) — dieselbe Regel wie im Server-Schema (config.ts).
-  .superRefine(pruefeAntwortregelnZuFacetten)
+  .superRefine(pruefeAntwortregelnFormular)
 
 export type ChatFormValues = z.infer<typeof chatFormSchema>
 
@@ -290,6 +292,7 @@ export function useChatForm(): UseChatFormResult {
       footerText: "",
       companyLink: "",
       antwortregeln: "",
+      antwortregelnVarianten: [],
       embeddings: defaultEmbeddings,
       targetLanguage: TARGET_LANGUAGE_DEFAULT,
       character: CHARACTER_DEFAULT,
@@ -366,6 +369,7 @@ export function useChatForm(): UseChatFormResult {
         maxCharsWarningMessage: typeof c.maxCharsWarningMessage === 'string' ? c.maxCharsWarningMessage : t('settings.chatForm.maxCharsWarningDefault'),
         footerText: typeof c.footerText === 'string' ? c.footerText : "",
         antwortregeln: typeof c.antwortregeln === 'string' ? c.antwortregeln : "",
+        antwortregelnVarianten: Object.entries((c.antwortregelnVarianten as Record<string, string> | undefined) ?? {}).map(([name, text]) => ({ name, text })),
         companyLink: typeof c.companyLink === 'string' ? c.companyLink : "",
         embeddings: {
           embeddingModel: typeof (c.embeddings as { embeddingModel?: string })?.embeddingModel === 'string'
@@ -673,6 +677,8 @@ export function useChatForm(): UseChatFormResult {
 
       const chatConfig = {
         ...chatFormRest,
+        // Liste des Formulars → Record; leer = {} (ersetzt den alten Stand, statt ihn still zu behalten)
+        antwortregelnVarianten: variantenAlsRecord(data.antwortregelnVarianten ?? []),
         models: data.chatLlmModel?.trim()
           ? { ...activeLibrary.config?.chat?.models, chat: data.chatLlmModel.trim() }
           : activeLibrary.config?.chat?.models,

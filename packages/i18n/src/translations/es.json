@@ -839,7 +839,8 @@
     "character": "Intereses temáticos:",
     "accessPerspective": "Perspectiva de acceso:",
     "context": "Estilo de lenguaje:",
-    "llmModel": "Modelo:"
+    "llmModel": "Modelo:",
+    "regelsatz": "Conjunto de reglas"
   },
   "configPopover": {
     "advancedSettings": "Configuración avanzada",
@@ -1006,7 +1007,14 @@
       "populaer": "Populares ahora · las más preguntadas",
       "populaerZaehler": "Preguntada {count} veces",
       "vorschauHinweis": "El chat solo funciona en la página en vivo de la biblioteca.",
-      "laden": "Cargando el scout …"
+      "laden": "Cargando el scout …",
+      "quellenSpalte": "Fuentes mencionadas",
+      "quellenWeitere": "más fuentes con pasajes",
+      "bezeichnungZitiertEins": "1 {label} citado",
+      "bezeichnungZitiert": "{count} {label} citados",
+      "bezeichnungAnzeigen": "Mostrar {label}",
+      "bezeichnungSpalte": "{label} mencionados",
+      "bezeichnungWeitere": "más {label} con pasajes"
     }
   }
 }
