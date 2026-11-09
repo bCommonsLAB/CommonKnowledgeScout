@@ -77,6 +77,8 @@ export interface CacheParams {
   documentCount?: number; // Anzahl Dokumente zum Zeitpunkt der Query
   llmModel?: string; // LLM-Modell-ID für Cache-Key
   antwortregeln?: string; // Aufgelöste Antwortregeln der Library (m2) — Teil des Cache-Hashes
+  /** Name des benannten Regelsatzes (`?rules=<name>` einer Website-Sektion, 09.11.2026); fehlt = `antwortregeln`. Nur Anzeige — der Text ist über `antwortregeln` im Hash. */
+  regelsatz?: string;
   facettenKontext?: string; // Labels und Wörterbuch der Facetten (m3) — Teil des Cache-Hashes
 }
 
@@ -84,6 +86,8 @@ export interface QueryLog {
   queryId: string;
   /** Chat-ID, zu der diese Query gehört; die Themenuebersicht (`toc`) hat keine (D8). */
   chatId?: string;
+  /** Name des benannten Regelsatzes (`?rules=<name>` einer Website-Sektion, 09.11.2026); fehlt = `antwortregeln`. Nur Anzeige — der Text ist Teil des Cache-Hashes. */
+  regelsatz?: string;
   libraryId: string;
   /** E-Mail-Adresse des Benutzers (für authentifizierte Nutzer) */
   userEmail?: string;

@@ -89,6 +89,9 @@ const chatConfigObjectSchema = z.object({
   // Plan story-status-modalitaet (m2): Antwortregeln mit Platzhaltern auf gallery.facets.
   // Die Platzhalter-Prüfung hängt am Gesamtobjekt (superRefine unten).
   antwortregeln: z.string().optional(),
+  // Benannte Regelsätze (Owner 09.11.2026): Name → Text; eine Website-Sektion
+  // wählt per `rules=<name>`. Platzhalter-Prüfung je Eintrag im superRefine.
+  antwortregelnVarianten: z.record(z.string(), z.string()).optional(),
   companyLink: z.string().url().optional(),
   vectorStore: z.object({
     collectionName: z.string().min(1).optional(),

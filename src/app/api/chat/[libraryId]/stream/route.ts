@@ -25,7 +25,7 @@
  * - @/lib/logging/query-logger: Query logging
  */
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
@@ -35,7 +35,7 @@ import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/q
 import { eigenesLogFuerCacheTreffer } from '@/lib/chat/cache-treffer-log'
 import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
-import { loeseAntwortregelnAuf } from '@/lib/chat/antwortregeln'
+import { loeseAntwortregelnAuf, waehleAntwortregeln } from '@/lib/chat/antwortregeln'
 import { facettenKontextFuerCache } from '@/lib/chat/quellen-kontext'
 import { appendRetrievalStep } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
@@ -97,6 +97,21 @@ export async function POST(
   if (gated) return gated
 
   const { libraryId } = await params
+
+  // Regelsatz der Website-Sektion (Owner 09.11.2026): `?rules=<name>` waehlt einen
+  // benannten Regelsatz statt `antwortregeln`. Ein unbekannter Name ist ein 400 VOR
+  // dem Stream — die Sektion nennt etwas, das die Library nicht hat (no-silent-fallbacks).
+  const regelsatzParam = new URL(request.url).searchParams.get('rules')
+  const regelsatz = regelsatzParam && regelsatzParam.trim() ? regelsatzParam.trim() : undefined
+  if (regelsatz) {
+    const vorab = await loadLibraryChatContext((await currentUser())?.emailAddresses?.[0]?.emailAddress || '', libraryId)
+    if (!vorab) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+    try {
+      waehleAntwortregeln(vorab.chat, regelsatz)
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 })
+    }
+  }
 
   // Erstelle einen ReadableStream für SSE
   const stream = new ReadableStream({
@@ -196,7 +211,7 @@ export async function POST(
         // Nur Parameter, die tatsächlich Facetten sind (inkl. shortTitle)
         parsedUrl.searchParams.forEach((v, k) => {
           // Überspringe Chat-Konfigurations-Parameter
-          if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId', 'llmModel'].includes(k)) {
+          if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId', 'llmModel', 'rules'].includes(k)) {
             return
           }
           // Facetten-Parameter ODER shortTitle übernehmen
@@ -344,6 +359,9 @@ export async function POST(
         
         const effectiveChatConfig = {
           ...ctx.chat,
+          // Regelsatz der Website-Sektion (`?rules=<name>`, oben geprüft): der Orchestrator
+          // liest `chatConfig.antwortregeln` — hier steht deshalb der gewählte Text.
+          antwortregeln: waehleAntwortregeln(ctx.chat, regelsatz),
           targetLanguage: effectiveTargetLanguage,
           character: effectiveCharacter ?? normalizeCharacterToArray(ctx.chat.character),
           accessPerspective: effectiveAccessPerspective ?? normalizeAccessPerspectiveToArray(ctx.chat.accessPerspective),
@@ -358,7 +376,8 @@ export async function POST(
         }
 
         // Antwortregeln (m2) einmal auflösen: gehen in den Cache-Hash (geänderte
-        // Regeln = andere Antwort) und über chatConfig in den Prompt.
+        // Regeln = andere Antwort) und über chatConfig in den Prompt. Mit `?rules=<name>`
+        // gilt der benannte Regelsatz der Library (oben geprüft, hier nicht mehr werfend).
         const antwortregelnAufgeloest = loeseAntwortregelnAuf(effectiveChatConfig.antwortregeln, facetDefs)
         // Labels und Wörterbuch bestimmen den Quellen-Header (m3) — ebenfalls Cache-Kontext.
         const facettenKontext = facettenKontextFuerCache(facetDefs)
@@ -740,6 +759,7 @@ export async function POST(
           documentCount, // Übergebe bereits berechnete documentCount (verhindert fehlerhafte Neuberechnung)
           llmModel: llmModelForCache, // Cache-Kontext (Modell)
           antwortregeln: antwortregelnAufgeloest, facettenKontext, // Cache-Kontext (Regeln, m2)
+          regelsatz, // Name des Regelsatzes der Website-Sektion (nur Anzeige; der Text steckt im Hash)
         })
         
         // Speichere Cache-Check-Step auch im retrieval Array (auch wenn kein Cache gefunden wurde)

@@ -67,11 +67,11 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
   SECTION_RE.lastIndex = 0
   let match: RegExpExecArray | null
   while ((match = SECTION_RE.exec(body)) !== null) {
-    const { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter, citationsVisible } = parseAttrs(match[1] ?? '')
+    const { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter, citationsVisible, cards, rules } = parseAttrs(match[1] ?? '')
     if (layout === 'story') {
       // Kein Bild-Auszug: Markdown bleibt ganz, der Rahmen zeigt es vor und nach dem Fragen-Block.
       const rest = (match[2] ?? '').trim()
-      sections.push({ layout, bg, markdown: rest, kicker, blocks: parseSectionBlocks(rest), ...(placeholder ? { placeholder } : {}), ...(filter ? { filter } : {}), ...(citationsVisible !== undefined ? { citationsVisible } : {}) })
+      sections.push({ layout, bg, markdown: rest, kicker, blocks: parseSectionBlocks(rest), ...(placeholder ? { placeholder } : {}), ...(filter ? { filter } : {}), ...(citationsVisible !== undefined ? { citationsVisible } : {}), ...(cards ? { cards } : {}), ...(rules ? { rules } : {}) })
     } else if (layout === 'video') {
       const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
       sections.push({ layout, bg, markdown: rest, videoUrl, kicker, blocks: parseSectionBlocks(rest) })

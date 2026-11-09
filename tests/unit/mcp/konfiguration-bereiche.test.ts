@@ -48,12 +48,26 @@ describe('wendeKonfigurationAn', () => {
 describe('chatSicht', () => {
   it('liefert je Bereich die passende Sicht, Infrastruktur nur lesbar', () => {
     expect(chatSicht(ALT, 'facetten')).toEqual(ALT.gallery.facets)
-    expect(chatSicht(ALT, 'antwortregeln')).toBe(ALT.antwortregeln)
+    expect(chatSicht(ALT, 'antwortregeln')).toEqual({ text: ALT.antwortregeln, varianten: {} })
     expect(chatSicht(ALT, 'galerie')).toMatchObject({ detailViewType: 'climateAction', defaultSortField: 'massnahme_nr', groupByField: null })
     const chat = chatSicht(ALT, 'chat') as { placeholder: string; nurLesbar: { embeddings: unknown } }
     expect(chat.placeholder).toBe('Frage?')
     expect(chat.nurLesbar.embeddings).toEqual(ALT.embeddings)
     expect(chatSicht(undefined, 'facetten')).toEqual([])
+  })
+})
+
+describe('Bereich antwortregeln / varianten (Owner 09.11.2026)', () => {
+  it('setzt Regelsaetze je Name, loescht mit "", meldet nur echte Aenderungen und zeigt sie in der Lesesicht', () => {
+    const { chat, geaendert } = wendeKonfigurationAn(ALT, { varianten: { einladung: ' Ein Absatz je Talk. ', kurz: 'Knapp.' } })
+    expect(geaendert).toEqual(['varianten.einladung', 'varianten.kurz'])
+    expect(chatSicht(chat, 'antwortregeln')).toEqual({ text: ALT.antwortregeln, varianten: { einladung: 'Ein Absatz je Talk.', kurz: 'Knapp.' } })
+    expect(wendeKonfigurationAn(chat, { varianten: { kurz: 'Knapp.' } }).geaendert).toEqual([])
+    const weg = wendeKonfigurationAn(chat, { varianten: { kurz: '' } })
+    expect(weg.geaendert).toEqual(['varianten.kurz'])
+    expect(chatSicht(weg.chat, 'antwortregeln')).toEqual({ text: ALT.antwortregeln, varianten: { einladung: 'Ein Absatz je Talk.' } })
+    // antwortregeln selbst bleibt unberuehrt
+    expect(weg.chat.antwortregeln).toBe(ALT.antwortregeln)
   })
 })
 

@@ -74,17 +74,80 @@ export function formatiereAntwortregelnFehler(fehler: ReadonlyArray<Antwortregel
 }
 
 /**
- * Zod-Refinement für Schemata, die `antwortregeln` UND `gallery.facets` tragen
- * (Server-`chatConfigSchema` und das Settings-Formular teilen sich die Regel).
+ * Benannte Regelsätze (Owner 09.11.2026): neben `antwortregeln` kann eine
+ * Library weitere Texte unter einem Namen tragen (`antwortregelnVarianten`,
+ * z. B. `einladung`). Eine Website-Sektion wählt per Marker `rules=<name>`,
+ * welcher gilt; Story-Modus, Galerie-Chat, Brücke und Golden-Set nutzen weiter
+ * `antwortregeln`. Name: klein, a-z, 0-9, `-`, `_` (dieselbe Regel wie der
+ * Marker in `parse-section-attrs.ts`).
+ */
+export const REGELSATZ_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/
+
+export interface RegelsatzFehler {
+  name: string
+  fehler: AntwortregelnFehler[]
+}
+
+/** Prüft jeden benannten Regelsatz: Name und Platzhalter. Leer heißt gültig. */
+export function pruefeAntwortregelnVarianten(
+  varianten: Record<string, string> | undefined,
+  facets: ReadonlyArray<RegelFacette>,
+): RegelsatzFehler[] {
+  if (!varianten) return []
+  const ergebnis: RegelsatzFehler[] = []
+  for (const [name, text] of Object.entries(varianten)) {
+    const fehler: AntwortregelnFehler[] = []
+    if (!REGELSATZ_NAME_RE.test(name)) {
+      fehler.push({ platzhalter: name, grund: 'Name eines Regelsatzes: klein, a-z, 0-9, - und _' })
+    }
+    if (!text.trim()) fehler.push({ platzhalter: name, grund: 'Regelsatz ohne Text — zum Entfernen den Eintrag löschen' })
+    fehler.push(...pruefeAntwortregeln(text, facets))
+    if (fehler.length > 0) ergebnis.push({ name, fehler })
+  }
+  return ergebnis
+}
+
+/**
+ * Zod-Refinement für Schemata, die `antwortregeln` (und `antwortregelnVarianten`)
+ * UND `gallery.facets` tragen (Server-`chatConfigSchema` und das Settings-Formular
+ * teilen sich die Regel).
  */
 export function pruefeAntwortregelnZuFacetten(
-  cfg: { antwortregeln?: string; gallery?: { facets?: RegelFacette[] } },
+  cfg: { antwortregeln?: string; antwortregelnVarianten?: Record<string, string>; gallery?: { facets?: RegelFacette[] } },
   ctx: z.RefinementCtx,
 ): void {
-  const fehler = pruefeAntwortregeln(cfg.antwortregeln, cfg.gallery?.facets ?? [])
+  const facets = cfg.gallery?.facets ?? []
+  const fehler = pruefeAntwortregeln(cfg.antwortregeln, facets)
   for (const f of fehler) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['antwortregeln'], message: `${f.platzhalter}: ${f.grund}` })
   }
+  for (const v of pruefeAntwortregelnVarianten(cfg.antwortregelnVarianten, facets)) {
+    for (const f of v.fehler) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['antwortregelnVarianten', v.name], message: `${f.platzhalter}: ${f.grund}` })
+    }
+  }
+}
+
+/**
+ * Welcher Regeltext gilt für eine Anfrage: ohne Namen `antwortregeln`, mit
+ * Namen der benannte Regelsatz. Ein unbekannter Name wirft — die Sektion
+ * nennt einen Regelsatz, den die Library nicht hat (no-silent-fallbacks).
+ */
+export function waehleAntwortregeln(
+  cfg: { antwortregeln?: string; antwortregelnVarianten?: Record<string, string> },
+  regelsatz: string | null | undefined,
+): string | undefined {
+  const name = regelsatz?.trim()
+  if (!name) return cfg.antwortregeln
+  const text = cfg.antwortregelnVarianten?.[name]
+  if (text === undefined) {
+    const vorhanden = Object.keys(cfg.antwortregelnVarianten ?? {})
+    throw new Error(
+      `Regelsatz „${name}" gibt es in dieser Library nicht` +
+        (vorhanden.length > 0 ? ` (vorhanden: ${vorhanden.join(', ')})` : ' (die Library hat keine benannten Regelsätze)'),
+    )
+  }
+  return text
 }
 
 /** Markdown-Legende eines Wörterbuchs: ein Listenpunkt je Wert. */

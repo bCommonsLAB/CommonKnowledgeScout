@@ -24,6 +24,7 @@ export function streamAdresse(libraryId: string, rahmen: AnfrageRahmen): string 
   p.set('genderInclusive', String(perspektive.genderInclusive))
   p.set('llmModel', perspektive.llmModel)
   p.set('llmTemperature', TEMPERATUR)
+  if (rahmen.regelsatz) p.set('rules', rahmen.regelsatz)
   return `/api/chat/${encodeURIComponent(libraryId)}/stream?${p.toString()}`
 }
 

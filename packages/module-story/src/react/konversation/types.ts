@@ -59,6 +59,8 @@ export interface AnfrageRahmen {
   antwortLaenge: AntwortLaenge
   /** Facetten-Filter der Galerie; gehen als Query-Parameter mit. */
   filter?: GalleryFilters
+  /** Benannter Regelsatz der Library (Website-Sektion `rules=<name>`); geht als `rules` mit. Ohne: `antwortregeln`. */
+  regelsatz?: string
   /** Aktive Sitzung; ohne Kennung legt der Server eine neue an. */
   chatId: string | null
 }
