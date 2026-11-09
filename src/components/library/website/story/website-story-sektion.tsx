@@ -145,7 +145,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             data-story-konversation
             // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
             // Zitatmarken) folgt dem Grün der Site; ausserhalb der Website gilt die Vorgabe.
-            style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-strong)' }}
+            style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-ink)' }}
           >
             <StoryKonversation
               paare={s.sichtbar.paar ? [s.sichtbar.paar] : []}
@@ -157,7 +157,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
               onErneut={setText}
               fuss={fuss}
               kopfAktion={kopfAktion}
-              markenAnfangsVerborgen
+              markenAnfangsVerborgen={p.section.citationsVisible !== true}
               antwortAvatar={<AppLogo size={32} />}
             />
             <StoryFruehereFragen paare={s.paare} navigation={p.navigation} />

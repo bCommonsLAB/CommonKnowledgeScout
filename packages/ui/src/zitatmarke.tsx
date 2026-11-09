@@ -23,11 +23,16 @@ const GROESSE: Record<ZitatmarkeGroesse, string> = {
   karte: 'h-7 min-w-7 px-1.5 text-sm',
 }
 
-// N5: im Antworttext eine umrandete Marke (leicht, `--zitat-mark`, Website gruen);
-// an der Belegkarte weiterhin gefuellt (kraeftig, klar als Nummer lesbar).
+// N5: umrandete Marke in der Markenfarbe `--zitat-mark` (der Gastgeber setzt sie
+// aus dem Design-Profil: `accentInk`, eine lesbare, bei hellem Akzent abgedunkelte
+// Fassung). Owner 09.11.2026: Text und Belegkarte gleich formatiert — vorher war
+// die Karte gefuellt-schwarz und der Text in der blassen Akzentfarbe. Ohne
+// Variable (Galerie ohne Profil) gilt die Textfarbe.
+// Ohne Leerzeichen: in einer Tailwind-Klasse `[color:…]` trennt ein Leerzeichen die Klasse.
+const MARKE = 'var(--zitat-mark,hsl(var(--foreground)))'
 const FARBE: Record<ZitatmarkeGroesse, string> = {
-  text: 'border border-[color:var(--zitat-mark)] bg-transparent font-semibold !text-[color:var(--zitat-mark)]',
-  karte: 'bg-primary !text-primary-foreground',
+  text: `border border-[color:${MARKE}] bg-transparent font-semibold !text-[color:${MARKE}]`,
+  karte: `border-2 border-[color:${MARKE}] bg-transparent font-semibold !text-[color:${MARKE}]`,
 }
 
 /** Tailwind-Klassen der Marke — fuer HTML, das nicht durch React laeuft. */

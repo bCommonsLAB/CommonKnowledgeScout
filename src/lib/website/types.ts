@@ -80,6 +80,11 @@ export interface WebsiteSection {
    */
   filter?: Record<string, string[]>
   /**
+   * Nur `layout=story` (09.11.2026, SFSCON): Zitatmarken im Antworttext von Anfang an
+   * zeigen (`citations=visible`); Vorgabe ist N5 — verborgen bis „Quellen anzeigen".
+   */
+  citationsVisible?: boolean
+  /**
    * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
    * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;
    * `markdown` bleibt der Volltext fuer Pruefung und Bestandsnutzer.

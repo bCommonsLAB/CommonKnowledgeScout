@@ -59,6 +59,7 @@ export interface SectionAttrs {
   imageAlign?: SectionImageAlign
   placeholder?: string
   filter?: Record<string, string[]>
+  citationsVisible?: boolean
 }
 
 export function parseAttrs(raw: string): SectionAttrs {
@@ -69,6 +70,7 @@ export function parseAttrs(raw: string): SectionAttrs {
   let imageAlign: SectionImageAlign | undefined
   let placeholder: string | undefined
   let filter: Record<string, string[]> | undefined
+  let citationsVisible: boolean | undefined
   ATTR_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTR_RE.exec(raw)) !== null) {
@@ -104,6 +106,11 @@ export function parseAttrs(raw: string): SectionAttrs {
       placeholder = value.trim() || undefined
     } else if (key === 'filter') {
       filter = storyFilterAusAttribut(value)
+    } else if (key === 'citations') {
+      if (value !== 'visible' && value !== 'hidden') {
+        throw new Error(`Ungueltiges section citations="${value}". Erlaubt: visible, hidden`)
+      }
+      citationsVisible = value === 'visible'
     }
   }
   if (placeholder !== undefined && layout !== 'story') {
@@ -112,11 +119,14 @@ export function parseAttrs(raw: string): SectionAttrs {
   if (filter !== undefined && layout !== 'story') {
     throw new Error(`section filter gilt nur fuer layout=story (hier: ${layout})`)
   }
+  if (citationsVisible !== undefined && layout !== 'story') {
+    throw new Error(`section citations gilt nur fuer layout=story (hier: ${layout})`)
+  }
   const hatBildspalte = layout === 'image-left' || layout === 'image-right'
   if (!hatBildspalte && (imageWidth || imageAlign)) {
     throw new Error(
       `section image_width/image_align gelten nur fuer layout=image-left oder image-right (hier: ${layout})`,
     )
   }
-  return { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter }
+  return { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter, citationsVisible }
 }
