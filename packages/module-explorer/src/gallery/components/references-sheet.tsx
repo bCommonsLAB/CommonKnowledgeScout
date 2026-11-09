@@ -45,6 +45,8 @@ export interface ReferencesSheetProps {
    * hinein (Owner 09.11.2026: Belegnummern in der Markenfarbe der Website).
    */
   style?: CSSProperties
+  /** Titel der Belegliste mit der Bezeichnung der Library (z. B. „Talks"); ohne: „Belege". */
+  titel?: string
   loading?: boolean
   error?: string | null
 }
@@ -69,6 +71,7 @@ export function ReferencesSheet({
   loading = false,
   error = null,
   style,
+  titel,
 }: ReferencesSheetProps) {
   const { t } = useTranslation()
   const schliessen = () => onOpenChange(false)
@@ -76,7 +79,7 @@ export function ReferencesSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-2xl" hideCloseButton={true} style={style}>
-        <SheetTitle className="sr-only">{mode === 'toc' ? t('gallery.tocReferences') : t('gallery.references')}</SheetTitle>
+        <SheetTitle className="sr-only">{mode === 'toc' ? t('gallery.tocReferences') : (titel ?? t('gallery.references'))}</SheetTitle>
         {mode === 'answer' ? (
           <BelegListe
             references={references}
@@ -84,6 +87,7 @@ export function ReferencesSheet({
             unusedDocs={unusedDocs}
             libraryId={libraryId}
             libraryDetailViewType={libraryDetailViewType}
+            titel={titel}
             katalogAnzahl={anzahl}
             onOpenDocument={onOpenDocument}
             onZuklappen={schliessen}

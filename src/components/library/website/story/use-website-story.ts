@@ -34,8 +34,11 @@ function alsHeaders(h: SessionHeaders): Record<string, string> | undefined {
   return Object.keys(h).length > 0 ? (h as Record<string, string>) : undefined
 }
 
-/** `filter`: Facettenfilter der Sektion (`filter="year=2026"`) — gilt fuer Chat, Belege und die Zahl des Katalogs. */
-export function useWebsiteStory(libraryId: string, filter?: GalleryFilters) {
+/**
+ * `filter`: Facettenfilter der Sektion (`filter="year=2026"`) — gilt fuer Chat, Belege und die Zahl des Katalogs.
+ * `regelsatz`: benannter Regelsatz der Sektion (`rules=einladung`, Owner 09.11.2026) — geht als `rules` an den Stream.
+ */
+export function useWebsiteStory(libraryId: string, filter?: GalleryFilters, regelsatz?: string) {
   const { isSignedIn } = useUser()
   const angemeldet = isSignedIn === true
   const story = useStoryContext()
@@ -74,6 +77,7 @@ export function useWebsiteStory(libraryId: string, filter?: GalleryFilters) {
     dokumente: null,
     ohneUebersicht: true,
     filter,
+    regelsatz,
     maxZeichen: cfg?.config.maxChars,
     maxZeichenHinweis: cfg?.config.maxCharsWarningMessage,
   })
@@ -101,6 +105,9 @@ export function useWebsiteStory(libraryId: string, filter?: GalleryFilters) {
 
   return { k, paare: alle, sichtbar, perspektive, cfg, loading, error, llmModel: story.llmModel, katalogAnzahl, sessionHeaders }
 }
+
+/** Was die Sektion aus dem Hook bekommt — fuer den ausgelagerten Konversationsblock. */
+export type WebsiteStoryStand = ReturnType<typeof useWebsiteStory>
 
 /**
  * Die zitierten Dokumente einer Antwort als `DocCardMeta` (Titel, Slug,

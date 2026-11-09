@@ -246,6 +246,27 @@ Verhalten im Detail:
 | `website-story-sektion.tsx` | `darstellung="blatt"` |
 | `src/components/library/story/story-perspektive-dialog.tsx` | `darstellung="blatt"` — der Story-Modus zeigt die Perspektive seit 07.11. als Blatt von rechts (Owner-Entscheid). Das Embed (`embed-galerie.tsx`) bleibt beim zentrierten Dialog |
 
+### N6 Karten-Darstellungen, Regelsätze, Bezeichnung (Owner 09.11.2026)
+
+Entscheide 09.11.2026: zitierte Dokumente als die bestehenden Galerie-Bildkarten
+in ZWEI unabhängigen Darstellungen, je Sektion per Marker gewählt; keine
+Begrenzung der Kartenzahl; Weg zur vollständigen Liste bleibt als dezenter
+Verweis; „Quellen“ ist technische Sprache — Bezeichnung je Library; der
+Einladungs-Prompt gilt nur auf der Startseite (Regelsatz je Sektion); erst
+Figma (Seite 49:2, Rahmen S2-A 60:2, S2-B 60:261, Telefon 60:528/60:594), dann Code.
+
+| Datei | Änderung |
+|---|---|
+| `src/lib/website/types.ts`, `parse-section-attrs.ts`, `parse-website-sections.ts` | `cards=column\|inline\|hidden` (Vorgabe `hidden`), `rules=<name>`; nur `layout=story`, Unlesbares wirft |
+| `src/lib/chat/antwortregeln.ts`, `config.ts`, `packages/contracts/src/library-chat.ts` | `antwortregelnVarianten: Record<name, text>` mit derselben Platzhalter-Prüfung; `waehleAntwortregeln` (unbekannt wirft) |
+| `src/app/api/chat/[libraryId]/stream/route.ts` | `?rules=<name>` → benannter Text statt `antwortregeln` (400 vor dem Stream bei unbekanntem Namen); Name als `regelsatz` am Query-Log |
+| `packages/module-story` (`anfrage.ts`, `types.ts`, `use-story-konversation.ts`, `story-konversation.tsx`) | Parameter `rules`; Haken `antwortDarstellung`, `quellenPlakette` (Vorgabe unverändert) |
+| Brücke `konfiguration-bereiche.ts`, `tools-konfiguration.ts`, `tools-info.ts` (2.70.0), `website-seite.ts`, `tools-website-pruefen.ts` | Bereich `antwortregeln` = `{ text, varianten }`, `varianten` setzen; `seite_pruefen` nennt `kartenDarstellung`/`regelsatz`, prüft den Regelsatz |
+| `src/components/settings/chat/antwortregeln-varianten.tsx`, `antwortregeln-formular.ts`, `use-chat-form.ts` | Benannte Regelsätze unter dem Antwortregeln-Feld |
+| `src/types/library.ts`, `public-publishing-validation.ts`, `public-form.tsx`, `tools-website-veroeffentlichung.ts`, `src/lib/website/eintrags-bezeichnung.ts`, i18n | `gallery.itemLabel`/`itemLabelPlural` (beide oder keins, einsprachig) für Plakette, Knopf, Spaltentitel, Verweis, Blatt-Titel |
+| `src/lib/website/story-karten.ts` | reine Helfer: Einträge nach Zitatnummer, Blockzerlegung, Zuordnung |
+| `story/website-story-vortragskarte.tsx`, `-vortragsspalte.tsx`, `-antwort-zweispaltig.tsx`, `-konversation.tsx`, `use-website-story-navigation.ts` | die beiden Darstellungen; Konversationsblock aus der Sektion herausgelöst (Dateigrenze) |
+
 ### N4 Inhalt (kein Code)
 
 Über die Brücke (Skill `website-publishing`): Startseiten-Doc der Library
@@ -277,8 +298,7 @@ die Vorlage liegt seit 02.11. im Ordner).
 
 ## 6. Vorrat (nicht in diesem Plan)
 
-- Beleg-Karten der Startseite mit `DocCardMeta` (Plakette, Kennzeile,
-  Kurztext): die zitierten Dokumente über die öffentliche Docs-API nachladen.
+- ~~Beleg-Karten der Startseite mit `DocCardMeta`~~ — gebaut als N6 (`cards=column|inline`, 09.11.2026).
 - Sprachumschalter DE/IT/EN auf der Startseite (S5 des Nachbarplans) — die
   Vorlage verspricht drei Sprachen; die Sprache der Antwort stellt heute die
   Perspektive.
