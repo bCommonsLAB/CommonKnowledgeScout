@@ -19,7 +19,6 @@
 import { compileVorhabenPattern } from '../archive-rules'
 import { scanArchive } from '../archive-scan'
 import type { ArchiveFolderNode } from '../archive-types'
-import { findeTransformationenNachVorlage } from '@/lib/repositories/shadow-twin-transformationen'
 import { effectiveScanExcludeGlobs } from '@/lib/shadow-twin/sync-engine/scan-exclude'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ersetzeTextDatei } from '@/lib/storage/update-text-file'
@@ -27,9 +26,10 @@ import type { Library } from '@/types/library'
 import { renderAktuell } from './aktuell-render'
 import { sammleProjekte, zaehleProjektordner } from './bericht-lesen'
 import { renderProjekte } from './projekte-render'
+import type { BelegKoepfeStatistik } from './sitzungen-beleg-kopf'
+import { ladeSitzungen } from './sitzungen-laden'
 import { renderSitzungen } from './sitzungen-render'
-import { elternVonProvider, ordneSitzungenZu } from './sitzungen-sammeln'
-import { ALLE_SICHTEN, SITZUNGEN_FILE_NAME, SITZUNGS_SPRACHE, SITZUNGS_VORLAGE, type SichtName } from './sitzungen-types'
+import { ALLE_SICHTEN, SITZUNGEN_FILE_NAME, type SichtName } from './sitzungen-types'
 import { AKTUELL_FILE_NAME, PROJEKTE_FILE_NAME, SICHTEN_ORDNER, type ProjektDatensatz } from './types'
 
 // Die Namen wohnen in `./types` (ohne Storage-Importe), damit die Regel
@@ -44,8 +44,12 @@ export interface SitzungenErgebnis {
   sitzungen: number
   vorhaben: number
   ohneVorhaben: number
+  /** Querverweise aus `vorhaben:` der Belege (S1b). */
+  querverweise: number
   uebersprungen: Array<{ beleg: string; grund: string }>
   hinweise: string[]
+  /** Beleg-Koepfe: frisch gelesen vs. aus dem Merker am Twin. */
+  belegKoepfe: BelegKoepfeStatistik
 }
 
 export interface SichtenErgebnis {
@@ -150,15 +154,23 @@ export async function regenerateSichten(args: {
   }
 
   if (sichten.includes('sitzungen')) {
-    const zeilen = await findeTransformationenNachVorlage({ libraryId: library.id, template: SITZUNGS_VORLAGE, language: SITZUNGS_SPRACHE })
-    const zuordnung = await ordneSitzungenZu({ zeilen, folders: scan.folders, vorhabenMuster, elternVon: elternVonProvider(provider) })
+    const { zuordnung, belegKoepfe } = await ladeSitzungen({
+      libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: false,
+    })
     gerendert.sitzungen = renderSitzungen(zuordnung.sitzungen, now)
+    const vorhabenIds = new Set<string>()
+    for (const s of zuordnung.sitzungen) {
+      if (s.vorhabenFolderId !== null) vorhabenIds.add(s.vorhabenFolderId)
+      for (const v of s.weitereVorhaben) vorhabenIds.add(v.folderId)
+    }
     ergebnis.sitzungen = {
       sitzungen: zuordnung.sitzungen.length,
-      vorhaben: new Set(zuordnung.sitzungen.map((s) => s.vorhabenPfad).filter((p) => p !== null)).size,
+      vorhaben: vorhabenIds.size,
       ohneVorhaben: zuordnung.sitzungen.filter((s) => s.vorhabenPfad === null).length,
+      querverweise: zuordnung.sitzungen.reduce((n, s) => n + s.weitereVorhaben.length, 0),
       uebersprungen: zuordnung.uebersprungen,
       hinweise: zuordnung.hinweise,
+      belegKoepfe,
     }
   }
 
