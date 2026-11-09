@@ -22,6 +22,8 @@ const sidebarGroups: SidebarNavGroup[] = [
       { title: "Archive", href: "/settings/archive" },
       { title: "Explore", href: "/settings/explore" },
       { title: "Story", href: "/settings/story" },
+      // Verwaltungssicht auf die gespeicherten Antworten (verwerfen statt loeschen).
+      { title: "Fragen & Antworten", href: "/settings/story/fragen" },
       {
         // Zweite Ebene (Plan speicher-verbindungen-und-library-anlage, Teil B):
         // sieben Unterseiten statt einer endlosen Seite; /settings/advanced
@@ -73,7 +75,11 @@ const moderatorGroup: SidebarNavGroup = {
   id: "moderation",
   title: "Moderation",
   description: "Zugriffsanfragen dieser Bibliothek verwalten und Leser einladen.",
-  items: [{ title: "Zugriffsanfragen", href: "/settings/public/access-requests" }],
+  items: [
+    { title: "Zugriffsanfragen", href: "/settings/public/access-requests" },
+    // Moderatoren duerfen gespeicherte Antworten sehen und verwerfen (Route prueft isModeratorOrOwner).
+    { title: "Fragen & Antworten", href: "/settings/story/fragen" },
+  ],
 }
 
 interface LayoutProps {
