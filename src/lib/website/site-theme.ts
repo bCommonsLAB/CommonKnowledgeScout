@@ -16,12 +16,14 @@ import {
 } from '@ks/contracts'
 
 const HEX_RE = /^#[0-9a-f]{6}$/i
-const THEME_KEYS = ['fontHeading', 'fontBody', 'accent', 'accentHover', 'accentText', 'buttonShape', 'surfaces'] as const
+const THEME_KEYS = ['fontHeading', 'fontBody', 'fontKicker', 'accent', 'accentHover', 'accentText', 'buttonShape', 'surfaces'] as const
 const SURFACE_KEYS = ['bg', 'text', 'heading', 'paragraph', 'kicker'] as const
 
 export interface SiteThemeResolved {
   fontHeading: SiteFontName
   fontBody: SiteFontName
+  /** Kennzeilen/Plaketten; Vorgabe = fontHeading. */
+  fontKicker: SiteFontName
   accent: string
   accentHover: string
   accentText: string
@@ -36,6 +38,7 @@ export interface SiteThemeResolved {
 export const OLDIES_THEME: SiteThemeResolved = {
   fontHeading: 'geist',
   fontBody: 'geist',
+  fontKicker: 'geist',
   accent: '#059669',
   accentHover: '#10b981',
   accentText: '#ffffff',
@@ -95,6 +98,7 @@ export function validiereSiteTheme(wert: unknown): SiteTheme {
   const theme: SiteTheme = {}
   if (roh.fontHeading !== undefined) theme.fontHeading = schrift(roh.fontHeading, 'fontHeading')
   if (roh.fontBody !== undefined) theme.fontBody = schrift(roh.fontBody, 'fontBody')
+  if (roh.fontKicker !== undefined) theme.fontKicker = schrift(roh.fontKicker, 'fontKicker')
   for (const key of ['accent', 'accentHover', 'accentText'] as const) {
     if (roh[key] !== undefined) theme[key] = farbe(roh[key], key)
   }
@@ -145,6 +149,7 @@ export function resolveSiteTheme(theme: SiteTheme | undefined): SiteThemeResolve
   return {
     fontHeading: t.fontHeading ?? OLDIES_THEME.fontHeading,
     fontBody: t.fontBody ?? OLDIES_THEME.fontBody,
+    fontKicker: t.fontKicker ?? t.fontHeading ?? OLDIES_THEME.fontKicker,
     accent,
     accentHover: t.accentHover ?? (eigenerAkzent ? `color-mix(in srgb, ${accent} 86%, black)` : OLDIES_THEME.accentHover),
     accentText: t.accentText ?? OLDIES_THEME.accentText,
@@ -173,6 +178,7 @@ export function siteThemeCssVars(r: SiteThemeResolved, familien?: Record<SiteFon
   if (familien) {
     vars['--site-font-heading'] = familien[r.fontHeading]
     vars['--site-font-body'] = familien[r.fontBody]
+    vars['--site-font-kicker'] = familien[r.fontKicker]
   }
   return vars
 }

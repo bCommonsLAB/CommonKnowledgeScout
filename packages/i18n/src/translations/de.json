@@ -1048,6 +1048,10 @@
       "verarbeitungAnsehen": "Verarbeitung ansehen",
       "verarbeitungLeer": "Keine Verarbeitungsschritte verfügbar",
       "beispielfragen": "Beispielfragen",
+      "filterNur": "Nur {filter}",
+      "filterHinweis": "Der Chat befragt nur Dokumente mit dieser Facette",
+      "populaer": "Beliebt gerade · am häufigsten gefragt",
+      "populaerZaehler": "{count}-mal gefragt",
       "vorschauHinweis": "Der Chat läuft nur auf der Live-Seite der Library.",
       "laden": "Lade den Scout …"
     }

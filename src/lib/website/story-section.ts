@@ -17,19 +17,26 @@ export interface StoryBloecke {
   fragen: string[]
   /** Bloecke nach dem Fragen-Block — unter der Eingabe. */
   nach: SectionContentBlock[]
+  /** `<!-- popular n -->`: Zahl der meistgestellten Fragen unter den Kacheln; null ohne Block. */
+  populaer: number | null
 }
 
 export function storyBloecke(section: WebsiteSection): StoryBloecke {
   if (section.layout !== 'story') {
     throw new Error(`storyBloecke: Sektion hat layout=${section.layout}, erwartet story`)
   }
-  const idx = section.blocks.findIndex((b) => b.type === 'questions')
-  if (idx === -1) return { vor: section.blocks, fragen: [], nach: [] }
-  const block = section.blocks[idx]
+  const pop = section.blocks.find((b) => b.type === 'popular')
+  const populaer = pop && pop.type === 'popular' ? pop.n : null
+  // Der popular-Block wird vom Gastgeber gerendert (Chips unter den Kacheln), nicht als Textblock.
+  const bloecke = section.blocks.filter((b) => b.type !== 'popular')
+  const idx = bloecke.findIndex((b) => b.type === 'questions')
+  if (idx === -1) return { vor: bloecke, fragen: [], nach: [], populaer }
+  const block = bloecke[idx]
   return {
-    vor: section.blocks.slice(0, idx),
+    vor: bloecke.slice(0, idx),
     fragen: block.type === 'questions' ? block.items : [],
-    nach: section.blocks.slice(idx + 1),
+    nach: bloecke.slice(idx + 1),
+    populaer,
   }
 }
 
@@ -51,6 +58,9 @@ export function pruefeStorySektionen(sections: WebsiteSection[]): void {
   for (const s of sections) {
     if (s.layout !== 'story' && s.blocks.some((b) => b.type === 'questions')) {
       throw new Error(`<!-- questions --> ist nur in einer Sektion layout=story erlaubt (hier: ${s.layout})`)
+    }
+    if (s.layout !== 'story' && s.blocks.some((b) => b.type === 'popular')) {
+      throw new Error(`<!-- popular --> ist nur in einer Sektion layout=story erlaubt (hier: ${s.layout})`)
     }
   }
 }

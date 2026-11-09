@@ -33,9 +33,31 @@ const plusJakarta = localFont({
   fallback: ['system-ui', 'sans-serif'],
 })
 
-/** Schriftfamilie je Profil-Name — Wert fuer `--site-font-heading` / `--site-font-body`. */
+// 09.11.2026 (SFSCON): Source Sans 3 (Fliesstext/Ueberschriften) und Source Code Pro (Kennzeilen).
+const sourceSans = localFont({
+  src: [
+    { path: './fonts/source-sans-3-latin.woff2', style: 'normal' },
+    { path: './fonts/source-sans-3-latin-italic.woff2', style: 'italic' },
+  ],
+  weight: '200 900',
+  display: 'swap',
+  preload: false,
+  fallback: ['system-ui', 'sans-serif'],
+})
+
+const sourceCode = localFont({
+  src: './fonts/source-code-pro-latin.woff2',
+  weight: '200 900',
+  display: 'swap',
+  preload: false,
+  fallback: ['ui-monospace', 'monospace'],
+})
+
+/** Schriftfamilie je Profil-Name — Wert fuer `--site-font-heading` / `--site-font-body` / `--site-font-kicker`. */
 export const SITE_FONT_FAMILIES: Record<SiteFontName, string> = {
   geist: GeistSans.style.fontFamily,
   newsreader: newsreader.style.fontFamily,
   'plus-jakarta': plusJakarta.style.fontFamily,
+  'source-sans': sourceSans.style.fontFamily,
+  'source-code': sourceCode.style.fontFamily,
 }

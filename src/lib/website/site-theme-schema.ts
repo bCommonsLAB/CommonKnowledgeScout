@@ -19,6 +19,7 @@ const SURFACE = z.object({
 export const SITE_THEME_SCHEMA = z.object({
   fontHeading: z.enum(SITE_FONT_NAMES).optional().describe('Schrift der Ueberschriften'),
   fontBody: z.enum(SITE_FONT_NAMES).optional().describe('Schrift des Fliesstexts'),
+  fontKicker: z.enum(SITE_FONT_NAMES).optional().describe('Schrift der Kennzeilen und Plaketten; fehlt = Ueberschriftenschrift'),
   accent: HEX.optional().describe('Buttons, Links, Kennzeilen'),
   accentHover: HEX.optional(),
   accentText: HEX.optional().describe('Text auf dem Akzent'),

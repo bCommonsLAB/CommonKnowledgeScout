@@ -51,8 +51,8 @@ export interface SeitenEintrag {
   menu_order?: number
   menu_area?: string
   site_role?: string
-  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`; `karten` (N2) nur bei Sektionen mit Block `cards`: Zahl der Kacheln. */
-  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number; karten?: number }>
+  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`; `karten` (N2) nur bei Sektionen mit Block `cards`: Zahl der Kacheln; `filter` und `populaer` (09.11.2026) nur bei layout=story: Facettenfilter des Markers und n des Blocks `popular`. */
+  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number; karten?: number; filter?: Record<string, string[]>; populaer?: number }>
   fehler: string[]
   warnungen: string[]
 }
@@ -110,7 +110,7 @@ export function baueSeitenBericht(
           layout: s.layout, bg: s.bg, bild: Boolean(s.imageUrl),
           ...(s.imageWidth ? { bildBreite: s.imageWidth } : {}),
           ...(s.imageAlign ? { bildAusrichtung: s.imageAlign } : {}),
-          ...(s.layout === 'story' ? { fragen: storyBloecke(s).fragen.length } : {}),
+          ...(s.layout === 'story' ? { fragen: storyBloecke(s).fragen.length, ...(s.filter ? { filter: s.filter } : {}), ...(storyBloecke(s).populaer !== null ? { populaer: storyBloecke(s).populaer ?? undefined } : {}) } : {}),
           ...kartenAnzahl(s),
         }))
       } catch (error) {

@@ -20,6 +20,22 @@ todos:
 
 # Website-Startseite mit Story-Sektion
 
+> **Stand 09.11.2026 (N5, SFSCON-Startseite):** Zweite Startseite nach derselben
+> Konvention, Entwurf in Figma (Klickmodell D0 `RNJEZjUXPpNzrTYwEMEa2w`, Seite
+> 49:2 „Startseite SFSCON 2026 · nur Fragen", Rahmen S1 49:3 und S2 52:2).
+> Owner-Vorgaben: nur der Frage-Kasten, keine Galerie (`banner_hidden`), Chat auf
+> die Facette `year=2026` beschränkt, populäre Fragen aus dem Fragen-Log, Kacheln
+> laden in die früheren Editionen. Dafür drei Erweiterungen: Marker-Attribut
+> `filter="facette=wert[,wert];…"` (nur `layout=story`; `story-filter.ts`, als
+> `GalleryFilters` an `useStoryKonversation`, Chip im Kopf der Story-Karte,
+> `seite_pruefen` nennt ihn), Block `<!-- popular n=5 -->` (nur `layout=story`,
+> ohne Liste; Endpunkt `GET /api/chat/<id>/popular-questions?limit&days`, anonym
+> bei öffentlicher Library, nur Fragetext und Zähler; `queries-popular.ts`), und
+> im Design-Profil die Schriften `source-sans`/`source-code` sowie `fontKicker`
+> (Kennzeilen, Plaketten; Vorgabe `fontHeading`). Brücke 2.68.0. Inhalt der
+> SFSCON-Library liegt in `Webseite/Seiten/` (Startseite, how-it-works),
+> `siteTheme` gesetzt, `siteEnabled` bleibt aus bis zur Owner-Freigabe.
+>
 > **Stand 08.11.2026 (Owner-Entscheid):** Die Story-Sektion verhält sich wie
 > eine Suche, nicht wie ein Chat. Sichtbar ist nur das jüngste
 > Frage-Antwort-Paar der Sitzung; eine neue Frage ersetzt die Anzeige

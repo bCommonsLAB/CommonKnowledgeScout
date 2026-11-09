@@ -13,12 +13,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API, useSessionHeaders } from '@ks/api-client'
-import type { DocCardMeta, DocReference } from '@ks/contracts'
+import type { DocCardMeta, DocReference, GalleryFilters } from '@ks/contracts'
 import { paare, useStoryKonversation, type Perspektive } from '@ks/module-story/react'
 import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
+import { storyFilterParams } from '@/lib/website/story-filter'
 
 /** Belege einer Antwort fuer das Blatt rechts. */
 export interface BelegeBlatt {
@@ -32,7 +33,8 @@ function alsHeaders(h: SessionHeaders): Record<string, string> | undefined {
   return Object.keys(h).length > 0 ? (h as Record<string, string>) : undefined
 }
 
-export function useWebsiteStory(libraryId: string) {
+/** `filter`: Facettenfilter der Sektion (`filter="year=2026"`) — gilt fuer Chat, Belege und die Zahl des Katalogs. */
+export function useWebsiteStory(libraryId: string, filter?: GalleryFilters) {
   const { isSignedIn } = useUser()
   const angemeldet = isSignedIn === true
   const story = useStoryContext()
@@ -60,6 +62,7 @@ export function useWebsiteStory(libraryId: string) {
     // Keine Themenuebersicht auf der Startseite — nur Frage und Antwort.
     dokumente: null,
     ohneUebersicht: true,
+    filter,
     maxZeichen: cfg?.config.maxChars,
     maxZeichenHinweis: cfg?.config.maxCharsWarningMessage,
   })
@@ -72,7 +75,8 @@ export function useWebsiteStory(libraryId: string) {
   const [katalogAnzahl, setKatalogAnzahl] = useState<number>(0)
   useEffect(() => {
     let abgebrochen = false
-    SAME_ORIGIN_API.fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs?limit=1`, { cache: 'no-store', headers: alsHeaders(sessionHeaders) })
+    const params = storyFilterParams(filter, new URLSearchParams({ limit: '1' }))
+    SAME_ORIGIN_API.fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs?${params.toString()}`, { cache: 'no-store', headers: alsHeaders(sessionHeaders) })
       .then(async (res) => {
         const json = (await res.json()) as { total?: unknown; error?: unknown }
         if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : `HTTP ${res.status}`)
@@ -80,7 +84,9 @@ export function useWebsiteStory(libraryId: string) {
       })
       .catch((e: unknown) => console.error('[useWebsiteStory] Katalog-Zahl nicht ladbar', e))
     return () => { abgebrochen = true }
-  }, [libraryId, sessionHeaders])
+    // `filterSchluessel` steht fuer den Inhalt des Filters (Objekt je Render neu).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryId, sessionHeaders, JSON.stringify(filter ?? {})])
 
   return { k, paare: alle, sichtbar, perspektive, cfg, loading, error, llmModel: story.llmModel, katalogAnzahl, sessionHeaders }
 }

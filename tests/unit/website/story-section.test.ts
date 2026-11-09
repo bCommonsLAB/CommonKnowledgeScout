@@ -16,7 +16,7 @@ describe('storyBloecke', () => {
 
   it('ohne questions-Block: alles steht vor der Eingabe, keine Fragen', () => {
     const [s] = parseWebsiteSections('<!-- section layout=story -->\n## Frag.\n<!-- /section -->')
-    expect(storyBloecke(s)).toEqual({ vor: [{ type: 'markdown', markdown: '## Frag.' }], fragen: [], nach: [] })
+    expect(storyBloecke(s)).toEqual({ vor: [{ type: 'markdown', markdown: '## Frag.' }], fragen: [], nach: [], populaer: null })
   })
 
   it('wirft fuer andere Layouts statt still leer zu liefern', () => {

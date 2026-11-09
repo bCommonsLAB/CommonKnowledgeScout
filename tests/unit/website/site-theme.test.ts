@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { OLDIES_THEME, istDunkel, resolveSiteTheme, siteThemeCssVars, validiereSiteTheme } from '@/lib/website/site-theme'
 
-const FAMILIEN = { geist: 'Geist', newsreader: 'Newsreader', 'plus-jakarta': 'Jakarta' }
+const FAMILIEN = { geist: 'Geist', newsreader: 'Newsreader', 'plus-jakarta': 'Jakarta', 'source-sans': 'SS', 'source-code': 'SC' }
 
 afterEach(() => vi.restoreAllMocks())
 
