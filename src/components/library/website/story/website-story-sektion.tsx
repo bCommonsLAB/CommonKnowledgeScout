@@ -192,6 +192,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           usedDocs={belegDocs}
           katalogAnzahl={s.katalogAnzahl}
           navigation={p.navigation}
+          markenFarbe={p.theme?.accentInk}
         />
       )}
     </>

@@ -11,7 +11,7 @@
  * Belegliste nicht braucht, wirft statt still nichts zu tun.
  */
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
 import { GalleryNavigationProvider, ReferencesSheet, type GalleryNavigation } from '@ks/module-explorer/react'
@@ -36,6 +36,8 @@ export interface WebsiteStoryBelegeProps {
   usedDocs: DocCardMeta[]
   katalogAnzahl: number
   navigation: WebsiteStoryNavigation
+  /** Markenfarbe der Website (`accentInk`) fuer die Belegnummern — das Blatt haengt am `body`, die Site-Variablen erben nicht hinein. */
+  markenFarbe?: string
 }
 
 function nichtVorgesehen(name: string): never {
@@ -83,6 +85,7 @@ export function WebsiteStoryBelege(p: WebsiteStoryBelegeProps) {
         unusedDocs={[]}
         anzahl={p.katalogAnzahl}
         onKatalog={() => zurGalerie({})}
+        style={p.markenFarbe ? ({ ['--zitat-mark' as string]: p.markenFarbe } as CSSProperties) : undefined}
       />
     </GalleryNavigationProvider>
   )

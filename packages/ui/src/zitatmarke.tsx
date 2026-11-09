@@ -28,11 +28,12 @@ const GROESSE: Record<ZitatmarkeGroesse, string> = {
 // Fassung). Owner 09.11.2026: Text und Belegkarte gleich formatiert — vorher war
 // die Karte gefuellt-schwarz und der Text in der blassen Akzentfarbe. Ohne
 // Variable (Galerie ohne Profil) gilt die Textfarbe.
-// Ohne Leerzeichen: in einer Tailwind-Klasse `[color:…]` trennt ein Leerzeichen die Klasse.
-const MARKE = 'var(--zitat-mark,hsl(var(--foreground)))'
+// Klassen als LITERALE (kein Template): Tailwind liest die Klassennamen beim Bauen
+// aus dem Quelltext; zusammengesetzte Zeichenketten erzeugt es nicht. Ohne
+// Leerzeichen in `[color:…]`, sonst zerfaellt die Klasse.
 const FARBE: Record<ZitatmarkeGroesse, string> = {
-  text: `border border-[color:${MARKE}] bg-transparent font-semibold !text-[color:${MARKE}]`,
-  karte: `border-2 border-[color:${MARKE}] bg-transparent font-semibold !text-[color:${MARKE}]`,
+  text: 'border border-[color:var(--zitat-mark,hsl(var(--foreground)))] bg-transparent font-semibold !text-[color:var(--zitat-mark,hsl(var(--foreground)))]',
+  karte: 'border-2 border-[color:var(--zitat-mark,hsl(var(--foreground)))] bg-transparent font-semibold !text-[color:var(--zitat-mark,hsl(var(--foreground)))]',
 }
 
 /** Tailwind-Klassen der Marke — fuer HTML, das nicht durch React laeuft. */
