@@ -13,6 +13,8 @@ import {
   type SectionImageAlign,
   type SectionImageWidth,
   type SectionLayout,
+  STORY_CARDS,
+  type StoryCards,
 } from './types'
 import { storyFilterAusAttribut } from './story-filter'
 
@@ -51,6 +53,13 @@ function isImageAlign(value: string): value is SectionImageAlign {
   return (SECTION_IMAGE_ALIGNS as readonly string[]).includes(value)
 }
 
+function isStoryCards(value: string): value is StoryCards {
+  return (STORY_CARDS as readonly string[]).includes(value)
+}
+
+/** Name eines Regelsatzes: wie ein Schluessel, klein, ohne Leerzeichen (gleiche Regel wie `REGELSATZ_NAME_RE` in antwortregeln.ts). */
+const RULES_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/
+
 export interface SectionAttrs {
   layout: SectionLayout
   bg: SectionBg
@@ -59,6 +68,9 @@ export interface SectionAttrs {
   imageAlign?: SectionImageAlign
   placeholder?: string
   filter?: Record<string, string[]>
+  citationsVisible?: boolean
+  cards?: StoryCards
+  rules?: string
 }
 
 export function parseAttrs(raw: string): SectionAttrs {
@@ -69,6 +81,9 @@ export function parseAttrs(raw: string): SectionAttrs {
   let imageAlign: SectionImageAlign | undefined
   let placeholder: string | undefined
   let filter: Record<string, string[]> | undefined
+  let citationsVisible: boolean | undefined
+  let cards: StoryCards | undefined
+  let rules: string | undefined
   ATTR_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTR_RE.exec(raw)) !== null) {
@@ -104,6 +119,22 @@ export function parseAttrs(raw: string): SectionAttrs {
       placeholder = value.trim() || undefined
     } else if (key === 'filter') {
       filter = storyFilterAusAttribut(value)
+    } else if (key === 'citations') {
+      if (value !== 'visible' && value !== 'hidden') {
+        throw new Error(`Ungueltiges section citations="${value}". Erlaubt: visible, hidden`)
+      }
+      citationsVisible = value === 'visible'
+    } else if (key === 'cards') {
+      if (!isStoryCards(value)) {
+        throw new Error(`Ungueltiges section cards="${value}". Erlaubt: ${STORY_CARDS.join(', ')}`)
+      }
+      cards = value
+    } else if (key === 'rules') {
+      const name = value.trim()
+      if (!RULES_NAME_RE.test(name)) {
+        throw new Error(`Ungueltiges section rules="${value}". Erwartet den Namen eines Regelsatzes der Library (klein, a-z, 0-9, - und _)`)
+      }
+      rules = name
     }
   }
   if (placeholder !== undefined && layout !== 'story') {
@@ -112,11 +143,20 @@ export function parseAttrs(raw: string): SectionAttrs {
   if (filter !== undefined && layout !== 'story') {
     throw new Error(`section filter gilt nur fuer layout=story (hier: ${layout})`)
   }
+  if (citationsVisible !== undefined && layout !== 'story') {
+    throw new Error(`section citations gilt nur fuer layout=story (hier: ${layout})`)
+  }
+  if (cards !== undefined && layout !== 'story') {
+    throw new Error(`section cards gilt nur fuer layout=story (hier: ${layout})`)
+  }
+  if (rules !== undefined && layout !== 'story') {
+    throw new Error(`section rules gilt nur fuer layout=story (hier: ${layout})`)
+  }
   const hatBildspalte = layout === 'image-left' || layout === 'image-right'
   if (!hatBildspalte && (imageWidth || imageAlign)) {
     throw new Error(
       `section image_width/image_align gelten nur fuer layout=image-left oder image-right (hier: ${layout})`,
     )
   }
-  return { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter }
+  return { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter, citationsVisible, cards, rules }
 }

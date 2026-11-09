@@ -839,7 +839,8 @@
     "character": "Intérêts thématiques :",
     "accessPerspective": "Perspective d'accès :",
     "context": "Style de langue :",
-    "llmModel": "Modèle :"
+    "llmModel": "Modèle :",
+    "regelsatz": "Jeu de règles"
   },
   "configPopover": {
     "advancedSettings": "Paramètres avancés",
@@ -1006,7 +1007,14 @@
       "populaer": "Populaires en ce moment · les plus posées",
       "populaerZaehler": "Posée {count} fois",
       "vorschauHinweis": "Le chat ne fonctionne que sur la page en ligne de la bibliothèque.",
-      "laden": "Chargement du scout …"
+      "laden": "Chargement du scout …",
+      "quellenSpalte": "Sources citées",
+      "quellenWeitere": "autres sources avec passages",
+      "bezeichnungZitiertEins": "1 {label} cité",
+      "bezeichnungZitiert": "{count} {label} cités",
+      "bezeichnungAnzeigen": "Afficher {label}",
+      "bezeichnungSpalte": "{label} cités",
+      "bezeichnungWeitere": "autres {label} avec passages"
     }
   }
 }

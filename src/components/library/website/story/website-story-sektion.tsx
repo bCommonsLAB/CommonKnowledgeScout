@@ -9,31 +9,33 @@
  * einstellen": kein Dialog beim Betreten, Perspektive nur per Knopf, Belege als Blatt.
  *
  * Dritter Gastgeber der Story-Bausteine (nach Galerie-Mitte und Embed):
- * komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`.
+ * komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`. Der
+ * Konversationsblock mit den Karten-Darstellungen (`cards=column|inline`,
+ * Owner 09.11.2026) liegt in `website-story-konversation.tsx`; der Marker
+ * `rules=<name>` waehlt den Regelsatz der Library fuer diese Sektion.
  */
 
 import { useCallback, useMemo, useState } from 'react'
 import { useSetAtom } from 'jotai'
 import { useUser } from '@clerk/nextjs'
-import { List, SlidersHorizontal } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
-import { StoryEingabeInline, StoryKonversation, type AntwortKopfApi, type Nachricht } from '@ks/module-story/react'
+import { StoryEingabeInline, type Nachricht } from '@ks/module-story/react'
 import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
 import type { SiteThemeResolved } from '@/lib/website/site-theme'
 import { storyBloecke } from '@/lib/website/story-section'
+import { eintragsBezeichnung, type BezeichnungQuelle } from '@/lib/website/eintrags-bezeichnung'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
-import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
-import { StoryVerarbeitungAufklapper } from '@/components/library/story/story-verarbeitung-aufklapper'
-import { AppLogo } from '@/components/shared/app-logo'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
-import { WebsiteStoryBelege, type WebsiteStoryNavigation } from './website-story-belege'
-import { StoryFruehereFragen } from './website-story-fruehere'
+import { WebsiteStoryBelege } from './website-story-belege'
+import type { WebsiteStoryNavigation } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
 import { StoryStatus } from './website-story-status'
 import { StoryPopulaereFragen } from './website-story-populaer'
+import { WebsiteStoryKonversation } from './website-story-konversation'
 
 export interface WebsiteStorySektionProps {
   libraryId: string
@@ -41,12 +43,14 @@ export interface WebsiteStorySektionProps {
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
   navigation: WebsiteStoryNavigation
+  /** Galerie-Texte der Library (`publicPublishing.gallery`): Bezeichnung der Eintraege (`itemLabel`/`itemLabelPlural`). */
+  galleryTexte?: BezeichnungQuelle
 }
 
 export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const { t } = useTranslation()
   const { isSignedIn } = useUser()
-  const s = useWebsiteStory(p.libraryId, p.section.filter)
+  const s = useWebsiteStory(p.libraryId, p.section.filter, p.section.rules)
   const profil = useProfilPerspektive()
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const [text, setText] = useState('')
@@ -56,6 +60,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const belegDocs = useBelegDokumente(p.libraryId, blatt?.references ?? [], s.sessionHeaders)
   const bloecke = useMemo(() => storyBloecke(p.section), [p.section])
   const fragen = bloecke.fragen
+  // Bezeichnung der Eintraege (Owner 09.11.2026): „Vortraege" statt „Quellen", einsprachig je Library.
+  const bezeichnung = useMemo(() => eintragsBezeichnung(p.galleryTexte, t), [p.galleryTexte, t])
 
   const senden = useCallback(
     (frage: string) => {
@@ -78,49 +84,6 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     [setChatReferences],
   )
 
-  // N5: „Quellen anzeigen" steht in der Kopfzeile der Antwort. Der Klick blendet
-  // die Zitatmarken ein (die Plakette „N Quellen zitiert" ist selbst der Umschalter)
-  // UND oeffnet die Belege als Blatt von rechts.
-  const kopfAktion = useCallback(
-    (antwort: Nachricht, api: AntwortKopfApi) => {
-      const dokumente = new Set((antwort.belege ?? []).map((b) => b.fileId)).size
-      if (dokumente === 0) return null
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          data-story-belege-knopf
-          onClick={() => {
-            api.setSichtbar(true)
-            belegeOeffnen(antwort)
-          }}
-        >
-          <List className="h-4 w-4" aria-hidden="true" />
-          {t('website.story.quellenAnzeigenKurz')}
-        </Button>
-      )
-    },
-    [belegeOeffnen, t],
-  )
-
-  // N5: schlanke Fusszeile — eine dezente Zeile statt KI-Block, Parameter-Liste und
-  // Logs/Debug. Perspektive/Modell kommen aus der Query-Anzeige (dezent).
-  const fuss = useCallback(
-    (antwort: Nachricht) => {
-      const dokumente = new Set((antwort.belege ?? []).map((b) => b.fileId)).size
-      return (
-        <div className="mt-3 border-t border-black/5 pt-2 text-xs text-neutral-500" data-story-antwort-fuss>
-          <p>{t('website.story.kiHinweis', { count: dokumente })}</p>
-          {antwort.queryId && <ChatConfigDisplay libraryId={p.libraryId} queryId={antwort.queryId} llmModel={s.llmModel} />}
-          {/* N5: die Berechnungsschritte bleiben an der fertigen Antwort einsehbar (dezent, nur fuer Angemeldete). */}
-          {antwort.queryId && isSignedIn && <StoryVerarbeitungAufklapper libraryId={p.libraryId} queryId={antwort.queryId} />}
-        </div>
-      )
-    },
-    [p.libraryId, s.llmModel, t, isSignedIn],
-  )
-
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
   const kopf = (
@@ -140,28 +103,17 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
         <StoryFragenKacheln fragen={fragen} onFrage={senden} gesperrt={s.k.laeuft} />
         {bloecke.populaer !== null && <StoryPopulaereFragen libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
         {konversation && (
-          <div
-            className="mt-6"
-            data-story-konversation
-            // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
-            // Zitatmarken) folgt dem Grün der Site; ausserhalb der Website gilt die Vorgabe.
-            style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-strong)' }}
-          >
-            <StoryKonversation
-              paare={s.sichtbar.paar ? [s.sichtbar.paar] : []}
-              laeuft={s.k.laeuft}
-              schritte={s.k.schritte}
-              fehler={s.k.fehler}
-              fehlerDetail={s.k.fehlerDetail}
-              onFrage={setText}
-              onErneut={setText}
-              fuss={fuss}
-              kopfAktion={kopfAktion}
-              markenAnfangsVerborgen
-              antwortAvatar={<AppLogo size={32} />}
-            />
-            <StoryFruehereFragen paare={s.paare} navigation={p.navigation} />
-          </div>
+          <WebsiteStoryKonversation
+            libraryId={p.libraryId}
+            s={s}
+            navigation={p.navigation}
+            cards={p.section.cards ?? 'hidden'}
+            bezeichnung={bezeichnung}
+            markenAnfangsVerborgen={p.section.citationsVisible !== true}
+            isSignedIn={isSignedIn === true}
+            onText={setText}
+            onBelege={belegeOeffnen}
+          />
         )}
         <StoryEingabeInline
           className="mt-6"
@@ -192,6 +144,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           usedDocs={belegDocs}
           katalogAnzahl={s.katalogAnzahl}
           navigation={p.navigation}
+          markenFarbe={p.theme?.accentInk}
+          titel={bezeichnung.blattTitel}
         />
       )}
     </>

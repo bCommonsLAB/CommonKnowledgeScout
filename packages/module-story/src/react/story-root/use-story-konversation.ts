@@ -35,6 +35,8 @@ export interface UseStoryKonversationParams {
   isSignedIn: boolean
   perspektive: Perspektive
   filter?: GalleryFilters
+  /** Website-Sektion (09.11.2026): benannter Regelsatz der Library statt `antwortregeln`; geht als `rules` an den Stream. */
+  regelsatz?: string
   /** Dokumente im (gefilterten) Bestand; ohne Dokumente keine Uebersicht. */
   dokumente: number | null
   /** Belege der gezeigten Antwort; leer (und `queryId` null), wenn keine Antwort gezeigt wird. */
@@ -94,7 +96,7 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
 
   const stream = useStoryStream({
     libraryId, instanz, isSignedIn,
-    rahmen: { perspektive, antwortLaenge, filter, chatId },
+    rahmen: { perspektive, antwortLaenge, filter, chatId, regelsatz: p.regelsatz },
     nachrichten, setNachrichten,
     onSitzung: setChatId, onFrage, onUebersicht, onFehler,
     maxZeichen: p.maxZeichen, maxZeichenHinweis: p.maxZeichenHinweis,

@@ -886,7 +886,8 @@
     "character": "Interessenprofil:",
     "accessPerspective": "Zugangsperspektive:",
     "context": "Sprachstil:",
-    "llmModel": "Modell:"
+    "llmModel": "Modell:",
+    "regelsatz": "Regelsatz"
   },
   "configPopover": {
     "advancedSettings": "Erweiterte Einstellungen",
@@ -1053,7 +1054,14 @@
       "populaer": "Beliebt gerade · am häufigsten gefragt",
       "populaerZaehler": "{count}-mal gefragt",
       "vorschauHinweis": "Der Chat läuft nur auf der Live-Seite der Library.",
-      "laden": "Lade den Scout …"
+      "laden": "Lade den Scout …",
+      "quellenSpalte": "Genannte Quellen",
+      "quellenWeitere": "weitere Quellen mit Textstellen",
+      "bezeichnungZitiertEins": "1 {label} zitiert",
+      "bezeichnungZitiert": "{count} {label} zitiert",
+      "bezeichnungAnzeigen": "{label} anzeigen",
+      "bezeichnungSpalte": "Genannte {label}",
+      "bezeichnungWeitere": "weitere {label} mit Textstellen"
     }
   }
 }

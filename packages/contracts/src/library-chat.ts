@@ -97,6 +97,13 @@ export interface LibraryChatConfig {
    */
   antwortregeln?: string;
 
+  /**
+   * Benannte Regelsätze (Owner 09.11.2026): Name → Markdown-Text mit denselben
+   * Platzhaltern. Eine Website-Story-Sektion wählt per Marker `rules=<name>`;
+   * ohne Marker gilt `antwortregeln`. Name: klein, a-z, 0-9, `-`, `_`.
+   */
+  antwortregelnVarianten?: Record<string, string>;
+
   /** Link im Footer (z. B. Firmen-/Projektlink) */
   companyLink?: string;
 

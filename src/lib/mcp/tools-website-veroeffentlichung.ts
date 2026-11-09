@@ -26,6 +26,8 @@ const TEXT = z.string().max(2000)
 const GALLERY = z.object({
   headline: TEXT.optional(), subtitle: TEXT.optional(), description: TEXT.optional(),
   filterDescription: TEXT.optional(), menuLabel: z.string().max(60).optional(), moreLinkLabel: z.string().max(60).optional(),
+  // Bezeichnung der Eintraege (Owner 09.11.2026): Einzahl/Mehrzahl, einsprachig je Library; '' = heutige Texte.
+  itemLabel: z.string().max(40).optional(), itemLabelPlural: z.string().max(40).optional(),
 }).strict()
 const STORY = z.object({
   headline: TEXT.optional(), subtitle: TEXT.optional(), intro: TEXT.optional(),

@@ -58,3 +58,16 @@ describe('Sektions-Parser: filter und popular', () => {
     expect(() => parseWebsiteSections('<!-- section layout=text-only -->\n<!-- popular -->\n<!-- /section -->')).toThrow(/popular --> ist nur in einer Sektion layout=story/)
   })
 })
+
+describe('Sektions-Parser: citations', () => {
+  it('citations=visible zeigt Zitatmarken von Anfang an; nur bei layout=story; sonst wirft', () => {
+    const [s] = parseWebsiteSections('<!-- section layout=story citations=visible -->\nText\n<!-- /section -->')
+    expect(s.citationsVisible).toBe(true)
+    const [h] = parseWebsiteSections('<!-- section layout=story citations=hidden -->\nText\n<!-- /section -->')
+    expect(h.citationsVisible).toBe(false)
+    const [o] = parseWebsiteSections('<!-- section layout=story -->\nText\n<!-- /section -->')
+    expect(o.citationsVisible).toBeUndefined()
+    expect(() => parseWebsiteSections('<!-- section layout=story citations=yes -->\nText\n<!-- /section -->')).toThrow(/visible, hidden/)
+    expect(() => parseWebsiteSections('<!-- section layout=text-only citations=visible -->\nText\n<!-- /section -->')).toThrow(/citations gilt nur fuer layout=story/)
+  })
+})

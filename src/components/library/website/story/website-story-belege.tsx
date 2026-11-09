@@ -5,27 +5,17 @@
  * `BelegListe` im `ReferencesSheet` wie der Story-Modus auf dem Telefon.
  *
  * Ein Beleg oeffnet sein Dokument in der Galerie — mit demselben Weg wie
- * die Banner-Karten: im Site-Modus `onShowGallery({ doc })`, im Root-Modus
- * (`/` einer gekoppelten Domain) die Galerie-Adresse mit `?doc=`. Dafuer
- * bekommt das Blatt eine eigene `GalleryNavigation`; alles, was die
- * Belegliste nicht braucht, wirft statt still nichts zu tun.
+ * die Banner-Karten und die Kartenspalte (`use-website-story-navigation.ts`).
+ * Der Titel traegt die Bezeichnung der Library (z. B. „Talks"), ohne sie
+ * den Paket-Text „Belege" (Owner 09.11.2026).
  */
 
-import { useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import type { CSSProperties } from 'react'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
-import { GalleryNavigationProvider, ReferencesSheet, type GalleryNavigation } from '@ks/module-explorer/react'
+import { GalleryNavigationProvider, ReferencesSheet } from '@ks/module-explorer/react'
+import { useWebsiteStoryNavigation, type WebsiteStoryNavigation } from './use-website-story-navigation'
 
-export interface WebsiteStoryNavigation {
-  /** Site-Modus: wechselt in die lokale Galerie; `extra` = Adress-Parameter (wie das Banner, F3). */
-  onShowGallery?: (extra?: Record<string, string>) => void
-  /** Root-Modus: Galerie-Adresse, traegt schon `?view=gallery`; null im Site-Modus. */
-  galleryBaseHref: string | null
-  /** Site-Modus: wechselt in den Story-Modus; `extra` = Adress-Parameter (Verweis „fruehere Fragen" gibt `q` mit, 08.11.2026). */
-  onShowStory?: (extra?: Record<string, string>) => void
-  /** Root-Modus: Adresse des Story-Modus, traegt schon `?mode=story`; null im Site-Modus. */
-  storyBaseHref: string | null
-}
+export type { WebsiteStoryNavigation } from './use-website-story-navigation'
 
 export interface WebsiteStoryBelegeProps {
   libraryId: string
@@ -36,40 +26,14 @@ export interface WebsiteStoryBelegeProps {
   usedDocs: DocCardMeta[]
   katalogAnzahl: number
   navigation: WebsiteStoryNavigation
-}
-
-function nichtVorgesehen(name: string): never {
-  throw new Error(`WebsiteStoryBelege: ${name} ist in der Story-Sektion nicht vorgesehen`)
+  /** Markenfarbe der Website (`accentInk`) fuer die Belegnummern — das Blatt haengt am `body`, die Site-Variablen erben nicht hinein. */
+  markenFarbe?: string
+  /** Titel des Blatts mit der Bezeichnung der Library; undefined = „Belege". */
+  titel?: string
 }
 
 export function WebsiteStoryBelege(p: WebsiteStoryBelegeProps) {
-  const router = useRouter()
-  const { onShowGallery, galleryBaseHref } = p.navigation
-
-  const zurGalerie = useCallback(
-    (extra: Record<string, string>) => {
-      if (onShowGallery) onShowGallery(extra)
-      else if (galleryBaseHref) {
-        const q = new URLSearchParams(extra).toString()
-        router.push(q ? `${galleryBaseHref}&${q}` : galleryBaseHref)
-      } else console.error('[WebsiteStoryBelege] Weder onShowGallery noch galleryBaseHref — die Galerie ist von hier nicht erreichbar')
-    },
-    [onShowGallery, galleryBaseHref, router],
-  )
-
-  const nav = useMemo<GalleryNavigation>(
-    () => ({
-      openDocument: (slug) => zurGalerie({ doc: slug }),
-      closeDocument: () => p.onOpenChange(false),
-      // Leer = kein Teilen-Knopf (Vertrag des Kontexts).
-      documentShareUrl: () => '',
-      params: new URLSearchParams(),
-      replaceParams: () => nichtVorgesehen('replaceParams'),
-      pushParams: () => nichtVorgesehen('pushParams'),
-      applyModeParams: () => nichtVorgesehen('applyModeParams'),
-    }),
-    [zurGalerie, p],
-  )
+  const { zurGalerie, nav } = useWebsiteStoryNavigation(p.navigation, () => p.onOpenChange(false))
 
   return (
     <GalleryNavigationProvider navigation={nav}>
@@ -83,6 +47,8 @@ export function WebsiteStoryBelege(p: WebsiteStoryBelegeProps) {
         unusedDocs={[]}
         anzahl={p.katalogAnzahl}
         onKatalog={() => zurGalerie({})}
+        titel={p.titel}
+        style={p.markenFarbe ? ({ ['--zitat-mark' as string]: p.markenFarbe } as CSSProperties) : undefined}
       />
     </GalleryNavigationProvider>
   )

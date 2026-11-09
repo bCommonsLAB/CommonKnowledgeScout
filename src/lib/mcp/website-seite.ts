@@ -29,6 +29,24 @@ export interface SeitenBerichtKontext {
   starCountsPublic: boolean
   /** `banner_sort` je Seite aus dem Meta-Dokument (`docMetaJson.banner_sort`). */
   bannerSortJeFileId: Map<string, unknown>
+  /** Namen der benannten Regelsaetze der Library (`config.chat.antwortregelnVarianten`) — fuer `rules=<name>` einer Story-Sektion. */
+  regelsaetze?: readonly string[]
+}
+
+/** Befund zu `rules=<name>` einer Story-Sektion: der Regelsatz muss in der Library existieren, sonst antwortet der Stream mit Fehler. */
+export function regelsatzBefunde(sections: WebsiteSection[], regelsaetze: readonly string[]): string[] {
+  const befunde: string[] = []
+  for (const s of sections) {
+    if (s.layout !== 'story' || !s.rules) continue
+    if (!regelsaetze.includes(s.rules)) {
+      befunde.push(
+        `Story-Sektion nennt rules=${s.rules}, aber die Library hat keinen Regelsatz dieses Namens` +
+          (regelsaetze.length > 0 ? ` (vorhanden: ${regelsaetze.join(', ')})` : ' (keine benannten Regelsaetze; konfiguration_setzen varianten)') +
+          ' — der Chat der Seite antwortet mit Fehler',
+      )
+    }
+  }
+  return befunde
 }
 
 /** Befunde zu `banner_sort` einer Seite: unbekannter Wert, oder `stars` ohne Schalter. */
@@ -51,8 +69,8 @@ export interface SeitenEintrag {
   menu_order?: number
   menu_area?: string
   site_role?: string
-  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`; `karten` (N2) nur bei Sektionen mit Block `cards`: Zahl der Kacheln; `filter` und `populaer` (09.11.2026) nur bei layout=story: Facettenfilter des Markers und n des Blocks `popular`. */
-  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number; karten?: number; filter?: Record<string, string[]>; populaer?: number }>
+  /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`; `karten` (N2) nur bei Sektionen mit Block `cards`: Zahl der Kacheln; `filter` und `populaer` (09.11.2026) nur bei layout=story: Facettenfilter des Markers und n des Blocks `popular`; `kartenDarstellung` (`cards=column|inline`) und `regelsatz` (`rules=<name>`) nur bei layout=story, wenn der Marker sie nennt. */
+  sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number; karten?: number; filter?: Record<string, string[]>; populaer?: number; zitateSichtbar?: boolean; kartenDarstellung?: string; regelsatz?: string }>
   fehler: string[]
   warnungen: string[]
 }
@@ -105,12 +123,15 @@ export function baueSeitenBericht(
       fehler.push('Kein Markdown im Meta-Dokument — Seite rendert leer')
     } else {
       try {
+        const geparst = parseWebsiteSections(markdown)
+        // rules=<name> muss ein Regelsatz der Library sein; ohne Kontext (Tests ohne Library) keine Pruefung.
+        if (kontext?.regelsaetze) fehler.push(...regelsatzBefunde(geparst, kontext.regelsaetze))
         // Bild-Attribute nur, wenn der Marker sie nennt — sonst bleibt die Zeile wie bisher.
-        sektionen = parseWebsiteSections(markdown).map((s) => ({
+        sektionen = geparst.map((s) => ({
           layout: s.layout, bg: s.bg, bild: Boolean(s.imageUrl),
           ...(s.imageWidth ? { bildBreite: s.imageWidth } : {}),
           ...(s.imageAlign ? { bildAusrichtung: s.imageAlign } : {}),
-          ...(s.layout === 'story' ? { fragen: storyBloecke(s).fragen.length, ...(s.filter ? { filter: s.filter } : {}), ...(storyBloecke(s).populaer !== null ? { populaer: storyBloecke(s).populaer ?? undefined } : {}) } : {}),
+          ...(s.layout === 'story' ? { fragen: storyBloecke(s).fragen.length, ...(s.filter ? { filter: s.filter } : {}), ...(s.citationsVisible !== undefined ? { zitateSichtbar: s.citationsVisible } : {}), ...(s.cards ? { kartenDarstellung: s.cards } : {}), ...(s.rules ? { regelsatz: s.rules } : {}), ...(storyBloecke(s).populaer !== null ? { populaer: storyBloecke(s).populaer ?? undefined } : {}) } : {}),
           ...kartenAnzahl(s),
         }))
       } catch (error) {

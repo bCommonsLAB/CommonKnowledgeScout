@@ -64,9 +64,11 @@ export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string
 
   // N5: Akzent der Antwort-Bausteine (Plakette, umrandete Zitatmarken, „Deine Frage")
   // folgt dem Design-Profil der Library — wie die Website; ohne Profil der Vorlagen-Akzent.
-  const storyAccent = useMemo(() => {
+  const storyFarben = useMemo(() => {
     const library = libraries.find((lib) => lib.id === libraryId)
-    return resolveSiteTheme(library?.config?.publicPublishing?.siteTheme).accentStrong
+    const r = resolveSiteTheme(library?.config?.publicPublishing?.siteTheme)
+    // Marken in der lesbaren Fassung des Akzents (bei hellem Akzent abgedunkelt, 09.11.2026).
+    return { accent: r.accentStrong, ink: r.accentInk }
   }, [libraries, libraryId])
 
   // D12e: folgt der gezeigten Antwort; ohne Antwort leer (rechts der Katalog).
@@ -86,7 +88,7 @@ export function StoryRootMount({ libraryId, filterAnzeige }: { libraryId: string
 
   return (
     // display:contents — kein Layout-Kasten, aber die Akzent-Variablen vererben an die Antwort-Bausteine.
-    <div className="contents" style={{ ['--story-accent' as string]: storyAccent, ['--zitat-mark' as string]: storyAccent }}>
+    <div className="contents" style={{ ['--story-accent' as string]: storyFarben.accent, ['--zitat-mark' as string]: storyFarben.ink }}>
       <StoryRoot
         libraryId={libraryId}
         instanz={SAME_ORIGIN_API}

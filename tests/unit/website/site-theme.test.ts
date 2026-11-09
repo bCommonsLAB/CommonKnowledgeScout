@@ -3,7 +3,7 @@
  * Vorlage zurueck, CSS-Variablen tragen die Werte.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { OLDIES_THEME, istDunkel, resolveSiteTheme, siteThemeCssVars, validiereSiteTheme } from '@/lib/website/site-theme'
+import { OLDIES_THEME, istDunkel, resolveSiteTheme, siteThemeCssVars, validiereSiteTheme, lesbarerAkzent } from '@/lib/website/site-theme'
 
 const FAMILIEN = { geist: 'Geist', newsreader: 'Newsreader', 'plus-jakarta': 'Jakarta', 'source-sans': 'SS', 'source-code': 'SC' }
 
@@ -70,5 +70,20 @@ describe('siteThemeCssVars', () => {
     expect(vars['--site-font-body']).toBe('Geist')
     expect(vars['--site-radius']).toBe('0.5rem')
     expect(vars['--site-accent']).toBe('#059669')
+  })
+})
+
+describe('lesbarerAkzent (Zitatmarken, 09.11.2026)', () => {
+  it('dunkelt einen hellen Akzent ab und laesst einen dunklen stehen', () => {
+    expect(lesbarerAkzent('#89C9EF')).toBe('color-mix(in srgb, #89C9EF 45%, #1c1c1c)')
+    expect(lesbarerAkzent('#047857')).toBe('#047857')
+  })
+
+  it('resolveSiteTheme traegt accentInk und die CSS-Variable --site-accent-ink', () => {
+    const r = resolveSiteTheme({ accent: '#89C9EF' })
+    // resolveSiteTheme normalisiert Hex auf Kleinbuchstaben
+    expect(r.accentInk).toBe('color-mix(in srgb, #89c9ef 45%, #1c1c1c)')
+    expect(siteThemeCssVars(r)['--site-accent-ink']).toBe(r.accentInk)
+    expect(resolveSiteTheme({}).accentInk).toBe('#047857')
   })
 })

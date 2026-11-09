@@ -179,6 +179,15 @@ export interface ClientLibrary {
         menuLabel?: string;
         /** Text des „mehr Inhalte"-Links auf der Website-Landingpage (leer = Standard) */
         moreLinkLabel?: string;
+        /**
+         * Bezeichnung EINES Eintrags dieser Library in der Website-Story-Sektion
+         * (Owner 09.11.2026), z. B. „Vortrag" / „Talk" — für Plakette, Knopf,
+         * Spaltentitel, Verweis und Blatt-Titel statt des technischen „Quelle".
+         * Einsprachig je Library (kein i18n); leer = heutige Texte.
+         */
+        itemLabel?: string;
+        /** Mehrzahl zu `itemLabel`, z. B. „Vorträge" / „Talks"; leer = heutige Texte. */
+        itemLabelPlural?: string;
       };
       /** Story-Modus-spezifische Texte für die öffentliche Ansicht */
       story?: {

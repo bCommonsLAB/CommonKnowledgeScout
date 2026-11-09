@@ -18,6 +18,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import type { LibraryChatConfig } from '@/types/library'
 import { formatiereChatKonfigurationFehler, validiereChatKonfiguration } from '@/lib/services/chat-config-validation'
 import { BEREICHE, chatSicht, wendeKonfigurationAn, CHAT_SETZBAR, GALERIE_SETZBAR } from './konfiguration-bereiche'
+import { REGELSATZ_NAME_RE } from '@/lib/chat/antwortregeln'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
 import { veroeffentlichungSicht } from './tools-website-veroeffentlichung'
@@ -29,7 +30,7 @@ export function registerKonfigurationTools(server: McpServer): void {
       title: 'Library-Konfiguration lesen (liest nur)',
       description:
         'Liest die Konfiguration einer Library je Bereich: facetten (gallery.facets, JSON-Form des ' +
-        'Facetten-Editors inkl. Woerterbuch werte), antwortregeln (Text mit Platzhaltern), chat ' +
+        'Facetten-Editors inkl. Woerterbuch werte), antwortregeln ({ text, varianten }: Text mit Platzhaltern und benannte Regelsaetze), chat ' +
         '(Platzhalter, Sprache, Charakter, Perspektive; Embeddings und Vektor-Store nur lesbar), galerie ' +
         '(detailViewType, Sortierung, Gruppierung), veroeffentlichung (wie veroeffentlichung_lesen). ' +
         'Ohne bereich alle fuenf. Liest nur.',
@@ -65,7 +66,8 @@ export function registerKonfigurationTools(server: McpServer): void {
         'Setzt Bereiche der Chat-Konfiguration mit derselben Pruefung wie das Formular: facetten ' +
         '(ersetzt gallery.facets als Ganzes, JSON-Form des Editor-Exports; Woerterbuch werte nur bei ' +
         'string/string[]; Basis-Facetten bleiben erzwungen), antwortregeln (Text; Platzhalter ' +
-        '{{facette:key}}/{{legende:key}} muessen auf Facetten zeigen, sonst Abweisung; "" loescht), chat ' +
+        '{{facette:key}}/{{legende:key}} muessen auf Facetten zeigen, sonst Abweisung; "" loescht), varianten ' +
+        '({ name: text }: benannte Regelsaetze, Teil-Update je Name, "" loescht; eine Website-Sektion waehlt mit rules=<name>; Story-Modus und frage_stellen nutzen weiter antwortregeln), chat ' +
         `(Teil-Update: ${[...CHAT_SETZBAR].join(', ')}), galerie (Teil-Update: ${[...GALERIE_SETZBAR].join(', ')}). ` +
         'Embeddings, Vektor-Store und Modelle sind nicht setzbar; Veroeffentlichung ueber ' +
         'veroeffentlichung_setzen. Nach geaenderten Facetten tragen aeltere Chunks die neue Facette nicht — ' +
@@ -74,24 +76,25 @@ export function registerKonfigurationTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         facetten: z.array(z.record(z.unknown())).optional().describe('Komplette Facettenliste (ersetzt), JSON-Form des Facetten-Editors'),
         antwortregeln: z.string().max(20000).optional().describe('Antwortregeln-Text; "" loescht'),
+        varianten: z.record(z.string().regex(REGELSATZ_NAME_RE, 'Name klein: a-z, 0-9, - und _'), z.string().max(20000)).optional().describe('Benannte Regelsaetze { name: text }; "" loescht den Regelsatz'),
         chat: z.record(z.unknown()).optional().describe('Teil-Update der Chat-Einstellungen'),
         galerie: z.record(z.unknown()).optional().describe('Teil-Update der Galerie-Einstellungen'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, facetten, antwortregeln, chat, galerie, begruendung }) => {
+    async ({ libraryId, facetten, antwortregeln, varianten, chat, galerie, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'konfiguration_setzen', libraryId, akteur: mcpUserEmail(), begruendung }, async () => {
-          if (facetten === undefined && antwortregeln === undefined && chat === undefined && galerie === undefined) {
-            throw new Error('facetten, antwortregeln, chat oder galerie ist Pflicht')
+          if (facetten === undefined && antwortregeln === undefined && varianten === undefined && chat === undefined && galerie === undefined) {
+            throw new Error('facetten, antwortregeln, varianten, chat oder galerie ist Pflicht')
           }
           const userEmail = mcpUserEmail()
           const service = LibraryService.getInstance()
           if (!(await service.isOwner(userEmail, libraryId))) throw new Error('Nur Owner koennen die Konfiguration aendern')
           const library = await requireLibrary(userEmail, libraryId)
           const altChat = library.config?.chat as Record<string, unknown> | undefined
-          const { chat: neuChat, geaendert } = wendeKonfigurationAn(altChat, { facetten, antwortregeln, chat, galerie })
+          const { chat: neuChat, geaendert } = wendeKonfigurationAn(altChat, { facetten, antwortregeln, varianten, chat, galerie })
           const pruefung = validiereChatKonfiguration(neuChat)
           if (!pruefung.ok) throw new Error(formatiereChatKonfigurationFehler(pruefung.fehler))
           if (geaendert.length === 0) return jsonResult({ geaendert: [], hinweis: 'Nichts geaendert' })
@@ -102,7 +105,7 @@ export function registerKonfigurationTools(server: McpServer): void {
           return jsonResult({
             geaendert,
             facetten: geaendert.includes('facetten') ? chatSicht(neuChat, 'facetten') : undefined,
-            antwortregeln: geaendert.includes('antwortregeln') ? chatSicht(neuChat, 'antwortregeln') : undefined,
+            antwortregeln: geaendert.includes('antwortregeln') || geaendert.some((g) => g.startsWith('varianten.')) ? chatSicht(neuChat, 'antwortregeln') : undefined,
             chat: geaendert.some((g) => g.startsWith('chat.')) ? chatSicht(neuChat, 'chat') : undefined,
             galerie: geaendert.some((g) => g.startsWith('galerie.')) ? chatSicht(neuChat, 'galerie') : undefined,
             hinweis: geaendert.includes('facetten')

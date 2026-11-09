@@ -15,6 +15,7 @@ import type * as z from 'zod'
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Textarea } from '@ks/ui'
 import type { chatFormSchema } from './hooks/use-chat-form'
 import { pruefeAntwortregeln, type RegelFacette } from '@/lib/chat/antwortregeln'
+import { AntwortregelnVarianten } from './antwortregeln-varianten'
 
 interface AntwortregelnSectionProps {
   form: UseFormReturn<z.infer<typeof chatFormSchema>>
@@ -32,7 +33,8 @@ export function AntwortregelnSection({ form }: AntwortregelnSectionProps) {
         <h3 className="text-lg font-semibold">Antwortregeln</h3>
         <p className="text-sm text-muted-foreground">
           Wie das Modell über die Inhalte dieser Library sprechen darf, zum Beispiel ein Status als
-          Zuschreibung statt als Behauptung. Gilt für Antworten und Themenübersicht.
+          Zuschreibung statt als Behauptung. Gilt für Antworten und Themenübersicht — überall in der
+          Library, sofern eine Website-Sektion nicht einen benannten Regelsatz (unten) wählt.
         </p>
       </div>
 
@@ -75,6 +77,9 @@ export function AntwortregelnSection({ form }: AntwortregelnSectionProps) {
           ))}
         </ul>
       )}
+
+      {/* Owner 09.11.2026: benannte Regelsätze, die eine Website-Sektion per rules=<name> wählt */}
+      <AntwortregelnVarianten form={form} />
     </div>
   )
 }

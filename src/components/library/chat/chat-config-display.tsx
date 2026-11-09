@@ -64,6 +64,8 @@ export function ChatConfigDisplay({
   const [queryAccessPerspective, setQueryAccessPerspective] = useState<AccessPerspective[] | undefined>(undefined)
   const [querySocialContext, setQuerySocialContext] = useState<SocialContext | undefined>(undefined)
   const [queryLlmModel, setQueryLlmModel] = useState<string | undefined>(undefined)
+  /** Benannter Regelsatz der Website-Sektion (`?rules=<name>`, 09.11.2026) — nur aus dem QueryLog. */
+  const [queryRegelsatz, setQueryRegelsatz] = useState<string | undefined>(undefined)
 
   // Verwende Parameter aus Query, falls vorhanden, sonst Props als Fallback
   const effectiveAnswerLength = queryAnswerLength ?? answerLength
@@ -179,6 +181,7 @@ export function ChatConfigDisplay({
           queryLog.cacheParams?.llmModel ??
           (typeof queryLog.prompt?.model === 'string' ? queryLog.prompt.model : undefined)
         setQueryLlmModel(logLlm)
+        setQueryRegelsatz(typeof queryLog.regelsatz === 'string' && queryLog.regelsatz ? queryLog.regelsatz : undefined)
 
         // Setze Filter: Nur wenn keine filtersProp übergeben wurde, verwende Filter aus QueryLog
         // Wenn filtersProp vorhanden ist, wurde es bereits oben gesetzt
@@ -282,7 +285,7 @@ export function ChatConfigDisplay({
   const hasAnswerLengthOrRetriever = !!(effectiveAnswerLength || effectiveRetriever || effectiveLlmModel)
   const hasFilters = !!(filters && Object.keys(filters).length > 0)
   
-  if (!hasPerspectiveParams && !hasAnswerLengthOrRetriever && !hasFilters) {
+  if (!hasPerspectiveParams && !hasAnswerLengthOrRetriever && !hasFilters && !queryRegelsatz) {
     return null
   }
 
@@ -369,6 +372,13 @@ export function ChatConfigDisplay({
               )
             })}
           </span>
+        </div>
+      )}
+
+      {/* Regelsatz der Website-Sektion (09.11.2026): welcher benannte Regeltext galt */}
+      {queryRegelsatz && (
+        <div className="text-xs text-muted-foreground" data-config-regelsatz>
+          {t('configDisplay.regelsatz')}: {queryRegelsatz}
         </div>
       )}
     </div>

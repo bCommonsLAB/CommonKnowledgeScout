@@ -186,9 +186,10 @@ export function WebsiteLandingLive({
         headingCase={detail?.headingCase}
         theme={theme}
         navigation={{ onShowGallery, galleryBaseHref, onShowStory, storyBaseHref }}
+        galleryTexte={publicPublishing?.gallery}
       />
     ),
-    [libraryId, detail?.headingCase, theme, onShowGallery, galleryBaseHref, onShowStory, storyBaseHref],
+    [libraryId, detail?.headingCase, theme, onShowGallery, galleryBaseHref, onShowStory, storyBaseHref, publicPublishing?.gallery],
   )
 
   const error = listError ?? detailError

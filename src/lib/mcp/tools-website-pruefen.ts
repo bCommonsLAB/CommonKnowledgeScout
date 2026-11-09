@@ -27,7 +27,7 @@ export function registerWebsitePruefenTool(server: McpServer): void {
       description:
         'Die Vorschau ohne Browser: listet die publizierten website-Docs als Menue (menu_order, ' +
         'menu_area), nennt Startseite, Footer-Links und Footer-Doc und zeigt je Seite die geparsten ' +
-        'Sektionen (layout, bg, Bild; bei layout=story die Zahl der Beispielfragen, der Facettenfilter filter="…" und n des Blocks popular, bei Kachel-Bloecken die Zahl der Kacheln) mit Befunden — ungueltige Marker, fehlendes Markdown, nicht ' +
+        'Sektionen (layout, bg, Bild; bei layout=story die Zahl der Beispielfragen, der Facettenfilter filter="…", n des Blocks popular, kartenDarstellung cards=column|inline und regelsatz rules=<name>, bei Kachel-Bloecken die Zahl der Kacheln) mit Befunden — ungueltige Marker, rules ohne Regelsatz in der Library, fehlendes Markdown, nicht ' +
         'anonym ladbare Bilder, tote ?site=-Links, fehlender menu_order, banner_sort stars ohne ' +
         'starCountsPublic (Banner bliebe leer). Dazu die Veroeffentlichung (isPublic, slug, siteEnabled, ' +
         'starCountsPublic) und die Adresse der Seite. Liest nur.',
@@ -58,6 +58,7 @@ export function registerWebsitePruefenTool(server: McpServer): void {
         const pub = library.config?.publicPublishing
         const slug = pub?.slugName?.trim() || null
         const starCountsPublic = pub?.starCountsPublic === true
+        const regelsaetze = Object.keys(library.config?.chat?.antwortregelnVarianten ?? {})
         return jsonResult({
           veroeffentlichung: {
             isPublic: pub?.isPublic === true,
@@ -70,7 +71,7 @@ export function registerWebsitePruefenTool(server: McpServer): void {
               ? null
               : 'siteEnabled ist aus — /explore/<slug> zeigt die Galerie, nicht die Website',
           },
-          ...baueSeitenBericht(items, markdownJeFileId, { starCountsPublic, bannerSortJeFileId }),
+          ...baueSeitenBericht(items, markdownJeFileId, { starCountsPublic, bannerSortJeFileId, regelsaetze }),
         })
       } catch (error) {
         return errorResult(error)

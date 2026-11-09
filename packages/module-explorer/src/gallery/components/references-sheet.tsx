@@ -10,7 +10,7 @@
  * der Weg in den Katalog schliesst es und bittet die Mitte um die Uebersicht.
  */
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { DocReference } from '@ks/contracts'
 import { Sheet, SheetContent, SheetTitle } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
@@ -39,6 +39,14 @@ export interface ReferencesSheetProps {
   isLoadingMore?: boolean
   onLoadMore?: () => void
   filterAnzeige?: ReactNode
+  /**
+   * Inline-Stil des Blatts — vor allem fuer CSS-Variablen wie `--zitat-mark`: Das
+   * Blatt haengt per Portal am `body`, Variablen des Gastgebers erben nicht
+   * hinein (Owner 09.11.2026: Belegnummern in der Markenfarbe der Website).
+   */
+  style?: CSSProperties
+  /** Titel der Belegliste mit der Bezeichnung der Library (z. B. „Talks"); ohne: „Belege". */
+  titel?: string
   loading?: boolean
   error?: string | null
 }
@@ -62,14 +70,16 @@ export function ReferencesSheet({
   filterAnzeige,
   loading = false,
   error = null,
+  style,
+  titel,
 }: ReferencesSheetProps) {
   const { t } = useTranslation()
   const schliessen = () => onOpenChange(false)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-2xl" hideCloseButton={true}>
-        <SheetTitle className="sr-only">{mode === 'toc' ? t('gallery.tocReferences') : t('gallery.references')}</SheetTitle>
+      <SheetContent side="right" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-2xl" hideCloseButton={true} style={style}>
+        <SheetTitle className="sr-only">{mode === 'toc' ? t('gallery.tocReferences') : (titel ?? t('gallery.references'))}</SheetTitle>
         {mode === 'answer' ? (
           <BelegListe
             references={references}
@@ -77,6 +87,7 @@ export function ReferencesSheet({
             unusedDocs={unusedDocs}
             libraryId={libraryId}
             libraryDetailViewType={libraryDetailViewType}
+            titel={titel}
             katalogAnzahl={anzahl}
             onOpenDocument={onOpenDocument}
             onZuklappen={schliessen}

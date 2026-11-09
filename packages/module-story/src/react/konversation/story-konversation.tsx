@@ -57,6 +57,17 @@ export interface StoryKonversationProps {
    * KnowledgeScout-Logo). Ohne: ein neutraler Funke. Das Paket kennt kein Logo.
    */
   antwortAvatar?: ReactNode
+  /**
+   * Owner 09.11.2026: Der Gastgeber ersetzt die Darstellung des Antworttexts
+   * (z. B. Absatz-Zeilen mit Bildkarte der Website-Sektion). Ohne: `AntwortText`.
+   * `markenVerborgen` ist der Stand der Zitatmarken dieser Antwort.
+   */
+  antwortDarstellung?: (antwort: Nachricht, markenVerborgen: boolean) => ReactNode
+  /**
+   * Beschriftung der Plakette „N Quellen zitiert" mit der Bezeichnung der
+   * Library (z. B. „5 Talks zitiert"). Ohne: die Paket-Texte.
+   */
+  quellenPlakette?: (anzahl: number) => string
 }
 
 /** Zahl der verschiedenen zitierten Dokumente einer Antwort. */
@@ -101,7 +112,7 @@ function FrageAktionen({ paar, onLoeschen, onErneut }: Pick<StoryKonversationPro
   )
 }
 
-export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut, markenAnfangsVerborgen = false, kopfAktion, antwortAvatar }: StoryKonversationProps) {
+export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut, markenAnfangsVerborgen = false, kopfAktion, antwortAvatar, antwortDarstellung, quellenPlakette }: StoryKonversationProps) {
   const { t } = useTranslation()
   // Avatar der Antwort: das Logo des Gastgebers, sonst ein neutraler Funke.
   const avatar = antwortAvatar ?? (
@@ -156,7 +167,9 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold">{t('story.konversation.antwort')}</span>
                       {quellen > 0 && (() => {
-                        const label = quellen === 1 ? t('story.konversation.quellenZitiert.one') : t('story.konversation.quellenZitiert.many', { count: quellen })
+                        const label = quellenPlakette
+                          ? quellenPlakette(quellen)
+                          : quellen === 1 ? t('story.konversation.quellenZitiert.one') : t('story.konversation.quellenZitiert.many', { count: quellen })
                         const gruen = { backgroundColor: 'color-mix(in srgb, var(--story-accent, hsl(var(--primary))) 12%, transparent)', color: 'var(--story-accent, hsl(var(--primary)))' }
                         // N5: Verbirgt der Gastgeber die Marken anfangs, ist die Plakette zugleich der
                         // Umschalter — grün = Nummern sichtbar, neutral = verborgen. Sonst nur Anzeige.
@@ -179,12 +192,16 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
                     </div>
                     {kopfAktion?.(antwort, { sichtbar, setSichtbar })}
                   </div>
-                  <AntwortText
-                    text={antwort.text}
-                    belege={antwort.belege}
-                    markenVerborgen={markenAnfangsVerborgen && !sichtbar}
-                    className="prose prose-sm max-w-none dark:prose-invert"
-                  />
+                  {antwortDarstellung ? (
+                    antwortDarstellung(antwort, markenAnfangsVerborgen && !sichtbar)
+                  ) : (
+                    <AntwortText
+                      text={antwort.text}
+                      belege={antwort.belege}
+                      markenVerborgen={markenAnfangsVerborgen && !sichtbar}
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                    />
+                  )}
                   {fuss?.(antwort)}
                   {antwort.anschlussfragen && antwort.anschlussfragen.length > 0 && (
                     <div className="mt-4" data-anschlussfragen>

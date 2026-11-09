@@ -39,6 +39,8 @@ export interface KonfigurationEingabe {
   facetten?: unknown[]
   /** Antwortregeln-Text; leerer String loescht. */
   antwortregeln?: string
+  /** Benannte Regelsaetze (Owner 09.11.2026): Teil-Update je Name; leerer String loescht den Regelsatz. */
+  varianten?: Record<string, string>
   chat?: Record<string, unknown>
   galerie?: Record<string, unknown>
 }
@@ -82,6 +84,17 @@ export function wendeKonfigurationAn(
     if (text === '') delete neu.antwortregeln
     else neu.antwortregeln = text
   }
+  if (eingabe.varianten !== undefined) {
+    const altVarianten = alsObjekt(alt.antwortregelnVarianten)
+    const neuVarianten: Record<string, unknown> = { ...altVarianten }
+    for (const [name, wert] of Object.entries(eingabe.varianten)) {
+      const text = wert.trim()
+      if (!gleich(altVarianten[name], text === '' ? undefined : text)) geaendert.push(`varianten.${name}`)
+      if (text === '') delete neuVarianten[name]
+      else neuVarianten[name] = text
+    }
+    neu.antwortregelnVarianten = neuVarianten
+  }
   if (eingabe.chat !== undefined) {
     pruefeSchluessel('chat', eingabe.chat, CHAT_SETZBAR)
     for (const [key, wert] of Object.entries(eingabe.chat)) {
@@ -108,7 +121,11 @@ export function chatSicht(chat: unknown, bereich: Exclude<Bereich, 'veroeffentli
     case 'facetten':
       return Array.isArray(galerie.facets) ? galerie.facets : []
     case 'antwortregeln':
-      return typeof c.antwortregeln === 'string' ? c.antwortregeln : null
+      // Seit 2.70.0 ein Objekt: der Text und die benannten Regelsaetze (rules=<name> einer Website-Sektion).
+      return {
+        text: typeof c.antwortregeln === 'string' ? c.antwortregeln : null,
+        varianten: alsObjekt(c.antwortregelnVarianten),
+      }
     case 'chat':
       return {
         ...Object.fromEntries([...CHAT_SETZBAR].map((k) => [k, c[k] ?? null])),

@@ -30,6 +30,8 @@ export interface SiteThemeResolved {
   /** Kraeftiger Akzent fuer Banner-Buttons (Vorlage: emerald-700/800); ohne Profil-Wert = Akzent. */
   accentStrong: string
   accentStrongHover: string
+  /** Lesbare Fassung des Akzents fuer Zitatmarken und Belegnummern: bei hellem Akzent abgedunkelt (09.11.2026). */
+  accentInk: string
   buttonShape: SiteButtonShape
   surfaces: Record<SiteSurfaceName, SiteSurface | null>
 }
@@ -44,6 +46,7 @@ export const OLDIES_THEME: SiteThemeResolved = {
   accentText: '#ffffff',
   accentStrong: '#047857',
   accentStrongHover: '#065f46',
+  accentInk: '#047857',
   buttonShape: 'pill',
   surfaces: {
     default: null,
@@ -135,6 +138,22 @@ export function istDunkel(hex: string): boolean {
  * Pruefung nicht besteht, wird laut gemeldet und die Vorlage gerendert — die
  * oeffentliche Seite darf daran nicht sterben.
  */
+/** Relative Leuchtdichte eines `#rrggbb`-Werts (0 dunkel … 1 hell). */
+function leuchtdichte(hex: string): number {
+  const n = parseInt(hex.slice(1), 16)
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+}
+
+/**
+ * Akzentfarbe, die als Schrift lesbar bleibt: ein heller Akzent (z. B. das
+ * Hellblau von SFSCON) wird zu einem dunklen Ton derselben Farbe gemischt,
+ * ein dunkler bleibt, wie er ist. Fuer Zitatmarken und Belegnummern.
+ */
+export function lesbarerAkzent(accent: string): string {
+  return leuchtdichte(accent) > 0.55 ? `color-mix(in srgb, ${accent} 45%, #1c1c1c)` : accent
+}
+
 export function resolveSiteTheme(theme: SiteTheme | undefined): SiteThemeResolved {
   if (!theme) return OLDIES_THEME
   let t: SiteTheme
@@ -146,6 +165,7 @@ export function resolveSiteTheme(theme: SiteTheme | undefined): SiteThemeResolve
   }
   const accent = t.accent ?? OLDIES_THEME.accent
   const eigenerAkzent = t.accent !== undefined
+  const accentStrong = eigenerAkzent ? accent : OLDIES_THEME.accentStrong
   return {
     fontHeading: t.fontHeading ?? OLDIES_THEME.fontHeading,
     fontBody: t.fontBody ?? OLDIES_THEME.fontBody,
@@ -153,7 +173,8 @@ export function resolveSiteTheme(theme: SiteTheme | undefined): SiteThemeResolve
     accent,
     accentHover: t.accentHover ?? (eigenerAkzent ? `color-mix(in srgb, ${accent} 86%, black)` : OLDIES_THEME.accentHover),
     accentText: t.accentText ?? OLDIES_THEME.accentText,
-    accentStrong: eigenerAkzent ? accent : OLDIES_THEME.accentStrong,
+    accentStrong,
+    accentInk: lesbarerAkzent(accentStrong),
     accentStrongHover: eigenerAkzent ? (t.accentHover ?? `color-mix(in srgb, ${accent} 86%, black)`) : OLDIES_THEME.accentStrongHover,
     buttonShape: t.buttonShape ?? OLDIES_THEME.buttonShape,
     surfaces: { ...OLDIES_THEME.surfaces, ...(t.surfaces ?? {}) },
@@ -172,6 +193,7 @@ export function siteThemeCssVars(r: SiteThemeResolved, familien?: Record<SiteFon
     '--site-accent-text': r.accentText,
     '--site-accent-strong': r.accentStrong,
     '--site-accent-strong-hover': r.accentStrongHover,
+    '--site-accent-ink': r.accentInk,
     '--site-kicker': r.accent,
     '--site-radius': r.buttonShape === 'pill' ? '9999px' : '0.5rem',
   }

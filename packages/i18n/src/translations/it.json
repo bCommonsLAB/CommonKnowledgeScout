@@ -839,7 +839,8 @@
     "character": "Interessi tematici:",
     "accessPerspective": "Prospettiva di accesso:",
     "context": "Stile linguistico:",
-    "llmModel": "Modello:"
+    "llmModel": "Modello:",
+    "regelsatz": "Set di regole"
   },
   "configPopover": {
     "advancedSettings": "Impostazioni Avanzate",
@@ -1006,7 +1007,14 @@
       "populaer": "Popolari adesso · le più chieste",
       "populaerZaehler": "Chiesta {count} volte",
       "vorschauHinweis": "La chat funziona solo sulla pagina live della biblioteca.",
-      "laden": "Caricamento dello scout …"
+      "laden": "Caricamento dello scout …",
+      "quellenSpalte": "Fonti citate",
+      "quellenWeitere": "altre fonti con passaggi",
+      "bezeichnungZitiertEins": "1 {label} citato",
+      "bezeichnungZitiert": "{count} {label} citati",
+      "bezeichnungAnzeigen": "Mostra {label}",
+      "bezeichnungSpalte": "{label} citati",
+      "bezeichnungWeitere": "altri {label} con passaggi"
     }
   }
 }

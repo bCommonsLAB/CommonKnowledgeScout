@@ -126,6 +126,46 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Filter; `seite_pruefen` nennt je Story-Sektion `filter` und `populaer`.
   Design-Profil: Schriften `source-sans`, `source-code` und Feld `fontKicker`
   (Kennzeilen/Plaketten, `--site-font-kicker`; Vorgabe `fontHeading`).
+- **Karten-Darstellungen, Regelsaetze und Bezeichnung der Story-Sektion
+  (Owner 09.11.2026, Figma Klickmodell D0 S2-A/S2-B, Plan `website-story-sektion` N6):**
+  Marker-Attribut `cards=column|inline|hidden` (nur `layout=story`, Vorgabe
+  `hidden` = heutige Antwort mit Belege-Blatt; `src/lib/website/types.ts`
+  `StoryCards`). `column`: alle zitierten Dokumente als Galerie-Bildkarten
+  (`DocumentCard`, kompakt, Zitatnummer als `Zitatmarke groesse="karte"` oben
+  links; `website-story-vortragskarte.tsx`) in einer Spalte rechts neben der
+  Antwort — ab `lg` zwei Spalten `2fr/1fr`, Spalte `self-start`, NICHT
+  sticky, so lang wie noetig, unter `lg` ein Raster unter der Antwort
+  (`website-story-vortragsspalte.tsx`). `inline`: die Antwort zweispaltig je
+  Absatz — der rohe Markdown in Bloecke (Leerzeilen-Absaetze, Listenpunkte;
+  `src/lib/website/story-karten.ts`), je Block die erste noch nicht gezeigte
+  Dokumentnummer, Zeile Karte links (1/3) + `AntwortText` des Blocks rechts,
+  Bloecke ohne neue Nummer volle Breite, nicht zugeordnete Dokumente als
+  Raster darunter, Telefon Karte ueber dem Absatz
+  (`website-story-antwort-zweispaltig.tsx`); setzt einen Regelsatz voraus,
+  der je Dokument einen Absatz schreibt. KEINE Obergrenze der Kartenzahl.
+  Beide nur bei fertiger Antwort mit Belegen und NUR in der Website-Sektion
+  (Haken `antwortDarstellung`/`quellenPlakette` an `StoryKonversation`,
+  Vorgabe unveraendert); Story-Modus und Galerie-Chat zeigen weiter Antwort
+  mit Belegliste. Der Klick auf eine Karte oeffnet den Eintrag wie eine
+  Banner-Karte (`use-website-story-navigation.ts`); „weitere …" unter den
+  Karten und der Knopf im Antwortkopf oeffnen das Belege-Blatt mit den
+  Textstellen. Marker-Attribut `rules=<name>` (nur `layout=story`, Name klein
+  `a-z 0-9 - _`): die Sektion waehlt einen benannten Regelsatz der Library
+  (`config.chat.antwortregelnVarianten`, Settings „Benannte Regelsaetze"
+  unter den Antwortregeln, Bruecke `konfiguration_setzen varianten`), der
+  als Adress-Parameter `rules` an den Chat-Stream geht und dort statt
+  `antwortregeln` gilt (`waehleAntwortregeln`; unbekannter Name = HTTP 400
+  vor dem Stream; der aufgeloeste Text geht wie heute in den Cache-Hash, der
+  Name steht als `regelsatz` am Query-Log und in der Konfig-Anzeige). Ohne
+  `rules` — Story-Modus, Galerie-Chat, Bruecke, Golden-Set — gilt
+  `antwortregeln`. `seite_pruefen` nennt `kartenDarstellung` und `regelsatz`
+  und meldet `rules` ohne Regelsatz in der Library als Fehler. Bezeichnung der
+  Eintraege: `publicPublishing.gallery.itemLabel`/`itemLabelPlural` (beide
+  oder keins; Settings „Veroeffentlichung", Bruecke
+  `veroeffentlichung_setzen gallery`), EINSPRACHIG je Library; `eintragsBezeichnung`
+  (`src/lib/website/eintrags-bezeichnung.ts`) setzt sie in Plakette („5 Talks
+  zitiert"), Knopf („Talks anzeigen"), Spaltentitel, Verweis und Blatt-Titel;
+  ohne Eintrag die heutigen i18n-Texte.
 - **Kacheln mit Link (Welle N2, Plan `website-story-sektion`):**
   `<!-- cards -->` + Liste `- **Titel** Text [Linktext](Ziel)` in JEDER
   Sektion (nicht nur Story): drei Karten nebeneinander ab `md`, Karte im Stil

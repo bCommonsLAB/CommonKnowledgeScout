@@ -43,6 +43,16 @@ export const SECTION_IMAGE_WIDTHS: readonly SectionImageWidth[] = ['1/2', '1/3']
 export type SectionImageAlign = 'center' | 'top'
 export const SECTION_IMAGE_ALIGNS: readonly SectionImageAlign[] = ['center', 'top']
 
+/**
+ * Darstellung der zitierten Dokumente in einer Story-Sektion (Marker-Attribut
+ * `cards`, Owner 09.11.2026): `hidden` = heutige Antwort mit Belege-Blatt
+ * (Vorgabe), `column` = Bildkarten in einer Spalte rechts neben der Antwort,
+ * `inline` = Antwort zweispaltig je Absatz (Karte links, Absatz rechts). Nur
+ * in der Website-Sektion; Story-Modus und Galerie-Chat kennen das nicht.
+ */
+export type StoryCards = 'hidden' | 'column' | 'inline'
+export const STORY_CARDS: readonly StoryCards[] = ['hidden', 'column', 'inline']
+
 /** Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
 export type HeadingCase = 'capitalize' | 'none'
 export const HEADING_CASES: readonly HeadingCase[] = ['capitalize', 'none']
@@ -79,6 +89,22 @@ export interface WebsiteSection {
    * Marker-Attribut `filter="year=2026"` (`story-filter.ts`); Form der Galerie-Filter.
    */
   filter?: Record<string, string[]>
+  /**
+   * Nur `layout=story` (09.11.2026, SFSCON): Zitatmarken im Antworttext von Anfang an
+   * zeigen (`citations=visible`); Vorgabe ist N5 — verborgen bis „Quellen anzeigen".
+   */
+  citationsVisible?: boolean
+  /**
+   * Nur `layout=story` (Owner 09.11.2026): Darstellung der zitierten Dokumente
+   * als Galerie-Bildkarten (`cards=column|inline`); fehlt = `hidden`.
+   */
+  cards?: StoryCards
+  /**
+   * Nur `layout=story`: Name eines benannten Regelsatzes der Library
+   * (`config.chat.antwortregelnVarianten`), der statt `antwortregeln` gilt
+   * (`rules=einladung`); geht als Adress-Parameter `rules` an den Chat-Stream.
+   */
+  rules?: string
   /**
    * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
    * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;

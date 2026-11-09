@@ -32,6 +32,8 @@ export interface BelegListeProps {
   libraryDetailViewType?: string
   /** Anzahl der Dokumente im (gefilterten) Katalog — fuer den Weg dorthin. */
   katalogAnzahl: number
+  /** Ueberschrift mit der Bezeichnung der Library (Website-Sektion); ohne: „Belege". */
+  titel?: string
   /** Dokument ohne Adresse oeffnen (Rueckfall der Galerie). */
   onOpenDocument?: (doc: DocCardMeta) => void
   /** X zum Schliessen — nur im Blatt (Telefon). In der Spalte gibt es den Einklapp-Pfeil, das X waere doppelt (Owner 04.10.). */
@@ -47,6 +49,7 @@ export function BelegListe({
   libraryId,
   libraryDetailViewType,
   katalogAnzahl,
+  titel,
   onOpenDocument,
   onZuklappen,
   onKatalog,
@@ -63,7 +66,7 @@ export function BelegListe({
     <div className="flex h-full min-h-0 flex-col" data-beleg-liste>
       <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">{t('story.beleg.title')}</h2>
+          <h2 className="text-sm font-semibold">{titel ?? t('story.beleg.title')}</h2>
           <p className="text-xs text-muted-foreground">{anzahlText}</p>
         </div>
         {onZuklappen && (

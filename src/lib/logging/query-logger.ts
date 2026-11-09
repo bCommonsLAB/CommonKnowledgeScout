@@ -33,6 +33,7 @@ export async function startQueryLog(context: {
   llmModel?: string // Optional: Teil des Cache-Kontexts
   antwortregeln?: string // Optional: aufgelöste Antwortregeln der Library, Teil des Cache-Kontexts (m2)
   facettenKontext?: string // Optional: Labels und Wörterbuch der Facetten, Teil des Cache-Kontexts (m3)
+  regelsatz?: string // Optional: Name des benannten Regelsatzes einer Website-Sektion (?rules=<name>, 09.11.2026) — nur Anzeige
 }): Promise<string> {
   // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
   if (!context.userEmail && !context.sessionId) {
