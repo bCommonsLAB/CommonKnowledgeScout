@@ -4,3 +4,5 @@ https://github.com/productiontype/Newsreader) und „Plus Jakarta Sans"
 (Copyright 2020 The Plus Jakarta Sans Project Authors,
 https://github.com/tokotype/PlusJakartaSans), lizenziert unter der
 SIL Open Font License 1.1 (https://openfontlicense.org).
+
+Ergaenzt 09.11.2026: „Source Sans 3" (Copyright 2010-2020 Adobe, https://github.com/adobe-fonts/source-sans) und „Source Code Pro" (Copyright 2010-2019 Adobe, https://github.com/adobe-fonts/source-code-pro), ebenfalls SIL Open Font License 1.1, Latin-Teilmengen der variablen Google-Fonts.

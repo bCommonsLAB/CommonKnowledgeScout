@@ -75,6 +75,11 @@ export interface WebsiteSection {
   /** Welle N1, nur `layout=story`: Platzhalter des Eingabefelds (Marker-Attribut `placeholder="…"`). */
   placeholder?: string
   /**
+   * Nur `layout=story` (09.11.2026, SFSCON): Facettenfilter fuer Chat und Belege,
+   * Marker-Attribut `filter="year=2026"` (`story-filter.ts`); Form der Galerie-Filter.
+   */
+  filter?: Record<string, string[]>
+  /**
    * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
    * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;
    * `markdown` bleibt der Volltext fuer Pruefung und Bestandsnutzer.

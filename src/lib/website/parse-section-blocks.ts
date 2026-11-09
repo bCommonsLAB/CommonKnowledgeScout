@@ -19,6 +19,7 @@
  *   - Wie veraendert der Klimawandel die Artenvielfalt?
  *
  *   <!-- cards -->              (Welle N2, in jeder Sektion)
+ *   <!-- popular n=5 -->        (09.11.2026, nur in layout=story; keine Liste, Fragen aus dem Fragen-Log)
  *   - **Das Archiv entdecken** Stoebere in Studien. [Zum Archiv →](?view=gallery)
  *
  * `stats`, `chips`, `questions` und `cards` nehmen die unmittelbar folgende Markdown-Liste; `box`
@@ -68,8 +69,10 @@ export type SectionContentBlock =
   | { type: 'questions'; items: string[] }
   /** Welle N2: Kacheln mit Titel, Text und Link (`<!-- cards -->` + Liste); in jeder Sektion erlaubt. */
   | { type: 'cards'; items: CardItem[] }
+  /** 09.11.2026 (SFSCON): meistgestellte Fragen der Library (`<!-- popular n=5 -->`, ohne Liste); nur in `layout=story` erlaubt (Sektions-Parser). */
+  | { type: 'popular'; n: number }
 
-const BLOCK_RE = /<!--\s*(stats|chips|box|questions|cards)\b([^>]*?)-->/g
+const BLOCK_RE = /<!--\s*(stats|chips|box|questions|cards|popular)\b([^>]*?)-->/g
 const BOX_END_RE = /<!--\s*\/box\s*-->/
 const ATTR_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([\w-]+))/g
 const LIST_LINE_RE = /^\s*[-*]\s+(.*\S)\s*$/
@@ -148,6 +151,14 @@ export function parseSectionBlocks(markdown: string): SectionContentBlock[] {
       }
       blocks.push({ type: 'box', label: a.label?.trim() || undefined, kind: kind as BoxKind, markdown: nach.slice(0, ende.index).trim() })
       rest = nach.slice(ende.index + ende[0].length)
+      continue
+    }
+    if (name === 'popular') {
+      const roh = a.n ?? '5'
+      const n = Number(roh)
+      if (!Number.isInteger(n) || n < 1 || n > 12) throw new Error(`popular n="${roh}" — erwartet eine ganze Zahl von 1 bis 12`)
+      blocks.push({ type: 'popular', n })
+      rest = nach
       continue
     }
     const { items, rest: danach } = nimmListe(nach, name)

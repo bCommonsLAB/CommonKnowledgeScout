@@ -91,6 +91,8 @@ export function SectionContent({ blocks, bg, headingCase = 'capitalize', theme =
         if (b.type === 'chips') return <Chips key={i} label={b.label} items={b.items} />
         // N1: `questions` nimmt der Story-Rahmen heraus (storyBloecke); landet er doch hier, als Liste — sichtbar, nicht verschluckt.
         if (b.type === 'questions') return <Fragenliste key={i} items={b.items} />
+        // popular rendert der Story-Rahmen als Chips; ausserhalb (Vorschau) nur ein Hinweis.
+        if (b.type === 'popular') return <p key={i} className="text-sm text-neutral-500" data-popular-vorschau={b.n}>Populäre Fragen ({b.n}) – nur auf der Live-Seite</p>
         return <Box key={i} label={b.label} kind={b.kind} markdown={b.markdown} bg={bg} theme={theme} />
       })}
     </>

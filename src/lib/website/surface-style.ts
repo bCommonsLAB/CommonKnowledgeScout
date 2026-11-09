@@ -74,6 +74,6 @@ export const BUTTON_STRONG =
 export const BUTTON_SECONDARY =
   'inline-block rounded-[var(--site-radius)] border border-black/10 bg-white px-6 py-3 font-medium text-neutral-800 transition-colors hover:bg-neutral-100'
 /** Kennzeile: kleine Versalzeile ueber der Ueberschrift (`kicker=`, `hero_kicker`). */
-export const KICKER_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--site-kicker)]'
+export const KICKER_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--site-kicker)] font-[family-name:var(--site-font-kicker)]'
 /** Ueberschriften-Schrift aus dem Profil (ohne Profil: erbt, also die App-Schrift). */
 export const HEADING_FONT = 'font-[family-name:var(--site-font-heading)]'
