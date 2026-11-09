@@ -46,6 +46,7 @@ import { registerIndexTools } from './tools-index'
 import { registerBatchNeustartTool } from './tools-batch-neustart'
 import { registerKonfigurationTools } from './tools-konfiguration'
 import { registerMessenTools } from './tools-messen'
+import { registerFragenLogTools } from './tools-fragen-log'
 import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerWebseiteTool } from './tools-webseite'
 import { registerPlaylistTool } from './tools-playlist'
@@ -104,6 +105,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerKonfigurationTools(server)
   // Welle F (Library-Betrieb): Messen vor Aendern.
   registerMessenTools(server)
+  // Verwaltungssicht Fragen & Antworten: Cache verwerfen statt loeschen.
+  registerFragenLogTools(server)
   // Welle E (Veranstaltungen): Einheiten bilden und Abhaengige finden.
   registerSammeldateiTools(server)
   registerWebseiteTool(server)
