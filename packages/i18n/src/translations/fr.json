@@ -1001,6 +1001,10 @@
       "verarbeitungAnsehen": "Voir le traitement",
       "verarbeitungLeer": "Aucune étape de traitement disponible",
       "beispielfragen": "Exemples de questions",
+      "filterNur": "Seulement {filter}",
+      "filterHinweis": "Le chat n’interroge que les documents portant cette facette",
+      "populaer": "Populaires en ce moment · les plus posées",
+      "populaerZaehler": "Posée {count} fois",
       "vorschauHinweis": "Le chat ne fonctionne que sur la page en ligne de la bibliothèque.",
       "laden": "Chargement du scout …"
     }

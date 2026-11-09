@@ -32,6 +32,8 @@ import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-s
 import { WebsiteStoryBelege, type WebsiteStoryNavigation } from './website-story-belege'
 import { StoryFruehereFragen } from './website-story-fruehere'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
+import { StoryStatus } from './website-story-status'
+import { StoryPopulaereFragen } from './website-story-populaer'
 
 export interface WebsiteStorySektionProps {
   libraryId: string
@@ -44,7 +46,7 @@ export interface WebsiteStorySektionProps {
 export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const { t } = useTranslation()
   const { isSignedIn } = useUser()
-  const s = useWebsiteStory(p.libraryId)
+  const s = useWebsiteStory(p.libraryId, p.section.filter)
   const profil = useProfilPerspektive()
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const [text, setText] = useState('')
@@ -52,7 +54,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const [blatt, setBlatt] = useState<BelegeBlatt | null>(null)
   const [blattOffen, setBlattOffen] = useState(false)
   const belegDocs = useBelegDokumente(p.libraryId, blatt?.references ?? [], s.sessionHeaders)
-  const fragen = useMemo(() => storyBloecke(p.section).fragen, [p.section])
+  const bloecke = useMemo(() => storyBloecke(p.section), [p.section])
+  const fragen = bloecke.fragen
 
   const senden = useCallback(
     (frage: string) => {
@@ -119,12 +122,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   )
 
   const anzahl = s.paare.length
-  const status = (
-    <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700">
-      <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--site-accent)]" aria-hidden="true" />
-      {anzahl === 0 ? t('website.story.bereit') : anzahl === 1 ? t('website.story.fragenInSitzung.one') : t('website.story.fragenInSitzung.many', { count: anzahl })}
-    </span>
-  )
+  const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
   const kopf = (
     <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
       <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -140,6 +138,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     inhalt = (
       <>
         <StoryFragenKacheln fragen={fragen} onFrage={senden} gesperrt={s.k.laeuft} />
+        {bloecke.populaer !== null && <StoryPopulaereFragen libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
         {konversation && (
           <div
             className="mt-6"

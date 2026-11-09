@@ -111,6 +111,21 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Root-Modus Galerie-Adresse mit `?doc=`; die zitierten Dokumente kommen
   ueber `docs/by-fileids`.
 
+- **Facettenfilter und populaere Fragen der Story-Sektion (09.11.2026, SFSCON):**
+  Marker-Attribut `filter="year=2026"` (mehrere Paare mit `;`, Werte mit `,`;
+  `src/lib/website/story-filter.ts`) beschraenkt Chat, Belege und die Zahl des
+  Katalogs auf die Facette — als `GalleryFilters` an `useStoryKonversation`,
+  der Stream nimmt sie als Adress-Parameter wie die Galerie. Der Filter steht
+  als Chip im Kopf der Story-Karte (`website-story-status.tsx`), nie unsichtbar.
+  Block `<!-- popular n=5 -->` (nur in `layout=story`, ohne Liste, `n` 1–12):
+  die meistgestellten Fragen der Library aus dem Fragen-Log der letzten 30 Tage
+  (`GET /api/chat/<libraryId>/popular-questions?limit=&days=`, anonym bei
+  oeffentlicher Library, nur Fragetext und Zaehler; Themenuebersicht zaehlt
+  nicht), als Chips unter den Beispielfragen; ohne Treffer kein Block. Parser
+  wirft bei `filter`/`popular` ausserhalb von `layout=story` und bei unlesbarem
+  Filter; `seite_pruefen` nennt je Story-Sektion `filter` und `populaer`.
+  Design-Profil: Schriften `source-sans`, `source-code` und Feld `fontKicker`
+  (Kennzeilen/Plaketten, `--site-font-kicker`; Vorgabe `fontHeading`).
 - **Kacheln mit Link (Welle N2, Plan `website-story-sektion`):**
   `<!-- cards -->` + Liste `- **Titel** Text [Linktext](Ziel)` in JEDER
   Sektion (nicht nur Story): drei Karten nebeneinander ab `md`, Karte im Stil

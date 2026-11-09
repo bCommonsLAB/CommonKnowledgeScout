@@ -118,7 +118,7 @@ export async function getFilteredDocumentCount(
   }
 }
 
-async function getQueriesCollection(): Promise<Collection<QueryLog>> {
+export async function getQueriesCollection(): Promise<Collection<QueryLog>> {
   const col = await getCollection<QueryLog>(COLLECTION_NAME)
   try {
     await Promise.all([

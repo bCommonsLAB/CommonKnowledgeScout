@@ -1001,6 +1001,10 @@
       "verarbeitungAnsehen": "Show processing",
       "verarbeitungLeer": "No processing steps available",
       "beispielfragen": "Example questions",
+      "filterNur": "Only {filter}",
+      "filterHinweis": "The chat only asks documents with this facet",
+      "populaer": "Popular right now · asked most often",
+      "populaerZaehler": "Asked {count} times",
       "vorschauHinweis": "The chat only runs on the live page of the library.",
       "laden": "Loading the scout …"
     }

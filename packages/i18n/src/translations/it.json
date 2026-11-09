@@ -1001,6 +1001,10 @@
       "verarbeitungAnsehen": "Mostra l'elaborazione",
       "verarbeitungLeer": "Nessun passaggio di elaborazione disponibile",
       "beispielfragen": "Domande di esempio",
+      "filterNur": "Solo {filter}",
+      "filterHinweis": "La chat interroga solo i documenti con questa faccetta",
+      "populaer": "Popolari adesso · le più chieste",
+      "populaerZaehler": "Chiesta {count} volte",
       "vorschauHinweis": "La chat funziona solo sulla pagina live della biblioteca.",
       "laden": "Caricamento dello scout …"
     }

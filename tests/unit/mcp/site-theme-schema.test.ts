@@ -16,6 +16,6 @@ describe('SITE_THEME_SCHEMA', () => {
 
   it('ist ein zod-Objekt mit benannten Feldern (wird als JSON-Objekt-Schema veroeffentlicht, nicht als anyOf)', () => {
     expect(SITE_THEME_SCHEMA).toBeInstanceOf(z.ZodObject)
-    expect(Object.keys(SITE_THEME_SCHEMA.shape)).toEqual(['fontHeading', 'fontBody', 'accent', 'accentHover', 'accentText', 'buttonShape', 'surfaces'])
+    expect(Object.keys(SITE_THEME_SCHEMA.shape)).toEqual(['fontHeading', 'fontBody', 'fontKicker', 'accent', 'accentHover', 'accentText', 'buttonShape', 'surfaces'])
   })
 })

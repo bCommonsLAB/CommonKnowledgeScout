@@ -160,7 +160,7 @@ export default clerkMiddleware(async (auth, req) => {
   // Die API-Routen prüfen selbst, ob die Library öffentlich ist
   if (!isPublic) {
     const path = req.nextUrl.pathname;
-    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images)$/.test(path);
+    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images|popular-questions)$/.test(path);
     const isChatQueriesPath = /^\/api\/chat\/[^/]+\/queries(\/[^/]+)?$/.test(path);
     const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
     if (

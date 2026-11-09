@@ -1001,6 +1001,10 @@
       "verarbeitungAnsehen": "Ver el procesamiento",
       "verarbeitungLeer": "No hay pasos de procesamiento disponibles",
       "beispielfragen": "Preguntas de ejemplo",
+      "filterNur": "Solo {filter}",
+      "filterHinweis": "El chat solo consulta documentos con esta faceta",
+      "populaer": "Populares ahora · las más preguntadas",
+      "populaerZaehler": "Preguntada {count} veces",
       "vorschauHinweis": "El chat solo funciona en la página en vivo de la biblioteca.",
       "laden": "Cargando el scout …"
     }

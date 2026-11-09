@@ -32,7 +32,7 @@ export const SITE_SURFACES = [
 export type SiteSurfaceName = (typeof SITE_SURFACES)[number]
 
 /** Im Code registrierte Schriften (siehe `src/lib/website/site-fonts.ts`). */
-export const SITE_FONT_NAMES = ['geist', 'newsreader', 'plus-jakarta'] as const
+export const SITE_FONT_NAMES = ['geist', 'newsreader', 'plus-jakarta', 'source-sans', 'source-code'] as const
 export type SiteFontName = (typeof SITE_FONT_NAMES)[number]
 
 /** Buttonform: Pille (Vorlage) oder leicht gerundet. */
@@ -62,6 +62,8 @@ export interface SiteTheme {
   fontHeading?: SiteFontName
   /** Schrift des Fliesstexts. */
   fontBody?: SiteFontName
+  /** Schrift der Kennzeilen und Plaketten (Versalzeilen, Datum); fehlt = Ueberschriftenschrift. 09.11.2026 (SFSCON: Source Code Pro). */
+  fontKicker?: SiteFontName
   /** Akzent: primaere Buttons, Links, Kennzeilen. */
   accent?: string
   /** Akzent im Hover; fehlt = leicht abgedunkelter Akzent. */
