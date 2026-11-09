@@ -10,7 +10,7 @@
  * hier gefragt wird, steht dort in der Chronik.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API, useSessionHeaders } from '@ks/api-client'
 import type { DocCardMeta, DocReference, GalleryFilters } from '@ks/contracts'
@@ -19,6 +19,7 @@ import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
+import type { TargetLanguage } from '@/lib/chat/constants'
 import { storyFilterParams } from '@/lib/website/story-filter'
 
 /** Belege einer Antwort fuer das Blatt rechts. */
@@ -40,18 +41,28 @@ export function useWebsiteStory(libraryId: string, filter?: GalleryFilters) {
   const story = useStoryContext()
   const { cfg, loading, error } = useLibraryConfig(libraryId)
   const [genderInclusive] = useState(() => getInitialGenderInclusive())
+  // Antwortsprache (Owner 09.11.2026): Die Startseite antwortet in der Sprache der
+  // Oberflaeche ('global' loest der Server aus der Locale auf), nicht in einer frueher
+  // im Browser gespeicherten Wahl. Erst wenn die Person hier im Dialog „Antworten
+  // anpassen" eine Sprache waehlt, gilt diese fuer den Besuch.
+  const startSprache = useRef(story.targetLanguage)
+  const [spracheGewaehlt, setSpracheGewaehlt] = useState<TargetLanguage | null>(null)
+  useEffect(() => {
+    if (story.targetLanguage !== startSprache.current) setSpracheGewaehlt(story.targetLanguage)
+  }, [story.targetLanguage])
+  const targetLanguage: TargetLanguage = spracheGewaehlt ?? 'global'
   const sessionHeaders = useSessionHeaders(angemeldet)
 
   const perspektive = useMemo<Perspektive>(
     () => ({
-      targetLanguage: story.targetLanguage,
+      targetLanguage,
       character: story.character,
       accessPerspective: story.accessPerspective,
       socialContext: story.socialContext,
       genderInclusive,
       llmModel: story.llmModel,
     }),
-    [story.targetLanguage, story.character, story.accessPerspective, story.socialContext, story.llmModel, genderInclusive],
+    [targetLanguage, story.character, story.accessPerspective, story.socialContext, story.llmModel, genderInclusive],
   )
 
   const k = useStoryKonversation({
