@@ -72,14 +72,11 @@ nav:
   #   - FAQ: guide/faq.md
   - Use Cases:
       - Overview: use-cases/index.md
-      - Library Setup: use-cases/library-setup.md
-      - PDF Transformation: use-cases/file-transformation-pdf.md
-      - Media Transformation: use-cases/file-transformation-media.md
-      - File → Story (End-to-End): use-cases/file-to-story.md
-      - Web Scraping: use-cases/web-scraping.md
-      - Publishing: use-cases/publishing.md
-      - Chat & Story Mode: use-cases/chat-exploration.md
-      - Batch Operations: use-cases/batch-operations.md
+      - Create a Library: use-cases/create-a-library.md
+      - Transform Files: use-cases/transform-files.md
+      - Publish: use-cases/publish.md
+      - Story Mode: use-cases/story-mode.md
+      - Operate with an Agent: use-cases/operate-with-an-agent.md
   # Concepts: - Die meisten Dateien existieren nicht
   #   - Start: concepts/index.md
   #   - Storage Provider: concepts/storage-provider.md
