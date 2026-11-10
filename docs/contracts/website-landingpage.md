@@ -166,9 +166,11 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   (`src/lib/website/eintrags-bezeichnung.ts`) setzt sie in Plakette („5 Talks
   zitiert"), Knopf („Talks anzeigen"), Spaltentitel, Verweis und Blatt-Titel;
   ohne Eintrag die heutigen i18n-Texte.
-  Nachzug 10.11.2026 (Owner): (1) Die Karten zeigen KEIN Cover-Thumbnail
-  (`DocumentCard hideCover`, wirkt auf die Standard-Karte) — Cover und
-  Personenbild standen fast gleich gross nebeneinander. (2) Solange die
+  Nachzug 10.11.2026 (Owner): (1) Die Karten stehen in der niedrigen
+  Teaser-Form (`DocumentCard teaser`, wirkt auf die Standard-Karte): kein
+  Cover-Thumbnail (Cover und Personenbild standen fast gleich gross
+  nebeneinander), keine Zeilen Autor/Seiten/Datum, Track-Plakette oben neben
+  dem Jahr — die Hoehe ist dort kostbar. (2) Solange die
   `DocCardMeta` der zitierten Dokumente laden, steht je Dokument ein
   Platzhalter mit Nummer und Titel aus der Referenz (`kartenEintraege(…, laedt)`,
   `useBelegDokumenteStand`); die Karten-Ansicht ist mit der fertigen Antwort

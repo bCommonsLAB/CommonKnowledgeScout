@@ -14,8 +14,8 @@ import { WebsiteStoryAntwortZweispaltig } from '@/components/library/website/sto
 import { kartenEintraege } from '@/lib/website/story-karten'
 
 vi.mock('@ks/module-explorer/react', () => ({
-  DocumentCard: ({ doc, onOpen, hideCover }: { doc: DocCardMeta; onOpen?: (d: DocCardMeta) => void; hideCover?: boolean }) => (
-    <button type="button" data-testid={`karte-${doc.fileId}`} data-hide-cover={hideCover ? 'true' : 'false'} onClick={() => onOpen?.(doc)}>{doc.title}</button>
+  DocumentCard: ({ doc, onOpen, teaser }: { doc: DocCardMeta; onOpen?: (d: DocCardMeta) => void; teaser?: boolean }) => (
+    <button type="button" data-testid={`karte-${doc.fileId}`} data-teaser={teaser ? 'true' : 'false'} onClick={() => onOpen?.(doc)}>{doc.title}</button>
   ),
 }))
 vi.mock('@ks/module-story/react', () => ({
@@ -31,13 +31,13 @@ const ref = (number: number, fileId: string): DocReference => ({ number, fileId,
 const doc = (fileId: string, title: string): DocCardMeta => ({ id: fileId, fileId, title, slug: `slug-${fileId}` } as DocCardMeta)
 
 describe('WebsiteStoryVortragskarte', () => {
-  it('zeigt die Karte ohne Cover mit Zitatmarke und reicht beim Klick das Dokument weiter', () => {
+  it('zeigt die Karte in der Teaser-Form mit Zitatmarke und reicht beim Klick das Dokument weiter', () => {
     const onOpen = vi.fn()
     const d = doc('a', 'Talk A')
     const { container } = render(<WebsiteStoryVortragskarte eintrag={{ nummer: 3, fileId: 'a', titel: 'Talk A', doc: d }} libraryId="lib" onOpen={onOpen} />)
     expect(container.querySelector('[data-zitatmarke]')?.textContent).toBe('3')
     expect(container.querySelector('#beleg-3')).not.toBeNull()
-    expect(screen.getByTestId('karte-a').getAttribute('data-hide-cover')).toBe('true')
+    expect(screen.getByTestId('karte-a').getAttribute('data-teaser')).toBe('true')
     fireEvent.click(screen.getByTestId('karte-a'))
     expect(onOpen).toHaveBeenCalledWith(d)
   })

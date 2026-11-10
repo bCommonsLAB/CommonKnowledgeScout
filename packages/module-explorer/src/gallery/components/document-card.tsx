@@ -55,12 +55,13 @@ export interface DocumentCardProps {
    */
   cardDensity?: GalleryCardDensity
   /**
-   * Cover-Thumbnail neben dem Titel weglassen (Standard-Karte). Fuer Teaser,
-   * in denen Cover und Personenbild fast gleich gross nebeneinander stuenden
-   * (Story-Sektion der Startseite, Owner 10.11.2026). Karten, deren Cover die
-   * ganze Flaeche ist (session, divaTexture, refurbedDevice), bleiben unveraendert.
+   * Teaser-Form der Standard-Karte (Story-Sektion der Startseite, Owner
+   * 10.11.2026): niedrig — ohne Cover-Thumbnail (Cover und Personenbild stuenden
+   * fast gleich gross nebeneinander) und ohne die Zeilen Autor, Seiten, Datum;
+   * die Track-Plakette steht oben neben dem Jahr. Karten, deren Cover die ganze
+   * Flaeche ist (session, divaTexture, refurbedDevice), bleiben unveraendert.
    */
-  hideCover?: boolean
+  teaser?: boolean
 }
 
 export function DocumentCard({
@@ -72,7 +73,7 @@ export function DocumentCard({
   onToggleFavorite,
   onClassificationChanged,
   cardDensity = 'comfortable',
-  hideCover = false,
+  teaser = false,
 }: DocumentCardProps) {
 
   const { openDocument } = useGalleryNavigation()
@@ -151,7 +152,7 @@ export function DocumentCard({
       onClick={handleClick}
       libraryId={libraryId}
       onToggleFavorite={onToggleFavorite}
-      hideCover={hideCover}
+      teaser={teaser}
     />
   )
 }
