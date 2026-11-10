@@ -21,7 +21,7 @@ import { useCallback, useMemo } from 'react'
 import { List } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { GalleryNavigationProvider } from '@ks/module-explorer/react'
+import type { DocCardMeta } from '@ks/contracts'
 import { AntwortText, StoryKonversation, type AntwortKopfApi, type Nachricht } from '@ks/module-story/react'
 import type { StoryCards } from '@/lib/website/types'
 import type { EintragsBezeichnung } from '@/lib/website/eintrags-bezeichnung'
@@ -29,8 +29,8 @@ import { kartenEintraege } from '@/lib/website/story-karten'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
 import { StoryVerarbeitungAufklapper } from '@/components/library/story/story-verarbeitung-aufklapper'
 import { AppLogo } from '@/components/shared/app-logo'
-import { useBelegDokumente, type WebsiteStoryStand } from './use-website-story'
-import { useWebsiteStoryNavigation, type WebsiteStoryNavigation } from './use-website-story-navigation'
+import { useBelegDokumenteStand, type WebsiteStoryStand } from './use-website-story'
+import type { WebsiteStoryNavigation } from './use-website-story-navigation'
 import { StoryFruehereFragen } from './website-story-fruehere'
 import { WebsiteStoryVortragsspalte } from './website-story-vortragsspalte'
 import { WebsiteStoryAntwortZweispaltig } from './website-story-antwort-zweispaltig'
@@ -47,10 +47,11 @@ export interface WebsiteStoryKonversationProps {
   onText: (text: string) => void
   /** Belege-Blatt zu dieser Antwort oeffnen. */
   onBelege: (antwort: Nachricht) => void
+  /** Karte angeklickt: Detailansicht ueber der Startseite (10.11.2026). */
+  onDokument: (doc: DocCardMeta) => void
 }
 
 const PROSE = 'prose prose-sm max-w-none dark:prose-invert'
-const keinSchliessen = () => {}
 
 export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   const { t } = useTranslation()
@@ -59,10 +60,10 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   const belege = useMemo(() => antwort?.belege ?? [], [antwort])
   // Karten erst, wenn die Antwort fertig ist und Belege hat — sonst die heutige Darstellung.
   const kartenAktiv = p.cards !== 'hidden' && antwort !== undefined && !s.k.laeuft && belege.length > 0
-  const kartenDocs = useBelegDokumente(p.libraryId, kartenAktiv ? belege : [], s.sessionHeaders)
-  const eintraege = useMemo(() => (kartenAktiv ? kartenEintraege(belege, kartenDocs) : []), [kartenAktiv, belege, kartenDocs])
-  const { zurGalerie, nav } = useWebsiteStoryNavigation(p.navigation, keinSchliessen)
-  const oeffnen = useCallback((slug: string) => zurGalerie({ doc: slug }), [zurGalerie])
+  // Solange die Karten laden, stehen Platzhalter — die Ansicht springt nicht nachtraeglich um (10.11.2026).
+  const karten = useBelegDokumenteStand(p.libraryId, kartenAktiv ? belege : [], s.sessionHeaders)
+  const eintraege = useMemo(() => (kartenAktiv ? kartenEintraege(belege, karten.docs, karten.laedt) : []), [kartenAktiv, belege, karten.docs, karten.laedt])
+  const oeffnen = p.onDokument
 
   // N5: „Quellen anzeigen" (mit der Bezeichnung der Library) steht in der Kopfzeile der
   // Antwort. Der Klick blendet die Zitatmarken ein UND oeffnet die Belege als Blatt.
@@ -106,39 +107,37 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
 
   const spalte = p.cards === 'column' && eintraege.length > 0 && antwort !== undefined
   return (
-    <GalleryNavigationProvider navigation={nav}>
-      <div
-        className={spalte ? 'mt-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8' : 'mt-6'}
-        data-story-konversation
-        data-story-karten-modus={p.cards}
-        // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
-        // Zitatmarken) folgt dem Gruen der Site; ausserhalb der Website gilt die Vorgabe.
-        style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-ink)' }}
-      >
-        <div className="min-w-0">
-          <StoryKonversation
-            paare={s.sichtbar.paar ? [s.sichtbar.paar] : []}
-            laeuft={s.k.laeuft}
-            schritte={s.k.schritte}
-            fehler={s.k.fehler}
-            fehlerDetail={s.k.fehlerDetail}
-            onFrage={p.onText}
-            onErneut={p.onText}
-            fuss={fuss}
-            kopfAktion={kopfAktion}
-            markenAnfangsVerborgen={p.markenAnfangsVerborgen}
-            antwortAvatar={<AppLogo size={32} />}
-            quellenPlakette={bezeichnung.zitiert}
-            antwortDarstellung={inline ? antwortDarstellung : undefined}
-          />
-          <StoryFruehereFragen paare={s.paare} navigation={p.navigation} />
-        </div>
-        {spalte && (
-          <div className="mt-6 min-w-0 lg:mt-0">
-            <WebsiteStoryVortragsspalte eintraege={eintraege} libraryId={p.libraryId} titel={bezeichnung.spalte} weitereLabel={bezeichnung.weitere} onWeitere={() => p.onBelege(antwort)} onOpen={oeffnen} />
-          </div>
-        )}
+    <div
+      className={spalte ? 'mt-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8' : 'mt-6'}
+      data-story-konversation
+      data-story-karten-modus={p.cards}
+      // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
+      // Zitatmarken) folgt dem Gruen der Site; ausserhalb der Website gilt die Vorgabe.
+      style={{ ['--story-accent' as string]: 'var(--site-accent-strong)', ['--zitat-mark' as string]: 'var(--site-accent-ink)' }}
+    >
+      <div className="min-w-0">
+        <StoryKonversation
+          paare={s.sichtbar.paar ? [s.sichtbar.paar] : []}
+          laeuft={s.k.laeuft}
+          schritte={s.k.schritte}
+          fehler={s.k.fehler}
+          fehlerDetail={s.k.fehlerDetail}
+          onFrage={p.onText}
+          onErneut={p.onText}
+          fuss={fuss}
+          kopfAktion={kopfAktion}
+          markenAnfangsVerborgen={p.markenAnfangsVerborgen}
+          antwortAvatar={<AppLogo size={32} />}
+          quellenPlakette={bezeichnung.zitiert}
+          antwortDarstellung={inline ? antwortDarstellung : undefined}
+        />
+        <StoryFruehereFragen paare={s.paare} navigation={p.navigation} />
       </div>
-    </GalleryNavigationProvider>
+      {spalte && (
+        <div className="mt-6 min-w-0 lg:mt-0">
+          <WebsiteStoryVortragsspalte eintraege={eintraege} libraryId={p.libraryId} titel={bezeichnung.spalte} weitereLabel={bezeichnung.weitere} onWeitere={() => p.onBelege(antwort)} onOpen={oeffnen} />
+        </div>
+      )}
+    </div>
   )
 }

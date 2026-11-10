@@ -72,3 +72,26 @@ describe('checkWebsiteMarkdownTranslation', () => {
     expect(violations[0].type).toBe('unparseable')
   })
 })
+
+describe('checkWebsiteMarkdownTranslation — Story-Sektion (10.11.2026)', () => {
+  const original = '<!-- section layout=story bg=light filter="year=2026" citations=visible cards=column rules=einladung placeholder="Ask …" -->\n## Ask.\n<!-- questions -->\n- A?\n<!-- /section -->'
+
+  it('Text und placeholder duerfen uebersetzt werden, die Schalter bleiben', () => {
+    const ok = original.replace('placeholder="Ask …"', 'placeholder="Frag …"').replace('## Ask.', '## Frag.').replace('- A?', '- Ein A?')
+    expect(checkWebsiteMarkdownTranslation(original, ok)).toEqual([])
+  })
+
+  it('ein uebersetzter Regelsatz-Name, eine andere Karten-Darstellung oder ein veraenderter Filter sind Verstoesse', () => {
+    for (const kaputt of [
+      original.replace('rules=einladung', 'rules=invitation'),
+      original.replace('cards=column', 'cards=inline'),
+      original.replace('filter="year=2026"', 'filter="jahr=2026"'),
+      original.replace(' citations=visible', ''),
+    ]) {
+      const v = checkWebsiteMarkdownTranslation(original, kaputt)
+      expect(v).toHaveLength(1)
+      expect(v[0].type).toBe('section-attrs')
+      expect(v[0].message).toContain('cards/rules/filter/citations')
+    }
+  })
+})

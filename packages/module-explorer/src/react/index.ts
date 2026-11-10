@@ -59,10 +59,13 @@ export {
   // Welle N1: Belege fuer die Story-Sektion der Startseite (Plan website-story-sektion).
   BelegListe,
   ReferencesSheet,
+  DetailOverlay,
+  resolveDetailViewTypeForDoc,
 } from '../gallery'
 export type {
   GalleryRootProps,
   DetailRenderer,
+  DetailOverlayProps,
   DetailRenderProps,
   BookDetailProps,
   BookMarkdownProps,

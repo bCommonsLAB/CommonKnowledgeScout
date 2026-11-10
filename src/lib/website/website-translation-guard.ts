@@ -69,6 +69,16 @@ export function checkWebsiteMarkdownTranslation(
           message: `Sektion ${i + 1}: layout/bg veraendert (${s.layout}/${s.bg} -> ${d.layout}/${d.bg})`,
         })
       }
+      // Story-Sektion (10.11.2026): Karten-Darstellung, Regelsatz, Facettenfilter und
+      // Zitatmarken sind Schalter, kein Text. Ein uebersetzter Regelsatz-Name
+      // (`rules=einladung` → `rules=invitation`) liesse den Chat der Seite mit 400 scheitern.
+      const schalter = (x: WebsiteSection) => JSON.stringify([x.cards ?? null, x.rules ?? null, x.filter ?? null, x.citationsVisible ?? null])
+      if (schalter(s) !== schalter(d)) {
+        violations.push({
+          type: 'section-attrs',
+          message: `Sektion ${i + 1}: cards/rules/filter/citations veraendert (${schalter(s)} -> ${schalter(d)})`,
+        })
+      }
       if ((s.videoUrl ?? null) !== (d.videoUrl ?? null)) {
         violations.push({
           type: 'video-url',
