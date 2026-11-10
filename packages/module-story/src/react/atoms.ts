@@ -43,3 +43,11 @@ export const storyUebersichtAktionAtom = atom<UebersichtAktion | null>(null)
  * die Chronik laedt ihre Liste dann neu.
  */
 export const storySitzungenStandAtom = atom(0)
+
+/**
+ * Zaehler „Perspektive gespeichert" (10.11.2026): Der Perspektiv-Dialog erhoeht
+ * ihn bei „Mit dieser Perspektive starten". Die Mitte stellt daraufhin die
+ * zuletzt gezeigte Frage mit den neuen Einstellungen neu (`useNeuStellen`),
+ * statt dass die Person sie ueber „Erneut fragen" zurueckholen muss.
+ */
+export const storyPerspektiveGespeichertAtom = atom(0)

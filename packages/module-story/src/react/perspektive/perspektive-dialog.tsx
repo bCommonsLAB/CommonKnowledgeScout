@@ -33,9 +33,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@ks/ui'
+import { useSetAtom } from 'jotai'
 import { useTranslation } from '@ks/i18n/react'
 import type { LlmModelDto, TargetLanguage } from '@ks/contracts'
 import { ACCESS_PERSPECTIVE_VALUES, CHARACTER_VALUES, SOCIAL_CONTEXT_VALUES } from '@ks/contracts'
+import { storyPerspektiveGespeichertAtom } from '../atoms'
 import { Abschnitt, PlakettenWahl } from './abschnitt'
 import { ModellAbschnitt, SprachAbschnitt } from './sprache-modell'
 import { gesperrt, gewaehlt, kannSpeichern, modelleFuerSprache, modellNachSprachwechsel, umschalten, zumSpeichern, type PerspektivWahl } from './regeln'
@@ -56,6 +58,7 @@ export interface PerspektiveDialogProps {
 
 export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprachwahl, modellwahl, darstellung = 'dialog' }: PerspektiveDialogProps) {
   const { t } = useTranslation()
+  const perspektiveGespeichert = useSetAtom(storyPerspektiveGespeichertAtom)
   const [entwurf, setEntwurf] = useState<PerspektivWahl>(wert)
   const [modellGewechselt, setModellGewechselt] = useState(false)
   // Technik ans Ende und zugeklappt (Davids Vorlage): das Modell steht unter
@@ -100,6 +103,8 @@ export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprac
 
   function speichern() {
     onSpeichern(zumSpeichern(entwurf))
+    // Im selben Zug wie die neue Perspektive: die Mitte stellt die letzte Frage neu.
+    perspektiveGespeichert((n) => n + 1)
     onOpenChange(false)
   }
 

@@ -38,6 +38,12 @@ export interface Nachricht {
   createdAt: string
   /** Kennung der gespeicherten Frage; fehlt, solange die Antwort laeuft. */
   queryId?: string
+  /**
+   * An der Frage: Antwortsprache, mit der sie gestellt wurde (Befund 10.11.2026).
+   * Geht je Paar im Verlauf mit; der Server laesst Antworten in anderer Sprache
+   * aus dem Prompt. Fehlt bei Eintraegen ohne gespeicherte Sprache.
+   */
+  sprache?: string
   /** D5: Kurztitel vom Sprachmodell an der Frage; fehlt → Heuristik in der Chronik. */
   kurztitel?: string
   /** Belege der Antwort (D7: je Dokument, mit Textstellen). */

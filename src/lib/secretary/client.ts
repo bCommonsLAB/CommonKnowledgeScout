@@ -1094,6 +1094,8 @@ export async function embedTextRag(params: {
   embeddingModel?: string;
   embedding_dimensions?: number;
   metadata?: Record<string, unknown>;
+  /** Kennungen fuer die Metrik des Secretary (`korrelationsHeader`). */
+  correlationHeaders?: Record<string, string>;
 }): Promise<SecretaryRagResponse> {
   const { baseUrl, apiKey } = getSecretaryConfig();
   if (!baseUrl) {
@@ -1122,6 +1124,7 @@ export async function embedTextRag(params: {
   };
 
   const headers: Record<string, string> = {
+    ...(params.correlationHeaders ?? {}),
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${apiKey}`,
     'X-Secretary-Api-Key': apiKey,

@@ -108,7 +108,7 @@ export const chunksRetriever: ChatRetriever = {
     // Schritt 2: Embedding-Vektor generieren über Secretary Service RAG API
     let stepEmbed = markStepStart({ indexName: libraryKey, namespace: '', stage: 'embed', level: 'question' })
     const { embedQuestionWithSecretary } = await import('@/lib/chat/rag-embeddings')
-    const qVec = await embedQuestionWithSecretary(input.question, retrieverCtx.ctx)
+    const qVec = await embedQuestionWithSecretary(input.question, retrieverCtx.ctx, { queryId: input.queryId, libraryId: input.libraryId, chatId: input.chatId })
     stepEmbed = markStepEnd(stepEmbed)
     await logAppend(input.queryId, { indexName: libraryKey, namespace: '', stage: 'embed', level: 'question', timingMs: stepEmbed.timingMs, startedAt: stepEmbed.startedAt, endedAt: stepEmbed.endedAt })
 

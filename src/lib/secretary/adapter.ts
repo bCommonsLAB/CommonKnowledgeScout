@@ -242,6 +242,8 @@ export interface TransformerChatParams {
   useCache?: boolean;
   apiKey?: string;
   timeoutMs?: number;
+  /** Kennungen fuer die Metrik des Secretary (`korrelationsHeader`); nie Auth-Header. */
+  correlationHeaders?: Record<string, string>;
 }
 
 /**
@@ -288,7 +290,9 @@ export async function callTransformerChat(p: TransformerChatParams): Promise<Res
     hasApiKey: !!p.apiKey,
   })
   
+  // Korrelation zuerst, Pflicht-Header danach: der Caller kann Auth nicht ueberschreiben.
   const headers: Record<string, string> = {
+    ...(p.correlationHeaders ?? {}),
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   }

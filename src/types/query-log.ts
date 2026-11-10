@@ -49,6 +49,9 @@ export interface QueryTokenUsage {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  /** Kosten laut Secretary; `null` = Aufruf ohne Preis (nie 0), fehlt = Secretary meldet (noch) keine Kosten. */
+  cost?: number | null;
+  costCurrency?: string;
 }
 
 export interface QuestionAnalysisInfo {

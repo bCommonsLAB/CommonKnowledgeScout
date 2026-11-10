@@ -186,6 +186,8 @@ export function useStoryKonversation(p: UseStoryKonversationParams) {
 
   return {
     chatId,
+    /** Schluessel aus Filter und Perspektive — fuer `useNeuStellen`. */
+    stand,
     auswahl,
     setAuswahl,
     gliederung,
