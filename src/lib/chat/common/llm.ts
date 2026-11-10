@@ -115,6 +115,8 @@
 import * as z from 'zod'
 import { getSecretaryConfig } from '@/lib/env'
 import { callTransformerChat } from '@/lib/secretary/adapter'
+import { korrelationsHeader, type SecretaryKorrelation } from '@/lib/secretary/korrelation'
+import { usageAusSecretaryAntwort } from './llm-usage'
 
 /**
  * Arguments für LLM Chat API-Aufrufe mit Messages-Array
@@ -158,6 +160,8 @@ export interface LlmChatArgs {
   responseFormat?: { type: 'json_object' }
   /** Max Tokens für Completion (optional) */
   maxTokens?: number
+  /** Kennungen (queryId, libraryId, chatId) fuer die Metrik des Secretary. */
+  korrelation?: SecretaryKorrelation
 }
 
 /**
@@ -167,6 +171,9 @@ export interface LlmUsage {
   promptTokens?: number
   completionTokens?: number
   totalTokens?: number
+  /** Kosten laut Secretary (`usage.cost`); `null` = ohne Preis, fehlt = nicht gemeldet. */
+  cost?: number | null
+  costCurrency?: string
 }
 
 /**
@@ -302,21 +309,8 @@ async function parseSecretaryTextResponse(response: Response): Promise<LlmTextRe
   
   const text = typeof resp.data?.text === 'string' ? resp.data.text : ''
   
-  // Usage aus process.llm_info extrahieren
-  let usage: LlmUsage | undefined
-  if (resp.process?.llm_info) {
-    const llmInfo = resp.process.llm_info
-    usage = {
-      totalTokens: llmInfo.total_tokens
-    }
-    // Falls einzelne Requests vorhanden, aggregiere tokens
-    if (llmInfo.requests && llmInfo.requests.length > 0) {
-      const totalFromRequests = llmInfo.requests.reduce((sum, req) => sum + (req.tokens || 0), 0)
-      if (totalFromRequests > 0) {
-        usage.totalTokens = totalFromRequests
-      }
-    }
-  }
+  // Usage: Aufteilung und Kosten aus `usage` (Secretary ab 10.11.2026), Summe aus process.llm_info
+  const usage = usageAusSecretaryAntwort(data)
   
   return { text, usage }
 }
@@ -357,20 +351,8 @@ async function parseSecretaryJsonResponse<T>(
     throw new LlmProviderError('Secretary Service lieferte kein structured_data', 'MissingStructuredData')
   }
   
-  // Usage aus process.llm_info extrahieren
-  let usage: LlmUsage | undefined
-  if (resp.process?.llm_info) {
-    const llmInfo = resp.process.llm_info
-    usage = {
-      totalTokens: llmInfo.total_tokens
-    }
-    if (llmInfo.requests && llmInfo.requests.length > 0) {
-      const totalFromRequests = llmInfo.requests.reduce((sum, req) => sum + (req.tokens || 0), 0)
-      if (totalFromRequests > 0) {
-        usage.totalTokens = totalFromRequests
-      }
-    }
-  }
+  // Usage: Aufteilung und Kosten aus `usage` (Secretary ab 10.11.2026), Summe aus process.llm_info
+  const usage = usageAusSecretaryAntwort(data)
   
   // Validieren mit Zod-Schema (letzte Sicherheitsstufe)
   try {
@@ -465,7 +447,8 @@ export async function callLlmText(args: LlmChatArgs): Promise<LlmTextResult> {
       responseFormat: 'text',
       useCache: true,
       apiKey: effectiveApiKey,
-      timeoutMs
+      timeoutMs,
+      correlationHeaders: korrelationsHeader(args.korrelation),
     })
     
     return parseSecretaryTextResponse(response)
@@ -565,7 +548,8 @@ export async function callLlmJson<T>(
         strict: false, // Strict validation deaktiviert (erlaubt flexiblere Schema-Validierung)
         useCache: !isRetry,
         apiKey: effectiveApiKey,
-        timeoutMs
+        timeoutMs,
+        correlationHeaders: korrelationsHeader(args.korrelation),
       })
 
       return await parseSecretaryJsonResponse(response, schema)

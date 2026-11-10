@@ -256,6 +256,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   let promptTokens: number | undefined = undefined
   let completionTokens: number | undefined = undefined
   let totalTokens: number | undefined = undefined
+  // Kosten laut Secretary: null = ohne Preis, undefined = nicht gemeldet
+  let kosten: number | null | undefined = undefined
+  let kostenWaehrung: string | undefined = undefined
+  const korrelation = { queryId: run.queryId, libraryId: run.libraryId, chatId: run.chatId }
   let answer = ''
   let suggestedQuestions: string[] = []
   let usedReferences: number[] = []
@@ -268,6 +272,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       const result = await callLlmJson(
         {
           apiKey,
+          korrelation,
           model,
           temperature,
           responseFormat: { type: 'json_object' },
@@ -282,6 +287,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       promptTokens = result.usage?.promptTokens
       completionTokens = result.usage?.completionTokens
       totalTokens = result.usage?.totalTokens
+      kosten = result.usage?.cost
+      kostenWaehrung = result.usage?.costCurrency
       
       // Create a Markdown answer from StoryTopicsData for the normal answer (for backward compatibility)
       const toc = storyTopicsData
@@ -305,6 +312,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       const result = await callLlmJson(
         {
           apiKey,
+          korrelation,
           model,
           temperature,
           responseFormat: { type: 'json_object' },
@@ -326,6 +334,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       promptTokens = result.usage?.promptTokens
       completionTokens = result.usage?.completionTokens
       totalTokens = result.usage?.totalTokens
+      kosten = result.usage?.cost
+      kostenWaehrung = result.usage?.costCurrency
       
       // Optional: Konsistenz-Check für References
       // Extrahiere zitierten References aus answer per Regex
@@ -419,6 +429,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             const retryResult = await callLlmJson(
               {
                 apiKey,
+                korrelation,
                 model,
                 temperature,
                 responseFormat: { type: 'json_object' },
@@ -431,6 +442,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             promptTokens = retryResult.usage?.promptTokens
             completionTokens = retryResult.usage?.completionTokens
             totalTokens = retryResult.usage?.totalTokens
+            kosten = retryResult.usage?.cost
+            kostenWaehrung = retryResult.usage?.costCurrency
             
             // Create Markdown answer
             const tocRetry = storyTopicsData
@@ -452,6 +465,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             const retryResult = await callLlmJson(
               {
                 apiKey,
+                korrelation,
                 model,
                 temperature,
                 responseFormat: { type: 'json_object' },
@@ -467,6 +481,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             promptTokens = retryResult.usage?.promptTokens
             completionTokens = retryResult.usage?.completionTokens
             totalTokens = retryResult.usage?.totalTokens
+            kosten = retryResult.usage?.cost
+            kostenWaehrung = retryResult.usage?.costCurrency
           }
           retried = true
           break
@@ -570,7 +586,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : [],
     timing: { retrievalMs, llmMs, totalMs: undefined },
     tokenUsage: promptTokens !== undefined || completionTokens !== undefined || totalTokens !== undefined
-      ? { promptTokens, completionTokens, totalTokens }
+      ? { promptTokens, completionTokens, totalTokens, ...(kosten !== undefined ? { cost: kosten, costCurrency: kostenWaehrung } : {}) }
       : undefined,
     storyTopicsData,
     shortTitle,

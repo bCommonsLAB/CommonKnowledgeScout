@@ -819,6 +819,7 @@ export async function POST(
           answerLength,
           filters: built.mongo,
           queryId,
+          chatId: activeChatId,
           chatConfig: normalizedChatConfig,
           chatHistory: chatHistory,
           facetsSelected: facetsSelected,

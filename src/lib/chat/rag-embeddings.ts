@@ -23,6 +23,7 @@
 
 import type { LibraryChatContext } from '@/lib/chat/loader'
 import { embedTextRag } from '@/lib/secretary/client'
+import { korrelationsHeader, type SecretaryKorrelation } from '@/lib/secretary/korrelation'
 import { getDefaultEmbeddings } from '@/lib/chat/config'
 
 /**
@@ -144,7 +145,8 @@ export async function embedDocumentWithSecretary(
  */
 export async function embedQuestionWithSecretary(
   question: string,
-  ctx: LibraryChatContext
+  ctx: LibraryChatContext,
+  korrelation?: SecretaryKorrelation
 ): Promise<number[]> {
   const config = getEmbeddingConfig(ctx)
   
@@ -165,6 +167,7 @@ export async function embedQuestionWithSecretary(
     embeddingModel: config.model,
     embedding_dimensions: config.dimensions,
     metadata: { type: 'query' },
+    correlationHeaders: korrelationsHeader(korrelation),
   })
   
   if (response.status !== 'success' || !response.data || response.data.chunks.length === 0) {

@@ -7,6 +7,8 @@ export interface RetrieverInput {
   answerLength: AnswerLength
   filters: Record<string, unknown>
   queryId: string
+  /** Sitzung der Frage, falls vorhanden — nur als Korrelations-Kennung an den Secretary. */
+  chatId?: string | null
   context: Record<string, never>
   apiKey?: string  // Optional: Library-spezifischer OpenAI API-Key für Embeddings
 }
