@@ -158,9 +158,13 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Dynamische Ausnahme: GET-Requests zu /api/chat/[libraryId]/* für anonyme Benutzer erlauben
   // Die API-Routen prüfen selbst, ob die Library öffentlich ist
+  // `docs/by-fileids` (Owner 10.11.2026): Kartendaten zitierter Dokumente — die Story-Sektion
+  // der Startseite, das Belege-Blatt und die Galerie laden sie nach. Ohne diesen Eintrag
+  // bekamen anonyme Besucher 404 und sahen keine Karten. Die Route verlangt selbst eine
+  // öffentliche Library und blendet Entwürfe aus.
   if (!isPublic) {
     const path = req.nextUrl.pathname;
-    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images|popular-questions)$/.test(path);
+    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|docs\/by-fileids|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images|popular-questions)$/.test(path);
     const isChatQueriesPath = /^\/api\/chat\/[^/]+\/queries(\/[^/]+)?$/.test(path);
     const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
     if (
