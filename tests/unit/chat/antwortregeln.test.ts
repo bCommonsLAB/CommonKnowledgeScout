@@ -6,7 +6,7 @@ import {
   type RegelFacette,
 } from '@/lib/chat/antwortregeln'
 import { normalizeChatConfig } from '@/lib/chat/config'
-import { buildChatMessages, buildTOCMessages, ANTWORTREGELN_UEBERSCHRIFT } from '@/lib/chat/common/prompt'
+import { buildChatMessages, buildTOCMessages, ANTWORTREGELN_UEBERSCHRIFT, ANTWORTREGELN_VORRANG, ANTWORTREGELN_WIEDERHOLUNG } from '@/lib/chat/common/prompt'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import type { RetrievedSource } from '@/types/retriever'
 
@@ -115,5 +115,27 @@ describe('Prompt und Cache', () => {
     const mitB = createCacheHash({ ...basis, antwortregeln: 'Regel B' })
     expect(mitA).not.toBe(ohne)
     expect(mitA).not.toBe(mitB)
+  })
+})
+
+describe('Vorrang der Library-Regeln in den Requirements (Owner 10.11.2026)', () => {
+  const quellen: RetrievedSource[] = [{ id: 'c1', fileId: 'f1', fileName: 'a.md', text: 'Inhalt', score: 0.9 } as RetrievedSource]
+
+  it('mit Antwortregeln steht die Vorrang-Zeile direkt nach der Stil-Vorgabe der User-Message', () => {
+    const nachrichten = buildChatMessages('Frage?', quellen, 'ausführlich', { targetLanguage: 'de', antwortregeln: 'Ein Absatz je Vortrag.' })
+    const user = nachrichten[nachrichten.length - 1].content
+    expect(user).toContain(`- ${ANTWORTREGELN_VORRANG}`)
+    expect(user.indexOf(ANTWORTREGELN_VORRANG)).toBeGreaterThan(user.indexOf('Requirements:'))
+    expect(user.indexOf(ANTWORTREGELN_VORRANG)).toBeLessThan(user.indexOf('- Factually correct'))
+    // … und die Regeln stehen woertlich als LETZTES in der Anfrage, nach Quellen und Ausgabeformat
+    expect(user.endsWith(`${ANTWORTREGELN_WIEDERHOLUNG}\nEin Absatz je Vortrag.`)).toBe(true)
+    expect(user.indexOf(ANTWORTREGELN_WIEDERHOLUNG)).toBeGreaterThan(user.indexOf('Output Format:'))
+  })
+
+  it('ohne Antwortregeln bleibt die User-Message unveraendert — keine Vorrang-Zeile, keine Wiederholung', () => {
+    const nachrichten = buildChatMessages('Frage?', quellen, 'ausführlich', { targetLanguage: 'de' })
+    const user = nachrichten[nachrichten.length - 1].content
+    expect(user).not.toContain(ANTWORTREGELN_VORRANG)
+    expect(user).not.toContain(ANTWORTREGELN_WIEDERHOLUNG)
   })
 })

@@ -28,6 +28,17 @@ um Wrapper-/Helper-spezifische Vertraege.
     Vertrag (unbekannt = Zod-Fehler beim Speichern, Exception zur Laufzeit).
     Der aufgelöste Text ist Teil des Cache-Hashes (§5) — Regel- oder
     Wörterbuch-Änderung darf keine alten Antworten liefern (m2)
+    Vorrang (10.11.2026): Hat die Library Regeln, steht in den Requirements
+    der User-Message direkt nach der Stil-Vorgabe die Zeile
+    `ANTWORTREGELN_VORRANG` (`common/prompt.ts`) — die Regeln ersetzen dort
+    Stil, Laenge und Beispiel-Ueberschrift — und die Regeln stehen WOERTLICH
+    noch einmal am Ende der User-Message, nach Quellen und Ausgabeformat
+    (`ANTWORTREGELN_WIEDERHOLUNG`); die Zeile allein reichte im Test nicht.
+    Ohne Regeln bleibt der Prompt unveraendert. Beides ist NICHT Teil des
+    Cache-Hashes: Antworten von vorher bleiben Treffer, bis sie verworfen
+    werden (§5).
+    Benannte Regelsaetze (`antwortregelnVarianten`, `?rules=<name>` einer
+    Website-Sektion): siehe `website-landingpage.md`.
   - `quellen-kontext.ts` — Quellen-Header je Textstelle: Facettenwerte als
     `Label: Wertlabel — Bedeutung` aus dem Wörterbuch; ohne Eintrag Label +
     Rohwert, ohne Definition metaKey + Rohwert (kein Raten). Labels und
