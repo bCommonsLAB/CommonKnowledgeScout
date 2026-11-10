@@ -124,6 +124,24 @@ describe('DocumentCard (Switch)', () => {
     expect(screen.getByText('Standard-Buch')).toBeTruthy()
   })
 
+  it('teaser: Standard-Karte ohne Cover und ohne Autor/Seiten/Datum, Track oben; Vorgabe zeigt alles', () => {
+    const doc = makeDoc({ title: 'Mit Cover', coverImageUrl: 'https://example.com/cover.jpg', authors: ['Ada Autorin'], pages: 3, date: '2026-11-13', track: 'Legal', year: 2026 })
+    const voll = render(<DocumentCard doc={doc} libraryId="lib-1" />)
+    expect(voll.container.querySelector('img[alt="Mit Cover"]')).not.toBeNull()
+    expect(screen.getByText('Ada Autorin')).toBeTruthy()
+    expect(screen.getByText('3 Seiten')).toBeTruthy()
+    expect(voll.container.querySelector('[data-teaser-track]')).toBeNull()
+    cleanup()
+    const teaser = render(<DocumentCard doc={doc} libraryId="lib-1" teaser />)
+    expect(teaser.container.querySelector('img[alt="Mit Cover"]')).toBeNull()
+    expect(screen.getByText('Mit Cover')).toBeTruthy()
+    expect(screen.queryByText('Ada Autorin')).toBeNull()
+    expect(screen.queryByText('3 Seiten')).toBeNull()
+    expect(screen.queryByText('13.11.2026')).toBeNull()
+    expect(teaser.container.querySelector('[data-teaser-track]')?.textContent).toBe('Legal')
+    expect(screen.getByText('2026')).toBeTruthy()
+  })
+
   it('rendert ClimateActionCard bei detailViewType="climateAction"', () => {
     render(
       <DocumentCard

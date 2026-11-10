@@ -22,12 +22,21 @@ describe('kartenEintraege', () => {
   it('alte Antworten mit Nummer je Textstelle: mehrere Marken desselben Dokuments werden EINE Karte', () => {
     const belege = [ref(1, 'a'), ref(2, 'a'), ref(3, 'b')]
     const e = kartenEintraege(belege, [doc('a', 'A'), doc('b', 'B')])
-    expect(e.map((x) => [x.nummer, x.doc.title])).toEqual([[1, 'A'], [2, 'B']])
+    expect(e.map((x) => [x.nummer, x.doc?.title])).toEqual([[1, 'A'], [2, 'B']])
   })
 
-  it('ein Dokument ohne geladene Karte fehlt — kein Platzhalter', () => {
+  it('nach dem Laden fehlt ein Dokument ohne Karte — kein Dauer-Platzhalter', () => {
     const e = kartenEintraege([ref(1, 'a'), ref(2, 'b')], [doc('b', 'B')])
     expect(e.map((x) => x.nummer)).toEqual([2])
+  })
+
+  it('solange die Karten laden, steht je zitiertem Dokument ein Platzhalter mit dem Titel der Referenz', () => {
+    const belege = [{ ...ref(1, 'a'), title: 'Talk A' }, { ...ref(2, 'b'), fileName: 'b.md' }]
+    const e = kartenEintraege(belege, [], true)
+    expect(e.map((x) => [x.nummer, x.fileId, x.titel, x.doc])).toEqual([[1, 'a', 'Talk A', null], [2, 'b', 'b.md', null]])
+    // teilweise da: geladene Karte echt, der Rest Platzhalter
+    const halb = kartenEintraege(belege, [doc('b', 'B')], true)
+    expect(halb.map((x) => x.doc?.title ?? null)).toEqual([null, 'B'])
   })
 })
 

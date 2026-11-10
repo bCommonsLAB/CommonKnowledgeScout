@@ -54,6 +54,14 @@ export interface DocumentCardProps {
    * kompakte Form haben (heute: climateAction), reduzieren damit ihren Inhalt.
    */
   cardDensity?: GalleryCardDensity
+  /**
+   * Teaser-Form der Standard-Karte (Story-Sektion der Startseite, Owner
+   * 10.11.2026): niedrig — ohne Cover-Thumbnail (Cover und Personenbild stuenden
+   * fast gleich gross nebeneinander) und ohne die Zeilen Autor, Seiten, Datum;
+   * die Track-Plakette steht oben neben dem Jahr. Karten, deren Cover die ganze
+   * Flaeche ist (session, divaTexture, refurbedDevice), bleiben unveraendert.
+   */
+  teaser?: boolean
 }
 
 export function DocumentCard({
@@ -65,6 +73,7 @@ export function DocumentCard({
   onToggleFavorite,
   onClassificationChanged,
   cardDensity = 'comfortable',
+  teaser = false,
 }: DocumentCardProps) {
 
   const { openDocument } = useGalleryNavigation()
@@ -143,6 +152,7 @@ export function DocumentCard({
       onClick={handleClick}
       libraryId={libraryId}
       onToggleFavorite={onToggleFavorite}
+      teaser={teaser}
     />
   )
 }

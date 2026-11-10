@@ -50,6 +50,25 @@ import { formatiereQuellenMetadaten, type KontextFacette } from '../quellen-kont
 export const ANTWORTREGELN_UEBERSCHRIFT = 'Library Rules (how to speak about these contents — binding):'
 
 /**
+ * Vorrang der Library-Regeln, als Zeile in den Requirements der User-Message
+ * (Owner 10.11.2026, SFSCON-Startseite). Die Regeln stehen in der System-Message
+ * ganz vorn, die allgemeinen Formatvorgaben (Ueberschriften, Laenge, Beispiel mit
+ * `##`) ganz hinten nach allen Quellen — das Modell folgte dort den Formatvorgaben
+ * und schrieb trotz Regelsatz „ein Absatz je Vortrag" einen gegliederten Aufsatz.
+ * Die Zeile allein reichte im Test nicht (zweiteilige Frage, 80 000 Token Quellen):
+ * deshalb stehen die Regeln zusaetzlich WOERTLICH am Ende der User-Message, nach
+ * Quellen und Ausgabeformat (`ANTWORTREGELN_WIEDERHOLUNG`) — dort, wo das Modell
+ * zuletzt liest. Beides nur, wenn die Library Regeln hat; ohne Regeln bleibt der
+ * Prompt Byte fuer Byte wie bisher.
+ */
+export const ANTWORTREGELN_VORRANG =
+  'The Library Rules in the system message are binding. Where they prescribe structure, formatting, length or what to include, they REPLACE the style requirement above and the heading shown in the example below.'
+
+/** Ueberschrift der wiederholten Regeln am Ende der User-Message (siehe `ANTWORTREGELN_VORRANG`). */
+export const ANTWORTREGELN_WIEDERHOLUNG =
+  'Library Rules (binding, repeated from the system message — the "answer" field MUST follow them; they override the style, formatting and length requirements and the example above):'
+
+/**
  * Facetten-Definition, wie der Prompt sie braucht: Label für Filter-Text und
  * Quellen-Header, Wörterbuch (`werte`) für den Bedeutungskontext je Textstelle (m3).
  */
@@ -415,10 +434,15 @@ export function buildChatUserMessage(
     facetDefs?: PromptFacetDef[]
     candidatesCount?: number
     usedInPrompt?: number
+    /** Aufgeloeste Antwortregeln der Library: Vorrang-Zeile in den Requirements und woertliche Wiederholung am Ende. */
+    antwortregeln?: string
   }
 ): ChatMessage {
   const context = buildContext(sources, undefined, options?.facetDefs)
   const style = styleInstruction(answerLength)
+  const regeln = options?.antwortregeln?.trim()
+  const vorrang = regeln ? `\n- ${ANTWORTREGELN_VORRANG}` : ''
+  const wiederholung = regeln ? `\n\n${ANTWORTREGELN_WIEDERHOLUNG}\n${regeln}` : ''
   
   // D7: eine Nummer je Dokument — die Beschreibung nennt alle seine Textstellen
   const sourceDescriptions = beschreibeDokumente(dokumenteNummerieren(sources), getSourceDescription)
@@ -441,7 +465,7 @@ Sources:
 ${context}
 
 Requirements:
-- ${style}
+- ${style}${vorrang}
 - Factually correct, without speculation.
 - Always respond in **Markdown format** with clear formatting (headings, lists, bold).
 - Cite the document numbers of the sources you used as [n] at the end of the statement they support.
@@ -471,7 +495,7 @@ Example:
 
 IMPORTANT: 
 - References are added server-side, do not generate them in JSON.
-- The "usedReferences" field must contain all numbers you cite as [n] in your answer.`
+- The "usedReferences" field must contain all numbers you cite as [n] in your answer.${wiederholung}`
   
   return {
     role: 'user',
@@ -532,6 +556,7 @@ export function buildChatMessages(
     facetDefs: options?.facetDefs,
     candidatesCount: options?.candidatesCount,
     usedInPrompt: options?.usedInPrompt,
+    antwortregeln: options?.antwortregeln,
   }))
   
   return messages

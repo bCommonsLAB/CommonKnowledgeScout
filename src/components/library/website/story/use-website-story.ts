@@ -115,12 +115,23 @@ export type WebsiteStoryStand = ReturnType<typeof useWebsiteStory>
  * Referenz-Dokumente nachlaedt. Leer, solange nichts zitiert ist.
  */
 export function useBelegDokumente(libraryId: string, references: DocReference[], sessionHeaders: SessionHeaders): DocCardMeta[] {
-  const [docs, setDocs] = useState<DocCardMeta[]>([])
+  return useBelegDokumenteStand(libraryId, references, sessionHeaders).docs
+}
+
+/**
+ * Wie `useBelegDokumente`, dazu `laedt`: true, solange die Dokumente zu DIESEN
+ * Referenzen noch unterwegs sind. Die Karten-Darstellungen zeigen so lange
+ * Platzhalter, statt erst die Textantwort und Sekunden spaeter die Karten
+ * (Owner 10.11.2026).
+ */
+export function useBelegDokumenteStand(libraryId: string, references: DocReference[], sessionHeaders: SessionHeaders): { docs: DocCardMeta[]; laedt: boolean } {
+  const [stand, setStand] = useState<{ docs: DocCardMeta[]; fuer: string }>({ docs: [], fuer: '' })
+  const setDocs = (docs: DocCardMeta[], fuer: string) => setStand({ docs, fuer })
   const fileIds = useMemo(() => Array.from(new Set(references.map((r) => r.fileId))).sort(), [references])
   const schluessel = fileIds.join('|')
 
   useEffect(() => {
-    if (fileIds.length === 0) { setDocs([]); return }
+    if (fileIds.length === 0) { setDocs([], ''); return }
     let abgebrochen = false
     const params = new URLSearchParams()
     for (const id of fileIds) params.append('fileId', id)
@@ -128,16 +139,18 @@ export function useBelegDokumente(libraryId: string, references: DocReference[],
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = (await res.json()) as { items?: unknown }
-        if (!abgebrochen) setDocs(Array.isArray(json.items) ? (json.items as DocCardMeta[]) : [])
+        if (!abgebrochen) setDocs(Array.isArray(json.items) ? (json.items as DocCardMeta[]) : [], schluessel)
       })
       .catch((e: unknown) => {
         console.error('[useBelegDokumente] Zitierte Dokumente nicht ladbar', e)
-        if (!abgebrochen) setDocs([])
+        if (!abgebrochen) setDocs([], schluessel)
       })
     return () => { abgebrochen = true }
     // `schluessel` steht fuer die Menge der fileIds; `fileIds` selbst ist je Render neu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraryId, schluessel, sessionHeaders])
 
-  return docs
+  // Dokumente eines frueheren Referenz-Satzes gelten nicht fuer den neuen.
+  const aktuell = stand.fuer === schluessel
+  return { docs: aktuell ? stand.docs : [], laedt: fileIds.length > 0 && !aktuell }
 }

@@ -28,7 +28,15 @@ function nichtVorgesehen(name: string): never {
   throw new Error(`Story-Sektion: ${name} ist hier nicht vorgesehen`)
 }
 
-export function useWebsiteStoryNavigation(navigation: WebsiteStoryNavigation, onClose: () => void) {
+/**
+ * `oeffneLokal`: die Detailansicht ueber der Startseite (Owner 10.11.2026 — der
+ * Klick auf einen Beleg soll die Seite nicht verlassen). Liefert true, wenn das
+ * Dokument zum Slug bekannt war und geoeffnet wurde; sonst geht es wie bisher in
+ * die Galerie, und das steht im Protokoll.
+ */
+export type OeffneLokal = (slug: string, page?: number) => boolean
+
+export function useWebsiteStoryNavigation(navigation: WebsiteStoryNavigation, onClose: () => void, oeffneLokal?: OeffneLokal) {
   const router = useRouter()
   const { onShowGallery, galleryBaseHref } = navigation
 
@@ -45,7 +53,11 @@ export function useWebsiteStoryNavigation(navigation: WebsiteStoryNavigation, on
 
   const nav = useMemo<GalleryNavigation>(
     () => ({
-      openDocument: (slug) => zurGalerie({ doc: slug }),
+      openDocument: (slug, opts) => {
+        if (oeffneLokal?.(slug, opts?.page)) return
+        if (oeffneLokal) console.warn(`[Story-Sektion] Dokument "${slug}" ist hier nicht geladen — oeffne es in der Galerie`)
+        zurGalerie({ doc: slug })
+      },
       closeDocument: onClose,
       // Leer = kein Teilen-Knopf (Vertrag des Kontexts).
       documentShareUrl: () => '',
@@ -54,7 +66,7 @@ export function useWebsiteStoryNavigation(navigation: WebsiteStoryNavigation, on
       pushParams: () => nichtVorgesehen('pushParams'),
       applyModeParams: () => nichtVorgesehen('applyModeParams'),
     }),
-    [zurGalerie, onClose],
+    [zurGalerie, onClose, oeffneLokal],
   )
 
   return { zurGalerie, nav }

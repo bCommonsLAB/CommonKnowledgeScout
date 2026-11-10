@@ -29,9 +29,15 @@ export interface StandardCardProps {
   onClick: () => void
   libraryId?: string
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /**
+   * Teaser-Form (Story-Sektion der Startseite): kein Cover-Thumbnail, keine
+   * Zeilen Autor/Region/Seiten/Datum, Track-Plakette oben neben dem Jahr —
+   * die Hoehe ist dort kostbar (Owner 10.11.2026). Vorgabe false.
+   */
+  teaser?: boolean
 }
 
-export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: StandardCardProps) {
+export function StandardCard({ doc, onClick, libraryId, onToggleFavorite, teaser = false }: StandardCardProps) {
   const { Bild } = useGalleryHost()
   return (
     <Card
@@ -55,18 +61,29 @@ export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: Stan
           variant='dark'
         />
       </div>
-      <CardHeader className='relative pb-1'>
-        {/* Jahr-Badge schwebend oben rechts, um mehr Breite fuer den Titel zu lassen */}
-        {doc.year ? (
-          <Badge variant='secondary' className='absolute top-2 right-3 text-xs px-2 py-0.5'>
-            {String(doc.year)}
-          </Badge>
+      <CardHeader className={teaser ? 'relative pb-4' : 'relative pb-1'}>
+        {/* Jahr-Badge schwebend oben rechts, um mehr Breite fuer den Titel zu lassen;
+            im Teaser steht die Track-Plakette daneben (statt unten in der Datumszeile). */}
+        {doc.year || (teaser && doc.track) ? (
+          <div className='absolute top-2 right-3 flex max-w-[50%] items-center gap-1.5'>
+            {teaser && doc.track ? (
+              // Badge ist inline-flex: die Auslassungspunkte brauchen ein eigenes Block-Element.
+              <Badge variant='outline' className='min-w-0 bg-background/70 text-xs' data-teaser-track title={doc.trackLabel || doc.track}>
+                <span className='block truncate'>{doc.trackLabel || doc.track}</span>
+              </Badge>
+            ) : null}
+            {doc.year ? (
+              <Badge variant='secondary' className='shrink-0 text-xs px-2 py-0.5'>
+                {String(doc.year)}
+              </Badge>
+            ) : null}
+          </div>
         ) : null}
 
         <div className='flex items-start gap-3'>
           <div className='flex items-start gap-2 flex-1 min-w-0'>
             {/* Cover-Thumbnail + Speaker-Icons + Titel fuer Standard-Dokumente (Buecher, PDFs, etc.) */}
-            {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
+            {!teaser && (doc.coverThumbnailUrl || doc.coverImageUrl) ? (
               <div className='flex-shrink-0 w-[80px] h-[120px] bg-secondary rounded border border-border overflow-hidden shadow-sm'>
                 <Bild
                   src={doc.coverThumbnailUrl || doc.coverImageUrl || ''}
@@ -82,11 +99,13 @@ export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: Stan
             <div className='flex-1 min-w-0'>
               <SpeakerOrAuthorIcons doc={doc} />
               <CardTitle className='text-lg line-clamp-2'>{doc.title || doc.shortTitle || doc.fileName || 'Dokument'}</CardTitle>
-              <CardDescription className='line-clamp-2'>{doc.shortTitle || doc.fileName}</CardDescription>
+              {/* Teaser: rechts Platz fuer die Stern-Plakette unten rechts lassen */}
+              <CardDescription className={teaser ? 'line-clamp-2 pr-8' : 'line-clamp-2'}>{doc.shortTitle || doc.fileName}</CardDescription>
             </div>
           </div>
         </div>
       </CardHeader>
+      {teaser ? null : (
       <CardContent>
         <div className='space-y-2'>
           {Array.isArray(doc.authors) && doc.authors.length > 0 ? (
@@ -130,6 +149,7 @@ export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: Stan
           ) : null}
         </div>
       </CardContent>
+      )}
     </Card>
   )
 }
