@@ -26,6 +26,8 @@ services:
       
       # Secretary Service Configuration
       - SECRETARY_SERVICE_URL=https://secretaryservices.your-domain.org/api
+      # Verbrauchsseite: Kurs US-Dollar -> Euro; ohne Wert zeigt die Seite keine Kosten
+      - VERBRAUCH_USD_EUR_KURS=0.90
       - SECRETARY_SERVICE_API_KEY=your_secretary_api_key_here
       
       # Application URLs
