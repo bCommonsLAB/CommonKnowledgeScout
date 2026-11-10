@@ -17,6 +17,7 @@
  * Sektion — Story-Modus und Galerie-Chat bleiben unveraendert.
  */
 
+import Link from 'next/link'
 import { useCallback, useMemo } from 'react'
 import { List } from 'lucide-react'
 import { Button } from '@ks/ui'
@@ -80,17 +81,26 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
     [bezeichnung.anzeigen, p],
   )
 
+  const slug = s.cfg?.publicPublishing?.slugName
+  const verbrauchHref = slug ? `/explore/${encodeURIComponent(slug)}/verbrauch?sicht=session` : null
+
   // N5: schlanke Fusszeile — eine dezente Zeile statt KI-Block und Parameter-Liste.
   const fuss = useCallback(
     (a: Nachricht) => (
       <div className="mt-3 border-t border-black/5 pt-2 text-xs text-neutral-500" data-story-antwort-fuss>
         <p>{t('website.story.kiHinweis', { count: new Set((a.belege ?? []).map((b) => b.fileId)).size })}</p>
         {a.queryId && <ChatConfigDisplay libraryId={p.libraryId} queryId={a.queryId} llmModel={s.llmModel} />}
+        {/* 10.11.2026: was diese Sitzung kostet — die Verbrauchsseite, vorgefiltert auf die eigene Sitzung. */}
+        {verbrauchHref && (
+          <Link href={verbrauchHref} className="mt-1 inline-block underline-offset-2 hover:underline" data-story-verbrauch-link>
+            {t('verbrauch.ansehen')} →
+          </Link>
+        )}
         {/* N5: die Berechnungsschritte bleiben an der fertigen Antwort einsehbar (dezent, nur fuer Angemeldete). */}
         {a.queryId && p.isSignedIn && <StoryVerarbeitungAufklapper libraryId={p.libraryId} queryId={a.queryId} />}
       </div>
     ),
-    [p.libraryId, p.isSignedIn, s.llmModel, t],
+    [p.libraryId, p.isSignedIn, s.llmModel, t, verbrauchHref],
   )
 
   // inline: Absatz-Zeilen mit Karte statt des ganzen Textes — nur fuer die Antwort mit Karten.

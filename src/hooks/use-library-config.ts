@@ -27,6 +27,8 @@ function getLocaleFromAtom(): string {
 
 interface ChatConfigResponse {
   library: { id: string; label: string }
+  /** Oeffentliche Angaben der Library; hier nur der Slug (Verweis auf die Verbrauchsseite). */
+  publicPublishing?: { slugName?: string }
   config: {
     placeholder?: string
     maxChars: number
