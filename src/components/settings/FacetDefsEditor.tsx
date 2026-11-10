@@ -24,6 +24,7 @@ import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/l
 import { isBaseFacetField, BASE_FACET_DEFS } from '@/lib/detail-view-types/base-fields'
 import { facetWerteSchema, WERTE_FAEHIGE_TYPEN, type FacetWert } from '@/lib/chat/facet-werte'
 import { FacetWerteDialog } from '@/components/settings/FacetWerteDialog'
+import { SORTIER_WAHLEN, ausSortierWahl, sortierWahlWert } from '@/lib/chat/facet-sortierung'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STANDARD-FACETTEN AUS REGISTRY GENERIEREN
@@ -200,6 +201,8 @@ export interface FacetDefUi {
   /** Wenn true, wird diese Facette als Spalte in der Galerie-Tabellenansicht angezeigt */
   showInTable: boolean
   sort?: 'alpha' | 'count'
+  /** Richtung zu `sort`; ohne Angabe Werte aufsteigend, Häufigkeit absteigend */
+  sortDirection?: 'asc' | 'desc'
   max?: number
   columns?: number
   /** Facette geht als Klartext in Chunk-Vorspann und Dokument-Embedding (Ingest) */
@@ -333,6 +336,7 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
           visible: typeof obj.visible === 'boolean' ? obj.visible : true,
           showInTable: typeof obj.showInTable === 'boolean' ? obj.showInTable : false,
           sort: obj.sort === 'count' ? 'count' : 'alpha',
+          sortDirection: obj.sortDirection === 'asc' || obj.sortDirection === 'desc' ? obj.sortDirection : undefined,
           max: typeof obj.max === 'number' ? obj.max : undefined,
           columns: typeof obj.columns === 'number' ? obj.columns : 1,
           ingestKontext: obj.ingestKontext === true ? true : undefined,
@@ -469,19 +473,11 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
                   </Select>
                 </td>
                 <td className="px-0 py-2 align-middle">
-                  <Select 
-                    value={d.sort || 'alpha'} 
-                    onValueChange={(v) => {
-                      // NUR valide Sort-Werte akzeptieren
-                      if (v === 'alpha' || v === 'count') {
-                        update(i, { sort: v });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  {/* Wonach und in welcher Richtung — eine Auswahl statt zweier Spalten (facet-sortierung.ts). */}
+                  <Select value={sortierWahlWert(d.sort, d.sortDirection)} onValueChange={(v) => update(i, ausSortierWahl(v))}>
+                    <SelectTrigger className="w-full" title="Reihenfolge der Filterwerte"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="alpha">alpha</SelectItem>
-                      <SelectItem value="count">count</SelectItem>
+                      {SORTIER_WAHLEN.map((w) => <SelectItem key={w.wert} value={w.wert}>{w.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </td>

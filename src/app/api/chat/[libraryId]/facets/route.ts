@@ -10,6 +10,7 @@ import { getDetailViewType } from '@ks/contracts'
 import { explorerGate } from '@ks/module-explorer'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 import { sternFilterAnhaengen, sternFilterAusQuery } from '@/lib/documents/stern-filter'
+import { sortiereFacettenWerte } from '@/lib/chat/facet-sortierung'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
@@ -128,10 +129,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     )
     const out = visibleDefs.map((d) => {
       const options = counts[d.metaKey] || []
-      const sorted = (d.sort === 'count')
-        ? options.slice().sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value)))
-        : options.slice().sort((a, b) => String(a.value).localeCompare(String(b.value)))
-      const limited = typeof d.max === 'number' ? sorted.slice(0, d.max) : sorted
+      // Reihenfolge, Richtung und Obergrenze je Facette (facet-sortierung.ts).
+      const limited = sortiereFacettenWerte(options, d)
       return { metaKey: d.metaKey, label: d.label || d.metaKey, type: d.type, options: limited, columns: d.columns || 1 }
     })
     // A4a: vorhandene Typen + aktuelle Wahl mitliefern (UI-Leitfilter).
