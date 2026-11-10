@@ -1,26 +1,13 @@
-# Use Cases
+# Use cases
 
-Short guides for common tasks in Common Knowledge Scout.
+Five guides that follow a library from the first file to a public website.
 
-## Basic Use Cases
+| Guide | You learn to |
+|---|---|
+| [Create a library and connect storage](create-a-library.md) | Connect OneDrive, Nextcloud or a local folder, create a library and invite people |
+| [Transform files into documents](transform-files.md) | Turn audio, video, PDFs, images and office files into structured, searchable documents |
+| [Publish a gallery and a website](publish.md) | Open the library to visitors, build a website from Markdown pages, use your own domain, embed the gallery elsewhere |
+| [Ask questions in story mode](story-mode.md) | Get answers with sources, set your perspective, and as owner shape and review the answers |
+| [Operate a library with an AI agent](operate-with-an-agent.md) | Let an agent maintain the library through the MCP server |
 
-- **[Library Setup](library-setup.md)** – Create and configure a library
-- **[PDF Transformation](file-transformation-pdf.md)** – Transform PDF files to Markdown
-- **[Media Transformation](file-transformation-media.md)** – Transcribe audio and video files
-
-## Advanced Use Cases
-
-- **[Web Scraping](web-scraping.md)** – Scrape web content and import events
-- **[Publishing](publishing.md)** – Publish library publicly
-- **[Chat & Story Mode](chat-exploration.md)** – Explore knowledge with chat
-
-## Advanced Features
-
-- **[Batch Operations](batch-operations.md)** – Process multiple files simultaneously
-
-## Further Information
-
-For detailed technical information see:
-- [Architecture Documentation](../architecture/)
-- [Reference Documentation](../reference/)
-- [Concepts Documentation](../concepts/)
+Most of the interface is in German. The guides give each label as it appears on screen, followed by an English translation.

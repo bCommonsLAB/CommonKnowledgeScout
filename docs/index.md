@@ -10,8 +10,7 @@ For an overview of what the application does, see the [README on GitHub](https:/
 |---|---|
 | Use the application | [Use cases](use-cases/index.md) – step-by-step guides |
 | Install and run it | [Configuration](operations/configuration.md) – services and environment variables |
-| Understand how it is built | [Module hierarchy](architecture/module-hierarchy.md), [shadow twin](architecture/shadow-twin.md), [vector search](architecture/mongodb-vector-search.md) |
-| Look up a module | [Reference](reference/file-index.md) |
+| Understand how it is built | [Architecture overview](architecture/overview.md) |
 
 ## About this site
 

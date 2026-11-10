@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="http://localhost:3000/docs/architecture/module-hierarchy.html">
+        <link rel="canonical" href="http://localhost:3000/docs/architecture/overview.html">
       
       
         <link rel="prev" href="../index.html">
       
       
-        <link rel="next" href="dependency-graph.html">
+        <link rel="next" href="../use-cases/index.html">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Module Hierarchy - Common Knowledge Scout</title>
+        <title>Architecture - Common Knowledge Scout</title>
       
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#module-hierarchy" class="md-skip">
+        <a href="#architecture-overview" class="md-skip">
           Skip to content
         </a>
       
@@ -106,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Module Hierarchy
+              Architecture
             
           </span>
         </div>
@@ -254,55 +254,6 @@
   
   
   
-    
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Architecture
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-    
-  
-  
-  
     <li class="md-nav__item md-nav__item--active">
       
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
@@ -318,7 +269,7 @@
   <span class="md-ellipsis">
     
   
-    Module Hierarchy
+    Architecture
   
 
     
@@ -329,14 +280,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="module-hierarchy.html" class="md-nav__link md-nav__link--active">
+      <a href="overview.html" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Module Hierarchy
+    Architecture
   
 
     
@@ -362,10 +313,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#module-tree" class="md-nav__link">
+  <a href="#the-system-and-its-neighbours" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Module Tree
+        The system and its neighbours
       
     </span>
   </a>
@@ -373,10 +324,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dependency-flow" class="md-nav__link">
+  <a href="#how-the-code-is-organised" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Dependency Flow
+        How the code is organised
       
     </span>
   </a>
@@ -384,82 +335,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#module-descriptions" class="md-nav__link">
+  <a href="#storage-abstraction" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Module Descriptions
+        Storage abstraction
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Module Descriptions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#core-infrastructure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core Infrastructure
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#storage-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage Layer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#library-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Library System
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chat-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Chat System
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#api-routes-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API Routes &amp; Components
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-principles" class="md-nav__link">
+  <a href="#from-file-to-answer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Principles
+        From file to answer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-deployment-many-sites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One deployment, many sites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MCP server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture decisions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-on-the-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working on the code
       
     </span>
   </a>
@@ -469,126 +414,6 @@
     </ul>
   
 </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="dependency-graph.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dependency Graph
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="shadow-twin.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Shadow-Twin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="pdf-transformation-phases.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    PDF Transformation Phases
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="mongodb-vector-search.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    MongoDB Vector Search
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -676,14 +501,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../use-cases/library-setup.html" class="md-nav__link">
+      <a href="../use-cases/create-a-library.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Library Setup
+    Create a Library
   
 
     
@@ -704,14 +529,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../use-cases/file-transformation-pdf.html" class="md-nav__link">
+      <a href="../use-cases/transform-files.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    PDF Transformation
+    Transform Files
   
 
     
@@ -732,14 +557,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../use-cases/file-transformation-media.html" class="md-nav__link">
+      <a href="../use-cases/publish.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Media Transformation
+    Publish
   
 
     
@@ -760,14 +585,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../use-cases/file-to-story.html" class="md-nav__link">
+      <a href="../use-cases/story-mode.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    File → Story (End-to-End)
+    Story Mode
   
 
     
@@ -788,98 +613,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../use-cases/web-scraping.html" class="md-nav__link">
+      <a href="../use-cases/operate-with-an-agent.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Web Scraping
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../use-cases/publishing.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Publishing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../use-cases/chat-exploration.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Chat & Story Mode
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../use-cases/batch-operations.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Batch Operations
+    Operate with an Agent
   
 
     
@@ -925,7 +666,7 @@
   <span class="md-ellipsis">
     
   
-    Reference
+    Operations
   
 
     
@@ -938,227 +679,6 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Reference
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/file-index.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    File Index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Modules
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Modules
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/modules/library.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Library
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/modules/storage.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Storage
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/modules/chat.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Chat
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Operations
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1230,10 +750,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#module-tree" class="md-nav__link">
+  <a href="#the-system-and-its-neighbours" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Module Tree
+        The system and its neighbours
       
     </span>
   </a>
@@ -1241,10 +761,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dependency-flow" class="md-nav__link">
+  <a href="#how-the-code-is-organised" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Dependency Flow
+        How the code is organised
       
     </span>
   </a>
@@ -1252,82 +772,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#module-descriptions" class="md-nav__link">
+  <a href="#storage-abstraction" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Module Descriptions
+        Storage abstraction
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Module Descriptions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#core-infrastructure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core Infrastructure
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#storage-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage Layer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#library-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Library System
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chat-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Chat System
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#api-routes-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API Routes &amp; Components
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-principles" class="md-nav__link">
+  <a href="#from-file-to-answer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Principles
+        From file to answer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-deployment-many-sites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One deployment, many sites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MCP server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture decisions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-on-the-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working on the code
       
     </span>
   </a>
@@ -1354,139 +868,249 @@
   
 
 
-<h1 id="module-hierarchy">Module Hierarchy<a class="headerlink" href="#module-hierarchy" title="Permanent link">&para;</a></h1>
-<p>Visual representation of the Common Knowledge Scout module organization and dependencies.</p>
-<h2 id="module-tree">Module Tree<a class="headerlink" href="#module-tree" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>Common Knowledge Scout
-│
-├── Core Infrastructure (Layer 1)
-│   ├── middleware.ts
-│   │   └── Authentication &amp; Routing
-│   ├── app/layout.tsx
-│   │   └── Root Layout &amp; Providers
-│   ├── instrumentation.ts
-│   │   └── External Jobs Worker Startup
-│   └── lib/
-│       ├── env.ts
-│       │   └── Environment Variables
-│       ├── auth.ts
-│       │   └── Authentication Helpers
-│       └── mongodb-service.ts
-│           └── Database Connection
-│
-├── Storage Layer (Layer 2)
-│   ├── lib/storage/
-│   │   ├── types.ts
-│   │   │   └── Type Definitions (StorageProvider, StorageItem, StorageError)
-│   │   ├── storage-factory.ts
-│   │   │   ├── LocalStorageProvider
-│   │   │   ├── NextcloudClientProvider
-│   │   │   └── StorageFactory
-│   │   ├── filesystem-provider.ts
-│   │   │   └── FileSystemProvider (legacy, vor Welle 1)
-│   │   ├── nextcloud-provider.ts
-│   │   │   └── NextcloudProvider (Server/WebDAV)
-│   │   ├── onedrive-provider.ts
-│   │   │   └── OneDriveProvider
-│   │   ├── onedrive/
-│   │   │   ├── errors.ts (extractGraphEndpoint, parseRetryAfter)
-│   │   │   └── oauth-server.ts (OneDriveServerProvider, OAuth-Helper)
-│   │   ├── library-capability.ts
-│   │   │   └── isFilesystemBacked
-│   │   ├── filesystem-client.ts
-│   │   │   └── FilesystemClient (legacy, vor Welle 1)
-│   │   ├── server-provider.ts
-│   │   │   └── Server Provider Helper (getServerProvider)
-│   │   ├── shadow-twin.ts
-│   │   ├── shadow-twin-folder-name.ts
-│   │   ├── provider-request-cache.ts
-│   │   ├── request-deduplicator.ts
-│   │   ├── non-portable-media-url.ts
-│   │   └── supported-types.ts
-│   ├── contexts/storage-context.tsx
-│   │   └── StorageContextProvider
-│   └── hooks/use-storage-provider.tsx
-│       └── useStorageProvider Hook
-│
-├── Library System (Layer 3)
-│   ├── types/library.ts
-│   │   └── Library Type Definitions
-│   ├── atoms/library-atom.ts
-│   │   └── Library State Atoms
-│   ├── lib/services/library-service.ts
-│   │   └── LibraryService
-│   └── components/library/
-│       ├── library.tsx
-│       │   └── Main Library Component
-│       ├── library-header.tsx
-│       ├── library-switcher.tsx
-│       ├── file-tree.tsx
-│       ├── file-list.tsx
-│       ├── file-preview.tsx
-│       └── ... (other library components)
-│
-├── Chat System (Layer 4)
-│   ├── types/chat.ts
-│   │   └── Chat Type Definitions
-│   ├── lib/chat/
-│   │   ├── constants.ts
-│   │   ├── orchestrator.ts
-│   │   ├── loader.ts
-│   │   ├── config.ts
-│   │   ├── common/
-│   │   │   ├── prompt.ts
-│   │   │   ├── filters.ts
-│   │   │   ├── llm.ts
-│   │   │   └── question-analyzer.ts
-│   │   └── retrievers/
-│   │       ├── chunks.ts
-│   │       └── summaries-mongo.ts
-│   ├── app/api/chat/[libraryId]/
-│   │   └── stream/route.ts
-│   └── components/library/chat/
-│       └── ... (chat components)
-│
-└── API Routes &amp; Components (Layer 5)
-    ├── app/api/
-    │   ├── storage/
-    │   ├── chat/
-    │   ├── libraries/
-    │   ├── external/jobs/
-    │   └── ... (other API routes)
-    └── components/
-        ├── ui/ (Shadcn UI components)
-        ├── shared/
-        └── ... (other components)
-</code></pre></div>
-<h2 id="dependency-flow">Dependency Flow<a class="headerlink" href="#dependency-flow" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>Layer 1 (Core Infrastructure)
-    ↓
-Layer 2 (Storage Layer)
-    ↓
-Layer 3 (Library System)
-    ↓
-Layer 4 (Chat System)
-    ↓
-Layer 5 (API Routes &amp; Components)
-</code></pre></div>
-<h2 id="module-descriptions">Module Descriptions<a class="headerlink" href="#module-descriptions" title="Permanent link">&para;</a></h2>
-<h3 id="core-infrastructure">Core Infrastructure<a class="headerlink" href="#core-infrastructure" title="Permanent link">&para;</a></h3>
-<p>Foundation layer providing authentication, database, and environment configuration. No internal dependencies.</p>
-<h3 id="storage-layer">Storage Layer<a class="headerlink" href="#storage-layer" title="Permanent link">&para;</a></h3>
-<p>Abstracts file storage operations across multiple backends (local filesystem, OneDrive, Nextcloud). Depends on Core Infrastructure.</p>
-<h3 id="library-system">Library System<a class="headerlink" href="#library-system" title="Permanent link">&para;</a></h3>
-<p>Manages library data and provides UI components for file browsing and management. Depends on Storage Layer.</p>
-<h3 id="chat-system">Chat System<a class="headerlink" href="#chat-system" title="Permanent link">&para;</a></h3>
-<p>Provides RAG-based chat functionality for knowledge exploration. Depends on Library System and Storage Layer.</p>
-<h3 id="api-routes-components">API Routes &amp; Components<a class="headerlink" href="#api-routes-components" title="Permanent link">&para;</a></h3>
-<p>User-facing API endpoints and React components. Depends on all previous layers.</p>
-<h2 id="key-principles">Key Principles<a class="headerlink" href="#key-principles" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Layered Architecture</strong>: Each layer depends only on layers below it</li>
-<li><strong>Dependency Injection</strong>: Higher layers receive dependencies from lower layers</li>
-<li><strong>Type Safety</strong>: TypeScript interfaces ensure contract compliance</li>
-<li><strong>Separation of Concerns</strong>: Each module has a single, well-defined responsibility</li>
-</ol>
+<h1 id="architecture-overview">Architecture overview<a class="headerlink" href="#architecture-overview" title="Permanent link">&para;</a></h1>
+<p>This page describes how Common Knowledge Scout is built: the services it needs, how the code is organised, and the decisions that shape it. It is the entry point for developers; the detailed documents it links to are in the repository and mostly written in German.</p>
+<h2 id="the-system-and-its-neighbours">The system and its neighbours<a class="headerlink" href="#the-system-and-its-neighbours" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+  subgraph Clients
+    B[Browser]
+    A[AI agent&lt;br/&gt;MCP client]
+    E[Other website&lt;br/&gt;embedded gallery]
+  end
+  subgraph KS[Common Knowledge Scout · Next.js]
+    UI[Pages and components]
+    API[API routes]
+    MCP[MCP server]
+    W[Job worker]
+  end
+  B --&gt; UI --&gt; API
+  E --&gt; API
+  A --&gt; MCP --&gt; API
+  API --&gt; W
+  W --&gt; SEC[Secretary Service&lt;br/&gt;transcription · OCR · language models]
+  API --&gt; ST[(User storage&lt;br/&gt;local · OneDrive · Nextcloud)]
+  API --&gt; DB[(MongoDB&lt;br/&gt;data and vector search)]
+  API --&gt; BLOB[(Azure Blob&lt;br/&gt;published media)]
+  UI --&gt; CL[Clerk&lt;br/&gt;sign-in]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Common Knowledge Scout</strong></td>
+<td>A Next.js application (App Router). It serves the interface, the API, the MCP server and runs the job worker in the same process.</td>
+</tr>
+<tr>
+<td><strong>Secretary Service</strong></td>
+<td>A separate Python service. It performs transcription, text recognition, PDF and office extraction, and every call to a language model. The application holds no model provider key.</td>
+</tr>
+<tr>
+<td><strong>User storage</strong></td>
+<td>The folder a library points at. Source files stay here and are never moved.</td>
+</tr>
+<tr>
+<td><strong>MongoDB</strong></td>
+<td>Libraries, documents, shadow twins, jobs, question log, and the vector index used for retrieval.</td>
+</tr>
+<tr>
+<td><strong>Azure Blob Storage</strong></td>
+<td>Optional. Holds images and media of published documents so that they can be served without access to the user's storage.</td>
+</tr>
+<tr>
+<td><strong>Clerk</strong></td>
+<td>Sign-in and user management.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-the-code-is-organised">How the code is organised<a class="headerlink" href="#how-the-code-is-organised" title="Permanent link">&para;</a></h2>
+<p>The repository is a pnpm monorepo.</p>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/app/</code></td>
+<td>Pages and API routes</td>
+</tr>
+<tr>
+<td><code>src/components/</code>, <code>src/lib/</code></td>
+<td>Interface components and server logic of the application</td>
+</tr>
+<tr>
+<td><code>packages/</code></td>
+<td>Shared code and feature modules, imported as <code>@ks/*</code></td>
+</tr>
+<tr>
+<td><code>electron/</code></td>
+<td>The desktop shell</td>
+</tr>
+<tr>
+<td><code>extensions/knowledgescout/</code></td>
+<td>The Claude Desktop extension that connects to the MCP server</td>
+</tr>
+<tr>
+<td><code>template-samples/</code></td>
+<td>Example templates</td>
+</tr>
+<tr>
+<td><code>docs/</code></td>
+<td>Contracts, architecture decisions, plans and this documentation</td>
+</tr>
+</tbody>
+</table>
+<p>The packages are layered. A package may import from the layers below it, not from those above.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Packages</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shared</td>
+<td><code>@ks/contracts</code>, <code>@ks/util</code>, <code>@ks/ui</code>, <code>@ks/i18n</code>, <code>@ks/viewers</code>, <code>@ks/api-client</code></td>
+<td>Types, interface primitives, translations, Markdown rendering, a typed API client</td>
+</tr>
+<tr>
+<td>Shell</td>
+<td><code>@ks/shell</code></td>
+<td>Providers, navigation, and the mapping from a host name to a site</td>
+</tr>
+<tr>
+<td>Modules</td>
+<td><code>@ks/module-explorer</code>, <code>@ks/module-story</code></td>
+<td>The gallery and story mode, each with its components and API namespace</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td><code>@ks/embed</code></td>
+<td>Gallery and story mode as one component for other React applications</td>
+</tr>
+</tbody>
+</table>
+<p>Moving code from <code>src/</code> into packages is ongoing work. The target layout and the order of the moves are described in the <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/architecture/modul-landkarte.md">module map</a>.</p>
+<h2 id="storage-abstraction">Storage abstraction<a class="headerlink" href="#storage-abstraction" title="Permanent link">&para;</a></h2>
+<p>All access to files goes through one interface, <code>StorageProvider</code> (<code>src/lib/storage/types.ts</code>), with an implementation for the local file system, OneDrive and Nextcloud. A provider is obtained from <code>StorageFactory</code>, on the server through <code>getServerProvider()</code>. Features do not ask which backend a library uses; only the settings forms do, to show the right fields.</p>
+<p>Credentials for OneDrive and Nextcloud belong to a user account as a <em>storage connection</em>. They are encrypted with AES-256-GCM before they are stored.</p>
+<p>Rule: <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/contracts/storage-abstraction.md">storage abstraction</a>.</p>
+<h2 id="from-file-to-answer">From file to answer<a class="headerlink" href="#from-file-to-answer" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+  S[Source file] --&gt;|1 Extract| T[Transcript]
+  T --&gt;|2 Transform&lt;br/&gt;with a template| D[Document&lt;br/&gt;Markdown + front matter]
+  D --&gt;|3 Ingest| V[Passages with embeddings]
+  V --&gt; G[Gallery]
+  V --&gt; Q[Story mode]</code></pre>
+<p><strong>Jobs.</strong> Each processing request becomes a job in MongoDB. A worker that starts with the server claims jobs, calls the Secretary Service and receives the result through a callback. Several instances can share one database when each has its own pool ID. All requests enter through one endpoint, <code>POST /api/pipeline/process</code>, and choose which of the three phases to run and whether to overwrite existing results.</p>
+<p><strong>Shadow twin.</strong> The transcript and the transformed document of a source are its shadow twin. Twins are stored in MongoDB, one collection per library. A library can also keep a mirror as Markdown files in a folder named <code>_&lt;source file name&gt;</code> next to the source, so that agents and other tools can read them. The database is the truth for generated twins; export and import between the two are explicit actions, not a permanent synchronisation.</p>
+<p><strong>Front matter.</strong> The metadata of a document is flat: <code>snake_case</code> keys on one level, compatible with Obsidian. One serialiser writes it.</p>
+<p><strong>Index.</strong> Ingestion writes three kinds of records into the library's vector collection: one metadata record per document, the passages with their embeddings, and chapter summaries with their embeddings. The gallery reads the metadata records. Filter fields are copied onto the passages so that a search can be filtered directly. The embedding model and its dimension are set per library.</p>
+<p><strong>Answering.</strong> A question is embedded and matched against the passages with MongoDB vector search, limited by the active filters and, for visitors, to published documents. The best passages go to the language model with the question, the reader's perspective and the library's answer rules. Answers are stored in a question log that also serves as cache.</p>
+<p>Rules: <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/contracts/contracts-story-pipeline.md">pipeline</a>, <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/contracts/shadow-twin-contracts.md">shadow twin</a>, <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/contracts/ingestion-contracts.md">ingestion</a>, <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/contracts/chat-contracts.md">chat</a>.</p>
+<h2 id="one-deployment-many-sites">One deployment, many sites<a class="headerlink" href="#one-deployment-many-sites" title="Permanent link">&para;</a></h2>
+<p>A site is a configuration, not a separate build. The application resolves the host name of a request to a library and renders that library's website at <code>/</code>, without the navigation of the application. Embedding in another website uses <code>@ks/embed</code>, which talks to the same API and serves public content only.</p>
+<h2 id="mcp-server">MCP server<a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h2>
+<p>The MCP server is a Streamable HTTP endpoint at <code>/api/mcp/mcp</code>. A request is authenticated with a personal account key and runs as that user. Each tool is a thin layer over the function the interface calls, so behaviour and validation are the same on both paths. Tools that change something require a reason and write it to an action log.</p>
+<h2 id="principles">Principles<a class="headerlink" href="#principles" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>No silent fallbacks</strong></td>
+<td>An invalid or missing value causes an error or an explicit log entry. It is never replaced by a default without notice.</td>
+</tr>
+<tr>
+<td><strong>The interface does not know the storage backend</strong></td>
+<td>Features use the provider interface.</td>
+</tr>
+<tr>
+<td><strong>Capture and publish are separate</strong></td>
+<td>Submitted content goes to an inbox first. Publishing is a separate, permission-checked step.</td>
+</tr>
+<tr>
+<td><strong>Machine work counts as accepted</strong></td>
+<td>People mark what is wrong instead of confirming what is right.</td>
+</tr>
+<tr>
+<td><strong>Public repository</strong></td>
+<td>Documentation describes the application, not a particular library, organisation or person.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="architecture-decisions">Architecture decisions<a class="headerlink" href="#architecture-decisions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>Decision</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0001-event-job-vs-external-jobs.md">0001</a></td>
+<td>Event jobs and external jobs are separate domains</td>
+<td>Active</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0002-galerie-sterne-ohne-clerk-read.md">0002</a></td>
+<td>Gallery stars come from MongoDB, not from Clerk</td>
+<td>Active</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0004-capture-publish-entkopplung-inbox-modell.md">0004</a></td>
+<td>Capture writes to an inbox; publishing is a separate job</td>
+<td>Active</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0006-beweislast-umdrehen-werkbank-kuration.md">0006</a></td>
+<td>Curation marks errors instead of confirming results</td>
+<td>Active</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0007-modularisierung-monorepo-schale-module.md">0007</a></td>
+<td>Monorepo with a shell, modules and shared libraries</td>
+<td>Active</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0008-deployment-ziele.md">0008</a></td>
+<td>One deployment, many sites; embedding serves public content only</td>
+<td>Active</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0011-zusammenarbeit-in-stufen.md">0011</a></td>
+<td>Collaboration in stages; co-creators work with the owner's storage access</td>
+<td>Accepted, in progress</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0012-sterne-zahl-oeffentlich-namen-privat.md">0012</a></td>
+<td>Star counts can be public; names stay private</td>
+<td>Accepted</td>
+</tr>
+<tr>
+<td><a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0003-wizard-schema-template-trennen.md">0003</a>, <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0009-library-foederation.md">0009</a>, <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/adr/0010-retrieval-profile.md">0010</a></td>
+<td>Separate wizard and schema template; federation of libraries; retrieval profiles</td>
+<td>Proposed</td>
+</tr>
+</tbody>
+</table>
+<p>ADR 0005 (co-creators with their own storage access) is postponed; ADR 0011 replaces its direction.</p>
+<h2 id="working-on-the-code">Working on the code<a class="headerlink" href="#working-on-the-code" title="Permanent link">&para;</a></h2>
+<p>Conventions, checks and branching rules are in <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/AGENTS.md"><code>AGENTS.md</code></a>. The current state of the work is in <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/STAND.md"><code>docs/STAND.md</code></a>.</p>
 
 
 
