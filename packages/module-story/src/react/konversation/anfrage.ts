@@ -31,18 +31,29 @@ export function streamAdresse(libraryId: string, rahmen: AnfrageRahmen): string 
 export interface StreamKoerper {
   message: string
   answerLength: string
-  chatHistory?: Array<{ question: string; answer: string }>
+  chatHistory?: VerlaufsPaar[]
   chatId?: string
   asTOC?: true
   skipQueryCache?: true
 }
 
-/** Letzte fuenf vollstaendige Paare als Gespraechsverlauf fuer den Server. */
-export function gespraechsverlauf(nachrichten: Nachricht[]): Array<{ question: string; answer: string }> {
+/** Ein Paar des Verlaufs; `targetLanguage` = Sprache, mit der die Frage gestellt wurde. */
+export interface VerlaufsPaar {
+  question: string
+  answer: string
+  targetLanguage?: string
+}
+
+/**
+ * Letzte fuenf vollstaendige Paare als Gespraechsverlauf fuer den Server —
+ * mit der Sprache je Paar: Antworten in anderer Sprache als der jetzt
+ * verlangten nimmt der Server nicht im Wortlaut in den Prompt (10.11.2026).
+ */
+export function gespraechsverlauf(nachrichten: Nachricht[]): VerlaufsPaar[] {
   return paare(nachrichten)
     .filter((p): p is Required<typeof p> => p.antwort !== undefined)
     .slice(-5)
-    .map((p) => ({ question: p.frage.text, answer: p.antwort.text }))
+    .map((p) => ({ question: p.frage.text, answer: p.antwort.text, ...(p.frage.sprache ? { targetLanguage: p.frage.sprache } : {}) }))
 }
 
 export function streamKoerper(

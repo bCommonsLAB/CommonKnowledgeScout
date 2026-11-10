@@ -55,7 +55,8 @@ import { attachTitleToReferences, attachViewTypeToReferences, buildTitleByFileId
 export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'chunkSummary' | 'summary'
   chatConfig?: NormalizedChatConfig
-  chatHistory?: Array<{ question: string; answer: string }>
+  /** Verlauf; `targetLanguage` je Paar = Sprache, in der die Antwort verlangt war (sprachanweisung.ts). */
+  chatHistory?: Array<{ question: string; answer: string; targetLanguage?: string }>
   facetsSelected?: Record<string, unknown>  // Facetten-Filter für Prompt
   // Facetten-Definitionen für Prompt; `werte` für die Legende der Antwortregeln (m2)
   facetDefs?: Array<{ metaKey: string; label?: string; type: string; werte?: FacetWert[] }>
@@ -409,6 +410,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               chatHistory: run.chatHistory,
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
+              uiLocale: run.uiLocale,
             })
         
         // Bei Retry mit reduzierten Quellen: Kein maxTokens (verwende Standard)

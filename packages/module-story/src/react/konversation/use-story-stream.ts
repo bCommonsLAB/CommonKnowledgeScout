@@ -106,7 +106,7 @@ export function useStoryStream(p: UseStoryStreamParams): UseStoryStreamResult {
       setSchritte([])
       const frageId = opts.uebersicht ? null : `question-${Date.now()}`
       if (frageId) {
-        const frage: Nachricht = { id: frageId, art: 'frage', text, createdAt: new Date().toISOString() }
+        const frage: Nachricht = { id: frageId, art: 'frage', text, createdAt: new Date().toISOString(), sprache: rahmen.perspektive.targetLanguage }
         setNachrichten((alt) => [...alt, frage])
         onFrage?.(frage)
       }

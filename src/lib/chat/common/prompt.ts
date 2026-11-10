@@ -36,7 +36,6 @@ import {
   SOCIAL_CONTEXT_DEFAULT,
   ACCESS_PERSPECTIVE_INSTRUCTIONS,
   ACCESS_PERSPECTIVE_DEFAULT,
-  TARGET_LANGUAGE_LABELS,
   getGenderInclusiveInstruction,
   combineCharacterInstructions,
   combineAccessPerspectiveInstructions,
@@ -44,6 +43,7 @@ import {
   SocialContext,
 } from '../constants'
 import type { FacetWert } from '../facet-werte'
+import { languageInstruction, languageReminder, verlaufFuerSprache, type VerlaufsPaar } from './sprachanweisung'
 import { formatiereQuellenMetadaten, type KontextFacette } from '../quellen-kontext'
 
 /** Überschrift der Regel-Sektion in der System-Message (Chat und TOC). */
@@ -207,65 +207,6 @@ function getAccessPerspectiveInstruction(accessPerspective: AccessPerspective | 
 }
 
 /**
- * Creates language instruction based on configuration
- * Uses the central TargetLanguage labels from lib/chat/constants.ts.
- * 
- * @param targetLanguage Die Zielsprache (kann 'global' sein)
- * @param uiLocale Die UI-Locale für 'global' Fallback (optional)
- */
-function getLanguageInstruction(targetLanguage: TargetLanguage, uiLocale?: string): string {
-  // Wenn 'global', verwende UI-Locale oder Fallback
-  if (targetLanguage === 'global') {
-    if (uiLocale) {
-      const localeToTargetMap: Record<string, string> = {
-        de: 'Deutsch',
-        en: 'Englisch',
-        it: 'Italienisch',
-        fr: 'Französisch',
-        es: 'Spanisch',
-        pt: 'Portugiesisch',
-        nl: 'Niederländisch',
-        no: 'Norwegisch',
-        da: 'Dänisch',
-        sv: 'Schwedisch',
-        fi: 'Finnisch',
-        pl: 'Polnisch',
-        cs: 'Tschechisch',
-        hu: 'Ungarisch',
-        ro: 'Rumänisch',
-        bg: 'Bulgarisch',
-        el: 'Griechisch',
-        tr: 'Türkisch',
-        ru: 'Russisch',
-        uk: 'Ukrainisch',
-        zh: 'Chinesisch',
-        ko: 'Koreanisch',
-        ja: 'Japanisch',
-        hr: 'Kroatisch',
-        sr: 'Serbisch',
-        bs: 'Bosnisch',
-        sl: 'Slowenisch',
-        sk: 'Slowakisch',
-        lt: 'Litauisch',
-        lv: 'Lettisch',
-        et: 'Estnisch',
-        id: 'Indonesisch',
-        ms: 'Malaysisch',
-        hi: 'Hindi',
-        sw: 'Swahili',
-        yo: 'Yoruba',
-        zu: 'Zulu',
-      }
-      const languageName = localeToTargetMap[uiLocale] || 'German'
-      return `Respond in ${languageName}.`
-    }
-    return 'Respond in German.' // Fallback
-  }
-  const languageName = TARGET_LANGUAGE_LABELS[targetLanguage] || 'German'
-  return `Respond in ${languageName}.`
-}
-
-/**
  * Konvertiert Chat-Historie zu Messages-Array für LLM
  * 
  * @param history Chat-Historie mit question/answer Paaren
@@ -323,7 +264,7 @@ function buildSystemPromptComponents(options?: {
     accessPerspectiveInstruction: options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : '',
     socialContextInstruction: options?.socialContext ? getSocialContextInstruction(options.socialContext) : '',
     genderInclusiveInstruction: options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : '',
-    languageInstruction: options?.targetLanguage ? getLanguageInstruction(options.targetLanguage, options.uiLocale) : 'Respond in German.',
+    languageInstruction: options?.targetLanguage ? languageInstruction(options.targetLanguage, options.uiLocale) : languageInstruction('de'),
   }
 }
 
@@ -436,9 +377,15 @@ export function buildChatUserMessage(
     usedInPrompt?: number
     /** Aufgeloeste Antwortregeln der Library: Vorrang-Zeile in den Requirements und woertliche Wiederholung am Ende. */
     antwortregeln?: string
+    /** Zielsprache der AKTUELLEN Anfrage: wird als letzte Anweisung vor dem Ausgabeformat wiederholt. */
+    targetLanguage?: TargetLanguage
+    uiLocale?: string
   }
 ): ChatMessage {
   const context = buildContext(sources, undefined, options?.facetDefs)
+  // Sprachwechsel-Befund 10.11.2026: die Anweisung in der System-Message allein
+  // verliert gegen einen Verlauf in anderer Sprache — siehe sprachanweisung.ts.
+  const sprache = options?.targetLanguage ? `${languageReminder(options.targetLanguage, options.uiLocale)}\n\n` : ''
   const style = styleInstruction(answerLength)
   const regeln = options?.antwortregeln?.trim()
   const vorrang = regeln ? `\n- ${ANTWORTREGELN_VORRANG}` : ''
@@ -474,7 +421,7 @@ Requirements:
 - Example: "[1] [2] [5]".
 - Available descriptions: ${sourceDescriptions}${filterText}${spaceConstraintNote}
 
-Output Format:
+${sprache}Output Format:
 Always respond as a JSON object with exactly these four fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
 - "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
@@ -522,7 +469,7 @@ export function buildChatMessages(
     accessPerspective?: AccessPerspective | AccessPerspective[]
     socialContext?: SocialContext
     genderInclusive?: boolean
-    chatHistory?: Array<{ question: string; answer: string }>
+    chatHistory?: VerlaufsPaar[]
     filters?: Record<string, unknown>
     facetDefs?: PromptFacetDef[]
     uiLocale?: string
@@ -546,8 +493,9 @@ export function buildChatMessages(
   
   // Chat-Historie als echte Messages
   if (options?.chatHistory && options.chatHistory.length > 0) {
-    const historyMessages = buildChatHistoryMessages(options.chatHistory)
-    messages.push(...historyMessages)
+    // Antworten in anderer Sprache gehen nicht im Wortlaut mit (sprachanweisung.ts)
+    const verlauf = verlaufFuerSprache(options.chatHistory, options.targetLanguage ?? 'de', options.uiLocale)
+    messages.push(...buildChatHistoryMessages(verlauf))
   }
   
   // Aktuelle User-Message mit Frage + Sources + Requirements
@@ -557,6 +505,8 @@ export function buildChatMessages(
     candidatesCount: options?.candidatesCount,
     usedInPrompt: options?.usedInPrompt,
     antwortregeln: options?.antwortregeln,
+    targetLanguage: options?.targetLanguage ?? 'de',
+    uiLocale: options?.uiLocale,
   }))
   
   return messages

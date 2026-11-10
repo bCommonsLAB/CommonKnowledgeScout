@@ -49,6 +49,7 @@ import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { createChat, touchChat, getChatById, updateChatTitle } from '@/lib/db/chats-repo'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
+  TARGET_LANGUAGE_ZOD_ENUM,
   isValidTargetLanguage,
   isValidSocialContext,
   normalizeCharacterToArray,
@@ -69,6 +70,9 @@ const chatRequestSchema = z.object({
   chatHistory: z.array(z.object({
     question: z.string(),
     answer: z.string(),
+    // Sprache, in der diese Antwort verlangt war — Antworten in anderer Sprache
+    // gehen nicht im Wortlaut in den Prompt (sprachanweisung.ts).
+    targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.optional(),
   })).optional(),
   chatId: z.string().optional(),
   asTOC: z.boolean().optional(), // Optional: Antwort als Themenübersicht formatieren

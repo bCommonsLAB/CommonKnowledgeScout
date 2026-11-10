@@ -24,7 +24,8 @@ export interface VerlaufEintrag {
   queryType?: string
   references?: unknown[]
   suggestedQuestions?: unknown[]
-  cacheParams?: { queryType?: string }
+  targetLanguage?: string
+  cacheParams?: { queryType?: string; targetLanguage?: string }
 }
 
 export function istBeleg(r: unknown): r is DocReference {
@@ -40,7 +41,8 @@ export function verlaufZuNachrichten(items: VerlaufEintrag[]): Nachricht[] {
     if ((item.cacheParams?.queryType ?? item.queryType) === 'toc') continue
     const createdAt = String(item.createdAt)
     const kurztitel = typeof item.shortTitle === 'string' && item.shortTitle.trim() !== '' ? item.shortTitle : undefined
-    nachrichten.push({ id: `${item.queryId}-question`, art: 'frage', text: item.question, createdAt, queryId: item.queryId, kurztitel })
+    const sprache = item.cacheParams?.targetLanguage ?? item.targetLanguage
+    nachrichten.push({ id: `${item.queryId}-question`, art: 'frage', text: item.question, createdAt, queryId: item.queryId, kurztitel, ...(sprache ? { sprache } : {}) })
     const belege = Array.isArray(item.references) ? item.references.filter(istBeleg) : []
     const anschlussfragen = Array.isArray(item.suggestedQuestions)
       ? item.suggestedQuestions.filter((q): q is string => typeof q === 'string')

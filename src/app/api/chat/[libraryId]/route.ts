@@ -10,6 +10,7 @@ import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import { getLocale } from '@ks/i18n'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
+  TARGET_LANGUAGE_ZOD_ENUM,
   isValidTargetLanguage,
   isValidSocialContext,
   normalizeCharacterToArray,
@@ -26,6 +27,9 @@ const chatRequestSchema = z.object({
   chatHistory: z.array(z.object({
     question: z.string(),
     answer: z.string(),
+    // Sprache, in der diese Antwort verlangt war — Antworten in anderer Sprache
+    // gehen nicht im Wortlaut in den Prompt (sprachanweisung.ts).
+    targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.optional(),
   })).optional(),
   chatId: z.string().optional(), // Optional: chatId für bestehenden Chat oder null für neuen Chat
 })

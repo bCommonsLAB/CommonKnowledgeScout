@@ -11,7 +11,7 @@ import type { ChatProcessingStep } from '@/types/chat-processing'
 import type { ChatMessage } from '../../utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import type { StoryTopicsData } from '@/types/story-topics'
-import type { Retriever } from '@/lib/chat/constants'
+import type { Retriever, TargetLanguage } from '@/lib/chat/constants'
 import { TOC_QUESTION, characterArrayToString, accessPerspectiveArrayToString } from '@/lib/chat/constants'
 import { compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
 import { parseSSELines } from '@/utils/sse'
@@ -202,7 +202,9 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
         })
 
         // Bereite Chatverlauf vor: Nur vollständige Frage-Antwort-Paare
-        const chatHistory: Array<{ question: string; answer: string }> = []
+        // targetLanguage je Paar: der Server laesst Antworten in anderer Sprache
+        // aus dem Prompt (Sprachwechsel-Befund 10.11.2026).
+        const chatHistory: Array<{ question: string; answer: string; targetLanguage?: TargetLanguage }> = []
         const recentMessages = messages.slice(-10) // Letzte 10 Messages (max. 5 Paare)
         for (let i = 0; i < recentMessages.length - 1; i++) {
           const msg = recentMessages[i]
@@ -211,6 +213,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
             chatHistory.push({
               question: msg.content,
               answer: nextMsg.content,
+              ...(msg.targetLanguage ? { targetLanguage: msg.targetLanguage } : {}),
             })
           }
         }
