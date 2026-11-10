@@ -9,12 +9,27 @@ theme:
   language: en
 use_directory_urls: false
 
-extra_javascript:
-  - https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js
-  - assets/javascripts/mermaid-init.js
-
-extra_css:
-  - assets/stylesheets/print.css
+# Nur die gepflegten Seiten werden gebaut und unter /docs ausgeliefert.
+# docs/ ist zugleich Arbeitsordner der Entwicklung (Plaene, Analysen,
+# Handover, Refactor) – das alles bleibt im Repo lesbar, gehoert aber nicht
+# auf die Doku-Site. Neue Seite => hier freigeben UND unten in nav eintragen.
+exclude_docs: |
+  *
+  !/index.md
+  !/use-cases/
+  !/use-cases/*.md
+  !/operations/
+  !/operations/*.md
+  !/architecture/
+  !/architecture/module-hierarchy.md
+  !/architecture/dependency-graph.md
+  !/architecture/shadow-twin.md
+  !/architecture/pdf-transformation-phases.md
+  !/architecture/mongodb-vector-search.md
+  !/reference/
+  !/reference/file-index.md
+  !/reference/modules/
+  !/reference/modules/*.md
 
 plugins:
   - search
@@ -45,13 +60,6 @@ nav:
       - Shadow-Twin: architecture/shadow-twin.md
       - PDF Transformation Phases: architecture/pdf-transformation-phases.md
       - MongoDB Vector Search: architecture/mongodb-vector-search.md
-  - Analysis:
-      - Shadow-Twin (v2-only): analysis/shadow-twin-v2-only.md
-      - Wizard & External Jobs: analysis/wizard-and-jobs.md
-      - Audio/Video (no template): analysis/audio-jobs-transcript-only.md
-      - Ingestion: analysis/ingestion.md
-      - Storage: analysis/storage.md
-      - Markdown Page Splitting: analysis/markdown-page-splitting.md
   # Guide: - Dateien existieren nicht
   #   - Start: guide/index.md
   #   - Setup: guide/setup.md
@@ -108,9 +116,6 @@ nav:
       # Secretary Services: reference/api/secretary-services.md - Datei existiert nicht
       # Track Processor: reference/api/track-processor.md - Datei existiert nicht
       # Chat & Story Mode: chat-response-generation-process.md - Datei existiert nicht
-  # Operations: - Dateien existieren nicht
-  #   - Start: ops/index.md
-  #   - Docker Deployment: ops/deployment/docker.md
-  #   - Electron Quick Setup: ops/desktop/quick-setup.md
-  #   - Electron Package Strategy: ops/desktop/package-strategy.md
+  - Operations:
+      - Configuration: operations/configuration.md
   # Analyse und Archiv absichtlich nicht verlinkt/gebaut

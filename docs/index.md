@@ -1,50 +1,18 @@
 # Common Knowledge Scout Documentation
 
-Welcome to the Common Knowledge Scout documentation.
+Common Knowledge Scout turns the files in your own storage — audio, video, PDFs, images and web pages — into structured Markdown, and makes the result available as a gallery, a website and a chat that answers with sources.
 
-## Quick Start
+For an overview of what the application does, see the [README on GitHub](https://github.com/bCommonsLAB/CommonKnowledgeScout#readme).
 
-- **[Use Cases](use-cases/index.md)** - Step-by-step guides for common tasks
-- **[Architecture](architecture/module-hierarchy.md)** - System architecture and module structure
-- **[Analysis](analysis/shadow-twin-v2-only.md)** - Current runtime behavior and decisions
-- **[Reference](reference/file-index.md)** - Complete file index and API reference
+## Where to start
 
-## Documentation Structure
+| You want to | Go to |
+|---|---|
+| Use the application | [Use cases](use-cases/index.md) – step-by-step guides |
+| Install and run it | [Configuration](operations/configuration.md) – services and environment variables |
+| Understand how it is built | [Module hierarchy](architecture/module-hierarchy.md), [shadow twin](architecture/shadow-twin.md), [vector search](architecture/mongodb-vector-search.md) |
+| Look up a module | [Reference](reference/file-index.md) |
 
-### Use Cases
-Practical guides for end users:
-- Library Setup
-- File Transformation (PDF, Audio, Video)
-- Web Scraping & Event Import
-- Publishing & Gallery
-- Chat & Story Mode
-- Batch Operations
+## About this site
 
-### Architecture
-System design and module documentation:
-- Module Hierarchy
-- Dependency Graph
-
-### Analysis
-Current runtime behavior and validated decisions:
-- Shadow-Twin v2-only runtime
-- Wizard & External Jobs (contracts)
-- Ingestion (MongoDB Vector Search)
-- [MongoDB → PostgreSQL: Analyse und Empfehlung](analysis/mongodb-zu-postgresql-analyse-und-empfehlung.md)
-- Storage providers (filesystem/OneDrive)
- - Audio/Video transcript-only when no template is selected
-
-### Reference
-Technical reference documentation:
-- File Index
-- Module Documentation (Storage, Library, Chat)
-
-## Getting Help
-
-For detailed technical information, see the [Reference Documentation](reference/file-index.md).
-
-## Notes
-
-- `docs/_analysis/` contains short-lived scratch notes and is intentionally **not** linked from MkDocs navigation.
-
-
+This site contains the maintained pages only. Plans, architecture decisions, contracts and working notes of the development are kept in the [`docs/` folder of the repository](https://github.com/bCommonsLAB/CommonKnowledgeScout/tree/master/docs); most of them are written in German.
