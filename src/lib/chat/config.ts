@@ -77,6 +77,11 @@ export function getDefaultFacets(): DefaultFacet[] {
   return [...base, ...additional]
 }
 
+/** `null` in gespeicherten Facetten-Feldern heißt „nicht gesetzt" (wie ein fehlender Schlüssel). */
+function nullAlsUndefined(wert: unknown): unknown {
+  return wert === null ? undefined : wert
+}
+
 /**
  * Zod-Schema für Chat-Konfiguration mit Defaults.
  * Achtung: Keine Secrets hier speichern.
@@ -150,6 +155,14 @@ const chatConfigObjectSchema = z.object({
       // Verbindliche Basis-Facette (nicht entfernbar); wird beim Parsen erzwungen.
       mandatory: z.boolean().optional(),
       buckets: z.array(z.object({ label: z.string(), min: z.number().int(), max: z.number().int() })).optional(),
+      // Reihenfolge und Umfang der Filterwerte (Owner 10.11.2026, facet-sortierung.ts).
+      // Standen bisher nur im Formular-Schema: Zod verwarf sie hier, die Galerie
+      // sortierte jeden Filter aufsteigend nach Wert. `null` aus älteren
+      // Ständen heißt „nicht gesetzt".
+      sort: z.preprocess(nullAlsUndefined, z.enum(['alpha', 'count']).optional()),
+      sortDirection: z.preprocess(nullAlsUndefined, z.enum(['asc', 'desc']).optional()),
+      max: z.preprocess(nullAlsUndefined, z.number().int().positive().optional()),
+      columns: z.preprocess(nullAlsUndefined, z.number().int().min(1).max(3).optional()),
       // Plan story-status-modalitaet (m1): Ingest-Kontext und Bedeutungs-Wörterbuch.
       // Zod strippt unbekannte Schlüssel — ohne Eintrag hier kämen die Felder nie
       // bei parseFacetDefs an.

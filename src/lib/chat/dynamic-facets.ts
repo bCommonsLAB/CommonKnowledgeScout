@@ -23,6 +23,8 @@ export interface FacetDef {
   mandatory?: boolean
   // Zusatzattribute für Anzeige/Aggregation
   sort?: 'alpha' | 'count'
+  /** Richtung zu `sort`; ohne Angabe Werte aufsteigend, Häufigkeit absteigend (facet-sortierung.ts). */
+  sortDirection?: 'asc' | 'desc'
   max?: number
   columns?: number
   buckets?: Array<{ label: string; min: number; max: number }>
@@ -58,6 +60,8 @@ export function parseFacetDefs(library: Library): FacetDef[] {
       multi: typeof d.multi === 'boolean' ? d.multi : true,
       visible: typeof d.visible === 'boolean' ? d.visible : true,
       sort: (d as { sort?: unknown }).sort === 'count' ? 'count' : 'alpha',
+      // Vom Schema geprüft (asc | desc); ohne Angabe entscheidet `standardRichtung`.
+      ...((d as { sortDirection?: 'asc' | 'desc' }).sortDirection ? { sortDirection: (d as { sortDirection: 'asc' | 'desc' }).sortDirection } : {}),
       max: typeof (d as { max?: unknown }).max === 'number' ? Math.max(1, Math.floor((d as { max: number }).max)) : undefined,
       columns: typeof (d as { columns?: unknown }).columns === 'number' ? Math.min(3, Math.max(1, Math.floor((d as { columns: number }).columns))) : 1,
       buckets: Array.isArray(d.buckets) ? d.buckets.filter(b => b && typeof b.min === 'number' && typeof b.max === 'number') : undefined,

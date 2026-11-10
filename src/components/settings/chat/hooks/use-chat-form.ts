@@ -126,6 +126,8 @@ export const chatFormSchema = z.object({
       /** Wenn true, als Spalte in der Galerie-Tabellenansicht anzeigen */
       showInTable: z.boolean().optional().default(false),
       sort: z.enum(['alpha','count']).optional(),
+      /** Richtung zu `sort` (facet-sortierung.ts); ohne Angabe die gewohnte */
+      sortDirection: z.enum(['asc','desc']).optional(),
       max: z.coerce.number().int().positive().optional(),
       columns: z.coerce.number().int().min(1).max(2).optional(),
       /** Facette geht als Klartext in Chunk-Vorspann und Dokument-Embedding (Ingest) */

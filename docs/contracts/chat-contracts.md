@@ -39,6 +39,12 @@ um Wrapper-/Helper-spezifische Vertraege.
     werden (§5).
     Benannte Regelsaetze (`antwortregelnVarianten`, `?rules=<name>` einer
     Website-Sektion): siehe `website-landingpage.md`.
+  - `facet-sortierung.ts` — Reihenfolge der Filterwerte je Facette: `sort`
+    (`alpha` | `count`), `sortDirection` (`asc` | `desc`; ohne Angabe Werte
+    aufsteigend, Häufigkeit absteigend), `max`; Typ `number` vergleicht als
+    Zahl. Die Felder stehen im Server-Schema (`config.ts`) — fehlen sie dort,
+    verwirft Zod sie und die Facetten-Route sortiert wieder nur aufsteigend
+    (Befund 10.11.2026). Nicht Teil des Cache-Hashes (reine Darstellung).
   - `quellen-kontext.ts` — Quellen-Header je Textstelle: Facettenwerte als
     `Label: Wertlabel — Bedeutung` aus dem Wörterbuch; ohne Eintrag Label +
     Rohwert, ohne Definition metaKey + Rohwert (kein Raten). Labels und
