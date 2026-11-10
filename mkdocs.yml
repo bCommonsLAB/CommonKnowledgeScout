@@ -21,15 +21,7 @@ exclude_docs: |
   !/operations/
   !/operations/*.md
   !/architecture/
-  !/architecture/module-hierarchy.md
-  !/architecture/dependency-graph.md
-  !/architecture/shadow-twin.md
-  !/architecture/pdf-transformation-phases.md
-  !/architecture/mongodb-vector-search.md
-  !/reference/
-  !/reference/file-index.md
-  !/reference/modules/
-  !/reference/modules/*.md
+  !/architecture/overview.md
 
 plugins:
   - search
@@ -54,12 +46,7 @@ nav:
   #   - Start: overview/index.md
   #   - Intro: overview/intro.md
   #   - Features: overview/features.md
-  - Architecture:
-      - Module Hierarchy: architecture/module-hierarchy.md
-      - Dependency Graph: architecture/dependency-graph.md
-      - Shadow-Twin: architecture/shadow-twin.md
-      - PDF Transformation Phases: architecture/pdf-transformation-phases.md
-      - MongoDB Vector Search: architecture/mongodb-vector-search.md
+  - Architecture: architecture/overview.md
   # Guide: - Dateien existieren nicht
   #   - Start: guide/index.md
   #   - Setup: guide/setup.md
@@ -103,16 +90,6 @@ nav:
   #   - Extended Shadow-Twin: concepts/features/extended-shadowtwin.md
   #   - Transformation Service: concepts/features/transformation-service.md
   #   - Video Transformation: concepts/video-transformation.md
-  - Reference:
-      - File Index: reference/file-index.md
-      - Modules:
-          - Library: reference/modules/library.md
-          - Storage: reference/modules/storage.md
-          - Chat: reference/modules/chat.md
-      # Glossary: reference/glossary.md - Datei existiert nicht
-      # Secretary Services: reference/api/secretary-services.md - Datei existiert nicht
-      # Track Processor: reference/api/track-processor.md - Datei existiert nicht
-      # Chat & Story Mode: chat-response-generation-process.md - Datei existiert nicht
   - Operations:
       - Configuration: operations/configuration.md
   # Analyse und Archiv absichtlich nicht verlinkt/gebaut

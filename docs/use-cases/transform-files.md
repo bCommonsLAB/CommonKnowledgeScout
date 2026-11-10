@@ -63,4 +63,4 @@ Importing a web article together with its embedded audio or video, or a whole vi
 ## Next
 
 - [Publish a gallery and a website](publish.md)
-- [How the pipeline works](../architecture/pdf-transformation-phases.md)
+- [Architecture overview](../architecture/overview.md#from-file-to-answer)

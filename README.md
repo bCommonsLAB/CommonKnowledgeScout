@@ -79,7 +79,7 @@ All settings are described in [Configuration](./docs/operations/configuration.md
 | Users | [Use cases](./docs/use-cases/index.md) – step-by-step guides |
 | Operators | [Configuration](./docs/operations/configuration.md) – environment variables and services |
 | Agent operators | [Operating a library over MCP](./docs/concepts/mcp-library-betrieb.md) (German) |
-| Developers | [Module map](./docs/architecture/modul-landkarte.md) (German), [architecture decisions](./docs/adr/), [contracts](./docs/contracts/) |
+| Developers | [Architecture overview](./docs/architecture/overview.md), then [module map](./docs/architecture/modul-landkarte.md), [architecture decisions](./docs/adr/) and [contracts](./docs/contracts/) (German) |
 | Contributors | [`AGENTS.md`](./AGENTS.md) – repository conventions, tests, branching |
 
 The documentation is also built with MkDocs and served by the application under `/docs`.
