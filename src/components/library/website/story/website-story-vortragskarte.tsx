@@ -35,7 +35,7 @@ export function WebsiteStoryVortragskarte({ eintrag, libraryId, onOpen }: Websit
     onOpen(slug)
   }
   return (
-    <div className="relative" id={`beleg-${nummer}`} data-story-karte={nummer}>
+    <div className="relative min-w-0" id={`beleg-${nummer}`} data-story-karte={nummer}>
       <DocumentCard doc={doc} libraryId={libraryId} cardDensity="compact" onOpen={oeffnen} />
       {/* Ueber der linken oberen Ecke, damit Sterne-Plakette und Jahr der Karte frei bleiben. */}
       <Zitatmarke nummer={nummer} groesse="karte" className="pointer-events-none absolute -left-2 -top-2 z-20 shadow-md ring-2 ring-white" aria-hidden="true" />
