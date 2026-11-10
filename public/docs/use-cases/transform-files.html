@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="http://localhost:3000/docs/use-cases/file-transformation-pdf.html">
+        <link rel="canonical" href="http://localhost:3000/docs/use-cases/transform-files.html">
       
       
-        <link rel="prev" href="library-setup.html">
+        <link rel="prev" href="create-a-library.html">
       
       
-        <link rel="next" href="file-transformation-media.html">
+        <link rel="next" href="publish.html">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>PDF Transformation - Common Knowledge Scout</title>
+        <title>Transform Files - Common Knowledge Scout</title>
       
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#pdf-transformation" class="md-skip">
+        <a href="#transform-files-into-documents" class="md-skip">
           Skip to content
         </a>
       
@@ -106,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              PDF Transformation
+              Transform Files
             
           </span>
         </div>
@@ -524,14 +524,14 @@
   
   
     <li class="md-nav__item">
-      <a href="library-setup.html" class="md-nav__link">
+      <a href="create-a-library.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Library Setup
+    Create a Library
   
 
     
@@ -568,7 +568,7 @@
   <span class="md-ellipsis">
     
   
-    PDF Transformation
+    Transform Files
   
 
     
@@ -579,14 +579,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="file-transformation-pdf.html" class="md-nav__link md-nav__link--active">
+      <a href="transform-files.html" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    PDF Transformation
+    Transform Files
   
 
     
@@ -612,10 +612,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-achieved" class="md-nav__link">
+  <a href="#what-you-achieve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What is achieved?
+        What you achieve
       
     </span>
   </a>
@@ -623,10 +623,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#the-three-steps-of-processing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        The three steps of processing
       
     </span>
   </a>
@@ -634,10 +634,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#steps" class="md-nav__link">
+  <a href="#before-you-start" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Steps
+        Before you start
       
     </span>
   </a>
@@ -645,155 +645,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#transformation-execution-modes" class="md-nav__link">
+  <a href="#process-one-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Transformation Execution Modes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Transformation Execution Modes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#asynchronous-mode-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Asynchronous Mode (Default)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#synchronous-mode-legacycache" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Synchronous Mode (Legacy/Cache)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#transformation-phases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Transformation Phases
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Transformation Phases">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#phase-1-extract-extraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 1: Extract (Extraction)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-2-templatemetadata" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 2: Template/Metadata
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 2: Template/Metadata">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#how-metadata-is-extracted-via-templates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How Metadata is Extracted via Templates
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-3-ingestion-rag" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 3: Ingestion (RAG)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#result-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Result Structure
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Result Structure">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#shadow-twin-directory-when-images-are-present" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shadow-Twin Directory (when images are present)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#shadow-twin-files-when-no-images" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shadow-Twin Files (when no images)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-naming-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File Naming Convention
+        Process one file
       
     </span>
   </a>
@@ -801,10 +656,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#parameters" class="md-nav__link">
+  <a href="#process-a-whole-folder" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Parameters
+        Process a whole folder
       
     </span>
   </a>
@@ -812,10 +667,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tips" class="md-nav__link">
+  <a href="#follow-progress-and-errors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tips
+        Follow progress and errors
       
     </span>
   </a>
@@ -823,10 +678,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#further-information" class="md-nav__link">
+  <a href="#templates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Further Information
+        Templates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-pages-and-video-playlists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web pages and video playlists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next
       
     </span>
   </a>
@@ -849,14 +726,14 @@
   
   
     <li class="md-nav__item">
-      <a href="file-transformation-media.html" class="md-nav__link">
+      <a href="publish.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Media Transformation
+    Publish
   
 
     
@@ -877,14 +754,14 @@
   
   
     <li class="md-nav__item">
-      <a href="file-to-story.html" class="md-nav__link">
+      <a href="story-mode.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    File → Story (End-to-End)
+    Story Mode
   
 
     
@@ -905,98 +782,14 @@
   
   
     <li class="md-nav__item">
-      <a href="web-scraping.html" class="md-nav__link">
+      <a href="operate-with-an-agent.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Web Scraping
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="publishing.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Publishing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="chat-exploration.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Chat & Story Mode
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="batch-operations.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Batch Operations
+    Operate with an Agent
   
 
     
@@ -1347,10 +1140,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-achieved" class="md-nav__link">
+  <a href="#what-you-achieve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What is achieved?
+        What you achieve
       
     </span>
   </a>
@@ -1358,10 +1151,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#the-three-steps-of-processing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        The three steps of processing
       
     </span>
   </a>
@@ -1369,10 +1162,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#steps" class="md-nav__link">
+  <a href="#before-you-start" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Steps
+        Before you start
       
     </span>
   </a>
@@ -1380,155 +1173,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#transformation-execution-modes" class="md-nav__link">
+  <a href="#process-one-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Transformation Execution Modes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Transformation Execution Modes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#asynchronous-mode-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Asynchronous Mode (Default)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#synchronous-mode-legacycache" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Synchronous Mode (Legacy/Cache)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#transformation-phases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Transformation Phases
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Transformation Phases">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#phase-1-extract-extraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 1: Extract (Extraction)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-2-templatemetadata" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 2: Template/Metadata
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 2: Template/Metadata">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#how-metadata-is-extracted-via-templates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How Metadata is Extracted via Templates
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-3-ingestion-rag" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase 3: Ingestion (RAG)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#result-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Result Structure
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Result Structure">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#shadow-twin-directory-when-images-are-present" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shadow-Twin Directory (when images are present)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#shadow-twin-files-when-no-images" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shadow-Twin Files (when no images)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-naming-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File Naming Convention
+        Process one file
       
     </span>
   </a>
@@ -1536,10 +1184,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#parameters" class="md-nav__link">
+  <a href="#process-a-whole-folder" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Parameters
+        Process a whole folder
       
     </span>
   </a>
@@ -1547,10 +1195,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tips" class="md-nav__link">
+  <a href="#follow-progress-and-errors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tips
+        Follow progress and errors
       
     </span>
   </a>
@@ -1558,10 +1206,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#further-information" class="md-nav__link">
+  <a href="#templates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Further Information
+        Templates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-pages-and-video-playlists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web pages and video playlists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next
       
     </span>
   </a>
@@ -1588,221 +1258,80 @@
   
 
 
-<h1 id="pdf-transformation">PDF Transformation<a class="headerlink" href="#pdf-transformation" title="Permanent link">&para;</a></h1>
-<h2 id="what-is-achieved">What is achieved?<a class="headerlink" href="#what-is-achieved" title="Permanent link">&para;</a></h2>
-<p>Transform PDF files into structured Markdown documents. Text, images, and structure are extracted and saved as searchable Markdown files. The transformation process consists of three phases: <strong>Extract</strong>, <strong>Template/Metadata</strong>, and <strong>Ingestion</strong>.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<h1 id="transform-files-into-documents">Transform files into documents<a class="headerlink" href="#transform-files-into-documents" title="Permanent link">&para;</a></h1>
+<h2 id="what-you-achieve">What you achieve<a class="headerlink" href="#what-you-achieve" title="Permanent link">&para;</a></h2>
+<p>A recording, a PDF or an image in your storage becomes a structured document with a title, a summary and metadata, and that document becomes searchable. The original file is not changed.</p>
+<div class="admonition note">
+<p class="admonition-title">Language of the interface</p>
+<p>Most of the interface is in German. This guide gives the label as it appears on screen, followed by an English translation.</p>
+</div>
+<h2 id="the-three-steps-of-processing">The three steps of processing<a class="headerlink" href="#the-three-steps-of-processing" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Label in the interface</th>
+<th>What it produces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Extract</td>
+<td><strong>Transkript erstellen</strong> (create transcript)</td>
+<td>The plain text of the source: a transcript for audio and video, recognised text for PDFs, images and office files</td>
+</tr>
+<tr>
+<td>2. Transform</td>
+<td><strong>Artefakte generieren</strong> (generate artefacts)</td>
+<td>A document shaped by a template: front matter with metadata, a structured body and, if you want, a cover image</td>
+</tr>
+<tr>
+<td>3. Publish</td>
+<td><strong>Story publizieren</strong> (publish story)</td>
+<td>The document is split into passages and indexed, so that it appears in the gallery and can be used to answer questions</td>
+</tr>
+</tbody>
+</table>
+<p>Each step can be switched on or off, and each can be repeated on its own. The result of steps 1 and 2 is called the <em>shadow twin</em> of the source. It is stored in the database; a library can be set to write a copy as Markdown files into your storage as well.</p>
+<p>Supported sources: PDF, audio (mp3, m4a, wav, ogg, opus, flac), video (mp4, mov, avi, webm, mkv, mpeg), images, Word, Excel and PowerPoint files, and Markdown. Markdown files skip step 1.</p>
+<h2 id="before-you-start">Before you start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Active library selected</li>
-<li>PDF file available in Library Browser</li>
+<li>A library with connected storage (see <a href="create-a-library.html">Create a library</a>).</li>
+<li>The Secretary Service is running. It does the transcription and text recognition.</li>
 </ul>
-<h2 id="steps">Steps<a class="headerlink" href="#steps" title="Permanent link">&para;</a></h2>
+<h2 id="process-one-file">Process one file<a class="headerlink" href="#process-one-file" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Open the <strong>Library</strong> view</li>
-<li>Navigate to the folder containing the PDF file</li>
-<li>Select the PDF file (single file or multiple for batch processing)</li>
-<li>Click the <strong>Transformation icon</strong> or use the context menu</li>
-<li>In the transformation dialog:</li>
-<li>Select the <strong>target language</strong> for transformation</li>
-<li>Optional: Choose a <strong>template</strong> for structured output</li>
-<li>Optional: Enable <strong>"Extract OCR images"</strong> for Mistral OCR extracted images</li>
-<li>Optional: Enable <strong>"Extract page images"</strong> for PDF pages as images</li>
-<li>Click <strong>"Start Transformation"</strong></li>
-<li>Monitor progress in the dialog (three phases: Extract → Template → Ingestion)</li>
-<li>After completion: The transformed Markdown files (Shadow Twins) appear next to the original</li>
+<li>Open <strong>Archive</strong> and select the file.</li>
+<li>In the preview, open the sheet <strong>Aufbereiten &amp; Publizieren</strong> (prepare and publish).</li>
+<li>Switch on the steps you want. A badge shows whether a result exists already and whether it will be overwritten.</li>
+<li>Set the options:<ul>
+<li><strong>Transcript</strong>: source and target language for audio and video. For audio you can add context such as the topic and special terms.</li>
+<li><strong>Artefacts</strong>: the <strong>Vorlage</strong> (template), the language, the model, whether to generate a cover image, and optional notes for corrections.</li>
+</ul>
+</li>
+<li>Click <strong>Jetzt starten</strong> (start now).</li>
 </ol>
-<h2 id="transformation-execution-modes">Transformation Execution Modes<a class="headerlink" href="#transformation-execution-modes" title="Permanent link">&para;</a></h2>
-<p>The transformation can run in two modes:</p>
-<h3 id="asynchronous-mode-default">Asynchronous Mode (Default)<a class="headerlink" href="#asynchronous-mode-default" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Used for larger files or when processing requires time</li>
-<li>Creates a background job that processes the PDF in three sequential phases</li>
-<li>Results are delivered via webhooks</li>
-<li><strong>Creates two separate files</strong>: Transcript (<code>document.md</code>) and Transformed (<code>document.de.md</code>)</li>
-</ul>
-<h3 id="synchronous-mode-legacycache">Synchronous Mode (Legacy/Cache)<a class="headerlink" href="#synchronous-mode-legacycache" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Used for small files or when results are cached</li>
-<li>Returns results immediately in the API response</li>
-<li><strong>Creates only one file</strong>: Transformed (<code>document.de.md</code>) with frontmatter</li>
-<li>No separate transcript file is created</li>
-</ul>
-<p><strong>Note</strong>: The mode is automatically selected based on file size and cache availability. Most transformations use the asynchronous mode.</p>
-<h2 id="transformation-phases">Transformation Phases<a class="headerlink" href="#transformation-phases" title="Permanent link">&para;</a></h2>
-<p>The three phases are executed sequentially in <strong>asynchronous mode</strong>. In <strong>synchronous mode</strong>, phases 1 and 2 are combined into a single operation.</p>
-<h3 id="phase-1-extract-extraction">Phase 1: Extract (Extraction)<a class="headerlink" href="#phase-1-extract-extraction" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>What happens</strong>: PDF → Text + Images extraction</li>
-<li><strong>Output</strong> (async mode): Markdown file without frontmatter (<code>document.md</code> - Transcript)</li>
-<li><strong>Output</strong> (sync mode): Directly proceeds to Phase 2, no separate transcript file</li>
-<li><strong>Images</strong>: Extracted as ZIP archives or Base64 (Mistral OCR)</li>
-<li><strong>Shadow-Twin Directory</strong>: Created automatically if images are present (<code>.document.pdf/</code>)</li>
-</ul>
-<h3 id="phase-2-templatemetadata">Phase 2: Template/Metadata<a class="headerlink" href="#phase-2-templatemetadata" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>What happens</strong>: Frontmatter is added and the document is structured (chapters, topics, etc.).</li>
-<li><strong>Input</strong> (async mode): Markdown without frontmatter (<code>document.md</code>)</li>
-<li><strong>Input</strong> (sync mode): Extracted text directly from Phase 1</li>
-<li><strong>Output</strong>: Markdown with frontmatter (<code>document.de.md</code> - Transformed)</li>
-<li><strong>Automatic skipping</strong>:</li>
-<li>If the document already has chapter metadata (<code>chapters</code> in frontmatter), the template phase is skipped.</li>
-<li>If only <code>pages</code> are missing, they are automatically reconstructed from the <code>--- Seite N ---</code> markers in the body (no extra analysis needed).</li>
-</ul>
-<h4 id="how-metadata-is-extracted-via-templates">How Metadata is Extracted via Templates<a class="headerlink" href="#how-metadata-is-extracted-via-templates" title="Permanent link">&para;</a></h4>
-<p>The template phase uses <strong>LLM-based extraction</strong> to analyze the document content and extract structured metadata:</p>
+<p>A progress bar in the preview shows the run. When it is finished, the tabs <strong>Original</strong>, <strong>Transkript</strong>, <strong>Transformation</strong>, <strong>Story</strong> and <strong>Uebersicht</strong> (overview) show the source and each result. To redo a step, use <strong>Neu generieren</strong> (regenerate) or <strong>Erneut publizieren</strong> (publish again) in the corresponding tab.</p>
+<h2 id="process-a-whole-folder">Process a whole folder<a class="headerlink" href="#process-a-whole-folder" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Template Selection</strong>:</li>
-<li>
-<p>Template is selected from MongoDB based on:</p>
-<ul>
-<li>Job parameters (<code>job.parameters.template</code>)</li>
-<li>Library configuration (<code>library.config.secretaryService.pdfDefaults.template</code>)</li>
-<li>Fallback to default templates if none specified</li>
-</ul>
-</li>
-<li>
-<p><strong>Template Structure</strong>:</p>
-</li>
-<li>Templates contain:<ul>
-<li><strong>Frontmatter Schema</strong>: Defines metadata fields with placeholders like <code>{{title|Description}}</code></li>
-<li><strong>System Prompt</strong>: Instructions for the LLM on how to extract and structure data</li>
-<li><strong>Markdown Body</strong>: Optional template structure for the output</li>
-</ul>
-</li>
+<li>In <strong>Archive</strong>, open the folder.</li>
+<li>Click <strong>Verzeichnis verarbeiten</strong> (process directory) in the header. To process only some files, tick them in the list first.</li>
+<li>Choose the steps. <strong>Erzwingen</strong> (force) repeats a step for files that have a result already.</li>
+<li>Optionally give the run a name and limit it with a file name pattern; <code>*</code> is the wildcard.</li>
+<li>Click <strong>Jobs starten</strong> (start jobs).</li>
 </ol>
-<p>Example template field:
-   <div class="highlight"><pre><span></span><code><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="nv">title|Vollständiger Titel des Dokuments (extraktiv</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">aus Heading/Frontseite)</span><span class="p p-Indicator">}}</span>
-<span class="nt">chapters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="nv">chapters|Array von Kapiteln mit title</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">level (1–3)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">order</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">startPage</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">endPage</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">pageCount</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">summary</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">keywords</span><span class="p p-Indicator">}}</span>
-</code></pre></div></p>
-<ol>
-<li><strong>LLM Processing</strong>:</li>
-<li>The extracted text (from Phase 1) and template content are sent to the <strong>Secretary Service</strong> (<code>/transformer/template</code> endpoint)</li>
-<li>The LLM analyzes the document content according to the system prompt</li>
-<li>The LLM extracts metadata fields defined in the template frontmatter</li>
-<li>
-<p>Returns structured JSON with all metadata fields</p>
-</li>
-<li>
-<p><strong>Metadata Sources</strong> (as defined in template system prompts):</p>
-</li>
-<li><strong>Document content</strong>: Headings, text, TOC, metadata sections</li>
-<li><strong>Filename</strong>: Parsed for author, year, title, topic, source, issue, status</li>
-<li><strong>Directory path</strong>: Extracted for document type, series/journal, project, region</li>
-<li>
-<p><strong>Acronym mapping</strong>: Resolves abbreviations from filename/path/document</p>
-</li>
-<li>
-<p><strong>Response Processing</strong>:</p>
-</li>
-<li>The Secretary Service returns <code>structured_data</code> as JSON</li>
-<li>This JSON is normalized and converted to YAML frontmatter</li>
-<li>
-<p>Fields are validated and cleaned (e.g., <code>shortTitle</code> max 40 chars, slug normalization)</p>
-</li>
-<li>
-<p><strong>Chapter Analysis</strong> (if chapters missing after template):</p>
-</li>
-<li>If the template didn't extract chapters, an additional analysis step runs</li>
-<li>Calls internal <code>/api/chat/{libraryId}/analyze-chapters</code> endpoint</li>
-<li>Merges detected chapters with any existing chapters</li>
-<li>
-<p>Extracts page numbers from <code>--- Seite N ---</code> markers in the text</p>
-</li>
-<li>
-<p><strong>Pages Reconstruction</strong>:</p>
-</li>
-<li><strong>Important</strong>: The <code>pages</code> field is <strong>never</strong> computed by the template/LLM</li>
-<li>Always reconstructed from <code>--- Seite N ---</code> markers in the Markdown body</li>
-<li>Extracts the highest page number found in the document</li>
-</ol>
-<p><strong>Example Flow</strong>:
-<div class="highlight"><pre><span></span><code>Extracted Text (Phase 1)
-    ↓
-Template Content (from MongoDB)
-    ↓
-Secretary Service /transformer/template
-    ↓ (LLM analyzes text + template instructions)
-Structured JSON Response
-    ↓ (normalize &amp; validate)
-YAML Frontmatter
-    ↓ (merge with existing metadata)
-Final Markdown with Frontmatter
-</code></pre></div></p>
-<h3 id="phase-3-ingestion-rag">Phase 3: Ingestion (RAG)<a class="headerlink" href="#phase-3-ingestion-rag" title="Permanent link">&para;</a></h3>
+<p>The folder and all its subfolders are scanned. Template, language and extraction method come from the library's defaults. Folders whose name starts with <code>_</code>, and folders named <code>test</code> or <code>tests</code>, are skipped; the dialog shows how many.</p>
+<h2 id="follow-progress-and-errors">Follow progress and errors<a class="headerlink" href="#follow-progress-and-errors" title="Permanent link">&para;</a></h2>
+<p>Open the job monitor from the header of the application. It lists the running and finished jobs, can be filtered by run, shows the error of a failed job under <strong>Details anzeigen</strong> (show details), and restarts failed jobs.</p>
+<h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
+<p>A template decides what the document looks like. It consists of the metadata fields to fill, instructions for the language model and the layout of the body. Templates are managed under <strong>Templates</strong> in the top navigation, where you can also test one against a file.</p>
+<p>The folder <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout/tree/master/template-samples"><code>template-samples/</code></a> in the repository contains examples that can be imported.</p>
+<h2 id="web-pages-and-video-playlists">Web pages and video playlists<a class="headerlink" href="#web-pages-and-video-playlists" title="Permanent link">&para;</a></h2>
+<p>Importing a web article together with its embedded audio or video, or a whole video playlist, is available through the agent tools, not through the interface. See <a href="operate-with-an-agent.html">Operate a library with an AI agent</a>.</p>
+<h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>What happens</strong>: Markdown → Vector storage, MongoDB</li>
-<li><strong>Images</strong>: Uploaded to Azure Storage for frontend access</li>
-<li><strong>Result</strong>: Document is searchable via RAG (Retrieval Augmented Generation)</li>
-<li><strong>Note</strong>: Only executed in <strong>asynchronous mode</strong>. In synchronous mode, ingestion must be triggered separately if needed.</li>
-<li><strong>Note</strong>: Only executed in <strong>asynchronous mode</strong>. In synchronous mode, ingestion must be triggered separately if needed.</li>
-</ul>
-<h2 id="result-structure">Result Structure<a class="headerlink" href="#result-structure" title="Permanent link">&para;</a></h2>
-<p>The structure depends on whether images are extracted and which execution mode was used:</p>
-<h3 id="shadow-twin-directory-when-images-are-present">Shadow-Twin Directory (when images are present)<a class="headerlink" href="#shadow-twin-directory-when-images-are-present" title="Permanent link">&para;</a></h3>
-<p>If images are extracted, a Shadow-Twin directory is created:</p>
-<p><strong>Asynchronous mode</strong> (two files):
-<div class="highlight"><pre><span></span><code>.document.pdf/
-├── document.md          (Transcript - Phase 1 output, no frontmatter)
-├── document.de.md       (Transformed - Phase 2 output, with frontmatter)
-├── page-001.png        (Extracted images)
-├── page-002.png
-└── ...
-</code></pre></div></p>
-<p><strong>Synchronous mode</strong> (one file):
-<div class="highlight"><pre><span></span><code>.document.pdf/
-├── document.de.md       (Transformed - Phase 1+2 combined output, with frontmatter)
-├── page-001.png        (Extracted images)
-├── page-002.png
-└── ...
-</code></pre></div></p>
-<h3 id="shadow-twin-files-when-no-images">Shadow-Twin Files (when no images)<a class="headerlink" href="#shadow-twin-files-when-no-images" title="Permanent link">&para;</a></h3>
-<p>If no images are extracted, files are saved directly next to the PDF:</p>
-<p><strong>Asynchronous mode</strong> (two files):
-<div class="highlight"><pre><span></span><code>document.pdf
-document.md          (Transcript - Phase 1 output, no frontmatter)
-document.de.md       (Transformed - Phase 2 output, with frontmatter)
-</code></pre></div></p>
-<p><strong>Synchronous mode</strong> (one file):
-<div class="highlight"><pre><span></span><code>document.pdf
-document.de.md       (Transformed - Phase 1+2 combined output, with frontmatter)
-</code></pre></div></p>
-<p>For more detailed information about the Shadow-Twin structure, see the <strong>Shadow-Twin Architecture Documentation</strong>.</p>
-<h2 id="file-naming-convention">File Naming Convention<a class="headerlink" href="#file-naming-convention" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Transcript File</strong> (<code>document.md</code>): </li>
-<li>Created after Phase 1 (Extract) in <strong>asynchronous mode only</strong></li>
-<li>Contains extracted text without frontmatter</li>
-<li><strong>No language suffix</strong> (original language of source)</li>
-<li>
-<p><strong>Not created in synchronous mode</strong> (phases are combined)</p>
-</li>
-<li>
-<p><strong>Transformed File</strong> (<code>document.de.md</code>):</p>
-</li>
-<li>Created after Phase 2 (Template) in <strong>asynchronous mode</strong></li>
-<li>Created after Phase 1+2 (combined) in <strong>synchronous mode</strong></li>
-<li>Contains text with frontmatter and metadata</li>
-<li><strong>With language suffix</strong> (target language for transformation)</li>
-</ul>
-<h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong><code>includeOcrImages</code></strong>: Request Mistral OCR images as Base64 (default: <code>true</code> for Mistral OCR)</li>
-<li><strong><code>includePageImages</code></strong>: Extract PDF pages as images and return as ZIP archive (default: <code>true</code> for Mistral OCR)</li>
-</ul>
-<h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Shadow Twins are automatically linked with the original</li>
-<li>Transformation runs in the background - you can continue working</li>
-<li>Errors are displayed in an error message</li>
-<li>Both transcript and transformed files can coexist (different names)</li>
-<li>Shadow-Twin directory is hidden (starts with <code>.</code>)</li>
-</ul>
-<h2 id="further-information">Further Information<a class="headerlink" href="#further-information" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../architecture/shadow-twin.html">Shadow-Twin Architecture Documentation</a></li>
-<li><a href="../architecture/pdf-transformation-phases.html">PDF Transformation Phases</a></li>
-<li><a href="../reference/file-index.html#transform--processing">Transform Service Documentation</a></li>
-<li><a href="batch-operations.html">Batch Operations</a> for multiple files</li>
+<li><a href="publish.html">Publish a gallery and a website</a></li>
+<li><a href="../architecture/pdf-transformation-phases.html">How the pipeline works</a></li>
 </ul>
 
 
