@@ -129,7 +129,13 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
       )}
 
       {data.heroLayout === "none" ? null : data.heroLayout === "band" ? (
-        <HeroBand title={heroTitle} subtitle={data.heroSubtitle} kicker={data.heroKicker} />
+        <HeroBand
+          title={heroTitle}
+          subtitle={data.heroSubtitle}
+          kicker={data.heroKicker}
+          imageUrl={data.heroImageUrl}
+          imageAlt={data.heroImageAlt}
+        />
       ) : data.heroLayout === "campaign" && data.heroImageUrl ? (
         <HeroCampaign
           title={heroTitle}

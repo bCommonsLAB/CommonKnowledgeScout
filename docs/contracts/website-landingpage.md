@@ -58,8 +58,9 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Attributwerte in Anfuehrungszeichen duerfen Leerzeichen enthalten.
 - **Hero `band` (N4, 2.65.0):** `hero_layout: band` rendert ein schlankes
   farbiges Band (kraeftiger Akzent des Profils, `--site-accent-strong`) mit
-  `hero_kicker`, `hero_title` und `hero_subtitle` — OHNE `hero_image` und
-  niedriger als `campaign`. Fuer Startseiten, die zuerst die Frage stellen und
+  `hero_kicker`, `hero_title` und `hero_subtitle`, niedriger als `campaign`.
+  Ein `hero_image` ist optional und liegt als Hintergrund hinter dem Text
+  (dunkler Schleier, weisser Text); die Hoehe des Bands bleibt gleich. Fuer Startseiten, die zuerst die Frage stellen und
   die Story-Sektion gleich darunter zeigen (Figma S1).
 - **Kein Kopf (2.48.1):** `hero_layout: none` rendert keinen `<header>`;
   die erste Sektion beginnt oben. Ein unbekannter `hero_layout`-Wert faellt
