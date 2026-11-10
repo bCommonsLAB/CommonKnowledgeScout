@@ -28,6 +28,7 @@ import type { Nachricht, Perspektive } from './konversation/types'
 import { STORY_UEBERSICHT, type StoryKopf } from './types'
 import { storyUebersichtAktionAtom } from './atoms'
 import { useStoryKonversation } from './story-root/use-story-konversation'
+import { useNeuStellen } from './story-root/use-neu-stellen'
 
 export interface StoryRootProps {
   libraryId: string
@@ -62,6 +63,9 @@ export function StoryRoot(p: StoryRootProps) {
     maxZeichen: p.eingabe?.maxZeichen,
     maxZeichenHinweis: p.eingabe?.maxZeichenHinweis ?? (p.eingabe?.maxZeichen ? t('story.eingabe.tooLong', { max: p.eingabe.maxZeichen }) : undefined),
   })
+  // Nach „Mit dieser Perspektive starten": die gezeigte Frage neu stellen (10.11.2026).
+  const gezeigteFrage = k.auswahl.art === 'konversation' ? k.paareDerAuswahl[k.paareDerAuswahl.length - 1]?.frage.text ?? null : null
+  useNeuStellen({ stand: k.stand, laeuft: k.laeuft, frage: gezeigteFrage, frageSenden: k.frageSenden })
   const [text, setText] = useState('')
   const [eingabeOffen, setEingabeOffen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)

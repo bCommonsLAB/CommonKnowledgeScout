@@ -14,7 +14,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API, useSessionHeaders } from '@ks/api-client'
 import type { DocCardMeta, DocReference, GalleryFilters } from '@ks/contracts'
-import { paare, useStoryKonversation, type Perspektive } from '@ks/module-story/react'
+import { useAtomValue } from 'jotai'
+import { paare, storyPerspektiveGespeichertAtom, useNeuStellen, useStoryKonversation, type Perspektive } from '@ks/module-story/react'
 import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
@@ -53,7 +54,11 @@ export function useWebsiteStory(libraryId: string, filter?: GalleryFilters, rege
   useEffect(() => {
     if (story.targetLanguage !== startSprache.current) setSpracheGewaehlt(story.targetLanguage)
   }, [story.targetLanguage])
-  const targetLanguage: TargetLanguage = spracheGewaehlt ?? 'global'
+  // Befund 10.11.2026: Der Vergleich mit der Startsprache allein merkt nicht, wenn die
+  // Person im Dialog ZURUECK auf die Startsprache stellt (en → da → en bei Start „en"
+  // blieb „da"). Nach einem Speichern im Dialog gilt deshalb immer dessen Sprache.
+  const gespeichert = useAtomValue(storyPerspektiveGespeichertAtom)
+  const targetLanguage: TargetLanguage = gespeichert > 0 ? story.targetLanguage : spracheGewaehlt ?? 'global'
   const sessionHeaders = useSessionHeaders(angemeldet)
 
   const perspektive = useMemo<Perspektive>(
@@ -85,6 +90,8 @@ export function useWebsiteStory(libraryId: string, filter?: GalleryFilters, rege
   // juengste (wie eine Suche, Owner 08.11.2026).
   const alle = useMemo(() => paare(k.nachrichten), [k.nachrichten])
   const sichtbar = useMemo(() => sichtbaresPaar(alle), [alle])
+  // Nach „Mit dieser Perspektive starten": die sichtbare Frage neu stellen, ohne weiteren Klick.
+  useNeuStellen({ stand: k.stand, laeuft: k.laeuft, frage: sichtbar.paar?.frage.text ?? null, frageSenden: k.frageSenden })
 
   // Zahl des Katalogs fuer den Weg „alle Quellen" in der Belegliste (anonym lesbar).
   const [katalogAnzahl, setKatalogAnzahl] = useState<number>(0)

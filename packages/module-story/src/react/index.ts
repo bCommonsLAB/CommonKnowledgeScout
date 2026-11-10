@@ -15,7 +15,7 @@
 
 export type { StoryAuswahl, ChronikFrage, ChronikSitzung, AktiveSitzung, StoryKopf } from './types'
 export { STORY_UEBERSICHT } from './types'
-export { storyAuswahlAtom, storyGliederungAtom, storyAktiveSitzungAtom, storyUebersichtAktionAtom, storySitzungenStandAtom, type UebersichtAktion } from './atoms'
+export { storyAuswahlAtom, storyGliederungAtom, storyAktiveSitzungAtom, storyUebersichtAktionAtom, storySitzungenStandAtom, storyPerspektiveGespeichertAtom, type UebersichtAktion } from './atoms'
 export { kurztitel, kurztitelFuer } from './kurztitel'
 export { themaZuFrage } from './thema-zu-frage'
 export { useStorySitzungen, type UseStorySitzungenParams, type UseStorySitzungenResult } from './use-story-sitzungen'
@@ -43,6 +43,8 @@ export { StoryEingabe, type StoryEingabeProps } from './konversation/story-einga
 export { StoryEingabeInline, type StoryEingabeInlineProps } from './konversation/story-eingabe-inline'
 export { useStorySitzungId, type UseStorySitzungIdResult } from './story-root/use-story-sitzung-id'
 export { useStoryKonversation, type UseStoryKonversationParams } from './story-root/use-story-konversation'
+// 10.11.2026: nach „Mit dieser Perspektive starten" die letzte Frage neu stellen.
+export { useNeuStellen, neuStellenEntscheiden, type UseNeuStellenParams } from './story-root/use-neu-stellen'
 export { StoryRoot, type StoryRootProps } from './story-root'
 export { StoryKopfzeile, type StoryKopfzeileProps } from './story-kopfzeile'
 
