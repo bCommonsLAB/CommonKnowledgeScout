@@ -15,7 +15,10 @@
 
 export { GalleryRoot, type GalleryRootProps } from './components/gallery-root'
 export { DocumentCard } from './components/document-card'
-export type { DetailRenderer, DetailRenderProps } from './components/detail-overlay'
+export type { DetailRenderer, DetailRenderProps, DetailOverlayProps } from './components/detail-overlay'
+// Story-Sektion der Startseite (10.11.2026): die Detailansicht ueber der Seite, ohne in die Galerie zu wechseln.
+export { DetailOverlay } from './components/detail-overlay'
+export { resolveDetailViewTypeForDoc } from './components/gallery-root/helpers'
 
 // Bausteine, die die Klimamassnahmen-Detailansicht der App wiederverwendet
 // (`climate-action-detail.tsx`): SDG-Profil, Stakeholder-Positionen und die

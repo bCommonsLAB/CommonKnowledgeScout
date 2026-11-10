@@ -29,9 +29,11 @@ export interface StandardCardProps {
   onClick: () => void
   libraryId?: string
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /** Cover-Thumbnail links weglassen (Teaser der Startseite); Vorgabe false. */
+  hideCover?: boolean
 }
 
-export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: StandardCardProps) {
+export function StandardCard({ doc, onClick, libraryId, onToggleFavorite, hideCover = false }: StandardCardProps) {
   const { Bild } = useGalleryHost()
   return (
     <Card
@@ -66,7 +68,7 @@ export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: Stan
         <div className='flex items-start gap-3'>
           <div className='flex items-start gap-2 flex-1 min-w-0'>
             {/* Cover-Thumbnail + Speaker-Icons + Titel fuer Standard-Dokumente (Buecher, PDFs, etc.) */}
-            {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
+            {!hideCover && (doc.coverThumbnailUrl || doc.coverImageUrl) ? (
               <div className='flex-shrink-0 w-[80px] h-[120px] bg-secondary rounded border border-border overflow-hidden shadow-sm'>
                 <Bild
                   src={doc.coverThumbnailUrl || doc.coverImageUrl || ''}

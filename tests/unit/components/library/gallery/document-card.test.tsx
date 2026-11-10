@@ -124,6 +124,16 @@ describe('DocumentCard (Switch)', () => {
     expect(screen.getByText('Standard-Buch')).toBeTruthy()
   })
 
+  it('hideCover laesst das Cover-Thumbnail der Standard-Karte weg; Vorgabe zeigt es', () => {
+    const doc = makeDoc({ title: 'Mit Cover', coverImageUrl: 'https://example.com/cover.jpg' })
+    const mit = render(<DocumentCard doc={doc} libraryId="lib-1" />)
+    expect(mit.container.querySelector('img[alt="Mit Cover"]')).not.toBeNull()
+    cleanup()
+    const ohne = render(<DocumentCard doc={doc} libraryId="lib-1" hideCover />)
+    expect(ohne.container.querySelector('img[alt="Mit Cover"]')).toBeNull()
+    expect(screen.getByText('Mit Cover')).toBeTruthy()
+  })
+
   it('rendert ClimateActionCard bei detailViewType="climateAction"', () => {
     render(
       <DocumentCard

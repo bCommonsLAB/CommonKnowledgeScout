@@ -54,6 +54,13 @@ export interface DocumentCardProps {
    * kompakte Form haben (heute: climateAction), reduzieren damit ihren Inhalt.
    */
   cardDensity?: GalleryCardDensity
+  /**
+   * Cover-Thumbnail neben dem Titel weglassen (Standard-Karte). Fuer Teaser,
+   * in denen Cover und Personenbild fast gleich gross nebeneinander stuenden
+   * (Story-Sektion der Startseite, Owner 10.11.2026). Karten, deren Cover die
+   * ganze Flaeche ist (session, divaTexture, refurbedDevice), bleiben unveraendert.
+   */
+  hideCover?: boolean
 }
 
 export function DocumentCard({
@@ -65,6 +72,7 @@ export function DocumentCard({
   onToggleFavorite,
   onClassificationChanged,
   cardDensity = 'comfortable',
+  hideCover = false,
 }: DocumentCardProps) {
 
   const { openDocument } = useGalleryNavigation()
@@ -143,6 +151,7 @@ export function DocumentCard({
       onClick={handleClick}
       libraryId={libraryId}
       onToggleFavorite={onToggleFavorite}
+      hideCover={hideCover}
     />
   )
 }

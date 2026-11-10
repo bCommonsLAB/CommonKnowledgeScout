@@ -17,25 +17,31 @@ import { dokumentNummern } from '@ks/util'
 export interface KartenEintrag {
   /** Dokumentnummer k — die Marke im Text. */
   nummer: number
-  doc: DocCardMeta
+  fileId: string
+  /** Titel aus der Referenz — steht im Platzhalter, solange die Karte laedt. */
+  titel: string
+  /** Die Karte; `null` = laedt noch (Platzhalter an derselben Stelle). */
+  doc: DocCardMeta | null
 }
 
 /**
- * Zitierte Dokumente mit Karte, nach erster Zitatnummer. Ein Dokument, zu dem
- * noch keine `DocCardMeta` geladen ist, fehlt hier (die Karten laden nach);
- * es wird nicht durch einen Platzhalter ersetzt.
+ * Zitierte Dokumente mit Karte, nach erster Zitatnummer. `laedt` (10.11.2026):
+ * solange die `DocCardMeta` unterwegs sind, steht je zitiertem Dokument ein
+ * Platzhalter-Eintrag (`doc: null`) — die Karten-Ansicht ist sofort da und
+ * springt nicht Sekunden spaeter aus der Textantwort um. Nach dem Laden fehlt
+ * ein Dokument ohne `DocCardMeta` (geloescht, gefiltert) ganz; kein Dauer-Platzhalter.
  */
-export function kartenEintraege(belege: DocReference[], docs: DocCardMeta[]): KartenEintrag[] {
+export function kartenEintraege(belege: DocReference[], docs: DocCardMeta[], laedt = false): KartenEintrag[] {
   const nummern = dokumentNummern(belege)
-  const fileIdJeNummer = new Map<number, string>()
+  const belegJeNummer = new Map<number, DocReference>()
   for (const b of [...belege].sort((a, c) => a.number - c.number)) {
     const k = nummern.get(b.number)
-    if (k !== undefined && !fileIdJeNummer.has(k)) fileIdJeNummer.set(k, b.fileId)
+    if (k !== undefined && !belegJeNummer.has(k)) belegJeNummer.set(k, b)
   }
   const ergebnis: KartenEintrag[] = []
-  for (const [k, fileId] of [...fileIdJeNummer.entries()].sort((a, c) => a[0] - c[0])) {
-    const doc = docs.find((d) => d.fileId === fileId)
-    if (doc) ergebnis.push({ nummer: k, doc })
+  for (const [k, beleg] of [...belegJeNummer.entries()].sort((a, c) => a[0] - c[0])) {
+    const doc = docs.find((d) => d.fileId === beleg.fileId) ?? null
+    if (doc || laedt) ergebnis.push({ nummer: k, fileId: beleg.fileId, titel: beleg.title ?? beleg.fileName ?? '', doc })
   }
   return ergebnis
 }

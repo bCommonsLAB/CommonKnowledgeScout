@@ -14,6 +14,7 @@
  */
 
 import { useMemo } from 'react'
+import type { DocCardMeta } from '@ks/contracts'
 import { AntwortText, type Nachricht } from '@ks/module-story/react'
 import { antwortBloecke, bloeckeMitNummern, type KartenEintrag } from '@/lib/website/story-karten'
 import { WebsiteStoryVortragskarte } from './website-story-vortragskarte'
@@ -24,7 +25,7 @@ export interface WebsiteStoryAntwortZweispaltigProps {
   markenVerborgen: boolean
   eintraege: KartenEintrag[]
   libraryId: string
-  onOpen: (slug: string) => void
+  onOpen: (doc: DocCardMeta) => void
   /** Titel des Rest-Rasters; Verweis ins Blatt darunter. */
   restTitel: string
   weitereLabel: string

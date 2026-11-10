@@ -14,8 +14,8 @@ import { WebsiteStoryAntwortZweispaltig } from '@/components/library/website/sto
 import { kartenEintraege } from '@/lib/website/story-karten'
 
 vi.mock('@ks/module-explorer/react', () => ({
-  DocumentCard: ({ doc, onOpen }: { doc: DocCardMeta; onOpen?: (d: DocCardMeta) => void }) => (
-    <button type="button" data-testid={`karte-${doc.fileId}`} onClick={() => onOpen?.(doc)}>{doc.title}</button>
+  DocumentCard: ({ doc, onOpen, hideCover }: { doc: DocCardMeta; onOpen?: (d: DocCardMeta) => void; hideCover?: boolean }) => (
+    <button type="button" data-testid={`karte-${doc.fileId}`} data-hide-cover={hideCover ? 'true' : 'false'} onClick={() => onOpen?.(doc)}>{doc.title}</button>
   ),
 }))
 vi.mock('@ks/module-story/react', () => ({
@@ -31,13 +31,23 @@ const ref = (number: number, fileId: string): DocReference => ({ number, fileId,
 const doc = (fileId: string, title: string): DocCardMeta => ({ id: fileId, fileId, title, slug: `slug-${fileId}` } as DocCardMeta)
 
 describe('WebsiteStoryVortragskarte', () => {
-  it('zeigt die Karte mit Zitatmarke und oeffnet beim Klick den Slug', () => {
+  it('zeigt die Karte ohne Cover mit Zitatmarke und reicht beim Klick das Dokument weiter', () => {
     const onOpen = vi.fn()
-    const { container } = render(<WebsiteStoryVortragskarte eintrag={{ nummer: 3, doc: doc('a', 'Talk A') }} libraryId="lib" onOpen={onOpen} />)
+    const d = doc('a', 'Talk A')
+    const { container } = render(<WebsiteStoryVortragskarte eintrag={{ nummer: 3, fileId: 'a', titel: 'Talk A', doc: d }} libraryId="lib" onOpen={onOpen} />)
     expect(container.querySelector('[data-zitatmarke]')?.textContent).toBe('3')
     expect(container.querySelector('#beleg-3')).not.toBeNull()
+    expect(screen.getByTestId('karte-a').getAttribute('data-hide-cover')).toBe('true')
     fireEvent.click(screen.getByTestId('karte-a'))
-    expect(onOpen).toHaveBeenCalledWith('slug-a')
+    expect(onOpen).toHaveBeenCalledWith(d)
+  })
+
+  it('solange die Karte laedt: Platzhalter mit Nummer und Titel, keine Karte', () => {
+    const { container } = render(<WebsiteStoryVortragskarte eintrag={{ nummer: 2, fileId: 'b', titel: 'Talk B laedt', doc: null }} libraryId="lib" onOpen={vi.fn()} />)
+    expect(container.querySelector('[data-story-karte-laedt="true"]')).not.toBeNull()
+    expect(container.querySelector('[aria-busy="true"]')?.textContent).toContain('Talk B laedt')
+    expect(container.querySelector('[data-zitatmarke]')?.textContent).toBe('2')
+    expect(screen.queryByTestId('karte-b')).toBeNull()
   })
 })
 
@@ -78,8 +88,19 @@ describe('WebsiteStoryAntwortZweispaltig', () => {
     // 5 Bloecke: Einleitung, Punkt A, Punkt B, „Nochmal A" (keine neue Nummer → volle Breite), Schluss
     expect(container.querySelectorAll('[data-antwort-text]')).toHaveLength(5)
     expect(container.querySelectorAll('[data-antwort-text][data-marken-verborgen="true"]')).toHaveLength(5)
+    // Jede Zeile traegt ihre Karte schon als Platzhalter, wenn die Dokumente noch laden
+    cleanup()
+    const laedt = render(
+      <WebsiteStoryAntwortZweispaltig antwort={antwort} markenVerborgen={false} eintraege={kartenEintraege(belege, [], true)} libraryId="lib" onOpen={vi.fn()} restTitel="R" weitereLabel="weitere Talks" onWeitere={vi.fn()} />,
+    )
+    expect(laedt.container.querySelectorAll('[data-story-absatz-zeile]')).toHaveLength(2)
+    expect(laedt.container.querySelectorAll('[data-story-karte-laedt="true"]')).toHaveLength(3)
+    cleanup()
     // C ist zitiert, aber in keinem Block → Rest-Raster
-    const raster = container.querySelector('[data-story-karten="raster"]')
+    const zweiter = render(
+      <WebsiteStoryAntwortZweispaltig antwort={antwort} markenVerborgen={true} eintraege={eintraege} libraryId="lib" onOpen={vi.fn()} restTitel="Weitere genannte Talks" weitereLabel="weitere Talks" onWeitere={onWeitere} />,
+    )
+    const raster = zweiter.container.querySelector('[data-story-karten="raster"]')
     expect(raster).not.toBeNull()
     expect(raster?.querySelectorAll('[data-story-karte]')).toHaveLength(1)
     expect(raster?.textContent).toContain('C')

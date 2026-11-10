@@ -38,6 +38,14 @@ const BEKANNTE_AUFRUFSTELLEN: Record<string, { anbieterIn: string; warum: string
       'Wird an zwei Stellen montiert: in GalleryRoot (Anbieter vom Galerie-' +
       'Montagepunkt) und auf der Root-Landingpage — dort muss page.tsx ihn liefern.',
   },
+  'src/components/library/website/story/website-story-vortragskarte.tsx': {
+    anbieterIn: 'src/app/page.tsx',
+    warum:
+      'Karte eines zitierten Dokuments in der Story-Sektion der Website-Landingpage ' +
+      '(cards=column|inline). Dieselben zwei Montagepunkte wie das Raster: GalleryRoot ' +
+      '(Anbieter vom Galerie-Montagepunkt) und die Root-Landingpage ueber page.tsx. ' +
+      'Die Karte oeffnet per onOpen die Detailansicht ueber der Seite, nicht ueber die Adressierung.',
+  },
 }
 
 function collect(dir: string, acc: string[] = []): string[] {

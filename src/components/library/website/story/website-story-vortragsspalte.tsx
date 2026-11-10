@@ -10,6 +10,7 @@
  * Absatzvariante (Dokumente, die keinem Absatz zugeordnet wurden).
  */
 
+import type { DocCardMeta } from '@ks/contracts'
 import type { KartenEintrag } from '@/lib/website/story-karten'
 import { WebsiteStoryVortragskarte } from './website-story-vortragskarte'
 
@@ -21,7 +22,7 @@ export interface WebsiteStoryVortragsspalteProps {
   /** Verweis unter den Karten („weitere Vortraege mit Textstellen"); ohne `onWeitere` kein Verweis. */
   weitereLabel?: string
   onWeitere?: () => void
-  onOpen: (slug: string) => void
+  onOpen: (doc: DocCardMeta) => void
   /** Raster statt Spalte (Rest-Raster der Absatzvariante, unter der Antwort). */
   raster?: boolean
 }

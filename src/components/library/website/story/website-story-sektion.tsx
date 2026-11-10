@@ -16,11 +16,13 @@
  */
 
 import { useCallback, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useSetAtom } from 'jotai'
 import { useUser } from '@clerk/nextjs'
 import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
+import type { DocCardMeta } from '@ks/contracts'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
 import { StoryEingabeInline, type Nachricht } from '@ks/module-story/react'
 import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
@@ -36,6 +38,9 @@ import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-webs
 import { StoryStatus } from './website-story-status'
 import { StoryPopulaereFragen } from './website-story-populaer'
 import { WebsiteStoryKonversation } from './website-story-konversation'
+
+// Die Detailansicht zieht die Renderer aller Typen nach — erst laden, wenn jemand einen Eintrag oeffnet.
+const WebsiteStoryDetail = dynamic(() => import('./website-story-detail').then((m) => ({ default: m.WebsiteStoryDetail })), { ssr: false })
 
 export interface WebsiteStorySektionProps {
   libraryId: string
@@ -57,6 +62,12 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const [perspektiveOffen, setPerspektiveOffen] = useState(false)
   const [blatt, setBlatt] = useState<BelegeBlatt | null>(null)
   const [blattOffen, setBlattOffen] = useState(false)
+  // Detailansicht ueber der Startseite (Owner 10.11.2026): Karte oder Beleg oeffnet sie, die Seite bleibt stehen.
+  const [detail, setDetail] = useState<{ doc: DocCardMeta; page?: number } | null>(null)
+  const dokumentOeffnen = useCallback((doc: DocCardMeta, page?: number) => {
+    setBlattOffen(false)
+    setDetail({ doc, page })
+  }, [])
   const belegDocs = useBelegDokumente(p.libraryId, blatt?.references ?? [], s.sessionHeaders)
   const bloecke = useMemo(() => storyBloecke(p.section), [p.section])
   const fragen = bloecke.fragen
@@ -113,6 +124,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             isSignedIn={isSignedIn === true}
             onText={setText}
             onBelege={belegeOeffnen}
+            onDokument={dokumentOeffnen}
           />
         )}
         <StoryEingabeInline
@@ -146,8 +158,10 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           navigation={p.navigation}
           markenFarbe={p.theme?.accentInk}
           titel={bezeichnung.blattTitel}
+          onDokument={dokumentOeffnen}
         />
       )}
+      {detail && <WebsiteStoryDetail libraryId={p.libraryId} doc={detail.doc} page={detail.page} onClose={() => setDetail(null)} />}
     </>
   )
 }
