@@ -5,43 +5,11 @@
          <lastmod>2026-11-10</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/architecture/dependency-graph.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/architecture/module-hierarchy.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/architecture/mongodb-vector-search.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/architecture/pdf-transformation-phases.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/architecture/shadow-twin.html</loc>
+         <loc>http://localhost:3000/docs/architecture/overview.html</loc>
          <lastmod>2026-11-10</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/operations/configuration.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/reference/file-index.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/reference/modules/chat.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/reference/modules/library.html</loc>
-         <lastmod>2026-11-10</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/reference/modules/storage.html</loc>
          <lastmod>2026-11-10</lastmod>
     </url>
     <url>
