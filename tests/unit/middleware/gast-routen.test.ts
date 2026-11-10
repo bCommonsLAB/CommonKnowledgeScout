@@ -33,3 +33,37 @@ describe('Middleware: Gast-Routen des Testimonial-Pfads', () => {
     expect(oeffentlicheRouten()).toContain('/api/public(.*)')
   })
 })
+
+/**
+ * Anonym lesbare Chat-Routen (Owner 10.11.2026): Die Story-Sektion der Startseite
+ * laedt die Karten der zitierten Dokumente ueber `docs/by-fileids`. Die Route fehlte
+ * in der Ausnahme — angemeldet kamen die Karten, anonym antwortete Clerk mit 404.
+ * Der Test liest den Ausdruck aus dem Quelltext (die Middleware laesst sich ohne
+ * Clerk-Laufzeit nicht importieren).
+ */
+function chatAusnahme(): RegExp {
+  const treffer = quelle.match(/const isChatApiPath = (\/.+\/)\.test\(path\)/)
+  if (!treffer) throw new Error('isChatApiPath nicht in src/middleware.ts gefunden')
+  const roh = treffer[1]
+  return new RegExp(roh.slice(1, roh.lastIndexOf('/')))
+}
+
+describe('Middleware: anonym lesbare Chat-Routen', () => {
+  const lib = '/api/chat/67774136-d829-412b-8c78-7d0f2d3f4bcd'
+
+  it('laesst die Kartendaten zitierter Dokumente (docs/by-fileids) ohne Konto durch', () => {
+    expect(chatAusnahme().test(`${lib}/docs/by-fileids`)).toBe(true)
+  })
+
+  it('die bisherigen Lese-Routen bleiben offen', () => {
+    for (const route of ['docs', 'facets', 'config', 'doc-meta', 'doc-by-slug', 'popular-questions']) {
+      expect(chatAusnahme().test(`${lib}/${route}`)).toBe(true)
+    }
+  })
+
+  it('oeffnet nichts darueber hinaus: andere Unterpfade von docs und schreibende Routen bleiben geschuetzt', () => {
+    for (const route of ['docs/publish', 'docs/publish-bulk', 'docs/ids', 'docs/by-fileids/x', 'upsert-doc-meta', 'ingest', 'queries/admin/x']) {
+      expect(chatAusnahme().test(`${lib}/${route}`)).toBe(false)
+    }
+  })
+})
