@@ -108,9 +108,6 @@ nav:
       # Secretary Services: reference/api/secretary-services.md - Datei existiert nicht
       # Track Processor: reference/api/track-processor.md - Datei existiert nicht
       # Chat & Story Mode: chat-response-generation-process.md - Datei existiert nicht
-  # Operations: - Dateien existieren nicht
-  #   - Start: ops/index.md
-  #   - Docker Deployment: ops/deployment/docker.md
-  #   - Electron Quick Setup: ops/desktop/quick-setup.md
-  #   - Electron Package Strategy: ops/desktop/package-strategy.md
+  - Operations:
+      - Configuration: operations/configuration.md
   # Analyse und Archiv absichtlich nicht verlinkt/gebaut
