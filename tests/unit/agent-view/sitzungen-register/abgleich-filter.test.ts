@@ -11,8 +11,8 @@ import type { SitzungsRegisterDoc } from '@/lib/agent-view/sitzungen-register/ty
 import { ABLAGE_KS, JETZT, K1, K2, LIB, beleg, doc } from './fixtures'
 
 const ORT: BelegAblage = { vorhabenPfad: ABLAGE_KS.vorhabenPfad, vorhabenFolderId: 'v-ks', belegOrdnerPfad: ABLAGE_KS.belegOrdnerPfad }
-const plane = (docs: SitzungsRegisterDoc[], art: 'chronik' | 'block', berichtet: string[] = ['src-1']) =>
-  planeAbgleich({ libraryId: LIB, docs, belege: [beleg()], ablagen: new Map([['src-1', ORT]]), berichtet: new Set(berichtet), art, jetzt: JETZT })
+const plane = (docs: SitzungsRegisterDoc[], art: 'chronik' | 'block', berichtet: string[] = ['src-1'], ablageSchreiben = true) =>
+  planeAbgleich({ libraryId: LIB, docs, belege: [beleg()], ablagen: new Map([['src-1', ORT]]), berichtet: new Set(berichtet), ablageSchreiben, art, jetzt: JETZT })
 
 describe('planeAbgleich', () => {
   it('legt fuer einen unbekannten Beleg eine Archiv-Zeile mit Ablage und Stempel an', () => {
@@ -33,6 +33,14 @@ describe('planeAbgleich', () => {
     }])
   })
 
+  it('Teilbaum-Lauf (ablageSchreiben false): Stempel ja, Ablage nie — die Pfade waeren relativ zum Scope', () => {
+    const vorhanden = doc({ ablage: ABLAGE_KS })
+    expect(plane([vorhanden], 'block', ['src-1'], false).aenderungen).toEqual([{
+      registerId: K1, am: JETZT, stempel: { feld: 'blockAm', am: JETZT }, neueBelegSourceIds: ['src-1'],
+    }])
+    expect(plane([], 'block', ['src-1'], false).neu[0].ablage).toBeNull()
+  })
+
   it('kein Stempel fuer Belege, die der Lauf nicht berichtet hat', () => {
     const [a] = plane([doc({ belegSourceIds: ['src-1'] })], 'block', []).aenderungen
     expect(a.stempel).toBeUndefined()
@@ -40,13 +48,13 @@ describe('planeAbgleich', () => {
   })
 
   it('Zeilen ohne Beleg im Lauf bleiben unberuehrt', () => {
-    const plan = planeAbgleich({ libraryId: LIB, docs: [doc({ registerId: K2, sitzungId: K2 })], belege: [], ablagen: new Map(), berichtet: new Set(), art: 'chronik', jetzt: JETZT })
+    const plan = planeAbgleich({ libraryId: LIB, docs: [doc({ registerId: K2, sitzungId: K2 })], belege: [], ablagen: new Map(), berichtet: new Set(), ablageSchreiben: true, art: 'chronik', jetzt: JETZT })
     expect(plan).toEqual({ neu: [], aenderungen: [], hinweise: [] })
   })
 
   it('Teil-Belege in verschiedenen Vorhaben werden als Hinweis genannt', () => {
     const plan = planeAbgleich({
-      libraryId: LIB, docs: [], art: 'chronik', jetzt: JETZT, berichtet: new Set(),
+      libraryId: LIB, docs: [], ablageSchreiben: true, art: 'chronik', jetzt: JETZT, berichtet: new Set(),
       belege: [beleg({ sourceId: 'a' }), beleg({ sourceId: 'b', zuege: { von: 21, bis: 30 } })],
       ablagen: new Map([['a', ORT], ['b', { ...ORT, vorhabenFolderId: 'v-anders', vorhabenPfad: 'X' }]]),
     })

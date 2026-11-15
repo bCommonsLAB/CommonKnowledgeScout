@@ -118,13 +118,15 @@ export interface RegisterAbgleichErgebnis extends AbgleichSchreibErgebnis {
 /**
  * Register-Teil eines Sichten-Laufs. `zeilen`: Notizen dieses Laufs (mit
  * Kopf), `sitzungen`: ihre S1-Zuordnung, `berichtet`: sourceIds, die der Lauf
- * in Chronik bzw. Block geschrieben hat.
+ * in Chronik bzw. Block geschrieben hat. `ablageSchreiben`: nur bei einem Lauf
+ * ueber die ganze Library (im Teilbaum sind die Pfade relativ zum Scope).
  */
 export async function gleicheRegisterAb(args: {
   libraryId: string
   zeilen: readonly TransformationZeile[]
   sitzungen: readonly SitzungsDatensatz[]
   berichtet: ReadonlySet<string>
+  ablageSchreiben: boolean
   art: AbgleichArt
   jetzt: string
 }): Promise<RegisterAbgleichErgebnis> {
@@ -134,7 +136,7 @@ export async function gleicheRegisterAb(args: {
   }]))
   const plan = planeAbgleich({
     libraryId: args.libraryId, docs, belege: args.zeilen.map(istAusTransformation),
-    ablagen, berichtet: args.berichtet, art: args.art, jetzt: args.jetzt,
+    ablagen, berichtet: args.berichtet, ablageSchreiben: args.ablageSchreiben, art: args.art, jetzt: args.jetzt,
   })
   const ergebnis = await schreibeAbgleich(args.libraryId, plan)
   return { ...ergebnis, geplant: { neu: plan.neu.length, aenderungen: plan.aenderungen.length }, hinweise: plan.hinweise }
