@@ -20,6 +20,7 @@ import { berichteScan } from '@/lib/agent-view/sichten/regenerate-sichten'
 import { eintraegeFuerVorhaben, type SitzungsEintrag } from '@/lib/agent-view/sichten/sitzungen-gruppen'
 import { ladeSitzungen } from '@/lib/agent-view/sichten/sitzungen-laden'
 import { sitzungenBlock } from '@/lib/agent-view/sichten/sitzungen-render'
+import { registerNachLauf } from '@/lib/agent-view/sitzungen-register/register-dienst'
 import { isoHeute } from '@/lib/agent-view/sichten/types'
 import { berichtMitSitzungenBlock, type AlterBlockStatus } from '@/lib/agent-view/sitzungen-block'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -78,7 +79,9 @@ export function registerSitzungenTool(server: McpServer): void {
         'Ein handgeschriebener Block "### Sitzungen … (nachgetragen …)" wird NUR mit alteBloeckeUebernehmen=true ' +
         'ersetzt, sonst als Befund gemeldet. nurVorschau=true zeigt die Bloecke ohne zu schreiben. ' +
         'Scope per folderId/pfad (Belege ausserhalb der gescannten Ordner werden gezaehlt, nicht zugeordnet); ' +
-        'ohne Scope die ganze Library (OneDrive ~20-40 s). SCHREIBT in Berichte (nur den Block); nur nach Bestaetigung.',
+        'ohne Scope die ganze Library (OneDrive ~20-40 s). SCHREIBT in Berichte (nur den Block); nur nach Bestaetigung. ' +
+        'Danach gleicht der Lauf das Sitzungs-Register ab (register: fehlende Zeilen, Ablage-Cache, Block-Stempel ' +
+        'fuer Sitzungen, deren Vorhaben den Block jetzt traegt); nicht bei nurVorschau.',
       inputSchema: {
         libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD,
         nurVorschau: z.boolean().optional().describe('true = Bloecke nur rendern und zurueckgeben'),
@@ -102,7 +105,7 @@ export function registerSitzungenTool(server: McpServer): void {
           const started = Date.now()
           const { scan, vorhabenMuster } = await berichteScan(library, provider, scope ?? 'root')
           // Im Teilbaum: nur Belege in gescannten Ordnern — alles andere liegt ausserhalb des Scopes oder tiefer.
-          const { zuordnung, belegKoepfe, nichtImScope } = await ladeSitzungen({
+          const { zuordnung, zeilen, belegKoepfe, nichtImScope } = await ladeSitzungen({
             libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: scope !== undefined,
           })
           const heute = isoHeute(new Date())
@@ -116,6 +119,12 @@ export function registerSitzungenTool(server: McpServer): void {
             }))
           }
           berichte.sort((a, b) => a.pfad.localeCompare(b.pfad, 'de', { numeric: true }))
+          // R1: Block-Stempel nur fuer Sitzungen, deren Ablage-Vorhaben den Block jetzt traegt.
+          const imBlock = new Set(berichte.filter((b) => b.status === 'geschrieben' || b.status === 'unveraendert').map((b) => b.folderId))
+          const register = nurVorschau === true ? undefined : await registerNachLauf({
+            libraryId: library.id, zeilen, sitzungen: zuordnung.sitzungen, art: 'block', jetzt: new Date().toISOString(),
+            berichtet: new Set(zuordnung.sitzungen.filter((s) => s.vorhabenFolderId !== null && imBlock.has(s.vorhabenFolderId)).map((s) => s.sourceId)),
+          })
           const befunde = berichte
             .filter((b) => b.alterBlock === 'belassen')
             .map((b) => `${b.pfad}: handgeschriebener Block „${b.alteUeberschrift}" belassen — mit alteBloeckeUebernehmen=true ersetzen`)
@@ -134,6 +143,7 @@ export function registerSitzungenTool(server: McpServer): void {
             befunde,
             uebersprungen: zuordnung.uebersprungen,
             hinweise: zuordnung.hinweise,
+            ...(register !== undefined ? { register } : {}),
           })
         })
       } catch (error) {

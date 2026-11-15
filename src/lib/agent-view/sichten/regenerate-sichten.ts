@@ -9,7 +9,8 @@
  * damit der EINE Ausfuehrungsort (Cowork orchestriert, Python-Skripte sind
  * nur noch Referenz). S1 (Plan sitzungen-sichten-und-befunde): die Chronik
  * `SITZUNGEN.md` kommt aus den Transformationen der Vorlage `chatverlauf-de`
- * in MongoDB; derselbe Scan liefert die Vorhabensordner der Belege.
+ * in MongoDB; derselbe Scan liefert die Vorhabensordner der Belege. R1 (Plan
+ * sitzungen-register): nach dem Schreiben gleicht der Lauf das Sitzungs-Register ab.
  *
  * Fehlt der Ordner `Organisation`, ist das ein Fehler — nicht still anderswo hin.
  *
@@ -26,9 +27,8 @@ import type { Library } from '@/types/library'
 import { renderAktuell } from './aktuell-render'
 import { sammleProjekte, zaehleProjektordner } from './bericht-lesen'
 import { renderProjekte } from './projekte-render'
-import type { BelegKoepfeStatistik } from './sitzungen-beleg-kopf'
-import { ladeSitzungen } from './sitzungen-laden'
-import { renderSitzungen } from './sitzungen-render'
+import type { GeladeneSitzungen } from './sitzungen-laden'
+import { registerNachChronik, sitzungenSicht, type SitzungenErgebnis } from './sitzungen-lauf'
 import { ALLE_SICHTEN, SITZUNGEN_FILE_NAME, type SichtName } from './sitzungen-types'
 import { AKTUELL_FILE_NAME, PROJEKTE_FILE_NAME, SICHTEN_ORDNER, type ProjektDatensatz } from './types'
 
@@ -40,17 +40,7 @@ export const BERICHTE_MAX_DEPTH = 3
 /** Parallele Listings: 369 Ordner seriell = 80 s, mit 6 parallel 54 s (zu knapp am 60-s-Limit), mit 10 deutlich darunter. */
 export const BERICHTE_SCAN_CONCURRENCY = 10
 
-export interface SitzungenErgebnis {
-  sitzungen: number
-  vorhaben: number
-  ohneVorhaben: number
-  /** Querverweise aus `vorhaben:` der Belege (S1b). */
-  querverweise: number
-  uebersprungen: Array<{ beleg: string; grund: string }>
-  hinweise: string[]
-  /** Beleg-Koepfe: frisch gelesen vs. aus dem Merker am Twin. */
-  belegKoepfe: BelegKoepfeStatistik
-}
+export type { SitzungenErgebnis } from './sitzungen-lauf'
 
 export interface SichtenErgebnis {
   /** Welche Sichten dieser Lauf gerendert (und ggf. geschrieben) hat. */
@@ -153,25 +143,12 @@ export async function regenerateSichten(args: {
     geschrieben: [],
   }
 
+  let geladen: GeladeneSitzungen | null = null
   if (sichten.includes('sitzungen')) {
-    const { zuordnung, belegKoepfe } = await ladeSitzungen({
-      libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: false,
-    })
-    gerendert.sitzungen = renderSitzungen(zuordnung.sitzungen, now)
-    const vorhabenIds = new Set<string>()
-    for (const s of zuordnung.sitzungen) {
-      if (s.vorhabenFolderId !== null) vorhabenIds.add(s.vorhabenFolderId)
-      for (const v of s.weitereVorhaben) vorhabenIds.add(v.folderId)
-    }
-    ergebnis.sitzungen = {
-      sitzungen: zuordnung.sitzungen.length,
-      vorhaben: vorhabenIds.size,
-      ohneVorhaben: zuordnung.sitzungen.filter((s) => s.vorhabenPfad === null).length,
-      querverweise: zuordnung.sitzungen.reduce((n, s) => n + s.weitereVorhaben.length, 0),
-      uebersprungen: zuordnung.uebersprungen,
-      hinweise: zuordnung.hinweise,
-      belegKoepfe,
-    }
+    const lauf = await sitzungenSicht({ libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, now })
+    gerendert.sitzungen = lauf.inhalt
+    ergebnis.sitzungen = lauf.ergebnis
+    geladen = lauf.geladen
   }
 
   if (args.nurVorschau === true) return { ...ergebnis, vorschau: gerendert }
@@ -188,5 +165,7 @@ export async function regenerateSichten(args: {
     if (inhalt === undefined) continue
     ergebnis.geschrieben.push(await ueberschreiben(provider, organisation, dateiname[sicht], inhalt))
   }
+  // R1: erst nach dem Schreiben — der Chronik-Stempel heisst „steht in SITZUNGEN.md".
+  if (geladen !== null && ergebnis.sitzungen) ergebnis.sitzungen.register = await registerNachChronik(library.id, geladen, now)
   return ergebnis
 }

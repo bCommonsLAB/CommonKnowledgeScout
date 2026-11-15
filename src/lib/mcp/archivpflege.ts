@@ -16,7 +16,7 @@
 
 import type { Library } from '@/types/library'
 
-/** Werkzeuge, die die Archiv-Struktur schreiben und deshalb gesperrt sind. */
+/** Werkzeuge, die die Archiv-Struktur voraussetzen oder schreiben und deshalb gesperrt sind. */
 export const ARCHIVPFLEGE_WERKZEUGE = [
   'stand_setzen',
   'themen_setzen',
@@ -24,6 +24,10 @@ export const ARCHIVPFLEGE_WERKZEUGE = [
   'sichten_regenerieren',
   // S1: schreibt den Sitzungen-Block in BERICHT.md.
   'sitzungen_block_schreiben',
+  // R1: Sitzungs-Register — Belege und Vorhaben gibt es nur im Wissensarchiv.
+  'sitzungen_melden',
+  'sitzungen_auflisten',
+  'sitzung_setzen',
 ] as const
 
 export type ArchivpflegeWerkzeug = (typeof ARCHIVPFLEGE_WERKZEUGE)[number]
@@ -37,8 +41,8 @@ export class ArchivpflegeGesperrtError extends Error {
   constructor(werkzeug: ArchivpflegeWerkzeug, libraryLabel: string) {
     super(
       `${werkzeug} ist fuer die Library "${libraryLabel}" gesperrt: Sie fuehrt keine Archiv-Konventionen ` +
-      '(Agentensicht nicht aktiviert). Das Werkzeug wuerde _INDEX.md/BERICHT.md-Strukturen anlegen, die diese ' +
-      'Library nicht kennt. Freigabe: Library-Einstellungen → Agentensicht aktivieren. ' +
+      '(Agentensicht nicht aktiviert). Das Werkzeug setzt Archiv-Strukturen (_INDEX.md, BERICHT.md, ' +
+      'Sitzungs-Register) voraus oder legt sie an, die diese Library nicht kennt. Freigabe: Library-Einstellungen → Agentensicht aktivieren. ' +
       'Die generischen Werkzeuge (Storage, Erschliessen, Twins, Jobs) bleiben nutzbar.',
     )
     this.name = 'ArchivpflegeGesperrtError'

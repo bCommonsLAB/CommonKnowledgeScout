@@ -37,7 +37,8 @@ export function registerSichtenTools(server: McpServer): void {
         'nach Organisation/ — Abloesung der Skripte aktuell.py/projekte.py und der handgepflegten Notiz-Kopien. ' +
         'sichten waehlt aus (Vorgabe alle drei). Liest Berichte bis Tiefe 3 frisch (Bereich/Projekt), dauert auf ' +
         'OneDrive ~20-40 s. nurVorschau=true rendert ohne zu schreiben (Checkpoint). SCHREIBT die gewaehlten ' +
-        'Dateien (ersetzt die alten); nur nach Bestaetigung.',
+        'Dateien (ersetzt die alten); nur nach Bestaetigung. Mit Sicht sitzungen gleicht der Lauf danach das ' +
+        'Sitzungs-Register ab (sitzungen.register: fehlende Zeilen, Ablage-Cache, Chronik-Stempel).',
       inputSchema: {
         libraryId: LIBRARY_ID,
         sichten: z.array(z.enum(['aktuell', 'projekte', 'sitzungen'])).min(1).optional()

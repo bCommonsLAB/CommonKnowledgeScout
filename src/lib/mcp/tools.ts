@@ -62,6 +62,8 @@ import { registerInfoTool } from './tools-info'
 import { registerSichtenTools } from './tools-sichten'
 import { registerAenderungenTools } from './tools-aenderungen'
 import { registerSitzungenTool } from './tools-sitzungen'
+import { registerSitzungenAuflistenTool } from './tools-sitzungen-auflisten'
+import { registerSitzungenRegisterTools } from './tools-sitzungen-register'
 import { registerStandTool } from './tools-stand'
 import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
@@ -124,6 +126,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerAenderungenTools(server)
   // S1 (Plan sitzungen-sichten-und-befunde): Block „Sitzungen" je BERICHT.md.
   registerSitzungenTool(server)
+  // R1 (Plan sitzungen-register): Sitzungs-Register melden, auflisten, pflegen.
+  registerSitzungenRegisterTools(server)
+  registerSitzungenAuflistenTool(server)
   registerStandTool(server)
   registerThemenTool(server)
   registerProtokollTool(server)
