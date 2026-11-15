@@ -6,7 +6,7 @@
  * (nur ueber das Interface, Storage-Abstraktion), dem Register-Repo und
  * `starteTransformation` (derselbe Weg wie `transformation_starten`, ohne
  * Ingest). Nicht-Finden wird zum benannten Fehler mit der Meldung des
- * Speichers; eine aktuelle Notiz (`TransformationAktuellError`) wird zur
+ * Speichers; eine aktuelle Notiz (`TransformationAbgesagtError`) wird zur
  * Absage, nicht zum Fehler. Ersetzen geht nur versioniert — sonst Fehler.
  *
  * @module mcp
@@ -15,6 +15,7 @@
 import { SITZUNGS_SPRACHE, SITZUNGS_VORLAGE } from '@/lib/agent-view/sichten/sitzungen-types'
 import type { AbschlussPorts } from '@/lib/agent-view/sitzungen-register/abschluss/abschluss-dienst'
 import { SitzungsAbschlussError } from '@/lib/agent-view/sitzungen-register/abschluss/abschluss-typen'
+import { ladeRegisterSicht } from '@/lib/agent-view/sitzungen-register/ist-laden'
 import { meldeSitzungen, setzeSitzung } from '@/lib/agent-view/sitzungen-register/register-dienst'
 import { aendereZeile, holeNachKennung, holeZeile } from '@/lib/repositories/agent-view-sitzungen-repo'
 import { supportsVersioning, type StorageProvider } from '@/lib/storage/types'
@@ -24,9 +25,10 @@ import { pruefeSchreibschutz } from './storage/schreibschutz'
 import { standardLlmModell } from './tools-erschliessen-shared'
 import { vorlageAktualisiertAm } from './tools-vorlagen'
 import { starteTransformation } from './transformation-start'
-import { TransformationAktuellError } from './transformation-erzwingen'
+import { TransformationAbgesagtError } from './transformation-erzwingen'
 
-const SYNC_HINWEIS = 'Gerade erst abgelegt? Dann ist die Datei vermutlich noch nicht synchronisiert — spaeter erneut aufrufen; das Werkzeug wartet nicht'
+// Die Pfadsuche wartet selbst ein paar Sekunden (Segment-Retries); laenger nicht (E8/W6).
+const SYNC_HINWEIS = 'Gerade erst abgelegt? Dann ist die Datei vermutlich noch nicht synchronisiert — in einer Minute erneut aufrufen; laenger als die kurze Suche wartet das Werkzeug nicht'
 
 function nachricht(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -99,6 +101,16 @@ export function abschlussPorts(args: {
         await aendereZeile(libraryId, doc.registerId, { set: { belegSourceIds: [...doc.belegSourceIds, sourceId], geaendertAm: args.jetzt() } })
         return true
       },
+      stand: async (sitzungId) => {
+        const sicht = await ladeRegisterSicht({
+          libraryId,
+          itemLesen: async (id) => { const item = await provider.getItemById(id); return { id: item.id, parentId: item.parentId, name: item.metadata.name } },
+          jetzt: args.jetzt(),
+        })
+        const zeile = sicht.zeilen.find((z) => z.sitzungId === sitzungId)
+        if (zeile === undefined) throw new Error(`Zeile ${sitzungId} nicht in der Register-Sicht`)
+        return zeile.stand
+      },
     },
     transformation: async (source, erzwingen) => {
       try {
@@ -113,7 +125,7 @@ export function abschlussPorts(args: {
           ingest: false,
         })
       } catch (error) {
-        if (error instanceof TransformationAktuellError) return { abgesagt: error.message }
+        if (error instanceof TransformationAbgesagtError) return { abgesagt: error.message }
         throw error
       }
     },

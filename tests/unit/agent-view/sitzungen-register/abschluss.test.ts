@@ -99,7 +99,7 @@ describe('planeFolgeaufrufe (E7: der Skill ruft sie)', () => {
   it('Job: job_status, je Vorhaben der Block, dann die Chronik', () => {
     const a = plane({ jobId: 'j-1', erzwungen: 'nicht_noetig' })
     expect(a.map((x) => x.werkzeug)).toEqual(['job_status', 'sitzungen_block_schreiben', 'sitzungen_block_schreiben', 'sichten_regenerieren'])
-    expect(a[0].argumente).toEqual({ libraryId: LIB, jobId: 'j-1' })
+    expect(a[0].argumente).toEqual({ jobId: 'j-1' })
     expect(a[1].argumente).toMatchObject({ folderId: 'v-ks', begruendung: `Folgeschritt sitzung_abschliessen ${K1}` })
     expect(a[3].argumente).toMatchObject({ sichten: ['sitzungen'] })
   })

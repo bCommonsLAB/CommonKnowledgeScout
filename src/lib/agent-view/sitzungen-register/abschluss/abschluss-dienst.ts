@@ -22,7 +22,7 @@ import { asString } from '@/lib/agent-view/sichten/bericht-lesen'
 import { SICHTEN_ORDNER } from '@/lib/agent-view/sichten/types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import type { MeldeEingabe } from '../schreib-plaene'
-import type { SitzungsRegisterDoc } from '../types'
+import type { SitzungsRegisterDoc, SitzungsStand } from '../types'
 import { SitzungsAbschlussError, type AbschlussEingabe, type AbschlussErgebnis } from './abschluss-typen'
 import { pruefeBelegKopf } from './beleg-pruefen'
 import { planeFolgeaufrufe } from './folgeaufrufe'
@@ -52,6 +52,8 @@ export interface AbschlussPorts {
     melden: (eingabe: MeldeEingabe) => Promise<'angelegt' | 'ergaenzt' | 'unveraendert'>
     /** true = Beleg neu an der Zeile. */
     belegAnhaengen: (sitzungId: string, sourceId: string) => Promise<boolean>
+    /** Gerechneter Stand der Zeile (wie sitzungen_auflisten). */
+    stand: (sitzungId: string) => Promise<SitzungsStand>
   }
   /** `abgesagt`: die Notiz ist aktuell, kein Job. Andere Fehler wirft der Anschluss. */
   transformation: (source: AbschlussDatei, erzwingen: boolean | undefined) =>
@@ -87,7 +89,7 @@ export async function schliesseSitzungAb(e: AbschlussEingabe, ports: AbschlussPo
     const ref = e.beleg.art === 'pfad' ? { pfad: e.beleg.pfad } : { sourceId: e.beleg.sourceId }
     vorhanden = await speicher.datei(ref)
     if (vorhanden === null) {
-      throw new SitzungsAbschlussError('beleg_nicht_gefunden', `${'pfad' in ref ? ref.pfad : ref.sourceId} ist nicht im Speicher. Gerade erst abgelegt? Dann ist die Datei vermutlich noch nicht synchronisiert — spaeter erneut aufrufen; das Werkzeug wartet nicht`)
+      throw new SitzungsAbschlussError('beleg_nicht_gefunden', `${'pfad' in ref ? ref.pfad : ref.sourceId} ist nicht im Speicher. Gerade erst abgelegt? Dann ist die Datei vermutlich noch nicht synchronisiert — in einer Minute erneut aufrufen`)
     }
     if (vorhanden.parentId !== haupt.id) {
       throw new SitzungsAbschlussError('beleg_falscher_ort', `${vorhanden.name} liegt nicht in ${haupt.pfad ?? haupt.name} (lose Datei im Vorhabensordner erwartet)`)
@@ -134,6 +136,15 @@ export async function schliesseSitzungAb(e: AbschlussEingabe, ports: AbschlussPo
     transformation = { fehler: nachricht(error) }
   }
 
+  const hinweise = [...kopf.hinweise, ...vorplan.hinweise]
+  let stand: SitzungsStand | null
+  try {
+    stand = await register.stand(e.sitzungId)
+  } catch (error) {
+    stand = null
+    hinweise.push(`Stand nicht lesbar: ${nachricht(error)} — sitzungen_auflisten nennt ihn`)
+  }
+
   const blockOrdner = [...(ohneVorhaben ? [] : [haupt]), ...neben]
     .filter((o, i, alle) => alle.findIndex((x) => x.id === o.id) === i)
     .map((o) => ({ folderId: o.id, name: o.name }))
@@ -144,8 +155,8 @@ export async function schliesseSitzungAb(e: AbschlussEingabe, ports: AbschlussPo
     beleg: { pfad, sourceId, ordnerId: haupt.id, ...bytesUndHash, aktion },
     register: registerTeil,
     transformation,
-    stand: 'abgesagt' in transformation ? 'notiz' : 'beleg',
+    stand,
     folgeaufrufe: planeFolgeaufrufe({ libraryId: e.libraryId, sitzungId: e.sitzungId, sourceId, transformation, blockOrdner }),
-    hinweise: [...kopf.hinweise, ...vorplan.hinweise],
+    hinweise,
   }
 }

@@ -105,8 +105,10 @@ export function registerSitzungenTool(server: McpServer): void {
           const started = Date.now()
           const { scan, vorhabenMuster } = await berichteScan(library, provider, scope ?? 'root')
           // Im Teilbaum: nur Belege in gescannten Ordnern — alles andere liegt ausserhalb des Scopes oder tiefer.
+          // Die Scan-Wurzel heisst im Teilbaum '' — ihr echter Name fuer den Abgleich mit hauptvorhaben (Befund R4-Abnahme).
+          const wurzelName = scope === undefined ? undefined : (await provider.getItemById(scope)).metadata.name
           const { zuordnung, zeilen, belegKoepfe, nichtImScope } = await ladeSitzungen({
-            libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: scope !== undefined,
+            libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: scope !== undefined, wurzelName,
           })
           const heute = isoHeute(new Date())
           const berichte: BerichtZeile[] = []

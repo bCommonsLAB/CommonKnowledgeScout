@@ -67,7 +67,7 @@ export function registerTransformationTool(server: McpServer): void {
           'Transkript juenger ist als die vorhandene Transformation oder nur eine ANDERE Vorlage ' +
           'transformiert wurde (jobs[].erzwungen nennt den Grund). Ist die Transformation aktuell, ' +
           'gibt es eine Absage OHNE Job. true = trotzdem neu erzeugen (z.B. Quelldatei geaendert); ' +
-          'false = nie erzwingen — der Worker ueberspringt dann eine vorhandene Transformation.'),
+          'false = nie neu schreiben: liegt schon eine Transformation dieser Vorlage vor, gibt es eine Absage OHNE Job.'),
         ...TRANSFORM_INPUTS,
         ...INGEST_INPUT,
         begruendung: BEGRUENDUNG,

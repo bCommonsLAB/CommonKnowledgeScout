@@ -14,7 +14,7 @@
  * @module agent-view/sitzungen-register/abschluss
  */
 
-import type { SitzungsQuelle, Zugbereich } from '../types'
+import type { SitzungsQuelle, SitzungsStand, Zugbereich } from '../types'
 
 /** E8: Text im Aufruf nur bis zu dieser Groesse, darueber der Dateiverweis. */
 export const BELEG_TEXT_MAX_BYTES = 100 * 1024
@@ -98,8 +98,13 @@ export interface AbschlussErgebnis {
     | { jobId: string; erzwungen: string; hinweis?: string }
     | { abgesagt: string }
     | { fehler: string }
-  /** Stand unmittelbar nach dem Aufruf; die Notiz entsteht erst im Job. */
-  stand: 'beleg' | 'notiz'
+  /**
+   * Stand jetzt, aus dem Register gerechnet (wie `sitzungen_auflisten`).
+   * Waehrend der Job laeuft, gilt eine vorhandene Notiz noch; nach dem Job
+   * steht die Zeile auf `notiz`, nach den Folgeaufrufen auf `berichtet`.
+   * null = nicht lesbar (Grund in `hinweise`).
+   */
+  stand: SitzungsStand | null
   folgeaufrufe: Folgeaufruf[]
   hinweise: string[]
 }

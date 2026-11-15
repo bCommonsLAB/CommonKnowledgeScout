@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { entscheideTransformationErzwingen } from '@/lib/mcp/transformation-erzwingen'
+import { TransformationAbgesagtError, entscheideTransformationErzwingen } from '@/lib/mcp/transformation-erzwingen'
 import type { ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 
 const TEMPLATE = 'commoning-methode-de'
@@ -37,7 +37,10 @@ describe('entscheideTransformationErzwingen', () => {
   it('ausdrueckliche Angabe gewinnt in beide Richtungen', () => {
     const aktuell = twin({ transformationAm: '2026-09-21T14:00:00.000Z' })
     expect(entscheide(aktuell, true, '2026-09-01T00:00:00.000Z')).toEqual({ erzwingen: true, grund: 'angefordert' })
-    expect(entscheide(aktuell, false, '2026-09-22T00:00:00.000Z')).toEqual({ erzwingen: false, grund: 'abgelehnt' })
+    // Befund R4-Abnahme 15.11.: false bei vorhandener Transformation → Absage ohne Job, nicht „Worker ueberspringt"
+    expect(() => entscheide(aktuell, false, '2026-09-22T00:00:00.000Z')).toThrow(TransformationAbgesagtError)
+    expect(() => entscheide(aktuell, false)).toThrow(/erzwingen: false verbietet das Neuschreiben/)
+    expect(entscheide(null, false)).toEqual({ erzwingen: false, grund: 'abgelehnt' })
   })
 
   it('ohne Twin oder ohne Transformation: nicht noetig, das Gate laesst durch', () => {

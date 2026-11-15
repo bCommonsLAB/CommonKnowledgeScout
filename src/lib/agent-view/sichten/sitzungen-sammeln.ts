@@ -12,6 +12,10 @@
  * S1b: `vorhaben:` im Beleg-Kopf nennt weitere Vorhaben per ORDNERNAME; sie
  * werden gegen die Vorhaben des Scans aufgeloest (unbekannt oder mehrdeutig
  * → Hinweis, kein Raten).
+ * Im Teilbaum-Lauf heisst der Wurzelordner des Scans `''` (archive-scan);
+ * seinen echten Namen reicht der Aufrufer als `wurzelName` herein. Ohne ihn
+ * gilt der Name als unbekannt — kein Vergleich mit `hauptvorhaben` gegen ''
+ * (Befund Live-Abnahme R4, 15.11.: 170 Hinweise „liegt in „"").
  *
  * @module agent-view/sichten
  */
@@ -36,12 +40,19 @@ function istVorhaben(folder: ArchiveFolderNode, muster: RegExp | null): boolean 
   return folder.bericht !== null || isVorhaben(folder, muster)
 }
 
+/** Ordnername; die Scan-Wurzel (`path === ''`) traegt ihn nicht — dann `wurzelName`, sonst unbekannt (null). */
+function ordnerName(f: ArchiveFolderNode, wurzelName: string | undefined): string | null {
+  if (f.path !== '') return f.name
+  return wurzelName ?? null
+}
+
 /** Vorhaben des Scans nach Ordnername (mehrere gleichnamige bleiben als Liste sichtbar). */
-function vorhabenNachName(folders: readonly ArchiveFolderNode[], muster: RegExp | null): Map<string, VorhabenRef[]> {
+function vorhabenNachName(folders: readonly ArchiveFolderNode[], muster: RegExp | null, wurzelName: string | undefined): Map<string, VorhabenRef[]> {
   const byName = new Map<string, VorhabenRef[]>()
   for (const f of folders) {
-    if (!istVorhaben(f, muster)) continue
-    byName.set(f.name, [...(byName.get(f.name) ?? []), { pfad: f.path, folderId: f.folderId }])
+    const name = ordnerName(f, wurzelName)
+    if (name === null || !istVorhaben(f, muster)) continue
+    byName.set(name, [...(byName.get(name) ?? []), { pfad: f.path, folderId: f.folderId }])
   }
   return byName
 }
@@ -56,9 +67,11 @@ export async function ordneSitzungenZu(args: {
   folders: readonly ArchiveFolderNode[]
   vorhabenMuster: RegExp | null
   elternVon: (folderId: string) => Promise<string | null>
+  /** Teilbaum-Lauf: echter Name des Scope-Ordners (die Scan-Wurzel heisst ''). */
+  wurzelName?: string
 }): Promise<SitzungenZuordnung> {
   const byId = new Map(args.folders.map((f) => [f.folderId, f]))
-  const byName = vorhabenNachName(args.folders, args.vorhabenMuster)
+  const byName = vorhabenNachName(args.folders, args.vorhabenMuster, args.wurzelName)
   const elternCache = new Map<string, Promise<string | null>>()
   const elternVon = (id: string): Promise<string | null> => {
     const cached = elternCache.get(id)
@@ -97,7 +110,8 @@ export async function ordneSitzungenZu(args: {
         )
       }
     }
-    const ablageName = vorhaben !== null ? byId.get(vorhaben.folderId)?.name ?? null : null
+    const ablageOrdner = vorhaben !== null ? byId.get(vorhaben.folderId) : undefined
+    const ablageName = ablageOrdner !== undefined ? ordnerName(ablageOrdner, args.wurzelName) : null
     const { vorhaben: namen, hauptvorhaben } = belegVorhaben(zeile.sourceFrontmatter?.fields ?? null)
     if (hauptvorhaben !== null && ablageName !== null && hauptvorhaben !== ablageName) {
       ergebnis.hinweise.push(`${zeile.sourceName}: liegt in „${ablageName}", hauptvorhaben sagt „${hauptvorhaben}" — Ablage gilt`)

@@ -47,6 +47,7 @@ function aufbau(dateien: Record<string, { parentId: string; name: string; text: 
       umschluesseln: async (rid, k) => { const z = register.get(rid); if (z) { register.delete(rid); register.set(k, { ...z, registerId: k, sitzungId: k }) } return { zusammengefuehrt: null } },
       melden: async (e) => { gemeldet.push(e); return register.has(e.sitzungId) ? 'ergaenzt' : 'angelegt' },
       belegAnhaengen: async () => true,
+      stand: vi.fn(async () => 'berichtet' as const),
     },
     transformation: vi.fn(async () => ({ jobId: 'job-1', erzwungen: 'nicht_noetig' })),
   }
@@ -67,7 +68,8 @@ describe('schliesseSitzungAb', () => {
     expect(r.beleg.bytes).toBeGreaterThan(300 * 1024)
     expect(schreiben).not.toHaveBeenCalled()
     expect(ports.transformation).toHaveBeenCalledWith({ id: 's-gross', parentId: 'v-ks', name: NAME }, undefined)
-    expect(r).toMatchObject({ stand: 'beleg', transformation: { jobId: 'job-1' }, register: { aktion: 'angelegt', belegNeu: true } })
+    // Stand aus dem Register, nicht geraten (Befund R4-Abnahme: „beleg" bei berichteter Zeile)
+    expect(r).toMatchObject({ stand: 'berichtet', transformation: { jobId: 'job-1' }, register: { aktion: 'angelegt', belegNeu: true } })
     expect(r.folgeaufrufe.map((f) => f.werkzeug)).toEqual(['job_status', 'sitzungen_block_schreiben', 'sichten_regenerieren'])
   })
 
@@ -88,7 +90,7 @@ describe('schliesseSitzungAb', () => {
 
   it('Verweis: fehlt (noch nicht synchronisiert) oder liegt woanders → benannter Fehler, kein Job', async () => {
     const leer = aufbau({})
-    await expect(schliesseSitzungAb(leseAbschlussEingabe(roh({ belegPfad: `${VORHABEN}/${NAME}` })), leer.ports)).rejects.toThrow(/beleg_nicht_gefunden: .*wartet nicht/)
+    await expect(schliesseSitzungAb(leseAbschlussEingabe(roh({ belegPfad: `${VORHABEN}/${NAME}` })), leer.ports)).rejects.toThrow(/beleg_nicht_gefunden: .*in einer Minute erneut aufrufen/)
     const woanders = aufbau({ 's-1': { parentId: 'v-anders', name: NAME, text: beleg() } })
     await expect(schliesseSitzungAb(leseAbschlussEingabe(roh({ belegSourceId: 's-1' })), woanders.ports)).rejects.toThrow(/beleg_falscher_ort/)
     expect(woanders.ports.transformation).not.toHaveBeenCalled()
@@ -117,7 +119,15 @@ describe('schliesseSitzungAb', () => {
 
     const aktuell = aufbau({ 's-1': { parentId: 'v-ks', name: NAME, text: beleg() } })
     aktuell.ports.transformation = vi.fn(async () => ({ abgesagt: 'Transformation ist aktuell' }))
-    expect(await schliesseSitzungAb(leseAbschlussEingabe(roh({ belegSourceId: 's-1' })), aktuell.ports)).toMatchObject({ stand: 'notiz' })
+    expect(await schliesseSitzungAb(leseAbschlussEingabe(roh({ belegSourceId: 's-1' })), aktuell.ports)).toMatchObject({ transformation: { abgesagt: 'Transformation ist aktuell' } })
+  })
+
+  it('Stand nicht lesbar: null mit Hinweis, kein Fehler des Aufrufs', async () => {
+    const { ports } = aufbau({ 's-1': { parentId: 'v-ks', name: NAME, text: beleg() } })
+    ports.register.stand = vi.fn(async () => { throw new Error('Mongo weg') })
+    const r = await schliesseSitzungAb(leseAbschlussEingabe(roh({ belegSourceId: 's-1' })), ports)
+    expect(r.stand).toBeNull()
+    expect(r.hinweise).toContain('Stand nicht lesbar: Mongo weg — sitzungen_auflisten nennt ihn')
   })
 
   it('ohne Vorhaben: Ablage in Organisation/Sitzungen, kein Block, nur die Chronik', async () => {
