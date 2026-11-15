@@ -9,27 +9,26 @@ export interface UiPanePrefs {
   /** Bericht im Werkbank-Detail zugeklappt? Der Bericht ist der laengste
       Block; wer abnimmt, will die offenen Punkte sehen, nicht ihn. */
   werkbankBerichtZu: boolean
+  /** Breite (%) der Sitzungs-Liste im Reiter „Sitzungen" (Register, Welle R3; Figma 480 von 1200 px). */
+  sitzungenListeSize: number
 }
 
-// Persistente UI-Einstellungen in localStorage
-const uiPanePrefsBase = atomWithStorage<UiPanePrefs>('ui:pane-prefs', {
+const VORGABEN: UiPanePrefs = {
   treeVisible: true,
   listCompact: false,
   werkbankListeSize: 30,
   werkbankBerichtZu: false,
-})
+  sitzungenListeSize: 40,
+}
+
+// Persistente UI-Einstellungen in localStorage
+const uiPanePrefsBase = atomWithStorage<UiPanePrefs>('ui:pane-prefs', VORGABEN)
 
 export const uiPanePrefsAtom = atom(
-  (get) => get(uiPanePrefsBase),
+  // Ein aelterer Speicherstand kennt neuere Felder nicht: sie bekommen die Vorgabe.
+  (get): UiPanePrefs => ({ ...VORGABEN, ...get(uiPanePrefsBase) }),
   (get, set, update: Partial<UiPanePrefs>) => {
     const prev = get(uiPanePrefsBase)
     set(uiPanePrefsBase, { ...prev, ...update })
   }
 )
-
-
-
-
-
-
-

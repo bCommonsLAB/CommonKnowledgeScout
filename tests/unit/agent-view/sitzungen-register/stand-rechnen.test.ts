@@ -91,7 +91,16 @@ describe('zuSicht', () => {
   it('nimmt Titel und Beginn aus dem Beleg, wenn die Zeile sie nicht kennt', () => {
     const s = zuSicht(zeile({ doc: doc({ titelOriginal: null, beginn: null }), belege: [beleg()] }), KEINE)
     expect(s).toMatchObject({ titel: 'Sitzungsregister', beginn: '2026-11-15', vorhabenBestimmt: false, gespeichert: true })
-    expect(s.belege).toEqual([{ sourceId: 'src-1', name: '2026-11-15 Code Sitzungsregister.md', zuege: '1-20', notiz: true, notizAktualisiert: '2026-11-15T10:00:00.000Z' }])
+    expect(s.belege).toEqual([{ sourceId: 'src-1', parentId: 'v-ks', name: '2026-11-15 Code Sitzungsregister.md', zuege: '1-20', notiz: true, notizAktualisiert: '2026-11-15T10:00:00.000Z' }])
+  })
+
+  it('imBericht und Stempel: halb berichtet bleibt sichtbar, uebersprungen verdeckt den Bericht nicht', () => {
+    const halb = doc({ ablage: ABLAGE_KS, berichtet: { chronikAm: '2026-11-15T11:00:00.000Z', blockAm: null } })
+    expect(zuSicht(zeile({ doc: halb, belege: [beleg()] }), KEINE)).toMatchObject({
+      stand: 'notiz', imBericht: false, berichtet: { chronikAm: '2026-11-15T11:00:00.000Z', blockAm: null },
+    })
+    const ganz = doc({ ablage: ABLAGE_KS, entscheidung: 'ueberspringen', entscheidungGrund: 'g', berichtet: { chronikAm: '2026-11-15T11:00:00.000Z', blockAm: '2026-11-15T11:00:00.000Z' } })
+    expect(zuSicht(zeile({ doc: ganz, belege: [beleg()] }), KEINE)).toMatchObject({ stand: 'uebersprungen', imBericht: true })
   })
 
   it('Vorhaben aus dem Ablage-Cache', () => {

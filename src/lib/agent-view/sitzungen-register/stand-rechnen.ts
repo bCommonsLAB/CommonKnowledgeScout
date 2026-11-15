@@ -39,7 +39,7 @@ function juengsteNotiz(belege: readonly IstBeleg[]): { zeit: string | null; ohne
 export function rechneStand(
   zeile: ZugeordneteZeile,
   fehlend: ReadonlyMap<string, string>,
-): { stand: SitzungsStand; hinweise: SitzungsHinweis[] } {
+): { stand: SitzungsStand; hinweise: SitzungsHinweis[]; imBericht: boolean } {
   const { doc, belege } = zeile
   const hinweise: SitzungsHinweis[] = [...zeile.hinweise]
   const belegDa = belege.length > 0
@@ -78,13 +78,13 @@ export function rechneStand(
         : hatNotiz ? 'notiz'
           : belegDa ? 'beleg'
             : 'gemeldet'
-  return { stand, hinweise }
+  return { stand, hinweise, imBericht: berichtet }
 }
 
 /** Die Zeile, wie Werkzeug und Reiter sie zeigen. */
 export function zuSicht(zeile: ZugeordneteZeile, fehlend: ReadonlyMap<string, string>): SitzungsSicht {
   const { doc, belege } = zeile
-  const { stand, hinweise } = rechneStand(zeile, fehlend)
+  const { stand, hinweise, imBericht } = rechneStand(zeile, fehlend)
   return {
     registerId: doc.registerId,
     sitzungId: doc.sitzungId ?? null,
@@ -99,6 +99,8 @@ export function zuSicht(zeile: ZugeordneteZeile, fehlend: ReadonlyMap<string, st
     prs: doc.prs,
     stand,
     hinweise,
+    imBericht,
+    berichtet: doc.berichtet,
     entscheidung: doc.entscheidung,
     entscheidungGrund: doc.entscheidungGrund,
     zugbereiche: doc.zugbereiche,
@@ -107,8 +109,9 @@ export function zuSicht(zeile: ZugeordneteZeile, fehlend: ReadonlyMap<string, st
     vorhabenPfad: doc.ablage?.vorhabenPfad ?? null,
     vorhabenFolderId: doc.ablage?.vorhabenFolderId ?? null,
     vorhabenBestimmt: doc.ablage !== null,
+    belegOrdnerPfad: doc.ablage?.belegOrdnerPfad ?? null,
     belege: belege.map((b) => ({
-      sourceId: b.sourceId, name: b.name, zuege: zuegeText(b.zuege), notiz: b.hatNotiz, notizAktualisiert: b.notizAktualisiert,
+      sourceId: b.sourceId, parentId: b.parentId, name: b.name, zuege: zuegeText(b.zuege), notiz: b.hatNotiz, notizAktualisiert: b.notizAktualisiert,
     })),
     gemeldetVon: doc.gemeldetVon,
     gemeldetAm: doc.gemeldetAm,

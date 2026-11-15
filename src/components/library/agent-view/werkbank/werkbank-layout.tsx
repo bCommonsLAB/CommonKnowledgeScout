@@ -25,12 +25,15 @@ export function WerkbankLayout({
   detail,
   detailAktiv,
   onZurListe,
+  breiteFeld = 'werkbankListeSize',
 }: {
   liste: ReactNode
   detail: ReactNode
   /** Mobil: true zeigt das Detail statt der Liste. */
   detailAktiv: boolean
   onZurListe: () => void
+  /** Welche gemerkte Listenbreite (R3: der Reiter „Sitzungen" merkt seine eigene). */
+  breiteFeld?: 'werkbankListeSize' | 'sitzungenListeSize'
 }) {
   const [prefs, setPrefs] = useAtom(uiPanePrefsAtom)
 
@@ -40,13 +43,13 @@ export function WerkbankLayout({
         <ResizablePanelGroup
           direction="horizontal"
           className="h-full rounded-lg border"
-          onLayout={(sizes) => setPrefs({ werkbankListeSize: sizes[0] })}
+          onLayout={(sizes) => setPrefs({ [breiteFeld]: sizes[0] })}
         >
-          <ResizablePanel defaultSize={prefs.werkbankListeSize} minSize={20} className="min-h-0">
+          <ResizablePanel defaultSize={prefs[breiteFeld]} minSize={20} className="min-h-0">
             {liste}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={100 - prefs.werkbankListeSize} minSize={30} className="min-h-0">
+          <ResizablePanel defaultSize={100 - prefs[breiteFeld]} minSize={30} className="min-h-0">
             {/* A3: das Dokument scrollt in SEINEM Bereich, der Kopf steht fest —
                 der Scroll-Container bleibt INNEN (Befund 24.08.2026). */}
             <div className="flex h-full flex-col overflow-hidden">{detail}</div>

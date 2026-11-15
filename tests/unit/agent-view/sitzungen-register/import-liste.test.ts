@@ -44,9 +44,15 @@ describe('leseListenzeile', () => {
     })
   })
 
-  it('Teil B: Kuerzel, Vorhaben aus der Bemerkung samt Nebenvorhaben; Cowork/Chat → chat', () => {
-    expect(b17).toMatchObject({ quelle: 'chat', exportPraefix: '36a7ce26', vorhaben: '24.05 Konferenzen und Netzwerk', nebenvorhaben: ['24.02 Commoning mit der Uni Marburg'] })
+  it('Teil B: Kuerzel, Vorhaben aus der Bemerkung samt Nebenvorhaben', () => {
+    expect(b17).toMatchObject({ exportPraefix: '36a7ce26', vorhaben: '24.05 Konferenzen und Netzwerk', nebenvorhaben: ['24.02 Commoning mit der Uni Marburg'] })
     expect(b82).toMatchObject({ exportPraefix: null, belegVerweis: null, vorhaben: '24.03 bcoop', bemerkung: '' })
+  })
+
+  it('Teil B: mit Export-Vermerk claude.ai-Chat, ohne Vermerk Cowork (Nachtrag 08.11.)', () => {
+    expect(b17.quelle).toBe('chat')
+    expect(b82.quelle).toBe('cowork')
+    expect(b41.quelle).toBe('cowork')
   })
 
   it('Teil C: überspringen mit Grund', () => {
