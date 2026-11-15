@@ -9,10 +9,10 @@ todos:
     status: completed
   - id: r2-import
     content: "R2 — Einmal-Werkzeug sitzungen_importieren (nurVorschau als Vorgabe): Arbeitsliste auf dem Server parsen, Kennungen zuordnen, Abweichungsbericht"
-    status: pending
+    status: completed
   - id: r3-reiter
     content: "R3 — Reiter Sitzungen nach Figma-Konzept (Muster Werkbank: Liste gruppiert links, Details rechts), unabhaengig vom Coverage-Report, Route GET/PATCH"
-    status: pending
+    status: completed
   - id: r4-abschliessen
     content: "R4 — sitzung_abschliessen: Beleg als Text oder als Verweis auf eine abgelegte Datei, Transformation starten, Zeile eintragen; Folgeschritt nach Job-Ende"
     status: pending
@@ -147,6 +147,31 @@ Mockup-Treue ist Abnahmekriterium. Live am 15.11.: 241 Zeilen, davon 221
   (Symbol + Tooltip). Sprung `?tab=werkbank&vorhaben=<folderId>`.
 - **Vorher klaeren:** wie Code in der Cloud und Cowork erkannt werden (15.11.:
   0 Cloud, 1 Cowork); sonst laufen die Chips ins Leere. Contracts: `contracts-ui`.
+  *Geklaert (R3):* Cloud bringt seit R2 der Sitzungs-Link `session_…` (100
+  Zeilen). Cowork und Chat trennt die Arbeitsliste selbst: Der Anthropic-Export
+  (`conversations.json`) enthaelt nur claude.ai-Chats, die Cowork-Verlaeufe
+  liegen in keinem Zip (Nachtrag 08.11.). Teil B mit Export-Vermerk → `chat`,
+  ohne → `cowork`; ein erneuter Import berichtigt seine eigenen Zeilen
+  (`gemeldetVon: import`), Archiv-Zeilen behalten den Beleg-Kopf (`werkzeug`).
+
+**Gebaut (R3, 15.11.), genauer als oben:**
+- Route `GET …/agent-view/sitzungen` liefert alle Zeilen; Sicht, Chips, Suche,
+  Gruppen rechnen reine Funktionen (`reiter-sicht.ts`, `reiter-gruppen.ts`,
+  `reiter-texte.ts`). Ohne Agentensicht antworten beide Routen 409
+  `archivpflege_aus`, nie mit einer leeren Liste.
+- Gruppe „Bereich": Ort aus dem Ablage-Cache; ohne Cache zaehlt der
+  Vorhaben-Vorschlag (sichtbar „Vorschlag"), den Bereich nennt nur ein
+  Vorhaben, dessen Ort eine andere Zeile kennt. Sammelgruppen am Ende:
+  „Beleg ohne Vorhaben", „Vorgeschlagen, Bereich offen", „Vorhaben noch nicht bestimmt".
+- „Auffällig": je Hinweis-Code eine Gruppe (alle zehn, leere blass) plus
+  „gemeldet ohne Beleg" nach 7 Tagen — dieselbe Regel wie `sitzungen_auflisten`
+  (`gemeldetAm`). Folge: Ab 22.11. erscheinen dort alle importierten Zeilen
+  ohne Beleg (Import am 15.11.). Ob Altbestand dort mitzaehlt, ist offen (E14).
+- „So lassen, mit Grund …" schreibt den Grund in die Bemerkung; der Hinweis
+  bleibt sichtbar (es gibt keine Entscheidung „ohne Vorhaben").
+- Vorschlag aus dem Reiter: `herkunft: reiter`; Auswahl = Vorhaben, die das
+  Register kennt (Ablage-Cache und Vorschlaege).
+- Listenbreite eigen gemerkt (`sitzungenListeSize`, Vorgabe 40 %).
 
 ## 6. Welle R4 — `sitzung_abschliessen`
 
@@ -188,6 +213,8 @@ Folgeaufruf aus Schritt 4.
 - **E5** Zeilen ohne Kennung als `alt:<Nr>` fuehren und beim Abschluss umschluesseln (Vorschlag). *Gebaut nach Vorschlag (R1).*
 - **E6** Import als eigenes Einmal-Werkzeug auf dem Server (Vorschlag) statt Abtippen durch einen Agenten.
 - **E7** Folgeschritt nach dem Job ruft der Skill (Vorschlag) oder das Werkzeug wartet bis zu 60 s.
+- **E14** (R3) Zaehlt Altbestand aus dem Import als „gemeldet ohne Beleg" (heute: ja, nach 7 Tagen
+  ab `gemeldetAm`) oder nur, was ein Skill gemeldet hat (`gemeldetVon: skill`)?
 - **E8** Grosse Belege nur ueber den Dateiverweis (Vorschlag) oder zusaetzlich eine Upload-Route mit
   Konto-Schluessel (umgeht das Modell, aber der Schluessel kennt keine Scopes, ADR 0008 Nachtrag).
   Offen dabei: Cloud-Sitzungen haben keinen OneDrive-Ordner.
@@ -195,5 +222,9 @@ Folgeaufruf aus Schritt 4.
 ## 9. Stand und Hand-off
 
 - **R1:** gemergt und live abgenommen (#439, Fix #440, Bruecke 2.71.1; 15.11.: 241 Zeilen).
+- **R2:** gemergt (#442, Fix #443, Bruecke 2.72.1; 15.11.: 477 Zeilen).
+- **R3:** gebaut 15.11. (Bruecke 2.73.0). Nach dem Merge einmal `sitzungen_importieren`
+  mit `nurVorschau: false`, damit die 102 Teil-B-Zeilen ohne Export-Vermerk `cowork` werden
+  (erwartet: die Teil-B-Zeilen ohne Vermerk, die der Import angelegt hat, wechseln; die Vorschau nennt sie als `ergaenzt`).
 - **Modell:** R2 Sonnet mittel; R3 Sonnet mittel (mit Figma-Konzept); R4 Opus (Speicher, Jobs, Fehlerfaelle).
 - **Pflicht:** `pnpm test` vollstaendig, `pnpm lint`, `tsc` gegen den Stand vorher, `bash scripts/welle-pre-merge-check.sh` beim Owner.

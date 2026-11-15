@@ -379,8 +379,12 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Wellen R1–R4). **R1 gebaut 15.11.** (Brücke 2.71.0: `sitzungen_melden`,
   `sitzungen_auflisten`, `sitzung_setzen`, Abgleich in den Sichten-Läufen;
   E1 und E5 nach Vorschlag), gemergt und live abgenommen (#439, Fix #440,
-  2.71.1; 241 Zeilen). R3-Reiter als Figma-Konzept (Plan §5); E2–E4, E6–E8
-  beim Owner, als Nächstes R2. Danach Sitzungen im
+  2.71.1; 241 Zeilen). **R2 gemergt** (#442, Fix #443, 2.72.1; Register
+  477 Zeilen). **R3 gebaut 15.11.** (Brücke 2.73.0): Reiter „Sitzungen" nach
+  Figma, Routen GET/PATCH, Reiterleiste unabhängig vom Report (W8); Teil B
+  der Arbeitsliste trennt Cowork (ohne Export-Vermerk) und Chat (mit) — nach
+  dem Merge `sitzungen_importieren` einmal mit `nurVorschau: false` laufen
+  lassen. E2–E4, E6–E8 beim Owner, als Nächstes R4. Danach Sitzungen im
   Chatbot befragbar: Wortlaut des Owners und Notiz als zwei Einträge, `authors`
   an Diktaten und eigenen Texten (Plan
   [`sitzungen-befragbar`](plans/geplant/sitzungen-befragbar.plan.md), R5a–R5c;
