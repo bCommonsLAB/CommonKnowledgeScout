@@ -28,6 +28,8 @@ export const ARCHIVPFLEGE_WERKZEUGE = [
   'sitzungen_melden',
   'sitzungen_auflisten',
   'sitzung_setzen',
+  // R2: Einmal-Import der Arbeitsliste.
+  'sitzungen_importieren',
 ] as const
 
 export type ArchivpflegeWerkzeug = (typeof ARCHIVPFLEGE_WERKZEUGE)[number]

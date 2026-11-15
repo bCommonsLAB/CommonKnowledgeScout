@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.71.1'
+export const TOOLSET_VERSION = '2.72.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -125,6 +125,8 @@ export const TOOL_NAMES = [
   'sitzungen_melden',
   'sitzung_setzen',
   'sitzungen_auflisten',
+  // R2: Einmal-Import der Arbeitsliste.
+  'sitzungen_importieren',
   'stand_setzen',
   'themen_setzen',
   'protokoll_lesen',
@@ -138,6 +140,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.72.0: Import der Arbeitsliste (Plan sitzungen-register, Welle R2; Owner 15.11.). NEU sitzungen_importieren (nur archivpflege; Vorgabe nurVorschau: true, false SCHREIBT): liest die Arbeitsliste (pfad) auf dem Server — Abschnitt „## Sitzungen nach Vorhaben", Tabellen | Erl. | Nr | Beginn | Ende | Titel | Quelle | Repo · Branch/PR · Link | Bemerkung | — und ordnet jede Zeile zu: Sitzungs-Link session_… → Verweis [[Notiz]] nach „erledigt" (Beleg-Name ohne Art-Wort) → Export-Kuerzel (8 Zeichen, nur eindeutig) → sonst alt:<Nr>. Fuellt nur Fehlendes (Titel, Daten, Repo, Branch, PRs, Vorhaben-Vorschlag mit herkunft arbeitsliste, Notiz-Kopie, Bemerkung „Arbeitsliste <Nr>: …"); „überspringen: <Grund>" setzt die Entscheidung, wenn sie offen ist; code_cloud aus der Liste ersetzt die Archiv-Schaetzung code_lokal. Quelle Cowork/Chat wird chat (Teil B trennt beides nicht). nrAlt ist jetzt Text (z. B. B45; mehrere Zeilen derselben Sitzung durch Komma). Antwort: bilanz (je Teil A–D zeilen/erledigt/offen/uebersprungen, jeWeg, jeAktion), geplant { neu, ergaenzt }, auffaellig (Zeilen mit Hinweisen, bis maxZeilen) und auffaelligGesamt, belegeOhneZeile, parseFehler, lesefehler. Ein zweiter Lauf aendert nichts',
   '2.71.1: Befund Live-Abnahme R1 (15.11.). sitzungen_block_schreiben mit Scope (folderId|pfad) schreibt im Sitzungs-Register nur noch Block-Stempel und sourceIds, NICHT mehr den Ablage-Cache: im Teilbaum rechnet der Scan Pfade ab dem Scope, die Ablage stand danach mit leerem Vorhabens-Pfad da. Die Ablage schreiben sichten_regenerieren (Sicht sitzungen) und sitzungen_block_schreiben ohne Scope. Kein neues Werkzeug',
   '2.71.0: Sitzungs-Register (Plan sitzungen-register, Welle R1; Owner 15.11.). Eine Zeile je Arbeitssitzung mit Claude in MongoDB, auch ohne Beleg; der Stand wird aus Beleg und Notiz gerechnet, nie abgehakt (uebersprungen > berichtet > notiz > beleg > gemeldet). NEU, alle nur archivpflege: sitzungen_melden (SCHREIBT; Stapel bis 50, Schluessel volle Kennung sitzungId, idempotent; angelegt | ergaenzt | unveraendert | fehler je Zeile), sitzungen_auflisten (liest nur; Filter stand, quelle, vorhaben, von/bis, auffaellig notiz_ohne_beleg | gemeldet_ohne_beleg + seitTagen | beleg_ohne_vorhaben | doppelt; zusammenfassung: true = Bilanz; Belege mit Notiz ohne Zeile erscheinen mit gespeichert: false), sitzung_setzen (SCHREIBT; entscheidung offen | ueberspringen mit Grund | trennen mit Zugbereichen, vorhabenVorschlag, bemerkung, Kennung nachtragen = umschluesseln). sichten_regenerieren (Sicht sitzungen) und sitzungen_block_schreiben gleichen nach dem Schreiben das Register ab: fehlende Zeilen anlegen (gemeldetVon archiv), Ablage-Cache, Stempel berichtet.chronikAm bzw. blockAm; neues Antwortfeld register { angelegt, aktualisiert, fehler, geplant, hinweise } (bei sichten_regenerieren unter sitzungen.register); nichts bei nurVorschau',
   '2.70.1: Reihenfolge der Filterwerte (Owner 10.11.). konfiguration_setzen facetten nimmt je Facette sortDirection asc | desc zu sort alpha | count (ohne Angabe: Werte aufsteigend, Haeufigkeit absteigend) — z. B. year mit sort alpha + sortDirection desc zeigt den juengsten Jahrgang oben; Facetten vom Typ number vergleichen als Zahlen. sort, max und columns WIRKEN jetzt: bisher verwarf das Server-Schema diese Felder, die Galerie sortierte jeden Filter aufsteigend nach Wert, ohne Obergrenze und einspaltig. Folge: bereits gespeicherte Angaben (sort count, max) greifen ab dieser Version. Ungueltige Werte (sort ausserhalb alpha|count, max < 1, columns ausserhalb 1–3) weist die Pruefung mit Pfad ab. Kein neues Werkzeug',

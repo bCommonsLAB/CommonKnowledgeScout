@@ -86,7 +86,8 @@ export interface SitzungsRegisterDoc {
   repo: string | null
   branch: string | null
   prs: string[]
-  nrAlt: number | null
+  /** Nummer der alten Arbeitsliste (z. B. `B45`, R2). */
+  nrAlt: string | null
   entscheidung: Entscheidung
   entscheidungGrund: string | null
   zugbereiche: Zugbereich[]
