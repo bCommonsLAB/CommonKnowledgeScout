@@ -12,6 +12,9 @@
  * S1b: `vorhaben:` im Beleg-Kopf nennt weitere Vorhaben per ORDNERNAME; sie
  * werden gegen die Vorhaben des Scans aufgeloest (unbekannt oder mehrdeutig
  * → Hinweis, kein Raten).
+ * Eintraege im Kopf duerfen Ordnernamen oder library-relative Pfade sein
+ * (`vorhabenEintrag`): Pfade werden im Lauf ueber die ganze Library genau
+ * verglichen, im Teilbaum (Pfade dort relativ zum Scope) ueber den Namen.
  * Im Teilbaum-Lauf heisst der Wurzelordner des Scans `''` (archive-scan);
  * seinen echten Namen reicht der Aufrufer als `wurzelName` herein. Ohne ihn
  * gilt der Name als unbekannt — kein Vergleich mit `hauptvorhaben` gegen ''
@@ -23,7 +26,7 @@
 import { isVorhaben } from '../archive-rules'
 import type { ArchiveFolderNode } from '../archive-types'
 import type { TransformationZeile } from '@/lib/repositories/shadow-twin-transformationen'
-import { belegVorhaben, sitzungAusTransformation, type SitzungsDatensatz, type VorhabenRef } from './sitzungen-types'
+import { belegVorhaben, sitzungAusTransformation, vorhabenEintrag, type SitzungsDatensatz, type VorhabenRef } from './sitzungen-types'
 
 /** Schutz gegen Zyklen in fremden Eltern-Ketten. */
 const MAX_AUFSTIEG = 30
@@ -72,6 +75,9 @@ export async function ordneSitzungenZu(args: {
 }): Promise<SitzungenZuordnung> {
   const byId = new Map(args.folders.map((f) => [f.folderId, f]))
   const byName = vorhabenNachName(args.folders, args.vorhabenMuster, args.wurzelName)
+  // Pfade des Scans sind nur im Lauf ueber die ganze Library library-relativ.
+  const vollerLauf = args.wurzelName === undefined
+  const byPfad = new Map(args.folders.filter((f) => f.path !== '' && istVorhaben(f, args.vorhabenMuster)).map((f) => [f.path, { pfad: f.path, folderId: f.folderId }]))
   const elternCache = new Map<string, Promise<string | null>>()
   const elternVon = (id: string): Promise<string | null> => {
     const cached = elternCache.get(id)
@@ -113,16 +119,25 @@ export async function ordneSitzungenZu(args: {
     const ablageOrdner = vorhaben !== null ? byId.get(vorhaben.folderId) : undefined
     const ablageName = ablageOrdner !== undefined ? ordnerName(ablageOrdner, args.wurzelName) : null
     const { vorhaben: namen, hauptvorhaben } = belegVorhaben(zeile.sourceFrontmatter?.fields ?? null)
-    if (hauptvorhaben !== null && ablageName !== null && hauptvorhaben !== ablageName) {
+    /** Meint der Kopf-Eintrag das Ablage-Vorhaben? Pfad genau (voller Lauf), sonst der Name. */
+    const meintAblage = (eintrag: string): boolean => {
+      if (vorhaben === null) return false
+      const e = vorhabenEintrag(eintrag)
+      if (e.pfad !== null && vollerLauf) return e.pfad === vorhaben.pfad
+      return ablageName !== null && e.name === ablageName
+    }
+    if (hauptvorhaben !== null && ablageName !== null && !meintAblage(hauptvorhaben)) {
       ergebnis.hinweise.push(`${zeile.sourceName}: liegt in „${ablageName}", hauptvorhaben sagt „${hauptvorhaben}" — Ablage gilt`)
     }
     const weitereVorhaben: VorhabenRef[] = []
-    for (const name of namen) {
-      if (name === ablageName) continue
-      const treffer = byName.get(name) ?? []
+    for (const eintrag of namen) {
+      if (meintAblage(eintrag)) continue
+      const e = vorhabenEintrag(eintrag)
+      const genau = e.pfad !== null && vollerLauf ? byPfad.get(e.pfad) : undefined
+      const treffer = genau !== undefined ? [genau] : e.pfad !== null && vollerLauf ? [] : byName.get(e.name) ?? []
       if (treffer.length === 1) weitereVorhaben.push(treffer[0])
-      else if (treffer.length === 0) ergebnis.hinweise.push(`${zeile.sourceName}: Vorhaben „${name}" aus vorhaben: nicht im Scan — Querverweis entfaellt`)
-      else ergebnis.hinweise.push(`${zeile.sourceName}: Vorhaben „${name}" ist mehrdeutig (${treffer.map((t) => t.pfad).join(', ')}) — Querverweis entfaellt`)
+      else if (treffer.length === 0) ergebnis.hinweise.push(`${zeile.sourceName}: Vorhaben „${eintrag}" aus vorhaben: nicht im Scan — Querverweis entfaellt`)
+      else ergebnis.hinweise.push(`${zeile.sourceName}: Vorhaben „${eintrag}" ist mehrdeutig (${treffer.map((t) => t.pfad).join(', ')}) — Querverweis entfaellt`)
     }
     const s = sitzungAusTransformation(zeile, { vorhaben, belegOrdnerPfad: byId.get(zeile.parentId)?.path ?? null, weitereVorhaben })
     if (s.ok) ergebnis.sitzungen.push(s.sitzung)

@@ -79,7 +79,7 @@ export function registerSitzungenTool(server: McpServer): void {
         'Ein handgeschriebener Block "### Sitzungen … (nachgetragen …)" wird NUR mit alteBloeckeUebernehmen=true ' +
         'ersetzt, sonst als Befund gemeldet. nurVorschau=true zeigt die Bloecke ohne zu schreiben. ' +
         'Scope per folderId/pfad (Belege ausserhalb der gescannten Ordner werden gezaehlt, nicht zugeordnet); ' +
-        'ohne Scope die ganze Library (OneDrive ~20-40 s). SCHREIBT in Berichte (nur den Block); nur nach Bestaetigung. ' +
+        'ohne Scope die ganze Library (OneDrive gemessen ~1-2 min bei rund 30 Berichten, 15.11.). SCHREIBT in Berichte (nur den Block); nur nach Bestaetigung. ' +
         'Danach gleicht der Lauf das Sitzungs-Register ab (register: fehlende Zeilen, Ablage-Cache, Block-Stempel ' +
         'fuer Sitzungen, deren Vorhaben den Block jetzt traegt); nicht bei nurVorschau.',
       inputSchema: {

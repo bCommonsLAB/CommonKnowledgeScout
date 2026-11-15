@@ -54,6 +54,11 @@ describe('pruefeBelegKopf', () => {
     expect(kopf(KOPF, { eingabe: { sitzungId: K1, quelle: 'cowork', zugbereich: { von: 1, bis: 12 } } }).hinweise).toEqual([])
   })
 
+  it('Pfade statt Namen im Kopf sind kein Hinweis (verglichen wird der Ordnername)', () => {
+    const r = kopf({ ...KOPF, hauptvorhaben: '6. Lab/24.09 KnowledgeScout', vorhaben: ['6. Lab/24.09 KnowledgeScout', '6. Lab/26.08 Archiv'] }, { nebenvorhaben: ['26.08 Archiv'] })
+    expect(r.hinweise).toEqual([])
+  })
+
   it('Werkzeug, Vorhaben und Datum werden Hinweise', () => {
     const r = kopf({ ...KOPF, werkzeug: 'chat', datum: '2026-11-14' }, { hauptvorhaben: '26.08 Archiv', nebenvorhaben: ['26.10 Webseite'] })
     expect(r.hinweise).toEqual([

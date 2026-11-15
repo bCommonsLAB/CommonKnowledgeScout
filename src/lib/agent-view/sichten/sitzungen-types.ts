@@ -79,6 +79,19 @@ export function belegOhneEndung(name: string): string {
   return name.replace(/\.md$/i, '')
 }
 
+/**
+ * Ein Eintrag aus `vorhaben:`/`hauptvorhaben:` meint einen Vorhabensordner — per
+ * Ordnername (Konvention) oder per library-relativem Pfad (Befund Nachpruefung
+ * 15.11.2026: das Export-Skript bekam Pfade). Beim Pfad ist der Name der letzte
+ * Teil; der Pfad bleibt fuer den genauen Abgleich erhalten. Kein Raten: ein
+ * Pfad ist eindeutig, ein Name wird wie bisher gegen den Scan aufgeloest.
+ */
+export function vorhabenEintrag(eintrag: string): { name: string; pfad: string | null } {
+  const teile = eintrag.split('/').map((t) => t.trim()).filter((t) => t !== '')
+  if (teile.length <= 1) return { name: eintrag.trim(), pfad: null }
+  return { name: teile[teile.length - 1], pfad: teile.join('/') }
+}
+
 /** `vorhaben:` (Ordnernamen, Hauptvorhaben zuerst) und `hauptvorhaben:` aus dem Beleg-Kopf. */
 export function belegVorhaben(fields: Record<string, unknown> | null): { vorhaben: string[]; hauptvorhaben: string | null } {
   if (fields === null) return { vorhaben: [], hauptvorhaben: null }

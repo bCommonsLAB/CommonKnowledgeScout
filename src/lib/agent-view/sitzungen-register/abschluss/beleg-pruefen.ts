@@ -14,7 +14,7 @@
  */
 
 import { asString } from '@/lib/agent-view/sichten/bericht-lesen'
-import { belegNameLesen, belegVorhaben } from '@/lib/agent-view/sichten/sitzungen-types'
+import { belegNameLesen, belegVorhaben, vorhabenEintrag } from '@/lib/agent-view/sichten/sitzungen-types'
 import { quelleAusWerkzeug, zuegeLesen, zuegeText } from '../ist-beleg'
 import type { MeldeEingabe } from '../schreib-plaene'
 import { SitzungsAbschlussError, type AbschlussEingabe } from './abschluss-typen'
@@ -68,14 +68,17 @@ export function pruefeBelegKopf(args: {
   if (ausKopf === null) hinweise.push(`Kopf ohne erkennbares werkzeug („${werkzeug ?? 'leer'}") — Quelle aus dem Aufruf: ${eingabe.quelle}`)
   else if (ausKopf !== eingabe.quelle) hinweise.push(`Kopf sagt ${ausKopf} (werkzeug ${werkzeug}), der Aufruf ${eingabe.quelle} — das Register nimmt den Aufruf`)
 
+  // Kopf-Eintraege duerfen Ordnernamen oder Pfade sein (vorhabenEintrag); verglichen wird der Name.
   const { vorhaben, hauptvorhaben } = belegVorhaben(meta)
+  const kopfNamen = vorhaben.map((v) => vorhabenEintrag(v).name)
+  const hauptName = hauptvorhaben === null ? null : vorhabenEintrag(hauptvorhaben).name
   if (args.hauptvorhaben === null && hauptvorhaben !== null) {
     hinweise.push(`Kopf nennt hauptvorhaben „${hauptvorhaben}", abgelegt wird ohne Vorhaben`)
-  } else if (args.hauptvorhaben !== null && hauptvorhaben !== null && hauptvorhaben !== args.hauptvorhaben) {
+  } else if (args.hauptvorhaben !== null && hauptName !== null && hauptName !== args.hauptvorhaben) {
     hinweise.push(`Kopf nennt hauptvorhaben „${hauptvorhaben}", abgelegt wird in „${args.hauptvorhaben}"`)
   }
   for (const neben of args.nebenvorhaben) {
-    if (!vorhaben.includes(neben)) hinweise.push(`Nebenvorhaben „${neben}" fehlt in vorhaben: des Kopfs — der Block dort nennt die Sitzung erst, wenn der Kopf es sagt`)
+    if (!kopfNamen.includes(neben)) hinweise.push(`Nebenvorhaben „${neben}" fehlt in vorhaben: des Kopfs — der Block dort nennt die Sitzung erst, wenn der Kopf es sagt`)
   }
 
   const name = belegNameLesen(args.belegName)
