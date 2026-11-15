@@ -49,6 +49,12 @@ export function planeAbgleich(args: {
   ablagen: ReadonlyMap<string, BelegAblage>
   /** sourceIds, die dieser Lauf berichtet hat (Chronik geschrieben bzw. Block im Hauptvorhaben). */
   berichtet: ReadonlySet<string>
+  /**
+   * false im Teilbaum-Lauf: Dort rechnet der Scan Pfade ab dem Scope, nicht
+   * ab der Library-Wurzel — die Ablage bliebe mit falschem Pfad stehen. Dann
+   * nur Stempel und sourceIds; die Ablage schreibt der naechste volle Lauf.
+   */
+  ablageSchreiben: boolean
   art: AbgleichArt
   jetzt: string
 }): AbgleichPlan {
@@ -60,10 +66,10 @@ export function planeAbgleich(args: {
     const mitAblage = zeile.belege.filter((b) => args.ablagen.has(b.sourceId))
     const erste = mitAblage[0] ? args.ablagen.get(mitAblage[0].sourceId) : undefined
     const ordner = new Set(mitAblage.map((b) => args.ablagen.get(b.sourceId)?.vorhabenFolderId ?? null))
-    if (ordner.size > 1) {
+    if (ordner.size > 1 && args.ablageSchreiben) {
       plan.hinweise.push(`${doc.registerId}: Teil-Belege liegen in verschiedenen Vorhaben — Ablage nach dem ersten (${erste?.vorhabenPfad ?? 'ohne Vorhaben'})`)
     }
-    const neueAblage: SitzungsAblage | undefined = erste ? { ...erste, geprueftAm: args.jetzt } : undefined
+    const neueAblage: SitzungsAblage | undefined = erste && args.ablageSchreiben ? { ...erste, geprueftAm: args.jetzt } : undefined
     const berichtetJetzt = zeile.belege.some((b) => args.berichtet.has(b.sourceId))
     const neueIds = zeile.belege.map((b) => b.sourceId).filter((id) => !doc.belegSourceIds.includes(id))
 

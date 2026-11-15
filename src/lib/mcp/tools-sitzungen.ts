@@ -123,6 +123,8 @@ export function registerSitzungenTool(server: McpServer): void {
           const imBlock = new Set(berichte.filter((b) => b.status === 'geschrieben' || b.status === 'unveraendert').map((b) => b.folderId))
           const register = nurVorschau === true ? undefined : await registerNachLauf({
             libraryId: library.id, zeilen, sitzungen: zuordnung.sitzungen, art: 'block', jetzt: new Date().toISOString(),
+            // Im Teilbaum sind die Scan-Pfade relativ zum Scope (Befund Live-Abnahme 15.11.): dann keine Ablage.
+            ablageSchreiben: scope === undefined,
             berichtet: new Set(zuordnung.sitzungen.filter((s) => s.vorhabenFolderId !== null && imBlock.has(s.vorhabenFolderId)).map((s) => s.sourceId)),
           })
           const befunde = berichte

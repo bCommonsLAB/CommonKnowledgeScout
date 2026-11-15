@@ -69,6 +69,8 @@ export function registerNachChronik(libraryId: string, geladen: GeladeneSitzunge
     zeilen: geladen.zeilen,
     sitzungen: geladen.zuordnung.sitzungen,
     berichtet: new Set(geladen.zuordnung.sitzungen.map((s) => s.sourceId)),
+    // Der Chronik-Lauf scannt immer ab der Library-Wurzel — die Pfade sind absolut.
+    ablageSchreiben: true,
     art: 'chronik',
     jetzt: now.toISOString(),
   })
