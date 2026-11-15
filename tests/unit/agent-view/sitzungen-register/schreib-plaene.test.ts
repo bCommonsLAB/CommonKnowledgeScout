@@ -75,7 +75,7 @@ describe('planeSetzen', () => {
   })
 
   it('Kennung nachtragen schluesselt um und entfernt das Praefix', () => {
-    const alt = doc({ registerId: 'alt:17', sitzungId: undefined, kennung: 'praefix', kennungPraefix: K1.slice(0, 8), nrAlt: 17 })
+    const alt = doc({ registerId: 'alt:17', sitzungId: undefined, kennung: 'praefix', kennungPraefix: K1.slice(0, 8), nrAlt: 'B17' })
     const plan = planeSetzen(alt, { sitzungId: K1 }, JETZT)
     expect(plan).toMatchObject({ neueKennung: K1, unset: ['kennungPraefix'], felder: ['sitzungId'] })
     expect(plan.set).toMatchObject({ registerId: K1, sitzungId: K1, kennung: 'voll' })
