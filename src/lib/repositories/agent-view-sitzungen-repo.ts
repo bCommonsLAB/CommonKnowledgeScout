@@ -138,6 +138,24 @@ export async function schreibeAbgleich(libraryId: string, plan: AbgleichPlan): P
       return { updateOne: { filter: { libraryId, registerId: a.registerId }, update } }
     }),
   ]
+  return fuehreStapelAus(libraryId, ops)
+}
+
+/** Schreibt den Plan des Listen-Imports (R2): neue Zeilen und `$set` je geaenderter Zeile. */
+export async function schreibeImport(
+  libraryId: string,
+  plan: { neu: readonly SitzungsRegisterDoc[]; aenderungen: ReadonlyArray<{ registerId: string; set: Partial<SitzungsRegisterDoc> }> },
+): Promise<AbgleichSchreibErgebnis> {
+  return fuehreStapelAus(libraryId, [
+    ...plan.neu.map((doc) => ({ insertOne: { document: { ...doc } } })),
+    ...plan.aenderungen.map((a) => ({ updateOne: { filter: { libraryId, registerId: a.registerId }, update: { $set: a.set } } })),
+  ])
+}
+
+async function fuehreStapelAus(
+  libraryId: string,
+  ops: Array<AnyBulkWriteOperation<SitzungsRegisterDoc>>,
+): Promise<AbgleichSchreibErgebnis> {
   if (ops.length === 0) return { angelegt: 0, aktualisiert: 0, fehler: [] }
   await ensureSitzungenIndexes(libraryId)
   const col = await getCol(libraryId)

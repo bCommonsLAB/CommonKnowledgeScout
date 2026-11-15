@@ -92,7 +92,7 @@ describe('agent-view-sitzungen-repo', () => {
 })
 
 describe('setzeSitzung — Kennung nachtragen', () => {
-  const ALT = doc({ registerId: 'alt:17', sitzungId: undefined, kennung: 'keine', nrAlt: 17, gemeldetVon: 'import', titelOriginal: 'Altliste' })
+  const ALT = doc({ registerId: 'alt:17', sitzungId: undefined, kennung: 'keine', nrAlt: 'B17', gemeldetVon: 'import', titelOriginal: 'Altliste' })
 
   async function dienstMit(andere: ReturnType<typeof doc> | null) {
     const repo = {

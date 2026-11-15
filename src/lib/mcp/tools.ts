@@ -64,6 +64,7 @@ import { registerAenderungenTools } from './tools-aenderungen'
 import { registerSitzungenTool } from './tools-sitzungen'
 import { registerSitzungenAuflistenTool } from './tools-sitzungen-auflisten'
 import { registerSitzungenRegisterTools } from './tools-sitzungen-register'
+import { registerSitzungenImportTool } from './tools-sitzungen-import'
 import { registerStandTool } from './tools-stand'
 import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
@@ -129,6 +130,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   // R1 (Plan sitzungen-register): Sitzungs-Register melden, auflisten, pflegen.
   registerSitzungenRegisterTools(server)
   registerSitzungenAuflistenTool(server)
+  // R2: Einmal-Import der Arbeitsliste.
+  registerSitzungenImportTool(server)
   registerStandTool(server)
   registerThemenTool(server)
   registerProtokollTool(server)
