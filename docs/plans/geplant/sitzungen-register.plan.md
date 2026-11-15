@@ -15,7 +15,7 @@ todos:
     status: completed
   - id: r4-abschliessen
     content: "R4 — sitzung_abschliessen: Beleg als Text oder als Verweis auf eine abgelegte Datei, Transformation starten, Zeile eintragen; Folgeschritt nach Job-Ende"
-    status: pending
+    status: completed
 ---
 
 # Sitzungen: Register statt Arbeitsliste
@@ -189,6 +189,28 @@ Zugbereich, `begruendung`.
 
 Abnahme mit einem Beleg ueber 300 kB ueber den Dateiverweis.
 
+**Gebaut (R4, 15.11.; E7 und E8 nach Vorschlag), genauer als oben:**
+- Eingabe flach: Ort genau einer von `vorhabenPfad`, `vorhabenFolderId`,
+  `ohneVorhaben` (= `Organisation/Sitzungen`, kein Block); Beleg genau einer
+  von `belegText` + `belegName` (bis 100 kB, E8), `belegPfad`, `belegSourceId`.
+  `nebenvorhaben` sind Pfade (Block auch dort), `zugbereich` muss
+  `zuege_von_bis` entsprechen, `erzwingen` optional.
+- Alles Pruefbare laeuft VOR dem ersten Schreiben: Ort, Beleg (lose im Ort),
+  Kopf (`type`, `session_id`, Zuege), Register (`alt:<Nr>` vorhanden, Kennung
+  nicht schon gepflegt vergeben, Kuerzel passt). Erst dann Beleg, Register
+  (umschluesseln, melden mit `gemeldetVon: skill`, Beleg anhaengen), Job.
+- Abweichungen ohne Fehler werden Hinweise: Werkzeug im Kopf ≠ `quelle`
+  (das Register nimmt den Aufruf), `hauptvorhaben` ≠ Ablage, Nebenvorhaben
+  fehlt in `vorhaben:`, Datum im Namen ≠ `datum`.
+- Ein gescheiterter Job-Start ist kein Fehler des Aufrufs
+  (`transformation.fehler`, Neustart in den Folgeaufrufen); eine aktuelle
+  Notiz ist eine Absage (`TransformationAktuellError`), Stand `notiz`.
+- Folgeaufrufe (E7): `job_status` bis completed, dann
+  `sitzungen_block_schreiben` je Vorhaben (`folderId`) und
+  `sichten_regenerieren` mit `sitzungen`, jeweils mit `begruendung`.
+- Der 300-kB-Fall ist als Test mit Anschluessen im Speicher abgedeckt
+  (Bytes, SHA-256, nichts geschrieben); die Live-Abnahme steht aus.
+
 Fortsetzung: Wortlaut und Notiz im Chatbot, Urheber an Diktaten — Plan
 [`sitzungen-befragbar`](sitzungen-befragbar.plan.md) (R5a–R5c). R5a haengt am
 Folgeaufruf aus Schritt 4.
@@ -212,10 +234,10 @@ Folgeaufruf aus Schritt 4.
 - **E4** Nicht abgeschlossene Cowork-Chats nur beim Abschluss melden oder zusaetzlich taeglich.
 - **E5** Zeilen ohne Kennung als `alt:<Nr>` fuehren und beim Abschluss umschluesseln (Vorschlag). *Gebaut nach Vorschlag (R1).*
 - **E6** Import als eigenes Einmal-Werkzeug auf dem Server (Vorschlag) statt Abtippen durch einen Agenten.
-- **E7** Folgeschritt nach dem Job ruft der Skill (Vorschlag) oder das Werkzeug wartet bis zu 60 s.
+- **E7** Folgeschritt nach dem Job ruft der Skill (Vorschlag) oder das Werkzeug wartet bis zu 60 s. *Entschieden 15.11.: der Skill.*
 - **E14** (R3) Zaehlt Altbestand aus dem Import als „gemeldet ohne Beleg" (heute: ja, nach 7 Tagen
   ab `gemeldetAm`) oder nur, was ein Skill gemeldet hat (`gemeldetVon: skill`)?
-- **E8** Grosse Belege nur ueber den Dateiverweis (Vorschlag) oder zusaetzlich eine Upload-Route mit
+- **E8** *(Entschieden 15.11.: nur Dateiverweis.)* Grosse Belege nur ueber den Dateiverweis (Vorschlag) oder zusaetzlich eine Upload-Route mit
   Konto-Schluessel (umgeht das Modell, aber der Schluessel kennt keine Scopes, ADR 0008 Nachtrag).
   Offen dabei: Cloud-Sitzungen haben keinen OneDrive-Ordner.
 
@@ -226,5 +248,8 @@ Folgeaufruf aus Schritt 4.
 - **R3:** gebaut 15.11. (Bruecke 2.73.0). Nach dem Merge einmal `sitzungen_importieren`
   mit `nurVorschau: false`, damit die 102 Teil-B-Zeilen ohne Export-Vermerk `cowork` werden
   (erwartet: die Teil-B-Zeilen ohne Vermerk, die der Import angelegt hat, wechseln; die Vorschau nennt sie als `ergaenzt`).
+- **R4:** gebaut 15.11. (Bruecke 2.74.0), Branch auf R3. Danach: Skill `sitzung-abschliessen`
+  (im Archiv) auf das Werkzeug umstellen und die Live-Abnahme mit einem Beleg ueber 300 kB
+  per `belegPfad` fahren.
 - **Modell:** R2 Sonnet mittel; R3 Sonnet mittel (mit Figma-Konzept); R4 Opus (Speicher, Jobs, Fehlerfaelle).
 - **Pflicht:** `pnpm test` vollstaendig, `pnpm lint`, `tsc` gegen den Stand vorher, `bash scripts/welle-pre-merge-check.sh` beim Owner.

@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.73.0'
+export const TOOLSET_VERSION = '2.74.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -127,6 +127,8 @@ export const TOOL_NAMES = [
   'sitzungen_auflisten',
   // R2: Einmal-Import der Arbeitsliste.
   'sitzungen_importieren',
+  // R4: Sitzung abschliessen.
+  'sitzung_abschliessen',
   'stand_setzen',
   'themen_setzen',
   'protokoll_lesen',
@@ -140,6 +142,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.74.0: Sitzung abschliessen (Plan sitzungen-register, Welle R4; Owner-Entscheide 15.11.: E7 der Skill ruft den Folgeschritt, E8 grosse Belege nur per Dateiverweis). NEU sitzung_abschliessen (nur archivpflege, SCHREIBT): sitzungId (volle Kennung), quelle, Ort genau einer von vorhabenPfad | vorhabenFolderId | ohneVorhaben (= Organisation/Sitzungen), Beleg genau einer von belegText + belegName (bis 100 kB) | belegPfad | belegSourceId, optional nrAlt (alt:<Nr> wird umgeschluesselt), nebenvorhaben (Pfade), zugbereich (muss zuege_von_bis entsprechen), erzwingen. Prueft VOR dem Schreiben: Kopf type chatverlauf und session_id = sitzungId, Beleg liegt lose im Vorhaben, Register nimmt die Zeile an. Dann Beleg (Text: anlegen; gleiche Kennung ersetzen, andere = Fehler), Register (umschluesseln, melden, Beleg anhaengen), Job chatverlauf-de (ohne ingest; ersetzter Beleg erzwingt). Antwort: beleg { pfad, sourceId, bytes, sha256, aktion }, register, transformation (jobId | abgesagt | fehler), stand, folgeaufrufe (job_status, dann sitzungen_block_schreiben je Vorhaben und sichten_regenerieren sitzungen — der Skill ruft sie nach completed), hinweise. Fehler sind benannt (code: beleg_nicht_gefunden — noch nicht synchronisiert, kein Warten; beleg_falscher_ort; beleg_kopf; kennung_abweichend; zuege_abweichend; beleg_zu_gross; name_ungueltig; andere_kennung_am_namen; nr_alt_unbekannt; kennung_vergeben; vorhaben_nicht_gefunden)',
   '2.73.0: Reiter „Sitzungen" (Plan sitzungen-register, Welle R3). sitzungen_importieren trennt Teil B jetzt selbst: Zeilen „Cowork/Chat" MIT Export-Vermerk (conversations.json) sind claude.ai-Chats → chat, OHNE Vermerk Cowork-Verlaeufe → cowork (der Anthropic-Export enthaelt keine Cowork-Verlaeufe, Nachtrag der Arbeitsliste vom 08.11.). Ein erneuter Lauf (nurVorschau: false) berichtigt das pauschale chat an den Zeilen, die ein frueherer Import angelegt hat (gemeldetVon import); Archiv-Zeilen behalten die Quelle aus dem Beleg-Kopf. sitzungen_auflisten: jede Zeile traegt neu berichtet { chronikAm, blockAm } und imBericht (Notiz in Chronik UND, im Vorhaben, im Block; unabhaengig von uebersprungen), damit „halb berichtet" sichtbar ist, dazu belegOrdnerPfad (Ablage-Cache) und je Beleg parentId. Kein neues Werkzeug',
   '2.72.1: Befund Import-Vorschau (15.11.). sitzungen_importieren findet die Sitzung ueber den Verweis [[Notiz]] jetzt auch, wenn ihr Titel selbst mit „Chat" oder „Code" beginnt (z. B. „2026-08-30 Chat ohne Anmeldedienst …"): das Art-Wort faellt nur noch am Beleg-Namen weg, der Verweis wird zuerst woertlich verglichen, dann ohne Art-Wort (Verweis auf den Beleg selbst). Vorher legte so eine Zeile eine zweite Register-Zeile alt:<Nr> an oder fand die Sitzung nur ueber das Export-Kuerzel. Kein neues Werkzeug, kein neues Feld',
   '2.72.0: Import der Arbeitsliste (Plan sitzungen-register, Welle R2; Owner 15.11.). NEU sitzungen_importieren (nur archivpflege; Vorgabe nurVorschau: true, false SCHREIBT): liest die Arbeitsliste (pfad) auf dem Server — Abschnitt „## Sitzungen nach Vorhaben", Tabellen | Erl. | Nr | Beginn | Ende | Titel | Quelle | Repo · Branch/PR · Link | Bemerkung | — und ordnet jede Zeile zu: Sitzungs-Link session_… → Verweis [[Notiz]] nach „erledigt" (Beleg-Name ohne Art-Wort) → Export-Kuerzel (8 Zeichen, nur eindeutig) → sonst alt:<Nr>. Fuellt nur Fehlendes (Titel, Daten, Repo, Branch, PRs, Vorhaben-Vorschlag mit herkunft arbeitsliste, Notiz-Kopie, Bemerkung „Arbeitsliste <Nr>: …"); „überspringen: <Grund>" setzt die Entscheidung, wenn sie offen ist; code_cloud aus der Liste ersetzt die Archiv-Schaetzung code_lokal. Quelle Cowork/Chat wird chat (Teil B trennt beides nicht). nrAlt ist jetzt Text (z. B. B45; mehrere Zeilen derselben Sitzung durch Komma). Antwort: bilanz (je Teil A–D zeilen/erledigt/offen/uebersprungen, jeWeg, jeAktion), geplant { neu, ergaenzt }, auffaellig (Zeilen mit Hinweisen, bis maxZeilen) und auffaelligGesamt, belegeOhneZeile, parseFehler, lesefehler. Ein zweiter Lauf aendert nichts',

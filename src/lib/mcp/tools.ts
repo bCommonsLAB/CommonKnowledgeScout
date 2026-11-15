@@ -65,6 +65,7 @@ import { registerSitzungenTool } from './tools-sitzungen'
 import { registerSitzungenAuflistenTool } from './tools-sitzungen-auflisten'
 import { registerSitzungenRegisterTools } from './tools-sitzungen-register'
 import { registerSitzungenImportTool } from './tools-sitzungen-import'
+import { registerSitzungAbschliessenTool } from './tools-sitzung-abschliessen'
 import { registerStandTool } from './tools-stand'
 import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
@@ -132,6 +133,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerSitzungenAuflistenTool(server)
   // R2: Einmal-Import der Arbeitsliste.
   registerSitzungenImportTool(server)
+  // R4: Sitzung abschliessen (Beleg, Register, Notiz-Job; Folgeaufruf fuer den Skill).
+  registerSitzungAbschliessenTool(server)
   registerStandTool(server)
   registerThemenTool(server)
   registerProtokollTool(server)
