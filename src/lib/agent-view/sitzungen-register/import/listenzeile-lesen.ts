@@ -4,9 +4,11 @@
  * @description
  * Aus den Spalten werden Kennung, Verweis, Entscheidung und Vorhaben gelesen:
  * - Quelle: `Code lokal` → code_lokal, `Code Cloud` → code_cloud, `Chat 2024/25`
- *   → chat, `Cowork/Chat` → chat. Teil B mischt Cowork und Chat; die Liste
- *   trennt es nicht, darum `chat` — die Unterscheidung ist ein offener Befund
- *   (15.11.), kein stiller Ersatz. Eine unbekannte Quelle ist ein Fehler.
+ *   → chat. `Cowork/Chat` (Teil B) trennt die Liste selbst ueber den
+ *   Export-Vermerk: Der Anthropic-Export (`conversations.json`) enthaelt nur
+ *   claude.ai-Chats, Cowork-Verlaeufe liegen in keinem Zip (Nachtrag
+ *   „Anthropic-Datenexport", 08.11.: 41 Zeilen im Export, 102 Cowork). Mit
+ *   Vermerk → chat, ohne → cowork. Eine unbekannte Quelle ist ein Fehler.
  * - Kennung: `session_…` aus dem Sitzungs-Link (Teil D), sonst das
  *   Export-Kuerzel `conversations.json \`xxxxxxxx\`` (Teile B/C).
  * - Bemerkung: `erledigt JJJJ-MM-TT, [[Notizname]]`, `überspringen: <Grund>`,
@@ -38,11 +40,17 @@ export interface ListenEintrag extends ListenZeile {
   notizVorhanden: string | null
 }
 
-const QUELLEN: Readonly<Record<string, SitzungsQuelle>> = {
+/** `null` = Teil B, die Quelle haengt am Export-Vermerk (`quelleTeilB`). */
+const QUELLEN: Readonly<Record<string, SitzungsQuelle | null>> = {
   'Code lokal': 'code_lokal',
   'Code Cloud': 'code_cloud',
   'Chat 2024/25': 'chat',
-  'Cowork/Chat': 'chat',
+  'Cowork/Chat': null,
+}
+
+/** Teil B: im Anthropic-Export → claude.ai-Chat; sonst Cowork (dort ist kein Verlauf exportiert). */
+function quelleTeilB(exportPraefix: string | null): SitzungsQuelle {
+  return exportPraefix !== null ? 'chat' : 'cowork'
 }
 
 const EXPORT = /conversations\.json `([0-9a-f]{8})`/
@@ -61,8 +69,10 @@ function vorhabenAusAbschnitt(abschnitt: string): string | null {
 }
 
 export function leseListenzeile(z: ListenZeile): ListenEintrag {
-  const quelle = QUELLEN[z.quelleRoh]
-  if (quelle === undefined) throw new Error(`Zeile ${z.zeile} (${z.nr}): unbekannte Quelle „${z.quelleRoh}"`)
+  const quelleListe = QUELLEN[z.quelleRoh]
+  if (quelleListe === undefined) throw new Error(`Zeile ${z.zeile} (${z.nr}): unbekannte Quelle „${z.quelleRoh}"`)
+  const exportPraefix = z.bemerkung.match(EXPORT)?.[1] ?? null
+  const quelle = quelleListe ?? quelleTeilB(exportPraefix)
   const link = z.repoRoh.match(LINK)
   const repoTeil = z.repoRoh.split(' · ')[0]?.trim() ?? ''
   const repo = repoTeil !== '' && !repoTeil.startsWith('[') ? repoTeil : null
@@ -75,7 +85,7 @@ export function leseListenzeile(z: ListenZeile): ListenEintrag {
   return {
     ...z,
     quelle,
-    exportPraefix: z.bemerkung.match(EXPORT)?.[1] ?? null,
+    exportPraefix,
     kennungAusLink: link?.[2] ?? null,
     link: link?.[1] ?? null,
     repo,

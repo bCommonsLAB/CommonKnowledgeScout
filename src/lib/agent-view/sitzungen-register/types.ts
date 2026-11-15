@@ -157,6 +157,10 @@ export interface SitzungsSicht {
   prs: string[]
   stand: SitzungsStand
   hinweise: SitzungsHinweis[]
+  /** Notiz in Chronik und (im Vorhaben) Block — dieselbe Regel wie `berichtet`, auch bei `uebersprungen` (R3, Zeichen R). */
+  imBericht: boolean
+  /** Stempel der Sichten-Laeufe, damit „halb berichtet" (Chronik ja, Block nein) sichtbar ist (R3). */
+  berichtet: SitzungsBerichtet
   entscheidung: Entscheidung
   entscheidungGrund: string | null
   zugbereiche: Zugbereich[]

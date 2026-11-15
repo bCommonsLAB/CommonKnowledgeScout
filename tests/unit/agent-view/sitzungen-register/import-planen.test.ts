@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import { parseArbeitsliste } from '@/lib/agent-view/sitzungen-register/import/arbeitsliste-parsen'
 import { bilanzDesImports } from '@/lib/agent-view/sitzungen-register/import/import-dienst'
-import { planeImport } from '@/lib/agent-view/sitzungen-register/import/import-planen'
+import { listeSchlaegtQuelle, planeImport } from '@/lib/agent-view/sitzungen-register/import/import-planen'
 import { belegIndex, belegSchluessel, ordneZeileZu, verweisSchluessel } from '@/lib/agent-view/sitzungen-register/import/import-zuordnen'
 import { leseListenzeile } from '@/lib/agent-view/sitzungen-register/import/listenzeile-lesen'
 import type { SitzungsRegisterDoc } from '@/lib/agent-view/sitzungen-register/types'
@@ -77,6 +77,21 @@ describe('planeImport', () => {
     expect(neu('session_01N8C1k45v7euqTxNaNhayrh')).toMatchObject({ sitzungId: 'session_01N8C1k45v7euqTxNaNhayrh', kennung: 'voll', quelle: 'code_cloud', gemeldetVon: 'import', nrAlt: 'D93' })
     expect(neu('alt:C4')).toMatchObject({ kennung: 'praefix', kennungPraefix: 'aade4646', entscheidung: 'ueberspringen', entscheidungGrund: '1 Zug („Weiter“), Fortsetzung ohne Inhalt' })
     expect(neu('alt:B41')).toMatchObject({ kennung: 'keine', altNotizPfad: 'Organisation/Sitzungen/2026-10-12 Einladung Marburg.md', vorhabenVorschlag: null, beginn: '2026-10-12' })
+  })
+
+  it('Teil B ohne Export-Vermerk wird als Cowork angelegt', () => {
+    expect(plan.neu.find((d) => d.registerId === 'alt:B82')?.quelle).toBe('cowork')
+    expect(plan.neu.find((d) => d.registerId === 'alt:B41')?.quelle).toBe('cowork')
+  })
+
+  it('ein zweiter Import berichtigt das pauschale chat an seinen eigenen Zeilen, nie an Archiv-Zeilen', () => {
+    const alt = doc({ registerId: 'alt:B82', quelle: 'chat', gemeldetVon: 'import', nrAlt: 'B82', titelOriginal: 'bcoop Projektheft Emails analysieren', beginn: '2026-09-15', vorhabenVorschlag: { ordner: '24.03 bcoop', herkunft: 'arbeitsliste' } })
+    const b82 = plane([alt]).aenderungen.find((a) => a.registerId === 'alt:B82')?.set
+    expect(b82).toMatchObject({ quelle: 'cowork' })
+    expect(listeSchlaegtQuelle({ quelle: 'chat', gemeldetVon: 'archiv' }, 'cowork')).toBe(false)
+    expect(listeSchlaegtQuelle({ quelle: 'cowork', gemeldetVon: 'import' }, 'chat')).toBe(false)
+    expect(listeSchlaegtQuelle({ quelle: 'code_lokal', gemeldetVon: 'archiv' }, 'code_cloud')).toBe(true)
+    expect(listeSchlaegtQuelle({ quelle: null, gemeldetVon: 'archiv' }, 'chat')).toBe(true)
   })
 
   it('Belege ohne Listenzeile werden genannt', () => {

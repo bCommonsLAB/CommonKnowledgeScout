@@ -5,10 +5,12 @@
  * Jede Zeile wird ihrer Sitzung zugeordnet (`import-zuordnen.ts`) und auf eine
  * Arbeitskopie der Register-Zeile angewandt. Die Liste FUELLT nur, was die
  * Zeile noch nicht weiss (Titel, Daten, Repo, Vorschlag, Notiz-Kopie,
- * Bemerkung); sie ueberschreibt nichts Gepflegtes. Zwei Ausnahmen, beide
- * benannt: `überspringen` setzt die Entscheidung, solange sie `offen` ist, und
+ * Bemerkung); sie ueberschreibt nichts Gepflegtes. Drei Ausnahmen, alle
+ * benannt: `überspringen` setzt die Entscheidung, solange sie `offen` ist;
  * `code_cloud` aus der Liste schlaegt die Archiv-Schaetzung `code_lokal`
- * (Cloud ist an der Kennung nicht immer zu erkennen, Befund 15.11.).
+ * (Cloud ist an der Kennung nicht immer zu erkennen, Befund 15.11.); und
+ * `cowork` aus der Liste berichtigt das `chat`, das ein frueherer Import an
+ * SEINE Zeilen geschrieben hat (Teil B galt bis R3 pauschal als Chat).
  * Ein zweiter Lauf mit derselben Liste aendert nichts.
  *
  * @module agent-view/sitzungen-register/import
@@ -57,11 +59,18 @@ function leereZeile(libraryId: string, rid: string, e: ListenEintrag, z: Zuordnu
   }
 }
 
+/** Schlaegt die Quelle der Liste die der Zeile? Nur in den drei benannten Faellen (Kopf der Datei). */
+export function listeSchlaegtQuelle(doc: Pick<SitzungsRegisterDoc, 'quelle' | 'gemeldetVon'>, liste: ListenEintrag['quelle']): boolean {
+  if (doc.quelle === null) return true
+  if (doc.quelle === 'code_lokal' && liste === 'code_cloud') return true
+  return doc.gemeldetVon === 'import' && doc.quelle === 'chat' && liste === 'cowork'
+}
+
 /** Wendet eine Listenzeile auf die Arbeitskopie an (fuellen, nicht ueberschreiben). */
 export function wendeZeileAn(doc: SitzungsRegisterDoc, e: ListenEintrag, z: Zuordnung): void {
   const nrs = doc.nrAlt === null ? [] : doc.nrAlt.split(', ')
   if (!nrs.includes(e.nr)) doc.nrAlt = [...nrs, e.nr].join(', ')
-  if (doc.quelle === null || (doc.quelle === 'code_lokal' && e.quelle === 'code_cloud')) doc.quelle = e.quelle
+  if (listeSchlaegtQuelle(doc, e.quelle)) doc.quelle = e.quelle
   doc.titelOriginal ??= e.titel
   doc.beginn ??= e.beginn
   doc.ende ??= e.ende
