@@ -373,7 +373,17 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   fünf Sitzungs-Befunde im Abdeckungsscan (S2) und einen kürzeren Skill (S3).
   **S1 gebaut 08.11.** (Brücke 2.67.0: `sichten_regenerieren` mit `sichten`,
   neu `sitzungen_block_schreiben`; Owner-Entscheide E1–E4 im Archiv-Konzept),
-  Live-Abnahme im Archiv offen; S2 und S3 geplant
+  Live-Abnahme im Archiv offen; S2 und S3 geplant. **Fortsetzung 15.11.:**
+  Register aller Sitzungen in MongoDB, Reiter „Sitzungen", `sitzung_abschliessen`
+  (Plan [`sitzungen-register`](plans/geplant/sitzungen-register.plan.md),
+  Wellen R1–R4). **R1 gebaut 15.11.** (Brücke 2.71.0: `sitzungen_melden`,
+  `sitzungen_auflisten`, `sitzung_setzen`, Abgleich in den Sichten-Läufen;
+  E1 und E5 nach Vorschlag), Merge und Live-Abnahme offen; E2–E4, E6–E8 beim
+  Owner. Danach Sitzungen im
+  Chatbot befragbar: Wortlaut des Owners und Notiz als zwei Einträge, `authors`
+  an Diktaten und eigenen Texten (Plan
+  [`sitzungen-befragbar`](plans/geplant/sitzungen-befragbar.plan.md), R5a–R5c;
+  R5b ohne Code, jederzeit möglich; Entscheide E9–E13)
 - **Von Menschen geprüfte Veranstaltung** (Plan
   [`von-menschen-gepruefte-veranstaltung`](plans/von-menschen-gepruefte-veranstaltung.plan.md);
   die Marker im Plan sind veraltet): P3a Kontext im Datei-Weg und P3b
