@@ -91,7 +91,7 @@ describe('zuSicht', () => {
   it('nimmt Titel und Beginn aus dem Beleg, wenn die Zeile sie nicht kennt', () => {
     const s = zuSicht(zeile({ doc: doc({ titelOriginal: null, beginn: null }), belege: [beleg()] }), KEINE)
     expect(s).toMatchObject({ titel: 'Sitzungsregister', beginn: '2026-11-15', vorhabenBestimmt: false, gespeichert: true })
-    expect(s.belege).toEqual([{ sourceId: 'src-1', name: '2026-11-15 Code Sitzungsregister.md', zuege: '1-20', notiz: true, notizAktualisiert: '2026-11-15T10:00:00.000Z' }])
+    expect(s.belege).toEqual([{ sourceId: 'src-1', parentId: 'v-ks', name: '2026-11-15 Code Sitzungsregister.md', zuege: '1-20', notiz: true, notizAktualisiert: '2026-11-15T10:00:00.000Z' }])
   })
 
   it('imBericht und Stempel: halb berichtet bleibt sichtbar, uebersprungen verdeckt den Bericht nicht', () => {

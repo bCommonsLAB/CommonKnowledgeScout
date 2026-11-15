@@ -170,7 +170,8 @@ export interface SitzungsSicht {
   vorhabenPfad: string | null
   vorhabenFolderId: string | null
   vorhabenBestimmt: boolean
-  belege: Array<{ sourceId: string; name: string; zuege: string | null; notiz: boolean; notizAktualisiert: string | null }>
+  /** `parentId` = Ordner des Belegs (Sprung ins Archiv aus dem Reiter, R3). */
+  belege: Array<{ sourceId: string; parentId: string; name: string; zuege: string | null; notiz: boolean; notizAktualisiert: string | null }>
   gemeldetVon: GemeldetVon
   gemeldetAm: string
   /** false = Zeile aus dem Archiv, noch nicht im Register gespeichert (W3). */
