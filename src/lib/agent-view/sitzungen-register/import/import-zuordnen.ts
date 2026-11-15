@@ -5,7 +5,7 @@
  * Reihenfolge der Wege (Plan §4):
  * 1. `link` — Teil D traegt die volle Kennung `session_…` im Sitzungs-Link.
  * 2. `verweis` — erledigte Zeilen nennen `[[JJJJ-MM-TT Titel]]`; das ist der
- *    Beleg-Name ohne Art-Wort (`Code`/`Chat`) und ohne `.md`.
+ *    Notiz-Name = Beleg-Name ohne Art-Wort (`Code`/`Chat`) und ohne `.md`.
  * 3. `praefix` — das Export-Kuerzel (8 Zeichen) gegen die Kennungen der Belege;
  *    nur ein eindeutiger Treffer zaehlt.
  * 4. `alt` — nichts davon: die Zeile wird `alt:<Nr>` (mit Kuerzel, falls bekannt).
@@ -32,9 +32,29 @@ export interface Zuordnung {
 
 const ART_WORT = /^(\d{4}-\d{2}-\d{2}) (?:Code|Chat) /
 
-/** Vergleichsschluessel: Name ohne `.md`, ohne Art-Wort, Leerraum vereinheitlicht. */
-export function namensSchluessel(name: string): string {
-  return name.replace(/\.md$/i, '').replace(ART_WORT, '$1 ').replace(/\s+/g, ' ').trim().normalize('NFC')
+/** Name ohne `.md`, Leerraum vereinheitlicht, NFC. */
+function vereinheitlicht(name: string): string {
+  return name.replace(/\.md$/i, '').replace(/\s+/g, ' ').trim().normalize('NFC')
+}
+
+/**
+ * Schluessel eines Beleg-Namens: das Art-Wort nach dem Datum faellt weg. Nur
+ * am Beleg — ein Notiz-Name traegt kein Art-Wort, sein Titel darf aber selbst
+ * mit „Code" oder „Chat" beginnen (Befund 15.11.: Beleg „2026-08-30 Code Chat
+ * ohne Anmeldedienst …", Notiz „2026-08-30 Chat ohne Anmeldedienst …").
+ */
+export function belegSchluessel(name: string): string {
+  return vereinheitlicht(name).replace(ART_WORT, '$1 ')
+}
+
+/**
+ * Schluessel eines Verweises, in dieser Reihenfolge: woertlich (der Verweis
+ * nennt die Notiz), dann ohne Art-Wort (der Verweis nennt den Beleg selbst).
+ */
+export function verweisSchluessel(verweis: string): string[] {
+  const woertlich = vereinheitlicht(verweis)
+  const ohneArtWort = belegSchluessel(verweis)
+  return ohneArtWort === woertlich ? [woertlich] : [woertlich, ohneArtWort]
 }
 
 export interface BelegIndex {
@@ -45,7 +65,7 @@ export interface BelegIndex {
 export function belegIndex(belege: readonly IstBeleg[]): BelegIndex {
   const nachName = new Map<string, IstBeleg[]>()
   for (const b of belege) {
-    const k = namensSchluessel(b.name)
+    const k = belegSchluessel(b.name)
     nachName.set(k, [...(nachName.get(k) ?? []), b])
   }
   return { nachName, alle: belege }
@@ -67,7 +87,7 @@ export function ordneZeileZu(e: ListenEintrag, index: BelegIndex): Zuordnung {
   let beleg: IstBeleg | null = null
   let weg: ZuordnungsWeg = 'alt'
   if (e.belegVerweis !== null) {
-    const treffer = index.nachName.get(namensSchluessel(e.belegVerweis)) ?? []
+    const treffer = verweisSchluessel(e.belegVerweis).map((k) => index.nachName.get(k) ?? []).find((t) => t.length > 0) ?? []
     if (treffer.length === 1) { beleg = treffer[0]; weg = 'verweis' }
     else if (treffer.length > 1) hinweise.push(`Verweis [[${e.belegVerweis}]] passt auf ${treffer.length} Belege`)
     else hinweise.push(`Verweis [[${e.belegVerweis}]]: kein Beleg mit Notiz gefunden`)
