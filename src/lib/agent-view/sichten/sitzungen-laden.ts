@@ -13,7 +13,7 @@
  */
 
 import type { ArchiveFolderNode } from '../archive-types'
-import { findeTransformationenNachVorlage, setzeQuellFrontmatter } from '@/lib/repositories/shadow-twin-transformationen'
+import { findeTransformationenNachVorlage, setzeQuellFrontmatter, type TransformationZeile } from '@/lib/repositories/shadow-twin-transformationen'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ergaenzeBelegKoepfe, type BelegKoepfeStatistik } from './sitzungen-beleg-kopf'
 import { elternVonProvider, ordneSitzungenZu, type SitzungenZuordnung } from './sitzungen-sammeln'
@@ -21,6 +21,8 @@ import { SITZUNGS_SPRACHE, SITZUNGS_VORLAGE } from './sitzungen-types'
 
 export interface GeladeneSitzungen {
   zuordnung: SitzungenZuordnung
+  /** Die Notizen dieses Laufs samt (frisch ergaenztem) Beleg-Kopf — fuer den Register-Abgleich (R1). */
+  zeilen: TransformationZeile[]
   belegKoepfe: BelegKoepfeStatistik
   /** Nur im Teilbaum-Scope > 0: Belege in Ordnern, die der Scan nicht kennt. */
   nichtImScope: number
@@ -56,5 +58,5 @@ export async function ladeSitzungen(args: {
   const zuordnung = await ordneSitzungenZu({
     zeilen: koepfe.zeilen, folders: args.folders, vorhabenMuster: args.vorhabenMuster, elternVon: elternVonProvider(provider),
   })
-  return { zuordnung, belegKoepfe: koepfe.statistik, nichtImScope: alle.length - zeilen.length }
+  return { zuordnung, zeilen: koepfe.zeilen, belegKoepfe: koepfe.statistik, nichtImScope: alle.length - zeilen.length }
 }

@@ -224,3 +224,10 @@ Konfiguration; Mail-Log wie bei Einladungen.
   Eine PR, Hand-off-Block nach AGENTS.md §5."
 - **Kosten:** S1 ~1 Cloud-Sitzung mittlerer Länge; S2 ähnlich plus
   Konfigurationsfeld-Checkliste.
+
+## 9. Fortsetzung: Register (15.11.2026)
+
+Das Register aller Sitzungen (auch der ohne Beleg), der Reiter „Sitzungen" in
+der Agentensicht und `sitzung_abschliessen` stehen im Plan
+[`sitzungen-register`](sitzungen-register.plan.md) (Wellen R1–R4). S3 hängt
+danach an R4: der Skill ruft dann `sitzung_abschliessen` statt der Einzelschritte.

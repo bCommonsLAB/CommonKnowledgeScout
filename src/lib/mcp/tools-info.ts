@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.70.1'
+export const TOOLSET_VERSION = '2.71.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -121,6 +121,10 @@ export const TOOL_NAMES = [
   'erschliessung_block_schreiben',
   // S1 (Plan sitzungen-sichten-und-befunde): Block „Sitzungen" je BERICHT.md.
   'sitzungen_block_schreiben',
+  // R1 (Plan sitzungen-register): Sitzungs-Register.
+  'sitzungen_melden',
+  'sitzung_setzen',
+  'sitzungen_auflisten',
   'stand_setzen',
   'themen_setzen',
   'protokoll_lesen',
@@ -134,6 +138,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.71.0: Sitzungs-Register (Plan sitzungen-register, Welle R1; Owner 15.11.). Eine Zeile je Arbeitssitzung mit Claude in MongoDB, auch ohne Beleg; der Stand wird aus Beleg und Notiz gerechnet, nie abgehakt (uebersprungen > berichtet > notiz > beleg > gemeldet). NEU, alle nur archivpflege: sitzungen_melden (SCHREIBT; Stapel bis 50, Schluessel volle Kennung sitzungId, idempotent; angelegt | ergaenzt | unveraendert | fehler je Zeile), sitzungen_auflisten (liest nur; Filter stand, quelle, vorhaben, von/bis, auffaellig notiz_ohne_beleg | gemeldet_ohne_beleg + seitTagen | beleg_ohne_vorhaben | doppelt; zusammenfassung: true = Bilanz; Belege mit Notiz ohne Zeile erscheinen mit gespeichert: false), sitzung_setzen (SCHREIBT; entscheidung offen | ueberspringen mit Grund | trennen mit Zugbereichen, vorhabenVorschlag, bemerkung, Kennung nachtragen = umschluesseln). sichten_regenerieren (Sicht sitzungen) und sitzungen_block_schreiben gleichen nach dem Schreiben das Register ab: fehlende Zeilen anlegen (gemeldetVon archiv), Ablage-Cache, Stempel berichtet.chronikAm bzw. blockAm; neues Antwortfeld register { angelegt, aktualisiert, fehler, geplant, hinweise } (bei sichten_regenerieren unter sitzungen.register); nichts bei nurVorschau',
   '2.70.1: Reihenfolge der Filterwerte (Owner 10.11.). konfiguration_setzen facetten nimmt je Facette sortDirection asc | desc zu sort alpha | count (ohne Angabe: Werte aufsteigend, Haeufigkeit absteigend) — z. B. year mit sort alpha + sortDirection desc zeigt den juengsten Jahrgang oben; Facetten vom Typ number vergleichen als Zahlen. sort, max und columns WIRKEN jetzt: bisher verwarf das Server-Schema diese Felder, die Galerie sortierte jeden Filter aufsteigend nach Wert, ohne Obergrenze und einspaltig. Folge: bereits gespeicherte Angaben (sort count, max) greifen ab dieser Version. Ungueltige Werte (sort ausserhalb alpha|count, max < 1, columns ausserhalb 1–3) weist die Pruefung mit Pfad ab. Kein neues Werkzeug',
   '2.70.0: Benannte Regelsaetze und Karten-Darstellung der Story-Sektion (Owner 09.11., SFSCON-Startseite). konfiguration_lesen Bereich antwortregeln liefert jetzt { text, varianten } statt nur den Text; konfiguration_setzen nimmt varianten { name: text } (Teil-Update je Name, "" loescht den Regelsatz; Name klein a-z 0-9 - _; dieselbe Platzhalter-Pruefung wie antwortregeln). Eine Website-Sektion layout=story waehlt mit rules=<name> ihren Regelsatz (geht als Adress-Parameter rules an den Chat-Stream; unbekannter Name = HTTP 400); Story-Modus, Galerie-Chat, frage_stellen und golden_set_fahren nutzen weiter antwortregeln. Marker cards=column|inline|hidden (Vorgabe hidden) zeigt die zitierten Dokumente als Galerie-Bildkarten: column = Spalte rechts neben der Antwort, inline = Antwort zweispaltig je Absatz (Karte des im Absatz zitierten Dokuments links; setzt einen Regelsatz voraus, der je Dokument einen Absatz schreibt). veroeffentlichung_setzen gallery.itemLabel/itemLabelPlural: Bezeichnung der Eintraege (z. B. Talk/Talks) fuer Plakette, Knopf, Spaltentitel, Verweis und Blatt-Titel der Story-Sektion — einsprachig je Library, beide oder keins. seite_pruefen nennt je Story-Sektion kartenDarstellung und regelsatz und meldet rules ohne passenden Regelsatz als Fehler',
   '2.69.0: Fragen & Antworten verwalten (Owner-Frage 09.11.). Der Antwort-Cache IST das Fragen-Log; verworfen wird statt geloescht: cacheInvalidatedAt am Eintrag, danach kein Cache-Treffer mehr, Chronik/Sitzungen/populaere Fragen unveraendert. fragen_log (liest): gespeicherte Antworten je Cache-Hash mit frage, kurztitel, erstellt, sprache, modell, anzahlQuellen, facetten, anzahlEintraege, cacheInvalidatedAt, aktualitaet (aktuell | veraltet = Hash passt nicht mehr zu Antwortregeln, Facetten, Dokumentzahl | unbekannt), Filter suche/nurTreffer/nurVeraltete, gesamtTreffer. antworten_verwerfen (schreibt, begruendung): queryIds verwerfen alle Eintraege mit demselben Hash, alle: true jede gueltige Antwort der Library. Owner/Moderator. Reiter „Fragen & Antworten" in den Library-Einstellungen (meSpace > Story) zeigt dasselbe; Contract chat-contracts §5',
