@@ -29,7 +29,8 @@ export function planeFolgeaufrufe(args: {
   if ('jobId' in t) {
     aufrufe.push({
       werkzeug: 'job_status',
-      argumente: { libraryId: args.libraryId, jobId: t.jobId },
+      // job_status kennt nur jobId (Schema ohne libraryId; Befund R4-Abnahme 15.11.).
+      argumente: { jobId: t.jobId },
       wann: 'wiederholen, bis status completed (etwa 30 s); bei failed fehlerDetails melden und hier aufhoeren',
     })
   }

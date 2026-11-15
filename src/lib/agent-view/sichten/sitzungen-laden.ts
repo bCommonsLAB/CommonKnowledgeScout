@@ -42,6 +42,8 @@ export async function ladeSitzungen(args: {
   vorhabenMuster: RegExp | null
   /** true = Teilbaum: nur Belege in gescannten Ordnern. */
   nurGescannte: boolean
+  /** Teilbaum: echter Name des Scope-Ordners (die Scan-Wurzel heisst ''). */
+  wurzelName?: string
 }): Promise<GeladeneSitzungen> {
   const { libraryId, provider } = args
   const alle = await findeTransformationenNachVorlage({ libraryId, template: SITZUNGS_VORLAGE, language: SITZUNGS_SPRACHE })
@@ -57,6 +59,7 @@ export async function ladeSitzungen(args: {
   })
   const zuordnung = await ordneSitzungenZu({
     zeilen: koepfe.zeilen, folders: args.folders, vorhabenMuster: args.vorhabenMuster, elternVon: elternVonProvider(provider),
+    wurzelName: args.wurzelName,
   })
   return { zuordnung, zeilen: koepfe.zeilen, belegKoepfe: koepfe.statistik, nichtImScope: alle.length - zeilen.length }
 }

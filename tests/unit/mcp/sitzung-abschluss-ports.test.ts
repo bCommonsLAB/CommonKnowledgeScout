@@ -12,17 +12,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const h = vi.hoisted(() => ({
   starte: vi.fn(), vorlageStand: vi.fn(), holeNachKennung: vi.fn(), holeZeile: vi.fn(), aendereZeile: vi.fn(),
-  melde: vi.fn(), setze: vi.fn(),
+  melde: vi.fn(), setze: vi.fn(), sicht: vi.fn(),
 }))
 
 vi.mock('@/lib/mcp/transformation-start', () => ({ starteTransformation: h.starte }))
 vi.mock('@/lib/mcp/tools-vorlagen', () => ({ vorlageAktualisiertAm: h.vorlageStand }))
 vi.mock('@/lib/repositories/agent-view-sitzungen-repo', () => ({ holeNachKennung: h.holeNachKennung, holeZeile: h.holeZeile, aendereZeile: h.aendereZeile }))
 vi.mock('@/lib/agent-view/sitzungen-register/register-dienst', () => ({ meldeSitzungen: h.melde, setzeSitzung: h.setze }))
+vi.mock('@/lib/agent-view/sitzungen-register/ist-laden', () => ({ ladeRegisterSicht: h.sicht }))
 vi.mock('@/lib/debug/logger', () => ({ FileLogger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }))
 
 import { abschlussPorts } from '@/lib/mcp/sitzung-abschluss-ports'
-import { TransformationAktuellError } from '@/lib/mcp/transformation-erzwingen'
+import { TransformationAbgesagtError } from '@/lib/mcp/transformation-erzwingen'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { Library } from '@/types/library'
 
@@ -44,7 +45,7 @@ beforeEach(() => vi.resetAllMocks())
 
 describe('abschlussPorts', () => {
   it('Beleg nicht da: benannter Fehler mit Meldung des Speichers und Sync-Hinweis', async () => {
-    await expect(ports(provider()).speicher.datei({ sourceId: 's-x' })).rejects.toThrow(/beleg_nicht_gefunden: Item s-x nicht gefunden — Gerade erst abgelegt\?.*wartet nicht/)
+    await expect(ports(provider()).speicher.datei({ sourceId: 's-x' })).rejects.toThrow(/beleg_nicht_gefunden: Item s-x nicht gefunden — Gerade erst abgelegt\?.*in einer Minute erneut aufrufen/)
   })
 
   it('Ordner nicht da: vorhaben_nicht_gefunden', async () => {
@@ -69,10 +70,17 @@ describe('abschlussPorts', () => {
       template: 'chatverlauf-de', zielsprache: 'de', ingest: false, erzwingen: undefined,
       source: { itemId: 's-1', parentId: 'v-ks', name: 'B.md' },
     }))
-    h.starte.mockRejectedValueOnce(new TransformationAktuellError('ist aktuell'))
+    h.starte.mockRejectedValueOnce(new TransformationAbgesagtError('ist aktuell'))
     expect(await t({ id: 's-1', parentId: 'v-ks', name: 'B.md' }, undefined)).toEqual({ abgesagt: 'ist aktuell' })
     h.starte.mockRejectedValueOnce(new Error('Secretary weg'))
     await expect(t({ id: 's-1', parentId: 'v-ks', name: 'B.md' }, undefined)).rejects.toThrow('Secretary weg')
+  })
+
+  it('Stand aus der Register-Sicht; fehlende Zeile ist ein Fehler', async () => {
+    h.sicht.mockResolvedValue({ zeilen: [{ sitzungId: 'k', stand: 'berichtet' }], imSpeicherGeprueft: 0 })
+    const r = ports(provider()).register
+    expect(await r.stand('k')).toBe('berichtet')
+    await expect(r.stand('andere')).rejects.toThrow(/nicht in der Register-Sicht/)
   })
 
   it('Register: Melden mit gemeldetVon skill, Fehler der Zeile wird geworfen; Beleg nur einmal anhaengen', async () => {

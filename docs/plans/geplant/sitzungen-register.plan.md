@@ -209,7 +209,14 @@ Abnahme mit einem Beleg ueber 300 kB ueber den Dateiverweis.
   `sitzungen_block_schreiben` je Vorhaben (`folderId`) und
   `sichten_regenerieren` mit `sitzungen`, jeweils mit `begruendung`.
 - Der 300-kB-Fall ist als Test mit Anschluessen im Speicher abgedeckt
-  (Bytes, SHA-256, nichts geschrieben); die Live-Abnahme steht aus.
+  (Bytes, SHA-256, nichts geschrieben).
+- **Live-Abnahme 15.11. (Cowork):** Hauptfall 360 kB per `belegPfad`, Fehlerpfade
+  und Selbstabschluss ueber Text bestanden. Befunde, behoben in 2.74.1:
+  `erzwingen: false` liess einen Job zu, der die Notiz der Testsitzung neu
+  schrieb (jetzt Absage ohne Job, auch in `transformation_starten`); `stand`
+  war fest statt gerechnet; `job_status` bekam ein `libraryId`; widerspruechliche
+  Meldung bei `beleg_nicht_gefunden`; Block-Lauf im Teilbaum meldete je Beleg
+  „liegt in „"" (Scope-Wurzel ohne Namen, S1).
 
 Fortsetzung: Wortlaut und Notiz im Chatbot, Urheber an Diktaten — Plan
 [`sitzungen-befragbar`](sitzungen-befragbar.plan.md) (R5a–R5c). R5a haengt am

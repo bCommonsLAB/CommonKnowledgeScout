@@ -136,6 +136,23 @@ describe('ordneSitzungenZu', () => {
   })
 })
 
+describe('ordneSitzungenZu im Teilbaum (Befund R4-Abnahme 15.11.)', () => {
+  // Teilbaum-Scan: die Wurzel ist der Vorhabensordner selbst und heisst ''.
+  const TEILBAUM = [folder({ folderId: 'v-ks', name: '', path: '', depth: 0, bericht: bericht('') })]
+  const z = zeile('2026-11-07 Code Welle S1 planen.md', 'v-ks', { date: '2026-11-07' }, { vorhaben: ['24.09 KnowledgeScout'], hauptvorhaben: '24.09 KnowledgeScout' })
+
+  it('mit wurzelName: kein falscher Hinweis, das Ablage-Vorhaben ist kein Querverweis', async () => {
+    const r = await ordneSitzungenZu({ zeilen: [z], folders: TEILBAUM, vorhabenMuster: null, elternVon, wurzelName: '24.09 KnowledgeScout' })
+    expect(r.hinweise).toEqual([])
+    expect(r.sitzungen[0]).toMatchObject({ vorhabenFolderId: 'v-ks', weitereVorhaben: [] })
+  })
+
+  it('ohne wurzelName: Name unbekannt — kein Vergleich gegen „"', async () => {
+    const r = await ordneSitzungenZu({ zeilen: [z], folders: TEILBAUM, vorhabenMuster: null, elternVon })
+    expect(r.hinweise.some((h) => h.includes('liegt in „"'))).toBe(false)
+  })
+})
+
 describe('renderSitzungen + sitzungenBlock', () => {
   it('Frontmatter mit Zaehlern, Abschnitte in Archiv-Ordnung, Zeilenformat, Querverweis, „Ohne Vorhaben" zuletzt', async () => {
     const { sitzungen } = await ordneSitzungenZu({ zeilen: ZEILEN, folders: FOLDERS, vorhabenMuster: null, elternVon })
