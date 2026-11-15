@@ -6,10 +6,11 @@ import { describe, it, expect } from 'vitest'
 import { parseArbeitsliste } from '@/lib/agent-view/sitzungen-register/import/arbeitsliste-parsen'
 import { bilanzDesImports } from '@/lib/agent-view/sitzungen-register/import/import-dienst'
 import { planeImport } from '@/lib/agent-view/sitzungen-register/import/import-planen'
-import { namensSchluessel } from '@/lib/agent-view/sitzungen-register/import/import-zuordnen'
+import { belegIndex, belegSchluessel, ordneZeileZu, verweisSchluessel } from '@/lib/agent-view/sitzungen-register/import/import-zuordnen'
+import { leseListenzeile } from '@/lib/agent-view/sitzungen-register/import/listenzeile-lesen'
 import type { SitzungsRegisterDoc } from '@/lib/agent-view/sitzungen-register/types'
 import { JETZT, LIB, beleg, doc } from './fixtures'
-import { LISTE } from './import-fixtures'
+import { KOPF, LISTE } from './import-fixtures'
 
 const K_A66 = 'aaaa1111-2222-4333-8444-555566667777'
 const K_B17 = '36a7ce26-0000-4000-8000-000000000017'
@@ -22,9 +23,32 @@ const DOC_OHNE = doc({ registerId: 'nur-archiv-1234567890', sitzungId: 'nur-arch
 const plane = (docs: SitzungsRegisterDoc[]) =>
   planeImport({ libraryId: LIB, zeilen: parseArbeitsliste(LISTE).zeilen, docs, belege: [BELEG_A66, BELEG_B17], jetzt: JETZT })
 
-describe('namensSchluessel', () => {
+describe('Namensvergleich Beleg ↔ Verweis', () => {
   it('Beleg-Name und Notiz-Verweis treffen sich ohne Art-Wort und .md', () => {
-    expect(namensSchluessel('2026-09-15 Code Projektheft-Wiki, bcoop-Logo und QR-Fix.md')).toBe(namensSchluessel('2026-09-15 Projektheft-Wiki, bcoop-Logo und QR-Fix'))
+    expect(verweisSchluessel('2026-09-15 Projektheft-Wiki, bcoop-Logo und QR-Fix')).toContain(belegSchluessel('2026-09-15 Code Projektheft-Wiki, bcoop-Logo und QR-Fix.md'))
+  })
+
+  it('Titel, der selbst mit Chat/Code beginnt, verliert im Verweis kein Wort (Befund 15.11.)', () => {
+    expect(belegSchluessel('2026-08-30 Code Chat ohne Anmeldedienst, Umzug Welle.md')).toBe('2026-08-30 Chat ohne Anmeldedienst, Umzug Welle')
+    expect(verweisSchluessel('2026-08-30 Chat ohne Anmeldedienst, Umzug Welle')[0]).toBe('2026-08-30 Chat ohne Anmeldedienst, Umzug Welle')
+  })
+
+  it('ein Verweis auf den Beleg selbst (mit Art-Wort) trifft auch', () => {
+    expect(verweisSchluessel('2026-09-15 Code Projektheft-Wiki')).toEqual(['2026-09-15 Code Projektheft-Wiki', '2026-09-15 Projektheft-Wiki'])
+  })
+
+  it('ordneZeileZu findet die Sitzung ueber den Verweis, auch wenn der Titel mit Chat oder Code beginnt', () => {
+    const zeilen = parseArbeitsliste(['## Sitzungen nach Vorhaben', '### X/Y', KOPF,
+      '| [x] | A56 | 2026-08-30 |  | Landkarte | Code lokal |  | erledigt 2026-11-05, [[2026-08-30 Chat ohne Anmeldedienst, Umzug Welle]] |',
+      '| [x] | C24 | 2025-01-24 |  | Improvements | Chat 2024/25 |  | erledigt 2026-11-08, [[2025-01-24 Code Improvements and Updates]] |',
+    ].join('\n')).zeilen.map(leseListenzeile)
+    const a56 = beleg({ sourceId: 's-a56', name: '2026-08-30 Code Chat ohne Anmeldedienst, Umzug Welle.md' })
+    const c24 = beleg({ sourceId: 's-c24', name: '2025-01-24 Chat Code Improvements and Updates.md', werkzeug: 'chat' })
+    const index = belegIndex([a56, c24])
+    expect(zeilen.map((z) => ordneZeileZu(z, index))).toMatchObject([
+      { weg: 'verweis', beleg: { sourceId: 's-a56' }, hinweise: [] },
+      { weg: 'verweis', beleg: { sourceId: 's-c24' }, hinweise: [] },
+    ])
   })
 })
 
