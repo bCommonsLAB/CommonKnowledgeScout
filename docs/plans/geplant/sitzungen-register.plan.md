@@ -6,12 +6,12 @@ umsetzung_ab: null
 todos:
   - id: r1-register
     content: "R1 — Kollektion agent_view_sitzungen__<libraryId>, Repo, gerechneter Stand, Werkzeuge sitzungen_melden, sitzungen_auflisten, sitzung_setzen; Sichten-Laeufe schreiben Ablage-Cache und berichtet-Stempel; Tests"
-    status: in_progress
+    status: completed
   - id: r2-import
     content: "R2 — Einmal-Werkzeug sitzungen_importieren (nurVorschau als Vorgabe): Arbeitsliste auf dem Server parsen, Kennungen zuordnen, Abweichungsbericht"
     status: pending
   - id: r3-reiter
-    content: "R3 — Reiter Sitzungen in der Agentensicht (unabhaengig vom Coverage-Report), Route GET/PATCH, Filter fuer die Gegenkontrolle"
+    content: "R3 — Reiter Sitzungen nach Figma-Konzept (Muster Werkbank: Liste gruppiert links, Details rechts), unabhaengig vom Coverage-Report, Route GET/PATCH"
     status: pending
   - id: r4-abschliessen
     content: "R4 — sitzung_abschliessen: Beleg als Text oder als Verweis auf eine abgelegte Datei, Transformation starten, Zeile eintragen; Folgeschritt nach Job-Ende"
@@ -71,16 +71,11 @@ da; zwei Belege derselben Kennung ohne Zugbereiche (`doppelt`); Notiz-Kopie
 ohne Beleg; Praefix passt auf mehr als eine Kennung.
 
 **Gebaut (R1, 15.11.), genauer als oben:**
-- `berichtet` = Notiz da, `chronikAm` ≥ juengste Notiz und, wenn der Beleg in
-  einem Vorhaben liegt, auch `blockAm`.
-- `doppelt` = zwei Belege, deren `zuege_von_bis` fehlen oder sich
-  ueberschneiden. Teil-Belege mit getrennten Zuegen sind in Ordnung.
-- Schluessel: Kennung, `alt:<Nr>` oder `beleg:<sourceId>`. Eine Kennung unter
-  20 Zeichen gilt als Praefix (`kennungPraefix`).
-- `quelle` kommt bei Archiv-Zeilen aus `werkzeug`; Code lokal oder Cloud
-  erkennt man an der Kennung (`session_…`). Unbekannt → `null` + Hinweis.
-- Kennung nachtragen: Traegt sie schon eine reine Archiv-Zeile, wird diese
-  hineingefuehrt; sonst Fehler.
+- `berichtet` = Notiz da, `chronikAm` ≥ juengste Notiz, im Vorhaben auch `blockAm`.
+- `doppelt` = zwei Belege, deren `zuege_von_bis` fehlen oder sich ueberschneiden.
+- Schluessel: Kennung, `alt:<Nr>` oder `beleg:<sourceId>`; unter 20 Zeichen gilt eine Kennung als Praefix.
+- `quelle` bei Archiv-Zeilen aus `werkzeug`, Cloud an `session_…` (unbekannt → `null` + Hinweis).
+- Kennung nachtragen fuehrt eine reine Archiv-Zeile hinein; sonst Fehler.
 
 ## 3. Welle R1 — Register und Werkzeuge
 
@@ -128,15 +123,30 @@ Beleg, Belege ohne Zeile, mehrdeutige Praefixe, Zahlen gegen den Nachtrag vom
 
 ## 5. Welle R3 — Reiter „Sitzungen"
 
-- Route `GET /api/library/[libraryId]/agent-view/sitzungen` (Liste + Bilanz),
-  `PATCH …/sitzungen/[registerId]`; Zugriff wie `worklists-zugriff.ts`.
-- `TAB_WERTE` um `sitzungen`; Reiterleiste ohne Report-Bedingung (W8).
-- Kopf mit Bilanz; Tabelle (Datum, Art, Titel, Link, Vorhaben, Zeichen fuer
-  Beleg/Notiz/Bericht), Filter wie `sitzungen_auflisten`, Gruppierung nach
-  Vorhaben oder flach; Sprung `?tab=werkbank&vorhaben=<folderId>`.
-- Aktionen: ueberspringen mit Grund, Vorhaben vorschlagen, Bemerkung.
-  Knopfzeilen ohne Umbruch (Symbol + Tooltip).
-- Contracts: `contracts-ui` (Routing-Index `src/components/library/**`).
+Konzept (Owner 15.11., Muster Werkbank): https://www.figma.com/design/4HmJYdP2R9IrUaTYyovhjo
+mit den Frames „1 · Offen", „2 · Sitzung gewaehlt", „3 · Auffaellig" und „4 · Regeln".
+Mockup-Treue ist Abnahmekriterium. Live am 15.11.: 241 Zeilen, davon 221
+`notiz`. Eine flache Tabelle waere endlos, darum wird gruppiert.
+
+- **Daten:** `GET /api/library/[libraryId]/agent-view/sitzungen` (Zeilen und
+  Bilanz ueber `ladeRegisterSicht`, `filtereSitzungen`, `bilanz`), `PATCH
+  …/sitzungen/[registerId]` (Felder von `sitzung_setzen`); Zugriff wie
+  `worklists-zugriff.ts`. Liest nur MongoDB. `SitzungsSicht` bekommt
+  `berichtet` (chronikAm, blockAm), damit „halb berichtet" sichtbar ist.
+- **Reiter:** `TAB_WERTE` um `sitzungen`; die Reiterleiste haengt nicht mehr am Report (W8).
+- **Liste links:**
+  - Umschalter `Offen | Auffaellig | Alle` mit Zahlen; Offen = weder `berichtet` noch `uebersprungen`.
+  - Gruppen: Bereich → Vorhaben (zugeklappt, mit Zahlen; je Gruppe 5 Zeilen, dann „N weitere") oder Werkzeug; in „Auffaellig" je Hinweis-Code eine Gruppe, leere Gruppen blass mit 0.
+  - Suche ueber Titel, Kennung und Branch; Chips Code, Cowork, Chat, Zeitraum; Zustand in der Adresse (nuqs).
+- **Zeile:** Datum, Werkzeug, Titel (einzeilig, gekuerzt), Zeichen B, N, R (gruen = da). Die gewaehlte Zeile ist orange hinterlegt.
+- **Rechts:**
+  - Ohne Auswahl: Kennzahlen; „Notiz da, Bericht fehlt" ist hervorgehoben.
+  - Mit Auswahl: Pfad, Titel, Kennzeichen; der Stand als Schritte Gemeldet → Beleg → Notiz → Im Bericht; ein Kasten „warum" aus Hinweisen und Stempeln; Belege mit Zuegen; Kennung; Bemerkung.
+- **Aktionen:** Ueberspringen (mit Grund), Vorhaben vorschlagen (verschiebt
+  nichts), In Teile trennen, Beleg oeffnen. Eine Knopfzeile, die nie umbricht
+  (Symbol + Tooltip). Sprung `?tab=werkbank&vorhaben=<folderId>`.
+- **Vorher klaeren:** wie Code in der Cloud und Cowork erkannt werden (15.11.:
+  0 Cloud, 1 Cowork); sonst laufen die Chips ins Leere. Contracts: `contracts-ui`.
 
 ## 6. Welle R4 — `sitzung_abschliessen`
 
@@ -182,10 +192,8 @@ Folgeaufruf aus Schritt 4.
   Konto-Schluessel (umgeht das Modell, aber der Schluessel kennt keine Scopes, ADR 0008 Nachtrag).
   Offen dabei: Cloud-Sitzungen haben keinen OneDrive-Ordner.
 
-## 9. Hand-off R1
+## 9. Stand und Hand-off
 
-- **Branch:** `claude/knowledge-scout-session-register-125a19` (R1), danach je Welle neu.
-- **Modell:** R1 Opus mittel (Datenmodell, Widerspruchsregeln); R2 Sonnet mittel;
-  R3 Sonnet mittel; R4 Opus (Speicher, Jobs, Fehlerfaelle).
-- **Pflicht:** `pnpm test` vollstaendig, `pnpm lint`, `tsc` gegen Stand vorher
-  (AGENTS.md), `bash scripts/welle-pre-merge-check.sh` beim Owner.
+- **R1:** gemergt und live abgenommen (#439, Fix #440, Bruecke 2.71.1; 15.11.: 241 Zeilen).
+- **Modell:** R2 Sonnet mittel; R3 Sonnet mittel (mit Figma-Konzept); R4 Opus (Speicher, Jobs, Fehlerfaelle).
+- **Pflicht:** `pnpm test` vollstaendig, `pnpm lint`, `tsc` gegen den Stand vorher, `bash scripts/welle-pre-merge-check.sh` beim Owner.
