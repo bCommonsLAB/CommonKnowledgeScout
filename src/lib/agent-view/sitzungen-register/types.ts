@@ -170,6 +170,8 @@ export interface SitzungsSicht {
   vorhabenPfad: string | null
   vorhabenFolderId: string | null
   vorhabenBestimmt: boolean
+  /** Ordner des Belegs laut Ablage-Cache (Kopf im Reiter, wenn kein Vorhaben); null = nicht geprueft. */
+  belegOrdnerPfad: string | null
   /** `parentId` = Ordner des Belegs (Sprung ins Archiv aus dem Reiter, R3). */
   belege: Array<{ sourceId: string; parentId: string; name: string; zuege: string | null; notiz: boolean; notizAktualisiert: string | null }>
   gemeldetVon: GemeldetVon

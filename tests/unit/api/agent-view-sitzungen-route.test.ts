@@ -54,7 +54,7 @@ function sicht(o: Partial<SitzungsSicht>): SitzungsSicht {
     registerId: 'r', sitzungId: null, kennung: 'keine', quelle: 'chat', titel: 'T', beginn: null, ende: null, link: null,
     repo: null, branch: null, prs: [], stand: 'gemeldet', hinweise: [], imBericht: false, berichtet: { chronikAm: null, blockAm: null },
     entscheidung: 'offen', entscheidungGrund: null, zugbereiche: [], vorhabenVorschlag: null, bemerkung: null,
-    vorhabenPfad: null, vorhabenFolderId: null, vorhabenBestimmt: false, belege: [], gemeldetVon: 'import',
+    vorhabenPfad: null, vorhabenFolderId: null, vorhabenBestimmt: false, belegOrdnerPfad: null, belege: [], gemeldetVon: 'import',
     gemeldetAm: '2026-11-15T00:00:00.000Z', gespeichert: true, ...o,
   }
 }

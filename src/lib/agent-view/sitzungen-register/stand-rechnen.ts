@@ -109,6 +109,7 @@ export function zuSicht(zeile: ZugeordneteZeile, fehlend: ReadonlyMap<string, st
     vorhabenPfad: doc.ablage?.vorhabenPfad ?? null,
     vorhabenFolderId: doc.ablage?.vorhabenFolderId ?? null,
     vorhabenBestimmt: doc.ablage !== null,
+    belegOrdnerPfad: doc.ablage?.belegOrdnerPfad ?? null,
     belege: belege.map((b) => ({
       sourceId: b.sourceId, parentId: b.parentId, name: b.name, zuege: zuegeText(b.zuege), notiz: b.hatNotiz, notizAktualisiert: b.notizAktualisiert,
     })),
