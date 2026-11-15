@@ -49,6 +49,19 @@ function istJuenger(kandidat: string | undefined, transformation: string): boole
 }
 
 /**
+ * Absage: Die Transformation ist aktuell, es entsteht kein Job. Benannt, damit
+ * Aufrufer (R4 `sitzung_abschliessen`) sie von echten Fehlern unterscheiden,
+ * ohne die Meldung zu lesen.
+ */
+export class TransformationAktuellError extends Error {
+  readonly code = 'transformation_aktuell' as const
+  constructor(message: string) {
+    super(message)
+    this.name = 'TransformationAktuellError'
+  }
+}
+
+/**
  * Die ausdrueckliche Angabe gewinnt immer, in beide Richtungen. Sonst: erzwingen,
  * wenn es einen erkennbaren Grund gibt; ist die Transformation aktuell, WIRFT die
  * Funktion — der Aufrufer bekommt die Absage je Zeile, ohne Job.
@@ -71,7 +84,7 @@ export function entscheideTransformationErzwingen(args: {
   if (istJuenger(readTranscriptRecord(args.doc)?.updatedAt, record.updatedAt)) {
     return { erzwingen: true, grund: 'transkript_juenger' }
   }
-  throw new Error(
+  throw new TransformationAktuellError(
     `Transformation mit Vorlage "${args.template}" (${args.zielsprache}) ist aktuell: Twin vom ${record.updatedAt}, ` +
       `Vorlage vom ${args.vorlageAktualisiertAm ?? 'unbekannt'}. Der Worker wuerde sie ueberspringen — ` +
       'mit erzwingen: true trotzdem neu erzeugen (z.B. nach geaenderter Quelldatei). Kein Job angelegt.',

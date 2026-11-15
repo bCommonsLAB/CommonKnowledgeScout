@@ -384,7 +384,11 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Figma, Routen GET/PATCH, Reiterleiste unabhängig vom Report (W8); Teil B
   der Arbeitsliste trennt Cowork (ohne Export-Vermerk) und Chat (mit) — nach
   dem Merge `sitzungen_importieren` einmal mit `nurVorschau: false` laufen
-  lassen. E2–E4, E6–E8 beim Owner, als Nächstes R4. Danach Sitzungen im
+  lassen. **R4 gebaut 15.11.** (Brücke 2.74.0): `sitzung_abschliessen` —
+  Beleg prüfen bzw. anlegen, Register-Zeile (umschlüsseln, melden), Job
+  `chatverlauf-de`, Folgeaufrufe für den Skill (E7); große Belege nur per
+  Dateiverweis (E8). Offen: Skill umstellen, Live-Abnahme mit Beleg über
+  300 kB. E2–E4, E6, E14 beim Owner. Danach Sitzungen im
   Chatbot befragbar: Wortlaut des Owners und Notiz als zwei Einträge, `authors`
   an Diktaten und eigenen Texten (Plan
   [`sitzungen-befragbar`](plans/geplant/sitzungen-befragbar.plan.md), R5a–R5c;
