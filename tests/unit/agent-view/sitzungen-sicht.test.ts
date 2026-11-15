@@ -153,6 +153,32 @@ describe('ordneSitzungenZu im Teilbaum (Befund R4-Abnahme 15.11.)', () => {
   })
 })
 
+describe('ordneSitzungenZu: Pfade statt Namen im Kopf (Befund Nachpruefung 15.11.)', () => {
+  const KS = `${B6}/24.09 KnowledgeScout`
+  const mitPfaden = (haupt: string, vorhaben: string[]) =>
+    zeile('2026-11-15 Code Register gebaut.md', 'v-ks', { date: '2026-11-15' }, { vorhaben, hauptvorhaben: haupt })
+
+  it('voller Lauf: Pfad wird genau verglichen, Nebenvorhaben per Pfad aufgeloest', async () => {
+    const r = await ordneSitzungenZu({ zeilen: [mitPfaden(KS, [KS, `${B4}/24.03 bcoop`])], folders: FOLDERS, vorhabenMuster: null, elternVon })
+    expect(r.hinweise).toEqual([])
+    expect(r.sitzungen[0].weitereVorhaben).toEqual([{ pfad: `${B4}/24.03 bcoop`, folderId: 'v-bcoop' }])
+  })
+
+  it('voller Lauf: falscher Pfad bleibt ein Hinweis, gleicher Name in anderem Bereich zaehlt nicht', async () => {
+    const r = await ordneSitzungenZu({ zeilen: [mitPfaden(`${B4}/24.09 KnowledgeScout`, [`${B4}/24.09 KnowledgeScout`])], folders: FOLDERS, vorhabenMuster: null, elternVon })
+    expect(r.hinweise).toEqual([
+      expect.stringContaining(`hauptvorhaben sagt „${B4}/24.09 KnowledgeScout" — Ablage gilt`),
+      expect.stringContaining(`Vorhaben „${B4}/24.09 KnowledgeScout" aus vorhaben: nicht im Scan`),
+    ])
+  })
+
+  it('Teilbaum: Pfad im Kopf wird ueber den Namen mit dem Scope-Ordner verglichen', async () => {
+    const teilbaum = [folder({ folderId: 'v-ks', name: '', path: '', depth: 0, bericht: bericht('') })]
+    const r = await ordneSitzungenZu({ zeilen: [mitPfaden(KS, [KS])], folders: teilbaum, vorhabenMuster: null, elternVon, wurzelName: '24.09 KnowledgeScout' })
+    expect(r.hinweise).toEqual([])
+  })
+})
+
 describe('renderSitzungen + sitzungenBlock', () => {
   it('Frontmatter mit Zaehlern, Abschnitte in Archiv-Ordnung, Zeilenformat, Querverweis, „Ohne Vorhaben" zuletzt', async () => {
     const { sitzungen } = await ordneSitzungenZu({ zeilen: ZEILEN, folders: FOLDERS, vorhabenMuster: null, elternVon })
