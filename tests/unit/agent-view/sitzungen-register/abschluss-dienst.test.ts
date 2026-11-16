@@ -70,7 +70,7 @@ describe('schliesseSitzungAb', () => {
     expect(ports.transformation).toHaveBeenCalledWith({ id: 's-gross', parentId: 'v-ks', name: NAME }, undefined)
     // Stand aus dem Register, nicht geraten (Befund R4-Abnahme: „beleg" bei berichteter Zeile)
     expect(r).toMatchObject({ stand: 'berichtet', transformation: { jobId: 'job-1' }, register: { aktion: 'angelegt', belegNeu: true } })
-    expect(r.folgeaufrufe.map((f) => f.werkzeug)).toEqual(['job_status', 'sitzungen_block_schreiben', 'sichten_regenerieren'])
+    expect(r.folgeaufrufe.map((f) => f.werkzeug)).toEqual(['job_status', 'sitzung_eintragen'])
   })
 
   it('Text: neu anlegen; gleiche Kennung ersetzt (mit Version, erzwungen); fremde Kennung bricht ab', async () => {

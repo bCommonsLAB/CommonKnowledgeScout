@@ -86,14 +86,20 @@ export async function findeTransformationenNachVorlage(args: {
   libraryId: string
   template: string
   language: string
+  /** Nur diese Quellen (eine Sitzung eintragen, R4b); fehlt = alle. Leere Liste ist ein Fehler, kein „alle". */
+  sourceIds?: readonly string[]
 }): Promise<TransformationZeile[]> {
   pruefeFeldname(args.template, 'Vorlage')
   pruefeFeldname(args.language, 'Sprache')
+  if (args.sourceIds !== undefined && args.sourceIds.length === 0) {
+    throw new Error('findeTransformationenNachVorlage: sourceIds ist leer — weglassen heisst alle')
+  }
   const pfad = `artifacts.transformation.${args.template}.${args.language}`
   const col = await getShadowTwinCollection(args.libraryId)
+  const nurQuellen = args.sourceIds === undefined ? {} : { sourceId: { $in: [...args.sourceIds] } }
   const rohe = await col
     .aggregate<TransformationRoh>([
-      { $match: { libraryId: args.libraryId, [pfad]: { $exists: true } } },
+      { $match: { libraryId: args.libraryId, [pfad]: { $exists: true }, ...nurQuellen } },
       {
         $project: {
           _id: 0,

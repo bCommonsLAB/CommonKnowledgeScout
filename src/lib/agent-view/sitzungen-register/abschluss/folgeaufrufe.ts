@@ -4,10 +4,12 @@
  * @description
  * Owner-Entscheid E7 (15.11.): Das Werkzeug wartet nicht auf den Job; der
  * Skill ruft die Folgeschritte nach `job_status: completed`. Darum nennt die
- * Antwort sie fertig zum Aufrufen: erst den Job verfolgen, dann den Block in
- * jedem Vorhaben (Haupt- und Nebenvorhaben) und die Chronik neu erzeugen —
- * beides braucht der Stand `berichtet` (W4). Scheiterte der Start, steht
- * der Neustart vorne; war die Notiz schon aktuell, entfaellt der Job.
+ * Antwort sie fertig zum Aufrufen: erst den Job verfolgen, dann
+ * `sitzung_eintragen` — die Zeile in Block (Haupt- und Nebenvorhaben) und
+ * Chronik, ohne Scan (R4b, Befund 16.11.2026: vorher ein Teilbaum-Block, der
+ * Querverweise loeschte, und ein voller Chronik-Lauf, je 90–100 s). Ohne
+ * Vorhaben bleibt der volle Chronik-Lauf. Scheiterte der Start, steht der
+ * Neustart vorne; war die Notiz schon aktuell, entfaellt der Job.
  *
  * @module agent-view/sitzungen-register/abschluss
  */
@@ -42,17 +44,20 @@ export function planeFolgeaufrufe(args: {
     })
   }
   const nachJob = 'jobId' in t || 'fehler' in t ? 'nach job_status completed' : 'sofort (Notiz ist aktuell)'
-  for (const ordner of args.blockOrdner) {
+  if (args.blockOrdner.length > 0) {
+    // R4b (Befund 16.11.): EIN Aufruf ohne Scan statt Teilbaum-Block (loeschte Querverweise) und vollem Chronik-Lauf.
     aufrufe.push({
-      werkzeug: 'sitzungen_block_schreiben',
-      argumente: { libraryId: args.libraryId, folderId: ordner.folderId, begruendung },
-      wann: `${nachJob} — Block im BERICHT.md von ${ordner.name}`,
+      werkzeug: 'sitzung_eintragen',
+      argumente: { libraryId: args.libraryId, sitzungId: args.sitzungId, begruendung },
+      wann: `${nachJob} — Zeile im Block von ${args.blockOrdner.map((o) => o.name).join(', ')} und in der Chronik, ohne Scan (Sekunden); nennt sie offen, die vollen Laeufe aus ihren folgeaufrufen`,
     })
+    return aufrufe
   }
+  // Ohne Vorhaben: kein Block, und die Ablage bestimmt nur der volle Lauf.
   aufrufe.push({
     werkzeug: 'sichten_regenerieren',
     argumente: { libraryId: args.libraryId, sichten: ['sitzungen'], begruendung },
-    wann: `${nachJob} — Chronik SITZUNGEN.md`,
+    wann: `${nachJob} — Chronik SITZUNGEN.md (voller Lauf, 1–2 min)`,
   })
   return aufrufe
 }

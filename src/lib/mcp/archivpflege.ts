@@ -32,6 +32,8 @@ export const ARCHIVPFLEGE_WERKZEUGE = [
   'sitzungen_importieren',
   // R4: Sitzung abschliessen (Beleg, Register, Notiz-Job).
   'sitzung_abschliessen',
+  // R4b: eine Sitzung ohne Scan in Block und Chronik eintragen.
+  'sitzung_eintragen',
 ] as const
 
 export type ArchivpflegeWerkzeug = (typeof ARCHIVPFLEGE_WERKZEUGE)[number]
