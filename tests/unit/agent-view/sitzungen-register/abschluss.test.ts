@@ -101,12 +101,12 @@ describe('planeFolgeaufrufe (E7: der Skill ruft sie)', () => {
   const plane = (transformation: Parameters<typeof planeFolgeaufrufe>[0]['transformation'], blockOrdner = ordner) =>
     planeFolgeaufrufe({ libraryId: LIB, sitzungId: K1, sourceId: 's-1', transformation, blockOrdner })
 
-  it('Job: job_status, je Vorhaben der Block, dann die Chronik', () => {
+  it('Job: job_status, dann EIN sitzung_eintragen fuer alle Vorhaben (R4b: kein Teilbaum-Block, kein voller Chronik-Lauf)', () => {
     const a = plane({ jobId: 'j-1', erzwungen: 'nicht_noetig' })
-    expect(a.map((x) => x.werkzeug)).toEqual(['job_status', 'sitzungen_block_schreiben', 'sitzungen_block_schreiben', 'sichten_regenerieren'])
+    expect(a.map((x) => x.werkzeug)).toEqual(['job_status', 'sitzung_eintragen'])
     expect(a[0].argumente).toEqual({ jobId: 'j-1' })
-    expect(a[1].argumente).toMatchObject({ folderId: 'v-ks', begruendung: `Folgeschritt sitzung_abschliessen ${K1}` })
-    expect(a[3].argumente).toMatchObject({ sichten: ['sitzungen'] })
+    expect(a[1].argumente).toEqual({ libraryId: LIB, sitzungId: K1, begruendung: `Folgeschritt sitzung_abschliessen ${K1}` })
+    expect(a[1].wann).toContain('24.09 KnowledgeScout, 26.08 Archiv')
   })
 
   it('gescheiterter Start: Neustart vorne; aktuelle Notiz: sofort, ohne Job; ohne Vorhaben nur die Chronik', () => {

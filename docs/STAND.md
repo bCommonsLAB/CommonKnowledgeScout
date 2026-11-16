@@ -387,8 +387,12 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   lassen. **R4 gebaut 15.11.** (Brücke 2.74.0): `sitzung_abschliessen` —
   Beleg prüfen bzw. anlegen, Register-Zeile (umschlüsseln, melden), Job
   `chatverlauf-de`, Folgeaufrufe für den Skill (E7); große Belege nur per
-  Dateiverweis (E8). Offen: Skill umstellen, Live-Abnahme mit Beleg über
-  300 kB. E2–E4, E6, E14 beim Owner. Danach Sitzungen im
+  Dateiverweis (E8). **R4b gebaut 16.11.** (Brücke 2.75.0):
+  `sitzung_eintragen` setzt EINE Sitzung ohne Scan in Block und Chronik
+  (ersetzt zwei volle Läufe je 90–100 s im Abschluss), der Teilbaum-Block
+  behält Querverweise von außen, `bruecke_info` gekürzt. Offen: Skill auf
+  den Kurzweg umstellen (S3: keine Notiz-Kopie, keine Verweiszeile),
+  Live-Abnahme. E2–E4, E6, E14 beim Owner. Danach Sitzungen im
   Chatbot befragbar: Wortlaut des Owners und Notiz als zwei Einträge, `authors`
   an Diktaten und eigenen Texten (Plan
   [`sitzungen-befragbar`](plans/geplant/sitzungen-befragbar.plan.md), R5a–R5c;

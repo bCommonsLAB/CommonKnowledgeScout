@@ -31,39 +31,67 @@ export function sitzungsZeile(e: SitzungsEintrag): string {
   return `- ${s.datum}${ende} · ${s.artWort ?? '?'} · [[${s.belegName}]]${teaser}${anderswo}`
 }
 
-export function renderSitzungen(sitzungen: readonly SitzungsDatensatz[], now: Date): string {
-  const gruppen = gruppiereNachVorhaben(sitzungen)
+/** Titel des Abschnitts ohne Vorhaben — immer der letzte. */
+export const OHNE_VORHABEN_TITEL = 'Ohne Vorhaben'
+/** Kennzeichen einer Querverweis-Zeile (Beleg liegt in einem anderen Vorhaben), immer am Zeilenende. */
+export const QUERVERWEIS_ENDE = / \*\(Beleg liegt in [^\n]*\)\*$/
+
+/** Ein Abschnitt der Chronik als fertige Zeilen; `pfad: null` = „Ohne Vorhaben". */
+export interface ChronikGruppe {
+  pfad: string | null
+  zeilen: string[]
+}
+
+/**
+ * Chronik aus fertigen Abschnitten — der eine Weg fuer den vollen Lauf und fuer
+ * `sitzung_eintragen` (eine Zeile einsetzen), damit beide dieselbe Datei schreiben.
+ * Gezaehlt wird an den Zeilen: jede Sitzung steht genau einmal ohne
+ * Querverweis-Zusatz (Ablage oder „Ohne Vorhaben"), jeder Querverweis einmal mit.
+ */
+export function renderChronik(gruppen: readonly ChronikGruppe[], now: Date): string {
+  const alle = gruppen.flatMap((g) => g.zeilen)
+  const querverweise = alle.filter((zeile) => QUERVERWEIS_ENDE.test(zeile)).length
+  const sitzungen = alle.length - querverweise
   const vorhaben = gruppen.filter((g) => g.pfad !== null).length
-  const querverweise = gruppen.reduce((n, g) => n + g.eintraege.filter((e) => e.belegAnderswo).length, 0)
   const z: string[] = []
   z.push('# SITZUNGEN — Chronik der Arbeitssitzungen mit Claude', '')
   z.push(`Erzeugt am ${datumKurz(now)} aus den Sitzungsnotizen (Vorlage \`chatverlauf-de\`) — **nicht von Hand pflegen.**`)
   z.push('Gepflegt werden die Belege in den Vorhabensordnern; diese Chronik wird daraus')
   z.push('erzeugt (KnowledgeScout, Werkzeug `sichten_regenerieren`).', '')
   z.push(
-    `**${sitzungen.length} Sitzungen in ${vorhaben} Vorhaben**, je Vorhaben chronologisch (älteste zuerst).` +
+    `**${sitzungen} Sitzungen in ${vorhaben} Vorhaben**, je Vorhaben chronologisch (älteste zuerst).` +
       (querverweise > 0 ? ` ${querverweise} Zeilen sind Querverweise aus Nebenvorhaben (*Beleg liegt in …*).` : ''),
     '', '---', '',
   )
   if (gruppen.length === 0) z.push('Keine Sitzungsnotizen gefunden.', '')
   for (const g of gruppen) {
-    z.push(`## ${g.pfad ?? 'Ohne Vorhaben'} (${g.eintraege.length})`, '')
-    for (const e of g.eintraege) z.push(sitzungsZeile(e))
+    z.push(`## ${g.pfad ?? OHNE_VORHABEN_TITEL} (${g.zeilen.length})`, '')
+    z.push(...g.zeilen)
     z.push('')
   }
   const kopf = sichtFrontmatter('sitzungen', now, [
-    ['anzahl_sitzungen', sitzungen.length],
+    ['anzahl_sitzungen', sitzungen],
     ['anzahl_vorhaben', vorhaben],
     ['anzahl_querverweise', querverweise],
   ])
   return kopf + z.join('\n')
 }
 
-/** Block fuer EIN Vorhaben, Marker inklusive (so wie `erschliessungsBloecke` ihn liefert). */
-export function sitzungenBlock(eintraege: readonly SitzungsEintrag[], heute: string): string {
+export function renderSitzungen(sitzungen: readonly SitzungsDatensatz[], now: Date): string {
+  const gruppen = gruppiereNachVorhaben(sitzungen).map((g) => ({ pfad: g.pfad, zeilen: g.eintraege.map(sitzungsZeile) }))
+  return renderChronik(gruppen, now)
+}
+
+/** Block aus fertigen, schon sortierten Zeilen — wie `sitzungenBlock`, fuer Einzel-Eintrag und Teilbaum-Lauf. */
+export function sitzungenBlockAusZeilen(zeilen: readonly string[], heute: string): string {
   const z = [SITZUNGEN_BLOCK_START, SITZUNGEN_BLOCK_UEBERSCHRIFT, '']
   z.push(`Stand ${heute} — erzeugt von KnowledgeScout (\`sitzungen_block_schreiben\`), nicht von Hand pflegen.`, '')
-  for (const e of sortiereEintraege(eintraege)) z.push(sitzungsZeile(e))
+  z.push(...zeilen)
   z.push(SITZUNGEN_BLOCK_END)
   return z.join('\n')
+}
+
+/** Block fuer EIN Vorhaben, Marker inklusive (so wie `erschliessungsBloecke` ihn liefert). */
+export function sitzungenBlock(eintraege: readonly SitzungsEintrag[], heute: string): string {
+  return sitzungenBlockAusZeilen(sortiereEintraege(eintraege).map(sitzungsZeile), heute)
 }

@@ -8,7 +8,9 @@
  * Der Rest des Berichts bleibt byteidentisch. Ein handgeschriebener Block
  * „(nachgetragen …)" wird NUR mit `alteBloeckeUebernehmen` ersetzt, sonst als
  * Befund gemeldet (Owner-Entscheid E2, 08.11.2026). Scope per folderId/pfad;
- * Belege ausserhalb der gescannten Ordner werden gezaehlt, nicht geraten.
+ * Belege ausserhalb der gescannten Ordner werden gezaehlt, nicht geraten —
+ * und ihre Querverweis-Zeilen bleiben im Block stehen (Befund 16.11.2026:
+ * der Teilbaum-Lauf nach `sitzung_abschliessen` hatte sie geloescht).
  *
  * @module mcp
  */
@@ -17,14 +19,16 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { ArchiveFolderNode } from '@/lib/agent-view/archive-types'
 import { berichteScan } from '@/lib/agent-view/sichten/regenerate-sichten'
-import { eintraegeFuerVorhaben, type SitzungsEintrag } from '@/lib/agent-view/sichten/sitzungen-gruppen'
+import { blockZeilen, fremdeQuerverweise, sortiereZeilen } from '@/lib/agent-view/sichten/sitzungen-einsetzen'
+import { eintraegeFuerVorhaben, sortiereEintraege, type SitzungsEintrag } from '@/lib/agent-view/sichten/sitzungen-gruppen'
 import { ladeSitzungen } from '@/lib/agent-view/sichten/sitzungen-laden'
-import { sitzungenBlock } from '@/lib/agent-view/sichten/sitzungen-render'
+import { sitzungenBlockAusZeilen, sitzungsZeile } from '@/lib/agent-view/sichten/sitzungen-render'
 import { registerNachLauf } from '@/lib/agent-view/sitzungen-register/register-dienst'
 import { isoHeute } from '@/lib/agent-view/sichten/types'
 import { berichtMitSitzungenBlock, type AlterBlockStatus } from '@/lib/agent-view/sitzungen-block'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ersetzeTextDatei } from '@/lib/storage/update-text-file'
+import { normalisiere } from './storage/adressierung'
 import { ARCHIVPFLEGE_HINWEIS, pruefeArchivpflege } from './archivpflege'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { FOLDER_ID, LIBRARY_ID, SCOPE_PFAD, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
@@ -38,6 +42,8 @@ interface BerichtZeile {
   status: BerichtStatus
   alterBlock: AlterBlockStatus | null
   alteUeberschrift: string | null
+  /** Teilbaum-Lauf: Querverweis-Zeilen auf Belege ausserhalb des Scopes, die stehen blieben. */
+  querverweiseBehalten: number
   block?: string
 }
 
@@ -49,20 +55,32 @@ async function berichtSchreiben(args: {
   heute: string
   nurVorschau: boolean
   alteBloeckeUebernehmen: boolean
+  /** Teilbaum-Lauf: library-relativer Pfad des Scopes — Querverweise von ausserhalb bleiben stehen. */
+  scopePfad: string | null
 }): Promise<BerichtZeile> {
   const { folder } = args
   const pfad = folder.path || '(Scope-Wurzel)'
-  const basis = { pfad, folderId: folder.folderId, sitzungen: args.eintraege.length, alterBlock: null, alteUeberschrift: null }
+  const basis = { pfad, folderId: folder.folderId, sitzungen: args.eintraege.length, alterBlock: null, alteUeberschrift: null, querverweiseBehalten: 0 }
   if (!folder.bericht) return { ...basis, status: 'kein_bericht' }
-  const block = sitzungenBlock(args.eintraege, args.heute)
-  if (args.nurVorschau) return { ...basis, status: 'vorschau', block }
-  const { blob } = await args.provider.getBinary(folder.bericht.fileId)
-  const text = await blob.text()
+  const berichtId = folder.bericht.fileId
+  const leseText = async () => (await args.provider.getBinary(berichtId)).blob.text()
+  const zeilen = sortiereEintraege(args.eintraege).map(sitzungsZeile)
+  let text: string | null = null
+  let behalten: string[] = []
+  if (args.scopePfad !== null) {
+    text = await leseText()
+    const neueBelege = new Set(args.eintraege.map((e) => e.sitzung.belegName))
+    behalten = fremdeQuerverweise(blockZeilen(text) ?? [], neueBelege, args.scopePfad)
+  }
+  const block = sitzungenBlockAusZeilen(sortiereZeilen([...zeilen, ...behalten], folder.path), args.heute)
+  const mitBehalten = { ...basis, querverweiseBehalten: behalten.length }
+  if (args.nurVorschau) return { ...mitBehalten, status: 'vorschau', block }
+  text = text ?? await leseText()
   const e = berichtMitSitzungenBlock(text, block, args.alteBloeckeUebernehmen)
-  const zeile = { ...basis, alterBlock: e.alterBlock, alteUeberschrift: e.alteUeberschrift }
+  const zeile = { ...mitBehalten, alterBlock: e.alterBlock, alteUeberschrift: e.alteUeberschrift }
   if (e.text === text) return { ...zeile, status: e.alterBlock === 'belassen' ? 'befund' : 'unveraendert' }
   // Welle ST1: an Ort und Stelle — der Bericht behaelt seine itemId.
-  await ersetzeTextDatei({ provider: args.provider, fileId: folder.bericht.fileId, inhalt: e.text })
+  await ersetzeTextDatei({ provider: args.provider, fileId: berichtId, inhalt: e.text })
   return { ...zeile, status: 'geschrieben' }
 }
 
@@ -78,7 +96,9 @@ export function registerSitzungenTool(server: McpServer): void {
         'chronologisch, mit Wikilink auf den Beleg und Teaser; der Rest des Berichts bleibt byteidentisch. ' +
         'Ein handgeschriebener Block "### Sitzungen … (nachgetragen …)" wird NUR mit alteBloeckeUebernehmen=true ' +
         'ersetzt, sonst als Befund gemeldet. nurVorschau=true zeigt die Bloecke ohne zu schreiben. ' +
-        'Scope per folderId/pfad (Belege ausserhalb der gescannten Ordner werden gezaehlt, nicht zugeordnet); ' +
+        'Scope per folderId/pfad (Belege ausserhalb der gescannten Ordner werden gezaehlt, nicht zugeordnet; ' +
+        'ihre Querverweis-Zeilen im Block bleiben stehen, querverweiseBehalten zaehlt sie); ' +
+        'EINE neue Sitzung traegt sitzung_eintragen ein (Sekunden, ohne Scan) — dieser Lauf ist fuer Abgleich und Reparatur; ' +
         'ohne Scope die ganze Library (OneDrive gemessen ~1-2 min bei rund 30 Berichten, 15.11.). SCHREIBT in Berichte (nur den Block); nur nach Bestaetigung. ' +
         'Danach gleicht der Lauf das Sitzungs-Register ab (register: fehlende Zeilen, Ablage-Cache, Block-Stempel ' +
         'fuer Sitzungen, deren Vorhaben den Block jetzt traegt); nicht bei nurVorschau.',
@@ -107,6 +127,8 @@ export function registerSitzungenTool(server: McpServer): void {
           // Im Teilbaum: nur Belege in gescannten Ordnern — alles andere liegt ausserhalb des Scopes oder tiefer.
           // Die Scan-Wurzel heisst im Teilbaum '' — ihr echter Name fuer den Abgleich mit hauptvorhaben (Befund R4-Abnahme).
           const wurzelName = scope === undefined ? undefined : (await provider.getItemById(scope)).metadata.name
+          // Fuer die Querverweise von ausserhalb (Befund 16.11.): wo liegt der Scope in der Library?
+          const scopePfad = scope === undefined ? null : normalisiere(await provider.getPathById(scope))
           const { zuordnung, zeilen, belegKoepfe, nichtImScope } = await ladeSitzungen({
             libraryId: library.id, provider, folders: scan.folders, vorhabenMuster, nurGescannte: scope !== undefined, wurzelName,
           })
@@ -116,7 +138,7 @@ export function registerSitzungenTool(server: McpServer): void {
             const eintraege = eintraegeFuerVorhaben(zuordnung.sitzungen, folder.folderId)
             if (eintraege.length === 0) continue
             berichte.push(await berichtSchreiben({
-              provider, folder, eintraege, heute,
+              provider, folder, eintraege, heute, scopePfad,
               nurVorschau: nurVorschau === true, alteBloeckeUebernehmen: alteBloeckeUebernehmen === true,
             }))
           }
@@ -139,6 +161,7 @@ export function registerSitzungenTool(server: McpServer): void {
             ohneVorhaben: zuordnung.sitzungen.filter((s) => s.vorhabenPfad === null).length,
             nichtImScope,
             querverweise: zuordnung.sitzungen.reduce((n, s) => n + s.weitereVorhaben.length, 0),
+            querverweiseBehalten: berichte.reduce((n, b) => n + b.querverweiseBehalten, 0),
             belegKoepfe,
             berichte,
             geschrieben: berichte.filter((b) => b.status === 'geschrieben').map((b) => b.pfad),

@@ -39,7 +39,7 @@ export function registerSitzungAbschliessenTool(server: McpServer): void {
         'Register-Zeile melden und Beleg anhaengen, Job chatverlauf-de starten (ohne ingest; ersetzter Beleg ' +
         'erzwingt). Antwort: beleg mit bytes und sha256 (Byte-Vergleich beim Aufrufer), register, transformation ' +
         '(jobId | abgesagt | fehler), stand, folgeaufrufe — der Aufrufer ruft sie nach job_status completed ' +
-        '(Block je Vorhaben, Chronik). Fehler tragen einen code (z. B. beleg_nicht_gefunden: noch nicht ' +
+        '(sitzung_eintragen: Block je Vorhaben und Chronik ohne Scan). Fehler tragen einen code (z. B. beleg_nicht_gefunden: noch nicht ' +
         'synchronisiert, kein Warten). SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,

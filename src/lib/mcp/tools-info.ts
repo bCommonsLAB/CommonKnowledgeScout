@@ -16,11 +16,12 @@
  * @module mcp
  */
 
+import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.74.2'
+export const TOOLSET_VERSION = '2.75.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -129,6 +130,8 @@ export const TOOL_NAMES = [
   'sitzungen_importieren',
   // R4: Sitzung abschliessen.
   'sitzung_abschliessen',
+  // R4b: eine Sitzung ohne Scan in Block und Chronik eintragen.
+  'sitzung_eintragen',
   'stand_setzen',
   'themen_setzen',
   'protokoll_lesen',
@@ -142,6 +145,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.75.0: Abschluss schneller (Befund 16.11.: ein Cowork-Abschluss brauchte rund 10 min, davon zwei volle Laeufe ueber 352 Ordner je 90–100 s, ueber der 80-s-Grenze des Geraets; der Teilbaum-Block loeschte die Querverweise). NEU sitzung_eintragen (nur archivpflege, SCHREIBT): libraryId, sitzungId — traegt EINE Sitzung nach job_status completed ohne Scan ein: Zeile im erzeugten Block des Ablage-Vorhabens, Querverweis-Zeile in jedem Nebenvorhaben aus vorhaben: (Pfade) und die Zeilen in Organisation/SITZUNGEN.md, dann die Register-Stempel; versioniert, nur bei Aenderung, idempotent. Was ohne Scan nicht sicher geht (kein erzeugter Block, Ablage ohne BERICHT.md, Nebenvorhaben nur als Name), steht in offen, die vollen Laeufe dann in folgeaufrufe. sitzung_abschliessen nennt als Folgeaufruf jetzt job_status und sitzung_eintragen (ohne Vorhaben weiter sichten_regenerieren). sitzungen_block_schreiben im Teilbaum laesst Querverweis-Zeilen auf Belege ausserhalb des Scopes stehen (querverweiseBehalten). bruecke_info nennt in neuInDieserVersion nur die letzten 3 Versionen (aeltereVersionen zaehlt den Rest), die ganze Geschichte mit alleVersionen: true.',
   '2.74.2: Befund Nachpruefung 15.11. Im Beleg-Kopf duerfen vorhaben:/hauptvorhaben: auch library-relative Pfade tragen (statt Ordnernamen): sichten_regenerieren, sitzungen_block_schreiben und das Register vergleichen einen Pfad im Lauf ueber die ganze Library genau, im Teilbaum ueber den Namen (letzter Pfadteil); sitzung_abschliessen vergleicht den Namen. Vorher kam je solchem Beleg „liegt in …, hauptvorhaben sagt <Pfad>" und der Querverweis ins Nebenvorhaben fiel weg. sitzungen_block_schreiben nennt die gemessene Dauer ohne Scope (~1-2 min). Kein neues Werkzeug',
   '2.74.1: Befunde der Live-Abnahme R4 (15.11.). transformation_starten und sitzung_abschliessen: erzwingen: false legt KEINEN Job mehr an, wenn schon eine Transformation dieser Vorlage vorliegt (Absage; vorher entstand ein Job, und bei Markdown-Belegen ohne chapters schrieb der Worker die Notiz trotzdem neu). sitzung_abschliessen: stand ist jetzt der gerechnete Stand aus dem Register (vorher fest beleg/notiz), folgeaufrufe[0] job_status nur mit jobId (libraryId kennt dessen Schema nicht), Meldung bei beleg_nicht_gefunden ohne Widerspruch zur kurzen Pfadsuche. sitzungen_block_schreiben mit folderId/pfad: der Scope-Ordner traegt fuer den Abgleich mit hauptvorhaben seinen echten Namen (vorher je Beleg ein Hinweis „liegt in „""). Kein neues Werkzeug',
   '2.74.0: Sitzung abschliessen (Plan sitzungen-register, Welle R4; Owner-Entscheide 15.11.: E7 der Skill ruft den Folgeschritt, E8 grosse Belege nur per Dateiverweis). NEU sitzung_abschliessen (nur archivpflege, SCHREIBT): sitzungId (volle Kennung), quelle, Ort genau einer von vorhabenPfad | vorhabenFolderId | ohneVorhaben (= Organisation/Sitzungen), Beleg genau einer von belegText + belegName (bis 100 kB) | belegPfad | belegSourceId, optional nrAlt (alt:<Nr> wird umgeschluesselt), nebenvorhaben (Pfade), zugbereich (muss zuege_von_bis entsprechen), erzwingen. Prueft VOR dem Schreiben: Kopf type chatverlauf und session_id = sitzungId, Beleg liegt lose im Vorhaben, Register nimmt die Zeile an. Dann Beleg (Text: anlegen; gleiche Kennung ersetzen, andere = Fehler), Register (umschluesseln, melden, Beleg anhaengen), Job chatverlauf-de (ohne ingest; ersetzter Beleg erzwingt). Antwort: beleg { pfad, sourceId, bytes, sha256, aktion }, register, transformation (jobId | abgesagt | fehler), stand, folgeaufrufe (job_status, dann sitzungen_block_schreiben je Vorhaben und sichten_regenerieren sitzungen — der Skill ruft sie nach completed), hinweise. Fehler sind benannt (code: beleg_nicht_gefunden — noch nicht synchronisiert, kein Warten; beleg_falscher_ort; beleg_kopf; kennung_abweichend; zuege_abweichend; beleg_zu_gross; name_ungueltig; andere_kennung_am_namen; nr_alt_unbekannt; kennung_vergeben; vorhaben_nicht_gefunden)',
@@ -208,6 +212,9 @@ export const NEU_IN_VERSION: readonly string[] = [
   'neue Befunde: bericht_zu_lang, status_zu_lang, bericht_ueberholt, verlauf_fehlt, entwicklung_unberichtet',
 ]
 
+/** Ohne `alleVersionen` nennt `bruecke_info` nur so viele Versionen (Befund 16.11.: die ganze Liste kostete ~15 000 Token je Aufruf). */
+export const NEU_IN_VERSION_KURZ = 3
+
 /** Registriert `bruecke_info` (siehe Datei-Kommentar). */
 export function registerInfoTool(server: McpServer): void {
   server.registerTool(
@@ -217,15 +224,20 @@ export function registerInfoTool(server: McpServer): void {
       description:
         'Nennt Werkzeugsatz-Version und Soll-Toolliste des Servers. Weicht die eigene Sicht ab ' +
         '(fehlende/andere Werkzeuge), ist die Toolliste der Desktop-App veraltet — den Menschen ' +
-        'bitten, die Erweiterung aus- und wieder einzuschalten. Liest nur.',
-      inputSchema: {},
+        'bitten, die Erweiterung aus- und wieder einzuschalten. neuInDieserVersion nennt die letzten ' +
+        `${NEU_IN_VERSION_KURZ} Versionen; die ganze Geschichte nur mit alleVersionen=true (gross). Liest nur.`,
+      inputSchema: {
+        alleVersionen: z.boolean().optional().describe('true = ganze Versionsgeschichte (rund 50 kB); weglassen = die letzten Versionen'),
+      },
       annotations: { readOnlyHint: true },
     },
-    async () => {
+    async ({ alleVersionen }) => {
+      const alle = alleVersionen === true
       return jsonResult({
         toolsetVersion: TOOLSET_VERSION,
         werkzeuge: TOOL_NAMES,
-        neuInDieserVersion: NEU_IN_VERSION,
+        neuInDieserVersion: alle ? NEU_IN_VERSION : NEU_IN_VERSION.slice(0, NEU_IN_VERSION_KURZ),
+        aeltereVersionen: alle ? 0 : Math.max(0, NEU_IN_VERSION.length - NEU_IN_VERSION_KURZ),
         hinweis:
           'Fehlt hier gelistetes Werkzeug in deiner Sicht: Toolliste der Desktop-App ist veraltet — ' +
           'Erweiterung aus-/einschalten (Einstellungen → Erweiterungen).',

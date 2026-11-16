@@ -16,6 +16,9 @@ todos:
   - id: r4-abschliessen
     content: "R4 — sitzung_abschliessen: Beleg als Text oder als Verweis auf eine abgelegte Datei, Transformation starten, Zeile eintragen; Folgeschritt nach Job-Ende"
     status: completed
+  - id: r4b-eintragen
+    content: "R4b — sitzung_eintragen: EINE Sitzung ohne Scan in Block und Chronik setzen (ersetzt die beiden vollen Laeufe der Folgeaufrufe); Teilbaum-Block behaelt Querverweise von ausserhalb; bruecke_info gekuerzt"
+    status: completed
 ---
 
 # Sitzungen: Register statt Arbeitsliste
@@ -217,6 +220,36 @@ Abnahme mit einem Beleg ueber 300 kB ueber den Dateiverweis.
   war fest statt gerechnet; `job_status` bekam ein `libraryId`; widerspruechliche
   Meldung bei `beleg_nicht_gefunden`; Block-Lauf im Teilbaum meldete je Beleg
   „liegt in „"" (Scope-Wurzel ohne Namen, S1).
+
+### R4b — `sitzung_eintragen` (Befund 16.11.2026, Brücke 2.75.0)
+
+Ein Cowork-Abschluss einer kurzen Sitzung brauchte rund 10 Minuten. Laut
+Aktions-Protokoll liefen nach `sitzung_abschliessen` der Block im Teilbaum
+(9 s, danach `querverweise 0`), der volle Chronik-Lauf (93 s, 352 Ordner) und
+ein Reparaturlauf über die ganze Library (100 s, `querverweise 101`). Beide
+langen Läufe lagen über der 80-s-Grenze des Geräts. Ursache des Verlusts:
+Im Teilbaum lädt `ladeSitzungen` nur Belege aus gescannten Ordnern, der Block
+wurde ohne die Querverweise von außen neu geschrieben.
+
+- **Neu `sitzung_eintragen`** (`libraryId`, `sitzungId`): Register-Zeile →
+  Belege → Notizen (Mongo, `findeTransformationenNachVorlage` mit
+  `sourceIds`) → Beleg-Kopf frisch lesen und merken → Ablage = Elternordner
+  mit `BERICHT.md`, Nebenvorhaben aus `vorhaben:` (nur Pfade, genau wie im
+  vollen Lauf verglichen) → Zeile per `sitzungen-einsetzen.ts` in jeden Block
+  und in `SITZUNGEN.md` → Register-Stempel und Ablage-Cache. Dieselben
+  Renderer wie der volle Lauf (`renderChronik`, `sitzungenBlockAusZeilen`);
+  der Test belegt: Einsetzen in die Chronik von N ergibt die Datei des vollen
+  Laufs über N+1. Versioniert geschrieben, nur bei Änderung, idempotent.
+- Ohne Scan nicht Entscheidbares steht in `offen` (Bericht ohne erzeugten
+  Block, Ablage ohne `BERICHT.md`, Nebenvorhaben nur als Name, fremde Form
+  der Chronik); dann nennt die Antwort die vollen Läufe als Folgeaufrufe.
+- Folgeaufrufe von `sitzung_abschliessen`: `job_status`, dann
+  `sitzung_eintragen` (E7 bleibt: der Skill ruft). Ohne Vorhaben weiter
+  `sichten_regenerieren`.
+- `sitzungen_block_schreiben` im Teilbaum lässt Querverweis-Zeilen auf Belege
+  außerhalb des Scopes stehen (`querverweiseBehalten`); der volle Lauf prüft sie.
+- `bruecke_info` nennt nur die letzten drei Versionen (`alleVersionen: true`
+  für die ganze Geschichte, rund 15 000 Token).
 
 Fortsetzung: Wortlaut und Notiz im Chatbot, Urheber an Diktaten — Plan
 [`sitzungen-befragbar`](sitzungen-befragbar.plan.md) (R5a–R5c). R5a haengt am
