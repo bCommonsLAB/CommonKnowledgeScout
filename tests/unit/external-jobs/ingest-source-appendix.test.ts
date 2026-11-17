@@ -44,7 +44,7 @@ const SAMMELDATEI = [
 const NUR_FRONTMATTER = '---\ntitle: Film\nurl: https://video.example/w/abc\n---\n'
 
 function speicher(extra: Eintrag[] = [], ohne: string[] = []) {
-  const eintraege: Eintrag[] = [
+  const basis: Eintrag[] = [
     { id: 'karte', type: 'file', name: 'karte.md', parentId: 'ordner', text: SAMMELDATEI },
     { id: 'notiz', type: 'file', name: 'notiz.md', parentId: 'ordner', text: '---\ntitle: Notiz\n---\nEine Notiz mit Text.' },
     { id: 'pdfs', type: 'folder', name: 'pdfs', parentId: 'ordner' },
@@ -52,8 +52,8 @@ function speicher(extra: Eintrag[] = [], ohne: string[] = []) {
     { id: 'front', type: 'file', name: 'karte_front.pdf', parentId: 'pdfs' },
     { id: 'rueck', type: 'file', name: 'karte_rueck.pdf', parentId: 'pdfs' },
     { id: 'film', type: 'file', name: 'film.md', parentId: 'videos', text: NUR_FRONTMATTER },
-    ...extra,
-  ].filter((e) => !ohne.includes(e.id))
+  ]
+  const eintraege = [...basis, ...extra].filter((e) => !ohne.includes(e.id))
   const gelesen: string[] = []
   const provider = {
     listItemsById: vi.fn(async (folderId: string) =>
