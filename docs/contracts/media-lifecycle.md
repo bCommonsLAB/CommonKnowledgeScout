@@ -17,6 +17,23 @@ Blob-URLs entstehen erst bei Ingestion & Publishing (Phase 3).
 `coverImageUrl`, `speakers_image_url`, `authors_image_url`, `galleryImageUrls`,
 `attachments_url` – alle Felder, die auf Binärdateien verweisen.
 
+## Medienverzeichnis in der Lesersicht (`media_names` / `media_urls`)
+
+Vorlagen dürfen eigene Bildfelder tragen, etwa Vorder- und Rückseite einer Karte. Sie stehen
+nicht in der Liste oben und bleiben auch in der Lesersicht **Dateinamen**. Damit ein Leser ohne
+Speicherzugang (öffentliche `doc-meta`-Route, Embed, fremde Anwendung) an das Bild kommt,
+schreibt der Ingest in Phase 3 ein Verzeichnis in `docMetaJson`:
+
+- `media_names` und `media_urls`, gleich lang, nach Dateiname sortiert — dasselbe Muster wie
+  `attachments_names` / `attachments_url`.
+- Aufgenommen wird ein **Bild-Fragment des eigenen Twins** genau dann, wenn sein Dateiname als
+  Wert eines Feldes im Dokument steht. Was kein Feld nennt, steht nicht im Verzeichnis.
+- Kein Feld wird umgeschrieben. Ins Frontmatter gelangt das Verzeichnis nie.
+- Ohne Treffer fehlen beide Felder; ein leeres Verzeichnis wird nicht geschrieben.
+
+Quelle: `src/lib/ingestion/medien-verzeichnis.ts` (reine Auswahlfunktion), Aufruf in
+`src/lib/chat/ingestion-service.ts` nach der Auflösung der festen Medienfelder.
+
 ## 3 Phasen (kanonische Benennung)
 
 1. **Transkription** (Extract) – Quelldatei → maschinenlesbare Artefakte (PDF→Bilder+Text, Audio→Transkript-Markdown)
