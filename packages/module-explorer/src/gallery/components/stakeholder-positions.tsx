@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslation } from "@ks/i18n/react";
 import { STAKEHOLDER_KONSENT } from "../lib/stakeholder-meta";
 
 /**
@@ -23,6 +24,8 @@ interface StakeholderPositionsProps {
 export function StakeholderPositions({
   embedded = false,
 }: StakeholderPositionsProps): React.JSX.Element {
+  const { t } = useTranslation();
+  const inVorbereitung = t("climateDetail.inVorbereitung");
   const grid = (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       {STAKEHOLDER_KONSENT.map((group) => {
@@ -31,17 +34,17 @@ export function StakeholderPositions({
           <div
             key={group.key}
             aria-disabled
-            title="In Vorbereitung"
+            title={inVorbereitung}
             className="flex flex-col gap-1 rounded-md border border-dashed border-border bg-muted/30 p-2 opacity-50 cursor-not-allowed"
             style={{ borderLeftWidth: 3, borderLeftColor: group.color }}
           >
             <span className="flex items-center gap-1.5">
               <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground truncate">
-                {group.label}
+                {t(`climateDetail.stakeholder.${group.key}`)}
               </span>
             </span>
-            <span className="text-[10px] text-muted-foreground">In Vorbereitung</span>
+            <span className="text-[10px] text-muted-foreground">{inVorbereitung}</span>
           </div>
         );
       })}
@@ -54,9 +57,9 @@ export function StakeholderPositions({
     <section className="bg-card border border-border rounded-lg p-4 mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-foreground">
-          Konsent der Stakeholder
+          {t("climateDetail.konsentStakeholder")}
         </h2>
-        <span className="text-[10px] text-muted-foreground">Schematisch</span>
+        <span className="text-[10px] text-muted-foreground">{t("climateDetail.schematisch")}</span>
       </div>
       {grid}
     </section>

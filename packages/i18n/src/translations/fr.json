@@ -472,6 +472,18 @@
       "soziales": "Qualité de vie et social",
       "struktur": "Structure et cadre",
       "bewusstsein": "Soutien et sensibilisation"
+    },
+    "prioritaet": "Indicateur de priorité",
+    "erklaerung": "Explication",
+    "info": {
+      "wirkung": "Perspective impact / réduction des émissions : dans quelle mesure la mesure contribue-t-elle à réduire les gaz à effet de serre ? Échelle 0–100 % (qualitative, pas en tonnes). La réduction absolue de CO₂ figure séparément plus bas.",
+      "soziales": "Perspective qualité de vie et social : dans quelle mesure la mesure améliore-t-elle la qualité de vie et la justice sociale ? Échelle 0–100 %.",
+      "struktur": "Perspective structure et cadre : dans quelle mesure la mesure renforce-t-elle les structures, les institutions et le cadre ? Échelle 0–100 %.",
+      "bewusstsein": "Perspective soutien et sensibilisation : dans quelle mesure la mesure favorise-t-elle la sensibilisation, les connaissances et le soutien public ? Échelle 0–100 %.",
+      "durchsetzbarkeit": "Faisabilité : la mesure est-elle facile à mettre en œuvre politiquement et socialement ? Échelle 0–100 % (0 = difficilement réalisable, 100 = large consensus).",
+      "co2": "Potentiel estimé de réduction de CO₂ en kilotonnes par an pour le Tyrol du Sud (ordre de grandeur absolu).",
+      "kosten": "Coût estimé en euros (ordre de grandeur). « Coût inconnu » si aucune estimation fiable n’est possible.",
+      "indikator": "Indicateur de priorité pour trier les mesures : potentiel de réduction de CO₂ (kt/an) × faisabilité ÷ coût (par million d’€). Plus élevé = plus d’effet par euro investi. Calculable uniquement si CO₂, faisabilité et coût sont disponibles."
     }
   },
   "event": {
@@ -1054,5 +1066,45 @@
     "laden": "Chargement de la consommation …",
     "fehler": "La consommation n’a pas pu être chargée.",
     "ansehen": "Voir la consommation"
+  },
+  "climateDetail": {
+    "back": "Retour",
+    "worumGehtEs": "De quoi s’agit-il ?",
+    "wasVorgeschlagen": "Que propose-t-on ?",
+    "konsentStakeholder": "Consentement des parties prenantes",
+    "konsens": "Consensus",
+    "originaltext": "Texte original",
+    "originaltextQuelle": "Texte original (source)",
+    "arbeitsgruppe": "Groupe de travail :",
+    "quelle": "Source :",
+    "massnahmeNr": "Mesure n° :",
+    "positionLv": "Position de l’administration provinciale",
+    "einschaetzung": "Évaluation :",
+    "zustaendigkeit": "Compétence :",
+    "originaleRueckmeldung": "Réponse originale",
+    "akteure": "Acteurs impliqués",
+    "kiTitel": "Évaluation IA (Tyrol du Sud)",
+    "kiUntertitel": "(à la place d’une évaluation scientifique)",
+    "kiEinleitung": "Tant qu’aucune évaluation scientifique n’est disponible, une IA classe la mesure de façon approximative : selon quatre perspectives d’effet (Impact, Qualité de vie et social, Structure et cadre, Soutien et sensibilisation) ainsi que selon la faisabilité et le coût. Les valeurs sont des estimations indicatives, pas des faits établis.",
+    "sdgTitel": "Évaluation ODD",
+    "inVorbereitung": "En préparation",
+    "schematisch": "Schématique",
+    "bewertung": {
+      "in_umsetzung": "En cours de mise en œuvre",
+      "im_klimaplan": "Dans le plan climat",
+      "in_fachplaenen": "Dans les plans sectoriels",
+      "neu_umsetzbar": "Nouvelle, réalisable",
+      "vertieft_pruefen": "À examiner en détail",
+      "unklar": "Incertain",
+      "nicht_umsetzbar": "Non réalisable"
+    },
+    "stakeholder": {
+      "kultur": "Culture",
+      "wirtschaft": "Économie",
+      "landwirtschaft": "Agriculture",
+      "tourismus": "Tourisme",
+      "umweltverbaende": "Associations environnementales",
+      "sozial": "Secteur social"
+    }
   }
 }

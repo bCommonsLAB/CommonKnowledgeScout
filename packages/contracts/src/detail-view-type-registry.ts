@@ -428,6 +428,18 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
         { key: 'markdown', scope: 'detail' },
         { key: 'arbeitsgruppe', scope: 'detail' },
         { key: 'lv_zustaendigkeit', scope: 'detail' },
+        // Was die Detailansicht als Fliesstext zeigt (Befund 17.11.2026: ohne
+        // diese Felder blieb in IT/EN der Grossteil der Seite deutsch, obwohl
+        // die Uebersetzung als fertig galt). `vorschlag_text` und
+        // `lv_rueckmeldung` bleiben bewusst aussen vor — das sind Originalzitate.
+        { key: 'einleitung', scope: 'detail' },
+        { key: 'was_vorgeschlagen', scope: 'detail' },
+        { key: 'position_lv', scope: 'detail' },
+        { key: 'perspektiven_begruendung', scope: 'detail' },
+        { key: 'co2_einsparung_kt_begruendung', scope: 'detail' },
+        { key: 'durchsetzbarkeit_begruendung', scope: 'detail' },
+        { key: 'kosten_eur_begruendung', scope: 'detail' },
+        { key: 'sdg_begruendung', scope: 'detail' },
       ],
       arrayOfText: [],
       topicLike: [

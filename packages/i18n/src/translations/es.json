@@ -472,6 +472,18 @@
       "soziales": "Calidad de vida y social",
       "struktur": "Estructura y marco",
       "bewusstsein": "Apoyo y concienciación"
+    },
+    "prioritaet": "Indicador de prioridad",
+    "erklaerung": "Explicación",
+    "info": {
+      "wirkung": "Perspectiva impacto / reducción de emisiones: ¿en qué medida contribuye la medida a reducir los gases de efecto invernadero? Escala 0–100 % (cualitativa, no en toneladas). La reducción absoluta de CO₂ se muestra por separado más abajo.",
+      "soziales": "Perspectiva calidad de vida y social: ¿en qué medida mejora la medida la calidad de vida y la justicia social? Escala 0–100 %.",
+      "struktur": "Perspectiva estructura y marco: ¿en qué medida refuerza la medida las estructuras, las instituciones y el marco? Escala 0–100 %.",
+      "bewusstsein": "Perspectiva apoyo y concienciación: ¿en qué medida fomenta la medida la concienciación, el conocimiento y el apoyo público? Escala 0–100 %.",
+      "durchsetzbarkeit": "Viabilidad: ¿qué tan fácil es aplicar la medida política y socialmente? Escala 0–100 % (0 = apenas viable, 100 = amplio consenso).",
+      "co2": "Potencial estimado de reducción de CO₂ en kilotoneladas por año para el Tirol del Sur (orden de magnitud absoluto).",
+      "kosten": "Coste estimado en euros (orden de magnitud). «Coste desconocido» si no es posible una estimación fiable.",
+      "indikator": "Indicador de prioridad para ordenar las medidas: potencial de reducción de CO₂ (kt/año) × viabilidad ÷ coste (por millón de €). Más alto = más efecto por euro invertido. Solo calculable si hay CO₂, viabilidad y coste."
     }
   },
   "event": {
@@ -1054,5 +1066,45 @@
     "laden": "Cargando el consumo …",
     "fehler": "No se pudo cargar el consumo.",
     "ansehen": "Ver el consumo"
+  },
+  "climateDetail": {
+    "back": "Volver",
+    "worumGehtEs": "¿De qué se trata?",
+    "wasVorgeschlagen": "¿Qué se propone?",
+    "konsentStakeholder": "Consentimiento de las partes interesadas",
+    "konsens": "Consenso",
+    "originaltext": "Texto original",
+    "originaltextQuelle": "Texto original (fuente)",
+    "arbeitsgruppe": "Grupo de trabajo:",
+    "quelle": "Fuente:",
+    "massnahmeNr": "Medida n.º:",
+    "positionLv": "Posición de la administración provincial",
+    "einschaetzung": "Valoración:",
+    "zustaendigkeit": "Competencia:",
+    "originaleRueckmeldung": "Respuesta original",
+    "akteure": "Actores implicados",
+    "kiTitel": "Evaluación IA (Tirol del Sur)",
+    "kiUntertitel": "(en lugar de una evaluación científica)",
+    "kiEinleitung": "Mientras no exista una evaluación científica, una IA clasifica la medida de forma aproximada: según cuatro perspectivas de efecto (Impacto, Calidad de vida y social, Estructura y marco, Apoyo y concienciación) y según viabilidad y coste. Los valores son estimaciones orientativas, no hechos comprobados.",
+    "sdgTitel": "Evaluación ODS",
+    "inVorbereitung": "En preparación",
+    "schematisch": "Esquemático",
+    "bewertung": {
+      "in_umsetzung": "En aplicación",
+      "im_klimaplan": "En el plan climático",
+      "in_fachplaenen": "En los planes sectoriales",
+      "neu_umsetzbar": "Nueva, viable",
+      "vertieft_pruefen": "Requiere estudio detallado",
+      "unklar": "Poco claro",
+      "nicht_umsetzbar": "No viable"
+    },
+    "stakeholder": {
+      "kultur": "Cultura",
+      "wirtschaft": "Economía",
+      "landwirtschaft": "Agricultura",
+      "tourismus": "Turismo",
+      "umweltverbaende": "Asociaciones ecologistas",
+      "sozial": "Sector social"
+    }
   }
 }

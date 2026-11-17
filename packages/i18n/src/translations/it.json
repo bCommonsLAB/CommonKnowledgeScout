@@ -472,6 +472,18 @@
       "soziales": "Qualità della vita e sociale",
       "struktur": "Struttura e condizioni quadro",
       "bewusstsein": "Sostegno e consapevolezza"
+    },
+    "prioritaet": "Indicatore di priorità",
+    "erklaerung": "Spiegazione",
+    "info": {
+      "wirkung": "Prospettiva impatto / riduzione delle emissioni: quanto contribuisce la misura alla riduzione dei gas serra? Scala 0–100 % (qualitativa, non in tonnellate). La riduzione assoluta di CO₂ è indicata separatamente più in basso.",
+      "soziales": "Prospettiva qualità della vita e sociale: quanto migliora la misura la qualità della vita e la giustizia sociale? Scala 0–100 %.",
+      "struktur": "Prospettiva struttura e condizioni quadro: quanto rafforza la misura strutture, istituzioni e condizioni quadro? Scala 0–100 %.",
+      "bewusstsein": "Prospettiva sostegno e consapevolezza: quanto promuove la misura consapevolezza, conoscenza e sostegno pubblico? Scala 0–100 %.",
+      "durchsetzbarkeit": "Fattibilità: quanto è facile attuare la misura sul piano politico e sociale? Scala 0–100 % (0 = difficilmente attuabile, 100 = ampio consenso).",
+      "co2": "Potenziale stimato di riduzione della CO₂ in chilotonnellate all'anno per l'Alto Adige (ordine di grandezza assoluto).",
+      "kosten": "Costi stimati in euro (ordine di grandezza). 'Costo sconosciuto' se non è possibile una stima attendibile.",
+      "indikator": "Indicatore di priorità per ordinare le misure: potenziale di riduzione della CO₂ (kt/anno) × fattibilità ÷ costi (per milione di €). Più alto = più effetto per euro investito. Calcolabile solo se sono disponibili CO₂, fattibilità e costi."
     }
   },
   "event": {
@@ -1054,5 +1066,45 @@
     "laden": "Caricamento del consumo …",
     "fehler": "Impossibile caricare il consumo.",
     "ansehen": "Vedi il consumo"
+  },
+  "climateDetail": {
+    "back": "Indietro",
+    "worumGehtEs": "Di cosa si tratta?",
+    "wasVorgeschlagen": "Che cosa viene proposto?",
+    "konsentStakeholder": "Consenso delle parti interessate",
+    "konsens": "Sintesi condivisa",
+    "originaltext": "Testo originale",
+    "originaltextQuelle": "Testo originale (fonte)",
+    "arbeitsgruppe": "Gruppo di lavoro:",
+    "quelle": "Fonte:",
+    "massnahmeNr": "Misura n.:",
+    "positionLv": "Posizione dell'Amministrazione provinciale",
+    "einschaetzung": "Valutazione:",
+    "zustaendigkeit": "Competenza:",
+    "originaleRueckmeldung": "Riscontro originale",
+    "akteure": "Attori coinvolti",
+    "kiTitel": "Valutazione IA (Alto Adige)",
+    "kiUntertitel": "(in luogo di una valutazione scientifica)",
+    "kiEinleitung": "Finché non è disponibile una valutazione scientifica, un'IA classifica la misura in modo approssimativo: secondo quattro prospettive di effetto (Impatto, Qualità della vita e sociale, Struttura e condizioni quadro, Sostegno e consapevolezza) e in base a fattibilità e costi. I valori sono stime orientative, non fatti accertati.",
+    "sdgTitel": "Valutazione OSS",
+    "inVorbereitung": "In preparazione",
+    "schematisch": "Schematico",
+    "bewertung": {
+      "in_umsetzung": "In attuazione",
+      "im_klimaplan": "Nel Piano clima",
+      "in_fachplaenen": "Nei piani di settore",
+      "neu_umsetzbar": "Nuova, attuabile",
+      "vertieft_pruefen": "Da approfondire",
+      "unklar": "Non chiaro",
+      "nicht_umsetzbar": "Non attuabile"
+    },
+    "stakeholder": {
+      "kultur": "Cultura",
+      "wirtschaft": "Economia",
+      "landwirtschaft": "Agricoltura",
+      "tourismus": "Turismo",
+      "umweltverbaende": "Associazioni ambientaliste",
+      "sozial": "Settore sociale"
+    }
   }
 }

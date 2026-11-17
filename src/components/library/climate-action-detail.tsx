@@ -8,7 +8,7 @@ import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { ClimateActionRating } from "./climate-action-rating";
 import { StakeholderPositions, SdgProfile, AiText, OriginalQuote, belegKonfig, plaketteFuer, PLAKETTE_SYMBOL, plaketteLabelKey } from "@ks/module-explorer/react";
-import type { BelegPlakette } from "@ks/contracts";
+import { VIEW_TYPE_REGISTRY, type BelegPlakette } from "@ks/contracts";
 import { useTranslation } from "@ks/i18n/react";
 import type { SdgValue } from "@ks/util";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,17 @@ const PLAKETTE_DETAIL: Record<BelegPlakette, string> = {
   pruefung: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   abgelehnt: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
 };
+
+// LV-Bewertungen mit eigener Beschriftung je Sprache: genau die Werte der
+// Belegkarten-Zuordnung in der Registry. Ein unbekannter Wert erscheint roh
+// und wird gemeldet — sichtbar statt still ersetzt.
+const BEWERTUNGEN = new Set(Object.keys(VIEW_TYPE_REGISTRY.climateAction.belegKarte?.status?.plaketten ?? {}));
+
+function bewertungLabel(wert: string, t: (key: string) => string): string {
+  if (BEWERTUNGEN.has(wert)) return t(`climateDetail.bewertung.${wert}`);
+  console.warn(`[ClimateActionDetail] Unbekannte lv_bewertung "${wert}" — ohne Übersetzung angezeigt`);
+  return wert.replace(/_/g, ' ');
+}
 
 /**
  * Datenstruktur für ClimateAction Detail-Ansicht.
@@ -169,7 +180,7 @@ export function ClimateActionDetail({
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Zurück</span>
+          <span className="text-sm">{t('climateDetail.back')}</span>
         </Link>
       )}
 
@@ -237,21 +248,21 @@ export function ClimateActionDetail({
       {/* Bericht als Fließtext (kein Accordion) – gut lesbar unter dem Bild */}
       {data.einleitung && (
         <section className="mb-6">
-          <h2 className="text-base font-semibold text-foreground mb-2">Worum geht es?</h2>
+          <h2 className="text-base font-semibold text-foreground mb-2">{t('climateDetail.worumGehtEs')}</h2>
           <AiText content={data.einleitung} />
         </section>
       )}
 
       {data.was_vorgeschlagen && (
         <section className="mb-6">
-          <h2 className="text-base font-semibold text-foreground mb-2">Was wird vorgeschlagen?</h2>
+          <h2 className="text-base font-semibold text-foreground mb-2">{t('climateDetail.wasVorgeschlagen')}</h2>
 
           {/* Konsent der Stakeholder – eingebettet, auf-/zuklappbar (default offen), buendig */}
           <div className="mb-3">
             <Accordion type="multiple">
               <AccordionItem value="konsent" defaultOpen className="border-b-0">
                 <AccordionTrigger className="py-3 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                  <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5 shrink-0" />Konsent der Stakeholder</span>
+                  <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5 shrink-0" />{t('climateDetail.konsentStakeholder')}</span>
                 </AccordionTrigger>
                 <AccordionContent className="px-3 pb-4 pt-1">
                   <StakeholderPositions embedded />
@@ -262,14 +273,14 @@ export function ClimateActionDetail({
 
           {/* Konsens (KI-formuliert → blau) */}
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-            Konsens
+            {t('climateDetail.konsens')}
           </div>
           <AiText content={data.was_vorgeschlagen} />
           {data.vorschlag_text && (
             <div className="mt-2">
               <OriginalQuote
                 content={data.vorschlag_text}
-                label={`Originaltext${data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}`}
+                label={`${t('climateDetail.originaltext')}${data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}`}
               />
             </div>
           )}
@@ -278,19 +289,19 @@ export function ClimateActionDetail({
             <div className="space-y-2 text-xs mt-3">
               {data.arbeitsgruppe && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground flex-shrink-0">Arbeitsgruppe:</span>
+                  <span className="text-muted-foreground flex-shrink-0">{t('climateDetail.arbeitsgruppe')}</span>
                   <span className="text-right">{data.arbeitsgruppe}</span>
                 </div>
               )}
               {data.vorschlag_quelle && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground flex-shrink-0">Quelle:</span>
+                  <span className="text-muted-foreground flex-shrink-0">{t('climateDetail.quelle')}</span>
                   <span className="text-right">{data.vorschlag_quelle}</span>
                 </div>
               )}
               {data.massnahme_nr && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground flex-shrink-0">Maßnahme Nr.:</span>
+                  <span className="text-muted-foreground flex-shrink-0">{t('climateDetail.massnahmeNr')}</span>
                   <span className="text-right">{data.massnahme_nr}</span>
                 </div>
               )}
@@ -301,17 +312,17 @@ export function ClimateActionDetail({
 
       {/* Position der Landesverwaltung – Resümee/Bericht (Fließtext) */}
       <section className="mb-6">
-        <h2 className="text-base font-semibold text-foreground mb-2">Position der Landesverwaltung</h2>
+        <h2 className="text-base font-semibold text-foreground mb-2">{t('climateDetail.positionLv')}</h2>
         <div className="space-y-2 text-xs mb-2">
           {data.lv_bewertung && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Einschätzung:</span>
-              <span>{data.lv_bewertung.replace(/_/g, ' ')}</span>
+              <span className="text-muted-foreground">{t('climateDetail.einschaetzung')}</span>
+              <span>{bewertungLabel(data.lv_bewertung, t)}</span>
             </div>
           )}
           {data.lv_zustaendigkeit && (
             <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground flex-shrink-0">Zuständigkeit:</span>
+              <span className="text-muted-foreground flex-shrink-0">{t('climateDetail.zustaendigkeit')}</span>
               <span className="text-right">
                 {Array.isArray(data.lv_zustaendigkeit)
                   ? data.lv_zustaendigkeit.join('; ')
@@ -323,7 +334,7 @@ export function ClimateActionDetail({
         {data.position_lv && <AiText content={data.position_lv} />}
         {data.lv_rueckmeldung && (
           <div className="mt-2">
-            <OriginalQuote content={data.lv_rueckmeldung} label="Originale Rückmeldung" />
+            <OriginalQuote content={data.lv_rueckmeldung} label={t('climateDetail.originaleRueckmeldung')} />
           </div>
         )}
       </section>
@@ -335,7 +346,7 @@ export function ClimateActionDetail({
           {actors.length > 0 && (
             <AccordionItem value="akteure" className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 shrink-0" />Beteiligte Akteure</span>
+                <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 shrink-0" />{t('climateDetail.akteure')}</span>
               </AccordionTrigger>
               <AccordionContent className="px-3 pb-4 pt-1">
                 <div className="flex flex-wrap gap-1.5">
@@ -354,17 +365,14 @@ export function ClimateActionDetail({
             <AccordionItem value="ki" defaultOpen className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
                 <span className="flex items-center gap-2">
-                  <Brain className="w-3.5 h-3.5 shrink-0" />KI-Einschätzung (Südtirol){' '}
-                  <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
+                  <Brain className="w-3.5 h-3.5 shrink-0" />{t('climateDetail.kiTitel')}{' '}
+                  <span className="normal-case font-normal text-muted-foreground">{t('climateDetail.kiUntertitel')}</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent className="px-3 pb-4 pt-1">
                 {/* Kurze, neutrale Einleitung (von uns, nicht KI → grau) */}
                 <p className="text-xs text-muted-foreground mb-3">
-                  Solange keine wissenschaftliche Einschätzung vorliegt, ordnet eine KI die Maßnahme grob ein:
-                  nach vier Wirkungsperspektiven (Wirkung, Lebensqualität &amp; Soziales, Struktur &amp;
-                  Rahmenbedingungen, Unterstützung &amp; Bewusstsein) sowie nach Durchsetzbarkeit und Kosten.
-                  Die Werte sind Schätzungen zur Orientierung, keine gesicherten Fakten.
+                  {t('climateDetail.kiEinleitung')}
                 </p>
                 {/* KI-Einschätzung ist KI-generiert → Werte UND Begründungen blau (Provenienz). */}
                 <div className="[&_.font-mono]:text-blue-700 [&_p]:text-blue-700 dark:[&_.font-mono]:text-blue-300 dark:[&_p]:text-blue-300">
@@ -378,7 +386,7 @@ export function ClimateActionDetail({
           {hasSdg && (
             <AccordionItem value="sdg" defaultOpen className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                <span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 shrink-0" />SDG-Einschätzung</span>
+                <span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 shrink-0" />{t('climateDetail.sdgTitel')}</span>
               </AccordionTrigger>
               <AccordionContent className="px-3 pb-4 pt-1">
                 <SdgProfile values={data.sdgValues ?? []} begruendung={data.sdgBegruendung} embedded />
