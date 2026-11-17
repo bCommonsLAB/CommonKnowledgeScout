@@ -181,6 +181,8 @@ export interface SourceAppendixSection {
 export interface SourceAppendix {
   markdown: string
   sections: SourceAppendixSection[]
+  /** Markdown-Quellen der Sammeldatei ohne Text unter dem Frontmatter — genannt, nicht angehaengt. */
+  ausgelassen?: string[]
 }
 
 export interface IngestArgs {
