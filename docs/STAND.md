@@ -364,7 +364,11 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   [`story-dreiteilung-fragenchronik`](plans/story-dreiteilung-fragenchronik.plan.md));
   der Galerie-Loader könnte fehlende PDF-Transkripte selbst anstoßen
   (Job-Kette); Manifest der fremden App zur Laufzeit aus der öffentlichen
-  Dokument-API (eigenes Vorhaben mit Brief, wenn der Partner es aufruft)
+  Dokument-API (vom Owner am 17.11. aufgerufen, erster Gang nur Karten und
+  Methoden; gebaut: Medienverzeichnis `media_names`/`media_urls` in der
+  Lesersicht, damit Bildfelder einer Vorlage eine öffentliche Adresse
+  bekommen; geplant: betroffene Dokumente neu indexieren, übrige Inhaltsarten
+  in einem zweiten Gang)
 - **Sitzungen: Sichten statt Kopien, Befunde statt Hoffen** (Plan
   [`sitzungen-sichten-und-befunde`](plans/geplant/sitzungen-sichten-und-befunde.plan.md),
   08.11.): Sitzungsbelege (`type: chatverlauf`, Vorlage `chatverlauf-de`)

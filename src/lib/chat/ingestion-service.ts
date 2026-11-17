@@ -17,6 +17,7 @@ import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatt
 import { ladeGeordneteQuellen, type QuellenTwin } from '@/lib/ingestion/quellen-fragmente'
 import { waehleCover } from '@/lib/ingestion/cover-aus-quellen'
 import { coverKandidatAusMedienliste } from '@/lib/ingestion/cover-aus-medienliste'
+import { medienVerzeichnisAusFragmenten } from '@/lib/ingestion/medien-verzeichnis'
 import { anhaengeAusQuellen, ersetzePdfLinks } from '@/lib/ingestion/anhaenge-aus-quellen'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
@@ -807,6 +808,19 @@ export class IngestionService {
                   )
                 }
               }
+            }
+
+            // Medienverzeichnis: Bild-Dateinamen, die Vorlagenfelder ausserhalb der festen
+            // Liste nennen (z. B. Vorder-/Rueckseite), bekommen ihre Blob-Adresse in
+            // `media_names`/`media_urls`. Die Felder selbst bleiben Dateinamen.
+            const eigeneFragmente = (await getShadowTwinBinaryFragments(libraryId, fileId)) ?? []
+            const medienVerzeichnis = medienVerzeichnisAusFragmenten(docMetaJsonObj, eigeneFragmente)
+            if (medienVerzeichnis.names.length > 0) {
+              docMetaJsonObj.media_names = medienVerzeichnis.names
+              docMetaJsonObj.media_urls = medienVerzeichnis.urls
+              FileLogger.info('ingestion', '[STUFE-1] Medienverzeichnis aus eigenen Fragmenten', {
+                fileId, names: medienVerzeichnis.names,
+              })
             }
 
             FileLogger.info('ingestion', 'Medien-Felder (inkl. Twin-Pfade) aus binaryFragments aufgelöst', { fileId })
