@@ -499,6 +499,18 @@
       "soziales": "Lebensqualität & Soziales",
       "struktur": "Struktur & Rahmenbedingungen",
       "bewusstsein": "Unterstützung & Bewusstsein"
+    },
+    "prioritaet": "Prioritäts-Indikator",
+    "erklaerung": "Erklärung",
+    "info": {
+      "wirkung": "Perspektive Wirkung / Emissionsminderung: Wie stark trägt die Maßnahme zur Reduktion von Treibhausgasen bei? Skala 0–100 % (qualitativ, nicht in Tonnen). Die absolute CO₂-Einsparung steht separat weiter unten.",
+      "soziales": "Perspektive Lebensqualität & Soziales: Wie stark verbessert die Maßnahme Lebensqualität und soziale Gerechtigkeit? Skala 0–100 %.",
+      "struktur": "Perspektive Struktur & Rahmenbedingungen: Wie stark stärkt die Maßnahme Strukturen, Institutionen und Rahmenbedingungen? Skala 0–100 %.",
+      "bewusstsein": "Perspektive Unterstützung & Bewusstsein: Wie stark fördert die Maßnahme Bewusstsein, Wissen und öffentliche Unterstützung? Skala 0–100 %.",
+      "durchsetzbarkeit": "Durchsetzbarkeit: Wie leicht ist die Maßnahme politisch und gesellschaftlich umsetzbar? Skala 0–100 % (0 = kaum durchsetzbar, 100 = breiter Konsens).",
+      "co2": "Geschätztes CO₂-Einsparpotenzial in Kilotonnen pro Jahr für Südtirol (absolute Größenordnung).",
+      "kosten": "Geschätzte Kosten in Euro (Größenordnung). 'Kosten unbekannt', wenn keine belastbare Schätzung möglich ist.",
+      "indikator": "Prioritäts-Indikator zum Sortieren der Maßnahmen: CO₂-Einsparpotenzial (kt/Jahr) × Durchsetzbarkeit ÷ Kosten (je Mio €). Höher = mehr Wirkung pro investiertem Euro. Nur berechenbar, wenn CO₂, Durchsetzbarkeit und Kosten vorliegen."
     }
   },
   "event": {
@@ -1101,5 +1113,45 @@
     "laden": "Verbrauch wird geladen …",
     "fehler": "Der Verbrauch konnte nicht geladen werden.",
     "ansehen": "Verbrauch ansehen"
+  },
+  "climateDetail": {
+    "back": "Zurück",
+    "worumGehtEs": "Worum geht es?",
+    "wasVorgeschlagen": "Was wird vorgeschlagen?",
+    "konsentStakeholder": "Konsent der Stakeholder",
+    "konsens": "Konsens",
+    "originaltext": "Originaltext",
+    "originaltextQuelle": "Originaltext (Quelle)",
+    "arbeitsgruppe": "Arbeitsgruppe:",
+    "quelle": "Quelle:",
+    "massnahmeNr": "Maßnahme Nr.:",
+    "positionLv": "Position der Landesverwaltung",
+    "einschaetzung": "Einschätzung:",
+    "zustaendigkeit": "Zuständigkeit:",
+    "originaleRueckmeldung": "Originale Rückmeldung",
+    "akteure": "Beteiligte Akteure",
+    "kiTitel": "KI-Einschätzung (Südtirol)",
+    "kiUntertitel": "(statt wissenschaftlicher Einschätzung)",
+    "kiEinleitung": "Solange keine wissenschaftliche Einschätzung vorliegt, ordnet eine KI die Maßnahme grob ein: nach vier Wirkungsperspektiven (Wirkung, Lebensqualität & Soziales, Struktur & Rahmenbedingungen, Unterstützung & Bewusstsein) sowie nach Durchsetzbarkeit und Kosten. Die Werte sind Schätzungen zur Orientierung, keine gesicherten Fakten.",
+    "sdgTitel": "SDG-Einschätzung",
+    "inVorbereitung": "In Vorbereitung",
+    "schematisch": "Schematisch",
+    "bewertung": {
+      "in_umsetzung": "In Umsetzung",
+      "im_klimaplan": "Im Klimaplan",
+      "in_fachplaenen": "In Fachplänen",
+      "neu_umsetzbar": "Neu umsetzbar",
+      "vertieft_pruefen": "Vertieft prüfen",
+      "unklar": "Unklar",
+      "nicht_umsetzbar": "Nicht umsetzbar"
+    },
+    "stakeholder": {
+      "kultur": "Kultur",
+      "wirtschaft": "Wirtschaft",
+      "landwirtschaft": "Landwirtschaft",
+      "tourismus": "Tourismus",
+      "umweltverbaende": "Umweltverbände",
+      "sozial": "Sozialbereich"
+    }
   }
 }

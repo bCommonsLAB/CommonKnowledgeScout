@@ -472,6 +472,18 @@
       "soziales": "Quality of life & social",
       "struktur": "Structure & framework",
       "bewusstsein": "Support & awareness"
+    },
+    "prioritaet": "Priority indicator",
+    "erklaerung": "Explanation",
+    "info": {
+      "wirkung": "Impact / emission reduction perspective: How much does the measure contribute to reducing greenhouse gases? Scale 0–100 % (qualitative, not in tonnes). The absolute CO₂ reduction is shown separately below.",
+      "soziales": "Quality of life & social perspective: How much does the measure improve quality of life and social justice? Scale 0–100 %.",
+      "struktur": "Structure & framework perspective: How much does the measure strengthen structures, institutions and framework conditions? Scale 0–100 %.",
+      "bewusstsein": "Support & awareness perspective: How much does the measure promote awareness, knowledge and public support? Scale 0–100 %.",
+      "durchsetzbarkeit": "Feasibility: How easy is the measure to implement politically and socially? Scale 0–100 % (0 = hardly feasible, 100 = broad consensus).",
+      "co2": "Estimated CO₂ reduction potential in kilotonnes per year for South Tyrol (absolute order of magnitude).",
+      "kosten": "Estimated cost in euros (order of magnitude). 'Cost unknown' if no reliable estimate is possible.",
+      "indikator": "Priority indicator for sorting the measures: CO₂ reduction potential (kt/year) × feasibility ÷ cost (per € million). Higher = more impact per euro invested. Can only be calculated if CO₂, feasibility and cost are available."
     }
   },
   "event": {
@@ -1054,5 +1066,45 @@
     "laden": "Loading consumption …",
     "fehler": "Consumption could not be loaded.",
     "ansehen": "View consumption"
+  },
+  "climateDetail": {
+    "back": "Back",
+    "worumGehtEs": "What is it about?",
+    "wasVorgeschlagen": "What is being proposed?",
+    "konsentStakeholder": "Stakeholder consent",
+    "konsens": "Consensus",
+    "originaltext": "Original text",
+    "originaltextQuelle": "Original text (source)",
+    "arbeitsgruppe": "Working group:",
+    "quelle": "Source:",
+    "massnahmeNr": "Measure no.:",
+    "positionLv": "Position of the provincial administration",
+    "einschaetzung": "Assessment:",
+    "zustaendigkeit": "Responsibility:",
+    "originaleRueckmeldung": "Original response",
+    "akteure": "Actors involved",
+    "kiTitel": "AI assessment (South Tyrol)",
+    "kiUntertitel": "(instead of a scientific assessment)",
+    "kiEinleitung": "Until a scientific assessment is available, an AI gives a rough classification of the measure: along four impact perspectives (Impact, Quality of life & social, Structure & framework, Support & awareness) and by feasibility and cost. The values are estimates for orientation, not established facts.",
+    "sdgTitel": "SDG assessment",
+    "inVorbereitung": "In preparation",
+    "schematisch": "Schematic",
+    "bewertung": {
+      "in_umsetzung": "Being implemented",
+      "im_klimaplan": "In the climate plan",
+      "in_fachplaenen": "In sector plans",
+      "neu_umsetzbar": "Newly feasible",
+      "vertieft_pruefen": "Needs closer review",
+      "unklar": "Unclear",
+      "nicht_umsetzbar": "Not feasible"
+    },
+    "stakeholder": {
+      "kultur": "Culture",
+      "wirtschaft": "Business",
+      "landwirtschaft": "Agriculture",
+      "tourismus": "Tourism",
+      "umweltverbaende": "Environmental groups",
+      "sozial": "Social sector"
+    }
   }
 }

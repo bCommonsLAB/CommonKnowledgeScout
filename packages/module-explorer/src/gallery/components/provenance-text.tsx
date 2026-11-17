@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { Quote } from "lucide-react";
 import { cn } from '@ks/util';
 import { Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
+import { useTranslation } from '@ks/i18n/react';
 
 /**
  * src/components/library/gallery/provenance-text.tsx
@@ -56,11 +57,12 @@ export function AiText({
 /** Transkribierter Originaltext (neutral) hinter einem Symbol als Popover. */
 export function OriginalQuote({
   content,
-  label = "Originaltext",
+  label,
 }: {
   content: string;
   label?: string;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -69,7 +71,7 @@ export function OriginalQuote({
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
         >
           <Quote className="h-3 w-3 shrink-0" />
-          {label}
+          {label ?? t("climateDetail.originaltext")}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -77,7 +79,7 @@ export function OriginalQuote({
         className="z-[70] max-h-96 w-[32rem] max-w-[92vw] overflow-auto"
       >
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-          Originaltext (Quelle)
+          {t("climateDetail.originaltextQuelle")}
         </div>
         <div className="prose prose-sm dark:prose-invert max-w-none break-words text-muted-foreground prose-a:text-foreground">
           <ReactMarkdown remarkPlugins={REMARK} components={LINK_COMPONENT}>
