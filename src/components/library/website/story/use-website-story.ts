@@ -10,18 +10,15 @@
  * hier gefragt wird, steht dort in der Chronik.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API, useSessionHeaders } from '@ks/api-client'
 import type { DocCardMeta, DocReference, GalleryFilters } from '@ks/contracts'
-import { useAtomValue } from 'jotai'
-import { paare, storyPerspektiveGespeichertAtom, useNeuStellen, useStoryKonversation, type Perspektive } from '@ks/module-story/react'
+import { paare, useNeuStellen, useStoryKonversation } from '@ks/module-story/react'
 import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
-import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
-import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
-import type { TargetLanguage } from '@/lib/chat/constants'
 import { storyFilterParams } from '@/lib/website/story-filter'
+import { useWebsitePerspektive } from './use-website-perspektive'
 
 /** Belege einer Antwort fuer das Blatt rechts. */
 export interface BelegeBlatt {
@@ -42,36 +39,10 @@ function alsHeaders(h: SessionHeaders): Record<string, string> | undefined {
 export function useWebsiteStory(libraryId: string, filter?: GalleryFilters, regelsatz?: string) {
   const { isSignedIn } = useUser()
   const angemeldet = isSignedIn === true
-  const story = useStoryContext()
   const { cfg, loading, error } = useLibraryConfig(libraryId)
-  const [genderInclusive] = useState(() => getInitialGenderInclusive())
-  // Antwortsprache (Owner 09.11.2026): Die Startseite antwortet in der Sprache der
-  // Oberflaeche ('global' loest der Server aus der Locale auf), nicht in einer frueher
-  // im Browser gespeicherten Wahl. Erst wenn die Person hier im Dialog „Antworten
-  // anpassen" eine Sprache waehlt, gilt diese fuer den Besuch.
-  const startSprache = useRef(story.targetLanguage)
-  const [spracheGewaehlt, setSpracheGewaehlt] = useState<TargetLanguage | null>(null)
-  useEffect(() => {
-    if (story.targetLanguage !== startSprache.current) setSpracheGewaehlt(story.targetLanguage)
-  }, [story.targetLanguage])
-  // Befund 10.11.2026: Der Vergleich mit der Startsprache allein merkt nicht, wenn die
-  // Person im Dialog ZURUECK auf die Startsprache stellt (en → da → en bei Start „en"
-  // blieb „da"). Nach einem Speichern im Dialog gilt deshalb immer dessen Sprache.
-  const gespeichert = useAtomValue(storyPerspektiveGespeichertAtom)
-  const targetLanguage: TargetLanguage = gespeichert > 0 ? story.targetLanguage : spracheGewaehlt ?? 'global'
+  // Antwortsprache und uebrige Perspektive: geteilt mit der Themen-Sektion (`use-website-perspektive.ts`).
+  const perspektive = useWebsitePerspektive()
   const sessionHeaders = useSessionHeaders(angemeldet)
-
-  const perspektive = useMemo<Perspektive>(
-    () => ({
-      targetLanguage,
-      character: story.character,
-      accessPerspective: story.accessPerspective,
-      socialContext: story.socialContext,
-      genderInclusive,
-      llmModel: story.llmModel,
-    }),
-    [targetLanguage, story.character, story.accessPerspective, story.socialContext, story.llmModel, genderInclusive],
-  )
 
   const k = useStoryKonversation({
     libraryId,
@@ -110,7 +81,7 @@ export function useWebsiteStory(libraryId: string, filter?: GalleryFilters, rege
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraryId, sessionHeaders, JSON.stringify(filter ?? {})])
 
-  return { k, paare: alle, sichtbar, perspektive, cfg, loading, error, llmModel: story.llmModel, katalogAnzahl, sessionHeaders }
+  return { k, paare: alle, sichtbar, perspektive, cfg, loading, error, llmModel: perspektive.llmModel, katalogAnzahl, sessionHeaders }
 }
 
 /** Was die Sektion aus dem Hook bekommt — fuer den ausgelagerten Konversationsblock. */

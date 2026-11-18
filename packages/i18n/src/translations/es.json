@@ -1026,7 +1026,12 @@
       "bezeichnungZitiert": "{count} {label} citados",
       "bezeichnungAnzeigen": "Mostrar {label}",
       "bezeichnungSpalte": "{label} mencionados",
-      "bezeichnungWeitere": "más {label} con pasajes"
+      "bezeichnungWeitere": "más {label} con pasajes",
+      "themenLaden": "Reuniendo los contenidos …",
+      "themenFehlen": "Esta biblioteca aún no tiene un resumen de temas.",
+      "themenKiHinweis": "Resumen de los contenidos generado por IA · haz clic en una pregunta para plantearla arriba",
+      "themenVorschauHinweis": "El resumen de temas solo aparece en la página en vivo de la biblioteca.",
+      "themenFragen": "Preguntas sobre {title}"
     }
   },
   "verbrauch": {

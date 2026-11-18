@@ -27,6 +27,7 @@ const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'contact-form',
   'banner',
   'story',
+  'topics',
 ]
 const SECTION_BGS: readonly SectionBg[] = SITE_SURFACES
 

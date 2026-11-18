@@ -46,6 +46,11 @@ const WebsiteStorySektion = dynamic(
   () => import("@/components/library/website/story/website-story-sektion").then((m) => ({ default: m.WebsiteStorySektion })),
   { ssr: false, loading: () => <div className="px-6 py-14 text-sm text-muted-foreground">Lade den Scout …</div> },
 )
+// 18.11.2026: Themenuebersicht (`layout=topics`) — dieselben Gruende wie oben.
+const WebsiteThemenSektion = dynamic(
+  () => import("@/components/library/website/story/website-themen-sektion").then((m) => ({ default: m.WebsiteThemenSektion })),
+  { ssr: false, loading: () => <div className="px-6 py-14 text-sm text-muted-foreground">Lade die Inhalte …</div> },
+)
 
 interface WebsiteLandingLiveProps {
   libraryId: string
@@ -179,7 +184,9 @@ export function WebsiteLandingLive({
   // N1: Story-Sektion mit dem Chat der Library; Belege und Katalog fuehren in
   // die Galerie wie die Banner-Karten (Site-Modus Rueckruf, Root-Modus Adresse).
   const storySlot = React.useCallback(
-    (section: WebsiteSection) => (
+    (section: WebsiteSection) => section.layout === "topics" ? (
+      <WebsiteThemenSektion libraryId={libraryId} section={section} headingCase={detail?.headingCase} theme={theme} />
+    ) : (
       <WebsiteStorySektion
         libraryId={libraryId}
         section={section}

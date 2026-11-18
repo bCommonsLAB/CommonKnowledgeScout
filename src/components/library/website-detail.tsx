@@ -13,6 +13,7 @@ import { HeroCover } from "@/components/library/website/hero-cover"
 import { HeroCampaign } from "@/components/library/website/hero-campaign"
 import { HeroBand } from "@/components/library/website/hero-band"
 import { WebsiteStorySektionRahmen } from "@/components/library/website/story/website-story-sektion-rahmen"
+import { WebsiteThemenRahmen } from "@/components/library/website/story/website-themen-rahmen"
 import type { WebsiteSection } from "@/lib/website/types"
 import type { KartenNavigation } from "@/lib/website/kartenziel"
 import { OLDIES_THEME, siteThemeCssVars, type SiteThemeResolved } from "@/lib/website/site-theme"
@@ -81,8 +82,9 @@ interface WebsiteDetailProps {
   bannerSlot?: React.ReactNode
   /**
    * Welle N1: der Chat der Library, der an der Stelle einer `story`-Sektion
-   * montiert wird (Live-Seite). Fehlt er (Archiv-Vorschau), zeigt der Rahmen
-   * die Fragen als Liste und einen Hinweis.
+   * montiert wird (Live-Seite) — seit 18.11.2026 auch die Themenuebersicht an
+   * der Stelle einer `topics`-Sektion. Fehlt er (Archiv-Vorschau), zeigt der
+   * jeweilige Rahmen die Fragen als Liste bzw. einen Hinweis.
    */
   storySlot?: (section: WebsiteSection) => React.ReactNode
   /** Welle N2: wohin Kachel-Links (`<!-- cards -->`) fuehren; fehlt er (Archiv-Vorschau), sind sie reine Links. */
@@ -199,13 +201,13 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             />
           )
         }
-        if (s.layout === "story") {
+        if (s.layout === "story" || s.layout === "topics") {
           // N1: der Chat an dieser Stelle (Live-Seite) — oder der Rahmen mit den Fragen als Liste (Vorschau).
-          return (
-            <React.Fragment key={i}>
-              {storySlot ? storySlot(s) : <WebsiteStorySektionRahmen section={s} headingCase={headingCase} theme={theme} />}
-            </React.Fragment>
-          )
+          // 18.11.2026: ebenso die Themenuebersicht (`topics`), in der Vorschau nur der Rahmen mit Hinweis.
+          const vorschau = s.layout === "story"
+            ? <WebsiteStorySektionRahmen section={s} headingCase={headingCase} theme={theme} />
+            : <WebsiteThemenRahmen section={s} headingCase={headingCase} theme={theme} />
+          return <React.Fragment key={i}>{storySlot ? storySlot(s) : vorschau}</React.Fragment>
         }
         if (s.layout === "banner") {
           // S1: Einleitung der Sektion, darunter das Raster an dieser Stelle.

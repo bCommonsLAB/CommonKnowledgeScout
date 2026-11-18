@@ -15,9 +15,9 @@
  * `rules=<name>` waehlt den Regelsatz der Library fuer diese Sektion.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { useSetAtom } from 'jotai'
+import { useAtom, useSetAtom } from 'jotai'
 import { useUser } from '@clerk/nextjs'
 import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
@@ -31,6 +31,8 @@ import { storyBloecke } from '@/lib/website/story-section'
 import { eintragsBezeichnung, type BezeichnungQuelle } from '@/lib/website/eintrags-bezeichnung'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
+import { websiteStoryFrageAtom } from '@/atoms/website-story-frage-atom'
+import { auftragSchritt } from '@/lib/website/story-frage-auftrag'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { WebsiteStoryBelege } from './website-story-belege'
 import type { WebsiteStoryNavigation } from './use-website-story-navigation'
@@ -83,6 +85,24 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     },
     [s.k],
   )
+
+  // 18.11.2026: Frage aus der Themen-Sektion (`layout=topics`) — einmal annehmen, hinaufrollen, stellen.
+  const [auftrag, setAuftrag] = useAtom(websiteStoryFrageAtom)
+  const anker = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!auftrag) return
+    const schritt = auftragSchritt({ laedt: s.loading, fehler: Boolean(s.error), laeuft: s.k.laeuft })
+    if (schritt === 'warten') return
+    setAuftrag(null)
+    if (schritt === 'verwerfen') {
+      console.error('[WebsiteStorySektion] Frage aus der Themenuebersicht verworfen — die Sektion zeigt einen Fehler', auftrag.text)
+      return
+    }
+    anker.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Laeuft noch eine Antwort, steht die Frage im Feld und geht nicht verloren.
+    if (schritt === 'eintragen') setText(auftrag.text)
+    else senden(auftrag.text)
+  }, [auftrag, s.loading, s.error, s.k.laeuft, setAuftrag, senden])
 
   const belegeOeffnen = useCallback(
     (antwort: Nachricht) => {
@@ -143,9 +163,12 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
 
   return (
     <>
-      <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf}>
-        {inhalt}
-      </WebsiteStorySektionRahmen>
+      {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
+      <div ref={anker} className="scroll-mt-4">
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf}>
+          {inhalt}
+        </WebsiteStorySektionRahmen>
+      </div>
       {perspektiveOffen && <PerspektiveDialogApp open={perspektiveOffen} onOpenChange={setPerspektiveOffen} onProfil={profil.speichern} darstellung="blatt" />}
       {blatt && (
         <WebsiteStoryBelege
