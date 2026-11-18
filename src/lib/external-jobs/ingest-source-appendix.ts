@@ -17,8 +17,12 @@
  * - Einzelquelle (PDF, Audio …), deren Transformation ingestiert wird: ein
  *   Anhang mit dem eigenen Transkript. Ist der ingestierte Text schon das
  *   Transkript, gibt es keinen Anhang (keine Dopplung).
+ * - Quellen in Unterordnern: Der Twin fuehrt nur Dateinamen; der Pfad kommt aus
+ *   der Sammeldatei selbst (`ingest-appendix-quellen.ts`).
  * - Fehlt der Text einer gelisteten Quelle, ist das ein Fehler, kein Skip
- *   (`ingestion-contracts.md` §2).
+ *   (`ingestion-contracts.md` §2). Eine Markdown-Quelle, die nur aus Frontmatter
+ *   besteht (reine Metadaten, etwa ein Video-Steckbrief), hat keinen Text, der
+ *   fehlen koennte — sie wird wie ein Bild ausgelassen und in `ausgelassen` genannt.
  * - Deterministisch: gleiche Quellen, gleiche Reihenfolge, gleicher Text.
  */
 
@@ -26,7 +30,7 @@ import type { StorageProvider } from '@/lib/storage/types'
 import type { SourceAppendix, SourceAppendixSection } from '@/types/external-jobs'
 import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
 import { parseCompositeSourceEntry } from '@/lib/creation/composite-source-entry'
-import { findCompositeSourceItems } from '@/lib/creation/composite-source-path'
+import { findeAnhangQuellen } from '@/lib/external-jobs/ingest-appendix-quellen'
 import { getShadowTwinArtifact, toArtifactKey } from '@/lib/repositories/shadow-twin-repo'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { isImageMediaFromName } from '@/lib/media-types'
@@ -79,19 +83,32 @@ async function ladeTransformation(
   return record?.markdown ?? null
 }
 
+interface SammelQuellen {
+  texte: GeladenerText[]
+  /** Markdown-Quellen ohne Text unter dem Frontmatter — nichts anzuhaengen. */
+  ausgelassen: string[]
+}
+
 /** Quellen einer Sammeldatei laden — jede gelistete Quelle muss Text liefern. */
-async function ladeSammelQuellen(args: BuildSourceAppendixArgs, entries: string[]): Promise<GeladenerText[]> {
+async function ladeSammelQuellen(args: BuildSourceAppendixArgs, entries: string[]): Promise<SammelQuellen> {
   if (!args.parentId) {
     throw new Error(`Anhang fuer Ingestion: Elternordner von "${args.sourceName}" unbekannt — Quellen der Sammeldatei nicht aufloesbar`)
   }
-  const parsed = entries.map(parseCompositeSourceEntry)
-  const items = await findCompositeSourceItems(args.provider, args.parentId, parsed)
+  // Bilder tragen keinen Text. `_include_self` traegt die Sammeldatei selbst in
+  // `_source_files` ein — ihr Text steckt schon in der Transformation.
+  const parsed = entries
+    .map(parseCompositeSourceEntry)
+    .filter((e) => !isImageMediaFromName(e.name) && e.name !== args.sourceName)
+  const { items, mehrdeutig } = await findeAnhangQuellen(
+    { provider: args.provider, sourceId: args.sourceId, sourceName: args.sourceName, parentId: args.parentId },
+    parsed,
+  )
   const texte: GeladenerText[] = []
+  const ausgelassen: string[] = []
   for (const entry of parsed) {
-    if (isImageMediaFromName(entry.name)) continue
-    // `_include_self` traegt die Sammeldatei selbst in `_source_files` ein —
-    // ihr Text steckt schon in der Transformation, kein eigener Anhang.
-    if (entry.name === args.sourceName) continue
+    if (mehrdeutig.includes(entry.raw)) {
+      throw new Error(`Anhang fuer Ingestion: Quelle "${entry.raw}" steht in der Sammeldatei unter mehreren Pfaden — nicht eindeutig`)
+    }
     const item = items.get(entry.raw)
     if (!item) {
       throw new Error(`Anhang fuer Ingestion: Quelle "${entry.raw}" nicht im Storage gefunden`)
@@ -111,11 +128,17 @@ async function ladeSammelQuellen(args: BuildSourceAppendixArgs, entries: string[
     }
     const body = text ? stripAllFrontmatter(text).trim() : ''
     if (body.length === 0) {
+      // Die Markdown-Datei IST ihr Text; besteht sie nur aus Frontmatter, fehlt nichts.
+      // Fuer Transkript und Transformation bleibt leer ein Fehler (Extraktion fehlt).
+      if (art === 'Markdown') {
+        ausgelassen.push(entry.name)
+        continue
+      }
       throw new Error(`Anhang fuer Ingestion: ${art} von "${entry.raw}" fehlt oder ist leer`)
     }
     texte.push({ name: entry.name, art, text: body })
   }
-  return texte
+  return { texte, ausgelassen }
 }
 
 function zusammenbauen(texte: GeladenerText[]): SourceAppendix {
@@ -139,13 +162,16 @@ function zusammenbauen(texte: GeladenerText[]): SourceAppendix {
 export async function buildSourceAppendix(args: BuildSourceAppendixArgs): Promise<SourceAppendix | null> {
   const entries = parseCompositeSourceFilesFromMeta(args.meta)
   if (entries.length > 0) {
-    const texte = await ladeSammelQuellen(args, entries)
+    const { texte, ausgelassen } = await ladeSammelQuellen(args, entries)
+    if (ausgelassen.length > 0) {
+      FileLogger.info('ingest-anhang', 'Markdown-Quellen ohne Text ausgelassen', { sourceId: args.sourceId, ausgelassen })
+    }
     if (texte.length === 0) return null
     const appendix = zusammenbauen(texte)
     FileLogger.info('ingest-anhang', 'Anhang aus Sammeldatei-Quellen gebaut', {
       sourceId: args.sourceId, quellen: texte.map((t) => `${t.name} (${t.art})`), zeichen: appendix.markdown.length,
     })
-    return appendix
+    return ausgelassen.length > 0 ? { ...appendix, ausgelassen } : appendix
   }
 
   if (!args.ingestedIsTransformation) return null

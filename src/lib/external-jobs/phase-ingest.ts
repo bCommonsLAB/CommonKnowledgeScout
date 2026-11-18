@@ -395,7 +395,8 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     if (sourceAppendix) {
       bufferLog(jobId, {
         phase: 'ingest_anhang',
-        message: `Anhang gebaut: ${sourceAppendix.sections.length} Quelle(n), ${sourceAppendix.markdown.length} Zeichen — ${sourceAppendix.sections.map((s) => s.title).join(' | ')}`,
+        message: `Anhang gebaut: ${sourceAppendix.sections.length} Quelle(n), ${sourceAppendix.markdown.length} Zeichen — ${sourceAppendix.sections.map((s) => s.title).join(' | ')}`
+          + (sourceAppendix.ausgelassen?.length ? ` — ohne Text ausgelassen: ${sourceAppendix.ausgelassen.join(', ')}` : ''),
       })
     }
 
