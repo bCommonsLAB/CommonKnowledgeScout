@@ -14,8 +14,8 @@ todos:
     content: "WE2 Bausteine ins Paket: Kopf-Varianten, Sektionen, Kacheln, Banner, Fußzeile, `WebsiteDetail`, Daten-Hooks. Abrufe über `InstanceApi`, alle Wege über eine Navigation-Schnittstelle (Ziel → Adresse oder Klick), Schriften als Prop. Die App behält `WebsiteLandingLive` als Hülle; ihr Verhalten bleibt unverändert. GEBAUT 18.11.2026 (Branch `claude/website-modul-we2`, gestapelt auf WE1); Schnittstelle heißt `WebsiteNavigation`."
     status: completed
   - id: we3-fragen-sektion
-    content: "WE3 Fragen-Sektion ohne App-Bindung: Clerk, `useStoryContext`, `useProfilPerspektive`, `PerspektiveDialogApp`, `useLibraryConfig` raus; Viewer, Perspektive, Modell und Sitzungs-Kopfzeilen als Props, Fuß der Antwort und Detail-Renderer als Slots. App reicht ihre Teile, das Embed die anonymen aus `embed-story.tsx` und `embed-perspektive.tsx`."
-    status: pending
+    content: "WE3 Fragen-Sektion ohne App-Bindung: Clerk, `useStoryContext`, `useProfilPerspektive`, `PerspektiveDialogApp`, `useLibraryConfig` raus; Viewer, Perspektive, Modell und Sitzungs-Kopfzeilen als Props, Fuß der Antwort und Detail-Renderer als Slots. App reicht ihre Teile, das Embed die anonymen aus `embed-story.tsx` und `embed-perspektive.tsx`. GEBAUT 18.11.2026 (Branch `claude/website-modul-we3`); Schnittstelle `WebsiteStoryGastgeber`."
+    status: completed
   - id: we4-komponente
     content: "WE4 `KnowledgeScoutSite` in `@ks/embed`: Props `baseUrl`, `library`, `page`, `locale`, `hrefFor`, `menu`, `height`; Seiten-Kennung auflösen (unbekannt = Fehler im Rahmen); CORS für `popular-questions`; Schriften in `styles.css`; Blätter und Detailansicht über dem Fenster; README, Contract §7, Tarball."
     status: pending
@@ -221,6 +221,24 @@ Fuß der Antwort (Konfig-Anzeige, Verbrauch, Verarbeitung) und
 Detail-Renderer als Slots. Die App reicht ihre heutigen Teile, das Embed die
 aus `embed-story.tsx`/`embed-perspektive.tsx`. Der Verweis „N frühere Fragen“
 geht über die Navigation (Ziel `story` mit `frage`). Mittel.
+Gebaut 18.11.2026: Die Story-Bausteine liegen unter `@ks/module-website/react`;
+was nur der Gastgeber hat, kommt über `WebsiteStoryGastgeber` — Instanz,
+Anmeldung, Perspektive mit Modell, Eingabe (Platzhalter, Zeichengrenze,
+Laden/Fehler der Konfig) als Props; Dialog „Antworten anpassen“, Fuß der
+Antwort, Bild neben der Antwort und Detailansicht als Slots. Ohne Dialog-Slot
+gibt es den Knopf nicht, ohne Detail-Slot öffnet ein Dokument über die
+Navigation (Ziel `dokument`). Die Sitzungs-Kopfzeilen holt das Paket selbst
+(`useSessionHeaders` aus `@ks/api-client`, hängt nur an `angemeldet`). Belege,
+Katalog und „frühere Fragen“ gehen über `WebsiteNavigation`; ein Beleg-Weg
+ohne Rückruf steht laut in der Konsole (WE4 gibt dem Embed dafür einen
+Wechsel mit). Die App baut den Gastgeber in `story/website-story-app.tsx`; in
+der App bleiben `use-website-perspektive.ts` und `website-story-detail.tsx`.
+Live geprüft ohne lokalen Secretary: `/explore/aeced` (Eingabe mit Platzhalter
+der Library, Beispielfragen, Knopf öffnet den Dialog der App, Themen-Sektion
+meldet den fehlenden Secretary sichtbar), `/explore/sfscon-talks`
+(Katalog-Zahl mit Filter und Verlauf über die Instanz). Antwort, Fuß, Belege
+und „frühere Fragen“ sind über `story-sektion-gastgeber.test.tsx` belegt,
+nicht live (dafür braucht es den Secretary).
 
 **WE4 `KnowledgeScoutSite`** — Komponente in `@ks/embed` nach 3.1; eigener
 Jotai-Speicher, `PortalContainerProvider`, `TooltipProvider` wie der Explorer;
