@@ -11,6 +11,7 @@ import type { DivaTextureDetailData } from '@/components/library/diva-texture-de
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
 import type { WebsiteDetailData } from '@/components/library/website-detail'
 import { bannerLimitAus, bannerSortAus, type BannerSort } from '@/lib/website/banner'
+import { heroBildPositionGeprueft } from '@/lib/website/hero-bild-position'
 import { HEADING_CASES, type HeadingCase } from '@/lib/website/types'
 import { extractSdgValues, extractSdgBegruendung } from '@ks/util'
 
@@ -260,6 +261,8 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     heroSubtitle: toStr(docMetaJson.hero_subtitle),
     heroImageUrl: toStr(docMetaJson.hero_image) || toStr(docMetaJson.coverImageUrl),
     heroImageAlt: toStr(docMetaJson.hero_image_alt),
+    // 18.11.2026: Ausschnitt des Kopfbilds in der Hoehe; ungueltig wird laut gemeldet, Vorgabe Mitte.
+    heroImagePosition: heroBildPositionGeprueft(docMetaJson.hero_image_position),
     heroTitle: toStr(docMetaJson.hero_title),
     heroLayout: toStr(docMetaJson.hero_layout),
     videoUrl: toStr(docMetaJson.video_url),

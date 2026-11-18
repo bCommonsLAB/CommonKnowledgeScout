@@ -62,6 +62,15 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Ein `hero_image` ist optional und liegt als Hintergrund hinter dem Text
   (dunkler Schleier, weisser Text); die Hoehe des Bands bleibt gleich. Fuer Startseiten, die zuerst die Frage stellen und
   die Story-Sektion gleich darunter zeigen (Figma S1).
+- **Ausschnitt des Kopfbilds (Owner 18.11.2026, 2.76.0):** `hero_image_position`
+  richtet den Ausschnitt in der Hoehe aus, wo `band`, `campaign` und der
+  Standard-Kopf das Bild mit `object-cover` zuschneiden (je breiter der
+  Bildschirm, desto flacher): `top`, `center` (Vorgabe), `bottom` oder
+  `0%`–`100%` — fuer Bilder, deren Wichtiges nicht in der Mitte liegt.
+  `cover` zeigt das Bild ungeschnitten. Reine Funktion
+  `src/lib/website/hero-bild-position.ts` (wirft bei ungueltigem Wert);
+  der Mapper meldet ungueltig laut und zeigt die Mitte,
+  `dokument_publizieren` nennt es als Warnung.
 - **Kein Kopf (2.48.1):** `hero_layout: none` rendert keinen `<header>`;
   die erste Sektion beginnt oben. Ein unbekannter `hero_layout`-Wert faellt
   im Renderer weiterhin auf `overlay` zurueck, `pruefeMarkdownDokument`
