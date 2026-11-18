@@ -23,7 +23,7 @@ import { StoryRoot, type Nachricht, type Perspektive } from '@ks/module-story/re
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { getInitialGenderInclusive } from '@/components/library/chat/utils/chat-storage'
-import { resolveSiteTheme } from '@/lib/website/site-theme'
+import { resolveSiteTheme } from '@ks/module-website'
 import { AppLogo } from '@/components/shared/app-logo'
 import { StoryAntwortFuss, StoryUebersichtFuss } from './story-fuss'
 

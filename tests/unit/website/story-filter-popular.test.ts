@@ -4,10 +4,14 @@
  * zum Block ohne Liste; beides nur in layout=story, Unlesbares wirft.
  */
 import { describe, it, expect } from 'vitest'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
-import { parseSectionBlocks } from '@/lib/website/parse-section-blocks'
-import { storyBloecke } from '@/lib/website/story-section'
-import { storyFilterAusAttribut, storyFilterBeschriftung, storyFilterParams } from '@/lib/website/story-filter'
+import {
+  parseWebsiteSections,
+  parseSectionBlocks,
+  storyBloecke,
+  storyFilterAusAttribut,
+  storyFilterBeschriftung,
+  storyFilterParams,
+} from '@ks/module-website'
 
 describe('storyFilterAusAttribut', () => {
   it('liest ein Paar, mehrere Paare und mehrere Werte', () => {

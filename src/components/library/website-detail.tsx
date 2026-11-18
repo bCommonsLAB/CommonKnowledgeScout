@@ -2,9 +2,18 @@
 
 import * as React from "react"
 import { ArrowLeft } from "lucide-react"
-import { parseWebsiteSections } from "@/lib/website/parse-website-sections"
-import type { HeadingCase } from "@/lib/website/types"
-import type { BannerSort } from "@/lib/website/banner"
+import {
+  parseWebsiteSections,
+  type WebsiteDetailData,
+  type WebsiteSection,
+  type KartenNavigation,
+  OLDIES_THEME,
+  siteThemeCssVars,
+  type SiteThemeResolved,
+  BUTTON_PRIMARY,
+  KICKER_CLASS,
+  surfaceStyle,
+} from "@ks/module-website"
 import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
 import { SectionBlock, VideoEmbed } from "@/components/library/website/website-landing-blocks"
 import { SectionContent } from "@/components/library/website/section-content"
@@ -14,59 +23,11 @@ import { HeroCampaign } from "@/components/library/website/hero-campaign"
 import { HeroBand } from "@/components/library/website/hero-band"
 import { WebsiteStorySektionRahmen } from "@/components/library/website/story/website-story-sektion-rahmen"
 import { WebsiteThemenRahmen } from "@/components/library/website/story/website-themen-rahmen"
-import type { WebsiteSection } from "@/lib/website/types"
-import type { KartenNavigation } from "@/lib/website/kartenziel"
-import { OLDIES_THEME, siteThemeCssVars, type SiteThemeResolved } from "@/lib/website/site-theme"
-import { BUTTON_PRIMARY, KICKER_CLASS, surfaceStyle } from "@/lib/website/surface-style"
 import { cn } from "@/lib/utils"
 
-/** Detail-Daten fuer detailViewType `website` (Landingpage als Dokument). */
-export interface WebsiteDetailData {
-  title: string
-  heroSubtitle?: string
-  heroImageUrl?: string
-  heroImageAlt?: string
-  /** 18.11.2026: CSS-`object-position` des Kopfbilds aus `hero_image_position` (`hero-bild-position.ts`); fehlt = Mitte. */
-  heroImagePosition?: string
-  /**
-   * Hero-Variante (Frontmatter `hero_layout`):
-   * - `overlay` (Default): Bild full-bleed mit dunklem Overlay + zentriertem Text.
-   * - `cover`: helle Flaeche, grosser gestapelter Titel, kleineres ueberlagertes Bild.
-   * - `campaign` (S2): Bild oben mit Kennzeile, darunter Titel, Zweitzeile, zwei Buttons.
-   * - `band` (N4): schlankes farbiges Band mit Kennzeile, Titel, Unterzeile — ohne Bild.
-   */
-  heroLayout?: string // overlay (Vorgabe) | cover | campaign | band | none (kein Kopf, erste Sektion beginnt oben)
-  videoUrl?: string
-  ctaLabel?: string
-  ctaUrl?: string
-  /** Welle S2, Hero `campaign`: `hero_kicker`, `hero_title2`, `cta2_label`, `cta2_url`. */
-  heroKicker?: string
-  /** `hero_title`: Ueberschrift des Heros, wenn sie vom Dokument-Titel (Menuepunkt) abweichen soll. */
-  heroTitle?: string
-  heroTitle2?: string
-  cta2Label?: string
-  cta2Url?: string
-  /** Markdown-Body mit Sektions-Markern (siehe parse-website-sections). */
-  markdown?: string
-  /**
-   * C3: Empfaenger-Adresse des Kontakt-Formulars (Frontmatter `contact_email`).
-   * Nur fuer die Aktiv/Inaktiv-Anzeige — der Versand liest sie serverseitig.
-   */
-  contactEmail?: string
-  /** Welle S1: Banner-Steuerung (Frontmatter `banner_tag`, `banner_title`, `banner_limit`). */
-  bannerTag?: string
-  bannerTitle?: string
-  bannerLimit?: number
-  /** Welle F3 (ADR 0012): Reihung des Banners (Frontmatter `banner_sort`); fehlt = `rating`. */
-  bannerSort?: BannerSort
-  /** Welle N4: `banner_hidden: true` unterdrueckt das Galerie-Raster ganz (kein Banner in der Sektion, keines angehaengt). */
-  bannerHidden?: boolean
-  /** Welle S1: Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
-  headingCase?: HeadingCase
-  fileId?: string
-  fileName?: string
-  upsertedAt?: string
-}
+// Typ der Detail-Daten liegt seit WE1 im Paket (zusammen mit `mapToWebsiteDetail`);
+// hier weitergereicht fuer die bestehenden Importeure.
+export type { WebsiteDetailData }
 
 interface WebsiteDetailProps {
   data: WebsiteDetailData

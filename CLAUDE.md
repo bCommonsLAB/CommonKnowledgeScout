@@ -38,6 +38,7 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 | `src/components/library/**` | welle-3-schale-loader-contracts, welle-3-archiv-detail-contracts, welle-3-iii-galerie-chat-contracts, shadow-twin-architecture | `contracts-ui` | 0002 |
 | `src/components/settings/**` | welle-3-iv-settings-contracts | `contracts-ui` | — |
 | `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts` | website-landingpage | `contracts-ui` | 0008 |
+| `packages/module-website/**`, `src/lib/website/**`, `src/components/library/website/**` | website-landingpage; Paketgrenze in `tests/unit/packages/module-website/paket-schnitt.test.ts` (kein `next/*`, kein Clerk, kein `@/`, keine Adresszeile); Plan [`startseite-als-embed`](docs/plans/startseite-als-embed.plan.md) | `contracts-ui` | 0007, 0008 |
 | `src/types/library.ts`, `src/lib/services/library-service.ts`, `src/components/settings/library/**` | library-config-field | `checklisten-erweiterung` | — |
 | `**/detail-view*.tsx`, `**/registry.ts`, `**/doc-meta-mappers.ts`, `**/validation.ts` | detail-view-type-checklist | `checklisten-erweiterung` | 0010 |
 | `src/lib/events/**`, `src/app/api/event-job/**`, `src/components/event-monitor/**` | — | — | **0001 (Aktiv)** |

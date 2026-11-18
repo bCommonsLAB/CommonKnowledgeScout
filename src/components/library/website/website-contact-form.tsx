@@ -16,9 +16,13 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { renderMarkdownText } from "@/components/library/website/website-landing-blocks"
-import type { WebsiteSection } from "@/lib/website/types"
-import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
-import { BUTTON_STRONG, surfaceStyle } from "@/lib/website/surface-style"
+import {
+  type WebsiteSection,
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  BUTTON_STRONG,
+  surfaceStyle,
+} from "@ks/module-website"
 import { cn } from "@/lib/utils"
 
 const contactFormSchema = z.object({

@@ -9,11 +9,16 @@
 import * as React from 'react'
 import { md } from '@ks/viewers'
 import { cn } from '@/lib/utils'
-import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
-import type { SectionContentBlock } from '@/lib/website/parse-section-blocks'
-import { OLDIES_THEME, type SiteThemeResolved } from '@/lib/website/site-theme'
-import { HEADING_FONT, KICKER_CLASS } from '@/lib/website/surface-style'
-import type { KartenNavigation } from '@/lib/website/kartenziel'
+import {
+  type HeadingCase,
+  type WebsiteSection,
+  type SectionContentBlock,
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  HEADING_FONT,
+  KICKER_CLASS,
+  type KartenNavigation,
+} from '@ks/module-website'
 import { renderMarkdownText } from './markdown-text'
 import { Cards } from './section-cards'
 

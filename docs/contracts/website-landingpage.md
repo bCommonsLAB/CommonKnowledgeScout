@@ -1,11 +1,21 @@
 > Contract fuer die Website-Landingpage (detailViewType website) am Library-Slug + host-basierte Root-Landingpage (Variante B). Verhindert Wiedereinfuehrung des entfernten web/-Snapshot-Publishings.
 >
-> **Gilt für:** `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts`, `src/components/library/website/**/*.tsx`, `src/app/explore/[slug]/**/*.tsx`, `src/components/settings/public/public-form.tsx`, `src/app/api/chat/[libraryId]/docs/route.ts`
+> **Gilt für:** `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts`, `packages/module-website/**`, `src/lib/website/**`, `src/components/library/website/**/*.tsx`, `src/app/explore/[slug]/**/*.tsx`, `src/components/settings/public/public-form.tsx`, `src/app/api/chat/[libraryId]/docs/route.ts`
 
 # Website-Landingpage & Root-Domain (Variante B)
 
 Verbindliche Architektur nach dem Umbau vom 2026-07. Wer an Landingpage,
 Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
+
+**Wo die Regeln liegen (seit WE1, 18.11.2026):** Parser, Design-Profil,
+Kachelziele, Banner, Story-Karten, Seiten-Navigation und die Detail-Daten
+einer Seite samt Mapper (`mapToWebsiteDetail`) stehen im Paket
+`@ks/module-website` (`packages/module-website/src/`). Renderer, Bruecke und
+spaeter das Startseiten-Embed holen sie dort — eine Quelle. In der App bleiben
+nur die Schriften (`src/lib/website/site-fonts.ts`, `next/font`) und der
+Uebersetzungs-Waechter (`website-translation-guard.ts`). Paketgrenze: kein
+`next/*`, kein Clerk, kein `@/`, keine Adresszeile, kein nacktes `fetch`
+(`tests/unit/packages/module-website/paket-schnitt.test.ts`).
 
 ## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
 
@@ -22,7 +32,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Sektion steht es unter der Seite. Sortierung bleibt `sort=rating`
   (`prioritaets_index`), anonym lesbar. `heading_case: none` schaltet das
   `capitalize` der Vorlage ab. Ungueltige Werte werden geloggt, nie still
-  ersetzt (`src/lib/website/banner.ts`, `doc-meta-mappers.ts`).
+  ersetzt (`packages/module-website/src/banner.ts`, `website-detail-daten.ts`).
 - **Banner ganz aus (Welle N4):** `banner_hidden: true` am Seiten-Doc nimmt
   das Galerie-Raster komplett von der Seite — weder in einer `banner`-Sektion
   noch angehaengt. Fuer Startseiten, bei denen es nur um die Frage geht und der
@@ -43,7 +53,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   aus dem Code. Der Code kennt die Stellschrauben (CSS-Variablen, Flaechen
   `SITE_SURFACES`, registrierte Schriften in `src/lib/website/site-fonts.ts`);
   die Werte je Library setzen Formular und Bruecke ueber dieselbe Pruefung
-  (`src/lib/website/site-theme.ts`: Hex-Farben, registrierte Schriften,
+  (`packages/module-website/src/site-theme.ts`: Hex-Farben, registrierte Schriften,
   bekannte Flaechen — alles andere wird abgewiesen). **Ohne Profil rendert
   die Vorlage „Oldies for Future" unveraendert** (`OLDIES_THEME`); nur
   genannte Flaechen weichen ab. Bausteine lesen Farben NUR ueber
@@ -68,7 +78,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Bildschirm, desto flacher): `top`, `center` (Vorgabe), `bottom` oder
   `0%`–`100%` — fuer Bilder, deren Wichtiges nicht in der Mitte liegt.
   `cover` zeigt das Bild ungeschnitten. Reine Funktion
-  `src/lib/website/hero-bild-position.ts` (wirft bei ungueltigem Wert);
+  `packages/module-website/src/hero-bild-position.ts` (wirft bei ungueltigem Wert);
   der Mapper meldet ungueltig laut und zeigt die Mitte,
   `dokument_publizieren` nennt es als Warnung.
 - **Kein Kopf (2.48.1):** `hero_layout: none` rendert keinen `<header>`;
@@ -96,7 +106,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Kacheln, immer sichtbare Eingabe, darunter NUR das juengste
   Frage-Antwort-Paar der Sitzung (Owner 08.11.2026: wie eine Suche — eine
   neue Frage ersetzt die Anzeige; `sichtbaresPaar` in
-  `src/lib/website/story-sichtbares-paar.ts`); aeltere Fragen erreicht der
+  `packages/module-website/src/story-sichtbares-paar.ts`); aeltere Fragen erreicht der
   Verweis „N fruehere Fragen dieser Sitzung im Story-Modus" unter der
   Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
   aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die
@@ -123,7 +133,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
 
 - **Facettenfilter und populaere Fragen der Story-Sektion (09.11.2026, SFSCON):**
   Marker-Attribut `filter="year=2026"` (mehrere Paare mit `;`, Werte mit `,`;
-  `src/lib/website/story-filter.ts`) beschraenkt Chat, Belege und die Zahl des
+  `packages/module-website/src/story-filter.ts`) beschraenkt Chat, Belege und die Zahl des
   Katalogs auf die Facette — als `GalleryFilters` an `useStoryKonversation`,
   der Stream nimmt sie als Adress-Parameter wie die Galerie. Der Filter steht
   als Chip im Kopf der Story-Karte (`website-story-status.tsx`), nie unsichtbar.
@@ -139,7 +149,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
 - **Karten-Darstellungen, Regelsaetze und Bezeichnung der Story-Sektion
   (Owner 09.11.2026, Figma Klickmodell D0 S2-A/S2-B, Plan `website-story-sektion` N6):**
   Marker-Attribut `cards=column|inline|hidden` (nur `layout=story`, Vorgabe
-  `hidden` = heutige Antwort mit Belege-Blatt; `src/lib/website/types.ts`
+  `hidden` = heutige Antwort mit Belege-Blatt; `packages/module-website/src/types.ts`
   `StoryCards`). `column`: alle zitierten Dokumente als Galerie-Bildkarten
   (`DocumentCard`, kompakt, Zitatnummer als `Zitatmarke groesse="karte"` oben
   links; `website-story-vortragskarte.tsx`) in einer Spalte rechts neben der
@@ -147,7 +157,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   sticky, so lang wie noetig, unter `lg` ein Raster unter der Antwort
   (`website-story-vortragsspalte.tsx`). `inline`: die Antwort zweispaltig je
   Absatz — der rohe Markdown in Bloecke (Leerzeilen-Absaetze, Listenpunkte;
-  `src/lib/website/story-karten.ts`), je Block die erste noch nicht gezeigte
+  `packages/module-website/src/story-karten.ts`), je Block die erste noch nicht gezeigte
   Dokumentnummer, Zeile Karte links (1/3) + `AntwortText` des Blocks rechts,
   Bloecke ohne neue Nummer volle Breite, nicht zugeordnete Dokumente als
   Raster darunter, Telefon Karte ueber dem Absatz
@@ -173,7 +183,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Eintraege: `publicPublishing.gallery.itemLabel`/`itemLabelPlural` (beide
   oder keins; Settings „Veroeffentlichung", Bruecke
   `veroeffentlichung_setzen gallery`), EINSPRACHIG je Library; `eintragsBezeichnung`
-  (`src/lib/website/eintrags-bezeichnung.ts`) setzt sie in Plakette („5 Talks
+  (`packages/module-website/src/eintrags-bezeichnung.ts`) setzt sie in Plakette („5 Talks
   zitiert"), Knopf („Talks anzeigen"), Spaltentitel, Verweis und Blatt-Titel;
   ohne Eintrag die heutigen i18n-Texte.
   Nachzug 10.11.2026 (Owner): (1) Die Karten stehen in der niedrigen
@@ -203,7 +213,7 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   Frage legt einen Auftrag ab (`websiteStoryFrageAtom`); die Story-Sektion
   nimmt ihn genau einmal an, rollt zu sich hinauf und stellt die Frage — laeuft
   noch eine Antwort, steht die Frage im Eingabefeld (`auftragSchritt` in
-  `src/lib/website/story-frage-auftrag.ts`). Regeln im Parser (werfen):
+  `packages/module-website/src/story-frage-auftrag.ts`). Regeln im Parser (werfen):
   `topics` nur mit einer Sektion `layout=story` auf derselben Seite,
   hoechstens eine je Seite, kein Bild-Auszug; die Story-Attribute und
   -Bloecke bleiben `story` vorbehalten. Montage ueber denselben `storySlot`
@@ -304,7 +314,8 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   aendert, aendert sie dort — nie in der Route allein. Der API-Schluessel
   geht nie ueber die Bruecke.
 - `seite_pruefen` ist die Vorschau ohne Browser und nutzt dieselben Regeln
-  wie der Renderer (`site-navigation.ts`, `parse-website-sections.ts`).
+  wie der Renderer (`site-navigation.ts`, `parse-website-sections.ts` aus
+  `@ks/module-website`).
 
 ## Verwandte Rules
 

@@ -6,9 +6,8 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import type { DocCardMeta } from '@ks/contracts'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
+import { parseWebsiteSections, eintragsBezeichnung } from '@ks/module-website'
 import { baueSeitenBericht, regelsatzBefunde } from '@/lib/mcp/website-seite'
-import { eintragsBezeichnung } from '@/lib/website/eintrags-bezeichnung'
 
 const story = (attrs: string) => `<!-- section layout=story ${attrs} -->\n## Frag.\n<!-- questions -->\n- A?\n<!-- /section -->`
 

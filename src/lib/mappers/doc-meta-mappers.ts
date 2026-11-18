@@ -9,10 +9,6 @@ import type { ClimateActionDetailData } from '@/components/library/climate-actio
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
-import type { WebsiteDetailData } from '@/components/library/website-detail'
-import { bannerLimitAus, bannerSortAus, type BannerSort } from '@/lib/website/banner'
-import { heroBildPositionGeprueft } from '@/lib/website/hero-bild-position'
-import { HEADING_CASES, type HeadingCase } from '@/lib/website/types'
 import { extractSdgValues, extractSdgBegruendung } from '@ks/util'
 
 // Der Buch-Mapper liegt seit M5 im Paket (`@ks/module-explorer`, zusammen mit
@@ -20,6 +16,11 @@ import { extractSdgValues, extractSdgBegruendung } from '@ks/util'
 // durchgereicht: App-Detailansichten und der Server (phase-translations.ts)
 // importieren ihn weiter von hier.
 export { mapToBookDetail } from '@ks/module-explorer'
+
+// Der Website-Mapper liegt seit WE1 im Paket (`@ks/module-website`, zusammen
+// mit `WebsiteDetailData`), weil App und Startseiten-Embed dieselben Felder
+// lesen. Hier nur durchgereicht, wie der Buch-Mapper.
+export { mapToWebsiteDetail } from '@ks/module-website'
 
 /**
  * Mapper: API-Response → SessionDetailData
@@ -239,88 +240,6 @@ export function mapToTestimonialDetail(input: unknown): TestimonialDetailData {
   };
 
   return data;
-}
-
-/**
- * Mapper: API-Response → WebsiteDetailData
- * Extrahiert Hero-/CTA-Felder und den Markdown-Body fuer detailViewType `website`.
- */
-export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
-  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
-  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object')
-    ? root.docMetaJson as Record<string, unknown>
-    : {};
-
-  const toStr = (v: unknown): string | undefined => {
-    if (typeof v === 'string' && v.trim().length > 0) return v.trim();
-    return undefined;
-  };
-
-  return {
-    title: toStr(docMetaJson.title) || '—',
-    heroSubtitle: toStr(docMetaJson.hero_subtitle),
-    heroImageUrl: toStr(docMetaJson.hero_image) || toStr(docMetaJson.coverImageUrl),
-    heroImageAlt: toStr(docMetaJson.hero_image_alt),
-    // 18.11.2026: Ausschnitt des Kopfbilds in der Hoehe; ungueltig wird laut gemeldet, Vorgabe Mitte.
-    heroImagePosition: heroBildPositionGeprueft(docMetaJson.hero_image_position),
-    heroTitle: toStr(docMetaJson.hero_title),
-    heroLayout: toStr(docMetaJson.hero_layout),
-    videoUrl: toStr(docMetaJson.video_url),
-    ctaLabel: toStr(docMetaJson.cta_label),
-    ctaUrl: toStr(docMetaJson.cta_url),
-    // S2: Hero `campaign` — Kennzeile im Bild, kursive Zweitzeile, zweiter Handlungsaufruf.
-    heroKicker: toStr(docMetaJson.hero_kicker),
-    heroTitle2: toStr(docMetaJson.hero_title2),
-    cta2Label: toStr(docMetaJson.cta2_label),
-    cta2Url: toStr(docMetaJson.cta2_url),
-    markdown: toStr(docMetaJson.markdown),
-    // C3: Empfaenger-Adresse des Kontakt-Formulars (dokumentgetrieben, oeffentlich
-    // sichtbar wie eine Impressums-Adresse — bewusst kein Settings-Feld).
-    contactEmail: toStr(docMetaJson.contact_email),
-    // S1: Banner-Steuerung und Ueberschriften-Schreibweise (flache Felder).
-    bannerTag: toStr(docMetaJson.banner_tag),
-    bannerTitle: toStr(docMetaJson.banner_title),
-    bannerLimit: bannerLimitGeprueft(docMetaJson.banner_limit),
-    // F3 (ADR 0012): Reihung des Banners; ungueltig wird laut gemeldet, Vorgabe rating.
-    bannerSort: bannerSortGeprueft(docMetaJson.banner_sort),
-    // N4: Galerie-Raster ganz unterdruecken (Startseiten, die nur die Frage zeigen).
-    bannerHidden: docMetaJson.banner_hidden === true || docMetaJson.banner_hidden === 'true',
-    headingCase: headingCaseAus(docMetaJson.heading_case),
-    fileId: toStr(root.fileId),
-    fileName: toStr(root.fileName),
-    upsertedAt: toStr(root.upsertedAt),
-  };
-}
-
-/** `banner_sort` lesen; ein ungueltiger Wert wird laut gemeldet, die Seite rendert mit der Vorgabe (rating). */
-function bannerSortGeprueft(wert: unknown): BannerSort | undefined {
-  try {
-    return bannerSortAus(wert);
-  } catch (error) {
-    console.error(`[website] ${error instanceof Error ? error.message : String(error)}`);
-    return undefined;
-  }
-}
-
-/** `banner_limit` lesen; ein ungueltiger Wert wird laut gemeldet, die Seite rendert mit der Vorgabe. */
-function bannerLimitGeprueft(wert: unknown): number | undefined {
-  try {
-    return bannerLimitAus(wert);
-  } catch (error) {
-    console.error(`[website] ${error instanceof Error ? error.message : String(error)}`);
-    return undefined;
-  }
-}
-
-/**
- * `heading_case` lesen: fehlend = Vorlage (`capitalize`); unbekannter Wert wird
- * laut gemeldet und wie fehlend behandelt (no-silent-fallbacks: geloggt, nicht still).
- */
-function headingCaseAus(wert: unknown): HeadingCase | undefined {
-  if (wert === undefined || wert === null || wert === '') return undefined;
-  if (typeof wert === 'string' && (HEADING_CASES as readonly string[]).includes(wert)) return wert as HeadingCase;
-  console.error(`[website] Unbekannter heading_case "${String(wert)}" — erlaubt: ${HEADING_CASES.join(', ')}`);
-  return undefined;
 }
 
 /**

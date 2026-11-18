@@ -428,7 +428,7 @@ export interface StorageConfig {
      * Welle S2: Design-Profil der Website-Landingpage — Farben je Flaeche,
      * Akzent, Schriften (`SiteTheme` in `@ks/contracts`). Fehlt es, rendert
      * die Seite mit der Vorlage „Oldies for Future" (Steckbrief 10). Geprueft
-     * in `src/lib/website/site-theme.ts`, gesetzt ueber Formular und Bruecke.
+     * in `packages/module-website/src/site-theme.ts`, gesetzt ueber Formular und Bruecke.
      */
     siteTheme?: SiteTheme;
     /**

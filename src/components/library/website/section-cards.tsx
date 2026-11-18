@@ -15,9 +15,15 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { CardIconName, CardItem } from '@/lib/website/parse-section-blocks'
-import { kartenaktion, loeseKartenziel, type Kartenaktion, type KartenNavigation } from '@/lib/website/kartenziel'
-import { HEADING_FONT } from '@/lib/website/surface-style'
+import {
+  type CardIconName,
+  type CardItem,
+  kartenaktion,
+  loeseKartenziel,
+  type Kartenaktion,
+  type KartenNavigation,
+  HEADING_FONT,
+} from '@ks/module-website'
 
 /** Welle N4: Karten-Symbole (`:name:`) auf Lucide-Icons. Deckt `CARD_ICON_NAMES` vollstaendig ab (Typpruefung). */
 const CARD_ICONS: Record<CardIconName, LucideIcon> = {

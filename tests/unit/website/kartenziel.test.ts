@@ -3,7 +3,7 @@
  * und was der Klick daraus macht (Rueckruf ohne Neuladen oder Link).
  */
 import { describe, it, expect, vi } from 'vitest'
-import { kartenaktion, loeseKartenziel } from '@/lib/website/kartenziel'
+import { kartenaktion, loeseKartenziel } from '@ks/module-website'
 
 describe('loeseKartenziel', () => {
   it('loest die vier Zielarten auf', () => {

@@ -16,8 +16,7 @@
 
 import { useTranslation } from '@ks/i18n/react'
 import type { FrageAntwort } from '@ks/module-story/react'
-import { kartenaktion } from '@/lib/website/kartenziel'
-import { juengsteFruehereKennung, sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
+import { kartenaktion, juengsteFruehereKennung, sichtbaresPaar } from '@ks/module-website'
 import { istPlainClick } from '@/components/library/website/section-cards'
 import type { WebsiteStoryNavigation } from './website-story-belege'
 

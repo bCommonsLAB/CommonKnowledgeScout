@@ -10,8 +10,14 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, HEADING_FONT, surfaceStyle } from "@/lib/website/surface-style"
+import {
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  BUTTON_PRIMARY,
+  BUTTON_SECONDARY,
+  HEADING_FONT,
+  surfaceStyle,
+} from "@ks/module-website"
 
 interface HeroCampaignProps {
   title: string

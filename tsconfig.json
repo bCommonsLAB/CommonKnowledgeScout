@@ -33,6 +33,7 @@
       "@ks/module-explorer/gallery/*": ["./packages/module-explorer/src/gallery/*"],
       "@ks/module-story": ["./packages/module-story/src/index.ts"],
       "@ks/module-story/react": ["./packages/module-story/src/react/index.ts"],
+      "@ks/module-website": ["./packages/module-website/src/index.ts"],
       "@ks/ui": ["./packages/ui/src/index.ts"],
       "@ks/util": ["./packages/util/src/index.ts"],
       "@ks/i18n": ["./packages/i18n/src/index.ts"],

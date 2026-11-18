@@ -3,8 +3,7 @@
  * auf der Startseite. Parser-Regeln und der Ablauf einer gewaehlten Frage.
  */
 import { describe, it, expect } from 'vitest'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
-import { auftragSchritt } from '@/lib/website/story-frage-auftrag'
+import { parseWebsiteSections, auftragSchritt } from '@ks/module-website'
 
 const STORY = '<!-- section layout=story -->\n## Frag.\n<!-- questions -->\n- A?\n<!-- /section -->'
 

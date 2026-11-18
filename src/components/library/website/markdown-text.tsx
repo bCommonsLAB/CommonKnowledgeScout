@@ -5,11 +5,15 @@
  */
 
 import * as React from 'react'
-import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
+import {
+  type HeadingCase,
+  type WebsiteSection,
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  surfaceStyle,
+} from '@ks/module-website'
 import { md } from '@ks/viewers'
 import { cn } from '@/lib/utils'
-import { OLDIES_THEME, type SiteThemeResolved } from '@/lib/website/site-theme'
-import { surfaceStyle } from '@/lib/website/surface-style'
 
 /**
  * Rendert den Sektions-Markdown ueber den App-weiten Remarkable-Renderer (`md`)

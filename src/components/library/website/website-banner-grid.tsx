@@ -16,9 +16,18 @@ import { DocumentCard } from "@ks/module-explorer/react"
 import { getEffectiveDocumentNavigationSlug } from "@ks/util"
 import type { DocCardMeta } from "@ks/contracts"
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
-import { bannerGalerieParams, bannerKartenHref, bannerKartenParams, bannerQuery, type BannerSort } from "@/lib/website/banner"
-import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
-import { BUTTON_STRONG, HEADING_FONT, surfaceStyle } from "@/lib/website/surface-style"
+import {
+  bannerGalerieParams,
+  bannerKartenHref,
+  bannerKartenParams,
+  bannerQuery,
+  type BannerSort,
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  BUTTON_STRONG,
+  HEADING_FONT,
+  surfaceStyle,
+} from "@ks/module-website"
 import { cn } from "@/lib/utils"
 
 interface WebsiteBannerGridProps {

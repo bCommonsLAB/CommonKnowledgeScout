@@ -15,7 +15,7 @@
 import * as React from 'react'
 import type { Metadata } from 'next'
 import { WebsiteLandingView } from '@/components/library/website/website-landing-view'
-import type { WebsiteLandingData } from '@/lib/website/types'
+import type { WebsiteLandingData } from '@ks/module-website'
 
 const IMG = '/api/library/eec9f788-880a-41c5-a668-f325c4a0039b/web/web/images'
 

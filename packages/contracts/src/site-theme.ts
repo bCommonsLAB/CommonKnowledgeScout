@@ -13,7 +13,7 @@
  *
  * Schriften sind der eine Teil, der im Code bleiben muss (sie werden ueber
  * `next/font` gebuendelt); das Profil waehlt sie per Name aus `SITE_FONT_NAMES`.
- * Farben sind Hex-Werte `#rrggbb`, geprueft in `src/lib/website/site-theme.ts`.
+ * Farben sind Hex-Werte `#rrggbb`, geprueft in `packages/module-website/src/site-theme.ts`.
  *
  * @module contracts/site-theme
  */

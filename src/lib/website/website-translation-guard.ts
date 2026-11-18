@@ -9,8 +9,7 @@
  * (kein stiller Fallback auf kaputte Inhalte).
  */
 
-import { parseWebsiteSections } from './parse-website-sections'
-import type { WebsiteSection } from './types'
+import { parseWebsiteSections, type WebsiteSection } from '@ks/module-website'
 
 export interface MarkerGuardViolation {
   type: 'unparseable' | 'section-count' | 'section-attrs' | 'image-url' | 'video-url'

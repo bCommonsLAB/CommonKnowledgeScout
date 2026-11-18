@@ -3,8 +3,7 @@
  * Profil-Flaechen rendern ueber Inline-Farben und Variablen.
  */
 import { describe, it, expect } from 'vitest'
-import { surfaceStyle } from '@/lib/website/surface-style'
-import { OLDIES_THEME, resolveSiteTheme } from '@/lib/website/site-theme'
+import { surfaceStyle, OLDIES_THEME, resolveSiteTheme } from '@ks/module-website'
 
 describe('surfaceStyle', () => {
   it('Vorlage: default/light/dark ueber Tailwind-Klassen (Dark-Mode bleibt)', () => {

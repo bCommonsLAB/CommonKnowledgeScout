@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
+import { parseWebsiteSections } from '@ks/module-website'
 
 describe('parseWebsiteSections', () => {
   it('parst Layout, Hintergrund und extrahiert das Sektions-Bild', () => {

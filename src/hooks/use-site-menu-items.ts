@@ -19,7 +19,7 @@
 import * as React from "react"
 import { useLibraries } from '@ks/shell/react'
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
-import { selectMainMenuDocs, getSiteParamForDoc } from "@/lib/website/site-navigation"
+import { selectMainMenuDocs, getSiteParamForDoc } from "@ks/module-website"
 import type { NavItem } from "@ks/shell"
 
 /**

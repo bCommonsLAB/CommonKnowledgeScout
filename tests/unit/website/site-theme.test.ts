@@ -3,7 +3,14 @@
  * Vorlage zurueck, CSS-Variablen tragen die Werte.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { OLDIES_THEME, istDunkel, resolveSiteTheme, siteThemeCssVars, validiereSiteTheme, lesbarerAkzent } from '@/lib/website/site-theme'
+import {
+  OLDIES_THEME,
+  istDunkel,
+  resolveSiteTheme,
+  siteThemeCssVars,
+  validiereSiteTheme,
+  lesbarerAkzent,
+} from '@ks/module-website'
 
 const FAMILIEN = { geist: 'Geist', newsreader: 'Newsreader', 'plus-jakarta': 'Jakarta', 'source-sans': 'SS', 'source-code': 'SC' }
 

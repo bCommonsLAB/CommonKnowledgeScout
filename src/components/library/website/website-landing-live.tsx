@@ -30,14 +30,15 @@ import {
   selectFooterLinkDocs,
   findFooterContentDoc,
   resolveSiteParamDoc,
-} from "@/lib/website/site-navigation"
+  BANNER_LIMIT_DEFAULT,
+  resolveSiteTheme,
+  siteThemeCssVars,
+  type WebsiteSection,
+  type KartenNavigation,
+} from "@ks/module-website"
 import { useTranslation } from "@ks/i18n/react"
-import { BANNER_LIMIT_DEFAULT } from "@/lib/website/banner"
 import type { SiteTheme } from "@ks/contracts"
-import { resolveSiteTheme, siteThemeCssVars } from "@/lib/website/site-theme"
 import { SITE_FONT_FAMILIES } from "@/lib/website/site-fonts"
-import type { WebsiteSection } from "@/lib/website/types"
-import type { KartenNavigation } from "@/lib/website/kartenziel"
 
 // N1: Der Chat der Story-Sektion zieht Story-Paket und Clerk — faul laden, nur
 // Seiten mit `layout=story` zahlen dafuer. Ohne SSR: Sitzung und Perspektive

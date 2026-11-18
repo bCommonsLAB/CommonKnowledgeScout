@@ -11,7 +11,7 @@ import type { Nachricht } from '@ks/module-story/react'
 import { WebsiteStoryVortragskarte } from '@/components/library/website/story/website-story-vortragskarte'
 import { WebsiteStoryVortragsspalte } from '@/components/library/website/story/website-story-vortragsspalte'
 import { WebsiteStoryAntwortZweispaltig } from '@/components/library/website/story/website-story-antwort-zweispaltig'
-import { kartenEintraege } from '@/lib/website/story-karten'
+import { kartenEintraege } from '@ks/module-website'
 
 vi.mock('@ks/module-explorer/react', () => ({
   DocumentCard: ({ doc, onOpen, teaser }: { doc: DocCardMeta; onOpen?: (d: DocCardMeta) => void; teaser?: boolean }) => (

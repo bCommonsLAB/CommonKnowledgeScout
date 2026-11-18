@@ -3,10 +3,10 @@
  * eine gewaehlte Frage, die oben im Frage-Kasten gestellt werden soll. Die
  * Story-Sektion liest ihn und setzt ihn sofort auf `null` zurueck — ein
  * spaeteres Neumontieren stellt die Frage nicht ein zweites Mal.
- * Ablauf: `src/lib/website/story-frage-auftrag.ts`.
+ * Ablauf: `packages/module-website/src/story-frage-auftrag.ts`.
  */
 
 import { atom } from 'jotai'
-import type { StoryFrageAuftrag } from '@/lib/website/story-frage-auftrag'
+import type { StoryFrageAuftrag } from '@ks/module-website'
 
 export const websiteStoryFrageAtom = atom<StoryFrageAuftrag | null>(null)

@@ -21,7 +21,7 @@
 import type { DocCardMeta } from '@ks/contracts'
 import { DocumentCard } from '@ks/module-explorer/react'
 import { Zitatmarke } from '@ks/ui'
-import type { KartenEintrag } from '@/lib/website/story-karten'
+import type { KartenEintrag } from '@ks/module-website'
 
 export interface WebsiteStoryVortragskarteProps {
   eintrag: KartenEintrag
