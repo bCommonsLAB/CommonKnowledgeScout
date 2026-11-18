@@ -73,6 +73,12 @@ export const EMBED_READ_ROUTES: readonly EmbedReadRoute[] = [
     methods: ['GET'],
     pattern: /^\/api\/chat\/[^/]+\/docs\/by-fileids$/,
   },
+  // --- Startseite im Embed (WE4, Plan startseite-als-embed) ---
+  {
+    zweck: 'Startseite: populaere Fragen der Fragen-Sektion (anonym lesbar, nur Fragetexte und Zahlen)',
+    methods: ['GET'],
+    pattern: /^\/api\/chat\/[^/]+\/popular-questions$/,
+  },
   {
     zweck: 'Story: eine Frage stellen — Uebersicht und Antworten; legt Sitzung und Protokoll an',
     methods: ['POST'],

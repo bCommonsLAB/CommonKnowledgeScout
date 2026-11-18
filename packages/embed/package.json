@@ -2,7 +2,7 @@
   "name": "@ks/embed",
   "version": "0.1.0",
   "private": true,
-  "description": "KnowledgeScout — Galerie und Story-Modus einer oeffentlichen Library als Komponente fuer fremde React- und Next-Anwendungen (M5, D6b)",
+  "description": "KnowledgeScout — Galerie, Story-Modus und Startseite einer oeffentlichen Library als Komponenten fuer fremde React- und Next-Anwendungen (M5, D6b, WE4)",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,6 +18,7 @@
     "dist/**/*.js",
     "dist/index.d.ts",
     "dist/styles.css",
+    "dist/fonts/*",
     "README.md"
   ],
   "sideEffects": [
@@ -37,7 +38,9 @@
     "@ks/i18n": "workspace:*",
     "@ks/module-explorer": "workspace:*",
     "@ks/module-story": "workspace:*",
+    "@ks/module-website": "workspace:*",
     "@ks/ui": "workspace:*",
+    "@ks/util": "workspace:*",
     "jotai": "^2.11.0",
     "tsup": "^8.5.1"
   }

@@ -41,6 +41,60 @@ export default function Galerie() {
 | `height` | Höhe des Rahmens (Standard `80vh`); die Galerie scrollt darin |
 | `className` | Zusätzliche Klassen für den Rahmen |
 
+### Startseite: `KnowledgeScoutSite`
+
+Die Startseite einer öffentlichen Library mit Website (`siteEnabled`): Kopf,
+Sektionen, Kacheln, die Fragen-Sektion mit Antwort, Belegen und Detailansicht,
+das Galerie-Band und die Fußzeile. Jeder Weg aus der Seite hinaus — Galerie,
+Story-Modus, andere Website-Seite — ist ein Link der Container-Anwendung:
+`hrefFor` sagt, welche ihrer Seiten das Ziel zeigt.
+
+```tsx
+import '@ks/embed/styles.css'
+import { KnowledgeScoutSite, ksZielAlsParameter } from '@ks/embed'
+
+export default function Fragen() {
+  return (
+    <KnowledgeScoutSite
+      baseUrl="https://knowledgescout.org"
+      library="aeced"
+      locale="de"
+      hrefFor={(ziel) => {
+        const q = new URLSearchParams(ksZielAlsParameter(ziel)).toString()
+        if (ziel.art === 'galerie' || ziel.art === 'dokument') return `/inhalte${q ? `?${q}` : ''}`
+        if (ziel.art === 'story') return `/story${q ? `?${q}` : ''}`
+        return null // weitere Website-Seiten gibt es in dieser Anwendung nicht
+      }}
+    />
+  )
+}
+```
+
+- `hrefFor(ziel)` (Pflicht) liefert die Adresse oder `null`. Bei `null`
+  entfällt das Element (Menüpunkt, Kachel, Link), die Konsole sagt es einmal.
+  Baut die Seite `hrefFor` je Render neu, lädt nichts neu — es gilt die
+  jeweils letzte Fassung.
+- `page` (optional): Slug oder fileId einer Website-Seite. Ohne Angabe die
+  Startseite; eine unbekannte Kennung ist ein Fehler im Rahmen.
+- `menu` (Standard an): schlanke Menüzeile mit den Website-Seiten, „Inhalte“
+  und „Story“ — alle über `hrefFor`. `menu={false}` blendet sie aus.
+- `height` (optional): ohne Angabe natürliche Höhe, die Container-Seite
+  scrollt; mit Angabe ein fester Rahmen mit eigenem Scroll.
+- Blätter, Dialoge und die Detailansicht liegen über dem **Fenster** (eigener
+  Portal-Ort am `body`, ebenfalls unter `.ks-embed`), nicht nur über dem Rahmen.
+- Banner-Karten und Belege öffnen die Detailansicht über der Seite (Buch,
+  Testimonial, Blog); andere Typen führen über `hrefFor` (Ziel `dokument`) auf
+  die Galerie-Seite.
+- Links der Autoren auf relative Adressen außerhalb des Vokabulars
+  (`/kontakt` in einem Text) entfallen — sie hätten in der fremden Seite keine
+  Bedeutung. `?view=gallery`, `?mode=story`, `?site=…` und absolute Adressen
+  gehen.
+- Das Kontaktformular steht im Embed nicht zur Verfügung; die Sektion zeigt
+  einen Hinweis.
+- Die Schriften des Design-Profils liegen dem Paket bei (`dist/fonts`, OFL)
+  und kommen mit `@ks/embed/styles.css`.
+- Jede Frage kostet die Instanz einen Modell-Aufruf.
+
 ### Einstieg aus der Adresse der Container-Seite
 
 Führt ein Link einer KnowledgeScout-Komponente auf eine Seite der
