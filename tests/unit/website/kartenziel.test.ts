@@ -1,9 +1,9 @@
 /**
- * Welle N2 — Zielaufloesung der Kacheln: bekannte Ziele, explizite Fehler,
- * und was der Klick daraus macht (Rueckruf ohne Neuladen oder Link).
+ * Welle N2 — Zielaufloesung der Kacheln: bekannte Ziele, explizite Fehler.
+ * Was der Klick daraus macht, prueft seit WE2 `app-navigation.test.ts`.
  */
-import { describe, it, expect, vi } from 'vitest'
-import { kartenaktion, loeseKartenziel } from '@ks/module-website'
+import { describe, it, expect } from 'vitest'
+import { loeseKartenziel } from '@ks/module-website'
 
 describe('loeseKartenziel', () => {
   it('loest die vier Zielarten auf', () => {
@@ -28,33 +28,5 @@ describe('loeseKartenziel', () => {
     expect(() => loeseKartenziel('?site=')).toThrow(/ohne Seite/)
     expect(() => loeseKartenziel('?foo=bar')).toThrow(/unbekannt/)
     expect(() => loeseKartenziel('?view=gallery&doc=x')).toThrow(/weiteren Parametern/)
-  })
-})
-
-describe('kartenaktion', () => {
-  it('ohne Navigation: reine Links', () => {
-    expect(kartenaktion({ art: 'galerie' })).toEqual({ href: '?view=gallery', ausfuehren: undefined, extern: false })
-    expect(kartenaktion({ art: 'story' })).toMatchObject({ href: '?mode=story', ausfuehren: undefined })
-    expect(kartenaktion({ art: 'seite', slug: 'a b' })).toMatchObject({ href: '?site=a%20b', ausfuehren: undefined })
-    expect(kartenaktion({ art: 'extern', url: 'https://example.org' })).toEqual({ href: 'https://example.org', extern: true })
-  })
-
-  it('Site-Modus: Rueckrufe wechseln die Ansicht ohne Neuladen', () => {
-    const onShowGallery = vi.fn()
-    const onShowStory = vi.fn()
-    const onShowSite = vi.fn()
-    const nav = { onShowGallery, onShowStory, onShowSite }
-    kartenaktion({ art: 'galerie' }, nav).ausfuehren?.()
-    kartenaktion({ art: 'story' }, nav).ausfuehren?.()
-    kartenaktion({ art: 'seite', slug: 'wie-funktioniert' }, nav).ausfuehren?.()
-    expect(onShowGallery).toHaveBeenCalledWith()
-    expect(onShowStory).toHaveBeenCalledTimes(1)
-    expect(onShowSite).toHaveBeenCalledWith('wie-funktioniert')
-  })
-
-  it('Root-Modus: Adressen der Explore-Seite, kein Rueckruf fuer Galerie und Story', () => {
-    const nav = { galleryBaseHref: '/explore/x?view=gallery', storyBaseHref: '/explore/x?mode=story' }
-    expect(kartenaktion({ art: 'galerie' }, nav)).toEqual({ href: '/explore/x?view=gallery', ausfuehren: undefined, extern: false })
-    expect(kartenaktion({ art: 'story' }, nav)).toMatchObject({ href: '/explore/x?mode=story', ausfuehren: undefined })
   })
 })

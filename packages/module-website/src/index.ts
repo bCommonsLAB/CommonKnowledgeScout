@@ -7,15 +7,21 @@
  * die bindet die App ueber `next/font`), Kachelziele, Banner, Story-Karten,
  * Seiten-Navigation und die Detail-Daten einer Seite samt Mapper.
  *
+ * Dazu (WE2) die Navigation-Schnittstelle aller Wege der Startseite
+ * (`navigation.ts`, in der App `app-navigation.ts`).
+ *
  * Dieses Barrel ist React-frei und laeuft auf dem Server; die Bausteine
- * (WE2) kommen unter einen eigenen Einstieg. Paketgrenze:
+ * liegen unter `@ks/module-website/react`. Paketgrenze:
  * `tests/unit/packages/module-website/paket-schnitt.test.ts`.
  */
 
+export * from './app-navigation'
 export * from './banner'
 export * from './eintrags-bezeichnung'
 export * from './hero-bild-position'
 export * from './kartenziel'
+export * from './markdown-links'
+export * from './navigation'
 export * from './parse-section-attrs'
 export * from './parse-section-blocks'
 export * from './parse-website-sections'
