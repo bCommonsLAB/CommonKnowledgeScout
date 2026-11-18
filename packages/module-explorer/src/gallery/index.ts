@@ -35,7 +35,7 @@ export { AttachmentList } from './components/book-detail/attachment-list'
 export { AIGeneratedNotice, type HinweisLinkProps } from './components/book-detail/ai-generated-notice'
 export { MarkdownBody } from './components/book-detail/markdown-body'
 export { BuchDetailRenderer } from './components/book-detail/book-detail-renderer'
-export { EMBED_DETAIL_RENDERERS } from './components/embed-detail-renderers'
+export { EMBED_DETAIL_RENDERERS, EMBED_DETAIL_TYPEN } from './components/embed-detail-renderers'
 
 export {
   GalleryViewerProvider,

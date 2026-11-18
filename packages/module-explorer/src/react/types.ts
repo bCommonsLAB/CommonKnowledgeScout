@@ -51,6 +51,9 @@ export interface ExplorerLibraryPayload {
     filterDescription?: string
     menuLabel?: string
     moreLinkLabel?: string
+    /** Bezeichnung eines Eintrags (09.11.2026, z. B. „Talk"/„Talks"); die Route liefert sie schon mit. */
+    itemLabel?: string
+    itemLabelPlural?: string
   }
   /** G5: Mitreden-Band des geführten Profils (fehlt = kein Band) */
   mitreden?: { headline?: string; text?: string; buttonLabel?: string; href?: string }

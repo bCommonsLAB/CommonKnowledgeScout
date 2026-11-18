@@ -139,6 +139,8 @@ export function WebsiteLandingLive({
       libraryId={libraryId}
       fallbackLocale={fallbackLocale}
       seite={siteParam}
+      // `?site=` aus der Adresse: eine unbekannte Kennung meldet sich und zeigt die Startseite (wie bisher).
+      unbekannteSeite="startseite"
       navigation={navigation}
       schriften={SITE_FONT_FAMILIES}
       siteTheme={siteTheme ?? publicPublishing?.siteTheme}
