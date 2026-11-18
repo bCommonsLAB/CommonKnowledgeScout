@@ -5,8 +5,8 @@ vorhaben: [24.09 KnowledgeScout]
 status: entwurf
 todos:
   - id: we0-einstieg-explorer
-    content: "WE0 Einstieg für Galerie und Story: `KnowledgeScoutExplorer` nimmt `doc`, `question` (queryId) und `filter` entgegen (als `initialParams` der Speicher-Adressierung); `@ks/embed` exportiert das Ziel-Vokabular `KsZiel` mit `ksZielAlsParameter` und `ksEinstiegAusParametern`. Berührt keine Startseiten-Datei, kann sofort laufen."
-    status: pending
+    content: "WE0 Einstieg für Galerie und Story: `KnowledgeScoutExplorer` nimmt `start` (`KsEinstieg`: `dokument`, `seitenzahl`, `liste`, `frage`) entgegen — Dokument und Liste als `initialParams` der Speicher-Adressierung, die Frage als Story-Auswahl mit aufgelöster Sitzung; `@ks/embed` exportiert das Ziel-Vokabular `KsZiel` mit `ksZielAlsParameter`, `ksEinstiegAusParametern` und `ksSeiteAusParametern` (Parameter mit Vorsatz `ks-`). Berührt keine Startseiten-Datei. GEBAUT 18.11.2026 (Branch `claude/we0-einstieg-explorer`)."
+    status: completed
   - id: we1-regeln-ins-paket
     content: "WE1 Paket `@ks/module-website` anlegen, die reinen Regeln aus `src/lib/website/**` hinein (Parser, Design-Profil ohne Schriften, Kachelziele, Banner, Story-Karten), dazu `mapToWebsiteDetail` und `safe-video-iframe`. Commit 1 nur `git mv`, Commit 2 Importe. Wächter-Test Paketgrenze. Gate: Startseiten-Arbeit der Parallelsitzung ist gemergt."
     status: pending
@@ -119,15 +119,19 @@ import { KnowledgeScoutSite, ksZielAlsParameter } from '@ks/embed'
 
 | Ziel | Woher auf der Startseite |
 |---|---|
-| `{ art: 'galerie', filter? }` | Menüpunkt „Inhalte“, Kachel `?view=gallery`, „mehr Inhalte“ des Banners (mit `tags` bzw. `starred=1&sort=stars`) |
-| `{ art: 'dokument', slug }` | Banner-Karte (Entscheid A), Beleg eines Typs ohne Embed-Renderer |
+| `{ art: 'galerie', liste? }` | Menüpunkt „Inhalte“, Kachel `?view=gallery`, „mehr Inhalte“ des Banners (bei `banner_sort: stars` mit `liste: { nurMitStern, sortierung: 'stars' }`) |
+| `{ art: 'dokument', slug, seitenzahl?, liste? }` | Banner-Karte (Entscheid A), Beleg eines Typs ohne Embed-Renderer |
 | `{ art: 'story', frage? }` | Menüpunkt „Story“, Kachel `?mode=story`, Verweis „N frühere Fragen“ (`frage` = queryId) |
 | `{ art: 'seite', seite }` | Kachel `?site=`, Fußzeilen-Links, weitere Menüpunkte, `?site=`-Links im Markdown |
 | absolute `http(s)`-Adresse | Kachel, CTA, Markdown — direkt, ohne `hrefFor` |
 
 `ksZielAlsParameter` und `ksEinstiegAusParametern` übersetzen zwischen Ziel
-und Adress-Parametern. Die Container-Anwendung muss das KS-Vokabular nicht
-kennen: Sie reicht die Parameter ihrer Adresse an die Galerie-Komponente weiter.
+und Adress-Parametern; die Namen sind die der KS-Adresse mit Vorsatz `ks-`
+(`ks-doc`, `ks-page`, `ks-starred`, `ks-sort`, `ks-q`, `ks-site`), damit sie
+nicht mit eigenen Parametern der Container-Seite kollidieren (die Partner-App
+nutzt selbst `view`). Die Container-Anwendung muss das KS-Vokabular nicht
+kennen: Sie reicht die Parameter ihrer Adresse an die Galerie-Komponente
+weiter (`start={ksEinstiegAusParametern(searchParams)}`).
 Ein relatives Ziel außerhalb der Tabelle (CTA, Markdown) wird geloggt und nicht
 als Link gerendert; `seite_pruefen` meldet es schon vor dem Publizieren.
 
@@ -153,11 +157,18 @@ dieselben Regeln wie der Renderer (Contract §6).
 
 ## 4. Wellen
 
-**WE0 Einstieg für Galerie und Story** — sofort möglich, berührt keine
-Startseiten-Datei. `doc`, `question`, `filter` am Explorer; `KsZiel` und die
-beiden Übersetzer in `typen.ts` und einer reinen Datei; Tests für die
-Übersetzer und für den Start mit `doc` (Detailansicht offen) und `question`
-(Story-Modus mit `q`). Klein.
+**WE0 Einstieg für Galerie und Story** — gebaut 18.11.2026. Prop `start`
+(`KsEinstieg`) am Explorer: `dokument`/`seitenzahl`/`liste` werden
+`initialParams` der Speicher-Adressierung (`einstieg.ts`), `frage` setzt die
+Story-Auswahl beim Anlegen des Speichers (`embed-inhalt.tsx`) und
+`useStoryEinstieg` stellt die aktive Sitzung auf die der Frage um
+(`GET …/queries/<id>` → `chatId`). Ein Einstieg, der nicht zur Ansicht passt,
+ist ein Fehler im Rahmen. Der Inhalt montiert neu, wenn sich der Einstieg
+ändert (Schlüssel aus dem Inhalt, nicht aus der Objekt-Identität). Übersetzer
+in `ziel-parameter.ts`; Tests `tests/unit/packages/embed/{ziel-parameter,einstieg}.test.ts`
+und `knowledge-scout-explorer-einstieg.test.tsx`. Bekannte Grenze: Die Galerie
+löst `doc` nur unter den geladenen Karten auf — wer ein Dokument aus einer
+Rangliste öffnet, gibt die `liste` mit (wie das Banner heute).
 
 **WE1 Regeln ins Paket** — Gate: Die Startseiten-Arbeit der Parallelsitzung
 (Fragen-Sektion) ist gemergt; sonst Konflikte in genau diesen Dateien.

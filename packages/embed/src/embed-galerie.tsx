@@ -22,6 +22,7 @@ import { EMBED_DETAIL_RENDERERS, GalleryRoot, useExplorerLibrary } from '@ks/mod
 import { PerspektiveDialog } from '@ks/module-story/react'
 import { EmbedStoryChronik, EmbedStoryKopfzeile, EmbedStoryPanel, useOeffentlichesModell } from './embed-story'
 import { perspektiveDialogAtom, perspektiveFuer, useEigenePerspektive, wahlFuerDialog } from './embed-perspektive'
+import { useStoryEinstieg } from './embed-story-einstieg'
 
 /** Der Besucher einer fremden Seite: bekannt, aber nicht angemeldet. */
 const ANONYM = { isLoaded: true, isSignedIn: false } as const
@@ -45,9 +46,11 @@ export interface EmbedGalerieProps {
   /** Eigene Perspektive waehlbar (`enablePerspective`); nur zusammen mit `story`. */
   perspektive: boolean
   locale: Locale
+  /** Einstieg mit einer gespeicherten Frage (WE0): ihre Sitzung wird aufgeloest. */
+  frage?: string
 }
 
-export function EmbedGalerie({ slug, instanz, story: storyAnbieten, perspektive: perspektiveWaehlbar, locale }: EmbedGalerieProps) {
+export function EmbedGalerie({ slug, instanz, story: storyAnbieten, perspektive: perspektiveWaehlbar, locale, frage }: EmbedGalerieProps) {
   const { t } = useTranslation()
   const texte = useMemo(
     () => ({
@@ -60,6 +63,7 @@ export function EmbedGalerie({ slug, instanz, story: storyAnbieten, perspektive:
   const { library, loading, error } = useExplorerLibrary(slug, ANONYM, texte, instanz)
   const modell = useOeffentlichesModell(instanz, storyAnbieten)
   const [eigene, speichern] = useEigenePerspektive(library?.id ?? '', perspektiveWaehlbar && !!library)
+  useStoryEinstieg(library?.id ?? '', frage, instanz)
   const [dialogOffen, setDialogOffen] = useAtom(perspektiveDialogAtom)
   const chat = library?.chat
   const perspektive = useMemo(

@@ -37,8 +37,37 @@ export default function Galerie() {
 | `locale` | `en`, `de`, `it`, `fr` oder `es` — gilt für Oberfläche und Inhalte |
 | `enableStory` | Optional. Mit `view="gallery"`: startet in den Inhalten und bietet den Knopf „In Story Mode ansehen“ an. Bei `view="story"` immer an; `false` dort meldet einen Fehler. Standard: aus |
 | `enablePerspective` | Optional, nur mit Story-Modus. Knopf „Perspektive anpassen“ im Story-Kopf: Interessen, Zugang und Sprachstil im Dialog; Sprache (`locale`) und Modell bleiben fest. Der Browser merkt sich die Wahl je Library. Ohne Story-Modus meldet die Komponente einen Fehler. Standard: aus |
+| `start` | Optional. Womit die Komponente beginnt: `dokument` (Slug, Detailansicht offen) mit `seitenzahl`, `liste` (`nurMitStern`, `sortierung` `stars`/`rating`) — beides nur mit `view="gallery"`; `frage` (Kennung einer gespeicherten Frage) — nur mit `view="story"`. Passt der Einstieg nicht zur Ansicht, meldet die Komponente das im Rahmen. Ändert er sich, beginnt die Komponente neu |
 | `height` | Höhe des Rahmens (Standard `80vh`); die Galerie scrollt darin |
 | `className` | Zusätzliche Klassen für den Rahmen |
+
+### Einstieg aus der Adresse der Container-Seite
+
+Führt ein Link einer KnowledgeScout-Komponente auf eine Seite der
+Container-Anwendung (z. B. „mehr Inhalte“ der Startseite), reisen die Details
+als Adress-Parameter mit Vorsatz `ks-` (`ks-doc`, `ks-page`, `ks-starred`,
+`ks-sort`, `ks-q`, `ks-site`). Die eigenen Parameter der Seite bleiben
+unberührt. Die Seite reicht sie unverändert weiter:
+
+```tsx
+import { KnowledgeScoutExplorer, ksEinstiegAusParametern } from '@ks/embed'
+
+export default async function Inhalte({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const start = ksEinstiegAusParametern(await searchParams)
+  return <KnowledgeScoutExplorer baseUrl="https://knowledgescout.org" library="aeced" view="gallery" locale="de" start={start} />
+}
+```
+
+- `ksZielAlsParameter(ziel)` macht aus einem Ziel (`galerie`, `dokument`,
+  `story`, `seite`) diese Parameter — für die Adresse, die die
+  Container-Anwendung baut. Ein ungültiges Ziel wirft.
+- `ksEinstiegAusParametern(params)` liest sie zurück (`URLSearchParams` oder
+  die `searchParams` einer Next-Seite). Ein ungültiger Wert (`ks-page=zwei`)
+  wird in der Konsole gemeldet und nicht übernommen.
+- `ksSeiteAusParametern(params)` liest die Website-Seite (`ks-site`).
+- Mit `frage` stellt die Komponente die aktive Sitzung auf die der Frage um.
+  Sie findet die Frage, wenn sie im selben Browser auf derselben
+  Container-Anwendung gestellt wurde (anonyme Sitzungskennung).
 
 - React 18 oder 19 bringt die Anwendung mit (geprüft mit Next 16, React 19
   und Turbopack). Die Komponente ist eine Client-Komponente (`"use client"`
@@ -73,6 +102,9 @@ sources) over an anonymous browser session. With `view="gallery"`, `enableStory`
 starts in the gallery and offers the switch to the story mode.
 `enablePerspective` lets visitors pick their own perspective (interests,
 access, language style) in a dialog; language and model stay fixed.
+`start` opens the component on a document, a list setting or a stored
+question; `ksEinstiegAusParametern(searchParams)` reads it from the host page's
+`ks-` parameters, `ksZielAlsParameter(ziel)` writes them.
 All styles are scoped to `.ks-embed`.
 
 ## Bauen (im Monorepo)

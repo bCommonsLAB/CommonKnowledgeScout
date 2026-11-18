@@ -7,4 +7,12 @@
  */
 
 export { KnowledgeScoutExplorer } from './knowledge-scout-explorer'
-export type { KnowledgeScoutExplorerProps, KnowledgeScoutLocale } from './typen'
+export { ksZielAlsParameter, ksEinstiegAusParametern, ksSeiteAusParametern } from './ziel-parameter'
+export type {
+  KnowledgeScoutExplorerProps,
+  KnowledgeScoutLocale,
+  KsZiel,
+  KsEinstieg,
+  KsGalerieListe,
+  KsAdressParameter,
+} from './typen'
