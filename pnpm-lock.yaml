@@ -538,15 +538,36 @@ importers:
 
   packages/module-website:
     dependencies:
+      '@hookform/resolvers':
+        specifier: ^3.10.0
+        version: 3.10.0(react-hook-form@7.57.0(react@18.2.0))
+      '@ks/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@ks/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@ks/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@ks/module-explorer':
+        specifier: workspace:*
+        version: link:../module-explorer
       '@ks/util':
         specifier: workspace:*
         version: link:../util
+      '@ks/viewers':
+        specifier: workspace:*
+        version: link:../viewers
+      lucide-react:
+        specifier: ^0.312.0
+        version: 0.312.0(react@18.2.0)
       react:
         specifier: ^18.2.0
         version: 18.2.0
+      react-hook-form:
+        specifier: ^7.54.2
+        version: 7.57.0(react@18.2.0)
       zod:
         specifier: ^3.24.1
         version: 3.25.55
