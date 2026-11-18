@@ -1026,7 +1026,12 @@
       "bezeichnungZitiert": "{count} {label} cited",
       "bezeichnungAnzeigen": "Show {label}",
       "bezeichnungSpalte": "{label} mentioned",
-      "bezeichnungWeitere": "more {label} with passages"
+      "bezeichnungWeitere": "more {label} with passages",
+      "themenLaden": "Gathering the contents …",
+      "themenFehlen": "There is no topic overview for this library yet.",
+      "themenKiHinweis": "AI-generated overview of the contents · click a question to ask it above",
+      "themenVorschauHinweis": "The topic overview only appears on the live page of the library.",
+      "themenFragen": "Questions on {title}"
     }
   },
   "verbrauch": {

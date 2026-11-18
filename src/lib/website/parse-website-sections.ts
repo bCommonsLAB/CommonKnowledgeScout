@@ -22,6 +22,9 @@
  *   dort erlaubt); der Block `<!-- questions -->` darf NUR in einer
  *   Story-Sektion stehen, und es gibt hoechstens EINE Story-Sektion je Seite
  *   (Sitzung und Story-Zustand sind geteilt). Beides wirft.
+ * - `layout=topics` (18.11.2026): Themenuebersicht des Story-Modus; Markdown
+ *   bleibt ganz (kein Bild-Auszug), setzt eine Story-Sektion auf derselben
+ *   Seite voraus, hoechstens eine je Seite. Beides wirft.
  */
 
 import type { WebsiteSection } from './types'
@@ -72,6 +75,10 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
       // Kein Bild-Auszug: Markdown bleibt ganz, der Rahmen zeigt es vor und nach dem Fragen-Block.
       const rest = (match[2] ?? '').trim()
       sections.push({ layout, bg, markdown: rest, kicker, blocks: parseSectionBlocks(rest), ...(placeholder ? { placeholder } : {}), ...(filter ? { filter } : {}), ...(citationsVisible !== undefined ? { citationsVisible } : {}), ...(cards ? { cards } : {}), ...(rules ? { rules } : {}) })
+    } else if (layout === 'topics') {
+      // Kein Bild-Auszug: die Sektion zeigt Text und Themenkarten, kein Sektions-Bild.
+      const rest = (match[2] ?? '').trim()
+      sections.push({ layout, bg, markdown: rest, kicker, blocks: parseSectionBlocks(rest) })
     } else if (layout === 'video') {
       const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
       sections.push({ layout, bg, markdown: rest, videoUrl, kicker, blocks: parseSectionBlocks(rest) })

@@ -1073,7 +1073,12 @@
       "bezeichnungZitiert": "{count} {label} zitiert",
       "bezeichnungAnzeigen": "{label} anzeigen",
       "bezeichnungSpalte": "Genannte {label}",
-      "bezeichnungWeitere": "weitere {label} mit Textstellen"
+      "bezeichnungWeitere": "weitere {label} mit Textstellen",
+      "themenLaden": "Die Inhalte werden zusammengestellt …",
+      "themenFehlen": "Für diese Library liegt noch keine Themenübersicht vor.",
+      "themenKiHinweis": "KI-erstellte Übersicht der Inhalte · eine Frage anklicken, dann wird sie oben gestellt",
+      "themenVorschauHinweis": "Die Themenübersicht erscheint nur auf der Live-Seite der Library.",
+      "themenFragen": "Fragen zu {title}"
     }
   },
   "verbrauch": {

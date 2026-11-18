@@ -182,6 +182,25 @@ Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
   ansehen"); die Seite mit Frage und Antwort bleibt im Hintergrund. Nur der
   Weg in den Katalog fuehrt in die Galerie; ein Beleg, dessen Dokument hier
   nicht geladen ist, geht gemeldet (`console.warn`) dorthin.
+- **Themenuebersicht als Sektion (Owner 18.11.2026, Werkzeugsatz 2.76.0):**
+  `<!-- section layout=topics -->` zeigt das Inhaltsverzeichnis des
+  Story-Modus auf der Seite: Markdown der Sektion (Kennzeile, Ueberschrift,
+  Einleitung) ueber einer Karte je Thema mit Kurztext und den vorgeschlagenen
+  Fragen (`website-themen-rahmen.tsx`). Die Gliederung kommt wie im
+  Story-Modus ueber die Systemfrage `STORY_TOC_QUESTION` und den Antwort-Cache
+  (`use-website-themen.ts` mit `useStoryStream`), mit der Perspektive der
+  Story-Sektion (`use-website-perspektive.ts`, beide Sektionen rechnen
+  dieselbe), aber OHNE deren Regelsatz und ohne Sitzung. Ein Klick auf eine
+  Frage legt einen Auftrag ab (`websiteStoryFrageAtom`); die Story-Sektion
+  nimmt ihn genau einmal an, rollt zu sich hinauf und stellt die Frage — laeuft
+  noch eine Antwort, steht die Frage im Eingabefeld (`auftragSchritt` in
+  `src/lib/website/story-frage-auftrag.ts`). Regeln im Parser (werfen):
+  `topics` nur mit einer Sektion `layout=story` auf derselben Seite,
+  hoechstens eine je Seite, kein Bild-Auszug; die Story-Attribute und
+  -Bloecke bleiben `story` vorbehalten. Montage ueber denselben `storySlot`
+  (faul geladen); ohne Slot (Archiv-Vorschau) zeigt der Rahmen einen Hinweis.
+  Fehlende Gliederung oder Stream-Fehler stehen als Klartext in der Sektion
+  und in der Konsole, nie als leere Flaeche.
 - **Kacheln mit Link (Welle N2, Plan `website-story-sektion`):**
   `<!-- cards -->` + Liste `- **Titel** Text [Linktext](Ziel)` in JEDER
   Sektion (nicht nur Story): drei Karten nebeneinander ab `md`, Karte im Stil

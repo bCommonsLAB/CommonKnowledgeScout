@@ -20,6 +20,10 @@ import type { SectionContentBlock } from './parse-section-blocks'
  * der Startseite — Markdown vor dem Block `<!-- questions -->` steht ueber
  * der Eingabe, die Liste des Blocks sind die Beispielfragen, Markdown danach
  * steht unter der Eingabe. Hoechstens eine je Seite (Parser).
+ * `topics` (Owner 18.11.2026): die Themenuebersicht des Story-Modus als
+ * Inhalte der Library — Markdown der Sektion ueber den Themenkarten; eine
+ * Frage eines Themas geht in die Story-Sektion derselben Seite. Setzt deshalb
+ * eine Story-Sektion voraus; hoechstens eine je Seite (Parser).
  */
 export type SectionLayout =
   | 'image-left'
@@ -30,6 +34,7 @@ export type SectionLayout =
   | 'contact-form'
   | 'banner'
   | 'story'
+  | 'topics'
 
 /**
  * Bildspalte der Sektionen image-left/image-right (Marker-Attribut

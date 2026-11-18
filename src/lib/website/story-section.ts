@@ -55,6 +55,15 @@ export function pruefeStorySektionen(sections: WebsiteSection[]): void {
   if (storys.length > 1) {
     throw new Error(`Hoechstens eine Sektion layout=story je Seite erlaubt (hier: ${storys.length})`)
   }
+  // 18.11.2026: Eine Frage aus der Themenuebersicht wird in der Story-Sektion gestellt —
+  // ohne sie liefe der Klick ins Leere; zwei Uebersichten waeren dieselbe Liste doppelt.
+  const themen = sections.filter((s) => s.layout === 'topics')
+  if (themen.length > 1) {
+    throw new Error(`Hoechstens eine Sektion layout=topics je Seite erlaubt (hier: ${themen.length})`)
+  }
+  if (themen.length === 1 && storys.length === 0) {
+    throw new Error('Sektion layout=topics braucht eine Sektion layout=story auf derselben Seite — dort wird die gewaehlte Frage gestellt')
+  }
   for (const s of sections) {
     if (s.layout !== 'story' && s.blocks.some((b) => b.type === 'questions')) {
       throw new Error(`<!-- questions --> ist nur in einer Sektion layout=story erlaubt (hier: ${s.layout})`)
