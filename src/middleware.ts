@@ -24,6 +24,7 @@
 
 import { verifyMcpAccountKey } from '@/lib/mcp/account-key';
 import { embedCorsHeaders } from '@/lib/embed/embed-cors';
+import { isAnonymousExternalJobsRoute } from '@/lib/external-jobs/anonymous-routes';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@ks/i18n';
@@ -201,12 +202,13 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  // Dynamische Ausnahme: Nur POST /api/external/jobs/:jobId erlauben (nicht /stream)
+  // Dynamische Ausnahme External Jobs: Positivliste statt „jeder POST unter /api/external/jobs/".
+  // Offen bleiben nur Secretary-Callback (POST /:jobId), Worker-Start (POST /:jobId/start) und
+  // internal/create — alle drei pruefen selbst. Verwaltungsrouten wie /worker brauchen eine
+  // Session (Befund 18.11.2026: anonymer POST {"action":"stop"} hielt sonst den Worker an).
   if (!isPublic) {
     const path = req.nextUrl.pathname;
-    const isJobsPath = path.startsWith('/api/external/jobs/');
-    const isStream = path === '/api/external/jobs/stream' || path.endsWith('/stream');
-    if (req.method === 'POST' && isJobsPath && !isStream) {
+    if (isAnonymousExternalJobsRoute(req.method, path)) {
       isPublic = true;
     }
 

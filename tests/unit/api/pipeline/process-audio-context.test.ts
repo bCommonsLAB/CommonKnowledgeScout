@@ -41,6 +41,12 @@ vi.mock('@/lib/debug/logger', () => ({
   FileLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
+// Worker-Trigger laeuft im Prozess (tickNow), nicht mehr per HTTP-Self-POST.
+const tickNow = vi.fn(async () => undefined)
+vi.mock('@/lib/external-jobs-worker', () => ({
+  ExternalJobsWorker: { tickNow: () => tickNow() },
+}))
+
 interface JobShape {
   correlation: { options: Record<string, unknown> }
 }
@@ -77,8 +83,9 @@ function optionsOfFirstJob(): Record<string, unknown> {
 describe('POST /api/pipeline/process — Audio-Kontext (P3a)', () => {
   beforeEach(() => {
     created.length = 0
-    // Worker-Trigger (best-effort) nicht wirklich aufrufen
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    tickNow.mockClear()
+    // Kein HTTP mehr: ein Self-POST auf /api/external/jobs/worker faellt hier auf.
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('unerwarteter fetch-Aufruf') }))
   })
 
   it('legt speakerMode, audioPrompt und audioKeywords als Job-Optionen ab', async () => {
@@ -98,6 +105,13 @@ describe('POST /api/pipeline/process — Audio-Kontext (P3a)', () => {
     expect(options.audioPrompt).toBe('Journalistenschulung Armut, Diskussion')
     expect(options.audioKeywords).toEqual(['Caritas', 'Pastoralzentrum'])
     expect(options.targetLanguage).toBe('de')
+  })
+
+  it('stoesst den Worker im Prozess an, ohne HTTP-Self-POST (Befund 18.11.2026)', async () => {
+    const res = await post({ libraryId: 'lib-1', item: audioItem(), config: baseConfig })
+    expect(res.status).toBe(200)
+    expect(tickNow).toHaveBeenCalledTimes(1)
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('ohne Felder im Request bleiben die Optionen weg (Server entscheidet ueber Library-Feld)', async () => {
