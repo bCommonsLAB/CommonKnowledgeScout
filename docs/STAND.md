@@ -376,7 +376,8 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   sind Links der Container-Anwendung (`hrefFor`). Bausteine ziehen dafür in
   ein Paket `@ks/module-website`. Wellen WE0–WE5; WE1 erst, wenn die
   laufende Arbeit an der Fragen-Sektion gemergt ist. Fünf Owner-Entscheide
-  (A–E). Nichts gebaut
+  (A–E). Gebaut: WE0 (Explorer startet mit Dokument, Liste oder Frage;
+  Übersetzer `ksZielAlsParameter`/`ksEinstiegAusParametern`, 18.11.)
 - **Sitzungen: Sichten statt Kopien, Befunde statt Hoffen** (Plan
   [`sitzungen-sichten-und-befunde`](plans/geplant/sitzungen-sichten-und-befunde.plan.md),
   08.11.): Sitzungsbelege (`type: chatverlauf`, Vorlage `chatverlauf-de`)

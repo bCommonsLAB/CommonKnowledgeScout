@@ -10,7 +10,8 @@
  * zentrale Instanz (`baseUrl`) — nur oeffentliche Libraries, kein Site-Token,
  * keine Anmeldung.
  *
- * Was die Huelle selbst mitbringt, weil die fremde Seite es nicht hat:
+ * Was die Huelle selbst mitbringt, weil die fremde Seite es nicht hat
+ * (`embed-inhalt.tsx`):
  * - einen eigenen Jotai-Speicher: Die Galerie-Atome kollidieren weder mit der
  *   Seite noch mit einem zweiten Embed,
  * - die Sprache als Prop — fuer die Oberflaeche und, als `Accept-Language`,
@@ -19,24 +20,23 @@
  *   und in ihn rendern Dialoge und Menues (`PortalContainerProvider`),
  * - den `TooltipProvider`, den die Anwendung im Wurzel-Layout setzt: Ohne ihn
  *   stuerzt jede Galerie-Komponente ab, die einen Tooltip ohne eigenen Provider
- *   zeigt (Quellenverzeichnis beim Wechsel Story → Galerie, 08.10.2026).
+ *   zeigt (Quellenverzeichnis beim Wechsel Story → Galerie, 08.10.2026),
+ * - den Einstieg (`start`, WE0): offenes Dokument, Liste, Frage im Story-Modus.
  *
  * Falsche Props werden im Rahmen gemeldet, nicht still ersetzt. Die
  * oeffentlichen Typen stehen in `typen.ts`.
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Provider as JotaiProvider, createStore } from 'jotai'
 import { createInstanceApi, type InstanceApi } from '@ks/api-client'
 import { SUPPORTED_LOCALES, type Locale } from '@ks/i18n'
-import { PortalContainerProvider, TooltipProvider } from '@ks/ui'
-import { EmbedGalleryProviders } from '@ks/module-explorer/react'
-import { EmbedGalerie } from './embed-galerie'
-import { EmbedLocale } from './embed-locale'
+import { EmbedInhalt } from './embed-inhalt'
+import { einstiegAufbauen } from './einstieg'
 import type {
   KnowledgeScoutExplorer as OeffentlicheErklaerung,
   KnowledgeScoutExplorerProps,
   KnowledgeScoutLocale,
+  KsEinstieg,
 } from './typen'
 
 type Ansicht = KnowledgeScoutExplorerProps['view']
@@ -79,17 +79,25 @@ export function KnowledgeScoutExplorer({
   locale,
   enableStory,
   enablePerspective,
+  start,
   height = '80vh',
   className,
 }: KnowledgeScoutExplorerProps) {
   // Der Rahmen ist zugleich das Ziel fuer Dialoge und Menues (Radix-Portale).
   const [rahmen, setRahmen] = useState<HTMLDivElement | null>(null)
-  const store = useMemo(() => createStore(), [])
   const aufbau = useMemo(
     () => aufbauen(baseUrl, view, locale, enableStory, enablePerspective),
     [baseUrl, view, locale, enableStory, enablePerspective],
   )
-  const fehler = 'fehler' in aufbau ? aufbau.fehler : null
+  // Die Container-Seite reicht den Einstieg oft je Render als neues Objekt
+  // (`ksEinstiegAusParametern(searchParams)`). Massgeblich ist der Inhalt —
+  // sonst begaenne die Galerie bei jedem Render der fremden Seite neu.
+  const startSchluessel = start === undefined ? '' : JSON.stringify(start)
+  const einstieg = useMemo(
+    () => einstiegAufbauen(startSchluessel === '' ? undefined : (JSON.parse(startSchluessel) as KsEinstieg), view),
+    [startSchluessel, view],
+  )
+  const fehler = 'fehler' in aufbau ? aufbau.fehler : 'fehler' in einstieg ? einstieg.fehler : null
 
   useEffect(() => {
     if (fehler) console.error(`[KnowledgeScoutExplorer] ${fehler}`)
@@ -111,22 +119,23 @@ export function KnowledgeScoutExplorer({
       className={className ? `ks-embed ${className}` : 'ks-embed'}
       style={{ display: 'flex', flexDirection: 'column', position: 'relative', height, contain: 'layout' }}
     >
-      {'fehler' in aufbau ? (
+      {fehler !== null ? (
         <p role="alert" className="p-4 text-sm text-destructive">
-          KnowledgeScoutExplorer: {aufbau.fehler}
+          KnowledgeScoutExplorer: {fehler}
         </p>
-      ) : rahmen === null ? null : (
-        <JotaiProvider store={store}>
-          <EmbedLocale locale={aufbau.locale} />
-          <PortalContainerProvider container={rahmen}>
-            <TooltipProvider>
-              {/* D6b: Die Story-Ansicht startet im Story-Modus der Galerie (Adressierung im Speicher). */}
-              <EmbedGalleryProviders instanz={aufbau.instanz} initialParams={aufbau.view === 'story' ? 'mode=story' : undefined}>
-                <EmbedGalerie slug={library} instanz={aufbau.instanz} story={aufbau.story} perspektive={aufbau.perspektive} locale={aufbau.locale} />
-              </EmbedGalleryProviders>
-            </TooltipProvider>
-          </PortalContainerProvider>
-        </JotaiProvider>
+      ) : rahmen === null || 'fehler' in aufbau || 'fehler' in einstieg ? null : (
+        // Neuer Einstieg = neuer Inhalt (eigener Speicher, neue Adressierung).
+        <EmbedInhalt
+          key={`${einstieg.initialParams ?? ''}|${einstieg.frage ?? ''}`}
+          rahmen={rahmen}
+          library={library}
+          instanz={aufbau.instanz}
+          locale={aufbau.locale}
+          story={aufbau.story}
+          perspektive={aufbau.perspektive}
+          initialParams={einstieg.initialParams}
+          frage={einstieg.frage}
+        />
       )}
     </div>
   )
