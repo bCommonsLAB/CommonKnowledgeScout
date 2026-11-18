@@ -8,18 +8,20 @@
  * Holt die Karten aus der oeffentlichen Docs-API (`sort=rating`, optional
  * `tags=`), Website-Docs werden entfernt. Rendert an der Stelle, an der es
  * eingebaut wird: unter der Seite (Vorgabe) oder in einer `banner`-Sektion.
+ *
+ * WE2: Karten und „mehr Inhalte" fuehren ueber die Navigation-Schnittstelle
+ * (Ziel `dokument` bzw. `galerie` mit der Liste des Banners); Abrufe ueber
+ * die Instanz. Kein Router, keine Explore-Adressen mehr im Baustein.
  */
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { DocumentCard } from "@ks/module-explorer/react"
-import { getEffectiveDocumentNavigationSlug } from "@ks/util"
+import type { InstanceApi } from "@ks/api-client"
+import { cn, getEffectiveDocumentNavigationSlug } from "@ks/util"
 import type { DocCardMeta } from "@ks/contracts"
-import { fetchDocs } from "@/components/library/website/use-website-landing-data"
+import { fetchDocs } from "./use-website-landing-data"
 import {
-  bannerGalerieParams,
-  bannerKartenHref,
-  bannerKartenParams,
+  bannerListe,
   bannerQuery,
   type BannerSort,
   OLDIES_THEME,
@@ -27,10 +29,13 @@ import {
   BUTTON_STRONG,
   HEADING_FONT,
   surfaceStyle,
-} from "@ks/module-website"
-import { cn } from "@/lib/utils"
+  wegFehltMelden,
+  type WebsiteNavigation,
+} from ".."
+import { WegLink } from "./weg-link"
 
 interface WebsiteBannerGridProps {
+  instanz: InstanceApi
   libraryId: string
   locale: string
   /** Facetten-Filter `tags=<tag>` (Frontmatter `banner_tag`). */
@@ -41,10 +46,14 @@ interface WebsiteBannerGridProps {
   limit: number
   /** Reihung (Frontmatter `banner_sort`, F3/ADR 0012): `rating` oder `stars`. */
   sort?: BannerSort
-  /** Root-Modus: Galerie-Basis inkl. `?view=gallery`; sonst lokaler Galerie-Modus. */
-  galleryBaseHref: string | null
-  /** Site-Modus: wechselt in die Galerie; `extra` sind Adress-Parameter, die mitgehen (z. B. die Rangliste). */
-  onShowGallery?: (extra?: Record<string, string>) => void
+  /** Wohin Karten und „mehr Inhalte" fuehren. */
+  navigation: WebsiteNavigation
+  /**
+   * Sterne und Kommentare an den Karten bedienbar (die Karte bekommt die
+   * Library). Die App setzt es im Site-Modus; auf der Root-Seite bleiben sie
+   * reine Anzeige wie vor WE2.
+   */
+  sterneAnKarten: boolean
   moreLinkLabel: string
   /** Welle S2: Flaeche `light` und Akzent aus dem Profil. */
   theme?: SiteThemeResolved
@@ -53,15 +62,14 @@ interface WebsiteBannerGridProps {
 const STANDARD_TITEL = "Mehr aus dieser Bibliothek"
 
 export function WebsiteBannerGrid({
-  libraryId, locale, tag, title, limit, sort = "rating", galleryBaseHref, onShowGallery, moreLinkLabel, theme = OLDIES_THEME,
+  instanz, libraryId, locale, tag, title, limit, sort = "rating", navigation, sterneAnKarten, moreLinkLabel, theme = OLDIES_THEME,
 }: WebsiteBannerGridProps): React.ReactElement | null {
-  const router = useRouter()
   const flaeche = surfaceStyle("light", theme)
   const [docs, setDocs] = React.useState<DocCardMeta[]>([])
 
   React.useEffect(() => {
     let cancelled = false
-    fetchDocs(libraryId, bannerQuery({ tag, limit, sort }), locale)
+    fetchDocs(instanz, libraryId, bannerQuery({ tag, limit, sort }), locale)
       .then((items) => {
         if (cancelled) return
         setDocs(items.filter((d) => d.detailViewType !== "website").slice(0, limit))
@@ -73,7 +81,7 @@ export function WebsiteBannerGrid({
     return () => {
       cancelled = true
     }
-  }, [libraryId, locale, tag, limit, sort])
+  }, [instanz, libraryId, locale, tag, limit, sort])
 
   if (docs.length === 0) {
     if (tag) console.warn(`[website-banner] Kein Dokument traegt das Tag "${tag}" — Raster bleibt leer`)
@@ -82,46 +90,64 @@ export function WebsiteBannerGrid({
   }
 
   // „Alle ansehen" nimmt dieselbe Reihung mit: bei `stars` die ganze Rangliste.
-  const galerieParams = bannerGalerieParams(sort)
-  const zurGalerie = () => {
-    if (galleryBaseHref) {
-      router.push(galerieParams ? `${galleryBaseHref}&${galerieParams}` : galleryBaseHref)
-      return
-    }
-    onShowGallery?.(galerieParams ? Object.fromEntries(new URLSearchParams(galerieParams)) : undefined)
-  }
+  const liste = bannerListe(sort)
+  const zurGalerie = navigation.weg({ art: "galerie", liste })
+  if (zurGalerie === null) wegFehltMelden("Galerie hat in dieser Seite keine Adresse — „mehr Inhalte\" entfaellt")
 
   return (
     <section className={cn("px-4 py-12", flaeche.className)} style={flaeche.style}>
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <h2 className={cn("text-2xl font-semibold text-[color:var(--site-heading)]", HEADING_FONT)}>{title || STANDARD_TITEL}</h2>
-          <button type="button" onClick={zurGalerie} className="whitespace-nowrap text-sm font-medium text-[color:var(--site-accent-strong)] hover:underline">
-            {moreLinkLabel} →
-          </button>
+          {zurGalerie && (
+            <WegLink weg={zurGalerie} className="whitespace-nowrap text-sm font-medium text-[color:var(--site-accent-strong)] hover:underline">
+              {moreLinkLabel} →
+            </WegLink>
+          )}
         </div>
         {/* Drei Spalten auf ~325 px: die Karten laufen in der kompakten Form (nur Titel, Status, Sterne). */}
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-          {docs.map((d) => {
-            // Der Klick bringt die Liste mit, in der der Eintrag liegt (bei stars die
-            // Rangliste) — sonst findet die Galerie nur Eintraege der ersten Seite.
-            const slug = getEffectiveDocumentNavigationSlug(d) ?? ""
-            return galleryBaseHref ? (
-              // Root-Modus: Karte navigiert in die Explore-Galerie (Detail-Overlay dort).
-              <DocumentCard key={d.fileId ?? d.id} doc={d} cardDensity="compact" onClick={() => router.push(bannerKartenHref(galleryBaseHref, sort, slug))} />
-            ) : (
-              // Site-Modus: Galerie-Ansicht mit Liste und Eintrag zugleich oeffnen.
-              <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} cardDensity="compact" onOpen={() => onShowGallery?.(bannerKartenParams(sort, slug))} />
-            )
-          })}
+          {docs.map((d) => (
+            <BannerKarte key={d.fileId ?? d.id} doc={d} liste={liste} navigation={navigation} libraryId={sterneAnKarten ? libraryId : undefined} />
+          ))}
         </div>
         {/* Galerie-Link nach dem Raster wiederholen — der dezente Link oben wird leicht uebersehen. */}
-        <div className="mt-8 flex justify-center">
-          <button type="button" onClick={zurGalerie} className={BUTTON_STRONG}>
-            {moreLinkLabel} →
-          </button>
-        </div>
+        {zurGalerie && (
+          <div className="mt-8 flex justify-center">
+            <WegLink weg={zurGalerie} className={BUTTON_STRONG}>
+              {moreLinkLabel} →
+            </WegLink>
+          </div>
+        )}
       </div>
     </section>
+  )
+}
+
+/**
+ * Eine Karte des Rasters. Der Klick bringt die Liste mit, in der der Eintrag
+ * liegt (bei `stars` die Rangliste) — sonst findet die Galerie nur Eintraege
+ * der ersten Seite. Ohne Rueckruf des Wegs traegt ein umschliessender Link
+ * die Adresse; ohne Weg bleibt die Karte reine Anzeige (gemeldet).
+ */
+function BannerKarte({ doc, liste, navigation, libraryId }: {
+  doc: DocCardMeta
+  liste: ReturnType<typeof bannerListe>
+  navigation: WebsiteNavigation
+  libraryId?: string
+}): React.ReactElement {
+  const slug = getEffectiveDocumentNavigationSlug(doc) ?? ""
+  const weg = navigation.weg({ art: "dokument", slug, liste })
+  if (weg === null) {
+    wegFehltMelden("Dokument hat in dieser Seite keine Adresse — Banner-Karten oeffnen nichts")
+    return <DocumentCard doc={doc} libraryId={libraryId} cardDensity="compact" onOpen={() => undefined} />
+  }
+  const { ausfuehren } = weg
+  if (ausfuehren) return <DocumentCard doc={doc} libraryId={libraryId} cardDensity="compact" onOpen={() => ausfuehren()} />
+  return (
+    <a href={weg.href} className="block">
+      {/* Die Adresse traegt der Link; die Karte selbst tut beim Klick nichts. */}
+      <DocumentCard doc={doc} libraryId={libraryId} cardDensity="compact" onOpen={() => undefined} />
+    </a>
   )
 }

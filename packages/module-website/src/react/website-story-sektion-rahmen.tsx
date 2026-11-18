@@ -23,9 +23,9 @@ import {
   type SiteThemeResolved,
   KICKER_CLASS,
   surfaceStyle,
-} from "@ks/module-website"
-import { SectionContent } from "@/components/library/website/section-content"
-import { cn } from "@/lib/utils"
+} from ".."
+import { SectionContent } from "./section-content"
+import { cn } from "@ks/util"
 
 export interface WebsiteStorySektionRahmenProps {
   section: WebsiteSection

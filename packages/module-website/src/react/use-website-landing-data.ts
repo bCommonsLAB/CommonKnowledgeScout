@@ -8,22 +8,28 @@
  * Website-Footer dieselben Ladepfade teilen:
  *  - `useWebsiteDocs`: alle website-Docs (Menue + Footer-Zuordnung)
  *  - `useWebsiteDetail`: Detail eines Docs (`doc-meta`) -> WebsiteDetailData
+ *
+ * WE2: Jeder Abruf geht ueber die Instanz (`instanz.fetch`), die Sprache als
+ * `Accept-Language` — von fremder Herkunft geht das Locale-Cookie nicht mit,
+ * und `x-locale` ist dort nicht freigegeben. In der App setzt die Middleware
+ * `x-locale` ohnehin selbst (Cookie vor `Accept-Language`).
  */
 
 import * as React from "react"
-import { mapToWebsiteDetail } from "@/lib/mappers/doc-meta-mappers"
+import { mapToWebsiteDetail, type WebsiteDetailData } from ".."
 import { localizeDocMetaJson } from "@ks/module-explorer"
-import type { WebsiteDetailData } from "@/components/library/website-detail"
+import type { InstanceApi } from "@ks/api-client"
 import type { DocCardMeta } from "@ks/contracts"
 
 export async function fetchDocs(
+  instanz: InstanceApi,
   libraryId: string,
   query: string,
   locale: string,
 ): Promise<DocCardMeta[]> {
-  const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs?${query}`, {
+  const res = await instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs?${query}`, {
     cache: "no-store",
-    headers: { "x-locale": locale },
+    headers: { "Accept-Language": locale },
   })
   const json = await res.json()
   if (!res.ok) {
@@ -39,7 +45,7 @@ interface WebsiteDocsState {
 }
 
 /** Laedt alle website-Docs der Library (Menue, Footer-Links, Footer-Content). */
-export function useWebsiteDocs(libraryId: string, locale: string): WebsiteDocsState {
+export function useWebsiteDocs(instanz: InstanceApi, libraryId: string, locale: string): WebsiteDocsState {
   const [allDocs, setAllDocs] = React.useState<DocCardMeta[]>([])
   const [loadingList, setLoadingList] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
@@ -48,7 +54,7 @@ export function useWebsiteDocs(libraryId: string, locale: string): WebsiteDocsSt
     let cancelled = false
     setLoadingList(true)
     setListError(null)
-    fetchDocs(libraryId, "detailViewType=website&limit=50", locale)
+    fetchDocs(instanz, libraryId, "detailViewType=website&limit=50", locale)
       .then((items) => {
         if (!cancelled) setAllDocs(items)
       })
@@ -61,7 +67,7 @@ export function useWebsiteDocs(libraryId: string, locale: string): WebsiteDocsSt
     return () => {
       cancelled = true
     }
-  }, [libraryId, locale])
+  }, [instanz, libraryId, locale])
 
   return { allDocs, loadingList, listError }
 }
@@ -77,6 +83,7 @@ interface WebsiteDetailState {
  * Seitenwechsel sichtbar, bis das neue da ist (kein Flackern).
  */
 export function useWebsiteDetail(
+  instanz: InstanceApi,
   libraryId: string,
   fileId: string | null,
   locale: string,
@@ -89,7 +96,7 @@ export function useWebsiteDetail(
     if (!fileId) return
     let cancelled = false
     const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`
-    fetch(url, { cache: "no-store", headers: { "x-locale": locale } })
+    instanz.fetch(url, { cache: "no-store", headers: { "Accept-Language": locale } })
       .then(async (res) => {
         const json = await res.json()
         if (!res.ok) {
@@ -111,7 +118,7 @@ export function useWebsiteDetail(
     return () => {
       cancelled = true
     }
-  }, [fileId, libraryId, locale, fallbackLocale])
+  }, [instanz, fileId, libraryId, locale, fallbackLocale])
 
   return { detail, detailError }
 }
