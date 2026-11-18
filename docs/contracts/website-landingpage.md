@@ -17,6 +17,17 @@ Uebersetzungs-Waechter (`website-translation-guard.ts`). Paketgrenze: kein
 `next/*`, kein Clerk, kein `@/`, keine Adresszeile, kein nacktes `fetch`
 (`tests/unit/packages/module-website/paket-schnitt.test.ts`).
 
+**Bausteine und Wege (seit WE2):** Kopf-Varianten, Sektionen, Kacheln,
+Banner, Fußzeile, Kontaktformular, `WebsiteDetail` und der Kern der
+Live-Seite (`WebsiteLanding`) liegen unter `@ks/module-website/react`. Jeder
+Weg aus der Seite hinaus — Kachel, Handlungsaufruf (`cta_url`, `cta2_url`),
+Link im Sektions-Markdown, Fußzeile, Banner — läuft über
+`WebsiteNavigation.weg(ziel)`; kein Baustein kennt Router, Adresszeile oder
+Explore-Adressen. Die App baut die Navigation mit `appNavigation` aus ihren
+zwei Modi; `WebsiteLandingLive` ist die App-Hülle (nuqs `?site=`,
+`router.push`, `next/font`, `next/dynamic`). Abrufe gehen über die Instanz,
+die Sprache als `Accept-Language`.
+
 ## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
 
 - Ist `publicPublishing.siteEnabled === true`, rendert `/explore/<slug>` als
