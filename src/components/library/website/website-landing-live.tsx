@@ -11,8 +11,8 @@
  *  - die Navigation der zwei Modi (`appNavigation`: Site-Modus mit
  *    Rueckrufen, Root-Modus mit Explore-Adressen und `router.push`),
  *  - die Schriften aus `next/font` (`site-fonts.ts`),
- *  - die Fragen- und Themen-Sektion, faul geladen ueber `next/dynamic`
- *    (Story-Paket und Clerk; WE3 loest sie von der App),
+ *  - die Fragen- und Themen-Sektion mit dem Gastgeber der App
+ *    (`story/website-story-app.tsx`), faul geladen ueber `next/dynamic`,
  *  - Galerie-Texte und Design-Profil aus der Library im Atom.
  */
 
@@ -31,12 +31,12 @@ import { SITE_FONT_FAMILIES } from "@/lib/website/site-fonts"
 // Seiten mit `layout=story` zahlen dafuer. Ohne SSR: Sitzung und Perspektive
 // leben im Browser.
 const WebsiteStorySektion = dynamic(
-  () => import("@/components/library/website/story/website-story-sektion").then((m) => ({ default: m.WebsiteStorySektion })),
+  () => import("@/components/library/website/story/website-story-app").then((m) => ({ default: m.WebsiteStorySektionApp })),
   { ssr: false, loading: () => <div className="px-6 py-14 text-sm text-muted-foreground">Lade den Scout …</div> },
 )
 // 18.11.2026: Themenuebersicht (`layout=topics`) — dieselben Gruende wie oben.
 const WebsiteThemenSektion = dynamic(
-  () => import("@/components/library/website/story/website-themen-sektion").then((m) => ({ default: m.WebsiteThemenSektion })),
+  () => import("@/components/library/website/story/website-story-app").then((m) => ({ default: m.WebsiteThemenSektionApp })),
   { ssr: false, loading: () => <div className="px-6 py-14 text-sm text-muted-foreground">Lade die Inhalte …</div> },
 )
 
@@ -113,8 +113,8 @@ export function WebsiteLandingLive({
     [onShowGallery, onShowStory, setSiteParam, galleryBaseHref, storyBaseHref, router],
   )
 
-  // N1: Story-Sektion mit dem Chat der Library; Belege und Katalog fuehren in
-  // die Galerie wie die Banner-Karten (Site-Modus Rueckruf, Root-Modus Adresse).
+  // N1: Story-Sektion mit dem Chat der Library; Belege, Katalog und „fruehere
+  // Fragen" gehen ueber dieselbe Navigation wie die Banner-Karten (WE3).
   const storySlot = React.useCallback(
     (section: WebsiteSection, { headingCase, theme }: WebsiteSlotKontext) => section.layout === "topics" ? (
       <WebsiteThemenSektion libraryId={libraryId} section={section} headingCase={headingCase} theme={theme} />
@@ -124,11 +124,11 @@ export function WebsiteLandingLive({
         section={section}
         headingCase={headingCase}
         theme={theme}
-        navigation={{ onShowGallery, galleryBaseHref, onShowStory, storyBaseHref }}
+        navigation={navigation}
         galleryTexte={publicPublishing?.gallery}
       />
     ),
-    [libraryId, onShowGallery, galleryBaseHref, onShowStory, storyBaseHref, publicPublishing?.gallery],
+    [libraryId, navigation, publicPublishing?.gallery],
   )
 
   return (
