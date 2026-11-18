@@ -116,3 +116,52 @@ export declare function ksEinstiegAusParametern(params: KsAdressParameter): KsEi
 
 /** Die Kennung der Website-Seite aus den Adress-Parametern (`ks-site`), sonst `undefined`. */
 export declare function ksSeiteAusParametern(params: KsAdressParameter): string | undefined
+
+/**
+ * Props der Startseite einer oeffentlichen Library (Plan `startseite-als-embed`,
+ * WE4). Jeder Weg aus der Seite hinaus — Galerie, Story-Modus, andere
+ * Website-Seite, ein Dokument ohne eingebettete Detailansicht — ist ein Link der
+ * Container-Anwendung: Welche ihrer Seiten das Ziel zeigt, entscheidet `hrefFor`.
+ */
+export interface KnowledgeScoutSiteProps {
+  /** Die Instanz, z. B. `https://knowledgescout.org`. */
+  baseUrl: string
+  /** Slug der oeffentlichen Library mit Website, z. B. `aeced`. */
+  library: string
+  /**
+   * Kennung der Website-Seite (Slug oder fileId, wie `?site=` der Instanz).
+   * Ohne Angabe die Startseite (Main-Menue-Seite mit kleinstem `menu_order`).
+   * Passt sie zu keiner Seite: Fehler im Rahmen, kein Rueckfall.
+   */
+  page?: string
+  /** Sprache der Oberflaeche und der Inhalte. */
+  locale: KnowledgeScoutLocale
+  /**
+   * Die Adresse eines Ziels in der Container-Anwendung, gerendert als
+   * gewoehnlicher Link `<a href>`. `null` = die Container-Anwendung hat dafuer
+   * keine Seite: Das Element entfaellt, die Konsole sagt es einmal.
+   * `ksZielAlsParameter` liefert die Details als `ks-`-Parameter.
+   */
+  hrefFor: (ziel: KsZiel) => string | null
+  /**
+   * Schlanke Menuezeile oben: die Website-Seiten nach `menu_order`, „Inhalte"
+   * und „Story", alle ueber `hrefFor`. Standard: an; `false` blendet sie aus.
+   */
+  menu?: boolean
+  /**
+   * Ohne Angabe natuerliche Hoehe — die Container-Seite scrollt. Mit Angabe
+   * (CSS-Wert) ein fester Rahmen mit eigenem Scroll. Blaetter und
+   * Detailansicht liegen in beiden Faellen ueber dem Fenster.
+   */
+  height?: string
+  /** Zusaetzliche Klassen fuer den Rahmen. */
+  className?: string
+}
+
+/**
+ * Die Startseite einer oeffentlichen KnowledgeScout-Library mit Fragen-Sektion
+ * und Galerie-Band in einer fremden Seite. Stile einmal laden:
+ * `import '@ks/embed/styles.css'` (bringt die Schriften des Design-Profils mit).
+ * Jede Frage kostet die Instanz einen Modell-Aufruf.
+ */
+export declare function KnowledgeScoutSite(props: KnowledgeScoutSiteProps): ReactElement

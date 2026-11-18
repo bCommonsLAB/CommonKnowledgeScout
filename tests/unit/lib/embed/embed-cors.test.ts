@@ -122,6 +122,12 @@ describe('embedCorsHeaders — Story-Modus (D12y, Owner 04.10.2026)', () => {
     expect(embedCorsHeaders(method, path)).toBeNull()
   })
 
+  it('Startseite (WE4): populaere Fragen nur lesend', () => {
+    expect(embedCorsHeaders('GET', '/api/chat/lib-1/popular-questions')).toEqual({ 'Access-Control-Allow-Origin': '*' })
+    expect(embedCorsHeaders('POST', '/api/chat/lib-1/popular-questions')).toBeNull()
+    expect(embedCorsHeaders('OPTIONS', '/api/chat/lib-1/popular-questions')?.['Access-Control-Allow-Methods']).toBe('GET, OPTIONS')
+  })
+
   it('der Preflight des Streams erlaubt POST und die anonyme Sitzungskennung', () => {
     const vorab = embedCorsHeaders('OPTIONS', '/api/chat/lib-1/stream')
     expect(vorab?.['Access-Control-Allow-Methods']).toBe('POST, OPTIONS')

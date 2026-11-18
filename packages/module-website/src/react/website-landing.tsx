@@ -20,12 +20,11 @@
 import * as React from "react"
 import { useTranslation } from "@ks/i18n/react"
 import type { InstanceApi } from "@ks/api-client"
-import type { SiteFontName, SiteTheme } from "@ks/contracts"
+import type { DocCardMeta, SiteFontName, SiteTheme } from "@ks/contracts"
 import {
   selectMainMenuDocs,
   selectFooterLinkDocs,
   findFooterContentDoc,
-  resolveSiteParamDoc,
   BANNER_LIMIT_DEFAULT,
   resolveSiteTheme,
   siteThemeCssVars,
@@ -38,6 +37,7 @@ import { WebsiteDetail, hatBannerSektion } from "./website-detail"
 import { WebsiteBannerGrid } from "./website-banner-grid"
 import { WebsiteSiteFooter } from "./website-site-footer"
 import { useWebsiteDocs, useWebsiteDetail } from "./use-website-landing-data"
+import { useWebsiteSeite, type UnbekannteSeite } from "./use-website-seite"
 
 /** Was ein Story-Slot ueber die Seite wissen muss. */
 export interface WebsiteSlotKontext {
@@ -52,6 +52,12 @@ export interface WebsiteLandingProps {
   fallbackLocale?: string
   /** Gewaehlte Website-Seite (Slug oder fileId, wie `?site=`); `null` = Startseite. */
   seite: string | null
+  /** WE4: unbekannte `seite` — Startseite zeigen (App) oder Fehler im Rahmen (Embed). */
+  unbekannteSeite: UnbekannteSeite
+  /** WE4: Menuezeile ueber der Seite (Embed); bekommt die Main-Menue-Seiten und die aktive. */
+  menue?: (p: { hauptmenue: DocCardMeta[]; aktivFileId: string | null }) => React.ReactNode
+  /** WE4 (Entscheid A): Banner-Karte oeffnet die Detailansicht ueber der Seite statt des Wegs. */
+  onDokument?: (doc: DocCardMeta) => void
   /** Wohin Kacheln, Handlungsaufrufe, Markdown-Links, Banner und Fusszeile fuehren. */
   navigation: WebsiteNavigation
   /** Schriftfamilie je Profil-Name (App: `next/font`); fehlt = Schriften erben. */
@@ -75,6 +81,9 @@ export function WebsiteLanding({
   libraryId,
   fallbackLocale,
   seite,
+  unbekannteSeite,
+  menue,
+  onDokument,
   navigation,
   schriften,
   siteTheme,
@@ -95,26 +104,11 @@ export function WebsiteLanding({
   )
 
   const { allDocs, loadingList, listError } = useWebsiteDocs(instanz, libraryId, locale)
-  const [selectedFileId, setSelectedFileId] = React.useState<string | null>(null)
+  const { fileId: selectedFileId, fehler: seitenFehler } = useWebsiteSeite(allDocs, seite, unbekannteSeite)
 
   const mainMenuDocs = React.useMemo(() => selectMainMenuDocs(allDocs), [allDocs])
   const footerLinkDocs = React.useMemo(() => selectFooterLinkDocs(allDocs), [allDocs])
   const footerDoc = React.useMemo(() => findFooterContentDoc(allDocs), [allDocs])
-
-  // `seite` aufloesen (Slug oder fileId); ohne/mit unbekannter Kennung -> Startseite.
-  // Nicht aufloesbare Kennungen werden geloggt statt still verschluckt.
-  React.useEffect(() => {
-    if (allDocs.length === 0) return
-    if (seite) {
-      const resolved = resolveSiteParamDoc(allDocs, seite)
-      if (resolved?.fileId) {
-        setSelectedFileId(resolved.fileId)
-        return
-      }
-      console.warn(`[website] Seite "${seite}" passt zu keinem website-Doc — zeige Startseite`)
-    }
-    setSelectedFileId(mainMenuDocs[0]?.fileId ?? allDocs[0]?.fileId ?? null)
-  }, [allDocs, mainMenuDocs, seite])
 
   const { detail, detailError } = useWebsiteDetail(instanz, libraryId, selectedFileId, locale, fallbackLocale)
 
@@ -142,6 +136,7 @@ export function WebsiteLanding({
       sort={detail.bannerSort}
       navigation={navigation}
       sterneAnKarten={sterneAnKarten}
+      onDokument={onDokument}
       moreLinkLabel={moreLinkLabel}
       theme={theme}
     />
@@ -153,7 +148,7 @@ export function WebsiteLanding({
     [storySlot, headingCase, theme],
   )
 
-  const error = listError ?? detailError
+  const error = listError ?? seitenFehler ?? detailError
   if (error) {
     return <div className="p-6 text-sm text-destructive">{error}</div>
   }
@@ -171,6 +166,7 @@ export function WebsiteLanding({
   return (
     // Natuerlicher Fluss (Root-Modus, Embed) oder innerer Scroll-Container (Site-Modus der App).
     <div ref={containerRef} className={eigenerScroll ? 'h-full overflow-y-auto' : 'w-full'} style={themeStyle}>
+      {menue?.({ hauptmenue: mainMenuDocs, aktivFileId: selectedFileId })}
       {detail && (
         <WebsiteDetail
           data={detail}

@@ -37,6 +37,7 @@ export {
   MarkdownBody,
   BuchDetailRenderer,
   EMBED_DETAIL_RENDERERS,
+  EMBED_DETAIL_TYPEN,
   GalleryViewerProvider,
   useGalleryViewer,
   ANONYMOUS_VIEWER,

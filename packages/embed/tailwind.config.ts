@@ -17,6 +17,8 @@ export default {
       '../module-explorer/src/**/*.{ts,tsx}',
       // D6b: der Story-Modus im Embed
       '../module-story/src/**/*.{ts,tsx}',
+      // WE4: die Startseite im Embed (Bausteine, Fragen-Sektion)
+      '../module-website/src/**/*.{ts,tsx}',
       '../ui/src/**/*.{ts,tsx}',
       // md-renderer setzt Tailwind-Klassen in das gerenderte HTML.
       '../viewers/src/**/*.{ts,tsx}',

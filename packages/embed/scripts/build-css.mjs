@@ -6,7 +6,7 @@
 // keine Kopie. Die highlight.js-Stile, die tsup aus @ks/viewers herauszieht
 // (dist/index.css), landen im selben Rahmen in derselben Datei.
 
-import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import postcss from 'postcss'
@@ -86,5 +86,33 @@ for (const datei of readdirSync(dist).filter((d) => d.endsWith('.css') && d !== 
   rmSync(`${pfad}.map`, { force: true })
 }
 
-writeFileSync(join(paket, 'dist', 'styles.css'), `/* @ks/embed — alle Regeln unter ${RAHMEN} (M5) */\n${css}`)
+// WE4: Die Schriften des Design-Profils fuer die Startseite (`EMBED_SCHRIFTEN` in
+// src/embed-site-navigation.ts). Dieselben Dateien wie `next/font` in der App
+// (src/lib/website/fonts, OFL; Geist aus dem Paket `geist`) — eine Quelle. Die
+// fremde Anwendung buendelt sie ueber den `url()` neben styles.css.
+const SCHRIFTEN = [
+  ['KS Newsreader', 'src/lib/website/fonts/newsreader-latin.woff2', '200 800', 'normal'],
+  ['KS Newsreader', 'src/lib/website/fonts/newsreader-latin-italic.woff2', '200 800', 'italic'],
+  ['KS Plus Jakarta Sans', 'src/lib/website/fonts/plus-jakarta-sans-latin.woff2', '200 800', 'normal'],
+  ['KS Source Sans 3', 'src/lib/website/fonts/source-sans-3-latin.woff2', '200 900', 'normal'],
+  ['KS Source Sans 3', 'src/lib/website/fonts/source-sans-3-latin-italic.woff2', '200 900', 'italic'],
+  ['KS Source Code Pro', 'src/lib/website/fonts/source-code-pro-latin.woff2', '200 900', 'normal'],
+  ['KS Geist', 'node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2', '100 900', 'normal'],
+]
+const schriftOrdner = join(dist, 'fonts')
+mkdirSync(schriftOrdner, { recursive: true })
+const fontFaces = []
+for (const [familie, quelle, gewicht, stil] of SCHRIFTEN) {
+  const pfad = join(repo, quelle)
+  if (!existsSync(pfad)) throw new Error(`Schrift fehlt: ${quelle}`)
+  const datei = quelle.split('/').pop()
+  copyFileSync(pfad, join(schriftOrdner, datei))
+  fontFaces.push(`@font-face{font-family:"${familie}";src:url("./fonts/${datei}") format("woff2");font-weight:${gewicht};font-style:${stil};font-display:swap}`)
+}
+copyFileSync(join(repo, 'src/lib/website/fonts/OFL.txt'), join(schriftOrdner, 'OFL.txt'))
+
+writeFileSync(
+  join(paket, 'dist', 'styles.css'),
+  `/* @ks/embed — alle Regeln unter ${RAHMEN} (M5); Schriften der Startseite (WE4) */\n${fontFaces.join('\n')}\n${css}`,
+)
 console.log(`dist/styles.css geschrieben: ${Math.round(css.length / 1024)} KB`)
