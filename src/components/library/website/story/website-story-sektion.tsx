@@ -37,7 +37,7 @@ import {
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { websiteStoryFrageAtom } from '@/atoms/website-story-frage-atom'
-import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
+import { StoryFragenKacheln, WebsiteStorySektionRahmen } from '@ks/module-website/react'
 import { WebsiteStoryBelege } from './website-story-belege'
 import type { WebsiteStoryNavigation } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'

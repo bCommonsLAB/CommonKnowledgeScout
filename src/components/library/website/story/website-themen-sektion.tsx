@@ -13,7 +13,7 @@ import { useSetAtom } from 'jotai'
 import { useTranslation } from '@ks/i18n/react'
 import type { HeadingCase, WebsiteSection, SiteThemeResolved } from '@ks/module-website'
 import { websiteStoryFrageAtom } from '@/atoms/website-story-frage-atom'
-import { ThemenKarten, WebsiteThemenRahmen } from './website-themen-rahmen'
+import { ThemenKarten, WebsiteThemenRahmen } from '@ks/module-website/react'
 import { useWebsiteThemen } from './use-website-themen'
 
 export interface WebsiteThemenSektionProps {

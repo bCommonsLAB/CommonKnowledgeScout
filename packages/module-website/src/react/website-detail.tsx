@@ -6,52 +6,46 @@ import {
   parseWebsiteSections,
   type WebsiteDetailData,
   type WebsiteSection,
-  type KartenNavigation,
+  type WebsiteNavigation,
   OLDIES_THEME,
   siteThemeCssVars,
   type SiteThemeResolved,
   BUTTON_PRIMARY,
   KICKER_CLASS,
   surfaceStyle,
-} from "@ks/module-website"
-import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
-import { SectionBlock, VideoEmbed } from "@/components/library/website/website-landing-blocks"
-import { SectionContent } from "@/components/library/website/section-content"
-import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
-import { HeroCover } from "@/components/library/website/hero-cover"
-import { HeroCampaign } from "@/components/library/website/hero-campaign"
-import { HeroBand } from "@/components/library/website/hero-band"
-import { WebsiteStorySektionRahmen } from "@/components/library/website/story/website-story-sektion-rahmen"
-import { WebsiteThemenRahmen } from "@/components/library/website/story/website-themen-rahmen"
-import { cn } from "@/lib/utils"
-
-// Typ der Detail-Daten liegt seit WE1 im Paket (zusammen mit `mapToWebsiteDetail`);
-// hier weitergereicht fuer die bestehenden Importeure.
-export type { WebsiteDetailData }
+} from ".."
+import { cn, isSafeVideoIframeSrc } from "@ks/util"
+import type { InstanceApi } from "@ks/api-client"
+import { SectionBlock, VideoEmbed } from "./website-landing-blocks"
+import { SectionContent } from "./section-content"
+import { WebsiteContactFormSection } from "./website-contact-form"
+import { HeroCover } from "./hero-cover"
+import { HeroCampaign } from "./hero-campaign"
+import { HeroBand } from "./hero-band"
+import { WebsiteStorySektionRahmen } from "./website-story-sektion-rahmen"
+import { WebsiteThemenRahmen } from "./website-themen-rahmen"
+import { AutorenLink } from "./weg-link"
 
 interface WebsiteDetailProps {
   data: WebsiteDetailData
   showBackLink?: boolean
-  /**
-   * C3: Library-Slug fuer die oeffentliche Contact-API. Ohne Slug rendert die
-   * `contact-form`-Sektion einen Deaktiviert-Hinweis statt des Formulars.
-   */
+  /** C3: Slug fuer die Contact-API; ohne Slug zeigt `contact-form` einen Deaktiviert-Hinweis. */
   contactApiSlug?: string | null
   /**
-   * Welle S1: das Dokument-Raster, das an der Stelle einer `banner`-Sektion
-   * eingesetzt wird. Fehlt es (z. B. Vorschau im Archiv), zeigt die Sektion
-   * nur ihre Einleitung.
+   * Welle S1: das Dokument-Raster an der Stelle einer `banner`-Sektion. Fehlt
+   * es (z. B. Vorschau im Archiv), zeigt die Sektion nur ihre Einleitung.
    */
   bannerSlot?: React.ReactNode
   /**
    * Welle N1: der Chat der Library, der an der Stelle einer `story`-Sektion
-   * montiert wird (Live-Seite) — seit 18.11.2026 auch die Themenuebersicht an
-   * der Stelle einer `topics`-Sektion. Fehlt er (Archiv-Vorschau), zeigt der
-   * jeweilige Rahmen die Fragen als Liste bzw. einen Hinweis.
+   * montiert wird (Live-Seite), ebenso die Themenuebersicht (`topics`). Fehlt
+   * er (Archiv-Vorschau), zeigt der Rahmen die Fragen als Liste bzw. Hinweis.
    */
   storySlot?: (section: WebsiteSection) => React.ReactNode
-  /** Welle N2: wohin Kachel-Links (`<!-- cards -->`) fuehren; fehlt er (Archiv-Vorschau), sind sie reine Links. */
-  kartenNavigation?: KartenNavigation
+  /** N2/WE2: wohin Kacheln, Handlungsaufrufe und Markdown-Links fuehren; fehlt sie (Archiv-Vorschau), reine Links. */
+  navigation?: WebsiteNavigation
+  /** WE2: Instanz fuer das Kontaktformular; fehlt sie (Archiv-Vorschau), ist es deaktiviert. */
+  instanz?: InstanceApi
   /** Welle S2: aufgeloestes Design-Profil; fehlt = Vorlage (Archiv-Vorschau). */
   theme?: SiteThemeResolved
 }
@@ -69,7 +63,7 @@ export function hatBannerSektion(markdown: string | undefined): boolean {
  * Markdown-Body (Sektions-Marker) und ein eingebettetes Video — letzteres nur,
  * wenn die URL eine sichere Embed-URL ist (kein relativer Dateiname im iframe).
  */
-export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, storySlot, kartenNavigation, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
+export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null, bannerSlot, storySlot, navigation, instanz, theme = OLDIES_THEME }: WebsiteDetailProps): React.ReactElement {
   const sections = React.useMemo(
     () => (data.markdown ? parseWebsiteSections(data.markdown) : []),
     [data.markdown],
@@ -116,6 +110,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
           cta2Label={data.cta2Label}
           cta2Url={data.cta2Url}
           theme={theme}
+          navigation={navigation}
         />
       ) : data.heroLayout === "cover" && data.heroImageUrl ? (
         <HeroCover
@@ -126,6 +121,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
           ctaLabel={data.ctaLabel}
           ctaUrl={data.ctaUrl}
           theme={theme}
+          navigation={navigation}
         />
       ) : data.heroImageUrl ? (
         <header className="relative">
@@ -140,9 +136,9 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             <h1 className="text-4xl font-bold md:text-5xl">{heroTitle}</h1>
             {data.heroSubtitle && <p className="mt-4 max-w-2xl text-lg">{data.heroSubtitle}</p>}
             {data.ctaLabel && data.ctaUrl && (
-              <a href={data.ctaUrl} className={cn(BUTTON_PRIMARY, "mt-6")}>
+              <AutorenLink href={data.ctaUrl} navigation={navigation} className={cn(BUTTON_PRIMARY, "mt-6")}>
                 {data.ctaLabel}
-              </a>
+              </AutorenLink>
             )}
           </div>
         </header>
@@ -161,6 +157,8 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
               key={i}
               section={s}
               librarySlug={contactApiSlug}
+              instanz={instanz ?? null}
+              navigation={navigation}
               fileId={data.fileId}
               contactEmail={data.contactEmail}
               theme={theme}
@@ -185,7 +183,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
                 <section className={cn("px-6 pt-14", flaeche.className)} style={flaeche.style}>
                   <div className="mx-auto max-w-5xl">
                     {s.kicker && <p className={KICKER_CLASS}>{s.kicker}</p>}
-                    {s.markdown && <SectionContent blocks={s.blocks} bg={s.bg} headingCase={headingCase} theme={theme} navigation={kartenNavigation} />}
+                    {s.markdown && <SectionContent blocks={s.blocks} bg={s.bg} headingCase={headingCase} theme={theme} navigation={navigation} />}
                   </div>
                 </section>
               )}
@@ -193,7 +191,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             </React.Fragment>
           )
         }
-        return <SectionBlock key={i} section={s} headingCase={headingCase} theme={theme} navigation={kartenNavigation} />
+        return <SectionBlock key={i} section={s} headingCase={headingCase} theme={theme} navigation={navigation} />
       })}
       {embeddableVideo && <VideoEmbed url={embeddableVideo} />}
     </div>

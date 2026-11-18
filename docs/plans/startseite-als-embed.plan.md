@@ -11,8 +11,8 @@ todos:
     content: "WE1 Paket `@ks/module-website` anlegen, die reinen Regeln aus `src/lib/website/**` hinein (Parser, Design-Profil ohne Schriften, Kachelziele, Banner, Story-Karten), dazu `mapToWebsiteDetail` und `safe-video-iframe`. Commit 1 nur `git mv`, Commit 2 Importe. Wächter-Test Paketgrenze. Gate: Startseiten-Arbeit der Parallelsitzung ist gemergt. GEBAUT 18.11.2026 (Branch `claude/website-modul-we1-c491f4`); `safe-video-iframe` lag schon in `@ks/util` und bleibt dort."
     status: completed
   - id: we2-bausteine-ins-paket
-    content: "WE2 Bausteine ins Paket: Kopf-Varianten, Sektionen, Kacheln, Banner, Fußzeile, `WebsiteDetail`, Daten-Hooks. Abrufe über `InstanceApi`, alle Wege über eine Navigation-Schnittstelle (Ziel → Adresse oder Klick), Schriften als Prop. Die App behält `WebsiteLandingLive` als Hülle; ihr Verhalten bleibt unverändert."
-    status: pending
+    content: "WE2 Bausteine ins Paket: Kopf-Varianten, Sektionen, Kacheln, Banner, Fußzeile, `WebsiteDetail`, Daten-Hooks. Abrufe über `InstanceApi`, alle Wege über eine Navigation-Schnittstelle (Ziel → Adresse oder Klick), Schriften als Prop. Die App behält `WebsiteLandingLive` als Hülle; ihr Verhalten bleibt unverändert. GEBAUT 18.11.2026 (Branch `claude/website-modul-we2`, gestapelt auf WE1); Schnittstelle heißt `WebsiteNavigation`."
+    status: completed
   - id: we3-fragen-sektion
     content: "WE3 Fragen-Sektion ohne App-Bindung: Clerk, `useStoryContext`, `useProfilPerspektive`, `PerspektiveDialogApp`, `useLibraryConfig` raus; Viewer, Perspektive, Modell und Sitzungs-Kopfzeilen als Props, Fuß der Antwort und Detail-Renderer als Slots. App reicht ihre Teile, das Embed die anonymen aus `embed-story.tsx` und `embed-perspektive.tsx`."
     status: pending
@@ -196,6 +196,24 @@ Markdown-Links, Fußzeile und Banner laufen hindurch. `SITE_FONT_FAMILIES` wird
 Prop. Prüfung live in der App: `/explore/<slug>` (Startseite, Kacheln,
 Banner, Fußzeile, `?site=`), Root `/` auf einer gemappten Domain,
 Archiv-Vorschau ohne Story-Slot. Groß.
+Gebaut 18.11.2026: Die Bausteine liegen unter `@ks/module-website/react`,
+dazu die Rahmen der Story- und Themen-Sektion (Vorschau von `WebsiteDetail`).
+Die Schnittstelle heißt `WebsiteNavigation` (`weg(ziel)` → `href` und
+optional `ausfuehren`, `null` = Element entfällt mit Meldung; `fremd(href)`
+für relative Adressen außerhalb des Vokabulars). `WebsiteZiel` hat die Form
+von `KsZiel`. `kartenaktion`/`KartenNavigation` sind ersetzt durch
+`appNavigation(modus)` — die zwei App-Modi mit denselben Adressen wie
+vorher. Der Kern der Live-Seite heißt `WebsiteLanding` (Props: Instanz,
+Seite, Navigation, Schriften, Profil, Story-Slot); `WebsiteLandingLive` ist
+die Hülle (nuqs, `router.push`, `next/font`, `next/dynamic`). Abweichend vom
+alten Verhalten, gewollt: Handlungsaufrufe und Markdown-Links mit `?site=`
+wechseln ohne Neuladen, und auf der Root-Seite führen `?view=gallery`-Links in
+die Explore-Galerie. Live geprüft auf `/explore/klimamassnahmen`
+(Handlungsaufruf, Fußzeile, Zurück, „mehr Inhalte“, Banner-Karte mit
+Detailansicht), `/explore/aeced` (Kacheln) und `/` mit Domain-Zuordnung auf
+die Library (Banner-Karte über `router.push`). Die Archiv-Vorschau (Anmeldung
+nötig) ist nur über Tests belegt. Offen für WE4: Das Banner braucht wie bisher
+den `GalleryNavigationProvider` der Karte.
 
 **WE3 Fragen-Sektion ohne App-Bindung** — rund 1.100 Zeilen. Viewer,
 Perspektive, Modell, Sitzungs-Kopfzeilen und Eingabegrenzen als Props;

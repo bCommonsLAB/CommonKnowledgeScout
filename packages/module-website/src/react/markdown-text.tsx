@@ -2,6 +2,11 @@
  * Markdown-Text einer Sektion im `prose`-Container (Welle S3 aus
  * `website-landing-blocks.tsx` herausgezogen, damit Blockfolge und
  * Sektions-Baustein ihn ohne Ringimport teilen).
+ *
+ * WE2: Mit Navigation laufen die Links des HTML ueber `WebsiteNavigation`
+ * (`markdownLinksUeberNavigation`); ein normaler Klick auf einen Weg mit
+ * Rueckruf wechselt ohne Neuladen. Ohne Navigation (Archiv-Vorschau, Pilot)
+ * bleibt das HTML wie vorher.
  */
 
 import * as React from 'react'
@@ -11,9 +16,35 @@ import {
   OLDIES_THEME,
   type SiteThemeResolved,
   surfaceStyle,
-} from '@ks/module-website'
+  markdownLinksUeberNavigation,
+  type WebsiteNavigation,
+} from '..'
 import { md } from '@ks/viewers'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
+import { istPlainClick } from './weg-link'
+
+/**
+ * Gerendertes Markdown als HTML-Element. Mit Navigation werden die Links
+ * umgeschrieben und Klicks auf Wege mit Rueckruf abgefangen.
+ */
+export function MarkdownHtml({ markdown, className, navigation }: {
+  markdown: string
+  className?: string
+  navigation?: WebsiteNavigation
+}): React.ReactElement {
+  const html = md.render(markdown)
+  if (!navigation) return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+  const { html: mitWegen, klicks } = markdownLinksUeberNavigation(html, navigation)
+  const onClick = klicks.size === 0 ? undefined : (e: React.MouseEvent<HTMLDivElement>) => {
+    const anker = e.target instanceof Element ? e.target.closest('a') : null
+    const ausfuehren = anker ? klicks.get(anker.getAttribute('href') ?? '') : undefined
+    if (ausfuehren && istPlainClick(e)) {
+      e.preventDefault()
+      ausfuehren()
+    }
+  }
+  return <div className={className} onClick={onClick} dangerouslySetInnerHTML={{ __html: mitWegen }} />
+}
 
 /**
  * Rendert den Sektions-Markdown ueber den App-weiten Remarkable-Renderer (`md`)
@@ -29,9 +60,12 @@ export function renderMarkdownText(
   bg: WebsiteSection['bg'],
   headingCase: HeadingCase = 'capitalize',
   theme: SiteThemeResolved = OLDIES_THEME,
+  navigation?: WebsiteNavigation,
 ): React.ReactElement {
   return (
-    <div
+    <MarkdownHtml
+      markdown={markdown}
+      navigation={navigation}
       className={cn(
         'prose prose-neutral max-w-none',
         // Vorlage-Optik (`.h-serif-medium`): Ueberschrift NORMAL (400, nicht fett),
@@ -46,7 +80,6 @@ export function renderMarkdownText(
         '[&_p:first-of-type]:text-lg [&_p:first-of-type]:leading-relaxed md:[&_p:first-of-type]:text-xl',
         surfaceStyle(bg, theme).prose,
       )}
-      dangerouslySetInnerHTML={{ __html: md.render(markdown) }}
     />
   )
 }

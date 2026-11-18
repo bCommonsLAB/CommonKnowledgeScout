@@ -10,7 +10,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
-import { WebsiteDetail } from '@/components/library/website-detail'
+import { WebsiteDetail } from '@ks/module-website/react'
 
 afterEach(cleanup)
 

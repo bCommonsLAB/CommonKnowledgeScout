@@ -2,19 +2,27 @@
   "name": "@ks/module-website",
   "version": "0.0.0",
   "private": true,
-  "description": "KnowledgeScout — Modul Website: Regeln der Startseite (Sektions-Parser, Design-Profil, Kachelziele, Banner, Story-Karten, Seiten-Detaildaten); eine Quelle fuer App, Bruecke und Embed",
+  "description": "KnowledgeScout — Modul Website: Regeln der Startseite (Sektions-Parser, Design-Profil, Kachelziele, Banner, Story-Karten, Seiten-Detaildaten, Navigation-Schnittstelle) und ihre Bausteine (@ks/module-website/react); eine Quelle fuer App, Bruecke und Embed",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
+    "@ks/api-client": "workspace:*",
     "@ks/contracts": "workspace:*",
+    "@ks/i18n": "workspace:*",
+    "@ks/module-explorer": "workspace:*",
     "@ks/util": "workspace:*",
+    "@ks/viewers": "workspace:*",
     "zod": "^3.24.1"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./react": "./src/react/index.ts"
   },
   "peerDependencies": {
-    "react": "^18.2.0"
+    "@hookform/resolvers": "^3.10.0",
+    "lucide-react": "^0.312.0",
+    "react": "^18.2.0",
+    "react-hook-form": "^7.54.2"
   },
   "sideEffects": false
 }

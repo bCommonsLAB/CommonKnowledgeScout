@@ -57,7 +57,7 @@ The packages are layered. A package may import from the layers below it, not fro
 |---|---|---|
 | Shared | `@ks/contracts`, `@ks/util`, `@ks/ui`, `@ks/i18n`, `@ks/viewers`, `@ks/api-client` | Types, interface primitives, translations, Markdown rendering, a typed API client |
 | Shell | `@ks/shell` | Providers, navigation, and the mapping from a host name to a site |
-| Modules | `@ks/module-explorer`, `@ks/module-story`, `@ks/module-website` | The gallery and story mode, each with its components and API namespace; the rules of the website start page (section parser, design profile, card targets, banner) |
+| Modules | `@ks/module-explorer`, `@ks/module-story`, `@ks/module-website` | The gallery and story mode, each with its components and API namespace; the website start page: its rules (section parser, design profile, card targets, banner, navigation interface) and its building blocks (`@ks/module-website/react`) |
 | Embedding | `@ks/embed` | Gallery and story mode as one component for other React applications |
 
 Moving code from `src/` into packages is ongoing work. The target layout and the order of the moves are described in the [module map](https://github.com/bCommonsLAB/CommonKnowledgeScout/blob/master/docs/architecture/modul-landkarte.md).

@@ -7,8 +7,7 @@
  */
 
 import * as React from 'react'
-import { md } from '@ks/viewers'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 import {
   type HeadingCase,
   type WebsiteSection,
@@ -17,9 +16,9 @@ import {
   type SiteThemeResolved,
   HEADING_FONT,
   KICKER_CLASS,
-  type KartenNavigation,
-} from '@ks/module-website'
-import { renderMarkdownText } from './markdown-text'
+  type WebsiteNavigation,
+} from '..'
+import { MarkdownHtml, renderMarkdownText } from './markdown-text'
 import { Cards } from './section-cards'
 
 const TILE = 'rounded-xl bg-[color:var(--site-tile)] p-4'
@@ -58,14 +57,15 @@ function Fragenliste({ items }: { items: string[] }): React.ReactElement {
   )
 }
 
-function Box({ label, kind, markdown, bg, theme }: {
+function Box({ label, kind, markdown, bg, theme, navigation }: {
   label?: string; kind: 'card' | 'note'; markdown: string; bg: WebsiteSection['bg']; theme: SiteThemeResolved
+  navigation?: WebsiteNavigation
 }): React.ReactElement {
   if (kind === 'note') {
     return (
       <div className="not-prose my-6 rounded-lg border border-current/10 bg-[color:var(--site-tile)] px-4 py-3 text-sm">
         {label && <span className="mr-2 rounded-full bg-[color:var(--site-tile)] px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">{label}</span>}
-        <span className="[&_p]:inline" dangerouslySetInnerHTML={{ __html: md.render(markdown) }} />
+        <MarkdownHtml markdown={markdown} navigation={navigation} className="inline [&_p]:inline" />
       </div>
     )
   }
@@ -74,7 +74,7 @@ function Box({ label, kind, markdown, bg, theme }: {
   return (
     <div className="not-prose my-6 rounded-xl bg-white p-5 text-neutral-900 shadow-sm">
       {label && <span className="mb-2 inline-block rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-neutral-700">{label}</span>}
-      <div className="prose prose-sm prose-neutral max-w-none" dangerouslySetInnerHTML={{ __html: md.render(markdown) }} />
+      <MarkdownHtml markdown={markdown} navigation={navigation} className="prose prose-sm prose-neutral max-w-none" />
     </div>
   )
 }
@@ -84,13 +84,13 @@ export function SectionContent({ blocks, bg, headingCase = 'capitalize', theme =
   bg: WebsiteSection['bg']
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
-  /** N2: wohin Kachel-Links fuehren; ohne Prop sind sie reine Links. */
-  navigation?: KartenNavigation
+  /** N2/WE2: wohin Kachel- und Markdown-Links fuehren; ohne Prop sind sie reine Links. */
+  navigation?: WebsiteNavigation
 }): React.ReactElement {
   return (
     <>
       {blocks.map((b, i) => {
-        if (b.type === 'markdown') return <React.Fragment key={i}>{renderMarkdownText(b.markdown, bg, headingCase, theme)}</React.Fragment>
+        if (b.type === 'markdown') return <React.Fragment key={i}>{renderMarkdownText(b.markdown, bg, headingCase, theme, navigation)}</React.Fragment>
         if (b.type === 'stats') return <Stats key={i} items={b.items} />
         if (b.type === 'cards') return <Cards key={i} items={b.items} navigation={navigation} />
         if (b.type === 'chips') return <Chips key={i} label={b.label} items={b.items} />
@@ -98,7 +98,7 @@ export function SectionContent({ blocks, bg, headingCase = 'capitalize', theme =
         if (b.type === 'questions') return <Fragenliste key={i} items={b.items} />
         // popular rendert der Story-Rahmen als Chips; ausserhalb (Vorschau) nur ein Hinweis.
         if (b.type === 'popular') return <p key={i} className="text-sm text-neutral-500" data-popular-vorschau={b.n}>Populäre Fragen ({b.n}) – nur auf der Live-Seite</p>
-        return <Box key={i} label={b.label} kind={b.kind} markdown={b.markdown} bg={bg} theme={theme} />
+        return <Box key={i} label={b.label} kind={b.kind} markdown={b.markdown} bg={bg} theme={theme} navigation={navigation} />
       })}
     </>
   )

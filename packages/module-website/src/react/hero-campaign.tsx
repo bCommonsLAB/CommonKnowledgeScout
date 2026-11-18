@@ -9,7 +9,7 @@
  */
 
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@ks/util"
 import {
   OLDIES_THEME,
   type SiteThemeResolved,
@@ -17,7 +17,9 @@ import {
   BUTTON_SECONDARY,
   HEADING_FONT,
   surfaceStyle,
-} from "@ks/module-website"
+  type WebsiteNavigation,
+} from ".."
+import { AutorenLink } from "./weg-link"
 
 interface HeroCampaignProps {
   title: string
@@ -33,10 +35,12 @@ interface HeroCampaignProps {
   cta2Label?: string
   cta2Url?: string
   theme?: SiteThemeResolved
+  /** WE2: wohin die Handlungsaufrufe fuehren; fehlt sie (Archiv-Vorschau), bleiben es rohe Links. */
+  navigation?: WebsiteNavigation
 }
 
 export function HeroCampaign({
-  title, title2, subtitle, kicker, imageUrl, imageAlt, imagePosition, ctaLabel, ctaUrl, cta2Label, cta2Url, theme = OLDIES_THEME,
+  title, title2, subtitle, kicker, imageUrl, imageAlt, imagePosition, ctaLabel, ctaUrl, cta2Label, cta2Url, theme = OLDIES_THEME, navigation,
 }: HeroCampaignProps): React.ReactElement {
   const flaeche = surfaceStyle("default", theme)
   const buttons = (ctaLabel && ctaUrl) || (cta2Label && cta2Url)
@@ -73,8 +77,8 @@ export function HeroCampaign({
           </div>
           {buttons && (
             <div className="mt-8 flex flex-wrap gap-3 md:mt-0 md:justify-end">
-              {ctaLabel && ctaUrl && <a href={ctaUrl} className={BUTTON_PRIMARY}>{ctaLabel}</a>}
-              {cta2Label && cta2Url && <a href={cta2Url} className={BUTTON_SECONDARY}>{cta2Label}</a>}
+              {ctaLabel && ctaUrl && <AutorenLink href={ctaUrl} navigation={navigation} className={BUTTON_PRIMARY}>{ctaLabel}</AutorenLink>}
+              {cta2Label && cta2Url && <AutorenLink href={cta2Url} navigation={navigation} className={BUTTON_SECONDARY}>{cta2Label}</AutorenLink>}
             </div>
           )}
         </div>

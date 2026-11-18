@@ -21,8 +21,35 @@
       "@ks/contracts": [
         "../contracts/src/index.ts"
       ],
+      "@ks/shell": [
+        "../shell/src/index.ts"
+      ],
+      "@ks/shell/react": [
+        "../shell/src/react/index.ts"
+      ],
+      "@ks/i18n": [
+        "../i18n/src/index.ts"
+      ],
+      "@ks/i18n/react": [
+        "../i18n/src/react/index.ts"
+      ],
       "@ks/util": [
         "../util/src/index.ts"
+      ],
+      "@ks/api-client": [
+        "../api-client/src/index.ts"
+      ],
+      "@ks/viewers": [
+        "../viewers/src/index.ts"
+      ],
+      "@ks/ui": [
+        "../ui/src/index.ts"
+      ],
+      "@ks/module-explorer": [
+        "../module-explorer/src/index.ts"
+      ],
+      "@ks/module-explorer/react": [
+        "../module-explorer/src/react/index.ts"
       ]
     },
     "types": [

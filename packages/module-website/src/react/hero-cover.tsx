@@ -13,7 +13,7 @@
  */
 
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@ks/util"
 import {
   coverTitelGroesseVw,
   OLDIES_THEME,
@@ -21,7 +21,9 @@ import {
   BUTTON_PRIMARY,
   HEADING_FONT,
   surfaceStyle,
-} from "@ks/module-website"
+  type WebsiteNavigation,
+} from ".."
+import { AutorenLink } from "./weg-link"
 
 interface HeroCoverProps {
   title: string
@@ -31,9 +33,11 @@ interface HeroCoverProps {
   ctaLabel?: string
   ctaUrl?: string
   theme?: SiteThemeResolved
+  /** WE2: wohin der Handlungsaufruf fuehrt; fehlt sie (Archiv-Vorschau), bleibt es ein roher Link. */
+  navigation?: WebsiteNavigation
 }
 
-export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUrl, theme = OLDIES_THEME }: HeroCoverProps): React.ReactElement {
+export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUrl, theme = OLDIES_THEME, navigation }: HeroCoverProps): React.ReactElement {
   const woerter = title.split(/\s+/).filter(Boolean)
   const groesseVw = coverTitelGroesseVw(title)
   const flaeche = surfaceStyle("linen", theme)
@@ -67,9 +71,9 @@ export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUr
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={imageUrl} alt={imageAlt ?? ""} className="mt-6 w-full rounded-lg object-cover md:hidden" />
         {ctaLabel && ctaUrl && (
-          <a href={ctaUrl} className={cn(BUTTON_PRIMARY, "relative z-10 mt-6")}>
+          <AutorenLink href={ctaUrl} navigation={navigation} className={cn(BUTTON_PRIMARY, "relative z-10 mt-6")}>
             {ctaLabel}
-          </a>
+          </AutorenLink>
         )}
       </div>
     </header>

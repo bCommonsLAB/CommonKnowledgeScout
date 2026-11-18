@@ -9,21 +9,25 @@
  * die Empfaenger-Adresse liest die API serverseitig aus dem Kontakt-Doc
  * (`contact_email`). Fehlt `contact_email` oder der Library-Slug, ist das
  * Formular deaktiviert mit klarem Hinweis (kein stiller Fallback).
+ * WE2: Versand ueber die Instanz; ohne Instanz (Archiv-Vorschau) ebenfalls
+ * deaktiviert.
  */
 
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { renderMarkdownText } from "@/components/library/website/website-landing-blocks"
+import { renderMarkdownText } from "./markdown-text"
 import {
   type WebsiteSection,
   OLDIES_THEME,
   type SiteThemeResolved,
   BUTTON_STRONG,
   surfaceStyle,
-} from "@ks/module-website"
-import { cn } from "@/lib/utils"
+  type WebsiteNavigation,
+} from ".."
+import { cn } from "@ks/util"
+import type { InstanceApi } from "@ks/api-client"
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Bitte geben Sie Ihren Namen ein."),
@@ -44,6 +48,10 @@ interface WebsiteContactFormSectionProps {
   section: WebsiteSection
   /** Slug der Library fuer die Contact-API (null = unbekannt -> deaktiviert). */
   librarySlug: string | null
+  /** Instanz, an die das Formular sendet (null = keine -> deaktiviert). */
+  instanz: InstanceApi | null
+  /** WE2: wohin Links im Einleitungstext fuehren. */
+  navigation?: WebsiteNavigation
   /** fileId des Docs, aus dem die API `contact_email` liest. */
   fileId?: string
   /** `contact_email` aus dem Frontmatter (nur fuer die Aktiv/Inaktiv-Anzeige). */
@@ -58,6 +66,8 @@ const INPUT_CLASS =
 export function WebsiteContactFormSection({
   section,
   librarySlug,
+  instanz,
+  navigation,
   fileId,
   contactEmail,
   theme = OLDIES_THEME,
@@ -70,14 +80,14 @@ export function WebsiteContactFormSection({
     defaultValues: { name: "", lastName: "", email: "", message: "", newsletter: false, website: "" },
   })
 
-  const isConfigured = Boolean(contactEmail) && Boolean(librarySlug) && Boolean(fileId)
+  const isConfigured = Boolean(contactEmail) && Boolean(librarySlug) && Boolean(fileId) && instanz !== null
 
   async function onSubmit(values: ContactFormValues): Promise<void> {
-    if (!isConfigured || !librarySlug || !fileId) return
+    if (!isConfigured || !librarySlug || !fileId || !instanz) return
     setStatus("sending")
     setErrorMessage(null)
     try {
-      const res = await fetch(
+      const res = await instanz.fetch(
         `/api/public/libraries/${encodeURIComponent(librarySlug)}/contact`,
         {
           method: "POST",
@@ -104,7 +114,7 @@ export function WebsiteContactFormSection({
     <section className={cn("px-6 py-14", flaeche.className)} style={flaeche.style}>
       <div className="mx-auto max-w-2xl">
         {section.markdown && (
-          <div className="mb-8">{renderMarkdownText(section.markdown, "mint", undefined, theme)}</div>
+          <div className="mb-8">{renderMarkdownText(section.markdown, "mint", undefined, theme, navigation)}</div>
         )}
 
         {!isConfigured ? (

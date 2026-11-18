@@ -31,12 +31,13 @@ const BEKANNTE_AUFRUFSTELLEN: Record<string, { anbieterIn: string; warum: string
     anbieterIn: 'src/components/library/file-preview/gallery-teaser-card.tsx',
     warum: 'Teaser im Job-Report-Tab; die Huelle bringt die Anbieter selbst mit.',
   },
-  'src/components/library/website/website-banner-grid.tsx': {
+  'packages/module-website/src/react/website-banner-grid.tsx': {
     anbieterIn: 'src/app/page.tsx',
     warum:
-      'Raster der Website-Landingpage (S1, aus website-landing-live.tsx ausgelagert). ' +
+      'Raster der Website-Landingpage (S1, seit WE2 im Paket @ks/module-website). ' +
       'Wird an zwei Stellen montiert: in GalleryRoot (Anbieter vom Galerie-' +
-      'Montagepunkt) und auf der Root-Landingpage — dort muss page.tsx ihn liefern.',
+      'Montagepunkt) und auf der Root-Landingpage — dort muss page.tsx ihn liefern. ' +
+      'Das Startseiten-Embed (WE4) muss den Anbieter ebenfalls mitbringen.',
   },
   'src/components/library/website/story/website-story-vortragskarte.tsx': {
     anbieterIn: 'src/app/page.tsx',
@@ -68,7 +69,8 @@ function collect(dir: string, acc: string[] = []): string[] {
 const IMPORTIERT_KARTE = /import\s*(?:type\s*)?\{[^}]*\bDocumentCard\b[^}]*\}\s*from\s*['"]@ks\/module-explorer\/react['"]/
 
 describe('Galerie-Karte ausserhalb der Galerie', () => {
-  const aufrufstellen = collect(join(REPO_ROOT, 'src'))
+  // Seit WE2 montiert auch das Website-Paket die Karte (Banner der Startseite).
+  const aufrufstellen = [...collect(join(REPO_ROOT, 'src')), ...collect(join(REPO_ROOT, 'packages/module-website/src'))]
     .map((f) => relative(REPO_ROOT, f).replace(/\\/g, '/'))
     .filter((f) => !f.startsWith(GALERIE))
     .filter((f) => IMPORTIERT_KARTE.test(readFileSync(join(REPO_ROOT, f), 'utf-8')))

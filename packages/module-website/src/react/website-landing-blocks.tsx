@@ -16,14 +16,12 @@ import {
   type SiteThemeResolved,
   KICKER_CLASS,
   surfaceStyle,
-  type KartenNavigation,
-} from '@ks/module-website'
-import { cn } from '@/lib/utils'
-import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
+  type WebsiteNavigation,
+} from '..'
+import { cn } from '@ks/util'
+import { isSafeVideoIframeSrc } from '@ks/util'
 import { SectionContent } from './section-content'
 
-// S3: `renderMarkdownText` wohnt in `markdown-text.tsx` (Bestandsimporte bleiben gueltig).
-export { renderMarkdownText } from './markdown-text'
 
 /** Eine Inhalts-Sektion gemaess Layout/Hintergrund. */
 export function SectionBlock({
@@ -36,7 +34,7 @@ export function SectionBlock({
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
   /** N2: wohin Kachel-Links fuehren (`<!-- cards -->`). */
-  navigation?: KartenNavigation
+  navigation?: WebsiteNavigation
 }): React.ReactElement | null {
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'

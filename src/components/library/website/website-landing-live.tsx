@@ -1,43 +1,30 @@
 "use client"
 
 /**
- * Live-Landingpage (Phase 3) fuer den „Startseite"-Mode der Explore-Ansicht.
+ * Huelle der Live-Startseite in der App (Plan `startseite-als-embed`, WE2).
  *
- * Speist sich ausschliesslich aus den oeffentlichen Docs-APIs (anonym nutzbar
- * bei oeffentlicher Library, Fetches in `use-website-landing-data.ts`):
- *  - Menue/Footer: `docs?detailViewType=website` — Zuordnung ueber die flachen
- *    Frontmatter-Felder `menu_area`/`site_role` (siehe `site-navigation.ts`)
- *  - Side-Banner: `docs?sort=rating` (E5, nach prioritaets_index)
- *  - Detail des gewaehlten Dokuments: `doc-meta?fileId=…` -> WebsiteDetail
- *
- * Phase C1: Der aktive Seiten-Zustand liegt im URL-Param `?site=<slug>` (nuqs)
- * — jede Website-Seite ist verlinkbar (CTA -> Kontakt, Footer -> Impressum)
- * und funktioniert identisch auf `/explore/<slug>` und der Domain-Root.
- * Interim-E2: Start-Dokument = Main-Menue-Doc mit kleinstem menu_order.
+ * Seite, Banner und Fusszeile rendert `WebsiteLanding` aus
+ * `@ks/module-website/react`; hier bleibt, was nur die App hat:
+ *  - die gewaehlte Seite im URL-Param `?site=<slug>` (nuqs, Phase C1) — jede
+ *    Website-Seite ist verlinkbar und funktioniert identisch auf
+ *    `/explore/<slug>` und der Domain-Root,
+ *  - die Navigation der zwei Modi (`appNavigation`: Site-Modus mit
+ *    Rueckrufen, Root-Modus mit Explore-Adressen und `router.push`),
+ *  - die Schriften aus `next/font` (`site-fonts.ts`),
+ *  - die Fragen- und Themen-Sektion, faul geladen ueber `next/dynamic`
+ *    (Story-Paket und Clerk; WE3 loest sie von der App),
+ *  - Galerie-Texte und Design-Profil aus der Library im Atom.
  */
 
 import * as React from "react"
 import dynamic from "next/dynamic"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
-import { useLibraries } from '@ks/shell/react'
-import { WebsiteDetail, hatBannerSektion } from "@/components/library/website-detail"
-import { WebsiteBannerGrid } from "@/components/library/website/website-banner-grid"
-import { WebsiteSiteFooter } from "@/components/library/website/website-site-footer"
-import { useWebsiteDocs, useWebsiteDetail } from "@/components/library/website/use-website-landing-data"
-import {
-  selectMainMenuDocs,
-  selectFooterLinkDocs,
-  findFooterContentDoc,
-  resolveSiteParamDoc,
-  BANNER_LIMIT_DEFAULT,
-  resolveSiteTheme,
-  siteThemeCssVars,
-  type WebsiteSection,
-  type KartenNavigation,
-} from "@ks/module-website"
-import { useTranslation } from "@ks/i18n/react"
+import { useLibraries } from "@ks/shell/react"
+import { SAME_ORIGIN_API } from "@ks/api-client"
 import type { SiteTheme } from "@ks/contracts"
+import { appNavigation, type WebsiteSection } from "@ks/module-website"
+import { WebsiteLanding, type WebsiteSlotKontext } from "@ks/module-website/react"
 import { SITE_FONT_FAMILIES } from "@/lib/website/site-fonts"
 
 // N1: Der Chat der Story-Sektion zieht Story-Paket und Clerk — faul laden, nur
@@ -88,8 +75,8 @@ export function WebsiteLandingLive({
   librarySlug,
   siteTheme,
 }: WebsiteLandingLiveProps): React.ReactElement {
-  const { t, locale } = useTranslation()
   const pathname = usePathname()
+  const router = useRouter()
   // Slug fuer die Contact-API (C3): explizite Prop (Root-Modus) oder aus dem
   // Explore-Pfad. null = kein Library-Kontext -> Formular zeigt Hinweis.
   const exploreSlugMatch = pathname?.match(/^\/explore\/([^/]+)/)
@@ -108,141 +95,61 @@ export function WebsiteLandingLive({
   const publicPublishing = libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing
   const moreLinkLabel = publicPublishing?.gallery?.moreLinkLabel || "mehr Inhalte"
 
-  // S2: Design-Profil aufloesen (ohne Profil: Vorlage) und als CSS-Variablen
-  // plus Schriften auf den Wrapper legen — alle Bausteine lesen nur Variablen.
-  const themeConfig = siteTheme ?? publicPublishing?.siteTheme
-  const theme = React.useMemo(() => resolveSiteTheme(themeConfig), [themeConfig])
-  const themeStyle = React.useMemo(
-    () => ({ ...siteThemeCssVars(theme, SITE_FONT_FAMILIES), fontFamily: "var(--site-font-body)" }) as React.CSSProperties,
-    [theme],
-  )
-
-  const { allDocs, loadingList, listError } = useWebsiteDocs(libraryId, locale)
   // Seitenwechsel via URL (`?site=<slug>`), history: push -> Browser-Back
   // wechselt zwischen Website-Seiten.
   const [siteParam, setSiteParam] = useQueryState("site", { history: "push" })
-  const [selectedFileId, setSelectedFileId] = React.useState<string | null>(null)
 
-  const mainMenuDocs = React.useMemo(() => selectMainMenuDocs(allDocs), [allDocs])
-  const footerLinkDocs = React.useMemo(() => selectFooterLinkDocs(allDocs), [allDocs])
-  const footerDoc = React.useMemo(() => findFooterContentDoc(allDocs), [allDocs])
-
-  // `?site=` aufloesen (Slug oder fileId); ohne/mit unbekanntem Param -> Homepage
-  // (Main-Menue-Doc mit kleinstem menu_order). Nicht aufloesbare Params werden
-  // geloggt statt still verschluckt.
-  React.useEffect(() => {
-    if (allDocs.length === 0) return
-    if (siteParam) {
-      const resolved = resolveSiteParamDoc(allDocs, siteParam)
-      if (resolved?.fileId) {
-        setSelectedFileId(resolved.fileId)
-        return
-      }
-      console.warn(`[website] ?site=${siteParam} passt zu keinem website-Doc — zeige Startseite`)
-    }
-    setSelectedFileId(mainMenuDocs[0]?.fileId ?? allDocs[0]?.fileId ?? null)
-  }, [allDocs, mainMenuDocs, siteParam])
-
-  // N2: Kachel-Links (`<!-- cards -->`): Site-Modus wechselt ueber Rueckrufe ohne Neuladen,
-  // Root-Modus faellt auf Adressen der Explore-Seite zurueck; `?site=` geht in beiden ueber nuqs.
-  const kartenNavigation = React.useMemo<KartenNavigation>(
-    () => ({ onShowGallery, onShowStory, onShowSite: (slug) => void setSiteParam(slug), galleryBaseHref, storyBaseHref }),
-    [onShowGallery, onShowStory, setSiteParam, galleryBaseHref, storyBaseHref],
+  // Alle Wege der Seite: Site-Modus ueber Rueckrufe ohne Neuladen, Root-Modus
+  // ueber die Adressen der Explore-Seite (`router.push`); `?site=` in beiden ueber nuqs.
+  const navigation = React.useMemo(
+    () => appNavigation({
+      onShowGallery,
+      onShowStory,
+      onShowSite: (seite) => void setSiteParam(seite),
+      galleryBaseHref,
+      storyBaseHref,
+      geheZu: (href) => router.push(href),
+    }),
+    [onShowGallery, onShowStory, setSiteParam, galleryBaseHref, storyBaseHref, router],
   )
-
-  const { detail, detailError } = useWebsiteDetail(libraryId, selectedFileId, locale, fallbackLocale)
-
-  // Seitenwechsel: nach oben scrollen (Footer-Links stehen ganz unten).
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
-  React.useEffect(() => {
-    if (!selectedFileId) return
-    containerRef.current?.scrollTo({ top: 0 })
-    window.scrollTo({ top: 0 })
-  }, [selectedFileId])
-
-  // S1: Das Raster („Mehr aus dieser Bibliothek") wird vom Seiten-Doc gesteuert
-  // (banner_tag, banner_title, banner_limit) und steht entweder in einer
-  // `banner`-Sektion des Bodys oder — ohne Sektion — unter der Seite.
-  const bannerInSektion = React.useMemo(() => hatBannerSektion(detail?.markdown), [detail?.markdown])
-  // N4: `banner_hidden: true` nimmt das Galerie-Raster ganz von der Seite — fuer
-  // Startseiten, bei denen es nur um die Frage geht (nicht um die Galerie).
-  const bannerHidden = detail?.bannerHidden ?? false
-  const banner = detail && !bannerHidden ? (
-    <WebsiteBannerGrid
-      libraryId={libraryId}
-      locale={locale}
-      tag={detail.bannerTag}
-      title={detail.bannerTitle}
-      limit={detail.bannerLimit ?? BANNER_LIMIT_DEFAULT}
-      sort={detail.bannerSort}
-      galleryBaseHref={galleryBaseHref}
-      onShowGallery={onShowGallery}
-      moreLinkLabel={moreLinkLabel}
-      theme={theme}
-    />
-  ) : null
 
   // N1: Story-Sektion mit dem Chat der Library; Belege und Katalog fuehren in
   // die Galerie wie die Banner-Karten (Site-Modus Rueckruf, Root-Modus Adresse).
   const storySlot = React.useCallback(
-    (section: WebsiteSection) => section.layout === "topics" ? (
-      <WebsiteThemenSektion libraryId={libraryId} section={section} headingCase={detail?.headingCase} theme={theme} />
+    (section: WebsiteSection, { headingCase, theme }: WebsiteSlotKontext) => section.layout === "topics" ? (
+      <WebsiteThemenSektion libraryId={libraryId} section={section} headingCase={headingCase} theme={theme} />
     ) : (
       <WebsiteStorySektion
         libraryId={libraryId}
         section={section}
-        headingCase={detail?.headingCase}
+        headingCase={headingCase}
         theme={theme}
         navigation={{ onShowGallery, galleryBaseHref, onShowStory, storyBaseHref }}
         galleryTexte={publicPublishing?.gallery}
       />
     ),
-    [libraryId, detail?.headingCase, theme, onShowGallery, galleryBaseHref, onShowStory, storyBaseHref, publicPublishing?.gallery],
+    [libraryId, onShowGallery, galleryBaseHref, onShowStory, storyBaseHref, publicPublishing?.gallery],
   )
 
-  const error = listError ?? detailError
-  if (error) {
-    return <div className="p-6 text-sm text-destructive">{error}</div>
-  }
-  if (loadingList && !detail) {
-    return <div className="p-6 text-sm text-muted-foreground">{t("gallery.loading")}</div>
-  }
-  if (!loadingList && allDocs.length === 0) {
-    return (
-      <div className="p-6 text-sm text-muted-foreground">
-        Noch keine Webseiten-Inhalte (detailViewType „website“) in dieser Library.
-      </div>
-    )
-  }
-
   return (
-    // Root-Modus (`/`): natuerlicher Fluss (Window-Scroll). Site-Modus: innerer Scroll-Container.
-    // C1b: Die fruehere zweite Menue-Leiste (mainMenuDocs) entfaellt — die
-    // Website-Seiten liegen jetzt als NavItems in der TopNav (useSiteMenuItems).
-    <div ref={containerRef} className={exploreBaseHref ? 'w-full' : 'h-full overflow-y-auto'} style={themeStyle}>
-      {detail && (
-        <WebsiteDetail
-          data={detail}
-          showBackLink={false}
-          contactApiSlug={contactApiSlug}
-          bannerSlot={bannerInSektion && !bannerHidden ? banner : undefined}
-          storySlot={storySlot}
-          kartenNavigation={kartenNavigation}
-          theme={theme}
-        />
-      )}
-      {!bannerInSektion && banner}
-
-      <WebsiteSiteFooter
-        libraryId={libraryId}
-        footerDoc={footerDoc}
-        footerLinkDocs={footerLinkDocs}
-        locale={locale}
-        fallbackLocale={fallbackLocale}
-        onNavigate={(param) => void setSiteParam(param)}
-        theme={theme}
-      />
-    </div>
+    // C1b: Die fruehere zweite Menue-Leiste entfaellt — die Website-Seiten
+    // liegen als NavItems in der TopNav (useSiteMenuItems).
+    <WebsiteLanding
+      instanz={SAME_ORIGIN_API}
+      libraryId={libraryId}
+      fallbackLocale={fallbackLocale}
+      seite={siteParam}
+      navigation={navigation}
+      schriften={SITE_FONT_FAMILIES}
+      siteTheme={siteTheme ?? publicPublishing?.siteTheme}
+      moreLinkLabel={moreLinkLabel}
+      contactApiSlug={contactApiSlug}
+      // Sterne und Kommentare an Banner-Karten nur im Site-Modus bedienbar (wie bisher).
+      sterneAnKarten={!galleryBaseHref}
+      // Root-Modus (`/`): natuerlicher Fluss (Window-Scroll). Site-Modus: innerer Scroll-Container.
+      eigenerScroll={!exploreBaseHref}
+      storySlot={storySlot}
+    />
   )
 }
 

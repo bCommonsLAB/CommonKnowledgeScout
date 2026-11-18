@@ -2,9 +2,9 @@
  * Welle N2 (Plan website-story-sektion): das Ziel einer Kachel (`<!-- cards -->`).
  *
  * Reine Funktion ohne React und Router: sie liest die Adresse, die der Autor
- * in den Kachel-Link schreibt, und sagt, WOHIN sie fuehrt. Das WIE (Rueckruf
- * im Site-Modus, Adresse im Root-Modus) entscheidet der Renderer
- * (`section-cards.tsx`).
+ * in den Kachel-Link schreibt, und sagt, WOHIN sie fuehrt. Das WIE (Adresse,
+ * Klick ohne Neuladen) entscheidet seit WE2 die Navigation-Schnittstelle
+ * (`navigation.ts`; in der App `app-navigation.ts`).
  *
  *   ?view=gallery   -> die Galerie (Inhalte)
  *   ?mode=story     -> der Story-Modus
@@ -56,56 +56,4 @@ export function loeseKartenziel(href: string): Kartenziel {
     return { art: 'seite', slug }
   }
   throw new Error(`Kachel-Ziel "${href}" ist unbekannt (erlaubt: ${ERLAUBT})`)
-}
-
-/**
- * Wohin die Navigation einer Kachel fuehrt. Ohne Rueckruf bleibt der Link ein
- * gewoehnlicher Link (`href`); mit Rueckruf wechselt die Seite ohne Neuladen.
- */
-export interface KartenNavigation {
-  /** Site-Modus (Explore-Galerie): wechselt in den Galerie-Modus. */
-  onShowGallery?: (extra?: Record<string, string>) => void
-  /** Site-Modus: wechselt in den Story-Modus; `extra` = Adress-Parameter, die mitgehen (z. B. `q`). */
-  onShowStory?: (extra?: Record<string, string>) => void
-  /** Wechselt die Website-Seite (`?site=`), mit und ohne Galerie-Wirt. */
-  onShowSite?: (slug: string) => void
-  /** Root-Modus: Adresse der Galerie (`/explore/<slug>?view=gallery`). */
-  galleryBaseHref?: string | null
-  /** Root-Modus: Adresse des Story-Modus (`/explore/<slug>?mode=story`). */
-  storyBaseHref?: string | null
-}
-
-export interface Kartenaktion {
-  /** Anzeige- und Fallback-Adresse des Links (Mittelklick, Kontextmenue, ohne JS). */
-  href: string
-  /** Rueckruf fuer den normalen Klick; fehlt er, folgt der Browser dem `href`. */
-  ausfuehren?: () => void
-  /** Fremde Adressen oeffnen im neuen Tab. */
-  extern: boolean
-}
-
-/** Verbindet Ziel und Navigation zu dem, was der Klick tut. */
-export function kartenaktion(ziel: Kartenziel, nav: KartenNavigation = {}): Kartenaktion {
-  switch (ziel.art) {
-    case 'galerie':
-      return {
-        href: nav.galleryBaseHref ?? '?view=gallery',
-        ausfuehren: nav.onShowGallery ? () => nav.onShowGallery?.() : undefined,
-        extern: false,
-      }
-    case 'story':
-      return {
-        href: nav.storyBaseHref ?? '?mode=story',
-        ausfuehren: nav.onShowStory ? () => nav.onShowStory?.() : undefined,
-        extern: false,
-      }
-    case 'seite':
-      return {
-        href: `?site=${encodeURIComponent(ziel.slug)}`,
-        ausfuehren: nav.onShowSite ? () => nav.onShowSite?.(ziel.slug) : undefined,
-        extern: false,
-      }
-    case 'extern':
-      return { href: ziel.url, extern: true }
-  }
 }

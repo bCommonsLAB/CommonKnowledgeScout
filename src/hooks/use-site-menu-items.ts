@@ -18,7 +18,8 @@
 
 import * as React from "react"
 import { useLibraries } from '@ks/shell/react'
-import { fetchDocs } from "@/components/library/website/use-website-landing-data"
+import { SAME_ORIGIN_API } from "@ks/api-client"
+import { fetchDocs } from "@ks/module-website/react"
 import { selectMainMenuDocs, getSiteParamForDoc } from "@ks/module-website"
 import type { NavItem } from "@ks/shell"
 
@@ -59,7 +60,7 @@ export function useSiteMenuItems(
         }
         if (!libraryId) return
 
-        const docs = await fetchDocs(libraryId, "detailViewType=website&limit=50", locale)
+        const docs = await fetchDocs(SAME_ORIGIN_API, libraryId, "detailViewType=website&limit=50", locale)
         if (cancelled) return
         // Erstes Main-Menue-Doc = Homepage (kleinster menu_order) -> entspricht „Home".
         const pages = selectMainMenuDocs(docs).slice(1)
