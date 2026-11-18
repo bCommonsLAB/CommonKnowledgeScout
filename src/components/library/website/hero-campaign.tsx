@@ -20,6 +20,8 @@ interface HeroCampaignProps {
   kicker?: string
   imageUrl: string
   imageAlt?: string
+  /** 18.11.2026: CSS-`object-position` aus `hero_image_position`; fehlt = Bildmitte. */
+  imagePosition?: string
   ctaLabel?: string
   ctaUrl?: string
   cta2Label?: string
@@ -28,7 +30,7 @@ interface HeroCampaignProps {
 }
 
 export function HeroCampaign({
-  title, title2, subtitle, kicker, imageUrl, imageAlt, ctaLabel, ctaUrl, cta2Label, cta2Url, theme = OLDIES_THEME,
+  title, title2, subtitle, kicker, imageUrl, imageAlt, imagePosition, ctaLabel, ctaUrl, cta2Label, cta2Url, theme = OLDIES_THEME,
 }: HeroCampaignProps): React.ReactElement {
   const flaeche = surfaceStyle("default", theme)
   const buttons = (ctaLabel && ctaUrl) || (cta2Label && cta2Url)
@@ -38,7 +40,12 @@ export function HeroCampaign({
       <div className="mx-auto max-w-6xl">
         <div className="relative overflow-hidden rounded-2xl shadow-md">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={imageAlt ?? ""} className="aspect-[16/9] w-full object-cover md:aspect-[21/9]" />
+          <img
+            src={imageUrl}
+            alt={imageAlt ?? ""}
+            className="aspect-[16/9] w-full object-cover md:aspect-[21/9]"
+            style={imagePosition ? { objectPosition: imagePosition } : undefined}
+          />
           {kicker && (
             <p className="absolute bottom-4 left-4 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm md:bottom-6 md:left-6">
               {kicker}

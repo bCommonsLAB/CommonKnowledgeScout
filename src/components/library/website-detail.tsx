@@ -26,6 +26,8 @@ export interface WebsiteDetailData {
   heroSubtitle?: string
   heroImageUrl?: string
   heroImageAlt?: string
+  /** 18.11.2026: CSS-`object-position` des Kopfbilds aus `hero_image_position` (`hero-bild-position.ts`); fehlt = Mitte. */
+  heroImagePosition?: string
   /**
    * Hero-Variante (Frontmatter `hero_layout`):
    * - `overlay` (Default): Bild full-bleed mit dunklem Overlay + zentriertem Text.
@@ -137,6 +139,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
           kicker={data.heroKicker}
           imageUrl={data.heroImageUrl}
           imageAlt={data.heroImageAlt}
+          imagePosition={data.heroImagePosition}
         />
       ) : data.heroLayout === "campaign" && data.heroImageUrl ? (
         <HeroCampaign
@@ -146,6 +149,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
           kicker={data.heroKicker}
           imageUrl={data.heroImageUrl}
           imageAlt={data.heroImageAlt}
+          imagePosition={data.heroImagePosition}
           ctaLabel={data.ctaLabel}
           ctaUrl={data.ctaUrl}
           cta2Label={data.cta2Label}
@@ -169,6 +173,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             src={data.heroImageUrl}
             alt={data.heroImageAlt ?? ""}
             className="h-[50vh] w-full object-cover"
+            style={data.heroImagePosition ? { objectPosition: data.heroImagePosition } : undefined}
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
             <h1 className="text-4xl font-bold md:text-5xl">{heroTitle}</h1>

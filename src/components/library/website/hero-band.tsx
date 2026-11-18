@@ -25,9 +25,11 @@ interface HeroBandProps {
   /** Optionales Hintergrundbild (`hero_image`): liegt hinter dem Text, die Hoehe des Bands bleibt. */
   imageUrl?: string
   imageAlt?: string
+  /** 18.11.2026: CSS-`object-position` aus `hero_image_position`; fehlt = Bildmitte. */
+  imagePosition?: string
 }
 
-export function HeroBand({ title, subtitle, kicker, imageUrl, imageAlt }: HeroBandProps): React.ReactElement {
+export function HeroBand({ title, subtitle, kicker, imageUrl, imageAlt, imagePosition }: HeroBandProps): React.ReactElement {
   return (
     <header
       className={cn(
@@ -39,7 +41,12 @@ export function HeroBand({ title, subtitle, kicker, imageUrl, imageAlt }: HeroBa
       {imageUrl && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={imageAlt ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={imageAlt ?? ""}
+            className="absolute inset-0 h-full w-full object-cover"
+            style={imagePosition ? { objectPosition: imagePosition } : undefined}
+          />
           <div aria-hidden="true" className="absolute inset-0 bg-black/45" />
         </>
       )}
