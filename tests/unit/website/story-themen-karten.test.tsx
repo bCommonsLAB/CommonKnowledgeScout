@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { StoryTopic } from '@ks/contracts'
-import { ThemenKarten, WebsiteThemenRahmen } from '@/components/library/website/story/website-themen-rahmen'
+import { ThemenKarten, WebsiteThemenRahmen } from '@ks/module-website/react'
 import { parseWebsiteSections } from '@ks/module-website'
 
 vi.mock('@ks/i18n/react', () => ({

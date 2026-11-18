@@ -7,7 +7,7 @@
  * - kein Clerk (die Anmeldung kommt als Prop oder Slot),
  * - kein `@/` (App-Code bleibt in der App; Vokabular ueber `@ks/contracts`),
  * - keine Adresszeile (`window.location`, `history`) — Wege nach aussen laufen
- *   ueber die Navigation-Schnittstelle (`KartenNavigation`), die App bzw. das
+ *   ueber die Navigation-Schnittstelle (`WebsiteNavigation`), die App bzw. das
  *   Embed bindet sie an ihre Adresse,
  * - kein nacktes `fetch` (ab WE2 laufen Abrufe ueber `instanz.fetch`).
  *

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { WebsiteDetail, type WebsiteDetailData } from "./website-detail";
+import { WebsiteDetail } from "@ks/module-website/react";
+import type { WebsiteDetailData } from "@ks/module-website";
 import { useTranslation } from "@ks/i18n/react";
 import { mapToWebsiteDetail } from "@/lib/mappers/doc-meta-mappers";
 import { localizeDocMetaJson } from "@ks/module-explorer";
