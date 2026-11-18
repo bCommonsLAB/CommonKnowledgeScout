@@ -10,6 +10,8 @@
     "@ks/contracts": "workspace:*",
     "@ks/i18n": "workspace:*",
     "@ks/module-explorer": "workspace:*",
+    "@ks/module-story": "workspace:*",
+    "@ks/ui": "workspace:*",
     "@ks/util": "workspace:*",
     "@ks/viewers": "workspace:*",
     "zod": "^3.24.1"
@@ -20,6 +22,7 @@
   },
   "peerDependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "jotai": "^2.11.0",
     "lucide-react": "^0.312.0",
     "react": "^18.2.0",
     "react-hook-form": "^7.54.2"

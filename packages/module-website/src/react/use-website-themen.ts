@@ -11,12 +11,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useUser } from '@clerk/nextjs'
-import { SAME_ORIGIN_API } from '@ks/api-client'
 import { useTranslation } from '@ks/i18n/react'
 import type { StoryTopicsData } from '@ks/contracts'
 import { ANTWORT_LAENGE_STANDARD, useStoryStream, type AnfrageRahmen, type Nachricht } from '@ks/module-story/react'
-import { useWebsitePerspektive } from './use-website-perspektive'
+import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
 
 export interface WebsiteThemenStand {
   /** `null`, solange die Uebersicht laedt oder wenn sie fehlt (dann steht `fehler`). */
@@ -26,10 +24,10 @@ export interface WebsiteThemenStand {
   fehler: string | null
 }
 
-export function useWebsiteThemen(libraryId: string): WebsiteThemenStand {
+/** WE3: Instanz, Anmeldung und Perspektive reicht der Gastgeber herein (dieselbe Perspektive wie die Fragen-Sektion). */
+export function useWebsiteThemen(gastgeber: Pick<WebsiteStoryGastgeber, 'instanz' | 'angemeldet' | 'perspektive'>, libraryId: string): WebsiteThemenStand {
   const { t } = useTranslation()
-  const { isSignedIn } = useUser()
-  const perspektive = useWebsitePerspektive()
+  const { instanz, angemeldet, perspektive } = gastgeber
   // Der Stream verlangt einen Verlauf; die Uebersicht traegt nichts ein (kein Eintrag ohne Frage).
   const [nachrichten, setNachrichten] = useState<Nachricht[]>([])
   const [gliederung, setGliederung] = useState<StoryTopicsData | null>(null)
@@ -59,8 +57,8 @@ export function useWebsiteThemen(libraryId: string): WebsiteThemenStand {
   const rahmen = useMemo<AnfrageRahmen>(() => ({ perspektive, antwortLaenge: ANTWORT_LAENGE_STANDARD, chatId: null }), [perspektive])
   const { laeuft, uebersichtLaden } = useStoryStream({
     libraryId,
-    instanz: SAME_ORIGIN_API,
-    isSignedIn: isSignedIn === true,
+    instanz,
+    isSignedIn: angemeldet,
     rahmen,
     nachrichten,
     setNachrichten,

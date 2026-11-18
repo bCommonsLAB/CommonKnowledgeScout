@@ -8,17 +8,17 @@
  * aeltere Fragen erreicht der Verweis in den Story-Modus). „Erst fragen, dann
  * einstellen": kein Dialog beim Betreten, Perspektive nur per Knopf, Belege als Blatt.
  *
- * Dritter Gastgeber der Story-Bausteine (nach Galerie-Mitte und Embed):
- * komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`. Der
+ * Komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`. Der
  * Konversationsblock mit den Karten-Darstellungen (`cards=column|inline`,
  * Owner 09.11.2026) liegt in `website-story-konversation.tsx`; der Marker
  * `rules=<name>` waehlt den Regelsatz der Library fuer diese Sektion.
+ *
+ * WE3: ohne App-Bindung — den Rest reicht der Gastgeber herein
+ * (`WebsiteStoryGastgeber`), jeder Weg hinaus geht ueber `WebsiteNavigation`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { useAtom, useSetAtom } from 'jotai'
-import { useUser } from '@clerk/nextjs'
 import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
@@ -33,48 +33,54 @@ import {
   eintragsBezeichnung,
   type BezeichnungQuelle,
   auftragSchritt,
-} from '@ks/module-website'
-import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
-import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
-import { websiteStoryFrageAtom } from '@/atoms/website-story-frage-atom'
-import { StoryFragenKacheln, WebsiteStorySektionRahmen } from '@ks/module-website/react'
+  type WebsiteNavigation,
+} from '..'
+import { getEffectiveDocumentNavigationSlug } from '@ks/util'
+import { websiteStoryFrageAtom } from './website-story-frage-atom'
+import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { WebsiteStoryBelege } from './website-story-belege'
-import type { WebsiteStoryNavigation } from './use-website-story-navigation'
+import { wegGehen } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
+import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
 import { StoryStatus } from './website-story-status'
 import { StoryPopulaereFragen } from './website-story-populaer'
 import { WebsiteStoryKonversation } from './website-story-konversation'
-
-// Die Detailansicht zieht die Renderer aller Typen nach — erst laden, wenn jemand einen Eintrag oeffnet.
-const WebsiteStoryDetail = dynamic(() => import('./website-story-detail').then((m) => ({ default: m.WebsiteStoryDetail })), { ssr: false })
 
 export interface WebsiteStorySektionProps {
   libraryId: string
   section: WebsiteSection
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
-  navigation: WebsiteStoryNavigation
+  /** WE3: was die Sektion von der Seite braucht, auf der sie steht. */
+  gastgeber: WebsiteStoryGastgeber
+  navigation: WebsiteNavigation
   /** Galerie-Texte der Library (`publicPublishing.gallery`): Bezeichnung der Eintraege (`itemLabel`/`itemLabelPlural`). */
   galleryTexte?: BezeichnungQuelle
 }
 
 export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const { t } = useTranslation()
-  const { isSignedIn } = useUser()
-  const s = useWebsiteStory(p.libraryId, p.section.filter, p.section.rules)
-  const profil = useProfilPerspektive()
+  const { gastgeber, navigation } = p
+  const s = useWebsiteStory(gastgeber, p.libraryId, p.section.filter, p.section.rules)
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const [text, setText] = useState('')
   const [perspektiveOffen, setPerspektiveOffen] = useState(false)
   const [blatt, setBlatt] = useState<BelegeBlatt | null>(null)
   const [blattOffen, setBlattOffen] = useState(false)
-  // Detailansicht ueber der Startseite (Owner 10.11.2026): Karte oder Beleg oeffnet sie, die Seite bleibt stehen.
+  // Detailansicht ueber der Startseite (10.11.2026); ohne Slot des Gastgebers geht der Klick in die Galerie.
   const [detail, setDetail] = useState<{ doc: DocCardMeta; page?: number } | null>(null)
+  const mitDetail = gastgeber.detail !== undefined
   const dokumentOeffnen = useCallback((doc: DocCardMeta, page?: number) => {
     setBlattOffen(false)
-    setDetail({ doc, page })
-  }, [])
-  const belegDocs = useBelegDokumente(p.libraryId, blatt?.references ?? [], s.sessionHeaders)
+    if (mitDetail) {
+      setDetail({ doc, page })
+      return
+    }
+    const slug = getEffectiveDocumentNavigationSlug(doc)
+    if (slug) wegGehen(navigation, { art: 'dokument', slug })
+    else console.error('[WebsiteStorySektion] Dokument ohne Slug — nichts zu oeffnen', doc)
+  }, [mitDetail, navigation])
+  const belegDocs = useBelegDokumente(gastgeber.instanz, p.libraryId, blatt?.references ?? [], s.sessionHeaders)
   const bloecke = useMemo(() => storyBloecke(p.section), [p.section])
   const fragen = bloecke.fragen
   // Bezeichnung der Eintraege (Owner 09.11.2026): „Vortraege" statt „Quellen", einsprachig je Library.
@@ -121,12 +127,12 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
 
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
-  const kopf = (
+  const kopf = gastgeber.perspektiveDialog ? (
     <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
       <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
       {t('website.story.anpassen')}
     </Button>
-  )
+  ) : undefined
 
   let inhalt
   if (s.loading) inhalt = <p className="mt-4 text-sm text-neutral-500">{t('website.story.laden')}</p>
@@ -136,16 +142,16 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     inhalt = (
       <>
         <StoryFragenKacheln fragen={fragen} onFrage={senden} gesperrt={s.k.laeuft} />
-        {bloecke.populaer !== null && <StoryPopulaereFragen libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
+        {bloecke.populaer !== null && <StoryPopulaereFragen instanz={gastgeber.instanz} libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
         {konversation && (
           <WebsiteStoryKonversation
             libraryId={p.libraryId}
             s={s}
-            navigation={p.navigation}
+            gastgeber={gastgeber}
+            navigation={navigation}
             cards={p.section.cards ?? 'hidden'}
             bezeichnung={bezeichnung}
             markenAnfangsVerborgen={p.section.citationsVisible !== true}
-            isSignedIn={isSignedIn === true}
             onText={setText}
             onBelege={belegeOeffnen}
             onDokument={dokumentOeffnen}
@@ -159,7 +165,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           laeuft={s.k.laeuft}
           antwortLaenge={s.k.antwortLaenge}
           setAntwortLaenge={s.k.setAntwortLaenge}
-          placeholder={p.section.placeholder ?? s.cfg?.config.placeholder}
+          placeholder={p.section.placeholder ?? gastgeber.eingabe.platzhalter}
         />
       </>
     )
@@ -173,7 +179,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           {inhalt}
         </WebsiteStorySektionRahmen>
       </div>
-      {perspektiveOffen && <PerspektiveDialogApp open={perspektiveOffen} onOpenChange={setPerspektiveOffen} onProfil={profil.speichern} darstellung="blatt" />}
+      {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen })}
       {blatt && (
         <WebsiteStoryBelege
           libraryId={p.libraryId}
@@ -182,13 +188,13 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           references={blatt.references}
           usedDocs={belegDocs}
           katalogAnzahl={s.katalogAnzahl}
-          navigation={p.navigation}
+          navigation={navigation}
           markenFarbe={p.theme?.accentInk}
           titel={bezeichnung.blattTitel}
           onDokument={dokumentOeffnen}
         />
       )}
-      {detail && <WebsiteStoryDetail libraryId={p.libraryId} doc={detail.doc} page={detail.page} onClose={() => setDetail(null)} />}
+      {detail && gastgeber.detail?.({ doc: detail.doc, page: detail.page, onClose: () => setDetail(null) })}
     </>
   )
 }

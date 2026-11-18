@@ -50,6 +50,12 @@
       ],
       "@ks/module-explorer/react": [
         "../module-explorer/src/react/index.ts"
+      ],
+      "@ks/module-story": [
+        "../module-story/src/index.ts"
+      ],
+      "@ks/module-story/react": [
+        "../module-story/src/react/index.ts"
       ]
     },
     "types": [
