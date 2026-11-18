@@ -369,6 +369,14 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Lesersicht, damit Bildfelder einer Vorlage eine öffentliche Adresse
   bekommen; geplant: betroffene Dokumente neu indexieren, übrige Inhaltsarten
   in einem zweiten Gang)
+- **Startseite als einbettbare Komponente** (Plan
+  [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
+  `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit
+  Fragen-Sektion und Galerie-Band; Wege hinaus (Galerie, Story, andere Seiten)
+  sind Links der Container-Anwendung (`hrefFor`). Bausteine ziehen dafür in
+  ein Paket `@ks/module-website`. Wellen WE0–WE5; WE1 erst, wenn die
+  laufende Arbeit an der Fragen-Sektion gemergt ist. Fünf Owner-Entscheide
+  (A–E). Nichts gebaut
 - **Sitzungen: Sichten statt Kopien, Befunde statt Hoffen** (Plan
   [`sitzungen-sichten-und-befunde`](plans/geplant/sitzungen-sichten-und-befunde.plan.md),
   08.11.): Sitzungsbelege (`type: chatverlauf`, Vorlage `chatverlauf-de`)
