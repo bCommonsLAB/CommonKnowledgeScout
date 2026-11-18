@@ -15,9 +15,8 @@ import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API, useSessionHeaders } from '@ks/api-client'
 import type { DocCardMeta, DocReference, GalleryFilters } from '@ks/contracts'
 import { paare, useNeuStellen, useStoryKonversation } from '@ks/module-story/react'
-import { sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
+import { sichtbaresPaar, storyFilterParams } from '@ks/module-website'
 import { useLibraryConfig } from '@/hooks/use-library-config'
-import { storyFilterParams } from '@/lib/website/story-filter'
 import { useWebsitePerspektive } from './use-website-perspektive'
 
 /** Belege einer Antwort fuer das Blatt rechts. */

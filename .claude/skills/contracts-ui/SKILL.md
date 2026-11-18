@@ -1,6 +1,6 @@
 ---
 name: contracts-ui
-description: Harte Invarianten der UI-Container-Schicht — App-Schale, Library-Loader, Archiv-Detail, Galerie/Story/Chat, Settings und die Website-Landingpage. Verwende diesen Skill, BEVOR du an src/components/library/**, src/components/settings/**, src/app/page.tsx, src/app/layout.tsx oder src/lib/root-landing.ts etwas änderst — also sobald von Datei-Liste, Datei-Vorschau, Galerie, Story-Modus, Einstellungen oder der öffentlichen Landingpage die Rede ist.
+description: Harte Invarianten der UI-Container-Schicht — App-Schale, Library-Loader, Archiv-Detail, Galerie/Story/Chat, Settings und die Website-Landingpage. Verwende diesen Skill, BEVOR du an src/components/library/**, src/components/settings/**, packages/module-website/**, src/lib/website/**, src/app/page.tsx, src/app/layout.tsx oder src/lib/root-landing.ts etwas änderst — also sobald von Datei-Liste, Datei-Vorschau, Galerie, Story-Modus, Einstellungen oder der öffentlichen Landingpage die Rede ist.
 ---
 
 # Contracts: UI-Container (Welle-3-Invarianten)
@@ -28,7 +28,7 @@ Diese Regeln sind **nicht verhandelbar**. Details je Bereich in `docs/contracts/
 | [welle-3-archiv-detail-contracts.md](../../../docs/contracts/welle-3-archiv-detail-contracts.md) | Archiv-Detail (`file-preview` und Tabs) |
 | [welle-3-iii-galerie-chat-contracts.md](../../../docs/contracts/welle-3-iii-galerie-chat-contracts.md) | Galerie, Story-Modus, Chat |
 | [welle-3-iv-settings-contracts.md](../../../docs/contracts/welle-3-iv-settings-contracts.md) | Settings — erlaubte Client-Direktiven, Fehler-Semantik |
-| [website-landingpage.md](../../../docs/contracts/website-landingpage.md) | Landingpage am Library-Slug (`detailViewType: website`) |
+| [website-landingpage.md](../../../docs/contracts/website-landingpage.md) | Landingpage am Library-Slug (`detailViewType: website`); Regeln im Paket `@ks/module-website` (`packages/module-website/`) — kein `next/*`, kein Clerk, kein `@/`, keine Adresszeile |
 
 ## Zusätzlich beachten
 

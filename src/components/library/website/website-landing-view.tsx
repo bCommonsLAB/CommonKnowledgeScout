@@ -7,8 +7,7 @@
  */
 
 import * as React from 'react'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
-import type { WebsiteLandingData } from '@/lib/website/types'
+import { parseWebsiteSections, type WebsiteLandingData } from '@ks/module-website'
 import { SectionBlock, VideoEmbed } from './website-landing-blocks'
 
 function MenuBar({ data }: { data: WebsiteLandingData }): React.ReactElement {

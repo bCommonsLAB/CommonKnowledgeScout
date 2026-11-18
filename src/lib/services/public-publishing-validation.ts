@@ -17,7 +17,7 @@
 
 import type { Library } from '@/types/library'
 import type { SiteTheme } from '@ks/contracts'
-import { validiereSiteTheme } from '@/lib/website/site-theme'
+import { validiereSiteTheme } from '@ks/module-website'
 
 export type PublicPublishing = NonNullable<NonNullable<Library['config']>['publicPublishing']>
 export type GalleryTexte = NonNullable<PublicPublishing['gallery']>

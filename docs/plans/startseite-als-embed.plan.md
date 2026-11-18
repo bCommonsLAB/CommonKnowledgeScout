@@ -8,8 +8,8 @@ todos:
     content: "WE0 Einstieg für Galerie und Story: `KnowledgeScoutExplorer` nimmt `start` (`KsEinstieg`: `dokument`, `seitenzahl`, `liste`, `frage`) entgegen — Dokument und Liste als `initialParams` der Speicher-Adressierung, die Frage als Story-Auswahl mit aufgelöster Sitzung; `@ks/embed` exportiert das Ziel-Vokabular `KsZiel` mit `ksZielAlsParameter`, `ksEinstiegAusParametern` und `ksSeiteAusParametern` (Parameter mit Vorsatz `ks-`). Berührt keine Startseiten-Datei. GEBAUT 18.11.2026 (Branch `claude/we0-einstieg-explorer`)."
     status: completed
   - id: we1-regeln-ins-paket
-    content: "WE1 Paket `@ks/module-website` anlegen, die reinen Regeln aus `src/lib/website/**` hinein (Parser, Design-Profil ohne Schriften, Kachelziele, Banner, Story-Karten), dazu `mapToWebsiteDetail` und `safe-video-iframe`. Commit 1 nur `git mv`, Commit 2 Importe. Wächter-Test Paketgrenze. Gate: Startseiten-Arbeit der Parallelsitzung ist gemergt."
-    status: pending
+    content: "WE1 Paket `@ks/module-website` anlegen, die reinen Regeln aus `src/lib/website/**` hinein (Parser, Design-Profil ohne Schriften, Kachelziele, Banner, Story-Karten), dazu `mapToWebsiteDetail` und `safe-video-iframe`. Commit 1 nur `git mv`, Commit 2 Importe. Wächter-Test Paketgrenze. Gate: Startseiten-Arbeit der Parallelsitzung ist gemergt. GEBAUT 18.11.2026 (Branch `claude/website-modul-we1-c491f4`); `safe-video-iframe` lag schon in `@ks/util` und bleibt dort."
+    status: completed
   - id: we2-bausteine-ins-paket
     content: "WE2 Bausteine ins Paket: Kopf-Varianten, Sektionen, Kacheln, Banner, Fußzeile, `WebsiteDetail`, Daten-Hooks. Abrufe über `InstanceApi`, alle Wege über eine Navigation-Schnittstelle (Ziel → Adresse oder Klick), Schriften als Prop. Die App behält `WebsiteLandingLive` als Hülle; ihr Verhalten bleibt unverändert."
     status: pending
@@ -178,6 +178,15 @@ false`), `src/lib/website/**` ohne `site-fonts.ts` und ohne den Server-Teil
 `doc-meta-mappers.ts` und `safe-video-iframe`. Rund 1.700 Zeilen, Commit 1 nur
 Umzug. Zeile im Routing-Index von `CLAUDE.md` und im Skill `contracts-ui`.
 Mittel, mechanisch.
+Gebaut 18.11.2026: 17 Regel-Dateien plus `website-detail-daten.ts`
+(`WebsiteDetailData` und `mapToWebsiteDetail`; `website-detail.tsx` und
+`doc-meta-mappers.ts` reichen beide weiter). Die App importiert direkt aus
+`@ks/module-website`, unter `src/lib/website/` bleiben nur `site-fonts.ts`
+samt `fonts/` und `website-translation-guard.ts`. `safe-video-iframe` lag
+schon in `@ks/util` (die App-Datei ist eine Hülle); die Bausteine in WE2
+importieren es von dort. Wächter:
+`tests/unit/packages/module-website/paket-schnitt.test.ts` (dazu kein
+nacktes `fetch`, Wurzel-Barrel zur Laufzeit React- und Galerie-frei).
 
 **WE2 Bausteine ins Paket** — Kopf-Varianten, Sektionen, Kacheln, Banner,
 Fußzeile, Kontakt, `WebsiteDetail`, Daten-Hooks; rund 1.600 Zeilen. Abrufe

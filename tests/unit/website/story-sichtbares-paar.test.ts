@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { paare, type Nachricht } from '@ks/module-story/react'
-import { juengsteFruehereKennung, sichtbaresPaar } from '@/lib/website/story-sichtbares-paar'
+import { juengsteFruehereKennung, sichtbaresPaar } from '@ks/module-website'
 
 function frage(id: string, text: string, queryId?: string): Nachricht {
   return { id, art: 'frage', text, createdAt: '2026-11-08T10:00:00.000Z', queryId }

@@ -3,9 +3,15 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  bannerGalerieParams, bannerKartenHref, bannerKartenParams, bannerLimitAus, bannerQuery, bannerSortAus,
-  coverTitelGroesseVw, BANNER_LIMIT_DEFAULT,
-} from '@/lib/website/banner'
+  bannerGalerieParams,
+  bannerKartenHref,
+  bannerKartenParams,
+  bannerLimitAus,
+  bannerQuery,
+  bannerSortAus,
+  coverTitelGroesseVw,
+  BANNER_LIMIT_DEFAULT,
+} from '@ks/module-website'
 
 describe('bannerQuery', () => {
   it('ohne Tag: Prioritaets-Reihung mit Ueberhang fuer entfernte Website-Docs', () => {

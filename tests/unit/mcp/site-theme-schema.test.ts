@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { SITE_THEME_SCHEMA } from '@/lib/website/site-theme-schema'
+import { SITE_THEME_SCHEMA } from '@ks/module-website'
 
 describe('SITE_THEME_SCHEMA', () => {
   it('nimmt ein Profil als Objekt an und weist Text ab', () => {

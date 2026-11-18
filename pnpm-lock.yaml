@@ -38,6 +38,9 @@ importers:
       '@ks/module-story':
         specifier: workspace:*
         version: link:packages/module-story
+      '@ks/module-website':
+        specifier: workspace:*
+        version: link:packages/module-website
       '@ks/shell':
         specifier: workspace:*
         version: link:packages/shell
@@ -532,6 +535,21 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
+
+  packages/module-website:
+    dependencies:
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ks/util':
+        specifier: workspace:*
+        version: link:../util
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.55
 
   packages/shell:
     dependencies:

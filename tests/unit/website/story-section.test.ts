@@ -2,8 +2,7 @@
  * Welle N1 — Story-Sektion: Markdown vor und nach dem Fragen-Block, die Fragen dazwischen.
  */
 import { describe, it, expect } from 'vitest'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
-import { hatStorySektion, storyBloecke } from '@/lib/website/story-section'
+import { parseWebsiteSections, hatStorySektion, storyBloecke } from '@ks/module-website'
 
 describe('storyBloecke', () => {
   it('teilt die Bloecke am questions-Block: vor, fragen, nach', () => {

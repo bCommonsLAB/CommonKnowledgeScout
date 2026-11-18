@@ -11,7 +11,7 @@
 import { Filter } from 'lucide-react'
 import { useTranslation } from '@ks/i18n/react'
 import type { GalleryFilters } from '@ks/contracts'
-import { storyFilterBeschriftung } from '@/lib/website/story-filter'
+import { storyFilterBeschriftung } from '@ks/module-website'
 
 export interface StoryStatusProps {
   /** Zahl der Frage-Antwort-Paare der Sitzung. */

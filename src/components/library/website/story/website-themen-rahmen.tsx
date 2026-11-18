@@ -15,9 +15,14 @@ import * as React from "react"
 import { ArrowUpRight } from "lucide-react"
 import { useTranslation } from "@ks/i18n/react"
 import type { StoryTopic } from "@ks/contracts"
-import type { HeadingCase, WebsiteSection } from "@/lib/website/types"
-import { OLDIES_THEME, type SiteThemeResolved } from "@/lib/website/site-theme"
-import { KICKER_CLASS, surfaceStyle } from "@/lib/website/surface-style"
+import {
+  type HeadingCase,
+  type WebsiteSection,
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  KICKER_CLASS,
+  surfaceStyle,
+} from "@ks/module-website"
 import { SectionContent } from "@/components/library/website/section-content"
 import { cn } from "@/lib/utils"
 

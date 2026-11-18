@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
-import { antwortBloecke, bloeckeMitNummern, kartenEintraege } from '@/lib/website/story-karten'
+import { antwortBloecke, bloeckeMitNummern, kartenEintraege } from '@ks/module-website'
 
 const ref = (number: number, fileId: string): DocReference => ({ number, fileId, description: '' })
 const doc = (fileId: string, title: string): DocCardMeta => ({ id: fileId, fileId, title } as DocCardMeta)

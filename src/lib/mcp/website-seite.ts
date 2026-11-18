@@ -10,18 +10,18 @@
  */
 
 import type { DocCardMeta } from '@ks/contracts'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
-import type { WebsiteSection } from '@/lib/website/types'
 import {
+  parseWebsiteSections,
+  type WebsiteSection,
   findFooterContentDoc,
   resolveSiteParamDoc,
   selectFooterLinkDocs,
   selectMainMenuDocs,
-} from '@/lib/website/site-navigation'
+  storyBloecke,
+  bannerSortAus,
+} from '@ks/module-website'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { bildUrls } from './website-pruefung'
-import { storyBloecke } from '@/lib/website/story-section'
-import { bannerSortAus } from '@/lib/website/banner'
 
 /** Was der Bericht ueber die Library hinaus braucht (F3, ADR 0012). */
 export interface SeitenBerichtKontext {

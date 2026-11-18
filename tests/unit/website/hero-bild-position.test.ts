@@ -3,7 +3,7 @@
  * Helfer, Mapper und Pruefung vor dem Publizieren.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { heroBildPosition, heroBildPositionGeprueft } from '@/lib/website/hero-bild-position'
+import { heroBildPosition, heroBildPositionGeprueft } from '@ks/module-website'
 import { mapToWebsiteDetail } from '@/lib/mappers/doc-meta-mappers'
 import { pruefeMarkdownDokument } from '@/lib/mcp/website-pruefung'
 

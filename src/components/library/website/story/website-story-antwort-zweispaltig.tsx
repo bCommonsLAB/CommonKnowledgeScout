@@ -16,7 +16,7 @@
 import { useMemo } from 'react'
 import type { DocCardMeta } from '@ks/contracts'
 import { AntwortText, type Nachricht } from '@ks/module-story/react'
-import { antwortBloecke, bloeckeMitNummern, type KartenEintrag } from '@/lib/website/story-karten'
+import { antwortBloecke, bloeckeMitNummern, type KartenEintrag } from '@ks/module-website'
 import { WebsiteStoryVortragskarte } from './website-story-vortragskarte'
 import { WebsiteStoryVortragsspalte } from './website-story-vortragsspalte'
 

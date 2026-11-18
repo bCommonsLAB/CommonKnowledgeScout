@@ -12,7 +12,7 @@
 
 import type { CSSProperties } from 'react'
 import type { SiteSurfaceName } from '@ks/contracts'
-import { cn } from '@/lib/utils'
+import { cn } from '@ks/util'
 import { istDunkel, type SiteThemeResolved } from './site-theme'
 
 export interface SurfaceStyle {

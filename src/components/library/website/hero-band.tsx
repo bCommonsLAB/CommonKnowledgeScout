@@ -16,7 +16,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { HEADING_FONT } from "@/lib/website/surface-style"
+import { HEADING_FONT } from "@ks/module-website"
 
 interface HeroBandProps {
   title: string

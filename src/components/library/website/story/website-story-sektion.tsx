@@ -25,14 +25,18 @@ import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
 import { StoryEingabeInline, type Nachricht } from '@ks/module-story/react'
-import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
-import type { SiteThemeResolved } from '@/lib/website/site-theme'
-import { storyBloecke } from '@/lib/website/story-section'
-import { eintragsBezeichnung, type BezeichnungQuelle } from '@/lib/website/eintrags-bezeichnung'
+import {
+  type HeadingCase,
+  type WebsiteSection,
+  type SiteThemeResolved,
+  storyBloecke,
+  eintragsBezeichnung,
+  type BezeichnungQuelle,
+  auftragSchritt,
+} from '@ks/module-website'
 import { PerspektiveDialogApp } from '@/components/library/story/perspektive-dialog-app'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { websiteStoryFrageAtom } from '@/atoms/website-story-frage-atom'
-import { auftragSchritt } from '@/lib/website/story-frage-auftrag'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { WebsiteStoryBelege } from './website-story-belege'
 import type { WebsiteStoryNavigation } from './use-website-story-navigation'

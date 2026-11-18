@@ -31,7 +31,7 @@ import {
 import { WebsiteImageField } from "@/components/settings/public/website-image-upload"
 import { SiteThemeField } from "@/components/settings/public/site-theme-field"
 import { MitredenFields } from "@/components/settings/public/mitreden-fields"
-import { validiereSiteTheme } from "@/lib/website/site-theme"
+import { validiereSiteTheme } from "@ks/module-website"
 import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } from "lucide-react"
 import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { useSafeUser } from "@/hooks/use-safe-user"

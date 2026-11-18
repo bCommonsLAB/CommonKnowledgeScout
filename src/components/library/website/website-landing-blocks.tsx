@@ -9,12 +9,17 @@
  */
 
 import * as React from 'react'
-import type { HeadingCase, WebsiteSection } from '@/lib/website/types'
+import {
+  type HeadingCase,
+  type WebsiteSection,
+  OLDIES_THEME,
+  type SiteThemeResolved,
+  KICKER_CLASS,
+  surfaceStyle,
+  type KartenNavigation,
+} from '@ks/module-website'
 import { cn } from '@/lib/utils'
 import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
-import { OLDIES_THEME, type SiteThemeResolved } from '@/lib/website/site-theme'
-import { KICKER_CLASS, surfaceStyle } from '@/lib/website/surface-style'
-import type { KartenNavigation } from '@/lib/website/kartenziel'
 import { SectionContent } from './section-content'
 
 // S3: `renderMarkdownText` wohnt in `markdown-text.tsx` (Bestandsimporte bleiben gueltig).

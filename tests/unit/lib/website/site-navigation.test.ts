@@ -12,7 +12,7 @@ import {
   resolveSiteParamDoc,
   getSiteParamForDoc,
   sortByMenuOrder,
-} from '@/lib/website/site-navigation'
+} from '@ks/module-website'
 
 function doc(overrides: Partial<DocCardMeta> & { id: string }): DocCardMeta {
   return { fileId: overrides.id, ...overrides }

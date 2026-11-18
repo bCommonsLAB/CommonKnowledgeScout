@@ -13,10 +13,7 @@
 
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
-import { bannerSortAus } from '@/lib/website/banner'
-import { heroBildPosition } from '@/lib/website/hero-bild-position'
-import { storyBloecke } from '@/lib/website/story-section'
+import { parseWebsiteSections, bannerSortAus, heroBildPosition, storyBloecke } from '@ks/module-website'
 
 export interface DokumentPruefung {
   meta: Record<string, unknown>

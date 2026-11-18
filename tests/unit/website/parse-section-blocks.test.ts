@@ -2,8 +2,7 @@
  * Welle S3 — Bloecke in Sektionen: Kacheln, Chips, Kasten; Fehler werfen laut.
  */
 import { describe, it, expect } from 'vitest'
-import { parseSectionBlocks } from '@/lib/website/parse-section-blocks'
-import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
+import { parseSectionBlocks, parseWebsiteSections } from '@ks/module-website'
 
 describe('parseSectionBlocks', () => {
   it('Text ohne Marker bleibt ein Markdown-Block', () => {

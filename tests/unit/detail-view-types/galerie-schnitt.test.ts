@@ -22,6 +22,8 @@ const REPO_ROOT = process.cwd()
 const SERVER_ROOTS = [
   'src/lib/repositories',
   'src/lib/external-jobs',
+  // Die Regeln der Startseite liegen seit WE1 in `@ks/module-website`; dessen
+  // Wurzel-Barrel prueft `tests/unit/packages/module-website/paket-schnitt.test.ts` mit.
   'src/lib/website',
   'src/lib/mappers',
   'src/lib/chat',

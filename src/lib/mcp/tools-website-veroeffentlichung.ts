@@ -15,7 +15,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { LibraryService } from '@/lib/services/library-service'
-import { SITE_THEME_SCHEMA } from '@/lib/website/site-theme-schema'
+import { SITE_THEME_SCHEMA } from '@ks/module-website'
 import {
   geaenderteFelder, mergePublicPublishing, validierePublicPublishing, type PublicPublishing,
 } from '@/lib/services/public-publishing-validation'
