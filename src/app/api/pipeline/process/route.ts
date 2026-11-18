@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuth, currentUser } from '@clerk/nextjs/server'
 import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
+import { ExternalJobsWorker } from '@/lib/external-jobs-worker'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { LibraryService } from '@/lib/services/library-service'
 import { getMediaKind, mediaKindToJobType, isPipelineSupported } from '@/lib/media-types'
@@ -344,16 +345,14 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Worker triggern (best-effort)
-    try {
-      await fetch(`${request.nextUrl.origin}/api/external/jobs/worker`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'tick' }),
+    // Worker im Prozess anstossen (best-effort, Muster doc-similarity/recompute).
+    // Frueher ein HTTP-Self-POST ohne Cookie auf /api/external/jobs/worker — der klappte nur,
+    // weil die Middleware jeden POST dort anonym durchliess (Befund 18.11.2026, geschlossen).
+    void ExternalJobsWorker.tickNow().catch((err) => {
+      FileLogger.warn('pipeline/process', 'tickNow nach Enqueue fehlgeschlagen (Jobs bleiben queued)', {
+        libraryId, batchId, error: err instanceof Error ? err.message : String(err),
       })
-    } catch {
-      // Worker-Trigger-Fehler ignorieren
-    }
+    })
     
     FileLogger.info('pipeline/process', 'Pipeline-Jobs erstellt', {
       libraryId,
