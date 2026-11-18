@@ -23,7 +23,7 @@
  *   `docMetaJson.translations` schreibt (neuer Doc-Translations Refactor).
  * 
  * @dependencies
- * - @/lib/secretary/adapter: Secretary Service adapter
+ * - @/lib/chat/common/translation-timeout: Secretary-Aufruf mit laengenabhaengiger Zeitgrenze
  * - @/lib/env: Secretary Service configuration
  * - @/components/library/book-detail: BookDetailData type
  * - @/components/library/session-detail: SessionDetailData type
@@ -31,7 +31,7 @@
  */
 
 import { z } from 'zod'
-import { callTemplateTransform } from '@/lib/secretary/adapter'
+import { callTranslationTransform } from '@/lib/chat/common/translation-timeout'
 import { getSecretaryConfig } from '@/lib/env'
 import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
@@ -187,7 +187,7 @@ export async function translateBookData(
 
   // Secretary Service Transformer aufrufen
   const transformerUrl = `${baseUrl}/transformer/template`
-  const response = await callTemplateTransform({
+  const response = await callTranslationTransform({
     url: transformerUrl,
     text: dataToTranslate,
     targetLanguage,
@@ -195,7 +195,6 @@ export async function translateBookData(
     sourceLanguage,
     useCache: true,
     apiKey: effectiveApiKey,
-    timeoutMs: 60000, // 60 Sekunden Timeout
   })
   
   if (!response.ok) {
@@ -299,7 +298,7 @@ export async function translateSessionData(
 
   // Secretary Service Transformer aufrufen
   const transformerUrl = `${baseUrl}/transformer/template`
-  const response = await callTemplateTransform({
+  const response = await callTranslationTransform({
     url: transformerUrl,
     text: dataToTranslate,
     targetLanguage,
@@ -307,7 +306,6 @@ export async function translateSessionData(
     sourceLanguage,
     useCache: true,
     apiKey: effectiveApiKey,
-    timeoutMs: 60000, // 60 Sekunden Timeout
   })
   
   if (!response.ok) {
@@ -466,7 +464,7 @@ export async function translateRefurbedDeviceData(
 
   // Secretary Service Transformer aufrufen
   const transformerUrl = `${baseUrl}/transformer/template`
-  const response = await callTemplateTransform({
+  const response = await callTranslationTransform({
     url: transformerUrl,
     text: dataToTranslate,
     targetLanguage,
@@ -474,7 +472,6 @@ export async function translateRefurbedDeviceData(
     sourceLanguage,
     useCache: true,
     apiKey: effectiveApiKey,
-    timeoutMs: 60000, // 60 Sekunden Timeout
   })
 
   if (!response.ok) {
@@ -727,7 +724,7 @@ export async function translateGenericData<T extends Record<string, unknown>>(
 
   // 5) Secretary-Transformer aufrufen
   const transformerUrl = `${baseUrl}/transformer/template`
-  const response = await callTemplateTransform({
+  const response = await callTranslationTransform({
     url: transformerUrl,
     text: JSON.stringify(dataToTranslate, null, 2),
     targetLanguage,
@@ -735,7 +732,6 @@ export async function translateGenericData<T extends Record<string, unknown>>(
     sourceLanguage,
     useCache: true,
     apiKey: effectiveApiKey,
-    timeoutMs: 60000,
   })
 
   if (!response.ok) {
