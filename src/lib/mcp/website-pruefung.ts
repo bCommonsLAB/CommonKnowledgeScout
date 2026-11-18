@@ -15,6 +15,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { parseWebsiteSections } from '@/lib/website/parse-website-sections'
 import { bannerSortAus } from '@/lib/website/banner'
+import { heroBildPosition } from '@/lib/website/hero-bild-position'
 import { storyBloecke } from '@/lib/website/story-section'
 
 export interface DokumentPruefung {
@@ -91,6 +92,12 @@ export function pruefeMarkdownDokument(markdown: string): DokumentPruefung {
       } else if (heroLayout === 'none' && typeof heroBild === 'string' && heroBild.trim()) {
         warnungen.push('hero_layout none mit hero_image: das Bild wird nicht gezeigt — als Sektion full-image in den Body setzen oder hero_layout aendern')
       }
+    }
+    // hero_image_position (18.11.2026): ungueltig zeigt der Renderer laut die Bildmitte — hier wird es vorher genannt.
+    try {
+      heroBildPosition(meta['hero_image_position'])
+    } catch (error) {
+      warnungen.push(`${error instanceof Error ? error.message : String(error)} — der Kopf zeigt die Bildmitte`)
     }
     // banner_sort (F3): ein unbekannter Wert faellt im Renderer laut auf rating — hier wird er vorher genannt.
     try {
