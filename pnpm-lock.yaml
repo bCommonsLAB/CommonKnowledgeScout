@@ -553,12 +553,21 @@ importers:
       '@ks/module-explorer':
         specifier: workspace:*
         version: link:../module-explorer
+      '@ks/module-story':
+        specifier: workspace:*
+        version: link:../module-story
+      '@ks/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@ks/util':
         specifier: workspace:*
         version: link:../util
       '@ks/viewers':
         specifier: workspace:*
         version: link:../viewers
+      jotai:
+        specifier: ^2.11.0
+        version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
       lucide-react:
         specifier: ^0.312.0
         version: 0.312.0(react@18.2.0)

@@ -15,9 +15,8 @@ import { useCallback, type CSSProperties } from 'react'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
 import { GalleryNavigationProvider, ReferencesSheet } from '@ks/module-explorer/react'
 import { docMatchesNavigationSlug } from '@ks/util'
-import { useWebsiteStoryNavigation, type WebsiteStoryNavigation } from './use-website-story-navigation'
-
-export type { WebsiteStoryNavigation } from './use-website-story-navigation'
+import type { WebsiteNavigation } from '..'
+import { useWebsiteStoryNavigation } from './use-website-story-navigation'
 
 export interface WebsiteStoryBelegeProps {
   libraryId: string
@@ -27,7 +26,8 @@ export interface WebsiteStoryBelegeProps {
   /** Die zitierten Dokumente (`useBelegDokumente`); leer = Titel nur aus der Referenz. */
   usedDocs: DocCardMeta[]
   katalogAnzahl: number
-  navigation: WebsiteStoryNavigation
+  /** WE3: der Weg in die Galerie (Katalog, Dokument ohne Detailansicht hier). */
+  navigation: WebsiteNavigation
   /** Markenfarbe der Website (`accentInk`) fuer die Belegnummern — das Blatt haengt am `body`, die Site-Variablen erben nicht hinein. */
   markenFarbe?: string
   /** Titel des Blatts mit der Bezeichnung der Library; undefined = „Belege". */

@@ -7,6 +7,6 @@
  */
 
 import { atom } from 'jotai'
-import type { StoryFrageAuftrag } from '@ks/module-website'
+import type { StoryFrageAuftrag } from '..'
 
 export const websiteStoryFrageAtom = atom<StoryFrageAuftrag | null>(null)

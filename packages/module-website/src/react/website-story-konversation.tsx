@@ -15,21 +15,21 @@
  * Beide Karten-Darstellungen erst bei fertiger Antwort mit Belegen; waehrend
  * die Antwort laeuft, die heutige Darstellung. Nur hier in der Website-
  * Sektion — Story-Modus und Galerie-Chat bleiben unveraendert.
+ *
+ * WE3: Was unter dem KI-Hinweis steht (Konfig-Anzeige, Verbrauch,
+ * Verarbeitung) und das Bild neben der Antwort reicht der Gastgeber herein;
+ * der Verweis „fruehere Fragen" geht ueber die Navigation.
  */
 
-import Link from 'next/link'
 import { useCallback, useMemo } from 'react'
 import { List } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
 import { AntwortText, StoryKonversation, type AntwortKopfApi, type Nachricht } from '@ks/module-story/react'
-import { type StoryCards, type EintragsBezeichnung, kartenEintraege } from '@ks/module-website'
-import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
-import { StoryVerarbeitungAufklapper } from '@/components/library/story/story-verarbeitung-aufklapper'
-import { AppLogo } from '@/components/shared/app-logo'
+import { type StoryCards, type EintragsBezeichnung, type WebsiteNavigation, kartenEintraege } from '..'
 import { useBelegDokumenteStand, type WebsiteStoryStand } from './use-website-story'
-import type { WebsiteStoryNavigation } from './use-website-story-navigation'
+import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
 import { StoryFruehereFragen } from './website-story-fruehere'
 import { WebsiteStoryVortragsspalte } from './website-story-vortragsspalte'
 import { WebsiteStoryAntwortZweispaltig } from './website-story-antwort-zweispaltig'
@@ -37,11 +37,11 @@ import { WebsiteStoryAntwortZweispaltig } from './website-story-antwort-zweispal
 export interface WebsiteStoryKonversationProps {
   libraryId: string
   s: WebsiteStoryStand
-  navigation: WebsiteStoryNavigation
+  gastgeber: WebsiteStoryGastgeber
+  navigation: WebsiteNavigation
   cards: StoryCards
   bezeichnung: EintragsBezeichnung
   markenAnfangsVerborgen: boolean
-  isSignedIn: boolean
   /** Anschlussfrage oder „neu stellen": Text in die Eingabe. */
   onText: (text: string) => void
   /** Belege-Blatt zu dieser Antwort oeffnen. */
@@ -55,12 +55,13 @@ const PROSE = 'prose prose-sm max-w-none dark:prose-invert'
 export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   const { t } = useTranslation()
   const { s, bezeichnung } = p
+  const { antwortFuss } = p.gastgeber
   const antwort = s.sichtbar.paar?.antwort
   const belege = useMemo(() => antwort?.belege ?? [], [antwort])
   // Karten erst, wenn die Antwort fertig ist und Belege hat — sonst die heutige Darstellung.
   const kartenAktiv = p.cards !== 'hidden' && antwort !== undefined && !s.k.laeuft && belege.length > 0
   // Solange die Karten laden, stehen Platzhalter — die Ansicht springt nicht nachtraeglich um (10.11.2026).
-  const karten = useBelegDokumenteStand(p.libraryId, kartenAktiv ? belege : [], s.sessionHeaders)
+  const karten = useBelegDokumenteStand(p.gastgeber.instanz, p.libraryId, kartenAktiv ? belege : [], s.sessionHeaders)
   const eintraege = useMemo(() => (kartenAktiv ? kartenEintraege(belege, karten.docs, karten.laedt) : []), [kartenAktiv, belege, karten.docs, karten.laedt])
   const oeffnen = p.onDokument
 
@@ -79,26 +80,16 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
     [bezeichnung.anzeigen, p],
   )
 
-  const slug = s.cfg?.publicPublishing?.slugName
-  const verbrauchHref = slug ? `/explore/${encodeURIComponent(slug)}/verbrauch?sicht=session` : null
-
-  // N5: schlanke Fusszeile — eine dezente Zeile statt KI-Block und Parameter-Liste.
+  // N5: schlanke Fusszeile — eine dezente Zeile statt KI-Block und Parameter-Liste;
+  // darunter, was der Gastgeber zeigt (WE3: in der App Konfig-Anzeige, Verbrauch, Verarbeitung).
   const fuss = useCallback(
     (a: Nachricht) => (
       <div className="mt-3 border-t border-black/5 pt-2 text-xs text-neutral-500" data-story-antwort-fuss>
         <p>{t('website.story.kiHinweis', { count: new Set((a.belege ?? []).map((b) => b.fileId)).size })}</p>
-        {a.queryId && <ChatConfigDisplay libraryId={p.libraryId} queryId={a.queryId} llmModel={s.llmModel} />}
-        {/* 10.11.2026: was diese Sitzung kostet — die Verbrauchsseite, vorgefiltert auf die eigene Sitzung. */}
-        {verbrauchHref && (
-          <Link href={verbrauchHref} className="mt-1 inline-block underline-offset-2 hover:underline" data-story-verbrauch-link>
-            {t('verbrauch.ansehen')} →
-          </Link>
-        )}
-        {/* N5: die Berechnungsschritte bleiben an der fertigen Antwort einsehbar (dezent, nur fuer Angemeldete). */}
-        {a.queryId && p.isSignedIn && <StoryVerarbeitungAufklapper libraryId={p.libraryId} queryId={a.queryId} />}
+        {antwortFuss?.(a)}
       </div>
     ),
-    [p.libraryId, p.isSignedIn, s.llmModel, t, verbrauchHref],
+    [antwortFuss, t],
   )
 
   // inline: Absatz-Zeilen mit Karte statt des ganzen Textes — nur fuer die Antwort mit Karten.
@@ -135,7 +126,7 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
           fuss={fuss}
           kopfAktion={kopfAktion}
           markenAnfangsVerborgen={p.markenAnfangsVerborgen}
-          antwortAvatar={<AppLogo size={32} />}
+          antwortAvatar={p.gastgeber.antwortAvatar}
           quellenPlakette={bezeichnung.zitiert}
           antwortDarstellung={inline ? antwortDarstellung : undefined}
         />

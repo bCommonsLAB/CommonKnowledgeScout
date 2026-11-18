@@ -28,6 +28,14 @@ zwei Modi; `WebsiteLandingLive` ist die App-Hülle (nuqs `?site=`,
 `router.push`, `next/font`, `next/dynamic`). Abrufe gehen über die Instanz,
 die Sprache als `Accept-Language`.
 
+**Fragen- und Themen-Sektion (seit WE3):** liegen ebenfalls im Paket und
+kennen die App nicht. Was nur der Gastgeber hat, kommt über
+`WebsiteStoryGastgeber`: Instanz, Anmeldung, Perspektive, Eingabegrenzen;
+Dialog „Antworten anpassen“, Fuß der Antwort, Bild und Detailansicht als
+Slots. Den Gastgeber der App baut `story/website-story-app.tsx` (Clerk,
+Story-Kontext, Library-Konfig, App-Renderer); Belege, Katalog und „frühere
+Fragen“ gehen über `WebsiteNavigation`.
+
 ## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
 
 - Ist `publicPublishing.siteEnabled === true`, rendert `/explore/<slug>` als

@@ -11,7 +11,7 @@
  */
 
 import type { DocCardMeta } from '@ks/contracts'
-import type { KartenEintrag } from '@ks/module-website'
+import type { KartenEintrag } from '..'
 import { WebsiteStoryVortragskarte } from './website-story-vortragskarte'
 
 export interface WebsiteStoryVortragsspalteProps {

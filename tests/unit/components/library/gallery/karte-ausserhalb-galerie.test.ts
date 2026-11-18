@@ -39,7 +39,7 @@ const BEKANNTE_AUFRUFSTELLEN: Record<string, { anbieterIn: string; warum: string
       'Montagepunkt) und auf der Root-Landingpage — dort muss page.tsx ihn liefern. ' +
       'Das Startseiten-Embed (WE4) muss den Anbieter ebenfalls mitbringen.',
   },
-  'src/components/library/website/story/website-story-vortragskarte.tsx': {
+  'packages/module-website/src/react/website-story-vortragskarte.tsx': {
     anbieterIn: 'src/app/page.tsx',
     warum:
       'Karte eines zitierten Dokuments in der Story-Sektion der Website-Landingpage ' +

@@ -6,8 +6,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { StoryStatus } from '@/components/library/website/story/website-story-status'
-import { StoryPopulaereFragen } from '@/components/library/website/story/website-story-populaer'
+import { SAME_ORIGIN_API } from '@ks/api-client'
+import { StoryPopulaereFragen, StoryStatus } from '@ks/module-website/react'
 
 vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
@@ -44,7 +44,7 @@ describe('StoryPopulaereFragen', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const onFrage = vi.fn()
-    render(<StoryPopulaereFragen libraryId="lib-1" n={3} onFrage={onFrage} />)
+    render(<StoryPopulaereFragen instanz={SAME_ORIGIN_API} libraryId="lib-1" n={3} onFrage={onFrage} />)
     await waitFor(() => expect(screen.getByText('Which talks are in English?')).toBeTruthy())
     expect(screen.getByText('website.story.populaer')).toBeTruthy()
     fireEvent.click(screen.getByText('Where are the rooms?'))
@@ -54,7 +54,7 @@ describe('StoryPopulaereFragen', () => {
   it('ohne Treffer kein Block; ein Fehler steht im Log', async () => {
     const fehler = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({ error: 'kaputt' }) })))
-    const { container } = render(<StoryPopulaereFragen libraryId="lib-1" n={5} onFrage={() => undefined} />)
+    const { container } = render(<StoryPopulaereFragen instanz={SAME_ORIGIN_API} libraryId="lib-1" n={5} onFrage={() => undefined} />)
     await waitFor(() => expect(fehler).toHaveBeenCalled())
     expect(container.querySelector('[data-story-populaer]')).toBeNull()
     fehler.mockRestore()

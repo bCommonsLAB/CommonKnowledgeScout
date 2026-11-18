@@ -8,9 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { DocCardMeta, DocReference } from '@ks/contracts'
 import type { Nachricht } from '@ks/module-story/react'
-import { WebsiteStoryVortragskarte } from '@/components/library/website/story/website-story-vortragskarte'
-import { WebsiteStoryVortragsspalte } from '@/components/library/website/story/website-story-vortragsspalte'
-import { WebsiteStoryAntwortZweispaltig } from '@/components/library/website/story/website-story-antwort-zweispaltig'
+import { WebsiteStoryAntwortZweispaltig, WebsiteStoryVortragskarte, WebsiteStoryVortragsspalte } from '@ks/module-website/react'
 import { kartenEintraege } from '@ks/module-website'
 
 vi.mock('@ks/module-explorer/react', () => ({

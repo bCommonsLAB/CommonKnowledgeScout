@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { SAME_ORIGIN_API } from '@ks/api-client'
+import type { InstanceApi } from '@ks/api-client'
 import { useTranslation } from '@ks/i18n/react'
 
 export interface PopulaereFrage {
@@ -18,11 +18,11 @@ export interface PopulaereFrage {
   count: number
 }
 
-export function usePopulaereFragen(libraryId: string, n: number): PopulaereFrage[] {
+export function usePopulaereFragen(instanz: InstanceApi, libraryId: string, n: number): PopulaereFrage[] {
   const [fragen, setFragen] = useState<PopulaereFrage[]>([])
   useEffect(() => {
     let abgebrochen = false
-    SAME_ORIGIN_API.fetch(`/api/chat/${encodeURIComponent(libraryId)}/popular-questions?limit=${n}`, { cache: 'no-store' })
+    instanz.fetch(`/api/chat/${encodeURIComponent(libraryId)}/popular-questions?limit=${n}`, { cache: 'no-store' })
       .then(async (res) => {
         const json = (await res.json()) as { items?: unknown; error?: unknown }
         if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : `HTTP ${res.status}`)
@@ -32,20 +32,21 @@ export function usePopulaereFragen(libraryId: string, n: number): PopulaereFrage
       })
       .catch((e: unknown) => console.error('[usePopulaereFragen] Populaere Fragen nicht ladbar', e))
     return () => { abgebrochen = true }
-  }, [libraryId, n])
+  }, [instanz, libraryId, n])
   return fragen
 }
 
 export interface StoryPopulaereFragenProps {
+  instanz: InstanceApi
   libraryId: string
   n: number
   onFrage: (frage: string) => void
   gesperrt?: boolean
 }
 
-export function StoryPopulaereFragen({ libraryId, n, onFrage, gesperrt }: StoryPopulaereFragenProps) {
+export function StoryPopulaereFragen({ instanz, libraryId, n, onFrage, gesperrt }: StoryPopulaereFragenProps) {
   const { t } = useTranslation()
-  const fragen = usePopulaereFragen(libraryId, n)
+  const fragen = usePopulaereFragen(instanz, libraryId, n)
   if (fragen.length === 0) return null
   return (
     <div className="not-prose mt-5" data-story-populaer={fragen.length}>
