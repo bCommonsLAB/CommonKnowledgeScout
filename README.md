@@ -64,7 +64,7 @@ The application runs at `http://localhost:3000`.
 
 ### What you need
 
-- Node.js 20 and pnpm 9.15 (for local development)
+- Node.js 22 and pnpm 9.15 (for local development)
 - MongoDB with vector search (for example MongoDB Atlas)
 - A running Secretary Service — all transformation and language-model calls go through it
 - A [Clerk](https://clerk.com/) application for sign-in
