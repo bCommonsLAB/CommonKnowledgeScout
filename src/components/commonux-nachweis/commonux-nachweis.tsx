@@ -1,8 +1,9 @@
 "use client"
 
 /**
- * Nachweis M2 des Plans „HumanUX Player herauslösen" (Repo commoning-methods): Die Bühne
- * aus dem Bündel `@humanux/player` läuft in KnowledgeScout, mit React 18 und Tailwind 3.
+ * Nachweis M2 des Plans „Player herauslösen" (Repo commoning-methods): Die Bühne aus dem
+ * Bündel `@commonux/player` (Common UX, früher HumanUX) läuft in KnowledgeScout, mit React 18
+ * und Tailwind 3.
  *
  * Zwei Ansichten derselben Aufführung:
  * - „Kasten": die Bühne in einem Rahmen, mit eigenem Hintergrund (`einpassen="contain"`).
@@ -12,7 +13,7 @@
  * Jeder Klick auf einen Darsteller landet im Protokoll darunter (Ereignis des Players).
  */
 import { useState } from "react"
-import { HumanUxPlayer, type DarstellerKlick } from "@humanux/player"
+import { CommonUxPlayer, type DarstellerKlick } from "@commonux/player"
 import szene from "./nachweis-auffuehrung.json"
 
 type Ansicht = "kasten" | "hintergrund"
@@ -26,7 +27,7 @@ const ANSICHTEN: ReadonlyArray<{ id: Ansicht; titel: string }> = [
   { id: "hintergrund", titel: "Hintergrund" },
 ]
 
-export function HumanUxNachweis() {
+export function CommonUxNachweis() {
   const [ansicht, setAnsicht] = useState<Ansicht>("kasten")
   const [protokoll, setProtokoll] = useState<ProtokollEintrag[]>([])
 
@@ -55,12 +56,12 @@ export function HumanUxNachweis() {
 
       {ansicht === "kasten" ? (
         <div className="h-[60vh] min-h-[320px] overflow-hidden rounded-lg border">
-          <HumanUxPlayer szene={szene} onDarstellerKlick={merke} />
+          <CommonUxPlayer szene={szene} onDarstellerKlick={merke} />
         </div>
       ) : (
         <div className="relative h-[60vh] min-h-[320px] overflow-hidden rounded-lg border bg-muted/40">
           <div className="absolute inset-0">
-            <HumanUxPlayer szene={szene} einpassen="cover" durchsichtig onDarstellerKlick={merke} />
+            <CommonUxPlayer szene={szene} einpassen="cover" durchsichtig onDarstellerKlick={merke} />
           </div>
           {/* Gewöhnliche Oberfläche darüber; nur die Karte fängt Klicks, der Rest geht zur Bühne. */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-end p-4">

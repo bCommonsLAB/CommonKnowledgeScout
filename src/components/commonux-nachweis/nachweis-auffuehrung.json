@@ -1,7 +1,7 @@
 {
   "application": {
     "humanuxVersion": 2,
-    "id": "ks-humanux-nachweis",
+    "id": "ks-commonux-nachweis",
     "name": "Nachweis: Bühne in KnowledgeScout",
     "entities": {
       "frage": {

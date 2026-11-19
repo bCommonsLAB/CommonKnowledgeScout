@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Waechter fuer Abhaengigkeiten aus Dateien (`file:vendor/…tgz`, zuerst `@humanux/player`):
+ * Waechter fuer Abhaengigkeiten aus Dateien (`file:vendor/…tgz`, zuerst `@commonux/player`):
  * `pnpm install --frozen-lockfile` liest die Datei schon beim Install. Das Dockerfile kopiert vor
  * dem Install aber nur `package.json` und `pnpm-lock.yaml` (siehe docker-abhaengigkeiten.test.ts).
  * Fehlt der Ordner dort, bricht der Docker-Build mit ENOENT ab — erst in `ci-main`, nach dem Merge.

@@ -1,11 +1,11 @@
 // @vitest-environment node
 /**
- * Die Aufführung der Nachweis-Seite `/humanux-nachweis` (Bündel `@humanux/player`, gebaut im Repo
+ * Die Aufführung der Nachweis-Seite `/commonux-nachweis` (Bündel `@commonux/player`, gebaut im Repo
  * commoning-methods). Geprüft mit dem Leser aus dem Bündel selbst, ohne React.
  */
 import { describe, it, expect } from 'vitest'
-import { readSceneFromJson } from '@humanux/player/format'
-import szene from '@/components/humanux-nachweis/nachweis-auffuehrung.json'
+import { readSceneFromJson } from '@commonux/player/format'
+import szene from '@/components/commonux-nachweis/nachweis-auffuehrung.json'
 
 /** Sichtbare Welt der Bühne (28 × 16) und Größeneinheit der Aufführung (3 Welteinheiten). */
 const WELT = { breite: 28, hoehe: 16 }
@@ -28,7 +28,7 @@ const app = szene.application as unknown as {
   views: RohBuehne[]
 }
 
-describe('Nachweis-Aufführung für den HumanUX Player', () => {
+describe('Nachweis-Aufführung für den Common UX Player', () => {
   it('liest sich mit dem Leser des Bündels: zwei Bühnen, Themen zuerst', () => {
     const doc = readSceneFromJson(szene)
     expect(doc.application.pages.map((p) => p.id)).toEqual(['themen', 'antwort'])
