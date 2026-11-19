@@ -29,7 +29,7 @@ export interface UseGraphSimulationResult {
   /** Re-Render-Trigger (steigt pro Tick). */
   version: number
   transform: ZoomTransform
-  svgRef: React.RefObject<SVGSVGElement>
+  svgRef: React.RefObject<SVGSVGElement | null>
   resetZoom: () => void
   onNodePointerDown: (node: GraphNode, event: React.PointerEvent) => void
 }

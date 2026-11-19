@@ -2068,7 +2068,7 @@ function InlineMarkdownCell({ displayValue, editValue, onChange, placeholder, co
     if (heading) {
       const level = Math.min(6, Math.max(1, heading[1].length)) as 1|2|3|4|5|6
       const text = heading[2]
-      const Tag = (`h${level}` as unknown) as keyof JSX.IntrinsicElements
+      const Tag = (`h${level}` as unknown) as keyof React.JSX.IntrinsicElements
       return (
         <div role="button" onClick={() => setEditing(true)} className="cursor-text rounded-md px-1 py-1 min-h-[2.5rem] border">
           <div className="prose dark:prose-invert max-w-none w-full p-1">

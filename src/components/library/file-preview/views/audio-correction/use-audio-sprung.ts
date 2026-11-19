@@ -18,7 +18,7 @@ export const VORLAUF_SEKUNDEN = 5
 export interface AudioSprung {
   url: string | null
   fehler: string | null
-  audioRef: React.RefObject<HTMLAudioElement>
+  audioRef: React.RefObject<HTMLAudioElement | null>
   /** Aktuelle Abspielposition in Sekunden (fuer den hervorgehobenen Satz). */
   zeit: number
   springe: (sekunden: number) => void

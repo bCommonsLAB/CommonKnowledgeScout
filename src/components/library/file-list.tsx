@@ -91,7 +91,7 @@ interface FileListProps {
   compact?: boolean;
 }
 
-export const FileList = React.memo(function FileList({ compact = false }: FileListProps): JSX.Element {
+export const FileList = React.memo(function FileList({ compact = false }: FileListProps): React.JSX.Element {
   // Performance-Messung: Gesamter Render-Zyklus
   const renderStartRef = React.useRef<number | null>(null);
   React.useEffect(() => {

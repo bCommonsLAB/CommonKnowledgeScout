@@ -21,7 +21,7 @@ interface ChatInputProps {
   answerLength: AnswerLength
   setAnswerLength: (value: AnswerLength) => void
   placeholder?: string
-  inputRef?: React.RefObject<HTMLInputElement | HTMLTextAreaElement>
+  inputRef?: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>
 }
 
 export function ChatInput({ input, setInput, onSend, isSending, answerLength, setAnswerLength, placeholder, inputRef: externalInputRef }: ChatInputProps) {

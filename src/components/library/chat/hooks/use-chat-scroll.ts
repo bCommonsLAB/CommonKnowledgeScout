@@ -46,7 +46,7 @@ function findLastConversationElement(root: HTMLElement): Element | null {
 }
 
 interface UseChatScrollProps {
-  scrollRef: RefObject<HTMLDivElement>
+  scrollRef: RefObject<HTMLDivElement | null>
   messages: ChatMessage[]
   openConversations: Set<string>
   setOpenConversations: React.Dispatch<React.SetStateAction<Set<string>>>

@@ -49,7 +49,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           # Cache wird nicht benötigt, da der Build komplett im Docker-Container läuft
           # Dependencies werden im Container installiert, nicht auf dem Runner
 
