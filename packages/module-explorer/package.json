@@ -21,7 +21,7 @@
   "peerDependencies": {
     "d3": "^7",
     "jotai": "^2.11.0",
-    "lucide-react": "^0.312.0",
+    "lucide-react": "^1.7.0",
     "react": "^18.2.0",
     "react-markdown": "^9.0.3",
     "remark-gfm": "^4.0.0"

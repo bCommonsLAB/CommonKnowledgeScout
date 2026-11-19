@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@ks/ui'
-import { Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
+import { Share2, Copy, Check } from 'lucide-react'
+import { FacebookSymbol, LinkedInSymbol, XSymbol } from './marken-symbole'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '../lib/types'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
@@ -175,7 +176,7 @@ export function DocumentShareButton({
             shareToTwitter()
           }}
         >
-          <Twitter className="h-4 w-4 mr-2" />
+          <XSymbol className="h-4 w-4 mr-2" />
           {t('gallery.shareTwitter', { defaultValue: 'Auf X (Twitter) teilen' })}
         </DropdownMenuItem>
         
@@ -186,7 +187,7 @@ export function DocumentShareButton({
             shareToLinkedIn()
           }}
         >
-          <Linkedin className="h-4 w-4 mr-2" />
+          <LinkedInSymbol className="h-4 w-4 mr-2" />
           {t('gallery.shareLinkedIn', { defaultValue: 'Auf LinkedIn teilen' })}
         </DropdownMenuItem>
         
@@ -197,7 +198,7 @@ export function DocumentShareButton({
             shareToFacebook()
           }}
         >
-          <Facebook className="h-4 w-4 mr-2" />
+          <FacebookSymbol className="h-4 w-4 mr-2" />
           {t('gallery.shareFacebook', { defaultValue: 'Auf Facebook teilen' })}
         </DropdownMenuItem>
         
