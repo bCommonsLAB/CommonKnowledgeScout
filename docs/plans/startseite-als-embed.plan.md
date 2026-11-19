@@ -17,8 +17,8 @@ todos:
     content: "WE3 Fragen-Sektion ohne App-Bindung: Clerk, `useStoryContext`, `useProfilPerspektive`, `PerspektiveDialogApp`, `useLibraryConfig` raus; Viewer, Perspektive, Modell und Sitzungs-Kopfzeilen als Props, Fuß der Antwort und Detail-Renderer als Slots. App reicht ihre Teile, das Embed die anonymen aus `embed-story.tsx` und `embed-perspektive.tsx`. GEBAUT 18.11.2026 (Branch `claude/website-modul-we3`); Schnittstelle `WebsiteStoryGastgeber`."
     status: completed
   - id: we4-komponente
-    content: "WE4 `KnowledgeScoutSite` in `@ks/embed`: Props `baseUrl`, `library`, `page`, `locale`, `hrefFor`, `menu`, `height`; Seiten-Kennung auflösen (unbekannt = Fehler im Rahmen); CORS für `popular-questions`; Schriften in `styles.css`; Blätter und Detailansicht über dem Fenster; README, Contract §7, Tarball."
-    status: pending
+    content: "WE4 `KnowledgeScoutSite` in `@ks/embed`: Props `baseUrl`, `library`, `page`, `locale`, `hrefFor`, `menu`, `height`; Seiten-Kennung auflösen (unbekannt = Fehler im Rahmen); CORS für `popular-questions`; Schriften in `styles.css`; Blätter und Detailansicht über dem Fenster; README, Contract §7, Tarball. GEBAUT 18.11.2026 (Branch `claude/website-modul-we4`, Entscheide A–E nach Empfehlung)."
+    status: completed
   - id: we5-nachweis
     content: "WE5 Nachweis in der Partner-App: Menüpunkt „Fragen“ mit `KnowledgeScoutSite`, „mehr Inhalte“ und Menüpunkt „Inhalte“ öffnen die Galerie-Seite der Partner-App mit `KnowledgeScoutExplorer` und Einstieg; Prüfliste Abschnitt 6 live gegen die Instanz."
     status: pending
@@ -249,6 +249,17 @@ ein zweiter Portal-Ort mit Klasse `.ks-embed` für Blätter und Detailansicht
 `node_modules` lädt — sonst feste Pfade auf der Instanz mit CORS).
 Detailansicht für Typen ohne Embed-Renderer: Ziel `dokument`. README,
 Contract `website-landingpage.md` §7 „Einbettung“, Tarball. Mittel.
+Gebaut 18.11.2026: `knowledge-scout-site.tsx` (Props prüfen, Portal-Ort am
+`body`, Rahmen ohne `contain`), `embed-site-inhalt.tsx` (Speicher, Provider,
+Library laden, anonymer Gastgeber der Fragen-Sektion, Detailansicht),
+`embed-site-navigation.ts` (`hrefFor` → `WebsiteNavigation`, Klick öffnet
+dieselbe Adresse; keine `fremd`-Methode), `embed-site-menue.tsx`,
+`embed-site-detail.tsx`. Im Paket dazu `useWebsiteSeite` (`unbekannteSeite:
+'startseite' | 'fehler'`), Slot `menue` und `onDokument` an `WebsiteLanding`.
+`EMBED_DETAIL_TYPEN` (book, testimonial, blog) im Explorer. Schriften:
+`build-css.mjs` kopiert die Dateien nach `dist/fonts` und schreibt
+`@font-face` (Familien `KS …`, `EMBED_SCHRIFTEN`). Nachweis in einer fremden
+Next-App (lädt Turbopack die Schriften aus `node_modules`?) ist Teil von WE5.
 
 **WE5 Nachweis in der Partner-App** — Seite „Fragen“ mit
 `KnowledgeScoutSite`, Galerie-Seite mit `KnowledgeScoutExplorer`, der seinen
@@ -260,6 +271,11 @@ außen ebenfalls über `hrefFor` (heute wechseln sie intern); weitere
 Website-Seiten als eigene Adressen der Container-Anwendung (`page`).
 
 ## 5. Owner-Entscheide
+
+**Entschieden 18.11.2026: alle fünf nach Empfehlung** (A Detailansicht über
+der Startseite, B Menüzeile mit `menu={false}`, C kein Kontaktformular im
+Embed, D eigene Komponente `KnowledgeScoutSite`, E `null` = Element entfällt
+mit einer Meldung).
 
 - **A Banner-Karte:** Detailansicht über der Startseite wie die Belegkarten
   (Empfehlung) — oder Link `dokument` auf die Galerie-Seite der

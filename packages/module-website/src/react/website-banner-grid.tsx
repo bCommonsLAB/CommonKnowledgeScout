@@ -54,6 +54,8 @@ interface WebsiteBannerGridProps {
    * reine Anzeige wie vor WE2.
    */
   sterneAnKarten: boolean
+  /** WE4 (Entscheid A): Karte oeffnet die Detailansicht ueber der Seite statt des Wegs (Embed). */
+  onDokument?: (doc: DocCardMeta) => void
   moreLinkLabel: string
   /** Welle S2: Flaeche `light` und Akzent aus dem Profil. */
   theme?: SiteThemeResolved
@@ -62,7 +64,7 @@ interface WebsiteBannerGridProps {
 const STANDARD_TITEL = "Mehr aus dieser Bibliothek"
 
 export function WebsiteBannerGrid({
-  instanz, libraryId, locale, tag, title, limit, sort = "rating", navigation, sterneAnKarten, moreLinkLabel, theme = OLDIES_THEME,
+  instanz, libraryId, locale, tag, title, limit, sort = "rating", navigation, sterneAnKarten, onDokument, moreLinkLabel, theme = OLDIES_THEME,
 }: WebsiteBannerGridProps): React.ReactElement | null {
   const flaeche = surfaceStyle("light", theme)
   const [docs, setDocs] = React.useState<DocCardMeta[]>([])
@@ -108,7 +110,9 @@ export function WebsiteBannerGrid({
         {/* Drei Spalten auf ~325 px: die Karten laufen in der kompakten Form (nur Titel, Status, Sterne). */}
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
           {docs.map((d) => (
-            <BannerKarte key={d.fileId ?? d.id} doc={d} liste={liste} navigation={navigation} libraryId={sterneAnKarten ? libraryId : undefined} />
+            onDokument
+              ? <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={sterneAnKarten ? libraryId : undefined} cardDensity="compact" onOpen={() => onDokument(d)} />
+              : <BannerKarte key={d.fileId ?? d.id} doc={d} liste={liste} navigation={navigation} libraryId={sterneAnKarten ? libraryId : undefined} />
           ))}
         </div>
         {/* Galerie-Link nach dem Raster wiederholen — der dezente Link oben wird leicht uebersehen. */}

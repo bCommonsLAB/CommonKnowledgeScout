@@ -33,6 +33,13 @@ const NichtEingebettet: DetailRenderer = () => {
   )
 }
 
+/**
+ * Typen, deren Detailansicht im Embed wirklich laeuft (WE4): Die Startseite im
+ * Embed oeffnet nur diese ueber der Seite; die uebrigen fuehren als Link auf die
+ * Galerie-Seite der Container-Anwendung (Ziel `dokument`).
+ */
+export const EMBED_DETAIL_TYPEN: ReadonlySet<DetailViewType> = new Set<DetailViewType>(['book', 'testimonial', 'blog'])
+
 export const EMBED_DETAIL_RENDERERS: Record<DetailViewType, DetailRenderer> = {
   book: BuchDetailRenderer,
   testimonial: BuchDetailRenderer,

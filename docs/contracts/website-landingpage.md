@@ -336,6 +336,34 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   wie der Renderer (`site-navigation.ts`, `parse-website-sections.ts` aus
   `@ks/module-website`).
 
+## 7. Einbettung (`KnowledgeScoutSite`, WE4)
+
+- Die Startseite einer oeffentlichen Library mit Website ist eine eigene
+  Komponente in `@ks/embed` (`KnowledgeScoutSite`). Sie montiert dieselbe
+  `WebsiteLanding` wie die App — keine zweite Seite, nur ein anderer Gastgeber.
+- **Jeder Weg hinaus ist ein Link der Container-Anwendung** (`hrefFor(ziel)`,
+  Ziele wie `KsZiel`: `galerie`, `dokument`, `story`, `seite`). `null` heisst:
+  dafuer gibt es dort keine Seite — das Element entfaellt, die Konsole sagt es
+  einmal (Entscheid E). Kein Wechsel innerhalb der Komponente.
+- Relative Autoren-Adressen ausserhalb des Vokabulars (`/kontakt` im Text,
+  `cta_url: /…`) entfallen im Embed mit Meldung; `seite_pruefen` meldet sie
+  vor dem Publizieren. In der App bleiben sie gewoehnliche Links.
+- Unbekannte `page`: Fehler im Rahmen, kein Rueckfall auf die Startseite (in
+  der App weiterhin Meldung und Startseite). Library ohne `siteEnabled` oder
+  mit Anmeldung: Fehler im Rahmen.
+- Banner-Karte und Beleg oeffnen die Detailansicht ueber der Seite (Entscheid
+  A) — nur fuer Typen mit eingebetteter Ansicht (`EMBED_DETAIL_TYPEN`), sonst
+  Ziel `dokument`. Blaetter, Dialoge und Detailansicht liegen in einem
+  Portal-Ort am `body` (Klasse `.ks-embed`), also ueber dem Fenster; der Rahmen
+  hat kein `contain: layout`.
+- Menuezeile oben (Entscheid B): Website-Seiten nach `menu_order`, „Inhalte",
+  „Story" — alle ueber `hrefFor`; `menu={false}` blendet sie aus.
+- Kontaktformular im Embed: nein (Entscheid C), die Sektion zeigt den Hinweis.
+- Schriften des Design-Profils: `@font-face` in `@ks/embed/styles.css`, die
+  Dateien liegen dem Paket bei (`dist/fonts`, dieselben wie `next/font`).
+- Fuer fremde Herkunft zusaetzlich freigegeben: `GET popular-questions`
+  (`src/lib/embed/embed-cors.ts`).
+
 ## Verwandte Rules
 
 - `no-silent-fallbacks.mdc` — ENV-/Typ-Validierung ohne stille Defaults
