@@ -39,6 +39,8 @@
     "@ks/module-story": "workspace:*",
     "@ks/ui": "workspace:*",
     "jotai": "^2.11.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "tsup": "^8.5.1"
   }
 }
