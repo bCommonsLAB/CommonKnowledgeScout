@@ -18,7 +18,7 @@ export interface ChatPanelFooterProps {
   answerLength: AnswerLength
   setAnswerLength: (v: AnswerLength) => void
   placeholder?: string
-  inputRef: RefObject<HTMLInputElement>
+  inputRef: RefObject<HTMLInputElement | null>
 }
 
 export function ChatPanelFooter(p: ChatPanelFooterProps) {

@@ -12,7 +12,7 @@ import { useActiveLibraryId } from '@ks/shell/react'
 // Samsung-Style Audio Visualizer - Minimal Working
 function StyleVisualizer({ stream, isPaused }: { stream: MediaStream; isPaused: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);

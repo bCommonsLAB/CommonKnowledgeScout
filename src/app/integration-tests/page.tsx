@@ -495,7 +495,7 @@ function IntegrationTestsPageContent() {
     }
   }
 
-  function renderMessages(msgs: ValidationMessage[]): JSX.Element {
+  function renderMessages(msgs: ValidationMessage[]): React.JSX.Element {
     if (!msgs.length) return <span className="text-xs text-muted-foreground">Keine Details</span>;
     return (
       <ul className="space-y-1 text-xs">
