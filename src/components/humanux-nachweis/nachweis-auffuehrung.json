@@ -1,0 +1,149 @@
+{
+  "application": {
+    "humanuxVersion": 2,
+    "id": "ks-humanux-nachweis",
+    "name": "Nachweis: Bühne in KnowledgeScout",
+    "entities": {
+      "frage": {
+        "name": "Frage",
+        "className": null,
+        "defaults": {"shape": "square", "materialColor": "#FFFFFF", "fontColor": "#1E293B", "fontSize": 2.2, "contentSizeX": 6, "contentSizeY": 0.8, "sizeX": 6, "sizeY": 0.8, "content": "**Wovon handelt diese Library?**", "transparency": 0}
+      },
+      "thema_wissen": {
+        "name": "Thema Wissen",
+        "className": null,
+        "defaults": {"shape": "circle", "materialColor": "#BFDBFE", "fontColor": "#1E3A8A", "fontSize": 1.4, "contentSizeX": 1.8, "contentSizeY": 0.6, "sizeX": 2.0, "sizeY": 2.0, "content": "Wissen als Gemeingut"}
+      },
+      "thema_wasser": {
+        "name": "Thema Wasser",
+        "className": null,
+        "mediaType": "text",
+        "mediaDisplay": "onClick",
+        "mediaSizeX": 5,
+        "mediaSizeY": 2.4,
+        "documentTitle": "Wasser",
+        "mediaText": "Zu diesem Thema gibt es in der Probe nur diese Kurzfassung. Ein Klick auf „Wissen als Gemeingut“ wechselt die Bühne.",
+        "defaults": {"shape": "circle", "materialColor": "#A7F3D0", "fontColor": "#064E3B", "fontSize": 1.3, "contentSizeX": 1.44, "contentSizeY": 0.6, "sizeX": 1.6, "sizeY": 1.6, "content": "Wasser"}
+      },
+      "thema_boden": {
+        "name": "Thema Boden",
+        "className": null,
+        "mediaType": "text",
+        "mediaDisplay": "onClick",
+        "mediaSizeX": 5,
+        "mediaSizeY": 2.4,
+        "documentTitle": "Boden",
+        "mediaText": "Auch hier nur eine Kurzfassung. Die Bühne zeigt, wie Themen als Blasen schweben, bevor eine Frage gestellt ist.",
+        "defaults": {"shape": "circle", "materialColor": "#FDE68A", "fontColor": "#78350F", "fontSize": 1.3, "contentSizeX": 1.44, "contentSizeY": 0.6, "sizeX": 1.6, "sizeY": 1.6, "content": "Boden"}
+      },
+      "antwort": {
+        "name": "Antwort",
+        "className": null,
+        "defaults": {"shape": "square", "materialColor": "#FFFFFF", "fontColor": "#1E293B", "fontSize": 1.15, "contentSizeX": 4.0, "contentSizeY": 2.1, "sizeX": 4.4, "sizeY": 2.4, "content": "Wissen wird zum Gemeingut, wenn eine Gemeinschaft es pflegt, teilt und Regeln für seinen Gebrauch findet. Die Blasen dahinter sind die Quellen dieser Antwort — ein Klick öffnet sie."}
+      },
+      "quelle_1": {
+        "name": "Quelle 1",
+        "className": null,
+        "mediaType": "text",
+        "mediaDisplay": "onClick",
+        "mediaSizeX": 5,
+        "mediaSizeY": 2.4,
+        "documentTitle": "Quelle 1: Protokoll eines Treffens",
+        "mediaText": "Auszug aus einem Protokoll: Die Teilnehmenden einigen sich darauf, ihre Notizen gemeinsam abzulegen und für alle lesbar zu halten.",
+        "defaults": {"shape": "circle", "materialColor": "#DBEAFE", "fontColor": "#1E3A8A", "fontSize": 1.0, "contentSizeX": 1.1, "contentSizeY": 0.4, "sizeX": 1.1, "sizeY": 1.1, "content": "Quelle 1"}
+      },
+      "quelle_2": {
+        "name": "Quelle 2",
+        "className": null,
+        "mediaType": "text",
+        "mediaDisplay": "onClick",
+        "mediaSizeX": 5,
+        "mediaSizeY": 2.4,
+        "documentTitle": "Quelle 2: Vortrag",
+        "mediaText": "Auszug aus einem Vortrag: Ein Gemeingut braucht keine Eigentümerin, aber eine Gemeinschaft, die sich um es kümmert.",
+        "defaults": {"shape": "circle", "materialColor": "#DBEAFE", "fontColor": "#1E3A8A", "fontSize": 1.0, "contentSizeX": 0.95, "contentSizeY": 0.4, "sizeX": 0.95, "sizeY": 0.95, "content": "Quelle 2"}
+      },
+      "quelle_3": {
+        "name": "Quelle 3",
+        "className": null,
+        "mediaType": "text",
+        "mediaDisplay": "onClick",
+        "mediaSizeX": 5,
+        "mediaSizeY": 2.4,
+        "documentTitle": "Quelle 3: Leitfaden",
+        "mediaText": "Auszug aus einem Leitfaden: Wer etwas beiträgt, nennt die Quelle, damit andere nachlesen und weiterbauen können.",
+        "defaults": {"shape": "circle", "materialColor": "#DBEAFE", "fontColor": "#1E3A8A", "fontSize": 1.0, "contentSizeX": 0.8, "contentSizeY": 0.4, "sizeX": 0.8, "sizeY": 0.8, "content": "Quelle 3"}
+      },
+      "zurueck": {
+        "name": "Zurück",
+        "className": null,
+        "defaults": {"shape": "square", "materialColor": "#1E293B", "fontColor": "#F8FAFC", "fontSize": 1.0, "contentSizeX": 1.4, "contentSizeY": 0.4, "sizeX": 1.4, "sizeY": 0.4, "content": "← Themen"}
+      }
+    },
+    "views": [
+      {
+        "id": "themen",
+        "name": "Themen",
+        "interaction": true,
+        "entityStates": {
+          "frage": {
+            "enter": {"positionY": 8, "transpFont": 0},
+            "active": {"positionY": 5.5, "transpFont": 1},
+            "exit": {"positionY": 8, "transpFont": 0}
+          },
+          "thema_wissen": {
+            "enter": {"positionX": 0, "positionY": -2, "sizeX": 0.3, "sizeY": 0.3, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": 0, "positionY": -0.5, "sizeX": 2, "sizeY": 2, "transparency": 1, "transpFont": 1, "fontSize": 1.4, "goToView": "antwort"},
+            "exit": {"positionX": -10.5, "positionY": 5.5, "sizeX": 1.2, "sizeY": 1.2, "fontSize": 0.9}
+          },
+          "thema_wasser": {
+            "enter": {"positionX": -12, "positionY": -2, "sizeX": 0.3, "sizeY": 0.3, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": -8, "positionY": -2, "sizeX": 1.6, "sizeY": 1.6, "transparency": 1, "transpFont": 1},
+            "exit": {"positionX": -16, "positionY": -4, "transparency": 0, "transpFont": 0}
+          },
+          "thema_boden": {
+            "enter": {"positionX": 12, "positionY": -2, "sizeX": 0.3, "sizeY": 0.3, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": 8, "positionY": -1.5, "sizeX": 1.6, "sizeY": 1.6, "transparency": 1, "transpFont": 1},
+            "exit": {"positionX": 16, "positionY": -4, "transparency": 0, "transpFont": 0}
+          }
+        }
+      },
+      {
+        "id": "antwort",
+        "name": "Antwort",
+        "interaction": true,
+        "entityStates": {
+          "thema_wissen": {
+            "active": {"positionX": -10.5, "positionY": 5.5, "sizeX": 1.2, "sizeY": 1.2, "fontSize": 0.9},
+            "exit": {"positionX": 0, "positionY": -0.5, "sizeX": 2, "sizeY": 2, "fontSize": 1.4}
+          },
+          "antwort": {
+            "enter": {"positionX": -2.5, "positionY": -1, "sizeX": 0.3, "sizeY": 0.3, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": -2.5, "positionY": 0, "sizeX": 4.4, "sizeY": 2.4, "transparency": 0.92, "transpFont": 1},
+            "exit": {"positionX": -2.5, "positionY": -1, "sizeX": 0.3, "sizeY": 0.3, "transparency": 0, "transpFont": 0}
+          },
+          "quelle_1": {
+            "enter": {"positionX": -2.5, "positionY": 0, "sizeX": 0.2, "sizeY": 0.2, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": 8, "positionY": 4.5, "sizeX": 1.1, "sizeY": 1.1, "transparency": 1, "transpFont": 1},
+            "exit": {"positionX": -2.5, "positionY": 0, "sizeX": 0.2, "sizeY": 0.2, "transparency": 0, "transpFont": 0}
+          },
+          "quelle_2": {
+            "enter": {"positionX": -2.5, "positionY": 0, "sizeX": 0.2, "sizeY": 0.2, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": 10.5, "positionY": 0, "sizeX": 0.95, "sizeY": 0.95, "transparency": 1, "transpFont": 1},
+            "exit": {"positionX": -2.5, "positionY": 0, "sizeX": 0.2, "sizeY": 0.2, "transparency": 0, "transpFont": 0}
+          },
+          "quelle_3": {
+            "enter": {"positionX": -2.5, "positionY": 0, "sizeX": 0.2, "sizeY": 0.2, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": 7.5, "positionY": -4.5, "sizeX": 0.8, "sizeY": 0.8, "transparency": 1, "transpFont": 1},
+            "exit": {"positionX": -2.5, "positionY": 0, "sizeX": 0.2, "sizeY": 0.2, "transparency": 0, "transpFont": 0}
+          },
+          "zurueck": {
+            "enter": {"positionX": -10.5, "positionY": -9, "transparency": 0, "transpFont": 0},
+            "active": {"positionX": -10.5, "positionY": -6, "transparency": 1, "transpFont": 1, "goToView": "themen"},
+            "exit": {"positionX": -10.5, "positionY": -9, "transparency": 0, "transpFont": 0}
+          }
+        }
+      }
+    ]
+  }
+}
