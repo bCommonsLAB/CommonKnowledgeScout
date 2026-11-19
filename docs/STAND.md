@@ -374,10 +374,17 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit
   Fragen-Sektion und Galerie-Band; Wege hinaus (Galerie, Story, andere Seiten)
   sind Links der Container-Anwendung (`hrefFor`). Bausteine ziehen dafür in
-  ein Paket `@ks/module-website`. Wellen WE0–WE5; WE1 erst, wenn die
-  laufende Arbeit an der Fragen-Sektion gemergt ist. Fünf Owner-Entscheide
-  (A–E). Gebaut: WE0 (Explorer startet mit Dokument, Liste oder Frage;
-  Übersetzer `ksZielAlsParameter`/`ksEinstiegAusParametern`, 18.11.)
+  ein Paket `@ks/module-website`. Wellen WE0–WE5; Owner-Entscheide A–E am
+  18.11. nach Empfehlung. Gebaut (alle 18.11.): WE0 (Explorer startet mit
+  Dokument, Liste oder Frage; Übersetzer
+  `ksZielAlsParameter`/`ksEinstiegAusParametern`), WE1 (Paket
+  `@ks/module-website` mit den Regeln der Startseite), WE2 (Bausteine und
+  Navigation `WebsiteNavigation`, App-Hülle `WebsiteLandingLive`), WE3
+  (Fragen- und Themen-Sektion im Paket, Gastgeber der App), WE4
+  (`KnowledgeScoutSite`, Schriften im Paket, CORS für populäre Fragen).
+  Geplant: WE5, der Nachweis in der Partner-App (Ort des Menüpunkts „Fragen"
+  legt der Owner fest); live noch offen: Antwort mit Belegen in der
+  Fragen-Sektion, Vorschau im Archiv
 - **Sitzungen: Sichten statt Kopien, Befunde statt Hoffen** (Plan
   [`sitzungen-sichten-und-befunde`](plans/geplant/sitzungen-sichten-und-befunde.plan.md),
   08.11.): Sitzungsbelege (`type: chatverlauf`, Vorlage `chatverlauf-de`)
