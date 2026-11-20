@@ -30,6 +30,8 @@ import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
 import { startLockFreiFilter, type StartLock } from '@/lib/external-jobs/start-lock';
 import { unberuehrtFilter } from '@/lib/external-jobs/job-unberuehrt-filter';
+import { pickNextLibrary } from '@/lib/external-jobs/fair-share';
+import { loadQueuedHeads, loadRunningCounts } from '@/lib/external-jobs/fair-share-queries';
 import { currentWorkerPoolMongoMatch, getJobsWorkerPoolId } from '@/lib/env';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
@@ -687,17 +689,30 @@ export class ExternalJobsRepository {
   }
 
   // ---- Worker-Unterstützung ----
+  /**
+   * Holt den naechsten wartenden Job fuer einen freien Worker-Platz.
+   *
+   * Gerechte Platzvergabe je Library (Owner 20.11.2026, `external-jobs/fair-share.ts`):
+   * Den Platz bekommt die Library mit den wenigsten laufenden Jobs, bei Gleichstand
+   * die, die am laengsten wartet; innerhalb der Library der aelteste wartende Job.
+   * Eine Library allein bekommt alle Plaetze. Nur eigener Worker-Pool.
+   */
   async claimNextQueuedJob(): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     const now = new Date();
     const pool = currentWorkerPoolMongoMatch();
     // Ruhiger: keine lauten Info-Logs hier
-    // Phase 1: Kandidaten lesen (stabilste Reihenfolge via updatedAt) — nur eigener Worker-Pool
-    const candidate = await col.find({ status: 'queued', ...pool }).sort({ updatedAt: 1 }).limit(1).next();
+    // Phase 1: Library waehlen (wartende Koepfe + laufende Jobs je Library)
+    const [heads, running] = await Promise.all([
+      loadQueuedHeads(col, pool),
+      loadRunningCounts(col, pool),
+    ]);
+    const candidate = pickNextLibrary(heads, running);
     if (!candidate) {
       return null;
     }
-    // Phase 2: Guarded Update — Filter muss Pool enthalten, sonst könnte ein anderer Pool den Job übernehmen
+    // Phase 2: Guarded Update — Filter muss Pool enthalten, sonst könnte ein anderer Pool den Job übernehmen.
+    // Hat ein paralleler Claim den Job schon genommen, bleibt es wie bisher bei `null`.
     const upd = await col.updateOne(
       { jobId: candidate.jobId, status: 'queued', ...pool },
       { $set: { status: 'running', updatedAt: now } }
