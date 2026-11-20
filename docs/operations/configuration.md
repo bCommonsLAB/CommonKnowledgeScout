@@ -96,6 +96,8 @@ The MCP server is available at `/api/mcp/mcp` (Streamable HTTP). Without configu
 | `JOBS_WORKER_CONCURRENCY` | No | Number of jobs that run at the same time (default `3`) |
 | `JOBS_WORKER_POOL_ID` | No | Set a different ID per instance when several instances share one MongoDB, so each worker claims only its own jobs |
 
+The slots of `JOBS_WORKER_CONCURRENCY` are shared fairly between libraries. When a slot becomes free, it goes to the library with the fewest running jobs; on a tie, to the library whose oldest queued job has waited longest. A library working alone gets all slots. Running jobs are never interrupted, so a library that queues work later waits only for the next running job to finish, not for another library's whole batch.
+
 ## Capture
 
 | Variable | Required | Description |
