@@ -13,6 +13,7 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@ks/ui'
 import { BookOpen, Users, Globe, ChevronRight, KeyRound, Plus } from "lucide-react"
 import { LibrarySetupStatus } from "@/components/settings/library/library-setup-status"
+import { useKsAdmin } from "@/hooks/use-ks-admin"
 
 const spaceCards = [
   {
@@ -78,7 +79,11 @@ interface SpaceOverviewProps {
   onCreateNew: () => void
 }
 
+// Nur fuer den Admin der Plattform (KS_ADMIN_EMAIL), wie in der Settings-Seitenleiste.
+const sprachmodelleLink = { title: "Sprachmodelle", href: "/settings/account/sprachmodelle" }
+
 export function SpaceOverview({ onCreateNew }: SpaceOverviewProps) {
+  const istAdmin = useKsAdmin()
   return (
     <div className="space-y-6">
       <LibrarySetupStatus />
@@ -95,7 +100,7 @@ export function SpaceOverview({ onCreateNew }: SpaceOverviewProps) {
             </CardHeader>
             <CardContent className="mt-auto">
               <nav className="flex flex-col gap-1">
-                {card.links.map((link) => (
+                {(istAdmin && card.id === "account" ? [...card.links, sprachmodelleLink] : card.links).map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}

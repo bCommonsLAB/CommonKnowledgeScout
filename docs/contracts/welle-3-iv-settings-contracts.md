@@ -66,6 +66,14 @@ Settings-Formulare dürfen diese API-Endpunkte aufrufen:
   Antworten sind `StorageConnectionSummary` ohne Geheimnisse; die Seite kennt
   den Typ nur im Formular (§4 gilt sinngemäß).
 
+### Konto-Seite Sprachmodelle (`/api/admin/llm-models`, nur `KS_ADMIN_EMAIL`)
+- `GET`/`POST`/`PATCH /api/admin/llm-models`, `PUT …/reihenfolge`,
+  `POST …/probe`, `GET …/katalog?q=` über `useSprachmodelle`
+  (`src/components/settings/account/sprachmodelle/`). Die Liste gilt für ALLE
+  Libraries; neue Einträge starten abgeschaltet, aktiv erst nach erfolgreicher
+  Probe über den Secretary; gelöscht wird nie. Sichtbar ist der Eintrag nur,
+  wenn `GET /api/admin/status` `istAdmin: true` meldet (`useKsAdmin`).
+
 ### Chat-Form (`/api/library/[id]/chat-config`)
 - `GET/PUT /api/library/[id]/chat-config` — Chat-Konfiguration
 

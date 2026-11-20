@@ -6,6 +6,7 @@ import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { useMemo } from "react"
 import { usePathname } from "next/navigation"
 import { Info } from "lucide-react"
+import { useKsAdmin } from "@/hooks/use-ks-admin"
 
 // Übersichts-Link oberhalb der Raum-Gruppe
 const overviewItems = [{ title: "← Übersicht", href: "/settings" }]
@@ -68,6 +69,15 @@ const sidebarGroups: SidebarNavGroup[] = [
   },
 ]
 
+// Nur fuer den Admin der Plattform (KS_ADMIN_EMAIL): die globale Modell-Liste.
+const sprachmodelleItem = { title: "Sprachmodelle", href: "/settings/account/sprachmodelle" }
+
+/** Haengt „Sprachmodelle" an „Mein Konto", wenn die Person Admin ist. */
+function gruppenFuer(istAdmin: boolean): SidebarNavGroup[] {
+  if (!istAdmin) return sidebarGroups
+  return sidebarGroups.map(g => (g.id === "account" ? { ...g, items: [...g.items, sprachmodelleItem] } : g))
+}
+
 // E7 (Welle 3-IV-UX-4): Moderatoren einer fremden Bibliothek sehen statt
 // ALLER Owner-Tabs nur ihren Verwaltungsbereich (Anfragen + Leser einladen).
 // Die Personen-Seite bleibt Owner-only (members-API liefert Moderatoren 403).
@@ -90,6 +100,8 @@ export default function Layout({ children }: LayoutProps) {
   const activeLibraryId = useActiveLibraryId()
   const libraries = useLibraries()
   const pathname = usePathname()
+  const istAdmin = useKsAdmin()
+  const gruppen = useMemo(() => gruppenFuer(istAdmin), [istAdmin])
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
   const isCoCreator = activeLibrary?.accessRole === 'co-creator'
@@ -102,11 +114,11 @@ export default function Layout({ children }: LayoutProps) {
     if (isCoCreator || !pathname || pathname === "/settings") return undefined
     // Moderatoren haben genau einen Verwaltungsbereich (E7)
     if (isModerator) return moderatorGroup
-    const exact = sidebarGroups.find(g => flattenNavItems(g.items).some(i => i.href === pathname))
+    const exact = gruppen.find(g => flattenNavItems(g.items).some(i => i.href === pathname))
     if (exact) return exact
     // Fallback fuer kuenftige Unterrouten: laengster Pfad-Prefix gewinnt
     let best: { group: SidebarNavGroup; len: number } | undefined
-    for (const group of sidebarGroups) {
+    for (const group of gruppen) {
       for (const item of flattenNavItems(group.items)) {
         if (pathname.startsWith(item.href + "/") && (!best || item.href.length > best.len)) {
           best = { group, len: item.href.length }
@@ -114,7 +126,7 @@ export default function Layout({ children }: LayoutProps) {
       }
     }
     return best?.group
-  }, [isCoCreator, isModerator, pathname])
+  }, [isCoCreator, isModerator, pathname, gruppen])
 
   const hasNav = activeGroup !== undefined
 
