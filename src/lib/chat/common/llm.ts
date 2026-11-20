@@ -162,6 +162,8 @@ export interface LlmChatArgs {
   maxTokens?: number
   /** Kennungen (queryId, libraryId, chatId) fuer die Metrik des Secretary. */
   korrelation?: SecretaryKorrelation
+  /** Secretary-Cache nutzen (Default true); die Modell-Probe schaltet ihn aus, sonst prueft sie nichts. */
+  useCache?: boolean
 }
 
 /**
@@ -445,7 +447,7 @@ export async function callLlmText(args: LlmChatArgs): Promise<LlmTextResult> {
       temperature: args.temperature,
       maxTokens: args.maxTokens,
       responseFormat: 'text',
-      useCache: true,
+      useCache: args.useCache ?? true,
       apiKey: effectiveApiKey,
       timeoutMs,
       correlationHeaders: korrelationsHeader(args.korrelation),

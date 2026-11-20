@@ -25,7 +25,11 @@
 import { getCollection } from '@/lib/mongodb-service'
 import type { TargetLanguage } from '@/lib/chat/constants'
 
-const COLLECTION_NAME = 'llm_models'
+export const LLM_MODELS_COLLECTION = 'llm_models'
+const COLLECTION_NAME = LLM_MODELS_COLLECTION
+
+/** Felder der Verwaltungsseite, die nie in die oeffentliche Liste gehen. */
+const INTERNE_FELDER = { probe: 0, updatedBy: 0 } as const
 
 /**
  * LLM Model Configuration Interface
@@ -87,9 +91,13 @@ export async function getAllLlmModels(): Promise<LlmModel[]> {
     await ensureLlmModelsIndexes()
     
     const collection = await getCollection<LlmModel>(COLLECTION_NAME)
+    // Verwaltungsfelder (Probe, letzte Aenderung mit E-Mail) bleiben intern —
+    // diese Liste geht auch an anonyme Besucher (/api/public/llm-models).
+    // Zweiter Sortierschluessel modelId: gleiche order ergibt eine feste Reihenfolge.
     const models = await collection
       .find({ isActive: true })
-      .sort({ order: 1 }) // Aufsteigend sortieren
+      .project<LlmModel>(INTERNE_FELDER)
+      .sort({ order: 1, modelId: 1 })
       .toArray()
     
     return models
@@ -111,7 +119,7 @@ export async function getLlmModelById(id: string): Promise<LlmModel | null> {
     await ensureLlmModelsIndexes()
     
     const collection = await getCollection<LlmModel>(COLLECTION_NAME)
-    const model = await collection.findOne({ _id: id, isActive: true })
+    const model = await collection.findOne({ _id: id, isActive: true }, { projection: INTERNE_FELDER })
     return model
   } catch (error) {
     console.error(`[llm-models-repo] Fehler beim Laden des Modells ${id}:`, error)
