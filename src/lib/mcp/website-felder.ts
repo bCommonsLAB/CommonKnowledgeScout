@@ -96,3 +96,61 @@ export function wendeFelderAn(
   }
   return { meta: neu, geaendert }
 }
+
+/** Eine woertliche Ersetzung im Text der Transformation (keine Muster). */
+export interface TextErsetzung {
+  alt: string
+  neu: string
+}
+
+export interface ErsetzungsErgebnis {
+  meta: Record<string, unknown>
+  body: string
+  /** Text-Felder des Frontmatters, in denen ersetzt wurde (neuer Wert). */
+  geaendert: Record<string, unknown>
+  /** true, wenn sich der Seitentext (Body) geaendert hat. */
+  textGeaendert: boolean
+  /** Ersetzungen ohne einen einzigen Treffer — laut gemeldet, nicht still uebergangen. */
+  nichtGefunden: string[]
+}
+
+/**
+ * Ersetzt woertlich jede Fundstelle von `alt` durch `neu` im Seitentext und in
+ * den Text-Feldern des Frontmatters. Anlass (Befund 20.11.2026): das Modell
+ * verkuerzt lange Adressen; `felder` korrigiert nur das Kopffeld, der Link im
+ * Seitentext bleibt kaputt. Gesperrte Felder bleiben unberuehrt; wuerde ein
+ * Pflichtfeld des Typs geaendert, wirft die Funktion (es gehoert in die Quelle).
+ */
+export function ersetzeText(
+  meta: Record<string, unknown>,
+  body: string,
+  ersetzungen: readonly TextErsetzung[],
+  detailViewType: string | null,
+): ErsetzungsErgebnis {
+  for (const { alt, neu } of ersetzungen) {
+    if (alt.length < 3) throw new Error(`Ersetzung "${alt}": alt braucht mindestens 3 Zeichen`)
+    if (alt === neu) throw new Error(`Ersetzung "${alt}": alt und neu sind gleich`)
+  }
+  const pflicht = new Set(detailViewType ? getRequiredFields(detailViewType) : [])
+  const neuMeta: Record<string, unknown> = { ...meta }
+  const geaendert: Record<string, unknown> = {}
+  const nichtGefunden: string[] = []
+  let neuBody = body
+
+  for (const { alt, neu } of ersetzungen) {
+    let treffer = 0
+    if (neuBody.includes(alt)) {
+      treffer += neuBody.split(alt).length - 1
+      neuBody = neuBody.split(alt).join(neu)
+    }
+    for (const [key, wert] of Object.entries(neuMeta)) {
+      if (GESPERRTE_FELDER.has(key) || typeof wert !== 'string' || !wert.includes(alt)) continue
+      if (pflicht.has(key)) throw new Error(`Ersetzung "${alt}" traefe das Pflichtfeld "${key}" (${detailViewType}) — das gehoert in die Quelldatei`)
+      treffer += wert.split(alt).length - 1
+      neuMeta[key] = wert.split(alt).join(neu)
+      geaendert[key] = neuMeta[key]
+    }
+    if (treffer === 0) nichtGefunden.push(alt)
+  }
+  return { meta: neuMeta, body: neuBody, geaendert, textGeaendert: neuBody !== body, nichtGefunden }
+}
