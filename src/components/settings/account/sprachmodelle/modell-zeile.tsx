@@ -61,15 +61,15 @@ export function ModellZeile(props: ModellZeileProps) {
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{modell.name}</span>
-          {modell.imKatalog === false && <Badge variant="destructive">nicht mehr bei OpenRouter</Badge>}
-        </div>
+        <div className="font-medium">{modell.name}</div>
+        {modell.imKatalog === false && (
+          <Badge variant="destructive" className="my-0.5 whitespace-nowrap">nicht mehr bei OpenRouter</Badge>
+        )}
         <div className="text-xs text-muted-foreground font-mono">{modell.modelId}</div>
         {modell.strengths && <div className="text-xs text-muted-foreground">{modell.strengths}</div>}
       </TableCell>
       <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatPreis(modell.preisEin, modell.preisAus)}</TableCell>
-      <TableCell className="whitespace-nowrap text-sm tabular-nums">{formatKontext(modell.kontext)}</TableCell>
+      <TableCell className="hidden xl:table-cell whitespace-nowrap text-sm tabular-nums">{formatKontext(modell.kontext)}</TableCell>
       <TableCell>
         <div className="flex items-center gap-2 whitespace-nowrap">
           <ProbeStand modell={modell} />

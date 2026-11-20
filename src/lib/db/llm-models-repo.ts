@@ -93,11 +93,11 @@ export async function getAllLlmModels(): Promise<LlmModel[]> {
     const collection = await getCollection<LlmModel>(COLLECTION_NAME)
     // Verwaltungsfelder (Probe, letzte Aenderung mit E-Mail) bleiben intern —
     // diese Liste geht auch an anonyme Besucher (/api/public/llm-models).
-    // Zweiter Sortierschluessel _id: gleiche order ergibt eine feste Reihenfolge.
+    // Zweiter Sortierschluessel modelId: gleiche order ergibt eine feste Reihenfolge.
     const models = await collection
       .find({ isActive: true })
       .project<LlmModel>(INTERNE_FELDER)
-      .sort({ order: 1, _id: 1 })
+      .sort({ order: 1, modelId: 1 })
       .toArray()
     
     return models

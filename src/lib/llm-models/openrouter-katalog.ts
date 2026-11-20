@@ -54,6 +54,15 @@ export function parseKatalog(roh: unknown): KatalogEintrag[] {
   return eintraege
 }
 
+/**
+ * Batch-Varianten (`…:batch`) beantworten keine Live-Anfrage — die Probe ueber
+ * den Secretary endet mit OpenRouter 404 (Befund 20.11.2026). Sie taugen nicht
+ * fuer Chat und Story und erscheinen darum nicht in der Suche.
+ */
+export function istLiveModell(modelId: string): boolean {
+  return !modelId.endsWith(':batch')
+}
+
 /** Sucht in Kennung und Name (alle Woerter muessen vorkommen); vorhandene Eintraege fallen weg. */
 export function sucheImKatalog(
   eintraege: readonly KatalogEintrag[],
@@ -64,6 +73,7 @@ export function sucheImKatalog(
   const woerter = frage.toLowerCase().split(/\s+/).filter(Boolean)
   if (woerter.length === 0) return []
   return eintraege
+    .filter((e) => istLiveModell(e.modelId))
     .filter((e) => !ausgenommen.has(e.modelId))
     .filter((e) => {
       const text = `${e.modelId} ${e.name}`.toLowerCase()

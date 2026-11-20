@@ -43,6 +43,10 @@ describe('sucheImKatalog', () => {
     const treffer = sucheImKatalog(eintraege, 'deepseek', new Set(['deepseek/deepseek-v3.2']))
     expect(treffer.map((e) => e.modelId)).toEqual(['deepseek/deepseek-v4.1-flash-1017'])
   })
+  it('laesst Batch-Varianten weg (keine Live-Antwort, OpenRouter 404)', () => {
+    const mitBatch = [...eintraege, { modelId: 'deepseek/deepseek-v4.1-flash:batch', name: 'DeepSeek V4.1 Flash (batch)', kontext: null, preisEin: 0.05, preisAus: 0.15 }]
+    expect(sucheImKatalog(mitBatch, 'flash', new Set()).map((e) => e.modelId)).toEqual(['deepseek/deepseek-v4.1-flash-1017'])
+  })
   it('liefert bei leerer Frage nichts', () => {
     expect(sucheImKatalog(eintraege, '   ', new Set())).toEqual([])
   })

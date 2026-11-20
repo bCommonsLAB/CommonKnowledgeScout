@@ -57,7 +57,7 @@ export function SprachmodelleSection() {
                   <TableHead>Pos.</TableHead>
                   <TableHead>Modell</TableHead>
                   <TableHead>Preis</TableHead>
-                  <TableHead>Kontext</TableHead>
+                  <TableHead className="hidden xl:table-cell">Kontext</TableHead>
                   <TableHead>Probe</TableHead>
                   <TableHead>Aktiv</TableHead>
                   <TableHead><span className="sr-only">Bearbeiten</span></TableHead>

@@ -8,6 +8,9 @@
  * nie: abgeschaltete Modelle bleiben als Eintrag, damit Libraries, die sie
  * eingestellt haben, nicht still ins Leere zeigen.
  *
+ * Schluessel ist das Feld `modelId`, nicht `_id`: von Hand angelegte
+ * Eintraege tragen eine ObjectId als `_id` (Befund 20.11.2026, Gemini 3.1 Pro).
+ *
  * @module chat
  */
 
@@ -28,27 +31,27 @@ async function sammlung(): Promise<Collection<LlmModelAdmin>> {
 
 /** Alle Eintraege, aktive und abgeschaltete, in fester Reihenfolge. */
 export async function listeAlleModelle(): Promise<LlmModelAdmin[]> {
-  return (await sammlung()).find({}).sort({ order: 1, _id: 1 }).toArray()
+  return (await sammlung()).find({}).sort({ order: 1, modelId: 1 }).toArray()
 }
 
 export async function findeModell(modelId: string): Promise<LlmModelAdmin | null> {
-  return (await sammlung()).findOne({ _id: modelId })
+  return (await sammlung()).findOne({ modelId })
 }
 
 /** Legt einen Eintrag an; wirft, wenn es ihn schon gibt. */
 export async function legeModellAn(eintrag: LlmModelAdmin): Promise<void> {
   const ergebnis = await (await sammlung()).updateOne(
-    { _id: eintrag._id },
+    { modelId: eintrag.modelId },
     { $setOnInsert: eintrag },
     { upsert: true },
   )
-  if (ergebnis.upsertedCount !== 1) throw new Error(`"${eintrag._id}" steht schon in der Liste`)
+  if (ergebnis.upsertedCount !== 1) throw new Error(`"${eintrag.modelId}" steht schon in der Liste`)
 }
 
 /** Aendert Name, Staerken oder Schalter; wirft, wenn der Eintrag fehlt. */
 export async function aendereModell(modelId: string, felder: SprachmodellAenderung, von: string): Promise<void> {
   const ergebnis = await (await sammlung()).updateOne(
-    { _id: modelId },
+    { modelId },
     { $set: { ...felder, updatedAt: new Date().toISOString(), updatedBy: von } },
   )
   if (ergebnis.matchedCount !== 1) throw new Error(`"${modelId}" steht nicht in der Liste`)
@@ -58,7 +61,7 @@ export async function aendereModell(modelId: string, felder: SprachmodellAenderu
 export async function setzeReihenfolge(positionen: ReadonlyMap<string, number>, von: string): Promise<void> {
   const jetzt = new Date().toISOString()
   const schritte = [...positionen].map(([id, order]) => ({
-    updateOne: { filter: { _id: id }, update: { $set: { order, updatedAt: jetzt, updatedBy: von } } },
+    updateOne: { filter: { modelId: id }, update: { $set: { order, updatedAt: jetzt, updatedBy: von } } },
   }))
   if (schritte.length === 0) return
   const ergebnis = await (await sammlung()).bulkWrite(schritte, { ordered: true })
@@ -69,7 +72,7 @@ export async function setzeReihenfolge(positionen: ReadonlyMap<string, number>, 
 
 export async function speichereProbe(modelId: string, probe: ModellProbe, von: string): Promise<void> {
   const ergebnis = await (await sammlung()).updateOne(
-    { _id: modelId },
+    { modelId },
     { $set: { probe, updatedAt: new Date().toISOString(), updatedBy: von } },
   )
   if (ergebnis.matchedCount !== 1) throw new Error(`"${modelId}" steht nicht in der Liste`)
