@@ -24,6 +24,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API } from '@ks/api-client'
+import { useLibraries } from '@ks/shell/react'
 import { useTranslation } from '@ks/i18n/react'
 import type { Nachricht } from '@ks/module-story/react'
 import {
@@ -54,7 +55,10 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
   const perspektive = useWebsitePerspektive()
   const { cfg, loading, error } = useLibraryConfig(libraryId)
   const { speichern } = useProfilPerspektive()
-  const buehne = useWebsiteBuehne()
+  // K3: Schalter je Library. Die Library steht im Atom (Site-Modus) oder kommt mit der Chat-Konfig (Root-Modus).
+  const imAtom = useLibraries().find((lib) => lib.id === libraryId)
+  const buehneErlaubt = (imAtom ? imAtom.config?.publicPublishing?.stageEnabled : cfg?.publicPublishing?.stageEnabled) === true
+  const buehne = useWebsiteBuehne(buehneErlaubt)
   const slug = cfg?.publicPublishing?.slugName
   // 10.11.2026: was diese Sitzung kostet — die Verbrauchsseite, vorgefiltert auf die eigene Sitzung.
   const verbrauchHref = slug ? `/explore/${encodeURIComponent(slug)}/verbrauch?sicht=session` : null

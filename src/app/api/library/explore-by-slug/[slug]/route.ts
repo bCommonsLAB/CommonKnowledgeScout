@@ -64,6 +64,8 @@ export async function GET(
       siteTheme: pub?.siteTheme,
       // ADR 0012: ob Besucher die Sterne-Zahl sehen (Schalter, kein Secret)
       starCountsPublic: pub?.starCountsPublic === true,
+      // K3: Buehne an der Fragen-Sektion der Website (Schalter, kein Secret)
+      stageEnabled: pub?.stageEnabled === true,
       exploreContext: 'member' as const,
     }
 
