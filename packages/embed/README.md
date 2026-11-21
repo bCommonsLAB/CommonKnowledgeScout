@@ -7,8 +7,8 @@ Instanz — keine Anmeldung, kein Token.
 ## Einbau (Next.js App Router)
 
 ```bash
-npm install ./ks-embed-0.1.0.tgz
-# Austausch bei gleicher Version: npm install @ks/embed@file:./ks-embed-0.1.0.tgz
+npm install ./ks-embed-0.2.0.tgz
+# Austausch bei gleicher Version: npm install @ks/embed@file:./ks-embed-0.2.0.tgz
 # (sonst passt die Pruefsumme in package-lock.json nicht mehr)
 ```
 
@@ -167,6 +167,6 @@ All styles are scoped to `.ks-embed`.
 pnpm --filter @ks/embed run pack:datei
 ```
 
-Das erzeugt `packages/embed/ks-embed-0.1.0.tgz`: tsup baut `dist/index.js`
+Das erzeugt `packages/embed/ks-embed-0.2.0.tgz`: tsup baut `dist/index.js`
 mit Typen, `scripts/build-css.mjs` baut `dist/styles.css` (Tailwind, Theme aus
 `src/styles/globals.css`, jede Regel unter `.ks-embed`).

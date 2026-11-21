@@ -69,6 +69,7 @@
     "@azure/msal-node": "^2.16.2",
     "@azure/storage-blob": "^12.29.1",
     "@clerk/nextjs": "^6.21.0",
+    "@commonux/player": "file:vendor/commonux-player-0.2.0.tgz",
     "@ks/api-client": "workspace:*",
     "@ks/contracts": "workspace:*",
     "@ks/i18n": "workspace:*",

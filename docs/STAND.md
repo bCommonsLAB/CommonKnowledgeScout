@@ -369,6 +369,18 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Lesersicht, damit Bildfelder einer Vorlage eine öffentliche Adresse
   bekommen; geplant: betroffene Dokumente neu indexieren, übrige Inhaltsarten
   in einem zweiten Gang)
+- **Common-UX-Bühne hinter der Fragen-Sektion** (Plan
+  [`commonux-buehne-fragen-sektion`](plans/commonux-buehne-fragen-sektion.plan.md), 21.11.):
+  hinter der Sektion `layout=story` liegt die Bühne aus dem Bündel
+  `@commonux/player` (Repo commoning-methods), blass und ohne Schrift, die
+  Belege als Kreise hinter ihren Zitatmarken; ein Symbol wechselt in den
+  Bühnen-Modus. Die Bühne liegt neben der Sektion, die Sektion meldet Gespräch
+  und Lage der Marken über `WebsiteStoryGastgeber`. Gebaut 21.11.: K1 (Bündel
+  0.2.0 unter `vendor/`, Abhängigkeit, `COPY vendor` im Dockerfile, Wächter
+  `docker-datei-abhaengigkeiten.test.ts`). Geplant: P3 Antwort → Gespräch,
+  Aufführung mit acht Masken, P4 Lesen über der Bühne, K3 Schalter je
+  Library, K4 Bühnen-Modus; sechs Owner-Entscheide im Plan. Der Nachweis
+  `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit
@@ -382,6 +394,8 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Navigation `WebsiteNavigation`, App-Hülle `WebsiteLandingLive`), WE3
   (Fragen- und Themen-Sektion im Paket, Gastgeber der App), WE4
   (`KnowledgeScoutSite`, Schriften im Paket, CORS für populäre Fragen).
+  Bündel `@ks/embed` 0.2.0 mit der Startseite gebaut und an die Partner-App
+  übergeben (21.11.; 0.1.0 enthielt sie nicht).
   Geplant: WE5, der Nachweis in der Partner-App (Ort des Menüpunkts „Fragen"
   legt der Owner fest); live noch offen: Antwort mit Belegen in der
   Fragen-Sektion, Vorschau im Archiv
