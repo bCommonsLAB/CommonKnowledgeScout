@@ -32,6 +32,7 @@ export function toClientLibrary(
         requiresAuth: payload.requiresAuth,
         siteEnabled: payload.siteEnabled,
         starCountsPublic: payload.starCountsPublic === true,
+        stageEnabled: payload.stageEnabled === true,
         logoUrl: payload.logoUrl,
         gallery: payload.gallery,
         mitreden: payload.mitreden,

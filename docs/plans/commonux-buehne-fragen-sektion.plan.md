@@ -16,8 +16,8 @@ todos:
     content: "P4 Lesen über der Bühne: Gastgeber-Feld `buehne`, Flächen der Sektion durchsichtig, Zitatmarken in der Farbe ihres Belegs, Lage der Marken messen, Bühnen-Ebene in der App (`stufe=\"blass\"`, `durchlass`). GEBAUT 21.11.2026; vorläufig nur mit `?buehne=an`."
     status: completed
   - id: k3-schalter
-    content: "K3 Schalter je Library (Checkliste Per-Library-Config-Feld, voreingestellt aus); Player nur laden, wenn der Schalter an ist (`next/dynamic`)."
-    status: pending
+    content: "K3 Schalter je Library `publicPublishing.stageEnabled`, voreingestellt aus: Formular „Öffentlich“, Brücke (`veroeffentlichung_setzen`, 2.78.0), Lese-Routen. GEBAUT 21.11.2026 (Owner: Schalter je Library, voreingestellt aus)."
+    status: completed
   - id: k4-buehnen-modus
     content: "K4 Symbol „Zur Bühne“ und Bühnen-Modus, Zustand in der Adresse (`nuqs`). GEBAUT 21.11.2026 (Owner: Symbol rechts oben, Kreise hin, drei Linien zurück; vorerst ohne Schalter je Library)."
     status: completed
@@ -182,7 +182,7 @@ und folgen beim Scrollen, Klicks gehen an die Seite, keine Fehler in der Konsole
 
 Owner 21.11.: Der Schalter steht vorerst als Symbol rechts oben im Kopf der Karte — kleine
 Kreise führen zur Bühne, ein Textsymbol mit drei Linien zurück. Der Schalter je Library (K3)
-kommt später; bis dahin steht das Symbol an jeder Fragen-Sektion der App.
+kam am selben Tag nach (Abschnitt 3.7).
 
 | `?buehne=` | Zustand | Was man sieht |
 |---|---|---|
@@ -209,11 +209,20 @@ kommt später; bis dahin steht das Symbol an jeder Fragen-Sektion der App.
 feinen Rand; die Maske kennt dafür kein Feld — Wunsch an den Player). Die Darsteller melden sich
 mit Namen (`aria-label`), sind aber keine Knöpfe für die Tastatur.
 
-### 3.7 Schalter je Library (K3, geplant)
+### 3.7 Schalter je Library (K3, gebaut 21.11.)
 
-- Nach `docs/contracts/library-config-field.md`, voreingestellt aus. Vorschlag für den Ort:
-  `publicPublishing.buehne.enabled` (Entscheid 3). Ohne Schalter reicht die App keine `buehne`
-  an den Gastgeber: kein Symbol, kein Player.
+Owner 21.11.: Schalter je Library, voreingestellt aus. K4 war einen Tag ohne ihn auf `master`;
+seit K3 gibt es Symbol und Bühne nur noch dort, wo der Schalter an ist.
+
+- **Feld:** `publicPublishing.stageEnabled` (flach neben `siteEnabled` und `starCountsPublic`,
+  fehlend = aus).
+- **Einschalten:** in den Einstellungen unter „Öffentlich" („Bühne an der Fragen-Sektion") oder
+  über die Brücke mit `veroeffentlichung_setzen` (`stageEnabled: true`, Werkzeugsatz 2.78.0);
+  `veroeffentlichung_lesen` zeigt ihn.
+- **Wirkung:** Ohne Schalter reicht `website-story-app.tsx` keine `buehne` an den Gastgeber —
+  kein Symbol, kein Player, auch nicht über `?buehne=` in der Adresse.
+- **Woher die App ihn liest:** aus der Library im Atom (Site-Modus), sonst aus der Chat-Konfig
+  (`/api/chat/<id>/config`, Root-Modus an der eigenen Domain).
 
 ## 4. Wellen
 
@@ -223,7 +232,7 @@ mit Namen (`aria-label`), sind aber keine Knöpfe für die Tastatur.
 | P3 | `story-gespraech.ts` mit Tests, Typ `WebsiteGespraech`, Typ-Abgleich in der App (gebaut 21.11.) | K1 | mittel |
 | E | Aufführung mit acht Masken, Test mit dem Leser des Bündels (gebaut 21.11.) | K1 | klein |
 | P4 | Gastgeber-Feld `buehne`, Fenster in der Karte, farbige Marken, Messen, Bühnen-Ebene (gebaut 21.11., vorläufig mit `?buehne=an`) | P3, E | mittel |
-| K3 | Schalter je Library (faules Laden ist mit K4 gebaut) | K4 | klein bis mittel |
+| K3 | Schalter je Library `publicPublishing.stageEnabled` (gebaut 21.11.) | K4 | klein bis mittel |
 | K4 | Symbol, Bühnen-Modus, Adresse (gebaut 21.11., vor K3) | P4 | mittel |
 
 P3 und E laufen parallel. Je Welle eine PR; vor dem Merge `pnpm build` lokal grün
@@ -236,8 +245,9 @@ P3 und E laufen parallel. Je Welle eine PR; vor dem Merge `pnpm build` lokal gr�
    Container-Anwendung es braucht; Commoning Methods fragt selbst über die Chat-Schnittstelle.
 2. **Aufführung je Library oder eine für alle?** Empfehlung: eine Datei in der App; je
    Library erst, wenn eine zweite Formensprache gebraucht wird.
-3. **Ort und Name des Schalters** (`publicPublishing.buehne.enabled`?) und ob er auch für
-   Mitglieder in `/library` gilt oder nur öffentlich.
+3. **Ort und Name des Schalters** — entschieden 21.11.: `publicPublishing.stageEnabled`,
+   voreingestellt aus. Er gilt, wo die Fragen-Sektion der Website steht, für Besucher und
+   Mitglieder gleich.
 4. **Mehrere Stellen aus demselben Dokument** (Q-player-05): heute ein Beleg je Dokument,
    `passages` wird zu `fundstellen`. So lassen?
 5. **Dicht stehende Marken** (Q-player-07): Dürfen Belege einander beim Lesen überlagern?

@@ -45,7 +45,9 @@ Text“ (drei Linien). Hinten meldet sie ihr Gespräch (`gespraechAusStory`) und
 die Lage der Zitatmarken an den Slot und färbt die Marken; der Bereich des
 Chats ist das Fenster der Ebene (`clip-path`), Klicks erreichen sie nicht.
 Vorn steht die Bühne statt des Texts und nimmt Klicks an; die Eingabe bleibt
-darunter. Ohne `buehne` ändert sich nichts.
+darunter. Ohne `buehne` ändert sich nichts. Die App reicht `buehne` nur, wenn
+die Library den Schalter `publicPublishing.stageEnabled` gesetzt hat
+(Vorgabe aus; Formular „Öffentlich“ oder `veroeffentlichung_setzen`).
 Das Paket importiert den Player (`@commonux/*`) nicht — den lädt nur die App
 (`src/components/library/website/buehne/`).
 

@@ -9,7 +9,8 @@
  * (dorthin fuehrt das Symbol „Zurueck zum Text"). Der Player wird erst geladen, wenn die Buehne
  * an ist.
  *
- * VORLAEUFIG ohne Schalter je Library (K3): Das Symbol steht an jeder Fragen-Sektion.
+ * Schalter je Library (K3, `publicPublishing.stageEnabled`, Vorgabe aus): Ohne ihn gibt es weder
+ * Symbol noch Buehne, auch nicht ueber die Adresse.
  *
  * Ruecksicht: keine Buehne und kein Symbol auf schmalen Bildschirmen und bei „Kontrast erhoehen".
  * „Bewegung reduzieren" regelt der Player selbst.
@@ -38,7 +39,7 @@ export function buehnenModus(wahl: string | null): WebsiteBuehneModus {
 
 type Darstellung = NonNullable<WebsiteStoryBuehne['darstellung']>
 
-export function useWebsiteBuehne(): WebsiteStoryBuehne | undefined {
+export function useWebsiteBuehne(erlaubt: boolean): WebsiteStoryBuehne | undefined {
   const [wahl, setWahl] = useQueryState('buehne', { history: 'push' })
   const passt = useSyncExternalStore(abonniereMedium, () => window.matchMedia(BUEHNE_MEDIUM).matches, () => false)
   const [darstellung, setDarstellung] = useState<Darstellung | undefined>(undefined)
@@ -53,7 +54,7 @@ export function useWebsiteBuehne(): WebsiteStoryBuehne | undefined {
     }
   }, [wahl])
 
-  const an = passt && modus !== 'aus'
+  const an = erlaubt && passt && modus !== 'aus'
   useEffect(() => {
     if (!an) return
     let abgebrochen = false
@@ -66,7 +67,7 @@ export function useWebsiteBuehne(): WebsiteStoryBuehne | undefined {
   const onModus = useCallback((neu: 'hinten' | 'vorn') => void setWahl(neu === 'vorn' ? 'vorn' : 'an'), [setWahl])
 
   return useMemo(
-    () => (passt ? { modus, onModus, darstellung: an ? darstellung : undefined } : undefined),
-    [passt, modus, onModus, an, darstellung],
+    () => (erlaubt && passt ? { modus, onModus, darstellung: an ? darstellung : undefined } : undefined),
+    [erlaubt, passt, modus, onModus, an, darstellung],
   )
 }

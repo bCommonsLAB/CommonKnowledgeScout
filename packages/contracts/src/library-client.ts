@@ -217,6 +217,8 @@ export interface ClientLibrary {
       siteTheme?: SiteTheme;
       /** Fokus aus Sternen (ADR 0012): Sterne-Zahl auch anonym sichtbar, Namen nie (fehlend = false) */
       starCountsPublic?: boolean;
+      /** Common-UX-Buehne an der Fragen-Sektion der Website: Symbol „Zur Buehne" (fehlend = false) */
+      stageEnabled?: boolean;
     };
     /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
     nextcloud?: {
