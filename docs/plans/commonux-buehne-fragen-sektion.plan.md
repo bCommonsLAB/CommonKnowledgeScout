@@ -7,8 +7,8 @@ todos:
     content: "K1 Bündel nach master: `vendor/commonux-player-0.2.0.tgz`, Abhängigkeit, `COPY vendor` im Dockerfile vor dem Install, Wächter-Test. GEBAUT 21.11.2026."
     status: completed
   - id: p3-gespraech
-    content: "P3 Antwort → Gespräch: reine Funktion in `@ks/module-website` (`story-gespraech.ts`), Typ `WebsiteGespraech` im Paket, Typ-Abgleich mit `Gespraech` des Players als Test in der App."
-    status: pending
+    content: "P3 Antwort → Gespräch: reine Funktion in `@ks/module-website` (`story-gespraech.ts`), Typ `WebsiteGespraech` im Paket, Typ-Abgleich mit `Gespraech` des Players als Test in der App. GEBAUT 21.11.2026 (`gespraechAusStory`, `gespraechStand`, `gespraechFrageId`)."
+    status: completed
   - id: e-auffuehrung
     content: "Aufführung für KnowledgeScout: eine leere Bühne, acht Masken `gespraech-…` in der Formensprache der Website; Test liest sie mit dem Leser des Bündels."
     status: pending
@@ -109,16 +109,21 @@ Elementen). Eine aufgezeichnete Antwort liegt dort als Fixture
 
 | Gespräch | Quelle in KnowledgeScout |
 |---|---|
-| `frage.id`, `frage.text` | Frage des sichtbaren Paars (`sichtbaresPaar`). War die Frage eine Anschlussfrage der vorigen Antwort, bekommt sie deren ID; sie fliegt dann von deren Stelle in die Mitte |
-| `stand` | `sucht` ab dem Senden; `schreibt` erst ab `prompt_complete` oder `llm_progress` (`llm_start` kommt schon während der Suche); `fertig` mit der Antwort; `fehler` |
+| `frage.id`, `frage.text` | Frage des sichtbaren Paars (`sichtbaresPaar`). Die ID entsteht aus dem Wortlaut (`gespraechFrageId`), bei Frage und Anschlussfrage gleich: Eine gestellte Anschlussfrage fliegt so von ihrer Stelle in die Mitte |
+| `stand` | `sucht` ab dem Senden; `schreibt` erst ab `prompt_complete` oder `llm_progress` (`llm_start` kommt schon während der Suche); `fertig` mit der Antwort; `fehler` bei einem Fehler und bei einer abgebrochenen Frage (ohne Antwort, ohne Lauf) |
 | `antwort.text` | Text der Antwort; er kommt in einem Stück, das Blatt erscheint erst dann |
-| `belege[]` | je `DocReference`: `id` und `dokument` sind die `fileId`, `nummer` ist `number` (zählt nicht von 1 durch), `titel` ist `title`, sonst `fileName`; `fundstellen` aus der Zahl der `passages` |
+| `belege[]` | je `DocReference`: `id` und `dokument` sind die `fileId`, `nummer` ist `number` (zählt nicht von 1 durch), `titel` ist `title`, sonst `fileName`, sonst `description`; `fundstellen` aus der Zahl der `passages`. Zwei Nummern desselben Dokuments (ältere Antworten) sind ein Beleg. Vor der Antwort gibt es keine Belege |
 | `folgefragen[]` | `anschlussfragen` der Antwort; die Zahl wechselt |
-| `verlauf[]` | frühere Paare der Sitzung, älteste zuerst; `kurzfrage` aus `kurztitel`, sonst gekürzter Fragetext |
+| `verlauf[]` | frühere beantwortete Paare der Sitzung, älteste zuerst; `kurzfrage` aus `kurztitel`, sonst der Wortlaut (die Maske der Perle kürzt). Eine wiederholte Frage steht einmal |
 | `lesen` | `true`, solange die Seite vorn steht |
 
-Kein stiller Rückfall: Ein Beleg ohne `fileId` ist ein Fehler im Protokoll und fehlt im
-Gespräch; die Funktion erfindet keine ID.
+Kein stiller Rückfall: Ein Beleg ohne `fileId` fehlt im Gespräch und wird im Ergebnis gezählt
+(`verworfen`); die Funktion erfindet keine ID. Das Ergebnis nennt außerdem je Zitatmarke die ID
+ihres Belegs (`belegJeNummer`) — das braucht P4, weil die Marken nur die Nummer tragen.
+
+**Gebaut 21.11.** Zwei Befunde daraus, beide für den Player (Abschnitt 5, Entscheide 7 und 8):
+Vor der Antwort kennt KnowledgeScout keine Belege, also kreisen beim Suchen keine Punkte. Und
+für eine abgebrochene Frage hat das Gespräch keinen eigenen Stand.
 
 ### 3.4 Aufführung
 
@@ -168,7 +173,7 @@ sind. Eine Aufführung je Library ist ein späterer Schritt (Entscheid 2).
 | Welle | Inhalt | Braucht | Größe |
 |---|---|---|---|
 | K1 | Bündel nach `master` (gebaut 21.11.) | — | klein |
-| P3 | `story-gespraech.ts` mit Tests, Typ `WebsiteGespraech`, Typ-Abgleich in der App | K1 | mittel |
+| P3 | `story-gespraech.ts` mit Tests, Typ `WebsiteGespraech`, Typ-Abgleich in der App (gebaut 21.11.) | K1 | mittel |
 | E | Aufführung mit acht Masken, Test mit dem Leser des Bündels | K1 | klein |
 | P4 | Gastgeber-Feld `buehne`, durchsichtige Flächen, farbige Marken, Messen, Bühnen-Ebene | P3, E | mittel |
 | K3 | Schalter je Library, faules Laden | P4 | klein bis mittel |
@@ -192,6 +197,12 @@ P3 und E laufen parallel. Je Welle eine PR; vor dem Merge `pnpm build` lokal gr�
    Betrifft den Player; hier nur die Abnahme.
 6. **Bündel auf npm** statt als Datei unter `vendor/`? Heute Datei; jede neue Version des
    Players ist ein Commit mit neuem Tarball.
+7. **Punkte beim Suchen:** Die Belege kommen erst mit der Antwort. Der Stream nennt vorher nur
+   eine Zahl (`retrieval_complete.uniqueFileIdsCount`). Sollen so viele namenlose Punkte
+   kreisen? Sie verschwänden mit der Antwort und die Belege entstünden neu an der Frage.
+   Empfehlung: erst in P4 am Bild entscheiden.
+8. **Abgebrochene Frage:** heute `fehler`, weil der Player dort nur die Frage zeigt. Bekommt
+   `fehler` im Player später eine eigene Geste (grau, Zittern), braucht es einen fünften Stand.
 
 ## 6. Risiken
 

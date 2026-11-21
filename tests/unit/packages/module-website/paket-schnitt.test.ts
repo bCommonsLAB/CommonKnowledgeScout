@@ -6,6 +6,7 @@
  *   Schriften aus `next/font` bleiben in der App, `src/lib/website/site-fonts.ts`),
  * - kein Clerk (die Anmeldung kommt als Prop oder Slot),
  * - kein `@/` (App-Code bleibt in der App; Vokabular ueber `@ks/contracts`),
+ * - kein `@commonux/*` (der Player bleibt in der App, Plan `commonux-buehne-fragen-sektion` 3.1),
  * - keine Adresszeile (`window.location`, `history`) — Wege nach aussen laufen
  *   ueber die Navigation-Schnittstelle (`WebsiteNavigation`), die App bzw. das
  *   Embed bindet sie an ihre Adresse,
@@ -35,6 +36,8 @@ const VERBOTE: Verbot[] = [
   { name: 'next/*', muster: /from\s+['"]next(\/|['"])/ },
   { name: '@clerk/*', muster: /from\s+['"]@clerk\// },
   { name: '@/ (App-Code)', muster: /from\s+['"]@\// },
+  // Der Player reist nicht ins Embed: Das Gespraech steht als eigener Typ in `story-gespraech.ts`.
+  { name: '@commonux/*', muster: /from\s+['"]@commonux\// },
   { name: 'Adresszeile', muster: /\b(window\.location|location\.(href|assign|replace|search|hash)|history\.(pushState|replaceState))\b/ },
 ]
 

@@ -377,9 +377,10 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Bühnen-Modus. Die Bühne liegt neben der Sektion, die Sektion meldet Gespräch
   und Lage der Marken über `WebsiteStoryGastgeber`. Gebaut 21.11.: K1 (Bündel
   0.2.0 unter `vendor/`, Abhängigkeit, `COPY vendor` im Dockerfile, Wächter
-  `docker-datei-abhaengigkeiten.test.ts`). Geplant: P3 Antwort → Gespräch,
-  Aufführung mit acht Masken, P4 Lesen über der Bühne, K3 Schalter je
-  Library, K4 Bühnen-Modus; sechs Owner-Entscheide im Plan. Der Nachweis
+  `docker-datei-abhaengigkeiten.test.ts`) und P3 (Antwort → Gespräch als
+  reine Funktion `gespraechAusStory` in `@ks/module-website`, Typ-Abgleich mit
+  dem Player als Test). Geplant: Aufführung mit acht Masken, P4 Lesen über der Bühne, K3 Schalter je
+  Library, K4 Bühnen-Modus; acht Owner-Entscheide im Plan. Der Nachweis
   `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
