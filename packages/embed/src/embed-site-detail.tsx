@@ -9,9 +9,11 @@
  * Nur Typen mit eingebetteter Ansicht (`EMBED_DETAIL_TYPEN`) oeffnen hier; die
  * uebrigen fuehren ueber die Navigation auf die Galerie-Seite der
  * Container-Anwendung (Ziel `dokument`) — dort zeigt die Galerie-Komponente sie.
+ * Mit `zuerstContainer` (Option `documentsViaHrefFor`) wird die
+ * Container-Anwendung fuer jeden Typ zuerst gefragt (`embed-site-dokument.ts`).
  */
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { getDetailViewType, type DocCardMeta } from '@ks/contracts'
 import {
@@ -22,8 +24,8 @@ import {
   type ExplorerLibraryPayload,
 } from '@ks/module-explorer/react'
 import type { WebsiteNavigation } from '@ks/module-website'
-import { wegGehen } from '@ks/module-website/react'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
+import { dokumentWeg } from './embed-site-dokument'
 
 export interface EmbedSiteDetailProps {
   library: ExplorerLibraryPayload
@@ -31,26 +33,31 @@ export interface EmbedSiteDetailProps {
   page?: number
   onClose: () => void
   navigation: WebsiteNavigation
+  /** Die Container-Anwendung zuerst fragen, auch bei Typen mit eingebetteter Ansicht. */
+  zuerstContainer: boolean
   /** Portal-Ort am `body` der Container-Seite (Klasse `.ks-embed`). */
   portal: HTMLElement
 }
 
-export function EmbedSiteDetail({ library, doc, page, onClose, navigation, portal }: EmbedSiteDetailProps) {
+export function EmbedSiteDetail({ library, doc, page, onClose, navigation, zuerstContainer, portal }: EmbedSiteDetailProps) {
   const viewType = resolveDetailViewTypeForDoc(
     doc.detailViewType,
     getDetailViewType({ detailViewType: library.chat?.gallery?.detailViewType }),
   )
   const eingebettet = EMBED_DETAIL_TYPEN.has(viewType)
+  const weg = useMemo(
+    () => dokumentWeg({ slug: getEffectiveDocumentNavigationSlug(doc) || null, page, eingebettet, zuerstContainer, navigation }),
+    [doc, page, eingebettet, zuerstContainer, navigation],
+  )
 
   useEffect(() => {
-    if (eingebettet) return
-    const slug = getEffectiveDocumentNavigationSlug(doc)
-    if (slug) wegGehen(navigation, page ? { art: 'dokument', slug, seitenzahl: page } : { art: 'dokument', slug })
-    else console.error('[KnowledgeScoutSite] Dokument ohne Slug — nichts zu oeffnen', doc)
+    if (weg.art === 'eingebettet') return
+    if (weg.art === 'container') weg.ausfuehren()
+    else console.error(`[KnowledgeScoutSite] ${weg.grund}`, doc)
     onClose()
-  }, [eingebettet, doc, page, navigation, onClose])
+  }, [weg, doc, onClose])
 
-  if (!eingebettet) return null
+  if (weg.art !== 'eingebettet') return null
   return createPortal(
     <DetailOverlay
       open

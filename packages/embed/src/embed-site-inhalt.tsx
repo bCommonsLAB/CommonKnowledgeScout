@@ -44,6 +44,10 @@ export interface EmbedSiteInhaltProps {
   locale: Locale
   page: string | null
   hrefFor: HrefFor
+  /** Dokumente zuerst der Container-Anwendung anbieten (Prop `documentsViaHrefFor`). */
+  dokumenteZuerstContainer: boolean
+  /** Wechsel der Container-Anwendung fuer Klicks ohne Link (Prop `navigate`); ohne: `window.location.assign`. */
+  navigate: ((href: string) => void) | undefined
   menu: boolean
   eigenerScroll: boolean
   /** Portal-Ort am `body` (Klasse `.ks-embed`) fuer Blaetter, Dialoge und Detailansicht. */
@@ -71,7 +75,7 @@ function Hinweis({ children, alarm = false }: { children: string; alarm?: boolea
   return <p role={alarm ? 'alert' : 'status'} className="p-4 text-sm text-muted-foreground">{children}</p>
 }
 
-function EmbedSite({ library: slug, instanz, locale, page, hrefFor, menu, eigenerScroll, portal }: EmbedSiteInhaltProps) {
+function EmbedSite({ library: slug, instanz, locale, page, hrefFor, dokumenteZuerstContainer, navigate, menu, eigenerScroll, portal }: EmbedSiteInhaltProps) {
   const { t } = useTranslation()
   const texte = useMemo(
     () => ({ slugMissing: t('explore.slugMissing'), libraryNotFound: t('explore.libraryNotFound'), errorLoadingLibrary: t('explore.errorLoadingLibrary') }),
@@ -81,13 +85,19 @@ function EmbedSite({ library: slug, instanz, locale, page, hrefFor, menu, eigene
   // Die Container-Seite reicht `hrefFor` oft je Render neu — die Navigation bleibt dieselbe.
   const hrefForAktuell = useRef(hrefFor)
   hrefForAktuell.current = hrefFor
+  const navigateAktuell = useRef(navigate)
+  navigateAktuell.current = navigate
   const navigation = useMemo(
-    () => embedSiteNavigation((ziel) => hrefForAktuell.current(ziel), (href) => window.location.assign(href)),
+    () =>
+      embedSiteNavigation(
+        (ziel) => hrefForAktuell.current(ziel),
+        (href) => (navigateAktuell.current ? navigateAktuell.current(href) : window.location.assign(href)),
+      ),
     [],
   )
   const [detail, setDetail] = useState<{ doc: DocCardMeta; page?: number } | null>(null)
   const schliessen = useCallback(() => setDetail(null), [])
-  const gastgeber = useEmbedGastgeber(library, instanz, locale, navigation, portal)
+  const gastgeber = useEmbedGastgeber(library, instanz, locale, navigation, dokumenteZuerstContainer, portal)
 
   const storySlot = useCallback(
     (section: WebsiteSection, { headingCase, theme }: WebsiteSlotKontext): ReactNode =>
@@ -123,7 +133,7 @@ function EmbedSite({ library: slug, instanz, locale, page, hrefFor, menu, eigene
         onDokument={(doc) => setDetail({ doc })}
         storySlot={storySlot}
       />
-      {detail && <EmbedSiteDetail library={library} doc={detail.doc} page={detail.page} onClose={schliessen} navigation={navigation} portal={portal} />}
+      {detail && <EmbedSiteDetail library={library} doc={detail.doc} page={detail.page} onClose={schliessen} navigation={navigation} zuerstContainer={dokumenteZuerstContainer} portal={portal} />}
     </>
   )
 }
@@ -134,6 +144,7 @@ function useEmbedGastgeber(
   instanz: InstanceApi,
   locale: Locale,
   navigation: ReturnType<typeof embedSiteNavigation>,
+  zuerstContainer: boolean,
   portal: HTMLElement,
 ): { libraryId: string; story: WebsiteStoryGastgeber } | null {
   const { t } = useTranslation()
@@ -159,9 +170,9 @@ function useEmbedGastgeber(
         ? ({ offen, onOpenChange }) => <PerspektiveDialog open={offen} onOpenChange={onOpenChange} wert={wahl} onSpeichern={speichern} />
         : undefined,
       detail: ({ doc, page, onClose }) => (
-        <EmbedSiteDetail library={library} doc={doc} page={page} onClose={onClose} navigation={navigation} portal={portal} />
+        <EmbedSiteDetail library={library} doc={doc} page={page} onClose={onClose} navigation={navigation} zuerstContainer={zuerstContainer} portal={portal} />
       ),
     }
     return { libraryId: library.id, story }
-  }, [library, modell, perspektive, instanz, chat, t, speichern, navigation, portal])
+  }, [library, modell, perspektive, instanz, chat, t, speichern, navigation, zuerstContainer, portal])
 }

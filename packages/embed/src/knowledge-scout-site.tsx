@@ -71,7 +71,7 @@ function usePortalAmBody(): HTMLElement | null {
   return knoten
 }
 
-export function KnowledgeScoutSite({ baseUrl, library, page, locale, hrefFor, menu = true, height, className }: KnowledgeScoutSiteProps) {
+export function KnowledgeScoutSite({ baseUrl, library, page, locale, hrefFor, documentsViaHrefFor = false, navigate, menu = true, height, className }: KnowledgeScoutSiteProps) {
   const aufbau = useMemo(() => siteAufbauen(baseUrl, locale), [baseUrl, locale])
   const portal = usePortalAmBody()
   const fehler = sitePropsFehler(hrefFor, page) ?? ('fehler' in aufbau ? aufbau.fehler : null)
@@ -100,6 +100,8 @@ export function KnowledgeScoutSite({ baseUrl, library, page, locale, hrefFor, me
           locale={aufbau.locale}
           page={page ?? null}
           hrefFor={hrefFor}
+          dokumenteZuerstContainer={documentsViaHrefFor}
+          navigate={navigate}
           menu={menu}
           eigenerScroll={false}
           portal={portal}

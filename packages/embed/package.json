@@ -1,6 +1,6 @@
 {
   "name": "@ks/embed",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "KnowledgeScout — Galerie, Story-Modus und Startseite einer oeffentlichen Library als Komponenten fuer fremde React- und Next-Anwendungen (M5, D6b, WE4)",
   "type": "module",

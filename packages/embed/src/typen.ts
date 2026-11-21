@@ -144,6 +144,21 @@ export interface KnowledgeScoutSiteProps {
    */
   hrefFor: (ziel: KsZiel) => string | null
   /**
+   * Wer Dokumente oeffnet (Banner-Karten, Belege im Blatt „Belege"). Standard
+   * (`false`): Typen mit eingebetteter Ansicht (Buch, Testimonial, Blog)
+   * oeffnen in der eigenen Detailansicht, `hrefFor` wird fuer sie nicht
+   * gefragt. Mit `true` wird `hrefFor` mit Ziel `dokument` fuer jeden Typ
+   * gefragt; nur bei `null` oeffnet die eigene Detailansicht.
+   */
+  documentsViaHrefFor?: boolean
+  /**
+   * Der Wechsel der Container-Anwendung fuer Klicks, die kein Link sind (Beleg
+   * im Blatt „Belege", Banner-Karte, „alle Inhalte"): bekommt die Adresse aus
+   * `hrefFor`. Ohne Angabe `window.location.assign` — die Seite laedt neu.
+   * Eine Anwendung mit eigenem Router reicht hier z. B. `router.push`.
+   */
+  navigate?: (href: string) => void
+  /**
    * Schlanke Menuezeile oben: die Website-Seiten nach `menu_order`, „Inhalte"
    * und „Story", alle ueber `hrefFor`. Standard: an; `false` blendet sie aus.
    */
