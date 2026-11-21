@@ -16,6 +16,7 @@
  */
 
 import type { DocReference } from '@ks/contracts'
+import { dokumentNummern } from '@ks/util'
 
 export type WebsiteGespraechStand = 'sucht' | 'schreibt' | 'fertig' | 'fehler'
 
@@ -23,7 +24,7 @@ export interface WebsiteGespraechBeleg {
   /** Die `fileId` des Dokuments: dasselbe Dokument bleibt ueber Antworten derselbe Darsteller. */
   id: string
   dokument: string
-  /** Zitatmarke; gilt nur in dieser Antwort und zaehlt nicht von 1 durch. */
+  /** Die Zahl auf der Zitatmarke im Text: Dokumentnummer der Antwort (`dokumentNummern`), gilt nur in dieser Antwort. */
   nummer: number
   titel: string
   /** Zahl der zitierten Textstellen (mindestens 1). */
@@ -63,7 +64,7 @@ export interface GespraechEingabe {
 export interface GespraechErgebnis {
   /** `null`, solange die Sitzung keine Frage hat. */
   gespraech: WebsiteGespraech | null
-  /** Je Zitatmarke der Antwort die ID ihres Belegs — die Marken im Text tragen nur die Nummer. */
+  /** Je Zitatmarke (`a[data-beleg="k"]`, Dokumentnummer) die ID ihres Belegs — die Marken tragen nur die Nummer. */
   belegJeNummer: Record<number, string>
   /** Belege der Antwort ohne `fileId` oder Nummer; sie fehlen im Gespraech (kein erfundener Ersatz). */
   verworfen: number
@@ -106,14 +107,20 @@ function istBeleg(b: DocReference): boolean {
   return typeof b.fileId === 'string' && b.fileId.length > 0 && typeof b.number === 'number' && Number.isFinite(b.number)
 }
 
-/** Belege der Antwort je Dokument: aeltere Antworten nummerieren je Textstelle, das Gespraech kennt einen Beleg je `fileId`. */
+/**
+ * Belege der Antwort je Dokument. Die Nummer ist die der Marke im Text: Der Antworttext zeigt je
+ * Dokument eine laufende Nummer (`dokumentNummern`), auch wenn die Antwort anders zaehlt oder
+ * (aeltere Antworten) je Textstelle nummeriert.
+ */
 function belegeJeDokument(references: ReadonlyArray<DocReference>): Pick<GespraechErgebnis, 'belegJeNummer' | 'verworfen'> & { belege: WebsiteGespraechBeleg[] } {
   const gueltig = references.filter(istBeleg).sort((a, b) => a.number - b.number)
+  const nummern = dokumentNummern(gueltig)
   const belege: WebsiteGespraechBeleg[] = []
   const stelle = new Map<string, number>()
   const belegJeNummer: Record<number, string> = {}
   for (const ref of gueltig) {
-    belegJeNummer[ref.number] = ref.fileId
+    const nummer = nummern.get(ref.number)
+    if (nummer === undefined) throw new Error(`Gespraech: Beleg ${ref.number} ohne Dokumentnummer`)
     const fundstellen = Math.max(1, ref.passages?.length ?? 1)
     const schonDa = stelle.get(ref.fileId)
     if (schonDa !== undefined) {
@@ -121,8 +128,9 @@ function belegeJeDokument(references: ReadonlyArray<DocReference>): Pick<Gesprae
       continue
     }
     stelle.set(ref.fileId, belege.length)
+    belegJeNummer[nummer] = ref.fileId
     const titel = ref.title?.trim() || ref.fileName?.trim() || ref.description
-    belege.push({ id: ref.fileId, dokument: ref.fileId, nummer: ref.number, titel, fundstellen })
+    belege.push({ id: ref.fileId, dokument: ref.fileId, nummer, titel, fundstellen })
   }
   return { belege, belegJeNummer, verworfen: references.length - gueltig.length }
 }

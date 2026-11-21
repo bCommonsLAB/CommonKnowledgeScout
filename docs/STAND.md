@@ -379,7 +379,11 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   0.2.0 unter `vendor/`, Abhängigkeit, `COPY vendor` im Dockerfile, Wächter
   `docker-datei-abhaengigkeiten.test.ts`) und P3 (Antwort → Gespräch als
   reine Funktion `gespraechAusStory` in `@ks/module-website`, Typ-Abgleich mit
-  dem Player als Test). Geplant: Aufführung mit acht Masken, P4 Lesen über der Bühne, K3 Schalter je
+  dem Player als Test), die Aufführung mit acht Masken und P4 (Lesen über
+  der Bühne: die Karte der Sektion ist das Fenster der Ebene, Marken im Ton
+  ihres Belegs, Lage der Marken gemessen; vorläufig nur mit `?buehne=an`
+  in der Adresse, im Browser an einem Prüfstand angesehen, nicht in der
+  laufenden App). Geplant: P4 Lesen über der Bühne, K3 Schalter je
   Library, K4 Bühnen-Modus; acht Owner-Entscheide im Plan. Der Nachweis
   `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
 - **Startseite als einbettbare Komponente** (Plan

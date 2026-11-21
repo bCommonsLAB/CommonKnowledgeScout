@@ -37,8 +37,8 @@ describe('gespraechAusStory', () => {
     expect(g?.stand).toBe('fertig')
     expect(g?.frage.text).toBe('Wie beginnt ein Vorhaben?')
     expect(g?.antwort?.text).toBe(ERSTE.antwort?.text)
-    // Die Nummern sind die der Antwort; sie zaehlen nicht von 1 durch.
-    expect(g?.belege.map((b) => b.nummer)).toEqual([3, 11, 24])
+    // Die Antwort zaehlt 3, 11, 24; die Marken im Text zeigen die Dokumentnummer 1, 2, 3 — die gilt.
+    expect(g?.belege.map((b) => b.nummer)).toEqual([1, 2, 3])
     expect(g?.folgefragen.map((f) => f.text)).toEqual(['Was tun bei Konflikten?', 'Wer entscheidet?'])
     expect(g?.lesen).toBe(true)
     expect(verworfen).toBe(0)
@@ -47,17 +47,18 @@ describe('gespraechAusStory', () => {
   it('ein Beleg hat die fileId als ID und als Dokument, die Zahl der Textstellen als Fundstellen', () => {
     const g = gespraechAusStory(eingabe({ paare: [ERSTE] })).gespraech
     expect(g?.belege).toEqual([
-      { id: 'dok-a', dokument: 'dok-a', nummer: 3, titel: 'protokoll.md', fundstellen: 1 },
-      { id: 'dok-b', dokument: 'dok-b', nummer: 11, titel: 'Leitfaden', fundstellen: 3 },
-      { id: 'dok-c', dokument: 'dok-c', nummer: 24, titel: 'Textstelle 24', fundstellen: 1 },
+      { id: 'dok-a', dokument: 'dok-a', nummer: 1, titel: 'protokoll.md', fundstellen: 1 },
+      { id: 'dok-b', dokument: 'dok-b', nummer: 2, titel: 'Leitfaden', fundstellen: 3 },
+      { id: 'dok-c', dokument: 'dok-c', nummer: 3, titel: 'Textstelle 24', fundstellen: 1 },
     ])
+    expect(gespraechAusStory(eingabe({ paare: [ERSTE] })).belegJeNummer).toEqual({ 1: 'dok-a', 2: 'dok-b', 3: 'dok-c' })
   })
 
-  it('zwei Nummern desselben Dokuments (aeltere Antworten) sind ein Beleg; beide Marken zeigen auf ihn', () => {
+  it('zwei Nummern desselben Dokuments (aeltere Antworten) sind ein Beleg mit einer Marke', () => {
     const paar: GespraechPaar = { frage: { text: 'Alt?' }, antwort: { text: 'x [1][2][3]', belege: [beleg(1, 'dok-a'), beleg(2, 'dok-b'), beleg(3, 'dok-a')] } }
     const e = gespraechAusStory(eingabe({ paare: [paar] }))
     expect(e.gespraech?.belege.map((b) => [b.id, b.nummer, b.fundstellen])).toEqual([['dok-a', 1, 2], ['dok-b', 2, 1]])
-    expect(e.belegJeNummer).toEqual({ 1: 'dok-a', 2: 'dok-b', 3: 'dok-a' })
+    expect(e.belegJeNummer).toEqual({ 1: 'dok-a', 2: 'dok-b' })
   })
 
   it('ein Beleg ohne fileId fehlt im Gespraech und wird gezaehlt — keine erfundene ID', () => {
@@ -65,7 +66,7 @@ describe('gespraechAusStory', () => {
     const paar: GespraechPaar = { frage: { text: 'Kaputt?' }, antwort: { text: 'x [3][5]', belege: [beleg(3, 'dok-a'), kaputt] } }
     const e = gespraechAusStory(eingabe({ paare: [paar] }))
     expect(e.gespraech?.belege.map((b) => b.id)).toEqual(['dok-a'])
-    expect(e.belegJeNummer).toEqual({ 3: 'dok-a' })
+    expect(e.belegJeNummer).toEqual({ 1: 'dok-a' })
     expect(e.verworfen).toBe(1)
   })
 

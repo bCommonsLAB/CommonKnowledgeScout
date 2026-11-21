@@ -10,11 +10,11 @@ todos:
     content: "P3 Antwort → Gespräch: reine Funktion in `@ks/module-website` (`story-gespraech.ts`), Typ `WebsiteGespraech` im Paket, Typ-Abgleich mit `Gespraech` des Players als Test in der App. GEBAUT 21.11.2026 (`gespraechAusStory`, `gespraechStand`, `gespraechFrageId`)."
     status: completed
   - id: e-auffuehrung
-    content: "Aufführung für KnowledgeScout: eine leere Bühne, acht Masken `gespraech-…` in der Formensprache der Website; Test liest sie mit dem Leser des Bündels."
-    status: pending
+    content: "Aufführung für KnowledgeScout: eine leere Bühne, acht Masken `gespraech-…` in der Formensprache der Website; Test liest sie mit dem Leser des Bündels. GEBAUT 21.11.2026 (`buehne/gespraech-auffuehrung.ts`)."
+    status: completed
   - id: p4-lesen
-    content: "P4 Lesen über der Bühne: Gastgeber-Feld `buehne`, Flächen der Sektion durchsichtig, Zitatmarken in der Farbe ihres Belegs, Lage der Marken messen, Bühnen-Ebene in der App (`stufe=\"blass\"`, `durchlass`)."
-    status: pending
+    content: "P4 Lesen über der Bühne: Gastgeber-Feld `buehne`, Flächen der Sektion durchsichtig, Zitatmarken in der Farbe ihres Belegs, Lage der Marken messen, Bühnen-Ebene in der App (`stufe=\"blass\"`, `durchlass`). GEBAUT 21.11.2026; vorläufig nur mit `?buehne=an`."
+    status: completed
   - id: k3-schalter
     content: "K3 Schalter je Library (Checkliste Per-Library-Config-Feld, voreingestellt aus); Player nur laden, wenn der Schalter an ist (`next/dynamic`)."
     status: pending
@@ -60,14 +60,14 @@ Nicht Teil dieses Plans: der volle Story-Modus (`StoryRoot`), die Themen-Sektion
 ## 3. Aufbau
 
 ```
-@ks/module-website                         App (src/components/library/website)
-┌───────────────────────────┐              ┌──────────────────────────────────┐
-│ WebsiteStorySektion       │  gastgeber.  │ WebsiteLandingLive               │
-│  · Konversation (k)       │  buehne      │  · Bühnen-Ebene (fixed, inset 0, │
-│  · story-gespraech.ts ────┼─ gespraech ─▶│    pointer-events: none)         │
-│  · misst a[data-beleg] ───┼─ anker ─────▶│  · CommonUxPlayer (next/dynamic) │
-│  · Marken in Belegfarbe ◀─┼─ farbe ──────│  · Aufführung, Schalter, ?buehne │
-└───────────────────────────┘              └──────────────────────────────────┘
+@ks/module-website                          App (src/components/library/website)
+┌────────────────────────────┐              ┌──────────────────────────────────┐
+│ WebsiteStorySektion        │  gastgeber.  │ story/website-story-app.tsx      │
+│  · gespraechAusStory ──────┼─ buehne ────▶│  · use-website-buehne (an/aus)   │
+│  · misst a[data-beleg] ────┼─ .ebene(…)   │ buehne/website-buehne.tsx        │
+│  · Marken in Belegfarbe ◀──┼─ .farbe…     │  · CommonUxPlayer, fest am Bild  │
+│  · Karte = Fenster der Ebene│             │  · gespraech-auffuehrung.ts      │
+└────────────────────────────┘              └──────────────────────────────────┘
 ```
 
 ### 3.1 Paketgrenze
@@ -85,20 +85,21 @@ Bühne — die Container-Anwendung hat ihre eigene. Folgen:
 ### 3.2 Gastgeber-Feld `buehne`
 
 `WebsiteStoryGastgeber` bekommt ein optionales Feld. Fehlt es, verhält sich die Sektion wie
-heute (Embed, Archiv-Vorschau, Schalter aus).
+heute (Embed, Archiv-Vorschau, Bühne aus). Gebaut 21.11. als **Slot**, nicht als Rückrufe: Die
+Sektion rendert, was der Gastgeber als Ebene reicht, und muss keinen Zustand nach oben heben.
 
 ```ts
 export interface WebsiteStoryBuehne {
-  /** Das Gespräch der Sektion; `null`, solange keine Frage gestellt ist. */
-  onGespraech: (gespraech: WebsiteGespraech | null) => void
-  /** Lage der Zitatmarken in Bildschirmkoordinaten, je Beleg; bei jedem Bild neu. */
-  onAnker: (anker: WebsiteBelegAnker[]) => void
+  /** Die Bühne hinter dem Inhalt der Karte. Die Sektion schneidet sie auf die Karte zu. */
+  ebene: (p: { gespraech: WebsiteGespraech | null; anker: WebsiteAnkerQuelle }) => React.ReactNode
   /** Farbe des Belegs (`#RRGGBB`), dieselbe wie sein Kreis auf der Bühne. */
-  farbeFuerBeleg: (fileId: string) => string
-  /** Vorn steht die Bühne: Die Sektion blendet ihren Inhalt aus (Bühnen-Modus). */
-  buehneVorn: boolean
+  farbeFuerBeleg: (belegId: string) => string
 }
 ```
+
+`WebsiteAnkerQuelle` hält die Lage der Marken außerhalb von React (`stand`, `abonniere`). Beim
+Scrollen rendert so nur die Ebene der Bühne neu, nicht die Sektion. Den Bühnen-Modus („vorn")
+bringt K4; bis dahin steht im Gespräch immer `lesen: true`.
 
 ### 3.3 Antwort → Gespräch (P3)
 
@@ -133,28 +134,49 @@ acht Masken `gespraech-frage-offen`, `gespraech-frage`, `gespraech-blatt`,
 `gespraech-perle`. Formensprache nach dem Konzept: Frage hellblau, Blatt weiß, Akzent Indigo.
 Werte-Vorlage: `src/features/gespraech-nachweis/nachweis-szene.ts` in commoning-methods.
 
-Ablage zuerst als Datei in der App (`src/components/library/website/buehne/`). Ein Test liest
+Gebaut 21.11.: `src/components/library/website/buehne/gespraech-auffuehrung.ts`. Ein Test liest
 sie mit `readSceneFromJson` aus `@commonux/player/format` und prüft, dass alle acht Masken da
 sind. Eine Aufführung je Library ist ein späterer Schritt (Entscheid 2).
 
 ### 3.5 Lesen über der Bühne (P4)
 
-- **Flächen:** Mit `buehne` werden die Fläche der Sektion und die weiße Karte durchsichtig.
-  Text und Eingabe bleiben deckend lesbar; Kontrast siehe Risiken.
-- **Zitatmarken:** `a[data-beleg]` trägt die **Nummer**, nicht die `fileId`
-  (`zitat-titel.ts`). Die Sektion ordnet Nummer → `fileId` über die Belege der Antwort zu und
-  setzt die Farbe aus `farbeFuerBeleg`. Mit `citationsVisible` aus sind die Marken verborgen
-  und haben keine Lage; dann wartet jeder Beleg an seinem Ruhe-Ort.
-- **Messen:** je Bild (`requestAnimationFrame`, nur solange die Sektion im Fenster ist und
-  sich etwas geändert hat) `getBoundingClientRect` der Marken; `key` je Marke bleibt über das
-  Scrollen gleich (Nummer plus laufende Stelle). Vorbild: Funktion `messe` in
-  `gespraech-nachweis.tsx`. Die Anker gehen an einem eigenen Weg an die Bühne, damit die
-  übrigen Props des Players stabil bleiben und er nicht mitrendert.
-- **Bühnen-Ebene:** in `WebsiteLandingLive`, Geschwister der Seite, `position: fixed`,
-  `inset: 0`, hinter dem Inhalt, `pointer-events: none`. Player mit `stufe="blass"`,
-  `durchlass`, `durchsichtig`, `einpassen="cover"`, `bewegung="system"`.
-- **Rücksicht:** auf schmalen Bildschirmen keine Bühne hinter dem Text; bei „Kontrast erhöhen"
-  bleibt sie aus; „Bewegung reduzieren" regelt der Player.
+Gebaut 21.11. (`website-story-buehne.tsx` im Paket, `src/components/library/website/buehne/` in
+der App) und im Browser an einem Prüfstand angesehen: Die Kreise legen sich hinter ihre Marken
+und folgen beim Scrollen, Klicks gehen an die Seite, keine Fehler in der Konsole.
+
+- **Die Karte ist das Fenster.** Die Ebene ist am Bildschirm fest (`position: fixed`) und liegt
+  in der Karte der Sektion; `clip-path` schneidet sie auf die Karte zu. Die Karte bleibt weiß —
+  der Hintergrund der Bühne ist damit immer hell, gleich welche Fläche die Sektion hat, und die
+  dunkle Schrift bleibt lesbar. Durchsichtig wird nur der Kasten der Antwort. (Anders als
+  zuerst geplant liegt die Ebene nicht hinter der ganzen Seite: Deckende Sektionen davor und
+  danach hätten sie verdeckt, und über einer dunklen Fläche wäre die Schrift der Karte nicht
+  lesbar gewesen.)
+- **Zitatmarken:** `a[data-beleg]` trägt die **Dokumentnummer** der Antwort (1, 2, 3 …), nicht
+  die `fileId` und nicht die Nummer aus der Antwort (`zitat-titel.ts`, `dokumentNummern`). Die
+  Sektion ordnet sie über `belegJeNummer` zu. Mit `citationsVisible` aus sind die Marken
+  verborgen, bis jemand „Quellen anzeigen" wählt; so lange wartet jeder Beleg an seinem Ruhe-Ort.
+- **Farbe der Marke:** im Ton ihres Belegs gefüllt, so blass wie sein Kreis (30 % über Weiß),
+  mit Rand in voller Farbe. Voll gefüllt wäre die Schrift auf blauen und violetten Belegen nicht
+  lesbar (gemessen 3,3 : 1). Die Regeln stehen als `<style>` im Bereich der Sektion.
+- **Messen:** höchstens einmal je Bild, ausgelöst durch Scrollen (auch in einem inneren
+  Behälter), Größenänderung, eine neue Antwort und das Einblenden der Marken. `key` je Marke
+  bleibt über das Scrollen gleich (Nummer plus Stelle im Text).
+- **Bühnen-Ebene:** `CommonUxPlayer` mit `stufe="blass"`, `durchlass`, `durchsichtig`,
+  `einpassen="cover"`, `bewegung="system"`.
+- **Rücksicht:** keine Bühne unter 768 px Breite und bei „Kontrast erhöhen"
+  (`use-website-buehne.ts`); „Bewegung reduzieren" regelt der Player.
+- **Vorläufig an- und ausschalten:** Bis es den Schalter je Library gibt (K3), ist die Bühne
+  aus und geht nur mit `?buehne=an` in der Adresse an. Erst dann lädt die Seite den Player.
+
+**Befunde aus dem Prüfstand** (für die Abnahme und den Player):
+
+- Frage und Blatt sind im Player geführt und nehmen keine Anker. Die Form der Frage liegt
+  deshalb an ihrem Ruhe-Ort oben in der Mitte, nicht hinter der Frage im Text; das weiße Blatt
+  sieht man auf der weißen Karte nicht. Soll es anders sein, braucht der Player Anker auch für
+  geführte Darsteller.
+- Stehen zwei Marken dicht beieinander, stößt ein Kreis den anderen ab und sitzt dann neben
+  seiner Marke (Entscheid 5).
+- Die Farben folgen dem Namen des Dokuments; ähnliche Kennungen geben ähnliche Farben.
 
 ### 3.6 Schalter und Bühnen-Modus (K3, K4)
 
@@ -174,8 +196,8 @@ sind. Eine Aufführung je Library ist ein späterer Schritt (Entscheid 2).
 |---|---|---|---|
 | K1 | Bündel nach `master` (gebaut 21.11.) | — | klein |
 | P3 | `story-gespraech.ts` mit Tests, Typ `WebsiteGespraech`, Typ-Abgleich in der App (gebaut 21.11.) | K1 | mittel |
-| E | Aufführung mit acht Masken, Test mit dem Leser des Bündels | K1 | klein |
-| P4 | Gastgeber-Feld `buehne`, durchsichtige Flächen, farbige Marken, Messen, Bühnen-Ebene | P3, E | mittel |
+| E | Aufführung mit acht Masken, Test mit dem Leser des Bündels (gebaut 21.11.) | K1 | klein |
+| P4 | Gastgeber-Feld `buehne`, Fenster in der Karte, farbige Marken, Messen, Bühnen-Ebene (gebaut 21.11., vorläufig mit `?buehne=an`) | P3, E | mittel |
 | K3 | Schalter je Library, faules Laden | P4 | klein bis mittel |
 | K4 | Symbol, Bühnen-Modus, Adresse | K3 | mittel |
 
@@ -206,8 +228,9 @@ P3 und E laufen parallel. Je Welle eine PR; vor dem Merge `pnpm build` lokal gr�
 
 ## 6. Risiken
 
-- **Kontrast:** Die Schrift der Seite über den kräftigsten Farben der Belege messen (WCAG AA),
-  bevor P4 abgenommen wird.
+- **Kontrast:** gemessen in `tests/unit/commonux/gespraech-auffuehrung.test.ts` über 400
+  Dokumentfarben: Die Schrift der Karte über einem blassen Kreis und die Schrift auf der Marke
+  bleiben über 4,5 : 1 (WCAG AA). Überlagern sich mehrere Kreise, ist das nicht gemessen.
 - **Ruckeln beim Scrollen:** Messen je Bild darf kein Layout erzwingen, das die Seite bremst;
   in P4 auf einem schwachen Gerät messen.
 - **Zwei Wahrheiten:** Sektion und Bühne zeigen denselben Stand nur, wenn das Gespräch aus

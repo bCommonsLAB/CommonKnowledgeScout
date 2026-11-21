@@ -37,6 +37,11 @@ export interface WebsiteStorySektionRahmenProps {
   kopf?: React.ReactNode
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
+  /**
+   * Eine Ebene hinter dem Inhalt der Karte (die Common-UX-Buehne, P4). Die Karte ist ihr
+   * Fenster: `clip-path` schneidet auch eine am Bildschirm feste Ebene auf die Karte zu.
+   */
+  hintergrund?: React.ReactNode
 }
 
 export function WebsiteStorySektionRahmen({
@@ -46,6 +51,7 @@ export function WebsiteStorySektionRahmen({
   status,
   kopf,
   children,
+  hintergrund,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
   const flaeche = surfaceStyle(section.bg, theme)
@@ -55,14 +61,19 @@ export function WebsiteStorySektionRahmen({
     <section className={cn("px-6 py-14", flaeche.className)} style={flaeche.style} data-website-story>
       <div className="mx-auto max-w-5xl">
         {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
-        <div className="overflow-hidden rounded-3xl border border-black/10 bg-white text-neutral-900 shadow-lg">
+        <div className="relative overflow-hidden rounded-3xl border border-black/10 bg-white text-neutral-900 shadow-lg">
+          {hintergrund && (
+            <div className="pointer-events-none absolute inset-0" style={{ clipPath: 'inset(0 round 1.5rem)' }} aria-hidden="true" data-story-hintergrund>
+              {hintergrund}
+            </div>
+          )}
           {(status || kopf) && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-6 py-4">
+            <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-6 py-4">
               <div>{status}</div>
               <div>{kopf}</div>
             </div>
           )}
-          <div className="px-6 pb-6 pt-8 sm:px-10">
+          <div className="relative px-6 pb-6 pt-8 sm:px-10">
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
             {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
             {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}

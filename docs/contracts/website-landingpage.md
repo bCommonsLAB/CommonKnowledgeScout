@@ -36,6 +36,15 @@ Slots. Den Gastgeber der App baut `story/website-story-app.tsx` (Clerk,
 Story-Kontext, Library-Konfig, App-Renderer); Belege, Katalog und „frühere
 Fragen“ gehen über `WebsiteNavigation`.
 
+**Bühne hinter der Fragen-Sektion (optional, Plan
+`commonux-buehne-fragen-sektion`):** Der Gastgeber kann `buehne` reichen
+(`WebsiteStoryBuehne`: Slot `ebene`, `farbeFuerBeleg`). Dann meldet die
+Sektion ihr Gespräch (`gespraechAusStory`) und die Lage der Zitatmarken an
+den Slot und färbt die Marken; die Karte ist das Fenster der Ebene
+(`clip-path`), Klicks erreichen sie nicht. Ohne `buehne` ändert sich nichts.
+Das Paket importiert den Player (`@commonux/*`) nicht — den lädt nur die App
+(`src/components/library/website/buehne/`).
+
 ## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
 
 - Ist `publicPublishing.siteEnabled === true`, rendert `/explore/<slug>` als

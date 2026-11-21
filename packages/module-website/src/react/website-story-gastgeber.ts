@@ -14,6 +14,7 @@ import type * as React from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '@ks/contracts'
 import type { Nachricht, Perspektive } from '@ks/module-story/react'
+import type { WebsiteStoryBuehne } from './website-story-buehne'
 
 /** Eingabe der Fragen-Sektion aus der Chat-Konfig der Library. */
 export interface WebsiteStoryEingabe {
@@ -52,4 +53,9 @@ export interface WebsiteStoryGastgeber {
    * Fehlt sie, fuehrt der Klick ueber die Navigation in die Galerie (Ziel `dokument`).
    */
   detail?: (p: WebsiteStoryDetailSlot) => React.ReactNode
+  /**
+   * Die Common-UX-Buehne hinter der Karte (Plan `commonux-buehne-fragen-sektion`, P4).
+   * Fehlt sie, bleibt die Sektion, wie sie ist: keine Messung, keine gefaerbten Marken.
+   */
+  buehne?: WebsiteStoryBuehne
 }

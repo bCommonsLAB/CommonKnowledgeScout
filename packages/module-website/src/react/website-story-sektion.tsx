@@ -8,10 +8,9 @@
  * aeltere Fragen erreicht der Verweis in den Story-Modus). „Erst fragen, dann
  * einstellen": kein Dialog beim Betreten, Perspektive nur per Knopf, Belege als Blatt.
  *
- * Komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`. Der
- * Konversationsblock mit den Karten-Darstellungen (`cards=column|inline`,
- * Owner 09.11.2026) liegt in `website-story-konversation.tsx`; der Marker
- * `rules=<name>` waehlt den Regelsatz der Library fuer diese Sektion.
+ * Komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`. Der Konversationsblock mit den
+ * Karten-Darstellungen (`cards=column|inline`) liegt in `website-story-konversation.tsx`; der
+ * Marker `rules=<name>` waehlt den Regelsatz der Library fuer diese Sektion.
  *
  * WE3: ohne App-Bindung — den Rest reicht der Gastgeber herein
  * (`WebsiteStoryGastgeber`), jeder Weg hinaus geht ueber `WebsiteNavigation`.
@@ -42,6 +41,7 @@ import { WebsiteStoryBelege } from './website-story-belege'
 import { wegGehen } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
 import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
+import { useStoryBuehne } from './website-story-buehne'
 import { StoryStatus } from './website-story-status'
 import { StoryPopulaereFragen } from './website-story-populaer'
 import { WebsiteStoryKonversation } from './website-story-konversation'
@@ -67,7 +67,6 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const [perspektiveOffen, setPerspektiveOffen] = useState(false)
   const [blatt, setBlatt] = useState<BelegeBlatt | null>(null)
   const [blattOffen, setBlattOffen] = useState(false)
-  // Detailansicht ueber der Startseite (10.11.2026); ohne Slot des Gastgebers geht der Klick in die Galerie.
   const [detail, setDetail] = useState<{ doc: DocCardMeta; page?: number } | null>(null)
   const mitDetail = gastgeber.detail !== undefined
   const dokumentOeffnen = useCallback((doc: DocCardMeta, page?: number) => {
@@ -82,7 +81,6 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   }, [mitDetail, navigation])
   const belegDocs = useBelegDokumente(gastgeber.instanz, p.libraryId, blatt?.references ?? [], s.sessionHeaders)
   const bloecke = useMemo(() => storyBloecke(p.section), [p.section])
-  const fragen = bloecke.fragen
   // Bezeichnung der Eintraege (Owner 09.11.2026): „Vortraege" statt „Quellen", einsprachig je Library.
   const bezeichnung = useMemo(() => eintragsBezeichnung(p.galleryTexte, t), [p.galleryTexte, t])
 
@@ -125,6 +123,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     [setChatReferences],
   )
 
+  // P4: mit Buehne des Gastgebers — Gespraech melden, Marken messen und faerben; ohne: nichts.
+  const buehne = useStoryBuehne(gastgeber.buehne, { paare: s.paare, laeuft: s.k.laeuft, schritte: s.k.schritte, fehler: s.k.fehler !== null })
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
   const kopf = gastgeber.perspektiveDialog ? (
@@ -141,7 +141,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     const konversation = anzahl > 0 || s.k.laeuft || s.k.fehler
     inhalt = (
       <>
-        <StoryFragenKacheln fragen={fragen} onFrage={senden} gesperrt={s.k.laeuft} />
+        <StoryFragenKacheln fragen={bloecke.fragen} onFrage={senden} gesperrt={s.k.laeuft} />
         {bloecke.populaer !== null && <StoryPopulaereFragen instanz={gastgeber.instanz} libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
         {konversation && (
           <WebsiteStoryKonversation
@@ -175,8 +175,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
       <div ref={anker} className="scroll-mt-4">
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf}>
-          {inhalt}
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} hintergrund={buehne.hintergrund}>
+          {buehne.umschliesse(inhalt)}
         </WebsiteStorySektionRahmen>
       </div>
       {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen })}
