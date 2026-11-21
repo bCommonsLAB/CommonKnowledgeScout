@@ -383,7 +383,7 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   der Bühne: die Karte der Sektion ist das Fenster der Ebene, Marken im Ton
   ihres Belegs, Lage der Marken gemessen; vorläufig nur mit `?buehne=an`
   in der Adresse, im Browser an einem Prüfstand angesehen, nicht in der
-  laufenden App). Geplant: P4 Lesen über der Bühne, K3 Schalter je
+  laufenden App). Geplant: K3 Schalter je
   Library, K4 Bühnen-Modus; acht Owner-Entscheide im Plan. Der Nachweis
   `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
 - **Startseite als einbettbare Komponente** (Plan
