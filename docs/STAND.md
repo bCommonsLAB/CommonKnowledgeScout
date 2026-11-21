@@ -369,6 +369,25 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Lesersicht, damit Bildfelder einer Vorlage eine öffentliche Adresse
   bekommen; geplant: betroffene Dokumente neu indexieren, übrige Inhaltsarten
   in einem zweiten Gang)
+- **Common-UX-Bühne hinter der Fragen-Sektion** (Plan
+  [`commonux-buehne-fragen-sektion`](plans/commonux-buehne-fragen-sektion.plan.md), 21.11.):
+  hinter der Sektion `layout=story` liegt die Bühne aus dem Bündel
+  `@commonux/player` (Repo commoning-methods), blass und ohne Schrift, die
+  Belege als Kreise hinter ihren Zitatmarken; ein Symbol wechselt in den
+  Bühnen-Modus. Die Bühne liegt neben der Sektion, die Sektion meldet Gespräch
+  und Lage der Marken über `WebsiteStoryGastgeber`. Gebaut 21.11.: K1 (Bündel
+  0.2.0 unter `vendor/`, Abhängigkeit, `COPY vendor` im Dockerfile, Wächter
+  `docker-datei-abhaengigkeiten.test.ts`) und P3 (Antwort → Gespräch als
+  reine Funktion `gespraechAusStory` in `@ks/module-website`, Typ-Abgleich mit
+  dem Player als Test), die Aufführung mit acht Masken und P4 (Lesen über
+  der Bühne: die Karte der Sektion ist das Fenster der Ebene, Marken im Ton
+  ihres Belegs, Lage der Marken gemessen; vorläufig nur mit `?buehne=an`
+  in der Adresse, im Browser an einem Prüfstand angesehen, nicht in der
+  laufenden App) und K4 (Symbol im Kopf der Karte: Kreise zur Bühne, drei
+  Linien zurück zum Text; Zustand in `?buehne=`; vorerst an jeder
+  Fragen-Sektion der App, Owner 21.11.). Geplant: K3 Schalter je
+  Library; acht Owner-Entscheide im Plan. Der Nachweis
+  `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit
@@ -382,6 +401,8 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Navigation `WebsiteNavigation`, App-Hülle `WebsiteLandingLive`), WE3
   (Fragen- und Themen-Sektion im Paket, Gastgeber der App), WE4
   (`KnowledgeScoutSite`, Schriften im Paket, CORS für populäre Fragen).
+  Bündel `@ks/embed` 0.2.0 mit der Startseite gebaut und an die Partner-App
+  übergeben (21.11.; 0.1.0 enthielt sie nicht).
   Geplant: WE5, der Nachweis in der Partner-App (Ort des Menüpunkts „Fragen"
   legt der Owner fest); live noch offen: Antwort mit Belegen in der
   Fragen-Sektion, Vorschau im Archiv

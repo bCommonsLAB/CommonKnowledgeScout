@@ -37,6 +37,15 @@ export interface WebsiteStorySektionRahmenProps {
   kopf?: React.ReactNode
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
+  /**
+   * Eine Ebene hinter dem Chat (die Common-UX-Buehne, P4). Der Bereich des Chats ist ihr
+   * Fenster: `clip-path` schneidet auch eine am Bildschirm feste Ebene darauf zu.
+   */
+  hintergrund?: React.ReactNode
+  /** Die Ebene steht vorn und nimmt Klicks an (Buehnen-Modus, K4); sonst erreichen Klicks sie nie. */
+  hintergrundVorn?: boolean
+  /** Unter dem Chat, ausserhalb des Fensters der Ebene (die Eingabe). */
+  fuss?: React.ReactNode
 }
 
 export function WebsiteStorySektionRahmen({
@@ -46,6 +55,9 @@ export function WebsiteStorySektionRahmen({
   status,
   kopf,
   children,
+  hintergrund,
+  hintergrundVorn = false,
+  fuss,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
   const flaeche = surfaceStyle(section.bg, theme)
@@ -65,7 +77,24 @@ export function WebsiteStorySektionRahmen({
           <div className="px-6 pb-6 pt-8 sm:px-10">
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
             {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
-            {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}
+            {hintergrund ? (
+              // Das Fenster der Buehne: so breit wie die Karte, so hoch wie der Inhalt.
+              <div className="relative">
+                <div
+                  className={cn("absolute inset-y-0 -inset-x-6 sm:-inset-x-10", !hintergrundVorn && "pointer-events-none")}
+                  style={{ clipPath: "inset(0)" }}
+                  aria-hidden={hintergrundVorn ? undefined : true}
+                  data-story-hintergrund={hintergrundVorn ? "vorn" : "hinten"}
+                >
+                  {hintergrund}
+                </div>
+                {/* Vorn gehen die Klicks durch den leeren Raum an die Buehne. */}
+                <div className={cn("relative", hintergrundVorn && "pointer-events-none")}>{children}</div>
+              </div>
+            ) : (
+              children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />
+            )}
+            {fuss}
             {nach.length > 0 && (
               // Legende/Vertrauenszeile: klein und dezent (Vorlage) — ueberschreibt die
               // Prose-Groesse der Absaetze, die sonst 20 px betraegt.
