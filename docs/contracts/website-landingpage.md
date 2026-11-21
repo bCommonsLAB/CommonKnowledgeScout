@@ -38,10 +38,14 @@ Fragen“ gehen über `WebsiteNavigation`.
 
 **Bühne hinter der Fragen-Sektion (optional, Plan
 `commonux-buehne-fragen-sektion`):** Der Gastgeber kann `buehne` reichen
-(`WebsiteStoryBuehne`: Slot `ebene`, `farbeFuerBeleg`). Dann meldet die
-Sektion ihr Gespräch (`gespraechAusStory`) und die Lage der Zitatmarken an
-den Slot und färbt die Marken; die Karte ist das Fenster der Ebene
-(`clip-path`), Klicks erreichen sie nicht. Ohne `buehne` ändert sich nichts.
+(`WebsiteStoryBuehne`: `modus` aus · hinten · vorn, `onModus`, und — sobald
+geladen — `darstellung` mit Slot `ebene` und `farbeFuerBeleg`). Die Sektion
+zeigt dann im Kopf der Karte das Symbol „Zur Bühne“ (Kreise) bzw. „Zurück zum
+Text“ (drei Linien). Hinten meldet sie ihr Gespräch (`gespraechAusStory`) und
+die Lage der Zitatmarken an den Slot und färbt die Marken; der Bereich des
+Chats ist das Fenster der Ebene (`clip-path`), Klicks erreichen sie nicht.
+Vorn steht die Bühne statt des Texts und nimmt Klicks an; die Eingabe bleibt
+darunter. Ohne `buehne` ändert sich nichts.
 Das Paket importiert den Player (`@commonux/*`) nicht — den lädt nur die App
 (`src/components/library/website/buehne/`).
 

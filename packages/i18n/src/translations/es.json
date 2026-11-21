@@ -1007,6 +1007,8 @@
         "many": "{count} preguntas anteriores de esta sesión en el modo Story"
       },
       "anpassen": "Ajustar respuestas",
+      "zurBuehne": "Al escenario",
+      "zumText": "Volver al texto",
       "quellenAnzeigen": "Mostrar fuentes ({count})",
       "quellenAnzeigenKurz": "Mostrar fuentes",
       "belegnummern": "Mostrar los números de fuente en el texto",

@@ -19,8 +19,8 @@ todos:
     content: "K3 Schalter je Library (Checkliste Per-Library-Config-Feld, voreingestellt aus); Player nur laden, wenn der Schalter an ist (`next/dynamic`)."
     status: pending
   - id: k4-buehnen-modus
-    content: "K4 Symbol „Zur Bühne“ und Bühnen-Modus, Zustand in der Adresse (`nuqs`)."
-    status: pending
+    content: "K4 Symbol „Zur Bühne“ und Bühnen-Modus, Zustand in der Adresse (`nuqs`). GEBAUT 21.11.2026 (Owner: Symbol rechts oben, Kreise hin, drei Linien zurück; vorerst ohne Schalter je Library)."
+    status: completed
 ---
 
 # Common-UX-Bühne hinter der Fragen-Sektion
@@ -165,8 +165,8 @@ und folgen beim Scrollen, Klicks gehen an die Seite, keine Fehler in der Konsole
   `einpassen="cover"`, `bewegung="system"`.
 - **Rücksicht:** keine Bühne unter 768 px Breite und bei „Kontrast erhöhen"
   (`use-website-buehne.ts`); „Bewegung reduzieren" regelt der Player.
-- **Vorläufig an- und ausschalten:** Bis es den Schalter je Library gibt (K3), ist die Bühne
-  aus und geht nur mit `?buehne=an` in der Adresse an. Erst dann lädt die Seite den Player.
+- **An- und ausschalten:** über das Symbol im Kopf der Karte bzw. `?buehne=` (Abschnitt 3.6).
+  Erst dann lädt die Seite den Player.
 
 **Befunde aus dem Prüfstand** (für die Abnahme und den Player):
 
@@ -178,17 +178,42 @@ und folgen beim Scrollen, Klicks gehen an die Seite, keine Fehler in der Konsole
   seiner Marke (Entscheid 5).
 - Die Farben folgen dem Namen des Dokuments; ähnliche Kennungen geben ähnliche Farben.
 
-### 3.6 Schalter und Bühnen-Modus (K3, K4)
+### 3.6 Symbol und Bühnen-Modus (K4, gebaut 21.11.)
 
-- **Schalter je Library** nach `docs/contracts/library-config-field.md`, voreingestellt aus.
-  Vorschlag für den Ort: `publicPublishing.buehne.enabled` (Entscheid 3).
-- **Laden:** `CommonUxPlayer` und seine Stile über `next/dynamic` ohne SSR, nur wenn der
-  Schalter an ist und die Seite eine Sektion `layout=story` hat.
-- **Symbol „Zur Bühne"** im Kopf der Karte neben „Antworten anpassen". Zustand in der Adresse
-  (`?buehne=vorn`, `nuqs`, `history: push`).
-- **Bühnen-Modus:** `stufe="voll"`, ohne `durchlass`, `lesen: false`. `onDarstellerKlick` mit
-  `gespraechDarstellerId("folgefrage", id)` stellt die Frage; Klick auf einen Beleg öffnet die
-  Detailansicht des Gastgebers (`detail`) bzw. führt in die Galerie.
+Owner 21.11.: Der Schalter steht vorerst als Symbol rechts oben im Kopf der Karte — kleine
+Kreise führen zur Bühne, ein Textsymbol mit drei Linien zurück. Der Schalter je Library (K3)
+kommt später; bis dahin steht das Symbol an jeder Fragen-Sektion der App.
+
+| `?buehne=` | Zustand | Was man sieht |
+|---|---|---|
+| fehlt | aus | die Seite wie immer, dazu das Symbol mit den Kreisen; der Player ist nicht geladen |
+| `vorn` | vorn | die Bühne statt des Texts, volle Farbe, Schrift, bedienbar; Symbol mit drei Linien |
+| `an` | hinten | der Text, dahinter die Bühne blass; Symbol mit den Kreisen |
+
+- Das Symbol mit den Kreisen setzt `vorn`, das mit den Linien `an`. Die Adresse geht mit
+  (`nuqs`, `history: push`): Der Zurück-Knopf des Browsers wechselt mit, und jeder Zustand lässt
+  sich verlinken. Ein unbekannter Wert meldet sich in der Konsole; die Seite bleibt ohne Bühne.
+- **Vorn:** Statt Kacheln und Konversation steht ein Raum (70 % der Fensterhöhe, mindestens
+  480 px), den die Bühne füllt (`einpassen="contain"`, `stufe="voll"`, ohne `durchlass`,
+  `lesen: false`). Die Eingabe bleibt darunter, außerhalb des Fensters der Ebene.
+  - Klick auf eine Anschlussfrage stellt sie.
+  - Klick auf einen Beleg öffnet das Blatt mit den Belegen der Antwort.
+  - Klick auf das Antwortblatt zeigt mehr Text und wieder weniger.
+- **Ein Player für beide Zustände:** Beim Wechsel zwischen hinten und vorn bleibt derselbe Player
+  montiert; die Darsteller gleiten, statt neu zu entstehen.
+- **Im Blatt stehen die Nummern der Marken** (`[1]`, `[2]` …), wie auf den Kreisen — nicht die
+  der Antwort.
+- Kein Symbol und keine Bühne unter 768 px Breite und bei „Kontrast erhöhen".
+
+**Offen daraus:** Das weiße Blatt hat auf der weißen Karte keinen Rand (das Konzept nennt einen
+feinen Rand; die Maske kennt dafür kein Feld — Wunsch an den Player). Die Darsteller melden sich
+mit Namen (`aria-label`), sind aber keine Knöpfe für die Tastatur.
+
+### 3.7 Schalter je Library (K3, geplant)
+
+- Nach `docs/contracts/library-config-field.md`, voreingestellt aus. Vorschlag für den Ort:
+  `publicPublishing.buehne.enabled` (Entscheid 3). Ohne Schalter reicht die App keine `buehne`
+  an den Gastgeber: kein Symbol, kein Player.
 
 ## 4. Wellen
 
@@ -198,8 +223,8 @@ und folgen beim Scrollen, Klicks gehen an die Seite, keine Fehler in der Konsole
 | P3 | `story-gespraech.ts` mit Tests, Typ `WebsiteGespraech`, Typ-Abgleich in der App (gebaut 21.11.) | K1 | mittel |
 | E | Aufführung mit acht Masken, Test mit dem Leser des Bündels (gebaut 21.11.) | K1 | klein |
 | P4 | Gastgeber-Feld `buehne`, Fenster in der Karte, farbige Marken, Messen, Bühnen-Ebene (gebaut 21.11., vorläufig mit `?buehne=an`) | P3, E | mittel |
-| K3 | Schalter je Library, faules Laden | P4 | klein bis mittel |
-| K4 | Symbol, Bühnen-Modus, Adresse | K3 | mittel |
+| K3 | Schalter je Library (faules Laden ist mit K4 gebaut) | K4 | klein bis mittel |
+| K4 | Symbol, Bühnen-Modus, Adresse (gebaut 21.11., vor K3) | P4 | mittel |
 
 P3 und E laufen parallel. Je Welle eine PR; vor dem Merge `pnpm build` lokal grün
 (`AGENTS.md`), weil das Bündel eine Abhängigkeit aus einer Datei ist.

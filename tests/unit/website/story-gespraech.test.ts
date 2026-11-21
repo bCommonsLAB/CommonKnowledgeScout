@@ -36,7 +36,8 @@ describe('gespraechAusStory', () => {
     const { gespraech: g, verworfen } = gespraechAusStory(eingabe({ paare: [ERSTE] }))
     expect(g?.stand).toBe('fertig')
     expect(g?.frage.text).toBe('Wie beginnt ein Vorhaben?')
-    expect(g?.antwort?.text).toBe(ERSTE.antwort?.text)
+    // Im Text stehen die Nummern der Marken, wie auf den Kreisen — nicht die der Antwort.
+    expect(g?.antwort?.text).toBe('Mit einem Anliegen [1]. Dann folgt ein Plan [2][3].')
     // Die Antwort zaehlt 3, 11, 24; die Marken im Text zeigen die Dokumentnummer 1, 2, 3 — die gilt.
     expect(g?.belege.map((b) => b.nummer)).toEqual([1, 2, 3])
     expect(g?.folgefragen.map((f) => f.text)).toEqual(['Was tun bei Konflikten?', 'Wer entscheidet?'])
@@ -112,6 +113,13 @@ describe('gespraechAusStory', () => {
     const g = gespraechAusStory(eingabe({ paare: paare(nachrichten), laeuft: true })).gespraech
     expect(g?.frage.text).toBe('Zweite?')
     expect(g?.verlauf).toEqual([{ id: gespraechFrageId('Erste?'), kurzfrage: 'Erste' }])
+  })
+})
+
+describe('Nummern im Antworttext', () => {
+  it('eine Nummer ohne Beleg bleibt stehen; ein Markdown-Link ist keine Marke', () => {
+    const paar: GespraechPaar = { frage: { text: 'Text?' }, antwort: { text: 'A [7], B [99], C [7](https://example.org).', belege: [beleg(7, 'dok-a')] } }
+    expect(gespraechAusStory(eingabe({ paare: [paar] })).gespraech?.antwort?.text).toBe('A [1], B [99], C [7](https://example.org).')
   })
 })
 

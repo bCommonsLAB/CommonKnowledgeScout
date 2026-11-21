@@ -112,7 +112,7 @@ function istBeleg(b: DocReference): boolean {
  * Dokument eine laufende Nummer (`dokumentNummern`), auch wenn die Antwort anders zaehlt oder
  * (aeltere Antworten) je Textstelle nummeriert.
  */
-function belegeJeDokument(references: ReadonlyArray<DocReference>): Pick<GespraechErgebnis, 'belegJeNummer' | 'verworfen'> & { belege: WebsiteGespraechBeleg[] } {
+function belegeJeDokument(references: ReadonlyArray<DocReference>): Pick<GespraechErgebnis, 'belegJeNummer' | 'verworfen'> & { belege: WebsiteGespraechBeleg[]; nummern: Map<number, number> } {
   const gueltig = references.filter(istBeleg).sort((a, b) => a.number - b.number)
   const nummern = dokumentNummern(gueltig)
   const belege: WebsiteGespraechBeleg[] = []
@@ -132,7 +132,18 @@ function belegeJeDokument(references: ReadonlyArray<DocReference>): Pick<Gesprae
     const titel = ref.title?.trim() || ref.fileName?.trim() || ref.description
     belege.push({ id: ref.fileId, dokument: ref.fileId, nummer, titel, fundstellen })
   }
-  return { belege, belegJeNummer, verworfen: references.length - gueltig.length }
+  return { belege, belegJeNummer, nummern, verworfen: references.length - gueltig.length }
+}
+
+/**
+ * Der Antworttext mit den Nummern der Marken: `[n]` der Antwort wird `[k]`, die Dokumentnummer —
+ * dieselbe Zahl, die der Kreis des Belegs traegt. Eine Nummer ohne Beleg bleibt, wie sie ist.
+ */
+function textMitDokumentnummern(text: string, nummern: ReadonlyMap<number, number>): string {
+  return text.replace(/\[(\d{1,3})\](?!\()/g, (marke, n: string) => {
+    const k = nummern.get(Number(n))
+    return k === undefined ? marke : `[${k}]`
+  })
 }
 
 /**
@@ -165,13 +176,13 @@ export function gespraechAusStory(eingabe: GespraechEingabe): GespraechErgebnis 
   // Vor der Antwort kennt die Sektion weder Text noch Belege: Die Antwort kommt in einem Stueck.
   if (!antwort) return { gespraech: { ...kopf, belege: [], folgefragen: [] }, belegJeNummer: {}, verworfen: 0 }
 
-  const { belege, belegJeNummer, verworfen } = belegeJeDokument(antwort.belege ?? [])
+  const { belege, belegJeNummer, nummern, verworfen } = belegeJeDokument(antwort.belege ?? [])
   const folgefragen = new Map<string, string>()
   for (const text of antwort.anschlussfragen ?? []) {
     if (text.trim() !== '') folgefragen.set(gespraechFrageId(text), text.trim())
   }
   return {
-    gespraech: { ...kopf, antwort: { text: antwort.text }, belege, folgefragen: Array.from(folgefragen, ([id, text]) => ({ id, text })) },
+    gespraech: { ...kopf, antwort: { text: textMitDokumentnummern(antwort.text, nummern) }, belege, folgefragen: Array.from(folgefragen, ([id, text]) => ({ id, text })) },
     belegJeNummer,
     verworfen,
   }

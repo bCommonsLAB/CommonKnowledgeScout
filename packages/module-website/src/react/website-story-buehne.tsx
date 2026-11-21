@@ -1,115 +1,49 @@
 'use client'
 
 /**
- * Die Fragen-Sektion ueber der Common-UX-Buehne (Plan
- * `commonux-buehne-fragen-sektion`, Welle P4).
+ * Die Fragen-Sektion und die Common-UX-Buehne (Plan `commonux-buehne-fragen-sektion`, P4 und K4).
  *
- * Die Buehne liegt neben der Sektion: Der Gastgeber reicht sie als Slot
- * (`WebsiteStoryGastgeber.buehne`), dieses Paket kennt den Player nicht. Die
- * Sektion tut dreierlei:
- *  - sie uebersetzt ihren Stand in das Gespraech (`gespraechAusStory`),
- *  - sie misst die Lage der Zitatmarken (`a[data-beleg]`) und haelt sie in
- *    einer Quelle ausserhalb von React — beim Scrollen rendert nur die Ebene
- *    der Buehne neu, nicht die Sektion,
- *  - sie faerbt jede Marke in der Farbe ihres Belegs.
+ * Die Buehne liegt neben der Sektion: Der Gastgeber reicht sie (`WebsiteStoryGastgeber.buehne`),
+ * dieses Paket kennt den Player nicht. Drei Zustaende:
+ *  - `aus`: die Sektion wie immer, dazu das Symbol „Zur Buehne" im Kopf der Karte;
+ *  - `hinten`: die Buehne blass hinter dem Text — die Sektion meldet ihr Gespraech, misst die
+ *    Zitatmarken (`a[data-beleg]`) und faerbt sie im Ton ihres Belegs;
+ *  - `vorn`: die Buehne statt des Texts, bedienbar; das Symbol mit den drei Linien fuehrt zurueck.
  *
- * Ohne `buehne` am Gastgeber geschieht nichts davon (Embed, Vorschau, Schalter aus).
+ * Ohne `buehne` am Gastgeber geschieht nichts davon (Embed, Vorschau).
  */
 
 import * as React from 'react'
+import { AlignLeft } from 'lucide-react'
+import { Button } from '@ks/ui'
+import { useTranslation } from '@ks/i18n/react'
 import { gespraechAusStory, type GespraechEingabe, type WebsiteGespraech } from '..'
+import { erzeugeAnkerQuelle, markenFarbenCss, messeMarken, type AnkerSpeicher, type WebsiteAnkerQuelle } from './website-story-anker'
 
-/** Lage der Zitatmarken eines Belegs in Bildschirmkoordinaten (wie `clientX`/`clientY`). */
-export interface WebsiteBelegAnker {
-  belegId: string
-  /** `key` bleibt je Marke ueber das Scrollen gleich. */
-  marken: { key: string; x: number; y: number }[]
-}
+export type WebsiteBuehneModus = 'aus' | 'hinten' | 'vorn'
 
-/** Die Anker ausserhalb von React: Die Ebene der Buehne abonniert sie (`useSyncExternalStore`). */
-export interface WebsiteAnkerQuelle {
-  stand: () => readonly WebsiteBelegAnker[]
-  abonniere: (horcher: () => void) => () => void
+export interface WebsiteBuehneEbene {
+  gespraech: WebsiteGespraech | null
+  anker: WebsiteAnkerQuelle
+  /** Die Buehne steht vorn: volle Farbe, Schrift, bedienbar, eingepasst in ihren Raum. */
+  vorn: boolean
+  /** Vorn: eine Anschlussfrage wurde angeklickt. */
+  onFrage: (text: string) => void
+  /** Vorn: ein Beleg wurde angeklickt. */
+  onBeleg: (belegId: string) => void
 }
 
 export interface WebsiteStoryBuehne {
-  /** Die Buehne hinter dem Inhalt der Karte. Die Sektion schneidet sie auf die Karte zu; Klicks erreichen sie nicht. */
-  ebene: (p: { gespraech: WebsiteGespraech | null; anker: WebsiteAnkerQuelle }) => React.ReactNode
-  /** Farbe des Belegs (`#RRGGBB`), dieselbe wie sein Kreis auf der Buehne. */
-  farbeFuerBeleg: (belegId: string) => string
-}
-
-const KEINE_ANKER: readonly WebsiteBelegAnker[] = []
-
-interface AnkerSpeicher extends WebsiteAnkerQuelle {
-  setze: (anker: readonly WebsiteBelegAnker[]) => void
-}
-
-/** Speicher der Anker; meldet nur, wenn sich eine Lage geaendert hat. */
-export function erzeugeAnkerQuelle(): AnkerSpeicher {
-  let anker = KEINE_ANKER
-  let schluessel = '[]'
-  const horcher = new Set<() => void>()
-  return {
-    stand: () => anker,
-    abonniere: (h) => {
-      horcher.add(h)
-      return () => { horcher.delete(h) }
-    },
-    setze: (neu) => {
-      const s = JSON.stringify(neu)
-      if (s === schluessel) return
-      schluessel = s
-      anker = neu.length === 0 ? KEINE_ANKER : neu
-      horcher.forEach((h) => h())
-    },
+  modus: WebsiteBuehneModus
+  /** Das Symbol im Kopf der Karte wurde gewaehlt. */
+  onModus: (modus: 'hinten' | 'vorn') => void
+  /** Die Buehne selbst; fehlt, solange sie aus ist oder der Gastgeber sie noch laedt. */
+  darstellung?: {
+    /** Die Ebene im Fenster der Sektion. Hinten schneidet die Sektion sie zu, Klicks erreichen sie nicht. */
+    ebene: (p: WebsiteBuehneEbene) => React.ReactNode
+    /** Farbe des Belegs (`#RRGGBB`), dieselbe wie sein Kreis auf der Buehne. */
+    farbeFuerBeleg: (belegId: string) => string
   }
-}
-
-/**
- * Misst die Zitatmarken im Behaelter. Die Marke traegt die Dokumentnummer
- * (`data-beleg`), `belegJeNummer` nennt den Beleg dazu. Verborgene Marken
- * (`display: none`, „Quellen anzeigen" noch nicht gewaehlt) haben keine Lage;
- * ihr Beleg bleibt dann an seinem Ruhe-Ort.
- */
-export function messeMarken(behaelter: Element, belegJeNummer: Readonly<Record<number, string>>): WebsiteBelegAnker[] {
-  const jeBeleg = new Map<string, WebsiteBelegAnker['marken']>()
-  const stelle = new Map<number, number>()
-  behaelter.querySelectorAll('a[data-beleg]').forEach((marke) => {
-    const nummer = Number(marke.getAttribute('data-beleg'))
-    const belegId = belegJeNummer[nummer]
-    // Eine Marke ohne Beleg (das Sprachmodell zitiert eine Nummer, die es nicht gibt) hat keinen Kreis.
-    if (belegId === undefined) return
-    const n = stelle.get(nummer) ?? 0
-    stelle.set(nummer, n + 1)
-    const r = marke.getBoundingClientRect()
-    if (r.width === 0 && r.height === 0) return
-    const marken = jeBeleg.get(belegId) ?? []
-    marken.push({ key: `${nummer}-${n}`, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) })
-    jeBeleg.set(belegId, marken)
-  })
-  return Array.from(jeBeleg, ([belegId, marken]) => ({ belegId, marken }))
-}
-
-const FARBE = /^#[0-9a-fA-F]{6}$/
-/** Schrift auf der gefaerbten Marke. */
-const MARKEN_SCHRIFT = '#16161d'
-/**
- * Die Marke ist im Ton ihres Belegs gefuellt, so blass wie sein Kreis dahinter (Stufe „blass" des
- * Players: Deckkraft 0,3), mit Rand in voller Farbe. Voll gefuellt waere die Schrift auf blauen
- * und violetten Belegen nicht lesbar (gemessen: 3,3 : 1).
- */
-const MARKEN_TON_PROZENT = 30
-
-/** Stilregeln, die jede Zitatmarke im Bereich `scope` in der Farbe ihres Belegs zeigen. */
-export function markenFarbenCss(scope: string, belegJeNummer: Readonly<Record<number, string>>, farbeFuerBeleg: (belegId: string) => string): string {
-  return Object.entries(belegJeNummer)
-    .map(([nummer, belegId]) => {
-      const farbe = farbeFuerBeleg(belegId)
-      if (!FARBE.test(farbe)) throw new Error(`Buehne: Farbe des Belegs ${belegId} ist kein #RRGGBB: "${farbe}"`)
-      return `[data-story-buehne="${scope}"] a[data-beleg="${nummer}"]{background-color:color-mix(in srgb,${farbe} ${MARKEN_TON_PROZENT}%,white)!important;border-color:${farbe}!important;color:${MARKEN_SCHRIFT}!important}`
-    })
-    .join('\n')
 }
 
 /** Haelt die Quelle aktuell: misst nach jeder Aenderung, die eine Marke verschieben kann, hoechstens einmal je Bild. */
@@ -149,47 +83,84 @@ function useMarkenAnker(quelle: AnkerSpeicher, behaelter: React.RefObject<HTMLDi
 export interface StoryBuehneStand {
   /** Die Ebene fuer den Rahmen der Sektion (`hintergrund`); ohne Buehne `undefined`. */
   hintergrund: React.ReactNode
-  /** Umschliesst den Inhalt der Sektion: Messbereich der Marken und Geltungsbereich ihrer Farben. */
+  /** Die Buehne steht vorn und nimmt Klicks an. */
+  vorn: boolean
+  /** Das Symbol fuer den Kopf der Karte; ohne Buehne am Gastgeber `null`. */
+  knopf: React.ReactNode
+  /** Umschliesst den Inhalt der Sektion: Messbereich der Marken und Geltungsbereich ihrer Farben; vorn der Raum der Buehne. */
   umschliesse: (inhalt: React.ReactNode) => React.ReactNode
 }
 
 /** Flaechen der Antwort, die ueber der Buehne durchsichtig werden; Text und Eingabe bleiben, wie sie sind. */
 const DURCHSICHTIG = '[&_[data-antwort]>div]:!bg-transparent'
 
+/** Drei kleine Kreise: das Zeichen der Buehne. */
+function KreiseSymbol() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="6" r="3.2" />
+      <circle cx="12" cy="4.2" r="2" />
+      <circle cx="10.8" cy="11.6" r="2.6" />
+    </svg>
+  )
+}
+
+function BuehnenKnopf({ buehne }: { buehne: WebsiteStoryBuehne }) {
+  const { t } = useTranslation()
+  const vorn = buehne.modus === 'vorn'
+  const name = t(vorn ? 'website.story.zumText' : 'website.story.zurBuehne')
+  return (
+    <Button variant="outline" size="sm" className="h-9 w-9 p-0" title={name} aria-label={name} onClick={() => buehne.onModus(vorn ? 'hinten' : 'vorn')} data-story-buehne-knopf={vorn ? 'text' : 'buehne'}>
+      {vorn ? <AlignLeft className="h-4 w-4" aria-hidden="true" /> : <KreiseSymbol />}
+    </Button>
+  )
+}
+
 /** Alles, was die Sektion fuer die Buehne tut; ohne `buehne` reicht der Hook den Inhalt unveraendert durch. */
-export function useStoryBuehne(buehne: WebsiteStoryBuehne | undefined, eingabe: Omit<GespraechEingabe, 'lesen'>): StoryBuehneStand {
+export function useStoryBuehne(buehne: WebsiteStoryBuehne | undefined, eingabe: Omit<GespraechEingabe, 'lesen'>, aktionen: Pick<WebsiteBuehneEbene, 'onFrage' | 'onBeleg'>): StoryBuehneStand {
   const scope = React.useId()
   const behaelter = React.useRef<HTMLDivElement | null>(null)
   const quelle = React.useMemo(() => erzeugeAnkerQuelle(), [])
+  const darstellung = buehne?.darstellung
+  // Vorn erst, wenn die Buehne da ist — bis dahin bleibt der Text stehen.
+  const vorn = buehne?.modus === 'vorn' && darstellung !== undefined
   const { paare, laeuft, schritte, fehler } = eingabe
   const ergebnis = React.useMemo(
-    // In dieser Welle steht die Seite immer vorn; den Buehnen-Modus bringt K4.
-    () => (buehne ? gespraechAusStory({ paare, laeuft, schritte, fehler, lesen: true }) : null),
-    [buehne, paare, laeuft, schritte, fehler],
+    () => (darstellung ? gespraechAusStory({ paare, laeuft, schritte, fehler, lesen: !vorn }) : null),
+    [darstellung, paare, laeuft, schritte, fehler, vorn],
   )
   const belegJeNummer = ergebnis?.belegJeNummer
   React.useEffect(() => {
     if (ergebnis && ergebnis.verworfen > 0) console.error(`[StoryBuehne] ${ergebnis.verworfen} Beleg(e) ohne fileId oder Nummer — sie fehlen auf der Buehne`)
   }, [ergebnis])
-  useMarkenAnker(quelle, behaelter, belegJeNummer ?? {}, belegJeNummer !== undefined && ergebnis?.gespraech?.stand === 'fertig')
+  useMarkenAnker(quelle, behaelter, belegJeNummer ?? {}, !vorn && belegJeNummer !== undefined && ergebnis?.gespraech?.stand === 'fertig')
 
-  const farbeFuerBeleg = buehne?.farbeFuerBeleg
+  const farbeFuerBeleg = darstellung?.farbeFuerBeleg
   const stil = React.useMemo(
-    () => (belegJeNummer && farbeFuerBeleg ? markenFarbenCss(scope, belegJeNummer, farbeFuerBeleg) : ''),
-    [scope, belegJeNummer, farbeFuerBeleg],
+    () => (belegJeNummer && farbeFuerBeleg && !vorn ? markenFarbenCss(scope, belegJeNummer, farbeFuerBeleg) : ''),
+    [scope, belegJeNummer, farbeFuerBeleg, vorn],
   )
   const gespraech = ergebnis?.gespraech ?? null
-  const hintergrund = React.useMemo(() => buehne?.ebene({ gespraech, anker: quelle }), [buehne, gespraech, quelle])
+  const { onFrage, onBeleg } = aktionen
+  const hintergrund = React.useMemo(
+    () => darstellung?.ebene({ gespraech, anker: quelle, vorn, onFrage, onBeleg }),
+    [darstellung, gespraech, quelle, vorn, onFrage, onBeleg],
+  )
 
   const umschliesse = React.useCallback(
-    (inhalt: React.ReactNode) =>
-      buehne ? (
+    (inhalt: React.ReactNode) => {
+      if (!darstellung) return inhalt
+      // Vorn: statt des Texts der Raum, in dem die Buehne spielt.
+      if (vorn) return <div style={{ height: '70vh', minHeight: 480 }} data-story-buehne-raum />
+      return (
         <div ref={behaelter} data-story-buehne={scope} className={DURCHSICHTIG}>
           {stil !== '' && <style>{stil}</style>}
           {inhalt}
         </div>
-      ) : inhalt,
-    [buehne, scope, stil],
+      )
+    },
+    [darstellung, vorn, scope, stil],
   )
-  return { hintergrund, umschliesse }
+  const knopf = React.useMemo(() => (buehne ? <BuehnenKnopf buehne={buehne} /> : null), [buehne])
+  return { hintergrund, vorn, knopf, umschliesse }
 }

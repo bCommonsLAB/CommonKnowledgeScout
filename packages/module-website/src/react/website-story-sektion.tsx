@@ -123,18 +123,26 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     [setChatReferences],
   )
 
-  // P4: mit Buehne des Gastgebers — Gespraech melden, Marken messen und faerben; ohne: nichts.
-  const buehne = useStoryBuehne(gastgeber.buehne, { paare: s.paare, laeuft: s.k.laeuft, schritte: s.k.schritte, fehler: s.k.fehler !== null })
+  // P4/K4: mit Buehne des Gastgebers — Gespraech melden, Marken messen und faerben, Symbol im Kopf; ohne: nichts.
+  const antwort = s.sichtbar.paar?.antwort
+  const belegZeigen = useCallback(() => { if (antwort) belegeOeffnen(antwort) }, [antwort, belegeOeffnen])
+  const buehne = useStoryBuehne(gastgeber.buehne, { paare: s.paare, laeuft: s.k.laeuft, schritte: s.k.schritte, fehler: s.k.fehler !== null }, { onFrage: senden, onBeleg: belegZeigen })
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
-  const kopf = gastgeber.perspektiveDialog ? (
-    <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
-      <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-      {t('website.story.anpassen')}
-    </Button>
+  const kopf = gastgeber.perspektiveDialog || buehne.knopf ? (
+    <div className="flex items-center gap-2">
+      {gastgeber.perspektiveDialog && (
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
+          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          {t('website.story.anpassen')}
+        </Button>
+      )}
+      {buehne.knopf}
+    </div>
   ) : undefined
 
   let inhalt
+  let eingabe
   if (s.loading) inhalt = <p className="mt-4 text-sm text-neutral-500">{t('website.story.laden')}</p>
   else if (s.error) inhalt = <p className="mt-4 text-sm text-destructive" role="alert">{s.error}</p>
   else {
@@ -157,25 +165,16 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             onDokument={dokumentOeffnen}
           />
         )}
-        <StoryEingabeInline
-          className="mt-6"
-          text={text}
-          setText={setText}
-          onSenden={() => senden(text)}
-          laeuft={s.k.laeuft}
-          antwortLaenge={s.k.antwortLaenge}
-          setAntwortLaenge={s.k.setAntwortLaenge}
-          placeholder={p.section.placeholder ?? gastgeber.eingabe.platzhalter}
-        />
       </>
     )
+    eingabe = <StoryEingabeInline className="mt-6" text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} antwortLaenge={s.k.antwortLaenge} setAntwortLaenge={s.k.setAntwortLaenge} placeholder={p.section.placeholder ?? gastgeber.eingabe.platzhalter} />
   }
 
   return (
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
       <div ref={anker} className="scroll-mt-4">
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} hintergrund={buehne.hintergrund}>
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} hintergrund={buehne.hintergrund} hintergrundVorn={buehne.vorn} fuss={eingabe}>
           {buehne.umschliesse(inhalt)}
         </WebsiteStorySektionRahmen>
       </div>

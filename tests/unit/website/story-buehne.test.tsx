@@ -5,15 +5,15 @@
  * sie. Ohne Slot bleibt die Sektion, wie sie ist.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { cleanup, render, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { InstanceApi } from '@ks/api-client'
-import { appNavigation, parseWebsiteSections, type WebsiteGespraech } from '@ks/module-website'
+import { appNavigation, parseWebsiteSections } from '@ks/module-website'
 import {
   WebsiteStorySektion,
   erzeugeAnkerQuelle,
   markenFarbenCss,
   messeMarken,
-  type WebsiteAnkerQuelle,
+  type WebsiteBuehneEbene,
   type WebsiteStoryBuehne,
   type WebsiteStoryGastgeber,
 } from '@ks/module-website/react'
@@ -49,6 +49,20 @@ function gastgeber(buehne?: WebsiteStoryBuehne): WebsiteStoryGastgeber {
     eingabe: { laedt: false, fehler: null },
     buehne,
   }
+}
+
+type Darstellung = NonNullable<WebsiteStoryBuehne['darstellung']>
+const FARBE: Darstellung['farbeFuerBeleg'] = (id) => (id === 'dok-a' ? '#AA0000' : '#00AA00')
+
+/** Eine Buehne des Gastgebers; `ebene` merkt sich, was die Sektion ihr reicht. */
+function buehneMit(modus: WebsiteStoryBuehne['modus'], gesehen: WebsiteBuehneEbene[] = []) {
+  const onModus = vi.fn()
+  const buehne: WebsiteStoryBuehne = {
+    modus,
+    onModus,
+    darstellung: { ebene: (p) => { gesehen.push(p); return <div data-testid="ebene" /> }, farbeFuerBeleg: FARBE },
+  }
+  return { buehne, onModus, gesehen }
 }
 
 const ANTWORT = [
@@ -89,23 +103,21 @@ describe('Fragen-Sektion ueber der Buehne', () => {
     expect(container.querySelectorAll('a[data-beleg]').length).toBe(3)
   })
 
-  it('mit Buehne: die Ebene liegt in der Karte, bekommt das Gespraech und die Lage der Marken je Beleg', async () => {
+  it('hinten: die Ebene liegt im Fenster des Chats, bekommt das Gespraech und die Lage der Marken je Beleg', async () => {
     zustand.nachrichten = ANTWORT
     gebeMarkenEineLage()
-    const gesehen: { gespraech: WebsiteGespraech | null; anker: WebsiteAnkerQuelle }[] = []
-    const buehne: WebsiteStoryBuehne = {
-      ebene: (p) => { gesehen.push(p); return <div data-testid="ebene" /> },
-      farbeFuerBeleg: (id) => (id === 'dok-a' ? '#AA0000' : '#00AA00'),
-    }
+    const { buehne, gesehen } = buehneMit('hinten')
     const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={gastgeber(buehne)} navigation={appNavigation()} />)
 
     const fenster = container.querySelector('[data-story-hintergrund]') as HTMLElement
     expect(fenster.querySelector('[data-testid="ebene"]')).not.toBeNull()
-    // Klicks gehen nie an die Buehne; die Karte schneidet sie zu.
+    // Klicks gehen nie an die Buehne; das Fenster schneidet sie zu.
+    expect(fenster.getAttribute('data-story-hintergrund')).toBe('hinten')
     expect(fenster.className).toContain('pointer-events-none')
     expect(fenster.style.clipPath).toContain('inset(0')
 
     const letzte = gesehen[gesehen.length - 1]
+    expect(letzte.vorn).toBe(false)
     expect(letzte.gespraech).toMatchObject({ stand: 'fertig', lesen: true, frage: { text: 'Wie beginnt es?' } })
     expect(letzte.gespraech?.belege.map((b) => [b.id, b.nummer])).toEqual([['dok-a', 1], ['dok-b', 2]])
 
@@ -116,9 +128,9 @@ describe('Fragen-Sektion ueber der Buehne', () => {
     expect(anker.find((a) => a.belegId === 'dok-b')?.marken).toEqual([{ key: '2-0', x: 60, y: 210 }])
   })
 
-  it('mit Buehne: jede Marke traegt die Farbe ihres Belegs, nur im Bereich dieser Sektion', () => {
+  it('hinten: jede Marke traegt die Farbe ihres Belegs, nur im Bereich dieser Sektion', () => {
     zustand.nachrichten = ANTWORT
-    const buehne: WebsiteStoryBuehne = { ebene: () => null, farbeFuerBeleg: (id) => (id === 'dok-a' ? '#AA0000' : '#00AA00') }
+    const { buehne } = buehneMit('hinten')
     const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={gastgeber(buehne)} navigation={appNavigation()} />)
     const bereich = container.querySelector('[data-story-buehne]') as HTMLElement
     const scope = bereich.getAttribute('data-story-buehne')
@@ -130,10 +142,64 @@ describe('Fragen-Sektion ueber der Buehne', () => {
   })
 
   it('ohne Frage bekommt die Ebene kein Gespraech und keine Anker', () => {
-    const gesehen: (WebsiteGespraech | null)[] = []
-    const buehne: WebsiteStoryBuehne = { ebene: (p) => { gesehen.push(p.gespraech); return null }, farbeFuerBeleg: () => '#000000' }
+    const { buehne, gesehen } = buehneMit('hinten')
     render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={gastgeber(buehne)} navigation={appNavigation()} />)
-    expect(gesehen[gesehen.length - 1]).toBeNull()
+    expect(gesehen[gesehen.length - 1].gespraech).toBeNull()
+  })
+})
+
+describe('Symbol im Kopf der Karte und Buehnen-Modus (K4)', () => {
+  it('ohne Buehne am Gastgeber gibt es kein Symbol', () => {
+    const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={gastgeber()} navigation={appNavigation()} />)
+    expect(container.querySelector('[data-story-buehne-knopf]')).toBeNull()
+  })
+
+  it('aus: das Symbol mit den Kreisen fuehrt zur Buehne; die Sektion bleibt, wie sie ist', () => {
+    zustand.nachrichten = ANTWORT
+    const onModus = vi.fn()
+    const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={gastgeber({ modus: 'aus', onModus })} navigation={appNavigation()} />)
+    const knopf = container.querySelector('[data-story-buehne-knopf]') as HTMLElement
+    expect(knopf.getAttribute('data-story-buehne-knopf')).toBe('buehne')
+    expect(knopf.getAttribute('aria-label')).toBe('website.story.zurBuehne')
+    expect(knopf.querySelectorAll('svg circle').length).toBe(3)
+    expect(container.querySelector('[data-story-hintergrund]')).toBeNull()
+    expect(container.querySelector('style')).toBeNull()
+    fireEvent.click(knopf)
+    expect(onModus).toHaveBeenCalledWith('vorn')
+  })
+
+  it('vorn gewaehlt, der Player laedt noch: der Text bleibt stehen', () => {
+    zustand.nachrichten = ANTWORT
+    const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={gastgeber({ modus: 'vorn', onModus: vi.fn() })} navigation={appNavigation()} />)
+    expect(container.querySelector('[data-story-buehne-raum]')).toBeNull()
+    expect(container.querySelectorAll('a[data-beleg]').length).toBe(3)
+  })
+
+  it('vorn: die Buehne steht statt des Texts und nimmt Klicks an; die Eingabe bleibt darunter', () => {
+    zustand.nachrichten = ANTWORT
+    const { buehne, gesehen, onModus } = buehneMit('vorn')
+    const g = { ...gastgeber(buehne), eingabe: { platzhalter: 'Deine Frage …', laedt: false, fehler: null } }
+    const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+
+    expect(container.querySelector('[data-story-buehne-raum]')).not.toBeNull()
+    expect(container.querySelectorAll('a[data-beleg]').length).toBe(0)
+    const fenster = container.querySelector('[data-story-hintergrund]') as HTMLElement
+    expect(fenster.getAttribute('data-story-hintergrund')).toBe('vorn')
+    expect(fenster.className).not.toContain('pointer-events-none')
+    // Die Eingabe liegt ausserhalb des Fensters: Die Buehne verdeckt sie nicht.
+    const eingabe = screen.getByPlaceholderText('Deine Frage …')
+    expect(fenster.parentElement?.contains(eingabe)).toBe(false)
+
+    const letzte = gesehen[gesehen.length - 1]
+    expect(letzte.vorn).toBe(true)
+    expect(letzte.gespraech).toMatchObject({ lesen: false, stand: 'fertig' })
+    expect(letzte.anker.stand()).toEqual([])
+
+    const knopf = container.querySelector('[data-story-buehne-knopf]') as HTMLElement
+    expect(knopf.getAttribute('data-story-buehne-knopf')).toBe('text')
+    expect(knopf.getAttribute('aria-label')).toBe('website.story.zumText')
+    fireEvent.click(knopf)
+    expect(onModus).toHaveBeenCalledWith('hinten')
   })
 })
 

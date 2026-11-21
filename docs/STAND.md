@@ -383,8 +383,10 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   der Bühne: die Karte der Sektion ist das Fenster der Ebene, Marken im Ton
   ihres Belegs, Lage der Marken gemessen; vorläufig nur mit `?buehne=an`
   in der Adresse, im Browser an einem Prüfstand angesehen, nicht in der
-  laufenden App). Geplant: K3 Schalter je
-  Library, K4 Bühnen-Modus; acht Owner-Entscheide im Plan. Der Nachweis
+  laufenden App) und K4 (Symbol im Kopf der Karte: Kreise zur Bühne, drei
+  Linien zurück zum Text; Zustand in `?buehne=`; vorerst an jeder
+  Fragen-Sektion der App, Owner 21.11.). Geplant: K3 Schalter je
+  Library; acht Owner-Entscheide im Plan. Der Nachweis
   `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
