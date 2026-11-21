@@ -404,6 +404,9 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   (`KnowledgeScoutSite`, Schriften im Paket, CORS für populäre Fragen).
   Bündel `@ks/embed` 0.2.0 mit der Startseite gebaut und an die Partner-App
   übergeben (21.11.; 0.1.0 enthielt sie nicht).
+  Bündel 0.3.0 (21.11.): `documentsViaHrefFor` fragt `hrefFor` für Dokumente
+  jeden Typs (nur bei `null` öffnet die eigene Detailansicht), `navigate`
+  übernimmt Klicks ohne Link; in der Partner-App im Browser gesehen.
   Geplant: WE5, der Nachweis in der Partner-App (Ort des Menüpunkts „Fragen"
   legt der Owner fest); live noch offen: Antwort mit Belegen in der
   Fragen-Sektion, Vorschau im Archiv

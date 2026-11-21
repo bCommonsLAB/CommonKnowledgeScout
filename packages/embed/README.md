@@ -7,8 +7,8 @@ Instanz — keine Anmeldung, kein Token.
 ## Einbau (Next.js App Router)
 
 ```bash
-npm install ./ks-embed-0.2.0.tgz
-# Austausch bei gleicher Version: npm install @ks/embed@file:./ks-embed-0.2.0.tgz
+npm install ./ks-embed-0.3.0.tgz
+# Austausch bei gleicher Version: npm install @ks/embed@file:./ks-embed-0.3.0.tgz
 # (sonst passt die Pruefsumme in package-lock.json nicht mehr)
 ```
 
@@ -85,6 +85,16 @@ export default function Fragen() {
 - Banner-Karten und Belege öffnen die Detailansicht über der Seite (Buch,
   Testimonial, Blog); andere Typen führen über `hrefFor` (Ziel `dokument`) auf
   die Galerie-Seite.
+- `documentsViaHrefFor` (Standard aus, seit 0.3.0): Damit öffnet die
+  Container-Anwendung Dokumente selbst. `hrefFor` wird mit Ziel `dokument` für
+  **jeden** Typ gefragt, auch für Buch, Testimonial und Blog; nennt es eine
+  Adresse, führt der Klick dorthin. Nur bei `null` öffnet die eigene
+  Detailansicht. Gilt für Banner-Karten und für die Einträge im Blatt „Belege“.
+- `navigate(href)` (optional, seit 0.3.0): der Wechsel der Container-Anwendung
+  für Klicks, die kein Link sind (Beleg im Blatt „Belege“, Banner-Karte, „alle
+  Inhalte“). Er bekommt die Adresse aus `hrefFor`. Ohne Angabe
+  `window.location.assign`, die Seite lädt dann neu; eine Anwendung mit eigenem
+  Router reicht z. B. `router.push`.
 - Links der Autoren auf relative Adressen außerhalb des Vokabulars
   (`/kontakt` in einem Text) entfallen — sie hätten in der fremden Seite keine
   Bedeutung. `?view=gallery`, `?mode=story`, `?site=…` und absolute Adressen
@@ -167,6 +177,6 @@ All styles are scoped to `.ks-embed`.
 pnpm --filter @ks/embed run pack:datei
 ```
 
-Das erzeugt `packages/embed/ks-embed-0.2.0.tgz`: tsup baut `dist/index.js`
+Das erzeugt `packages/embed/ks-embed-0.3.0.tgz`: tsup baut `dist/index.js`
 mit Typen, `scripts/build-css.mjs` baut `dist/styles.css` (Tailwind, Theme aus
 `src/styles/globals.css`, jede Regel unter `.ks-embed`).
