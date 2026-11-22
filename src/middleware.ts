@@ -165,7 +165,7 @@ export default clerkMiddleware(async (auth, req) => {
   // öffentliche Library und blendet Entwürfe aus.
   if (!isPublic) {
     const path = req.nextUrl.pathname;
-    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|docs\/by-fileids|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images|popular-questions)$/.test(path);
+    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|docs\/by-fileids|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images|popular-questions|teppich)$/.test(path);
     const isChatQueriesPath = /^\/api\/chat\/[^/]+\/queries(\/[^/]+)?$/.test(path);
     const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
     if (

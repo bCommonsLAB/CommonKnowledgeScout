@@ -10,8 +10,8 @@ todos:
     content: "T0b Common-UX-Bühne ausbauen, vor T1 (Owner 22.11.2026): Player-Bündel, Bühnen-Ebene der App, Schalter `stageEnabled` in Formular, Brücke und Lese-Routen. GEBAUT 22.11.2026 (Brücke 2.79.0); das Skript `scripts/remove-stage-enabled.ts` muss noch in Dev und Prod laufen."
     status: completed
   - id: t1-plaetze
-    content: "T1 Feste Plätze: Auftrag berechnet und speichert die Lage je Dokument; schlanke, anonym lesbare Punkte-Abfrage."
-    status: pending
+    content: "T1 Feste Plätze: Auftrag berechnet und speichert die Lage je Dokument; schlanke, anonym lesbare Punkte-Abfrage. GEBAUT 22.11.2026 (`phase-doc-teppich`, `GET /api/chat/<id>/teppich`, Brücke `teppich_berechnen` 2.80.0); Lauf an einer echten Library offen."
+    status: completed
   - id: t2-hintergrund
     content: "T2 Hintergrund in Ruhe: Canvas-Baustein im Paket, über den Gastgeber montiert; Schweben, Tooltip, verwandte Dokumente, Klick blendet den Vordergrund aus; Schalter je Library."
     status: pending
@@ -122,6 +122,28 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
   (bestehende Plätze bleiben, Neues rückt an den rechten Rand der Zeit).
 - Auslöser: Knopf für Owner und Co-Creator, dazu ein Werkzeug der Brücke (dann
   `TOOLSET_VERSION`, `TOOL_NAMES`, `NEU_IN_VERSION` in `tools-info.ts`).
+
+**Gebaut 22.11.2026** (`src/lib/graph/teppich-lage.ts`, `teppich-felder.ts`, `teppich-persist.ts`):
+
+- `teppich_x` ist der **Rang in der Zeit**, nicht die lineare Zeit: Datierte Dokumente liegen
+  gleichmäßig in [0,04, 1]; so bleiben keine leeren Strecken zwischen wenigen alten und vielen
+  neuen Dokumenten. Jahreszahlen an der Achse rechnet der Browser aus `jahr` der Punkte.
+  Zeit = `date`, sonst Mitte von `year`; undatierte im Streifen [0, 0,04).
+- `teppich_y` ist eine **Ordnung nach Ähnlichkeit**: Potenz-Iteration über den Graphen der
+  gespeicherten Nachbarn (beide Richtungen, Gewicht = Ähnlichkeit), Gleichanteil nach Grad
+  abgezogen, am Ende in gleichmäßige Ränge umgerechnet; Dokumente ohne Nachbarn im Streifen
+  oben (0,96, 1]. 80 Schritte beim ersten Lauf, 10, wenn mindestens die Hälfte schon eine Lage
+  hat. Getrennte oder schwach verbundene Gruppen ergeben zusammenhängende Bänder (Test).
+- `teppich_gewicht` aus `chunkCount` (Abschnitte im Index), logarithmisch auf 0..1; ohne
+  `chunkCount` fehlt das Feld.
+- Gespeichert werden Ordnungen, keine Pixel: Der Browser packt in Spalten nach seiner Breite
+  und sortiert jede Spalte nach `y`.
+- Ohne Nachbarn bei allen Dokumenten scheitert der Lauf mit Hinweis auf „Nachbarn neu
+  berechnen". Gemessen im Test: 20.000 Dokumente mit je sechs Nachbarn in rund 2 s.
+- Auslöser: `POST /api/library/<id>/doc-teppich/recompute` (Owner und Co-Creator) und das
+  Werkzeug `teppich_berechnen` (Brücke 2.80.0). Ein Knopf in der Oberfläche kommt mit T2.
+- Re-Ingest eines Dokuments ersetzt `docMetaJson` und löscht damit seine Lage (wie bei
+  `similarity_neighbors`); die Route meldet das als `veraltet`, ein neuer Lauf behebt es.
 
 ### 3.2 Punkte-Abfrage (T1)
 

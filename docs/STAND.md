@@ -401,8 +401,10 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   nach Umfang, zuerst nur die Fragen-Sektion, auch im Embed); T0b gebaut
   22.11. (Player-Bündel, Bühnen-Ebene der App und Schalter `stageEnabled`
   ausgebaut, Brücke 2.79.0, Skript `scripts/remove-stage-enabled.ts` für
-  gespeicherte Schalter). Geplant: das Skript in Dev und Prod laufen lassen,
-  dann T1 (feste Plätze und Punkte-Abfrage)
+  gespeicherte Schalter); T1 gebaut 22.11. (Auftrag `doc-teppich` mit
+  Lage-Regel, Route `GET /api/chat/<id>/teppich`, Brücke 2.80.0
+  `teppich_berechnen`). Geplant: das Skript aus T0b in Dev und Prod laufen
+  lassen, T1 an einer echten Library prüfen, dann T2 (Hintergrund in Ruhe)
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit

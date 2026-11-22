@@ -355,6 +355,29 @@ export async function POST(
       return NextResponse.json({ ok: true, phase: 'doc-similarity', started: true }, { status: 202 })
     }
 
+    // ─── Teppich der Dokumente (Plan teppich-der-dokumente, T1): feste Plaetze ──
+    // Deterministisch und ohne Vector-Suche, aber ueber den ganzen Bestand: wie
+    // doc-similarity sofort 202, Phase detached; Status/Fehler schreibt die Phase.
+    if (job.job_type === 'doc-teppich' && job.operation === 'recompute') {
+      const { runDocTeppichPhase } = await import('@/lib/external-jobs/phase-doc-teppich')
+      void (async () => {
+        try {
+          await runDocTeppichPhase(job)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          FileLogger.error('start-route', 'phase-doc-teppich failed', { jobId, error: msg })
+          try {
+            await repo.setStatus(jobId, 'failed', { error: { code: 'doc_teppich_failed', message: msg } })
+          } catch (statusErr) {
+            FileLogger.warn('start-route', 'setStatus(failed) nach doc-teppich-Fehler misslang', {
+              jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+            })
+          }
+        }
+      })()
+      return NextResponse.json({ ok: true, phase: 'doc-teppich', started: true }, { status: 202 })
+    }
+
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen

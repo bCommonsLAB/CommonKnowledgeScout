@@ -1,0 +1,65 @@
+/**
+ * @fileoverview `teppich_berechnen` — feste Plaetze des Teppichs ueber die Bruecke anstossen
+ * (Plan `teppich-der-dokumente`, T1).
+ *
+ * @description
+ * Derselbe Auftrag wie `POST /api/library/<id>/doc-teppich/recompute`: EIN External Job
+ * `doc-teppich`, der Worker fuehrt `phase-doc-teppich` aus. Ergebnis und Zaehler stehen
+ * danach in `job_status` (Schritt `phase-doc-teppich`, Details). Owner und Co-Creator.
+ *
+ * @module mcp
+ */
+
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { enqueueDocTeppichJob } from '@/lib/external-jobs/enqueue-doc-teppich'
+import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+
+/** Registriert `teppich_berechnen` (siehe Datei-Kommentar). */
+export function registerTeppichTool(server: McpServer): void {
+  server.registerTool(
+    'teppich_berechnen',
+    {
+      title: 'Teppich der Dokumente berechnen (SCHREIBT)',
+      description:
+        'Rechnet fuer jedes Dokument der Library einen festen Platz auf dem Teppich der Dokumente ' +
+        '(Hintergrund der Fragen-Sektion der Website): waagrecht der Rang in der Zeit, senkrecht die ' +
+        'Ordnung nach Aehnlichkeit, dazu ein Gewicht nach dem Umfang. Schreibt teppich_x, teppich_y, ' +
+        'teppich_gewicht und teppich_stand in die Metadaten; Seiten der Website bleiben aussen vor. ' +
+        'Setzt die Aehnlichkeits-Nachbarn voraus; fehlen sie bei allen Dokumenten, scheitert der Job ' +
+        'mit Hinweis. Laeuft als Job (kein Sprachmodell, keine Vector-Suche); Ergebnis und Zaehler ' +
+        '(ohneDatum, ohneNachbarn, ohneUmfang) danach mit job_status. Nach neuen oder entfernten ' +
+        'Dokumenten erneut aufrufen; bestehende Plaetze bleiben dabei nah. Owner und Co-Creator. ' +
+        'SCHREIBT; nur nach Bestaetigung.',
+      inputSchema: { libraryId: LIBRARY_ID, begruendung: BEGRUENDUNG },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ libraryId, begruendung }) => {
+      try {
+        return await mitProtokoll(
+          { werkzeug: 'teppich_berechnen', libraryId, akteur: mcpUserEmail(), begruendung },
+          async () => {
+            const userEmail = mcpUserEmail()
+            await requireLibrary(userEmail, libraryId)
+            if (!(await isCoCreatorOrOwner(libraryId, userEmail))) {
+              throw new Error(`Nur Owner und Co-Creator der Library ${libraryId} duerfen den Teppich berechnen`)
+            }
+            const { jobId } = await enqueueDocTeppichJob({ libraryId, userEmail })
+            const { ExternalJobsWorker } = await import('@/lib/external-jobs-worker')
+            // Best effort wie die Route: Der Job bleibt queued, falls der Anstoss scheitert.
+            const angestossen = await ExternalJobsWorker.tickNow().then(() => true, () => false)
+            return jsonResult({
+              libraryId,
+              jobId,
+              angestossen,
+              hinweis: 'Ergebnis mit job_status abfragen (Schritt phase-doc-teppich, Details).',
+            })
+          },
+        )
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
+}
