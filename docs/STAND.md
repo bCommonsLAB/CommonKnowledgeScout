@@ -386,9 +386,21 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   laufenden App) K4 (Symbol im Kopf der Karte: Kreise zur Bühne, drei
   Linien zurück zum Text; Zustand in `?buehne=`) und K3 (Schalter je Library
   `publicPublishing.stageEnabled`, voreingestellt aus; Formular „Öffentlich"
-  und Brücke 2.78.0). Gemergt bis K4 (#469). Geplant: Abnahme an einer
-  Library mit echter Antwort; offene Owner-Entscheide im Plan. Der Nachweis
+  und Brücke 2.78.0). Gemergt bis K4 (#469). Owner 22.11.: Die Bühne wird
+  in KnowledgeScout wieder ausgebaut, der Teppich der Dokumente ersetzt sie
+  (Welle T0b im Plan `teppich-der-dokumente`); Abnahme entfällt. Der Nachweis
   `/commonux-nachweis` (Entwurf #463, Bündel 0.1.2) ist damit überholt
+- **Teppich der Dokumente** (Plan
+  [`teppich-der-dokumente`](plans/teppich-der-dokumente.plan.md), 22.11.):
+  hinter der Fragen-Sektion liegt jedes Dokument der Library als Punkt an
+  seinem festen Platz; beim Fragen schwärmen die Punkte, die zitierten fliegen
+  als Belege rechts neben die Antwort. Gemacht: Analyse, Klickmodell
+  (`plans/assets/teppich-der-dokumente-prototyp.html`), Plan mit Wellen T0–T4,
+  kein Code; Owner-Entscheide E1–E5 am 22.11. (der Teppich ersetzt die
+  Common-UX-Bühne, Zeit nach rechts und Ähnliches beieinander, Punktgröße
+  nach Umfang, zuerst nur die Fragen-Sektion, auch im Embed). Geplant: T0b
+  (Bühne ausbauen, vor allem anderen), dann T1 (feste Plätze und
+  Punkte-Abfrage)
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit

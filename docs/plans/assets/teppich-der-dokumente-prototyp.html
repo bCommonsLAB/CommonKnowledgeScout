@@ -1,0 +1,471 @@
+<title>Teppich der Dokumente</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: eine Zeichenfläche als Hintergrund über das ganze Fenster; davor Kopfzeile, Gespräch (Belege links, Blatt Mitte), Eingabe unten. */
+:root{
+  --bg:#fbfbfa; --fg:#23262b; --mute:#70757d; --dot:#5d6066; --line:#d9dadd;
+  --sheet:rgba(255,255,255,.93); --accent:#0f6f8f; --accent-soft:rgba(15,111,143,.12);
+  --display:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#14161a; --fg:#e8e9eb; --mute:#9aa0a8; --dot:#b3b7be; --line:#343840;
+  --sheet:rgba(28,31,36,.93); --accent:#5cc4e4; --accent-soft:rgba(92,196,228,.16); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#14161a; --fg:#e8e9eb; --mute:#9aa0a8; --dot:#b3b7be; --line:#343840;
+  --sheet:rgba(28,31,36,.93); --accent:#5cc4e4; --accent-soft:rgba(92,196,228,.16); color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.5;overflow:hidden}
+#sky{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.app{position:relative;height:100%;display:flex;flex-direction:column;gap:12px;pointer-events:none;
+  padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app > * {pointer-events:none}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:relative;z-index:20}
+.brand h1{font-family:var(--display);font-size:1.15rem;font-weight:600;margin:0;letter-spacing:-.01em}
+.brand p{margin:2px 0 0;color:var(--mute);font-size:.8rem}
+.box{background:var(--sheet);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
+.brand{padding:8px 12px;pointer-events:auto}
+
+details.panel{pointer-events:auto;position:relative}
+details.panel summary{list-style:none;cursor:pointer;padding:8px 12px;font-weight:500;user-select:none}
+details.panel summary::-webkit-details-marker{display:none}
+details.panel summary:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel-body{position:absolute;right:0;top:calc(100% + 6px);width:min(300px,calc(100vw - 32px));padding:12px;display:flex;flex-direction:column;gap:12px;z-index:5;max-height:70vh;overflow:auto}
+.row{display:flex;flex-direction:column;gap:4px}
+.row > span{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;color:var(--fg);font:inherit;padding:6px 4px;cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg);font-weight:600}
+select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+label.chk{display:flex;gap:8px;align-items:center;cursor:pointer}
+label.chk input{accent-color:var(--accent);width:15px;height:15px}
+input[type=range]{accent-color:var(--accent);width:100%}
+.meter{font-size:.78rem;color:var(--mute);font-variant-numeric:tabular-nums;border-top:1px solid var(--line);padding-top:8px}
+
+.talk{position:relative;z-index:1;flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,540px) minmax(0,220px);justify-content:center;align-content:start;gap:20px;padding-top:4px}
+.belege{display:flex;flex-direction:column;gap:8px;min-width:0}
+.belege h2,.sheet .eyebrow{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:500;margin:0}
+.beleg{pointer-events:auto;display:flex;gap:10px;align-items:flex-start;padding:8px 10px;opacity:0;transform:scale(.92);transition:opacity .35s, transform .35s;cursor:default;min-width:0}
+.beleg.on{opacity:1;transform:none}
+.beleg:hover{border-color:var(--accent)}
+.beleg .nr{flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:.75rem;font-weight:600;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.beleg .tx{min-width:0}
+.beleg b{display:block;font-weight:500;font-size:.85rem;overflow-wrap:anywhere}
+.beleg small{color:var(--mute);font-size:.75rem}
+.sheet{pointer-events:auto;padding:16px 18px;min-width:0;align-self:start}
+.sheet h2{font-family:var(--display);font-size:1.2rem;font-weight:600;margin:4px 0 8px;text-wrap:balance}
+.status{color:var(--mute);font-size:.85rem;display:flex;gap:8px;align-items:center;min-height:1.4em}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 1s infinite alternate}
+.status.done i{animation:none;opacity:.5}
+@keyframes blink{from{opacity:.25}to{opacity:1}}
+.answer{opacity:0;transition:opacity .5s;max-width:65ch}
+.answer.on{opacity:1}
+.answer p{margin:10px 0 0}
+.cite{color:var(--accent);font-weight:600;font-size:.75em;vertical-align:super;font-variant-numeric:tabular-nums}
+.sheet .back{margin-top:14px}
+button.plain{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+button.plain:hover{border-color:var(--accent)}
+
+.ask{pointer-events:auto;align-self:center;width:min(640px,100%);padding:10px;display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:inherit;font-size:.8rem;color:var(--fg);background:var(--accent-soft);border:0;border-radius:999px;padding:4px 10px;cursor:pointer}
+.ask form{display:flex;gap:8px}
+.ask input{flex:1;min-width:0;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.ask form button{font:inherit;font-weight:600;color:var(--bg);background:var(--accent);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.ask form button:disabled{opacity:.5;cursor:default}
+
+/* Während gerechnet wird: nur die Frage und die kreisenden Punkte bleiben. */
+.top,.ask{transition:opacity .45s, visibility .45s}
+.sheet{transition:background-color .45s, border-color .45s}
+body.searching .top, body.searching .ask{opacity:0;visibility:hidden}
+body.searching .sheet{background:transparent;border-color:transparent;backdrop-filter:none}
+body.searching .sheet .eyebrow, body.searching .status, body.searching .belege h2{visibility:hidden}
+
+/* Klick auf den Hintergrund: Vordergrund weicht, der Teppich ist frei erkundbar. */
+.app{transition:opacity .3s, visibility .3s}
+body.peek .app{opacity:0;visibility:hidden}
+#hint{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:none;padding:6px 12px;font-size:.8rem;color:var(--mute);opacity:0;transition:opacity .3s;white-space:nowrap}
+body.peek #hint{opacity:1}
+
+#tip{position:fixed;z-index:6;pointer-events:none;padding:6px 10px;font-size:.8rem;max-width:240px}
+#tip b{display:block;font-weight:500}
+#tip small{color:var(--mute)}
+
+@media (max-width:700px){
+  .talk{grid-template-columns:minmax(0,1fr);gap:12px}
+  .belege{flex-direction:row;flex-wrap:wrap}
+  .belege h2{flex-basis:100%}
+  .beleg{flex:1 1 150px}
+  .brand p{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .beleg,.answer{transition:none} .status i{animation:none} }
+</style>
+
+<canvas id="sky" aria-label="Alle Dokumente als Punkte an ihrem festen Platz"></canvas>
+
+<div class="app">
+  <div class="top">
+    <div class="brand box">
+      <h1>Teppich der Dokumente</h1>
+      <p><span id="count">5.000</span> Dokumente, jedes an seinem festen Platz. Erfundene Daten.</p>
+    </div>
+    <details class="panel box" id="panel">
+      <summary>Einstellungen</summary>
+      <div class="panel-body box">
+        <div class="row"><span>Anzahl Dokumente</span>
+          <div class="seg" id="segN">
+            <button type="button" data-n="1000" aria-pressed="false">1.000</button>
+            <button type="button" data-n="5000" aria-pressed="true">5.000</button>
+            <button type="button" data-n="20000" aria-pressed="false">20.000</button>
+          </div>
+        </div>
+        <label class="row" for="layout"><span>Anordnung</span>
+          <select id="layout">
+            <option value="strom">Zeit nach rechts, Ähnliches beieinander</option>
+            <option value="bahnen">Zeit nach rechts, je Thema eine Bahn</option>
+            <option value="raster">Einfaches Raster nach Datum</option>
+            <option value="inseln">Inseln nach Ähnlichkeit, ohne Zeit</option>
+          </select>
+        </label>
+        <label class="chk" for="oColor"><input type="checkbox" id="oColor"> Farbe nach Thema</label>
+        <label class="chk" for="oSize"><input type="checkbox" id="oSize" checked> Größe nach Gewicht</label>
+        <label class="chk" for="oPulse"><input type="checkbox" id="oPulse" checked> Neue Dokumente pulsieren</label>
+        <label class="chk" for="oStage"><input type="checkbox" id="oStage" checked> Stufen des Suchens zeigen</label>
+        <label class="chk" for="oStars"><input type="checkbox" id="oStars" checked> Sternbild der Belege</label>
+        <label class="row" for="oSecs"><span>Rechenzeit: <b id="secsOut">3,5</b> s</span>
+          <input type="range" id="oSecs" min="1.5" max="8" step="0.5" value="3.5">
+        </label>
+        <div class="meter" id="meter">Zeichnet nur bei Bewegung</div>
+      </div>
+    </details>
+  </div>
+
+  <div class="talk" id="talk" hidden>
+    <div class="sheet box">
+      <p class="eyebrow">Frage</p>
+      <h2 id="q"></h2>
+      <div class="status" id="status"><i></i><span></span></div>
+      <div class="answer" id="answer"></div>
+      <button type="button" class="plain back" id="back">Belege zurücklegen</button>
+    </div>
+    <div class="belege" id="belege"></div>
+  </div>
+  <div style="flex:1" id="spacer"></div>
+
+  <div class="ask box">
+    <div class="chips" id="chips">
+      <button type="button">Was wurde zur Mobilität beschlossen?</button>
+      <button type="button">Welche Erfahrungen gibt es beim Wohnen?</button>
+      <button type="button">Wie hat sich die Energiefrage entwickelt?</button>
+    </div>
+    <form id="form">
+      <input id="qin" type="text" placeholder="Frage stellen, der Teppich setzt sich in Bewegung" autocomplete="off" aria-label="Frage">
+      <button type="submit" id="go">Fragen</button>
+    </form>
+  </div>
+</div>
+<div id="tip" class="box" hidden></div>
+<div id="hint" class="box">Klick auf eine freie Stelle holt den Text zurück</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const cv = $('#sky'), ctx = cv.getContext('2d');
+const TOPICS = ['Energie','Mobilität','Bildung','Gesundheit','Wohnen','Landwirtschaft','Kultur','Digitales'];
+const TOPIC_CUM = [.2,.36,.5,.62,.73,.83,.92,1];
+const TOPIC_COL = ['#d98a1f','#2f8fcf','#8a63d2','#d2557a','#3fa37a','#8a9a2c','#c9603f','#3f9aa8'];
+const YEAR0 = 2019, YEARS = 8;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nf = new Intl.NumberFormat('de-DE');
+const opt = {n:5000, layout:'strom', color:false, size:true, pulse:true, stage:true, stars:true, secs:3.5};
+
+let W=0, H=0, dpr=1, N=0, cell=4, hasAxis=true, area={x:0,y:0,w:0,h:0};
+let topic, tt, uu, wgt, s1, s2, hx, hy, ox, oy, x, y, vx, vy, fx, fy, tx, ty, dl, rad, flag;
+let phase='rest', t0=0, dur=800, stage=0, dirty=true;
+let cardEls=[], cited=[], cand=[], chosen=[], hover=-1, sel=-1, nb=[], cardHover=-1;
+let cx=0, cy=0, pcx=0, pcy=0, pointerSeen=false;
+let col={};
+let frames=0, fpsT=0, lastT=0;
+
+function rng(a){ return () => { a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['dot','accent','line','mute','bg','fg']) col[k] = cs.getPropertyValue('--'+k).trim();
+  dirty = true;
+}
+
+function generate(){
+  N = opt.n;
+  const r = rng(7), docs = [];
+  for (let i=0;i<N;i++){
+    const p = r(); let k = 0; while (p > TOPIC_CUM[k]) k++;
+    docs.push({k, t:Math.pow(r(),.62), u:r(), w:Math.pow(r(),5), a:r(), b:r()});
+  }
+  docs.sort((p,q) => p.t - q.t);
+  const F = () => new Float32Array(N);
+  topic = new Uint8Array(N); flag = new Uint8Array(N);
+  tt=F(); uu=F(); wgt=F(); s1=F(); s2=F(); hx=F(); hy=F(); ox=F(); oy=F(); x=F(); y=F(); vx=F(); vy=F(); fx=F(); fy=F(); tx=F(); ty=F(); dl=F(); rad=F();
+  docs.forEach((d,i) => { topic[i]=d.k; tt[i]=d.t; uu[i]=d.u; wgt[i]=d.w; s1[i]=d.a; s2[i]=d.b; });
+  $('#count').textContent = nf.format(N);
+}
+
+function binsOf(C){ const B = Array.from({length:C}, () => []); for (let i=0;i<N;i++) B[Math.min(C-1, Math.floor(tt[i]*C))].push(i); return B; }
+function fit(heightOf){
+  const {w,h} = area; let C = Math.max(8, Math.round(Math.sqrt(N*w/h))), B, s;
+  for (let it=0; it<8; it++){ B = binsOf(C); s = Math.min(w/C, h/heightOf(B)); const C2 = Math.max(8, Math.min(700, Math.round(w/s))); if (C2===C) break; C = C2; }
+  B = binsOf(C); s = Math.min(w/C, h/heightOf(B)); return {C,B,s};
+}
+
+function layout(){
+  area = {x:20, y:20, w:Math.max(100,W-40), h:Math.max(100,H-64)};
+  const {x:ax, y:ay, w, h} = area; hasAxis = opt.layout !== 'inseln';
+  if (opt.layout === 'raster'){
+    let s = Math.sqrt(w*h/N); const cols = Math.ceil(w/s), rows = Math.ceil(N/cols); s = Math.min(w/cols, h/rows);
+    const ox = ax + (w - cols*s)/2, oy = ay + (h - rows*s)/2;
+    for (let i=0;i<N;i++){ hx[i] = ox + (Math.floor(i/rows)+.5)*s; hy[i] = oy + (i%rows+.5)*s; }
+    cell = s;
+  } else if (opt.layout === 'strom'){
+    const {C,B,s} = fit(B => Math.max(...B.map(b => b.length)));
+    B.forEach((b,bi) => { b.sort((p,q) => (topic[p]+uu[p]) - (topic[q]+uu[q]));
+      b.forEach((i,j) => { hx[i] = ax + (bi+.5)*w/C; hy[i] = ay + h/2 + (j-(b.length-1)/2)*s; }); });
+    cell = s;
+  } else if (opt.layout === 'bahnen'){
+    const K = TOPICS.length, gap = 1.5;
+    const lanes = B => { const m = new Array(K).fill(0); for (const b of B){ const c = new Array(K).fill(0); for (const i of b) c[topic[i]]++; for (let k=0;k<K;k++) m[k] = Math.max(m[k], c[k]); } return m; };
+    const {C,B,s} = fit(B => lanes(B).reduce((p,q) => p+q, 0) + gap*(K-1));
+    const m = lanes(B), mid = []; let top = ay + (h - (m.reduce((p,q)=>p+q,0) + gap*(K-1))*s)/2;
+    for (let k=0;k<K;k++){ mid[k] = top + m[k]*s/2; top += (m[k]+gap)*s; }
+    B.forEach((b,bi) => { const per = Array.from({length:K}, () => []); for (const i of b) per[topic[i]].push(i);
+      per.forEach((list,k) => { list.sort((p,q) => uu[p]-uu[q]); list.forEach((i,j) => { hx[i] = ax + (bi+.5)*w/C; hy[i] = mid[k] + (j-(list.length-1)/2)*s; }); }); });
+    cell = s;
+  } else {
+    const wide = w >= h, gc = wide ? 4 : 2, gr = wide ? 2 : 4, cw = w/gc, ch = h/gr, m = Math.min(cw,ch);
+    const r = rng(11), cen = TOPICS.map((_,k) => ({x: ax + (k%gc+.5)*cw + (r()-.5)*cw*.25, y: ay + (Math.floor(k/gc)+.5)*ch + (r()-.5)*ch*.25}));
+    const g = rng(13);
+    for (let i=0;i<N;i++){
+      const k = topic[i], sub = Math.floor(uu[i]*4), an = sub*1.571 + k, rr = Math.sqrt(-2*Math.log(g()+1e-9))*m*.085, th = g()*6.283;
+      hx[i] = Math.min(ax+w, Math.max(ax, cen[k].x + Math.cos(an)*m*.2 + Math.cos(th)*rr));
+      hy[i] = Math.min(ay+h, Math.max(ay, cen[k].y + Math.sin(an)*m*.2 + Math.sin(th)*rr));
+    }
+    cell = Math.sqrt(w*h/N)*.8;
+  }
+  sizes();
+}
+function sizes(){ const base = Math.min(4.5, Math.max(.7, cell*.34)); for (let i=0;i<N;i++) rad[i] = opt.size ? base*(.7+2.2*wgt[i]) : base; dirty = true; }
+
+function resize(){
+  dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  if (!pointerSeen){ pcx = W/2; pcy = H/2; }
+}
+function snapHome(){ x.set(hx); y.set(hy); }
+function tweenTo(home, ms){ for (let i=0;i<N;i++){ fx[i]=x[i]; fy[i]=y[i]; if (home){ tx[i]=hx[i]; ty[i]=hy[i]; } dl[i] = 0; } dur = reduced ? 1 : ms; t0 = performance.now(); }
+
+/* ---------- Ablauf einer Frage ---------- */
+function pick(){
+  const k0 = Math.floor(Math.random()*TOPICS.length), tc = .3 + Math.random()*.65, pool = [];
+  for (let i=0;i<N;i++) if (topic[i]===k0 && Math.abs(tt[i]-tc) < .22) pool.push(i);
+  for (let i=pool.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [pool[i],pool[j]] = [pool[j],pool[i]]; }
+  cand = pool.slice(0, 40); chosen = cand.slice(0, 12); cited = chosen.slice(0, 6).sort((p,q) => hx[p]-hx[q]);
+  return k0;
+}
+const yearOf = i => Math.min(YEAR0+YEARS-1, Math.floor(YEAR0 + tt[i]*YEARS));
+const titleOf = i => `${TOPICS[topic[i]]}, Dokument ${nf.format(i+1)}`;
+
+function ask(q){
+  if (phase !== 'rest' && phase !== 'answer') return;
+  hover = sel = cardHover = -1; nb = []; $('#tip').hidden = true; flag.fill(0);
+  const k0 = pick();
+  $('#q').textContent = q;
+  $('#belege').innerHTML = '<h2>Belege</h2>' + cited.map((i,n) =>
+    `<div class="beleg box" data-n="${n}"><span class="nr">${n+1}</span><span class="tx"><b>${titleOf(i)}</b><small>${yearOf(i)} · Beispiel</small></span></div>`).join('');
+  const c = n => `<span class="cite">[${n}]</span>`, y1 = cited.length ? yearOf(cited[0]) : YEAR0, y2 = cited.length ? yearOf(cited[cited.length-1]) : YEAR0;
+  $('#answer').className = 'answer';
+  $('#answer').innerHTML =
+    `<p>Beispieltext. Zum Thema ${TOPICS[k0]} stützt sich die Antwort auf ${cited.length} Dokumente aus den Jahren ${y1} bis ${y2}. Den Ausgangspunkt beschreiben ${c(1)} und ${c(2)}.</p>` +
+    `<p>Wie es weiterging, zeigen ${c(3)} und ${c(4)}. Den jüngsten Stand halten ${c(5)} und ${c(6)} fest.</p>` +
+    `<p>Jeder Beleg rechts kommt von einem festen Platz im Hintergrund. Dort bleibt ein Ring zurück.</p>`;
+  setStatus(`Sucht in ${nf.format(N)} Dokumenten`, false);
+  $('#talk').hidden = false; $('#spacer').hidden = true; $('#back').hidden = true; $('#go').disabled = true;
+  stage = 0; $('#panel').open = false; document.body.classList.add('searching');
+  if (reduced){ settle(); return; }
+  for (let i=0;i<N;i++){ vx[i] = (s1[i]-.5)*40; vy[i] = (s2[i]-.5)*40; }
+  cx = W/2; cy = H/2; phase = 'swarm'; t0 = performance.now();
+}
+function setStatus(text, done){ $('#status').className = 'status' + (done ? ' done' : ''); $('#status span').textContent = text; }
+
+function settle(){
+  const cards = [...document.querySelectorAll('.beleg')];
+  for (let i=0;i<N;i++){ fx[i]=x[i]; fy[i]=y[i]; tx[i]=hx[i]; ty[i]=hy[i]; dl[i] = s1[i]*250; }
+  cardEls = cards;
+  cited.forEach((i,n) => { const r = cards[n].getBoundingClientRect(); tx[i] = r.left-10; ty[i] = r.top+r.height/2; dl[i] = n*70; flag[i] = 2; });
+  for (const i of cand) if (flag[i] !== 2) flag[i] = 0;
+  dur = reduced ? 1 : 850; t0 = performance.now(); phase = 'settle';
+  setStatus(`Antwort aus ${cited.length} Dokumenten`, true);
+}
+function arrived(){
+  phase = 'answer'; document.body.classList.remove('searching'); document.querySelectorAll('.beleg').forEach(el => el.classList.add('on'));
+  $('#answer').classList.add('on'); $('#back').hidden = false; $('#go').disabled = false; dirty = true;
+}
+function back(){
+  if (phase !== 'answer') return;
+  $('#talk').hidden = true; $('#spacer').hidden = false; cardHover = -1;
+  tweenTo(true, 600); phase = 'return';
+}
+
+/* ---------- Bewegung ---------- */
+function swarmStep(dt, now){
+  const T = now/1000, m = Math.min(W,H), sc = m/800, R = .46*m, ex = Math.min(1.9, Math.max(1, W/H)), k = Math.min(1, dt*3);
+  const gx = Math.min(.75*W, Math.max(.25*W, pcx)), gy = Math.min(.68*H, Math.max(.32*H, pcy));
+  cx += (gx-cx)*Math.min(1,dt*2.5); cy += (gy-cy)*Math.min(1,dt*2.5);
+  for (let i=0;i<N;i++){
+    const dx = (x[i]-cx)/ex, dy = y[i]-cy, d = Math.hypot(dx,dy)+.001, ux = dx/d, uy = dy/d;
+    // Stufen: Bestand außen, Kandidaten auf dem mittleren Ring, Auswahl innen.
+    const f = flag[i], breath = 1+.14*Math.sin(T*.9+s2[i]*6.283);
+    const rho = f === 3 ? R*(.12+.08*s1[i]) : f === 1 ? R*(.4+.1*s1[i]) : stage ? R*(.6+.3*s1[i])*breath : R*(.16+.95*s1[i])*breath;
+    const vk = 150*sc*(.45+.55*Math.min(1,d/(.35*R))), pull = (rho-d)*(f ? 3 : 1.6);
+    const a = Math.sin(x[i]*.006+T*.8)*1.7 + Math.cos(y[i]*.007-T*.6)*1.7 + s2[i], ve = (f ? 22 : 75)*sc;
+    const wx = (uy*vk + ux*pull)*ex + Math.cos(a)*ve, wy = -ux*vk + uy*pull + Math.sin(a)*ve;
+    vx[i] += (wx-vx[i])*k; vy[i] += (wy-vy[i])*k; x[i] += vx[i]*dt; y[i] += vy[i]*dt;
+  }
+}
+/* Auch am festen Platz ruht kein Punkt ganz: jeder schwebt leicht, dazu läuft eine langsame Welle durch den Teppich. */
+function drift(T){
+  const A = reduced ? 0 : Math.max(1.4, Math.min(5, cell*.32)), B = reduced ? 0 : Math.max(1.5, Math.min(7, cell*.5));
+  for (let i=0;i<N;i++){
+    ox[i] = A*Math.sin(T*(.5+s1[i]*.5)+s2[i]*6.283) + B*Math.sin(hy[i]*.012+T*.45);
+    oy[i] = A*Math.cos(T*(.45+s2[i]*.5)+s1[i]*6.283) + B*Math.cos(hx[i]*.009+T*.4);
+  }
+}
+function tweenStep(now){
+  let done = true; const toCard = phase === 'settle';
+  for (let i=0;i<N;i++){
+    let p = (now - t0 - dl[i])/dur; if (p < 1) done = false; p = p<0 ? 0 : p>1 ? 1 : p;
+    const e = p<.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2, k = toCard && flag[i] === 2 ? 0 : e;
+    x[i] = fx[i]+(tx[i]-fx[i])*e + ox[i]*k; y[i] = fy[i]+(ty[i]-fy[i])*e + oy[i]*k;
+  }
+  return done;
+}
+
+/* ---------- Zeichnen ---------- */
+function dots(list, alpha, color, grow){
+  ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.beginPath();
+  const all = list === null, n = all ? N : list.length;
+  for (let j=0;j<n;j++){ const i = all ? j : list[j];
+    const r = rad[i]*grow; if (r < 1.1) ctx.rect(x[i]-r, y[i]-r, r*2, r*2); else { ctx.moveTo(x[i]+r, y[i]); ctx.arc(x[i], y[i], r, 0, 6.2832); } }
+  ctx.fill();
+}
+let byTopic = [];
+function draw(now){
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  const quiet = phase === 'answer' || phase === 'settle', a = phase === 'swarm' ? .42 : quiet ? .2 : .5;
+  const X = i => hx[i]+ox[i], Y = i => hy[i]+oy[i];
+  if (opt.color) byTopic.forEach((l,k) => dots(l, Math.min(1,a+.2), TOPIC_COL[k], 1)); else dots(null, a, col.dot, 1);
+
+  if (hasAxis && phase !== 'swarm'){
+    ctx.globalAlpha = .9; ctx.fillStyle = col.mute; ctx.font = '11px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
+    const step = area.w/YEARS < 46 ? 2 : 1;
+    for (let k=0;k<YEARS;k+=step) ctx.fillText(String(YEAR0+k), area.x + (k+.5)*area.w/YEARS, area.y+area.h+16);
+  }
+  if (opt.pulse && (phase === 'rest' || phase === 'answer')){
+    ctx.strokeStyle = col.accent; ctx.lineWidth = 1;
+    for (let i=N-1; i>=0 && tt[i] > .985; i--){ const p = reduced ? .5 : (now/1700 + s1[i]) % 1;
+      ctx.globalAlpha = (1-p)*.7; ctx.beginPath(); ctx.arc(X(i), Y(i), rad[i]+2+p*9, 0, 6.2832); ctx.stroke(); }
+  }
+  if (phase === 'swarm' && stage){
+    dots(cand.filter(i => flag[i] === 1), stage > 1 ? .6 : .95, col.accent, 1.5);
+    if (stage > 1) dots(chosen, stage > 2 ? .5 : 1, col.accent, 2.1);
+  }
+  // Faden der Belege: entsteht im inneren Kreis, wandert mit den Punkten und endet neben den Karten.
+  if (((phase === 'swarm' && stage > 2) || quiet) && cited.length){
+    ctx.strokeStyle = col.accent; ctx.fillStyle = col.accent;
+    if (opt.stars && cited.length > 1){ ctx.globalAlpha = .75; ctx.lineWidth = 1.3; ctx.beginPath();
+      cited.forEach((i,n) => n ? ctx.lineTo(x[i],y[i]) : ctx.moveTo(x[i],y[i])); ctx.stroke(); }
+    dots(cited, 1, col.accent, 2);
+    if (phase !== 'answer'){ ctx.globalAlpha = 1; ctx.fillStyle = col.accent; ctx.font = '600 11px Inter, system-ui, sans-serif'; ctx.textAlign = 'left';
+      cited.forEach((i,n) => ctx.fillText(String(n+1), x[i]+8, y[i]-6)); }
+  }
+
+  if (quiet || phase === 'return'){
+    ctx.strokeStyle = col.accent; ctx.fillStyle = col.accent; ctx.font = '600 11px Inter, system-ui, sans-serif'; ctx.textAlign = 'left';
+    if (phase !== 'return') cited.forEach((i,n) => { const big = n === cardHover; ctx.globalAlpha = big ? 1 : .6; ctx.lineWidth = big ? 2.5 : 1;
+      ctx.beginPath(); ctx.arc(X(i), Y(i), Math.max(5, rad[i]+4) + (big ? 3 : 0), 0, 6.2832); ctx.stroke();
+      ctx.fillText(String(n+1), X(i)+Math.max(8, rad[i]+7), Y(i)-6); });
+    if (cardHover >= 0 && phase === 'answer'){ const el = document.querySelector(`.beleg[data-n="${cardHover}"]`), i = cited[cardHover];
+      if (el){ const r = el.getBoundingClientRect(); ctx.globalAlpha = .7; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(X(i) < r.left ? r.left : r.right, r.top+r.height/2); ctx.lineTo(X(i), Y(i)); ctx.stroke(); ctx.setLineDash([]); } }
+  }
+  const f = sel >= 0 ? sel : hover;
+  if (f >= 0 && (phase === 'rest' || phase === 'answer')){
+    ctx.strokeStyle = col.fg; ctx.globalAlpha = .55; ctx.lineWidth = 1; ctx.beginPath();
+    for (const j of nb){ ctx.moveTo(X(f),Y(f)); ctx.lineTo(X(j),Y(j)); } ctx.stroke();
+    dots(nb, 1, col.fg, 1.3); dots([f], 1, col.accent, 1.8);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function loop(now){
+  const dt = Math.min(.05, (now-lastT)/1000 || 0); lastT = now;
+  let moving = true; drift(now/1000);
+  if (phase === 'swarm'){
+    swarmStep(dt, now); const el = (now-t0)/1000;
+    if (opt.stage && stage === 0 && el > opt.secs*.25){ stage = 1; for (const i of cand) flag[i] = 1; }
+    if (opt.stage && stage === 1 && el > opt.secs*.5){ stage = 2; for (const i of chosen) flag[i] = 3; }
+    if (opt.stage && stage === 2 && el > opt.secs*.75) stage = 3;
+    if (el > opt.secs) settle();
+  } else if (phase === 'settle'){ if (tweenStep(now)) arrived(); }
+  else if (phase === 'return' || phase === 'morph'){ if (tweenStep(now)){ phase = 'rest'; flag.fill(0); cited = []; cand = []; $('#go').disabled = false; dirty = true; } }
+  else { moving = !reduced;
+    if (phase === 'answer') cited.forEach((i,n) => { const el = cardEls[n]; if (el){ const r = el.getBoundingClientRect(); x[i] = r.left-10; y[i] = r.top+r.height/2; } });
+    if (moving) for (let i=0;i<N;i++) if (flag[i] !== 2){ x[i] = hx[i]+ox[i]; y[i] = hy[i]+oy[i]; } }
+  if (moving || dirty){ draw(now); dirty = false; frames++; }
+  if (now - fpsT > 500){ $('#meter').textContent = moving ? `${nf.format(N)} Punkte, ${Math.round(frames*1000/(now-fpsT))} Bilder je Sekunde` : 'Zeichnet nur bei Bewegung'; frames = 0; fpsT = now; }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Zeiger ---------- */
+function nearest(px, py){ let best = -1, bd = 14*14; for (let i=0;i<N;i++){ const dx = hx[i]-px, dy = hy[i]-py, d = dx*dx+dy*dy; if (d < bd){ bd = d; best = i; } } return best; }
+function neighbours(i){ const list = []; for (let j=0;j<N;j++) if (j!==i && topic[j]===topic[i]) list.push([Math.abs(tt[j]-tt[i])*3 + Math.abs(uu[j]-uu[i]), j]); list.sort((p,q) => p[0]-q[0]); return list.slice(0,6).map(p => p[1]); }
+function showTip(i){ const tip = $('#tip'); if (i < 0){ tip.hidden = true; return; }
+  tip.innerHTML = `<b>${titleOf(i)}</b><small>${yearOf(i)} · 6 verwandte Dokumente${sel===i ? ' · gewählt' : ''}</small>`; tip.hidden = false;
+  tip.style.left = Math.min(W-250, hx[i]+14)+'px'; tip.style.top = Math.max(8, hy[i]-44)+'px'; }
+window.addEventListener('pointermove', e => { pointerSeen = true; pcx = e.clientX; pcy = e.clientY; });
+cv.addEventListener('pointermove', e => { if (phase !== 'rest' && phase !== 'answer') return; if (sel >= 0) return;
+  const i = nearest(e.clientX, e.clientY); if (i !== hover){ hover = i; nb = i >= 0 ? neighbours(i) : []; showTip(i); dirty = true; } });
+cv.addEventListener('pointerleave', () => { if (sel < 0 && hover >= 0){ hover = -1; nb = []; showTip(-1); dirty = true; } });
+cv.addEventListener('click', e => { if (phase !== 'rest' && phase !== 'answer') return;
+  const i = nearest(e.clientX, e.clientY);
+  // Freie Stelle ohne Auswahl: Vordergrund aus- oder wieder einblenden.
+  if (i < 0 && sel < 0){ document.body.classList.toggle('peek'); return; }
+  sel = i === sel ? -1 : i; hover = -1; nb = sel >= 0 ? neighbours(sel) : []; showTip(sel); dirty = true; });
+window.addEventListener('keydown', e => { if (e.key === 'Escape') document.body.classList.remove('peek'); });
+$('#belege').addEventListener('pointerover', e => { const el = e.target.closest('.beleg'); cardHover = el ? Number(el.dataset.n) : -1; dirty = true; });
+$('#belege').addEventListener('pointerleave', () => { cardHover = -1; dirty = true; });
+
+/* ---------- Bedienung ---------- */
+function rebuild(regen){
+  $('#talk').hidden = true; $('#spacer').hidden = false; hover = sel = cardHover = -1; nb = []; showTip(-1);
+  document.body.classList.remove('searching', 'peek');
+  if (regen){ generate(); layout(); snapHome(); phase = 'rest'; flag.fill(0); cited = []; cand = []; $('#go').disabled = false; }
+  else { layout(); tweenTo(true, 900); phase = 'morph'; }
+  byTopic = TOPICS.map((_,k) => { const l = []; for (let i=0;i<N;i++) if (topic[i]===k) l.push(i); return l; });
+  dirty = true;
+}
+$('#segN').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; opt.n = Number(b.dataset.n);
+  for (const o of $('#segN').children) o.setAttribute('aria-pressed', String(o === b)); rebuild(true); });
+$('#layout').addEventListener('change', e => { opt.layout = e.target.value; rebuild(false); });
+const bind = (id, key, after) => $(id).addEventListener('change', e => { opt[key] = e.target.checked; after && after(); dirty = true; });
+bind('#oColor','color'); bind('#oSize','size', sizes); bind('#oPulse','pulse'); bind('#oStage','stage'); bind('#oStars','stars');
+$('#oSecs').addEventListener('input', e => { opt.secs = Number(e.target.value); $('#secsOut').textContent = opt.secs.toLocaleString('de-DE', {minimumFractionDigits:1}); });
+$('#form').addEventListener('submit', e => { e.preventDefault(); const q = $('#qin').value.trim(); if (q){ ask(q); $('#qin').value = ''; } });
+$('#chips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) ask(b.textContent); });
+$('#back').addEventListener('click', back);
+window.addEventListener('resize', () => { resize(); layout(); if (phase === 'rest') snapHome(); else if (phase === 'answer'){ for (let i=0;i<N;i++) if (flag[i] !== 2){ x[i]=hx[i]; y[i]=hy[i]; } } dirty = true; });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+new MutationObserver(readColors).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+readColors(); resize(); rebuild(true); requestAnimationFrame(loop);
+})();
+</script>
