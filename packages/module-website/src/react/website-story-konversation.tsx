@@ -130,6 +130,13 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
           quellenPlakette={bezeichnung.zitiert}
           antwortDarstellung={inline ? antwortDarstellung : undefined}
         />
+        {kartenAktiv && karten.fehler && (
+          // Kein stiller Wegfall der Karten (23.11.2026): Hinweis und erneut laden.
+          <div role="alert" className="mt-3 flex items-center gap-3 text-sm text-neutral-600" data-story-belege-fehler>
+            <span>{t('website.story.belegeFehler', { label: bezeichnung.spalte })}</span>
+            <Button variant="outline" size="sm" onClick={karten.erneut}>{t('website.story.belegeErneut')}</Button>
+          </div>
+        )}
         <StoryFruehereFragen paare={s.paare} navigation={p.navigation} />
       </div>
       {spalte && (
