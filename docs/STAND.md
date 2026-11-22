@@ -407,7 +407,10 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   Schalter `publicPublishing.carpetEnabled`, Brücke 2.81.0, Embed-Prop
   `carpet`). Geplant: das Skript aus T0b in Dev und Prod laufen lassen, Teppich
   an einer echten Library berechnen und ansehen, Bilder je Sekunde messen
-  (E6), dann T3 (Schwarm, Flug, Belege rechts)
+  (E6); T3 gebaut 22.11. (Schwarm mit Mindestdauer, Belege fliegen neben
+  die Karten von `cards=column`, Faden, Sternbild mit Ringen; in Dev angesehen).
+  Danach: die Webseite auf `/explore/<slug>` mit dem Fenster scrollen lassen
+  (eigene PR), T4 (Suchstufen)
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit

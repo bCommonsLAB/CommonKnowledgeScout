@@ -56,9 +56,10 @@ describe('Teppich: Radius und Treffer', () => {
     expect(teppichRadius(10, null)).toBe(teppichRadius(10, 0))
   })
 
-  it('bleibt bei grossen Zellen (wenige Dokumente) ein Minikreis', () => {
-    expect(teppichRadius(48, 1)).toBeLessThanOrEqual(5.5)
-    expect(teppichRadius(48, null)).toBeLessThanOrEqual(2)
+  it('fuellt bei grossen Zellen gut die Haelfte, aber nie mehr als die Zelle', () => {
+    expect(teppichRadius(48, null)).toBeGreaterThanOrEqual(4)
+    expect(teppichRadius(48, 1) * 2).toBeLessThanOrEqual(48)
+    expect(teppichRadius(4, null)).toBeGreaterThanOrEqual(0.8)
   })
 
   it('findet den naechsten Punkt nur innerhalb des Abstands', () => {

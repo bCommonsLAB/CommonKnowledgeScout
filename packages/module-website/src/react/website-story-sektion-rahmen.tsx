@@ -42,11 +42,22 @@ export interface WebsiteStorySektionRahmenProps {
    * Sektion. Sie nimmt Klicks an, wo keine Karte liegt.
    */
   teppich?: React.ReactNode
-  /** Der Vordergrund ist ausgeblendet, damit man den Teppich erkunden kann. */
+  /** Der Vordergrund ist ausgeblendet (Erkunden oder laufende Frage). */
   abgetaucht?: boolean
+  /** Den Hinweis „Klick auf eine freie Stelle …" zeigen (nur beim Erkunden). */
+  hinweis?: boolean
+  /** Waehrend einer Frage: die Frage allein ueber dem Teppich (T3). */
+  frage?: string
   /** Unter dem Chat (die Eingabe). */
   fuss?: React.ReactNode
 }
+
+/**
+ * Mit Teppich ist die Antwort kein eigenes Fenster: kein Hintergrund, kein Rand, kein Schatten;
+ * auch die Flaechen der Antwort werden durchsichtig, die Punktwolke liegt sichtbar dahinter
+ * (Owner 22.11.2026). Klicks nimmt nur, was im Inhalt steht.
+ */
+const TEPPICH_KARTE = "pointer-events-auto bg-transparent [&_[data-antwort]_div]:!bg-transparent [&_[data-antwort]_div]:!shadow-none [&_[data-antwort]_div]:!border-transparent"
 
 export function WebsiteStorySektionRahmen({
   section,
@@ -57,6 +68,8 @@ export function WebsiteStorySektionRahmen({
   children,
   teppich,
   abgetaucht = false,
+  hinweis = false,
+  frage,
   fuss,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
@@ -76,7 +89,7 @@ export function WebsiteStorySektionRahmen({
         aria-hidden={abgetaucht || undefined}
       >
         {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
-        <div className={cn("overflow-hidden rounded-3xl border border-black/10 bg-white text-neutral-900 shadow-lg", teppich && "pointer-events-auto")}>
+        <div className={cn("overflow-hidden text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
           {(status || kopf) && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-6 py-4">
               <div>{status}</div>
@@ -98,7 +111,12 @@ export function WebsiteStorySektionRahmen({
           </div>
         </div>
       </div>
-      {abgetaucht && (
+      {frage && (
+        <p className="pointer-events-none absolute inset-x-6 top-10 z-10 mx-auto max-w-3xl text-balance text-center text-2xl font-semibold leading-snug" data-teppich-frage>
+          {frage}
+        </p>
+      )}
+      {hinweis && (
         // Oben, weil unten die Jahreszahlen des Teppichs stehen (Ansicht 22.11.2026).
         <p className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
           {t("website.story.teppichZurueck")}

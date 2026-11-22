@@ -15,8 +15,9 @@
 import * as React from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '@ks/contracts'
-import type { TeppichAntwort, TeppichPunkt } from '..'
+import type { TeppichAntwort, TeppichPhase, TeppichPunkt } from '..'
 import { WebsiteTeppich } from './website-teppich'
+import type { TeppichSzene } from './teppich-szene'
 
 /** Laedt die Punkte einmal je Library; leer, bis sie da sind oder wenn sie fehlen. */
 export function useTeppichPunkte(instanz: InstanceApi, libraryId: string): TeppichPunkt[] {
@@ -47,9 +48,15 @@ export interface WebsiteTeppichEbeneProps {
   abgetaucht: boolean
   onAbgetaucht: (abgetaucht: boolean) => void
   onDokument: (doc: DocCardMeta) => void
+  /** T3: Phase der Frage, Belege der Antwort (fileIds nach Nummer), Ende des Flugs. */
+  phase?: TeppichPhase
+  belege?: readonly string[]
+  onGelandet?: () => void
+  /** Gemeinsame Szene mit der vorderen Leinwand (`WebsiteTeppichVorn`). */
+  szene?: TeppichSzene
 }
 
-export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument }: WebsiteTeppichEbeneProps): React.ReactElement {
+export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, onGelandet, szene }: WebsiteTeppichEbeneProps): React.ReactElement {
   const punkte = useTeppichPunkte(instanz, libraryId)
 
   React.useEffect(() => {
@@ -78,6 +85,10 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
       abgetaucht={abgetaucht}
       onPunkt={oeffnen}
       onFreieStelle={() => onAbgetaucht(!abgetaucht)}
+      phase={phase}
+      belege={belege}
+      onGelandet={onGelandet}
+      szene={szene}
     />
   )
 }
