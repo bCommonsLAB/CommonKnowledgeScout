@@ -35,7 +35,7 @@ const MARKE = 'pointer-events-none absolute -left-2 -top-2 z-20 shadow-md ring-2
 export function WebsiteStoryVortragskarte({ eintrag, libraryId, onOpen }: WebsiteStoryVortragskarteProps) {
   const { nummer, doc, titel } = eintrag
   return (
-    <div className="relative min-w-0" id={`beleg-${nummer}`} data-story-karte={nummer} data-story-karte-laedt={doc ? undefined : 'true'}>
+    <div className="relative min-w-0" id={`beleg-${nummer}`} data-story-karte={nummer} data-story-karte-datei={eintrag.fileId} data-story-karte-laedt={doc ? undefined : 'true'}>
       {doc ? (
         <DocumentCard doc={doc} libraryId={libraryId} cardDensity="compact" teaser onOpen={onOpen} />
       ) : (

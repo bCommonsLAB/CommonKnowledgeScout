@@ -16,8 +16,8 @@ todos:
     content: "T2 Hintergrund in Ruhe: Canvas-Baustein im Paket, über den Gastgeber montiert; Schweben, Tooltip, Klick blendet den Vordergrund aus; Schalter je Library. GEBAUT 22.11.2026 (Brücke 2.81.0, `carpetEnabled`); Linien zu verwandten Dokumenten nach T3 verschoben; Ansicht an einer echten Library und Messung der Bilder je Sekunde offen."
     status: completed
   - id: t3-ablauf
-    content: "T3 Frage und Antwort: Vordergrund weicht beim Rechnen, Schwarm mit Mindestdauer, Belege fliegen rechts neben den Text, Faden mit Nummern, Ringe am festen Platz; Fragenbox am unteren Rand."
-    status: pending
+    content: "T3 Frage und Antwort: Vordergrund weicht beim Rechnen, Schwarm mit Mindestdauer, Belege fliegen rechts neben den Text, Faden mit Nummern, Ringe am festen Platz; Fragenbox am unteren Rand. GEBAUT 22.11.2026 ohne Fragenbox und ohne Linien beim Überfahren; Ziel ist `cards=column` statt eines neuen Werts; in Dev angesehen."
+    status: completed
   - id: t4-stufen
     content: "T4 Suchstufen: Meldungen der Suche tragen die Kennungen der Dokumente; Kandidaten, Auswahl, Belege ziehen in Räume nach innen."
     status: pending
@@ -213,6 +213,33 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
 - Fragenbox: Beispielfragen und Eingabe als Leiste am unteren Rand der Sektion.
 - Scheitert die Frage, endet der Schwarm, alle Punkte gleiten zurück, die Sektion zeigt den
   Fehler wie heute.
+
+**Gebaut 22.11.2026:**
+
+- Ablauf als reine Funktion `naechstePhase` (`ruhe` → `sucht` → `landet` → `antwort`, Mindestdauer
+  2,5 s, Fehler endet in `ruhe`), geführt von `use-teppich-ablauf.ts`; Schwarm, Schweben und Flug in
+  `teppich-bewegung.ts`, Zeichnen in `react/teppich-szene.ts` und `react/teppich-zeichnen.ts`.
+- **Deckungsgleich und verzogen (Owner 22.11.2026):** Steht die Antwort, liegt jeder Beleg genau
+  unter der Nummernmarke seiner Karte, auch wenn die Karte noch außerhalb des Bildes liegt (kein
+  Sprung beim Scrollen). Das Raster verzieht sich mit (`rasterVerzerrung`, Gauß um jeden Beleg,
+  Breite mindestens 60 px bzw. drei Zellen). Erkunden oder eine neue Frage: alles gleitet zurück,
+  das Sternbild mit Ringen zeigt die Herkunft. Eine Leinwand, hinter dem Inhalt.
+- **Die Antwort ist kein eigenes Fenster:** Mit Teppich hat die Karte der Sektion keinen
+  Hintergrund, keinen Rand, keinen Schatten; auch die Flächen der Antwort sind durchsichtig.
+- **Ziel sind die Karten von `cards=column`**, kein neuer Wert `thread`; jede Karte trägt
+  `data-story-karte-datei`, die Nummernmarke ist ihr letztes Element. Der Faden steht nur, wo die
+  Karten eine Spalte bilden; im zweispaltigen Raster entfällt er (kein Zickzack).
+- **Punkte groß und blass:** Radius bis etwa die halbe Zelle (Grundmaß höchstens 6 px),
+  Deckkraft 0,15 in Ruhe, 0,22 beim Schwarm, 0,32 beim Erkunden.
+- **Teppich so hoch wie der sichtbare Bereich** und beim Scrollen stehend (sticky), damit er immer
+  ganz im Bild ist (Owner 22.11.2026: nur ein Ausschnitt war zu sehen).
+- **Befunde der Ansicht in Dev (SFSCON lokal):** Ein neues Raster brach den Flug ab, die Antwort
+  blieb verborgen; behoben. Liegt der Reiter im Hintergrund oder die Fläche außer Sicht, landen die
+  Belege sofort. 62 Bilder je Sekunde bei 220 Punkten im Vordergrund-Reiter. Öffentliche Libraries
+  schicken dem Sprachmodell ihren eigenen Schlüssel (`publicPublishing.apiKey`); für lokale Tests
+  muss er zum lokalen Secretary passen.
+- **Offen:** Fragenbox am unteren Rand, Linien zu verwandten Dokumenten beim Überfahren, Ansicht
+  auf dem Telefon.
 
 ### 3.5 Suchstufen (T4)
 

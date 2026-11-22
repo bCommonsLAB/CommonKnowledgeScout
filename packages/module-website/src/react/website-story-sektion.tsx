@@ -41,7 +41,7 @@ import { WebsiteStoryBelege } from './website-story-belege'
 import { wegGehen } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
 import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
-import { WebsiteTeppichEbene } from './website-teppich-ebene'
+import { useStoryTeppich } from './use-story-teppich'
 import { StoryStatus } from './website-story-status'
 import { StoryPopulaereFragen } from './website-story-populaer'
 import { WebsiteStoryKonversation } from './website-story-konversation'
@@ -123,11 +123,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     [setChatReferences],
   )
 
-  // T2: Teppich der Dokumente hinter der Sektion; Klick auf eine freie Stelle blendet den Vordergrund aus.
-  const [abgetaucht, setAbgetaucht] = useState(false)
-  const teppich = gastgeber.teppich ? (
-    <WebsiteTeppichEbene instanz={gastgeber.instanz} libraryId={p.libraryId} abgetaucht={abgetaucht} onAbgetaucht={setAbgetaucht} onDokument={dokumentOeffnen} />
-  ) : undefined
+  // T2/T3: Teppich der Dokumente hinter der Sektion (`use-story-teppich.tsx`).
+  const teppich = useStoryTeppich(gastgeber, p.libraryId, s, dokumentOeffnen)
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
   const kopf = gastgeber.perspektiveDialog ? (
@@ -170,7 +167,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
       <div ref={anker} className="scroll-mt-4">
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} teppich={teppich} abgetaucht={teppich !== undefined && abgetaucht} fuss={eingabe}>
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} {...teppich.rahmen} fuss={eingabe}>
           {inhalt}
         </WebsiteStorySektionRahmen>
       </div>

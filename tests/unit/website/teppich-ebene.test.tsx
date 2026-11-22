@@ -32,11 +32,16 @@ beforeEach(() => {
   // Reduzierte Bewegung: ein Bild statt Schleife.
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }))
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']
+  // Der Teppich misst die Flaeche, auf der er liegt; jsdom kennt keine Lage, also 800 × 400 bei (0, 0).
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
+    { x: 0, y: 0, left: 0, top: 0, right: 800, bottom: 400, width: 800, height: 400, toJSON: () => ({}) } as DOMRect,
+  )
 })
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 function zeichne(props: Partial<Parameters<typeof WebsiteTeppichEbene>[0]> = {}) {

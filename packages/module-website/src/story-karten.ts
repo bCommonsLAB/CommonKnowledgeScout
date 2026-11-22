@@ -46,6 +46,19 @@ export function kartenEintraege(belege: DocReference[], docs: DocCardMeta[], lae
   return ergebnis
 }
 
+/**
+ * Zitierte Dokumente (fileIds) in der Reihenfolge ihrer Dokumentnummer — dieselbe Nummer,
+ * die Karte und Zitatmarke tragen (`dokumentNummern`). Der Teppich (T3) ordnet so Faden
+ * und Ringe.
+ */
+export function belegReihenfolge(belege: readonly DocReference[]): string[] {
+  const reihe: string[] = []
+  for (const b of [...belege].sort((a, c) => a.number - c.number)) {
+    if (!reihe.includes(b.fileId)) reihe.push(b.fileId)
+  }
+  return reihe
+}
+
 /** Beginn eines Listenpunkts: `- `, `* `, `+ `, `1. `, `1) ` (mit Einrückung). */
 const LISTENPUNKT_RE = /^\s*(?:[-*+]|\d{1,3}[.)])\s+/
 
