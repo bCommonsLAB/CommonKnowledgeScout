@@ -170,6 +170,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     type: 'retrieval_complete',
     sourcesCount: sources.length,
     uniqueFileIdsCount: uniqueFileIds.size > 0 ? uniqueFileIds.size : undefined,
+    // Teppich T4: welche Dokumente vorgelegt werden (nicht nur wie viele) — der Hintergrund
+    // der Fragen-Sektion zieht sie beim Rechnen auf einen inneren Kreis.
+    candidateFileIds: [...uniqueFileIds],
     timingMs: retrievalMs,
     summaryMode,
     ...chunkStats,

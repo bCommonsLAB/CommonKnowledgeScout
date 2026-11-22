@@ -29,6 +29,8 @@ export interface WebsiteTeppichProps {
   phase?: TeppichPhase
   /** Belege der stehenden Antwort, in der Reihenfolge ihrer Nummern (fileIds). */
   belege?: readonly string[]
+  /** T4: Kandidaten der Suche (fileIds), sobald die Suche sie meldet. */
+  kandidaten?: readonly string[]
   /** Der Flug der Belege ist fertig. */
   onGelandet?: () => void
   /** Gemeinsame Szene mit der vorderen Leinwand; ohne Angabe eine eigene. */
@@ -64,7 +66,7 @@ function useBewegungErlaubt(): boolean {
 }
 
 export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
-  const { punkte, abgetaucht, onPunkt, onFreieStelle, phase = 'ruhe', belege = KEINE_BELEGE, onGelandet } = p
+  const { punkte, abgetaucht, onPunkt, onFreieStelle, phase = 'ruhe', belege = KEINE_BELEGE, kandidaten = KEINE_BELEGE, onGelandet } = p
   const eigene = React.useMemo(() => new TeppichSzene(), [])
   const szene = p.szene ?? eigene
   const huelle = React.useRef<HTMLDivElement>(null)
@@ -102,7 +104,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   // Jeder Render reicht den neuen Stand an die Szene; die Schleife liest ihn im naechsten Bild.
   React.useEffect(() => {
     szene.setze({
-      punkte, raster, radien, phase, belege, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
+      punkte, raster, radien, phase, belege, kandidaten, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
       breite: groesse.breite, hoehe: groesse.hoehe,
       farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
       onGelandet: () => gelandet.current?.(),

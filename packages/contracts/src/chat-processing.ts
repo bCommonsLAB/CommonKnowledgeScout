@@ -33,7 +33,15 @@ export type ChatProcessingStep =
   | { type: 'retriever_selected'; retriever: 'chunk' | 'summary'; reason?: string }
   | { type: 'retrieval_start'; retriever: 'chunk' | 'summary' }
   | { type: 'retrieval_progress'; sourcesFound: number; message?: string }
-  | { type: 'retrieval_complete'; sourcesCount: number; uniqueFileIdsCount?: number; timingMs: number; summaryMode?: 'chapters' | 'summary' | 'teaser'; initialMatches?: number; neighborsAdded?: number; topKRequested?: number; budgetUsed?: number; answerLength?: string }
+  | {
+      type: 'retrieval_complete'; sourcesCount: number; uniqueFileIdsCount?: number; timingMs: number; summaryMode?: 'chapters' | 'summary' | 'teaser'; initialMatches?: number; neighborsAdded?: number; topKRequested?: number; budgetUsed?: number; answerLength?: string
+      /**
+       * Teppich T4: die Dokumente (fileIds), die dem Sprachmodell vorgelegt werden — die Auswahl
+       * der Suche, je Dokument einmal, in der Reihenfolge ihres ersten Auftretens. Fehlt bei
+       * Antworten aus dem Cache (dort gibt es keine Suche).
+       */
+      candidateFileIds?: string[]
+    }
   | { type: 'prompt_building'; message?: string }
   | { type: 'prompt_complete'; promptLength: number; documentsUsed: number; tokenCount: number }
   | { type: 'llm_start'; model: string }

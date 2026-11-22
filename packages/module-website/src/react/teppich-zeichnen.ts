@@ -15,6 +15,8 @@ export interface TeppichSzenenStand {
   phase: TeppichPhase
   /** Belege in der Reihenfolge ihrer Nummern (fileIds). */
   belege: readonly string[]
+  /** T4: Kandidaten der Suche (fileIds); leer, solange unbekannt. */
+  kandidaten: readonly string[]
   abgetaucht: boolean
   bewegung: boolean
   ueber: number
