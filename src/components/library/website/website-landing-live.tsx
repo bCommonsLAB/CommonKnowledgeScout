@@ -64,6 +64,11 @@ interface WebsiteLandingLiveProps {
    * kann; im Site-Modus kommt es aus der Library im Atom.
    */
   siteTheme?: SiteTheme
+  /**
+   * Site-Modus im Explorer: Die Seite scrollt mit dem Fenster statt im eigenen Kasten
+   * (`packages/module-explorer/src/react/seiten-scroll.tsx`, Owner 22.11.2026).
+   */
+  fensterScroll?: boolean
 }
 
 export function WebsiteLandingLive({
@@ -74,6 +79,7 @@ export function WebsiteLandingLive({
   exploreBaseHref,
   librarySlug,
   siteTheme,
+  fensterScroll = false,
 }: WebsiteLandingLiveProps): React.ReactElement {
   const pathname = usePathname()
   const router = useRouter()
@@ -149,7 +155,7 @@ export function WebsiteLandingLive({
       // Sterne und Kommentare an Banner-Karten nur im Site-Modus bedienbar (wie bisher).
       sterneAnKarten={!galleryBaseHref}
       // Root-Modus (`/`): natuerlicher Fluss (Window-Scroll). Site-Modus: innerer Scroll-Container.
-      eigenerScroll={!exploreBaseHref}
+      eigenerScroll={!exploreBaseHref && !fensterScroll}
       storySlot={storySlot}
     />
   )

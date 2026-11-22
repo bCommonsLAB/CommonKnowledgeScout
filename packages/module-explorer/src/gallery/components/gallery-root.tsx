@@ -67,6 +67,7 @@ import { ProfilUmschalter } from './profil-umschalter'
 import { GalerieSuche } from './galerie-suche'
 import { MitredenBand } from './mitreden-band'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
+import { useSeitenScrollMelden } from '../../react/seiten-scroll'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -136,6 +137,8 @@ export interface GalleryRootProps {
      * `extra`: Adress-Parameter, die mitgehen — z. B. `q` fuer eine bestimmte Frage (Verweis der Story-Sektion, 09.11.2026).
      */
     onShowStory?: (extra?: Record<string, string>) => void
+    /** Die Seite scrollt mit dem Fenster (Explorer, `seiten-scroll.tsx`): kein eigener Scroll-Kasten. */
+    fensterScroll: boolean
   }) => React.ReactNode
   /**
    * Der Kopf des Story-Modus (Zurueck-Knopf, Perspektive) — Story-Glue, zieht
@@ -301,6 +304,8 @@ export function GalleryRoot({
   // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
   // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
   const hasSiteView = showSiteTab
+  // Webseiten-Ansicht im Explorer: Die Seite scrollt mit dem Fenster (Owner 22.11.2026).
+  const fensterScroll = useSeitenScrollMelden(mode === 'site' && hasSiteView)
 
   // Kein stiller Fallback: Wenn kein Site-Tab erlaubt ist, aber ?view=site in der URL steht,
   // springen wir explizit zurück auf Inhalte.
@@ -1176,14 +1181,14 @@ export function GalleryRoot({
   }
 
   return (
-    <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
+    <div ref={containerRef} className={fensterScroll ? "flex flex-col" : "flex-1 min-h-0 overflow-hidden flex flex-col"}>
       {/* Die fruehere Tab-Leiste (Startseite | Inhalte | Story Mode) entfaellt:
          Die Modi werden dynamisch in der TopNav abgebildet (auch anonym) —
          siehe buildTopNavConfig (exploreContext). Der Mode selbst bleibt
          URL-gesteuert (view=/mode=-Parameter, useGalleryMode). */}
-      <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
+      <Tabs value={mode} className={fensterScroll ? "flex flex-col" : "flex-1 min-h-0 flex flex-col"}>
         {mode === 'site' && hasSiteView && (
-        <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
+        <TabsContent value="site" className={fensterScroll ? "m-0 mt-0 flex flex-col data-[state=active]:flex" : "flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex"}>
           {/* Phase 3 (E4/E7): Statt des alten web/-Snapshot-iframes rendert die
              „Startseite" jetzt die produktive website-Landingpage aus Live-Daten. */}
           {libraryId && siteView ? (
@@ -1191,6 +1196,7 @@ export function GalleryRoot({
               libraryId,
               onShowGallery: (extra) => setMode('gallery', extra),
               onShowStory: storyPanel ? (extra) => setMode('story', extra) : undefined,
+              fensterScroll,
             })
           ) : libraryId ? (
             // Kein stiller Leerraum: Site-Modus erlaubt, aber keine Landingpage montiert.
