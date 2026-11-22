@@ -5,6 +5,8 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { startQueryLog, failQueryLog, setQuestionAnalysis } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
+import { applyWebsiteExclusionToChunkFilter } from '@/lib/chat/website-ausschluss'
+import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer'
 import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import { getLocale } from '@ks/i18n'
@@ -215,6 +217,8 @@ export async function POST(
     // Neuer Pfad: Summary-Retriever über Mongo (retriever=summary oder von Analyse empfohlen)
     if (effectiveRetriever === 'summary') {
       const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, 'summary')
+      // Erzeugte Webseiten sind keine Quelle (website-ausschluss.ts).
+      await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
       const modeNow = 'summaries' as const
       const queryId = await startQueryLog({
         libraryId,
@@ -304,6 +308,8 @@ export async function POST(
     // Verwende den Orchestrator für einheitliche Verarbeitung
     const mode: 'summaries' | 'chunks' = 'chunks'
     const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, 'chunk')
+    // Erzeugte Webseiten sind keine Quelle (website-ausschluss.ts).
+    await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
     const queryId = await startQueryLog({
       libraryId,
       chatId: activeChatId,
