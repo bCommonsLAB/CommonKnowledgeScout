@@ -540,6 +540,8 @@ export class LibraryService {
           siteTheme: lib.config.publicPublishing.siteTheme,
           // Fokus aus Sternen (ADR 0012): fehlend => false
           starCountsPublic: lib.config.publicPublishing.starCountsPublic === true,
+          // Teppich der Dokumente (T2): fehlend => false
+          carpetEnabled: lib.config.publicPublishing.carpetEnabled === true,
         } : undefined
       } as Record<string, unknown>;
       

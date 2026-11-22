@@ -36,21 +36,19 @@ Slots. Den Gastgeber der App baut `story/website-story-app.tsx` (Clerk,
 Story-Kontext, Library-Konfig, App-Renderer); Belege, Katalog und „frühere
 Fragen“ gehen über `WebsiteNavigation`.
 
-**Bühne hinter der Fragen-Sektion (optional, Plan
-`commonux-buehne-fragen-sektion`):** Der Gastgeber kann `buehne` reichen
-(`WebsiteStoryBuehne`: `modus` aus · hinten · vorn, `onModus`, und — sobald
-geladen — `darstellung` mit Slot `ebene` und `farbeFuerBeleg`). Die Sektion
-zeigt dann im Kopf der Karte das Symbol „Zur Bühne“ (Kreise) bzw. „Zurück zum
-Text“ (drei Linien). Hinten meldet sie ihr Gespräch (`gespraechAusStory`) und
-die Lage der Zitatmarken an den Slot und färbt die Marken; der Bereich des
-Chats ist das Fenster der Ebene (`clip-path`), Klicks erreichen sie nicht.
-Vorn steht die Bühne statt des Texts und nimmt Klicks an; die Eingabe bleibt
-darunter. Ohne `buehne` ändert sich nichts. **Stand 22.11.2026: Niemand reicht
-`buehne`.** Die Common-UX-Bühne ist aus der App ausgebaut (Plan
-`teppich-der-dokumente`, Welle T0b): kein Player, kein Schalter
-`publicPublishing.stageEnabled`, keine Bühnen-Ebene. Der Anschluss bleibt im
-Paket und wird in Welle T2 zum Anschluss des Teppichs der Dokumente. Das
-Paket importiert weiterhin kein `@commonux/*`.
+**Teppich der Dokumente hinter der Fragen-Sektion (optional, Plan
+`teppich-der-dokumente`, T2):** Reicht der Gastgeber `teppich: true`, liegt
+hinter der ganzen Sektion eine Canvas-Ebene (`WebsiteTeppichEbene`): jedes
+Dokument als Punkt an seinem festen Platz aus `GET /api/chat/<id>/teppich`.
+Die Karte bleibt weiß; Klicks erreichen den Teppich nur dort, wo keine Karte
+liegt. Klick auf einen Punkt öffnet das Dokument wie einen Beleg (Gastgeber
+`detail`, sonst Navigation), Klick ins Leere blendet Kopfzeile und Karte aus,
+ein zweiter Klick oder Escape holt sie zurück. Ohne `teppich` ändert sich
+nichts. Die App reicht `teppich` nach dem Schalter
+`publicPublishing.carpetEnabled` (Vorgabe aus; Formular „Öffentlich“ oder
+`veroeffentlichung_setzen`); das Embed zusätzlich nur mit Prop `carpet`
+(Standard an). Die Common-UX-Bühne ist seit T0b ausgebaut; das Paket
+importiert kein `@commonux/*`.
 
 ## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
 

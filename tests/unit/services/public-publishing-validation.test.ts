@@ -50,6 +50,15 @@ describe('mergePublicPublishing', () => {
     expect(neu.starCountsPublic).toBeUndefined()
   })
 
+  it('carpetEnabled (Teppich der Dokumente, T2): undefined laesst stehen, true/false setzt, geaendert nennt das Feld', () => {
+    expect(mergePublicPublishing(ALT, {}, 'L').carpetEnabled).toBeUndefined()
+    expect(mergePublicPublishing({ ...ALT, carpetEnabled: true }, {}, 'L').carpetEnabled).toBe(true)
+    const an = mergePublicPublishing(ALT, { carpetEnabled: true }, 'L')
+    expect(an.carpetEnabled).toBe(true)
+    expect(geaenderteFelder(ALT, an)).toEqual(['carpetEnabled'])
+    expect(mergePublicPublishing({ ...ALT, carpetEnabled: true }, { carpetEnabled: false }, 'L').carpetEnabled).toBe(false)
+  })
+
   it('starCountsPublic (ADR 0012): undefined laesst stehen, true/false setzt, geaendert nennt das Feld', () => {
     expect(mergePublicPublishing({ ...ALT, starCountsPublic: true }, {}, 'L').starCountsPublic).toBe(true)
     const an = mergePublicPublishing(ALT, { starCountsPublic: true }, 'L')

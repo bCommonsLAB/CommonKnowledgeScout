@@ -403,8 +403,11 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   ausgebaut, Brücke 2.79.0, Skript `scripts/remove-stage-enabled.ts` für
   gespeicherte Schalter); T1 gebaut 22.11. (Auftrag `doc-teppich` mit
   Lage-Regel, Route `GET /api/chat/<id>/teppich`, Brücke 2.80.0
-  `teppich_berechnen`). Geplant: das Skript aus T0b in Dev und Prod laufen
-  lassen, T1 an einer echten Library prüfen, dann T2 (Hintergrund in Ruhe)
+  `teppich_berechnen`); T2 gebaut 22.11. (Canvas hinter der Fragen-Sektion,
+  Schalter `publicPublishing.carpetEnabled`, Brücke 2.81.0, Embed-Prop
+  `carpet`). Geplant: das Skript aus T0b in Dev und Prod laufen lassen, Teppich
+  an einer echten Library berechnen und ansehen, Bilder je Sekunde messen
+  (E6), dann T3 (Schwarm, Flug, Belege rechts)
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit

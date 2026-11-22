@@ -64,6 +64,8 @@ export async function GET(
       siteTheme: pub?.siteTheme,
       // ADR 0012: ob Besucher die Sterne-Zahl sehen (Schalter, kein Secret)
       starCountsPublic: pub?.starCountsPublic === true,
+      // Teppich T2: Teppich der Dokumente hinter der Fragen-Sektion der Website (Schalter, kein Secret)
+      carpetEnabled: pub?.carpetEnabled === true,
       exploreContext: 'member' as const,
     }
 
