@@ -5,8 +5,8 @@
 import { describe, it, expect } from 'vitest'
 import type { ChatProcessingStep, DocReference } from '@ks/contracts'
 import {
-  SUCHE_MINDESTENS_MS, belegReihenfolge, flugVerlauf, kandidatenAusSchritten, naechstePhase,
-  schwarmKreise, schwarmSchritt, schwarmStart,
+  SUCHE_MINDESTENS_MS, belegReihenfolge, botschaftsStufe, flugVerlauf, kandidatenAusSchritten, naechstePhase,
+  schwarmKreise, schwarmSchritt, schwarmStart, storylineLage,
 } from '@ks/module-website'
 
 describe('Suchstufen (T4)', () => {
@@ -34,6 +34,37 @@ describe('Suchstufen (T4)', () => {
     const innen = [...kandidaten]
     const aussen = Array.from({ length: n }, (_, i) => i).filter((i) => !kandidaten.has(i))
     expect(mittel(innen)).toBeLessThan(mittel(aussen) * 0.7)
+  })
+})
+
+describe('Botschaft der Animation', () => {
+  it('folgt den Meldungen des Servers: suchen, gefunden, gewichten, schreiben', () => {
+    const s = (type: string) => ({ type }) as ChatProcessingStep
+    expect(botschaftsStufe([])).toBe(0)
+    expect(botschaftsStufe([s('retrieval_start'), s('llm_start')])).toBe(0)
+    expect(botschaftsStufe([s('retrieval_complete')])).toBe(1)
+    expect(botschaftsStufe([s('retrieval_complete'), s('prompt_building')])).toBe(2)
+    expect(botschaftsStufe([s('retrieval_complete'), s('prompt_building'), s('prompt_complete'), s('llm_progress')])).toBe(3)
+  })
+})
+
+describe('Storyline (Ende der Animation)', () => {
+  it('legt die Belege auf den innersten Kreis, innerhalb der Kandidaten', () => {
+    const kreis = schwarmKreise(10, new Set([1, 2]), new Set([3]))!
+    expect(kreis[3]).toBeLessThan(kreis[1])
+    expect(kreis[1]).toBeLessThan(kreis[0])
+    expect(schwarmKreise(10, new Set(), new Set([3]))).toBeDefined()
+  })
+
+  it('stellt die Belege untereinander in die Mitte der Flaeche, in der Hoehe begrenzt', () => {
+    const { x, ys, zeile } = storylineLage(5, 800, 400)
+    expect(ys).toHaveLength(5)
+    expect((ys[0] + ys[4]) / 2).toBeCloseTo(200)
+    for (let k = 1; k < 5; k++) expect(ys[k] - ys[k - 1]).toBeCloseTo(zeile)
+    expect(x).toBeGreaterThan(24)
+    expect(x).toBeLessThan(400)
+    const viele = storylineLage(40, 800, 400)
+    expect(viele.ys[39] - viele.ys[0]).toBeLessThanOrEqual(400)
   })
 })
 

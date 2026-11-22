@@ -48,6 +48,8 @@ export interface WebsiteStorySektionRahmenProps {
   hinweis?: boolean
   /** Waehrend einer Frage: die Frage allein ueber dem Teppich (T3). */
   frage?: string
+  /** Waehrend einer Frage: was die Animation gerade zeigt, in Worten (unten). */
+  botschaft?: string
   /** Unter dem Chat (die Eingabe). */
   fuss?: React.ReactNode
 }
@@ -70,6 +72,7 @@ export function WebsiteStorySektionRahmen({
   abgetaucht = false,
   hinweis = false,
   frage,
+  botschaft,
   fuss,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
@@ -114,6 +117,11 @@ export function WebsiteStorySektionRahmen({
       {frage && (
         <p className="pointer-events-none absolute inset-x-6 top-10 z-10 mx-auto max-w-3xl text-balance text-center text-2xl font-semibold leading-snug" data-teppich-frage>
           {frage}
+        </p>
+      )}
+      {botschaft && (
+        <p className="pointer-events-none absolute inset-x-6 bottom-8 z-10 mx-auto max-w-2xl text-balance text-center text-base font-medium" aria-live="polite" data-teppich-botschaft>
+          {botschaft}
         </p>
       )}
       {hinweis && (

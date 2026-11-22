@@ -1055,6 +1055,13 @@
       },
       "anpassen": "Antworten anpassen",
       "teppichZurueck": "Klick auf eine freie Stelle holt den Text zurück",
+      "teppich": {
+        "suche": "Dokumente werden durchsucht …",
+        "gefunden": "{count} passende Dokumente gefunden",
+        "gewichtet": "Die passenden Dokumente werden gewichtet …",
+        "schreiben": "Die Antwort entsteht …",
+        "storyline": "Ihre Storyline: Die Antwort stützt sich auf diese {count} Belege"
+      },
       "quellenAnzeigen": "Quellen anzeigen ({count})",
       "quellenAnzeigenKurz": "Quellen anzeigen",
       "belegnummern": "Belegnummern im Text anzeigen",

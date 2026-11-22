@@ -126,31 +126,6 @@ export function flugVerlauf(p: number): number {
 }
 
 /**
- * Verzerrung des Rasters, wenn Belege an neue Plaetze ruecken (T3). Jeder Anker (Index `i`,
- * Verschiebung `dx`/`dy`) rueckt genau um seine Verschiebung; jeder andere Punkt folgt allen
- * Ankern mit einem Gewicht, das mit dem Abstand im Raster weich abfaellt (Gauss, Breite `sigma`).
- * Schreibt in `dx`/`dy` (gleiche Laenge wie `px`).
- */
-export function rasterVerzerrung(
-  px: Float32Array, py: Float32Array, anker: ReadonlyArray<{ i: number; dx: number; dy: number }>,
-  sigma: number, dx: Float32Array, dy: Float32Array,
-): void {
-  const zweiSigmaQ = 2 * sigma * sigma
-  for (let i = 0; i < px.length; i++) {
-    let sx = 0, sy = 0, sw = 0
-    for (const a of anker) {
-      const w = a.i === i ? 1e6 : Math.exp(-((px[i] - px[a.i]) ** 2 + (py[i] - py[a.i]) ** 2) / zweiSigmaQ)
-      sx += w * a.dx
-      sy += w * a.dy
-      sw += w
-    }
-    const n = Math.max(1, sw)
-    dx[i] = sx / n
-    dy[i] = sy / n
-  }
-}
-
-/**
  * Auswahl der Suche (T4): die Dokumente, die dem Sprachmodell vorgelegt werden, aus dem letzten
  * Schritt `retrieval_complete`. Leer, solange die Suche laeuft, und bei Antworten aus dem Cache.
  */
@@ -163,13 +138,52 @@ export function kandidatenAusSchritten(schritte: readonly ChatProcessingStep[]):
 }
 
 /**
- * Kreise des Schwarms (T4): Kandidaten auf einem inneren Kreis (0,3 bis 0,4 des Radius), alle
- * anderen weiter aussen (0,62 bis 1,07), damit die Mitte frei wird. Ohne Kandidaten `undefined`:
- * jeder Punkt kreist auf seinem eigenen Radius.
+ * Kreise des Schwarms (T4): Belege der Antwort auf dem innersten Kreis (0,1 bis 0,16 des
+ * Radius), Kandidaten der Suche auf einem inneren (0,3 bis 0,4), alle anderen weiter aussen
+ * (0,62 bis 1,07), damit die Mitte frei wird. Ohne Kandidaten und Belege `undefined`: jeder Punkt
+ * kreist auf seinem eigenen Radius.
  */
-export function schwarmKreise(anzahl: number, kandidaten: ReadonlySet<number>): Float32Array | undefined {
-  if (kandidaten.size === 0) return undefined
+export function schwarmKreise(anzahl: number, kandidaten: ReadonlySet<number>, belege: ReadonlySet<number> = new Set()): Float32Array | undefined {
+  if (kandidaten.size === 0 && belege.size === 0) return undefined
   const kreis = new Float32Array(anzahl)
-  for (let i = 0; i < anzahl; i++) kreis[i] = kandidaten.has(i) ? 0.3 + 0.1 * punktSaat(i) : 0.62 + 0.45 * punktSaat(i, 0.37)
+  for (let i = 0; i < anzahl; i++) {
+    kreis[i] = belege.has(i) ? 0.1 + 0.06 * punktSaat(i)
+      : kandidaten.has(i) ? 0.3 + 0.1 * punktSaat(i)
+        : 0.62 + 0.45 * punktSaat(i, 0.37)
+  }
   return kreis
+}
+
+/** Wie lange die fertige Storyline steht, bevor die Antwort erscheint (ms) — Zeit zum Lesen. */
+export const STORYLINE_MS = 3200
+
+/**
+ * Botschaft der Animation (Owner 22.11.2026): erklaert den Rechenweg in Worten. Stufen in dieser
+ * Reihenfolge: 0 Dokumente werden durchsucht, 1 passende gefunden, 2 werden gewichtet, 3 die
+ * Antwort entsteht. Liefert die Stufe, die die Meldungen des Servers schon erreicht haben.
+ */
+export type BotschaftsStufe = 0 | 1 | 2 | 3
+
+export function botschaftsStufe(schritte: readonly ChatProcessingStep[]): BotschaftsStufe {
+  let stufe: BotschaftsStufe = 0
+  for (const s of schritte) {
+    if (s.type === 'retrieval_complete' && stufe < 1) stufe = 1
+    else if (s.type === 'prompt_building' && stufe < 2) stufe = 2
+    else if ((s.type === 'prompt_complete' || s.type === 'llm_progress') && stufe < 3) stufe = 3
+  }
+  return stufe
+}
+
+/**
+ * Lage der Storyline (Owner 22.11.2026): Die Belege der Antwort stehen als Liste in der Mitte der
+ * Flaeche, untereinander in der Reihenfolge ihrer Nummern; rechts neben jedem Kreis der Titel.
+ * Liefert die Mitte jedes Kreises; `zeile` ist der Abstand zweier Kreise, `x` die gemeinsame Spalte.
+ */
+export function storylineLage(anzahl: number, breite: number, hoehe: number): { x: number; ys: number[]; zeile: number } {
+  // Hoechstens 40 px; bei vielen Belegen enger, die Liste bleibt in 72 % der Hoehe.
+  const zeile = anzahl > 0 ? Math.min(40, (hoehe * 0.72) / anzahl) : 0
+  const listenBreite = Math.min(560, breite - 48)
+  const x = Math.max(24, (breite - listenBreite) / 2) + 14
+  const oben = hoehe / 2 - ((anzahl - 1) * zeile) / 2
+  return { x, ys: Array.from({ length: anzahl }, (_, k) => oben + k * zeile), zeile }
 }

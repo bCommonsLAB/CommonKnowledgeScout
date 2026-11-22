@@ -1,63 +1,61 @@
 /**
- * Szene des Teppichs der Dokumente (Plan `teppich-der-dokumente`, T3).
+ * Szene des Teppichs der Dokumente (Plan `teppich-der-dokumente`, T3/T4).
  *
- * Haelt die Lage jedes Punkts ueber die Bilder hinweg und rechnet je Bild Ruhe, Schwarm, Flug
- * und Verzerrung. Steht eine Antwort, liegt jeder Beleg genau unter der Nummernmarke seiner
- * Karte; das Raster verzieht sich mit, Nachbarn folgen umso staerker, je naeher sie dem Beleg
- * sind (Owner 22.11.2026: Vorder- und Hintergrund deckungsgleich, das Muster wird unruhig).
- * Beim Erkunden (Karte ausgeblendet) und bei einer neuen Frage gleitet alles zurueck; dann
- * zeigt das Sternbild mit Ringen, woher die Belege kommen.
+ * Haelt die Lage jedes Punkts ueber die Bilder hinweg. Ablauf einer Frage (Owner 22.11.2026):
+ * Die Punkte loesen sich aus dem Raster und schwaermen; die Auswahl der Suche zieht auf einen
+ * inneren Kreis. Mit der Antwort verdichten sich die zitierten Belege: erst in einen engen Kreis
+ * der Mitte, dann zur Storyline — eine Liste in der Bildmitte, in der Reihenfolge der Antwort, mit
+ * Nummer und Titel. Sie steht einen Moment, dann erscheint die Antwort, und der Schwarm dreht sich
+ * langsam weiter (Belege auf dem innersten Kreis). Erst beim Erkunden oder in Ruhe gleitet alles
+ * zurueck ins Raster.
  */
 
 import {
-  FLUG_MS, driftVersatz, flugVerlauf, punktSaat, rasterVerzerrung, schwarmKreise, schwarmSchritt, schwarmStart,
+  FLUG_MS, STORYLINE_MS, driftVersatz, flugVerlauf, punktSaat, schwarmKreise, schwarmSchritt, schwarmStart, storylineLage,
   type TeppichPhase, type TeppichSchwarm,
 } from '..'
-import { markenPlatz, type TeppichSzenenStand } from './teppich-zeichnen'
+import type { TeppichSzenenStand } from './teppich-zeichnen'
 import { zeichneTeppich } from './teppich-bild'
 
-interface Flug { start: number; vonX: Float32Array; vonY: Float32Array; meldet: boolean }
+interface Flug { start: number; vonX: Float32Array; vonY: Float32Array }
+interface Verdichtung extends Flug { listeSeit: number | null; gemeldet: boolean }
 
 export class TeppichSzene {
   hinten: HTMLCanvasElement | null = null
-  /** Zeiger relativ zur Leinwand; der Schwarm folgt ihm. */
+  /** Zeiger relativ zur Leinwand; der Schwarm folgt ihm waehrend der Suche. */
   zeiger: { x: number; y: number } | null = null
   private x = new Float32Array(0)
   private y = new Float32Array(0)
-  private dx = new Float32Array(0)
-  private dy = new Float32Array(0)
   private schwarm: TeppichSchwarm | null = null
-  private flug: Flug | null = null
+  private rueckflug: Flug | null = null
+  private verdichtung: Verdichtung | null = null
+  /** Anteil 0..1, wie weit die Titel der Storyline eingeblendet sind. */
+  private titel = 0
   private phase: TeppichPhase = 'ruhe'
   private mitte = { x: 0, y: 0 }
   private belegIndex: number[] = []
-  /** Anteil der Verzerrung 0 (Raster) bis 1 (Belege unter ihren Marken). */
-  private zug = 0
-  /** Belege, deren Marke gerade im Bild ist. */
-  private verankert = new Set<number>()
-  /** T4: Kandidaten der Suche (Indizes) und ihre Kreise im Schwarm. */
   private kandidaten = new Set<number>()
   private kreis: Float32Array | undefined
-  private kandidatenSchluessel = ''
+  private kreisSchluessel = ''
   private stand: TeppichSzenenStand | null = null
 
   setze(s: TeppichSzenenStand): void {
     if (s.punkte.length !== this.x.length) {
       this.x = Float32Array.from(s.raster.px)
       this.y = Float32Array.from(s.raster.py)
-      this.dx = new Float32Array(s.punkte.length)
-      this.dy = new Float32Array(s.punkte.length)
       this.schwarm = null
-      if (this.flug?.meldet) s.onGelandet()
-      this.flug = null
+      this.rueckflug = null
+      if (this.verdichtung && !this.verdichtung.gemeldet) s.onGelandet()
+      this.verdichtung = null
     }
     const index = new Map(s.punkte.map((p, i) => [p.fileId, i]))
-    this.belegIndex = s.belege.map((id) => index.get(id)).filter((i): i is number => i !== undefined)
-    const schluessel = s.kandidaten.join('|')
-    if (schluessel !== this.kandidatenSchluessel) {
-      this.kandidatenSchluessel = schluessel
-      this.kandidaten = new Set(s.kandidaten.map((id) => index.get(id)).filter((i): i is number => i !== undefined))
-      this.kreis = schwarmKreise(s.punkte.length, this.kandidaten)
+    const nachIndex = (ids: readonly string[]) => ids.map((id) => index.get(id)).filter((i): i is number => i !== undefined)
+    this.belegIndex = nachIndex(s.belege)
+    const schluessel = `${s.kandidaten.join('|')}#${s.belege.join('|')}`
+    if (schluessel !== this.kreisSchluessel) {
+      this.kreisSchluessel = schluessel
+      this.kandidaten = new Set(nachIndex(s.kandidaten))
+      this.kreis = schwarmKreise(s.punkte.length, this.kandidaten, new Set(this.belegIndex))
     }
     this.stand = s
   }
@@ -65,23 +63,33 @@ export class TeppichSzene {
   /** Ein Bild: bewegen, dann zeichnen. `zeit` in ms (requestAnimationFrame), `dt` in s. */
   bild(zeit: number, dt: number): void {
     const s = this.stand
-    const hinten = this.hinten
-    if (!s || !hinten || s.breite === 0) return
+    if (!s || !this.hinten || s.breite === 0) return
     this.wechsle(s, zeit)
-    this.bewege(s, zeit, dt, hinten.getBoundingClientRect())
-    this.zeichne(s, zeit)
+    this.bewege(s, zeit, dt)
+    this.verdichte(s, zeit)
+    const t = zeit / 1000
+    zeichneTeppich(this.hinten, s, {
+      x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
+      imRaster: !this.schwarm, titel: this.titel, heimat: (i) => this.heimat(s, i, t),
+    })
   }
 
   private wechsle(s: TeppichSzenenStand, zeit: number): void {
     if (s.phase === this.phase) return
     const vorher = this.phase
     this.phase = s.phase
-    this.schwarm = s.phase === 'sucht' && s.bewegung ? schwarmStart(this.x, this.y) : null
-    if (s.phase === 'sucht') { this.mitte = { x: s.breite / 2, y: s.hoehe / 2 }; this.zug = 0 }
-    const zurueck = s.phase === 'ruhe' && vorher === 'sucht'
-    this.flug = s.phase === 'landet' || zurueck
-      ? { start: zeit, vonX: Float32Array.from(this.x), vonY: Float32Array.from(this.y), meldet: s.phase === 'landet' }
-      : null
+    if (s.phase === 'sucht') this.mitte = { x: s.breite / 2, y: s.hoehe / 2 }
+    if (s.phase === 'landet') {
+      this.verdichtung = { start: zeit, vonX: Float32Array.from(this.x), vonY: Float32Array.from(this.y), listeSeit: null, gemeldet: false }
+    } else if (vorher === 'landet') {
+      // Die Belege kreisen aus der Storyline heraus weiter, ohne Sprung.
+      this.verdichtung = null
+      this.titel = 0
+      if (this.schwarm) for (const i of this.belegIndex) {
+        this.schwarm.x[i] = this.x[i]; this.schwarm.y[i] = this.y[i]
+        this.schwarm.vx[i] = 0; this.schwarm.vy[i] = 0
+      }
+    }
   }
 
   private heimat(s: TeppichSzenenStand, i: number, t: number): [number, number] {
@@ -91,93 +99,71 @@ export class TeppichSzene {
     return [px[i] + dx, py[i] + dy]
   }
 
-  /**
-   * Verschiebung jedes Punkts, wenn die Belege unter ihren Marken liegen (`this.dx/dy`). Ein Beleg
-   * ruekt genau auf seine Marke; jeder andere Punkt folgt den Belegen mit einem Gewicht, das mit dem
-   * Abstand im Raster weich abfaellt. Gibt zurueck, ob es ueberhaupt etwas zu verziehen gibt.
-   */
-  private verziehe(s: TeppichSzenenStand, t: number, rect: DOMRect): boolean {
-    this.dx.fill(0)
-    this.dy.fill(0)
-    this.verankert.clear()
-    if (s.abgetaucht || (s.phase !== 'landet' && s.phase !== 'antwort')) return false
-    const sektion = this.hinten?.closest('[data-website-story]')
-    if (!sektion) return false
-    const { px, py, zelle } = s.raster
-    const anker: Array<{ i: number; dx: number; dy: number }> = []
-    for (const i of this.belegIndex) {
-      const platz = markenPlatz(sektion, rect, s.punkte[i].fileId)
-      if (!platz) continue
-      const [hx, hy] = this.heimat(s, i, t)
-      anker.push({ i, dx: platz.x - hx, dy: platz.y - hy })
-      this.verankert.add(i)
-    }
-    if (anker.length === 0) return false
-    rasterVerzerrung(px, py, anker, Math.max(60, zelle * 3), this.dx, this.dy)
-    return true
-  }
-
-  private bewege(s: TeppichSzenenStand, zeit: number, dt: number, rect: DOMRect): void {
+  /** Schwarm in Suche, Verdichtung und Antwort; Raster in Ruhe und beim Erkunden. */
+  private bewege(s: TeppichSzenenStand, zeit: number, dt: number): void {
     const t = zeit / 1000
-    if (this.schwarm) {
-      if (this.zeiger) {
+    const schwaermt = s.bewegung && (s.phase === 'sucht' || ((s.phase === 'landet' || s.phase === 'antwort') && !s.abgetaucht))
+    if (schwaermt) {
+      if (!this.schwarm) { this.schwarm = schwarmStart(this.x, this.y); this.rueckflug = null }
+      if (s.phase === 'sucht' && this.zeiger) {
         const gx = Math.min(0.75 * s.breite, Math.max(0.25 * s.breite, this.zeiger.x))
         const gy = Math.min(0.68 * s.hoehe, Math.max(0.32 * s.hoehe, this.zeiger.y))
         this.mitte.x += (gx - this.mitte.x) * Math.min(1, dt * 2.5)
         this.mitte.y += (gy - this.mitte.y) * Math.min(1, dt * 2.5)
       }
-      schwarmSchritt(this.schwarm, dt, t, this.mitte, s.breite, s.hoehe, this.kreis)
+      // Nach der Antwort dreht sich die Geschichte langsam weiter.
+      schwarmSchritt(this.schwarm, s.phase === 'antwort' ? dt * 0.3 : dt, t, this.mitte, s.breite, s.hoehe, this.kreis)
       this.x.set(this.schwarm.x)
       this.y.set(this.schwarm.y)
       return
     }
-    const verzogen = this.verziehe(s, t, rect)
-    if (this.flug) {
-      const f = this.flug
-      let fertig = true
-      for (let i = 0; i < this.x.length; i++) {
-        const [hx, hy] = this.heimat(s, i, t)
-        const k = this.belegIndex.indexOf(i)
-        // T4: Belege fliegen erst in den engen Kreis der Mitte (definitiv verwendet), dann unter ihre Marke.
-        const zweistufig = f.meldet && k >= 0
-        const verzug = k >= 0 ? k * 70 : punktSaat(i) * 250
-        const p = s.bewegung ? (zeit - f.start - verzug) / (zweistufig ? FLUG_MS * 2 : FLUG_MS) : 1
-        if (p < 1) fertig = false
-        let [vx, vy, q] = [f.vonX[i], f.vonY[i], p]
-        if (zweistufig) {
-          const w = (k / this.belegIndex.length) * 6.2832
-          const rr = 0.12 * Math.min(s.breite, s.hoehe)
-          const [mx, my] = [this.mitte.x + Math.cos(w) * rr, this.mitte.y + Math.sin(w) * rr]
-          if (p < 0.5) { const e = flugVerlauf(p * 2); this.x[i] = vx + (mx - vx) * e; this.y[i] = vy + (my - vy) * e; continue }
-          ;[vx, vy, q] = [mx, my, (p - 0.5) * 2]
-        }
-        const e = flugVerlauf(q)
-        this.x[i] = vx + (hx + this.dx[i] - vx) * e
-        this.y[i] = vy + (hy + this.dy[i] - vy) * e
-      }
-      if (fertig) {
-        this.flug = null
-        this.zug = f.meldet && verzogen ? 1 : 0
-        if (f.meldet) s.onGelandet()
-      }
-      return
+    if (this.schwarm) {
+      this.schwarm = null
+      this.rueckflug = { start: zeit, vonX: Float32Array.from(this.x), vonY: Float32Array.from(this.y) }
     }
-    const ziel = verzogen ? 1 : 0
-    this.zug = s.bewegung ? this.zug + (ziel - this.zug) * Math.min(1, dt * 3) : ziel
+    const f = this.rueckflug
+    let fertig = true
     for (let i = 0; i < this.x.length; i++) {
       const [hx, hy] = this.heimat(s, i, t)
-      // Ohne Verzerrung bleibt die zuletzt gerechnete Verschiebung stehen, bis `zug` bei 0 ist.
-      this.x[i] = hx + this.dx[i] * this.zug
-      this.y[i] = hy + this.dy[i] * this.zug
+      if (!f) { this.x[i] = hx; this.y[i] = hy; continue }
+      const p = s.bewegung ? (zeit - f.start - punktSaat(i) * 250) / FLUG_MS : 1
+      if (p < 1) fertig = false
+      const e = flugVerlauf(p)
+      this.x[i] = f.vonX[i] + (hx - f.vonX[i]) * e
+      this.y[i] = f.vonY[i] + (hy - f.vonY[i]) * e
     }
+    if (f && fertig) this.rueckflug = null
   }
 
-  private zeichne(s: TeppichSzenenStand, zeit: number): void {
-    if (!this.hinten) return
-    const t = zeit / 1000
-    zeichneTeppich(this.hinten, s, {
-      x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
-      verankert: this.verankert, zug: this.zug, heimat: (i) => this.heimat(s, i, t),
+  /** Verdichtung: Belege erst in den engen Kreis der Mitte, dann in die Storyline; danach steht sie. */
+  private verdichte(s: TeppichSzenenStand, zeit: number): void {
+    const v = this.verdichtung
+    if (s.phase !== 'landet' || !v) return
+    const n = this.belegIndex.length
+    const { x: lx, ys } = storylineLage(n, s.breite, s.hoehe)
+    const rr = 0.1 * Math.min(s.breite, s.hoehe)
+    let fertig = true
+    this.belegIndex.forEach((i, k) => {
+      const p = s.bewegung ? (zeit - v.start - k * 90) / (FLUG_MS * 2) : 1
+      if (p < 1) fertig = false
+      const w = (k / Math.max(1, n)) * 6.2832
+      const mx = this.mitte.x + Math.cos(w) * rr
+      const my = this.mitte.y + Math.sin(w) * rr
+      if (p < 0.5) {
+        const e = flugVerlauf(p * 2)
+        this.x[i] = v.vonX[i] + (mx - v.vonX[i]) * e
+        this.y[i] = v.vonY[i] + (my - v.vonY[i]) * e
+      } else {
+        const e = flugVerlauf((p - 0.5) * 2)
+        this.x[i] = mx + (lx - mx) * e
+        this.y[i] = my + (ys[k] - my) * e
+      }
     })
+    if (fertig && v.listeSeit === null) v.listeSeit = zeit
+    this.titel = v.listeSeit === null ? 0 : Math.min(1, (zeit - v.listeSeit) / 400)
+    if (v.listeSeit !== null && !v.gemeldet && zeit - v.listeSeit >= STORYLINE_MS) {
+      v.gemeldet = true
+      s.onGelandet()
+    }
   }
 }

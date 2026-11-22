@@ -1008,6 +1008,13 @@
       },
       "anpassen": "Adjust answers",
       "teppichZurueck": "Click an empty spot to bring the text back",
+      "teppich": {
+        "suche": "Searching the documents …",
+        "gefunden": "{count} matching documents found",
+        "gewichtet": "Weighing the matching documents …",
+        "schreiben": "Writing the answer …",
+        "storyline": "Your storyline: the answer rests on these {count} sources"
+      },
       "quellenAnzeigen": "Show sources ({count})",
       "quellenAnzeigenKurz": "Show sources",
       "belegnummern": "Show source numbers in the text",

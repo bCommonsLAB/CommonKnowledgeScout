@@ -18,8 +18,9 @@ import type { WebsiteStorySektionRahmenProps } from './website-story-sektion-rah
 import { WebsiteTeppichEbene } from './website-teppich-ebene'
 import { TeppichSzene } from './teppich-szene'
 import { useTeppichAblauf } from './use-teppich-ablauf'
+import { useTeppichBotschaft } from './use-teppich-botschaft'
 
-type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'hinweis' | 'frage'>
+type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'hinweis' | 'frage' | 'botschaft'>
 
 export function useStoryTeppich(
   gastgeber: WebsiteStoryGastgeber,
@@ -36,6 +37,8 @@ export function useStoryTeppich(
   const ablauf = useTeppichAblauf(an, { laeuft: s.k.laeuft, fehler: s.k.fehler !== null, hatAntwort: belege.length > 0 })
   const fragt = ablauf.phase === 'sucht' || ablauf.phase === 'landet'
   const szene = React.useMemo(() => new TeppichSzene(), [])
+  // Erklaert den Rechenweg in Worten, zum Schluss die Storyline (Owner 22.11.2026).
+  const botschaft = useTeppichBotschaft(ablauf.phase, s.k.schritte, kandidaten.length, belege.length)
   if (!an) return { rahmen: {} }
   return {
     rahmen: {
@@ -48,6 +51,7 @@ export function useStoryTeppich(
       abgetaucht: abgetaucht || fragt,
       hinweis: abgetaucht && !fragt,
       frage: fragt ? paar?.frage.text : undefined,
+      botschaft,
     },
   }
 }

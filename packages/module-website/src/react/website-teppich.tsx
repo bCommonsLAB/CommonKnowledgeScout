@@ -5,10 +5,9 @@
  *
  * `WebsiteTeppich` ist die hintere Leinwand hinter der Fragen-Sektion: jedes Dokument ein
  * Punkt an seinem Platz (`packeTeppich`), Groesse nach Gewicht, Jahreszahlen unten. In Ruhe
- * schwebt jeder Punkt leicht; beim Fragen schwaermen alle. Steht die Antwort, liegt jeder Beleg
- * unter der Nummernmarke seiner Karte, das Raster verzieht sich mit (`TeppichSzene`). Die Karte
- * der Sektion ist dafuer leicht durchscheinend. Die Schleife laeuft nur, solange die Flaeche
- * sichtbar ist.
+ * schwebt jeder Punkt leicht; beim Fragen schwaermen alle. Mit der Antwort verdichten sich die
+ * Belege zur Storyline in der Mitte, danach dreht sich der Schwarm langsam weiter
+ * (`TeppichSzene`). Die Schleife laeuft nur, solange die Flaeche sichtbar ist.
  *
  * In Ruhe und bei stehender Antwort: Ueberfahren zeigt Titel und Jahr, Klick auf einen Punkt
  * meldet ihn (`onPunkt`), Klick auf eine freie Stelle `onFreieStelle`. Waehrend der Suche und
