@@ -61,8 +61,6 @@ const publicFormSchema = z.object({
   siteEnabled: z.boolean().default(false),
   // Fokus aus Sternen (ADR 0012): Sterne-Zahl anonym sichtbar, Namen nie.
   starCountsPublic: z.boolean().default(false),
-  // K3: Common-UX-Buehne an der Fragen-Sektion der Website.
-  stageEnabled: z.boolean().default(false),
   // Welle S2: Design-Profil als JSON-Text; leer = Vorlage. Geprueft mit denselben Regeln wie die Bruecke.
   siteThemeJson: z.string().optional().superRefine((wert, ctx) => {
     if (!wert?.trim()) return
@@ -150,7 +148,6 @@ export function PublicForm() {
         requiresAuth: false,
         siteEnabled: false,
         starCountsPublic: false,
-        stageEnabled: false,
         siteThemeJson: "",
         showOnHomepage: true,
         backgroundImageUrl: "",
@@ -180,7 +177,6 @@ export function PublicForm() {
       requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
       siteEnabled: activeLibrary.config?.publicPublishing?.siteEnabled === true || false,
       starCountsPublic: activeLibrary.config?.publicPublishing?.starCountsPublic === true,
-      stageEnabled: activeLibrary.config?.publicPublishing?.stageEnabled === true,
       siteThemeJson: activeLibrary.config?.publicPublishing?.siteTheme
         ? JSON.stringify(activeLibrary.config.publicPublishing.siteTheme, null, 2)
         : "",
@@ -279,7 +275,6 @@ export function PublicForm() {
       requiresAuth: data.requiresAuth,
       siteEnabled: data.siteEnabled,
       starCountsPublic: data.starCountsPublic,
-      stageEnabled: data.stageEnabled,
       // S2: leeres Feld = Profil loeschen (null), sonst das geparste Profil (Schema hat es geprueft).
       siteTheme: data.siteThemeJson?.trim() ? (JSON.parse(data.siteThemeJson) as unknown) : null,
       showOnHomepage: data.showOnHomepage,
@@ -651,27 +646,6 @@ export function PublicForm() {
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
-
-            <FormField
-              control={form.control}
-              name="stageEnabled"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Bühne an der Fragen-Sektion</FormLabel>
-                    <FormDescription>
-                      Die Fragen-Sektion der Website zeigt rechts oben ein Symbol. Damit wechseln Besucher zwischen dem Text und einer Bühne, auf der Frage, Antwort und Quellen als Formen erscheinen. Auf schmalen Bildschirmen gibt es das Symbol nicht.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
                   </FormControl>
                 </FormItem>
               )}

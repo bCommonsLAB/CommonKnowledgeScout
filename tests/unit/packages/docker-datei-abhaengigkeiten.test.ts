@@ -1,6 +1,7 @@
 // @vitest-environment node
 /**
- * Waechter fuer Abhaengigkeiten aus Dateien (`file:vendor/…tgz`, zuerst `@commonux/player`):
+ * Waechter fuer Abhaengigkeiten aus Dateien (`file:vendor/…tgz`; die erste war
+ * `@commonux/player`, ausgebaut mit Welle T0b des Plans `teppich-der-dokumente`):
  * `pnpm install --frozen-lockfile` liest die Datei schon beim Install. Das Dockerfile kopiert vor
  * dem Install aber nur `package.json` und `pnpm-lock.yaml` (siehe docker-abhaengigkeiten.test.ts).
  * Fehlt der Ordner dort, bricht der Docker-Build mit ENOENT ab — erst in `ci-main`, nach dem Merge.
@@ -36,8 +37,12 @@ function vorDemInstallKopiert(): string[] {
 }
 
 describe('Docker-Build: Abhaengigkeiten aus Dateien', () => {
-  it('die App hat mindestens eine file:-Abhaengigkeit (sonst prueft dieser Test nichts)', () => {
-    expect(dateiAbhaengigkeiten().map((d) => d.name)).toContain('@commonux/player')
+  // Gegenrichtung: Ein COPY auf einen Ordner, den es nicht mehr gibt, bricht den Docker-Build
+  // genauso ab — etwa wenn die letzte file:-Abhaengigkeit geht und die COPY-Zeile bleibt.
+  it('alles, was das Dockerfile vor pnpm install kopiert, liegt im Repo', () => {
+    for (const quelle of vorDemInstallKopiert()) {
+      expect(existsSync(join(REPO_ROOT, quelle)), `COPY ${quelle}: fehlt im Repo`).toBe(true)
+    }
   })
 
   it('jede file:-Abhaengigkeit liegt im Repo und wird vor pnpm install kopiert', () => {

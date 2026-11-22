@@ -1,16 +1,17 @@
 /**
- * @fileoverview Fragen-Sektion → Gespraech fuer die Common-UX-Buehne (Plan
+ * @fileoverview Fragen-Sektion → Gespraech fuer einen Hintergrund hinter der
+ * Sektion (entstanden fuer die Common-UX-Buehne, Plan
  * `commonux-buehne-fragen-sektion`, Welle P3).
  *
  * @description
- * Reine Funktionen ohne React und ohne den Player: Aus den Frage-Antwort-Paaren
- * der Sitzung wird das neutrale Gespraech, das die Anwendung an die Buehne
- * reicht. Der Player (`@commonux/player`) macht daraus Darsteller; Lagen
+ * Reine Funktionen ohne React: Aus den Frage-Antwort-Paaren der Sitzung wird
+ * das neutrale Gespraech, das die Sektion an ihren Hintergrund reicht. Lagen
  * rechnet hier niemand.
  *
- * Die Typen `WebsiteGespraech…` sind strukturgleich mit `Gespraech` des Players
- * und stehen hier, weil dieses Paket ins Embed geht und den Player nicht
- * importiert. Den Abgleich haelt `tests/unit/commonux/gespraech-typ.test.ts`.
+ * Die Buehne mit dem Player ist ausgebaut (Plan `teppich-der-dokumente`,
+ * Welle T0b, Owner 22.11.2026). Die Typen `WebsiteGespraech…` waren
+ * strukturgleich mit `Gespraech` des Players; der Abgleich-Test ist mit dem
+ * Player gegangen. Naechster Abnehmer ist der Teppich der Dokumente (T2).
  *
  * @module website
  */

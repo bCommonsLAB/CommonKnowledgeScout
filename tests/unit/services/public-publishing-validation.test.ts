@@ -50,15 +50,6 @@ describe('mergePublicPublishing', () => {
     expect(neu.starCountsPublic).toBeUndefined()
   })
 
-  it('stageEnabled (Buehne an der Fragen-Sektion, K3): undefined laesst stehen, true/false setzt, geaendert nennt das Feld', () => {
-    expect(mergePublicPublishing(ALT, {}, 'L').stageEnabled).toBeUndefined()
-    expect(mergePublicPublishing({ ...ALT, stageEnabled: true }, {}, 'L').stageEnabled).toBe(true)
-    const an = mergePublicPublishing(ALT, { stageEnabled: true }, 'L')
-    expect(an.stageEnabled).toBe(true)
-    expect(geaenderteFelder(ALT, an)).toEqual(['stageEnabled'])
-    expect(mergePublicPublishing({ ...ALT, stageEnabled: true }, { stageEnabled: false }, 'L').stageEnabled).toBe(false)
-  })
-
   it('starCountsPublic (ADR 0012): undefined laesst stehen, true/false setzt, geaendert nennt das Feld', () => {
     expect(mergePublicPublishing({ ...ALT, starCountsPublic: true }, {}, 'L').starCountsPublic).toBe(true)
     const an = mergePublicPublishing(ALT, { starCountsPublic: true }, 'L')

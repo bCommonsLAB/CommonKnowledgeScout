@@ -7,8 +7,8 @@ todos:
     content: "T0 Owner-Entscheide E1–E5 am 22.11.2026 getroffen (Abschnitt 7); E6 (Obergrenze auf dem Telefon) folgt nach der Messung in T2."
     status: completed
   - id: t0b-buehne-ausbauen
-    content: "T0b Common-UX-Bühne ausbauen, vor T1 (Owner 22.11.2026): Player-Bündel, Bühnen-Ebene der App, Symbol „Zur Bühne“, Schalter `stageEnabled` in Formular, Brücke und Lese-Routen."
-    status: pending
+    content: "T0b Common-UX-Bühne ausbauen, vor T1 (Owner 22.11.2026): Player-Bündel, Bühnen-Ebene der App, Schalter `stageEnabled` in Formular, Brücke und Lese-Routen. GEBAUT 22.11.2026 (Brücke 2.79.0); das Skript `scripts/remove-stage-enabled.ts` muss noch in Dev und Prod laufen."
+    status: completed
   - id: t1-plaetze
     content: "T1 Feste Plätze: Auftrag berechnet und speichert die Lage je Dokument; schlanke, anonym lesbare Punkte-Abfrage."
     status: pending
@@ -92,8 +92,14 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
   der App (`src/components/library/website/buehne/**`), das Symbol „Zur Bühne" mit `?buehne=`,
   der Schalter `publicPublishing.stageEnabled` in Typen, Formular „Öffentlich", Lese-Routen
   und Brücke (`veroeffentlichung_setzen`; `TOOLSET_VERSION` und `NEU_IN_VERSION` nachziehen).
-- Prüfen statt annehmen: ob `COPY vendor` im Dockerfile und der Wächter
-  `docker-datei-abhaengigkeiten.test.ts` noch etwas anderes schützen als den Player.
+- Geprüft 22.11.: `vendor/` enthielt nur das Player-Bündel, `COPY vendor` im Dockerfile
+  diente nur ihm. Ordner und Zeile sind weg. Der Wächter
+  `docker-datei-abhaengigkeiten.test.ts` bleibt und prüft jetzt beide Richtungen: jede
+  `file:`-Abhängigkeit wird vor dem Install kopiert, und jede COPY-Quelle liegt im Repo.
+- Der Schalter „Zur Bühne" und die Messung im Paket (`website-story-buehne.tsx`) bleiben
+  bis T2 stehen, sind aber ohne Gastgeber-Feld wirkungslos; die App reicht `buehne` nicht mehr.
+- Skript für gespeicherte Schalter: `scripts/remove-stage-enabled.ts` (Probelauf ohne
+  `--apply`).
 - Bleibt: `gespraechAusStory` und die Messung der Zitatmarken im Paket. T2 braucht beides.
 - Ein gespeichertes `stageEnabled: true` wird beim Lesen nicht still übergangen: Der Ausbau
   entfernt das Feld per Skript aus den Library-Konfigurationen und nennt die Zahl.

@@ -63,8 +63,6 @@ export async function GET(
         isPublic: ctx.library.config.publicPublishing.isPublic,
         gallery: ctx.library.config.publicPublishing.gallery,
         story: ctx.library.config.publicPublishing.story,
-        // K3: Buehne an der Fragen-Sektion (Schalter, kein Secret); fehlend => false
-        stageEnabled: ctx.library.config.publicPublishing.stageEnabled === true,
         // API-Key nicht an Client senden
       } : undefined,
     }

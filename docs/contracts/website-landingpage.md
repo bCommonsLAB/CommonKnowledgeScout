@@ -45,11 +45,12 @@ Text“ (drei Linien). Hinten meldet sie ihr Gespräch (`gespraechAusStory`) und
 die Lage der Zitatmarken an den Slot und färbt die Marken; der Bereich des
 Chats ist das Fenster der Ebene (`clip-path`), Klicks erreichen sie nicht.
 Vorn steht die Bühne statt des Texts und nimmt Klicks an; die Eingabe bleibt
-darunter. Ohne `buehne` ändert sich nichts. Die App reicht `buehne` nur, wenn
-die Library den Schalter `publicPublishing.stageEnabled` gesetzt hat
-(Vorgabe aus; Formular „Öffentlich“ oder `veroeffentlichung_setzen`).
-Das Paket importiert den Player (`@commonux/*`) nicht — den lädt nur die App
-(`src/components/library/website/buehne/`).
+darunter. Ohne `buehne` ändert sich nichts. **Stand 22.11.2026: Niemand reicht
+`buehne`.** Die Common-UX-Bühne ist aus der App ausgebaut (Plan
+`teppich-der-dokumente`, Welle T0b): kein Player, kein Schalter
+`publicPublishing.stageEnabled`, keine Bühnen-Ebene. Der Anschluss bleibt im
+Paket und wird in Welle T2 zum Anschluss des Teppichs der Dokumente. Das
+Paket importiert weiterhin kein `@commonux/*`.
 
 ## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
 
