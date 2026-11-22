@@ -4,6 +4,13 @@ import { getQueryLogById, deleteQueryLog } from '@/lib/db/queries-repo'
 import { leseEintragFuerVerwaltung } from '@/lib/db/queries-verwaltung'
 import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
 import { explorerGate } from '@ks/module-explorer'
+import { mitDokumentNummer } from '@ks/util'
+import type { DocReference } from '@ks/contracts'
+
+/** Anzeigenummer je Beleg (docNumber) — auch fuer Logs, die vor dem Feld entstanden sind. */
+function mitAnzeigenummern<T extends { references?: DocReference[] }>(log: T): T {
+  return log.references ? { ...log, references: mitDokumentNummer(log.references) } : log
+}
 
 export async function GET(
   request: NextRequest,
@@ -45,12 +52,12 @@ export async function GET(
 
     try {
       const log = await getQueryLogById({ libraryId, queryId, userEmail, sessionId })
-      if (log) return NextResponse.json(log)
+      if (log) return NextResponse.json(mitAnzeigenummern(log))
       // Verwaltungssicht „Fragen & Antworten": Owner/Moderator lesen jeden
       // Eintrag ihrer Library (Antwort, Quellen) — ohne Erstellerdaten.
       if (userEmail && (await isModeratorOrOwner(libraryId, userEmail))) {
         const fuerVerwaltung = await leseEintragFuerVerwaltung(libraryId, queryId)
-        if (fuerVerwaltung) return NextResponse.json(fuerVerwaltung)
+        if (fuerVerwaltung) return NextResponse.json(mitAnzeigenummern(fuerVerwaltung))
       }
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     } catch (queryError) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dokumentNummern, zitatmarke, zitatmarkenImText } from '@ks/util'
+import { dokumentNummern, mitDokumentNummer, zitatmarke, zitatmarkenImText } from '@ks/util'
 
 describe('zitatmarke', () => {
   it('Kreiszahlen 1 bis 20, darueber in Klammern', () => {
@@ -63,5 +63,33 @@ describe('zitatmarkenImText', () => {
 
   it('unbekannte Marke (keine Referenz dazu) behaelt ihre Nummer', () => {
     expect(zitatmarkenImText('Siehe [9].', () => undefined)).toBe('Siehe [9](#beleg-9).')
+  })
+})
+
+describe('mitDokumentNummer (Anzeigenummer in der API)', () => {
+  it('zitierte Dokumente lueckenlos 1..k, Reihenfolge und uebrige Felder bleiben', () => {
+    const belege = [5, 10, 16, 28, 35, 2, 4].map((number) => ({ number, fileId: `f${number}`, description: 'x' }))
+    const mit = mitDokumentNummer(belege)
+    expect(mit.map((b) => [b.number, b.docNumber])).toEqual([[5, 3], [10, 4], [16, 5], [28, 6], [35, 7], [2, 1], [4, 2]])
+    expect(mit[0]).toEqual({ number: 5, fileId: 'f5', description: 'x', docNumber: 3 })
+  })
+
+  it('alte Antworten: Textstellen desselben Dokuments teilen die Nummer; ein mitgebrachtes docNumber zaehlt nicht', () => {
+    const mit = mitDokumentNummer([
+      { number: 7, fileId: 'a', docNumber: 99 },
+      { number: 9, fileId: 'b' },
+      { number: 8, fileId: 'a' },
+    ])
+    expect(mit.map((b) => b.docNumber)).toEqual([1, 2, 1])
+  })
+
+  it('dieselbe Nummer wie im Antworttext der Oberflaeche', () => {
+    const mit = mitDokumentNummer([{ number: 5, fileId: 'a' }, { number: 28, fileId: 'b' }])
+    const nummerFuer = (n: number) => mit.find((b) => b.number === n)?.docNumber
+    expect(zitatmarkenImText('A [5]. B [28].', nummerFuer)).toBe('A [1](#beleg-1). B [2](#beleg-2).')
+  })
+
+  it('leere Liste bleibt leer', () => {
+    expect(mitDokumentNummer([])).toEqual([])
   })
 })

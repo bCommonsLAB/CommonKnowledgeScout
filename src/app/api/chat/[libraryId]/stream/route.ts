@@ -63,6 +63,7 @@ import {
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { formatSSE } from '@/types/chat-processing'
 import { explorerGate } from '@ks/module-explorer'
+import { mitDokumentNummer } from '@ks/util'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -603,7 +604,8 @@ export async function POST(
             const completeStep: ChatProcessingStep & { storyTopicsData?: import('@/types/story-topics').StoryTopicsData } = {
               type: 'complete',
               answer: cachedQuery.answer || '',
-              references: cachedQuery.references || [],
+              // Alte Logs tragen kein docNumber — die Anzeigenummer wird beim Ausliefern gesetzt.
+              references: mitDokumentNummer(cachedQuery.references || []),
               suggestedQuestions: cachedQuery.suggestedQuestions || [],
               queryId: finalQueryId,
               ...(activeChatId ? { chatId: activeChatId } : {}),
