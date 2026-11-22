@@ -40,9 +40,17 @@ export interface DocPassage {
  * je DOKUMENT nummeriert, die Textstellen haengen als `passages` darunter.
  * Aeltere Antworten (ohne `passages`) tragen eine Nummer je Textstelle —
  * die Oberflaeche gruppiert sie weiterhin nach `fileId`.
+ *
+ * `number` hat Luecken: Das Sprachmodell sieht ALLE gefundenen Dokumente
+ * (1..n), geliefert werden nur die zitierten. `docNumber` ist die Nummer, die
+ * die Oberflaeche zeigt — die zitierten Dokumente lueckenlos 1..k
+ * (`dokumentNummern` in `@ks/util`). Wer die Antwort selbst darstellt, ersetzt
+ * `[number]` im Text durch `docNumber` und schreibt `docNumber` an den Beleg.
  */
 export interface DocReference {
   number: number
+  /** Anzeigenummer des Dokuments in dieser Antwort (1..k); die API setzt sie immer, auch bei alten Antworten. */
+  docNumber?: number
   fileId: string
   fileName?: string
   /** D12k: Titel des Dokuments, serverseitig aus dem Meta-Dokument angereichert; fehlt bei aelteren Antworten. */

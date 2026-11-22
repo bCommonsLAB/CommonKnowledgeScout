@@ -47,7 +47,22 @@ export function dokumentNummern(referenzen: ReferenzNummer[]): Map<number, numbe
   return nummern
 }
 
-export type NummerFuerMarke = (nummer: number) => number | undefined
+/**
+ * Schreibt die Anzeigenummer als `docNumber` an jede Referenz — fuer die API,
+ * damit fremde Oberflaechen dieselbe Nummer zeigen wie KnowledgeScout, ohne
+ * die Regel nachzubauen. Immer neu berechnet (ein mitgebrachtes `docNumber`
+ * zaehlt nicht): Die Regel hat genau eine Quelle, `dokumentNummern`.
+ */
+export function mitDokumentNummer<T extends ReferenzNummer>(referenzen: T[]): Array<T & { docNumber: number }> {
+  const nummern = dokumentNummern(referenzen)
+  return referenzen.map((r) => {
+    const docNumber = nummern.get(r.number)
+    if (docNumber === undefined) throw new Error(`Keine Dokumentnummer fuer Referenz ${r.number}`)
+    return { ...r, docNumber }
+  })
+}
+
+export type NummerFuerMarke =(nummer: number) => number | undefined
 
 /** Ein Lauf von Marken: `[1]`, `[1] [2]`, `[1], [2]` — ohne folgende Klammer (das waere ein Markdown-Link). */
 const MARKEN_LAUF = /\[\d{1,3}\](?!\()(?:[ \t]*,?[ \t]*\[\d{1,3}\](?!\())*/g

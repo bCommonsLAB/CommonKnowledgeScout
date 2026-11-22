@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { listRecentQueries } from '@/lib/db/queries-repo'
 import { explorerGate } from '@ks/module-explorer'
+import { mitDokumentNummer } from '@ks/util'
 
 export async function GET(
   request: NextRequest,
@@ -48,7 +49,10 @@ export async function GET(
     
     try {
       const items = await listRecentQueries({ libraryId, userEmail, sessionId, chatId: chatId || undefined, limit })
-      return NextResponse.json({ items })
+      // Anzeigenummer je Beleg (docNumber) — auch fuer Logs, die vor dem Feld entstanden sind.
+      return NextResponse.json({
+        items: items.map((item) => (item.references ? { ...item, references: mitDokumentNummer(item.references) } : item)),
+      })
     } catch (queryError) {
       // Wenn listRecentQueries einen Fehler wirft (z.B. "Entweder userEmail oder sessionId muss angegeben werden"),
       // gib leere Liste zurück statt Fehler (für bessere UX)
