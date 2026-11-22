@@ -398,9 +398,11 @@ Ohne Reihenfolge. Vorhaben bedienen sich hier, wenn ein Punkt auf ihrem Weg lieg
   (`plans/assets/teppich-der-dokumente-prototyp.html`), Plan mit Wellen T0–T4,
   kein Code; Owner-Entscheide E1–E5 am 22.11. (der Teppich ersetzt die
   Common-UX-Bühne, Zeit nach rechts und Ähnliches beieinander, Punktgröße
-  nach Umfang, zuerst nur die Fragen-Sektion, auch im Embed). Geplant: T0b
-  (Bühne ausbauen, vor allem anderen), dann T1 (feste Plätze und
-  Punkte-Abfrage)
+  nach Umfang, zuerst nur die Fragen-Sektion, auch im Embed); T0b gebaut
+  22.11. (Player-Bündel, Bühnen-Ebene der App und Schalter `stageEnabled`
+  ausgebaut, Brücke 2.79.0, Skript `scripts/remove-stage-enabled.ts` für
+  gespeicherte Schalter). Geplant: das Skript in Dev und Prod laufen lassen,
+  dann T1 (feste Plätze und Punkte-Abfrage)
 - **Startseite als einbettbare Komponente** (Plan
   [`startseite-als-embed`](plans/startseite-als-embed.plan.md), 18.11.):
   `KnowledgeScoutSite` in `@ks/embed` zeigt die Website-Startseite mit

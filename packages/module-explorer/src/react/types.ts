@@ -39,8 +39,6 @@ export interface ExplorerLibraryPayload {
   siteEnabled?: boolean
   /** ADR 0012: Sterne-Zahl auch fuer Besucher sichtbar (Knopf „Im Fokus", Welle F2) */
   starCountsPublic?: boolean
-  /** Common-UX-Buehne an der Fragen-Sektion der Website (fehlend = false). */
-  stageEnabled?: boolean
   /** Website-Logo (Phase C2): oeffentliche URL fuer die TopNav im Site-Kontext */
   logoUrl?: string
   /** Welle S2: Design-Profil der Website-Landingpage (fehlt = Vorlage) */

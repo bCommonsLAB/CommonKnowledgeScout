@@ -38,8 +38,6 @@ RUN apk add --no-cache python3 py3-pip && \
 # Nur die notwendigen Dateien kopieren
 COPY package.json pnpm-lock.yaml ./
 # COPY .npmrc ./  # entfernt, da nicht vorhanden
-# Gebündelte Pakete aus Dateien (vendor/commonux-player-*.tgz) liest pnpm schon beim Install
-COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 
 # Restlichen Code kopieren

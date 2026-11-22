@@ -21,7 +21,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.78.0'
+export const TOOLSET_VERSION = '2.79.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -145,6 +145,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.79.0: Common-UX-Buehne ausgebaut (Plan teppich-der-dokumente, Welle T0b, Owner 22.11.). Der Library-Schalter publicPublishing.stageEnabled entfaellt: veroeffentlichung_setzen nimmt das Feld nicht mehr an, veroeffentlichung_lesen nennt es nicht mehr. An der Fragen-Sektion der Website gibt es kein Symbol „Zur Buehne" mehr. Der Teppich der Dokumente bekommt spaeter einen eigenen Schalter.',
   '2.78.0: Common-UX-Buehne an der Fragen-Sektion (Plan commonux-buehne-fragen-sektion, K3, Owner 21.11.). Neuer Library-Schalter publicPublishing.stageEnabled (Vorgabe false): veroeffentlichung_setzen nimmt stageEnabled, veroeffentlichung_lesen zeigt ihn. Mit true zeigt die Fragen-Sektion der Website (layout=story) rechts oben das Symbol „Zur Buehne" und laedt bei Bedarf den Player; ohne den Schalter gibt es weder Symbol noch Buehne, auch nicht ueber ?buehne= in der Adresse. Kein neues Werkzeug',
   '2.77.0: Text im Seitentext korrigieren (Befund 20.11.: das Modell verkuerzt lange Adressen, z. B. FOSDEM-Programmseiten auf „-/"; felder korrigiert nur das Kopffeld, der Link im Seitentext fuehrte weiter ins Leere). dokument_felder_setzen nimmt neu `ersetzen` (bis 20 Paare { alt, neu }, alt mindestens 3 Zeichen): woertliche Ersetzung jeder Fundstelle im Seitentext und in den Text-Feldern der Transformation, gesperrte Felder bleiben unberuehrt, ein Treffer in einem Pflichtfeld wirft. Neue Zeilenfelder textGeaendert und nichtGefunden (Ersetzung ohne Treffer, laut statt still); hat sich Seitentext geaendert, nennt naechsterSchritt index_aktualisieren, damit Galerie-Text und Abschnitte folgen. Kein neues Werkzeug',
   '2.76.1: Ausschnitt des Kopfbilds (Owner 18.11.). Neues Frontmatter-Feld hero_image_position an website-Seiten: top, center (Vorgabe), bottom oder 0%–100% — richtet den Ausschnitt in der Hoehe aus, wo hero_layout band, campaign und der Standard-Kopf das Bild zuschneiden (breite Bildschirme zeigen nur einen flachen Streifen der Bildmitte). dokument_publizieren warnt bei ungueltigem Wert, der Renderer meldet ihn laut und zeigt die Mitte. Kein neues Werkzeug',

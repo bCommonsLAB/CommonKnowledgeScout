@@ -35,12 +35,9 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, story, mitreden, siteEnabled, siteTheme, starCountsPublic, stageEnabled } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, story, mitreden, siteEnabled, siteTheme, starCountsPublic } = body;
     if (starCountsPublic !== undefined && typeof starCountsPublic !== 'boolean') {
       return NextResponse.json({ error: 'starCountsPublic muss true oder false sein' }, { status: 400 });
-    }
-    if (stageEnabled !== undefined && typeof stageEnabled !== 'boolean') {
-      return NextResponse.json({ error: 'stageEnabled muss true oder false sein' }, { status: 400 });
     }
 
     // Validierung — dieselben Regeln wie die Bruecke (public-publishing-validation.ts).
@@ -102,8 +99,6 @@ export async function PUT(
       siteEnabled: siteEnabled === true,
       // ADR 0012: Formular sendet das Feld immer; fehlend => false wie siteEnabled.
       starCountsPublic: starCountsPublic === true,
-      // K3: ebenso — fehlend => false, keine Library bekommt ungefragt die Buehne.
-      stageEnabled: stageEnabled === true,
     }, library.label)
     const neuerApiKey = apiKey !== undefined && apiKey !== '' && !apiKey.includes('...') && !apiKey.includes('••••') && (apiKey.match(/\./g)?.length || 0) < 10
       ? apiKey

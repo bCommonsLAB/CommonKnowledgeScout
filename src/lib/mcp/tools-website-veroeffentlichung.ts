@@ -57,7 +57,6 @@ export function veroeffentlichungSicht(pub: PublicPublishing | undefined) {
     siteEnabled: pub?.siteEnabled === true,
     siteTheme: pub?.siteTheme ?? null,
     starCountsPublic: pub?.starCountsPublic === true,
-    stageEnabled: pub?.stageEnabled === true,
     apiKeyGesetzt: Boolean(pub?.apiKey),
     adresse: slug ? `/explore/${slug}` : null,
     domainZuordnung: process.env.PUBLIC_DOMAIN_LIBRARY_MAP ? 'im Deployment konfiguriert (Wert nicht lesbar)' : 'keine',
@@ -109,8 +108,6 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
         'starCountsPublic: true (ADR 0012) zeigt Besuchern die ZAHL der Sterne je Eintrag und gibt sort=stars und ' +
         'starred=<k> in der Galerie frei; die Namen der Bewertenden bleiben Mitgliedern vorbehalten, bewerten koennen ' +
         'weiterhin nur Mitglieder. ' +
-        'stageEnabled: true zeigt an der Fragen-Sektion der Website (layout=story) das Symbol „Zur Buehne" — Besucher ' +
-        'wechseln damit zwischen dem Text und der Common-UX-Buehne; Vorgabe false, ohne den Schalter kein Symbol. ' +
         'Nur Owner; kein API-Schluessel ueber die Bruecke. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -133,7 +130,6 @@ export function registerWebsiteVeroeffentlichungTools(server: McpServer): void {
           .describe('Design-Profil als OBJEKT (kein JSON-Text); ersetzt das gespeicherte Profil als Ganzes; weglassen = unveraendert'),
         siteThemeLoeschen: z.boolean().optional().describe('true = Design-Profil loeschen, die Website rendert wieder die Vorlage'),
         starCountsPublic: z.boolean().optional().describe('true = Sterne-Zahl auch fuer Besucher sichtbar (Namen nie); sort=stars und starred=<k> oeffentlich'),
-        stageEnabled: z.boolean().optional().describe('true = Symbol „Zur Buehne" an der Fragen-Sektion der Website; false oder fehlend = kein Symbol, kein Player'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false },

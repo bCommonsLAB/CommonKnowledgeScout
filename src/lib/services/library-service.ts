@@ -540,8 +540,6 @@ export class LibraryService {
           siteTheme: lib.config.publicPublishing.siteTheme,
           // Fokus aus Sternen (ADR 0012): fehlend => false
           starCountsPublic: lib.config.publicPublishing.starCountsPublic === true,
-          // Buehne an der Fragen-Sektion (K3): fehlend => false
-          stageEnabled: lib.config.publicPublishing.stageEnabled === true,
         } : undefined
       } as Record<string, unknown>;
       

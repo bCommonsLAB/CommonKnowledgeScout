@@ -439,13 +439,6 @@ export interface StorageConfig {
      * Library etwas. Bewerten bleibt Mitgliedern vorbehalten.
      */
     starCountsPublic?: boolean;
-    /**
-     * Common-UX-Buehne an der Fragen-Sektion der Website (Plan
-     * `commonux-buehne-fragen-sektion`, K3). Mit `true` zeigt die Sektion das
-     * Symbol „Zur Buehne" und laedt bei Bedarf den Player. Vorgabe `false`:
-     * ohne den Schalter aendert sich fuer keine Library etwas.
-     */
-    stageEnabled?: boolean;
   };
 }
 

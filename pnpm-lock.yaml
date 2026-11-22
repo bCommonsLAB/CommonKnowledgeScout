@@ -17,9 +17,6 @@ importers:
       '@clerk/nextjs':
         specifier: ^6.21.0
         version: 6.21.0(next@15.3.8(@playwright/test@1.60.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@commonux/player':
-        specifier: file:vendor/commonux-player-0.2.0.tgz
-        version: file:vendor/commonux-player-0.2.0.tgz(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@heroicons/react':
         specifier: ^2.2.0
         version: 2.2.0(react@19.2.4)
@@ -916,13 +913,6 @@ packages:
     resolution: {integrity: sha512-60u/Z3VD0lgepsySUPyFM1MV5cwhMwouN63na5g9+qm3PpaTE2kN4DeW9Nq6t1YB0TFpVEKIb1r8U6EOWPa01A==}
     engines: {node: '>=18.17.0'}
     deprecated: 'This package is no longer supported. Please import types from @clerk/shared/types instead. See the upgrade guide for more info: https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3'
-
-  '@commonux/player@file:vendor/commonux-player-0.2.0.tgz':
-    resolution: {integrity: sha512-XIkyqtDt1wmaeMEp+JLzzFM9iWLq8YkuCGmBJ9RSgnGnK/STJbZeBAoBsCbrbcrklRdeqXCaYsN6ZI/rQasPKg==, tarball: file:vendor/commonux-player-0.2.0.tgz}
-    version: 0.2.0
-    peerDependencies:
-      react: ^18.2.0 || ^19.0.0
-      react-dom: ^18.2.0 || ^19.0.0
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -8123,11 +8113,6 @@ snapshots:
   '@clerk/types@4.60.0':
     dependencies:
       csstype: 3.1.3
-
-  '@commonux/player@file:vendor/commonux-player-0.2.0.tgz(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:

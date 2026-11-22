@@ -12,8 +12,7 @@
  *  - Dialog „Antworten anpassen" (`PerspektiveDialogApp`, speichert ins Profil),
  *  - Fuss der Antwort: Konfig-Anzeige, Verbrauchsseite der Sitzung,
  *    Berechnungsschritte fuer Angemeldete,
- *  - das Logo neben der Antwort und die Detailansicht mit den App-Renderern,
- *  - die Common-UX-Buehne hinter der Karte, wenn sie an ist (`use-website-buehne.ts`).
+ *  - das Logo neben der Antwort und die Detailansicht mit den App-Renderern.
  *
  * `website-landing-live.tsx` laedt diese Datei faul (`next/dynamic`), damit nur
  * Seiten mit `layout=story` oder `layout=topics` Story-Paket und Clerk ziehen.
@@ -24,7 +23,6 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API } from '@ks/api-client'
-import { useLibraries } from '@ks/shell/react'
 import { useTranslation } from '@ks/i18n/react'
 import type { Nachricht } from '@ks/module-story/react'
 import {
@@ -41,7 +39,6 @@ import { AppLogo } from '@/components/shared/app-logo'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { useWebsitePerspektive } from './use-website-perspektive'
-import { useWebsiteBuehne } from '../buehne/use-website-buehne'
 
 // Die Detailansicht zieht die Renderer aller Typen nach — erst laden, wenn jemand einen Eintrag oeffnet.
 const WebsiteStoryDetail = dynamic(() => import('./website-story-detail').then((m) => ({ default: m.WebsiteStoryDetail })), { ssr: false })
@@ -55,10 +52,6 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
   const perspektive = useWebsitePerspektive()
   const { cfg, loading, error } = useLibraryConfig(libraryId)
   const { speichern } = useProfilPerspektive()
-  // K3: Schalter je Library. Die Library steht im Atom (Site-Modus) oder kommt mit der Chat-Konfig (Root-Modus).
-  const imAtom = useLibraries().find((lib) => lib.id === libraryId)
-  const buehneErlaubt = (imAtom ? imAtom.config?.publicPublishing?.stageEnabled : cfg?.publicPublishing?.stageEnabled) === true
-  const buehne = useWebsiteBuehne(buehneErlaubt)
   const slug = cfg?.publicPublishing?.slugName
   // 10.11.2026: was diese Sitzung kostet — die Verbrauchsseite, vorgefiltert auf die eigene Sitzung.
   const verbrauchHref = slug ? `/explore/${encodeURIComponent(slug)}/verbrauch?sicht=session` : null
@@ -92,9 +85,8 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
       ),
       antwortAvatar: <AppLogo size={32} />,
       detail: ({ doc, page, onClose }) => <WebsiteStoryDetail libraryId={libraryId} doc={doc} page={page} onClose={onClose} />,
-      buehne,
     }),
-    [libraryId, angemeldet, perspektive, cfg, loading, error, speichern, verbrauchHref, t, buehne],
+    [libraryId, angemeldet, perspektive, cfg, loading, error, speichern, verbrauchHref, t],
   )
 }
 
