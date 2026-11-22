@@ -3,8 +3,39 @@
  * Teppich der Dokumente, Ablauf und Bewegung (Plan `teppich-der-dokumente`, T3).
  */
 import { describe, it, expect } from 'vitest'
-import type { DocReference } from '@ks/contracts'
-import { SUCHE_MINDESTENS_MS, belegReihenfolge, flugVerlauf, naechstePhase, schwarmSchritt, schwarmStart } from '@ks/module-website'
+import type { ChatProcessingStep, DocReference } from '@ks/contracts'
+import {
+  SUCHE_MINDESTENS_MS, belegReihenfolge, flugVerlauf, kandidatenAusSchritten, naechstePhase,
+  schwarmKreise, schwarmSchritt, schwarmStart,
+} from '@ks/module-website'
+
+describe('Suchstufen (T4)', () => {
+  it('liest die Auswahl aus dem letzten retrieval_complete; ohne Suche leer', () => {
+    const schritte = [
+      { type: 'retrieval_start', retriever: 'chunk' },
+      { type: 'retrieval_complete', sourcesCount: 3, timingMs: 5, candidateFileIds: ['a', 'b'] },
+      { type: 'llm_start', model: 'm' },
+    ] as ChatProcessingStep[]
+    expect(kandidatenAusSchritten(schritte)).toEqual(['a', 'b'])
+    expect(kandidatenAusSchritten([{ type: 'cache_check_complete', found: true }] as ChatProcessingStep[])).toEqual([])
+  })
+
+  it('zieht die Kandidaten im Schwarm auf einen inneren Kreis, den Rest nach aussen', () => {
+    const n = 400
+    const x = Float32Array.from({ length: n }, (_, i) => (i % 20) * 40)
+    const y = Float32Array.from({ length: n }, (_, i) => Math.floor(i / 20) * 20)
+    const kandidaten = new Set(Array.from({ length: 30 }, (_, k) => k * 13))
+    const kreis = schwarmKreise(n, kandidaten)
+    expect(schwarmKreise(n, new Set())).toBeUndefined()
+    const sw = schwarmStart(x, y)
+    for (let s = 0; s < 600; s++) schwarmSchritt(sw, 1 / 60, s / 60, { x: 400, y: 200 }, 800, 400, kreis)
+    const abstand = (i: number) => Math.hypot((sw.x[i] - 400) / 1.9, sw.y[i] - 200)
+    const mittel = (ids: number[]) => ids.reduce((s, i) => s + abstand(i), 0) / ids.length
+    const innen = [...kandidaten]
+    const aussen = Array.from({ length: n }, (_, i) => i).filter((i) => !kandidaten.has(i))
+    expect(mittel(innen)).toBeLessThan(mittel(aussen) * 0.7)
+  })
+})
 
 describe('Belege in der Reihenfolge ihrer Dokumentnummer', () => {
   it('ordnet nach erster Zitatnummer, jedes Dokument einmal', () => {

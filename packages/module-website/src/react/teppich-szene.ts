@@ -10,10 +10,11 @@
  */
 
 import {
-  FLUG_MS, driftVersatz, flugVerlauf, punktSaat, rasterVerzerrung, schwarmSchritt, schwarmStart,
+  FLUG_MS, driftVersatz, flugVerlauf, punktSaat, rasterVerzerrung, schwarmKreise, schwarmSchritt, schwarmStart,
   type TeppichPhase, type TeppichSchwarm,
 } from '..'
-import { leinwandBereit, markenPlatz, zeichneFaden, zeichnePunkte, zeichneRinge, type TeppichSzenenStand } from './teppich-zeichnen'
+import { markenPlatz, type TeppichSzenenStand } from './teppich-zeichnen'
+import { zeichneTeppich } from './teppich-bild'
 
 interface Flug { start: number; vonX: Float32Array; vonY: Float32Array; meldet: boolean }
 
@@ -34,6 +35,10 @@ export class TeppichSzene {
   private zug = 0
   /** Belege, deren Marke gerade im Bild ist. */
   private verankert = new Set<number>()
+  /** T4: Kandidaten der Suche (Indizes) und ihre Kreise im Schwarm. */
+  private kandidaten = new Set<number>()
+  private kreis: Float32Array | undefined
+  private kandidatenSchluessel = ''
   private stand: TeppichSzenenStand | null = null
 
   setze(s: TeppichSzenenStand): void {
@@ -48,6 +53,12 @@ export class TeppichSzene {
     }
     const index = new Map(s.punkte.map((p, i) => [p.fileId, i]))
     this.belegIndex = s.belege.map((id) => index.get(id)).filter((i): i is number => i !== undefined)
+    const schluessel = s.kandidaten.join('|')
+    if (schluessel !== this.kandidatenSchluessel) {
+      this.kandidatenSchluessel = schluessel
+      this.kandidaten = new Set(s.kandidaten.map((id) => index.get(id)).filter((i): i is number => i !== undefined))
+      this.kreis = schwarmKreise(s.punkte.length, this.kandidaten)
+    }
     this.stand = s
   }
 
@@ -115,7 +126,7 @@ export class TeppichSzene {
         this.mitte.x += (gx - this.mitte.x) * Math.min(1, dt * 2.5)
         this.mitte.y += (gy - this.mitte.y) * Math.min(1, dt * 2.5)
       }
-      schwarmSchritt(this.schwarm, dt, t, this.mitte, s.breite, s.hoehe)
+      schwarmSchritt(this.schwarm, dt, t, this.mitte, s.breite, s.hoehe, this.kreis)
       this.x.set(this.schwarm.x)
       this.y.set(this.schwarm.y)
       return
@@ -123,16 +134,26 @@ export class TeppichSzene {
     const verzogen = this.verziehe(s, t, rect)
     if (this.flug) {
       const f = this.flug
-      const belege = new Set(this.belegIndex)
       let fertig = true
       for (let i = 0; i < this.x.length; i++) {
         const [hx, hy] = this.heimat(s, i, t)
-        const verzug = belege.has(i) ? this.belegIndex.indexOf(i) * 70 : punktSaat(i) * 250
-        const p = s.bewegung ? (zeit - f.start - verzug) / FLUG_MS : 1
+        const k = this.belegIndex.indexOf(i)
+        // T4: Belege fliegen erst in den engen Kreis der Mitte (definitiv verwendet), dann unter ihre Marke.
+        const zweistufig = f.meldet && k >= 0
+        const verzug = k >= 0 ? k * 70 : punktSaat(i) * 250
+        const p = s.bewegung ? (zeit - f.start - verzug) / (zweistufig ? FLUG_MS * 2 : FLUG_MS) : 1
         if (p < 1) fertig = false
-        const e = flugVerlauf(p)
-        this.x[i] = f.vonX[i] + (hx + this.dx[i] - f.vonX[i]) * e
-        this.y[i] = f.vonY[i] + (hy + this.dy[i] - f.vonY[i]) * e
+        let [vx, vy, q] = [f.vonX[i], f.vonY[i], p]
+        if (zweistufig) {
+          const w = (k / this.belegIndex.length) * 6.2832
+          const rr = 0.12 * Math.min(s.breite, s.hoehe)
+          const [mx, my] = [this.mitte.x + Math.cos(w) * rr, this.mitte.y + Math.sin(w) * rr]
+          if (p < 0.5) { const e = flugVerlauf(p * 2); this.x[i] = vx + (mx - vx) * e; this.y[i] = vy + (my - vy) * e; continue }
+          ;[vx, vy, q] = [mx, my, (p - 0.5) * 2]
+        }
+        const e = flugVerlauf(q)
+        this.x[i] = vx + (hx + this.dx[i] - vx) * e
+        this.y[i] = vy + (hy + this.dy[i] - vy) * e
       }
       if (fertig) {
         this.flug = null
@@ -152,49 +173,11 @@ export class TeppichSzene {
   }
 
   private zeichne(s: TeppichSzenenStand, zeit: number): void {
-    const ctx = this.hinten ? leinwandBereit(this.hinten, s.breite, s.hoehe) : null
-    if (!ctx) return
-    const antwort = s.phase === 'landet' || s.phase === 'antwort'
-    const belege = new Set(antwort ? this.belegIndex : [])
-    const ruhig = s.phase === 'ruhe' || s.phase === 'antwort'
-    ctx.clearRect(0, 0, s.breite, s.hoehe)
-    ctx.fillStyle = s.farbe
-    ctx.strokeStyle = s.farbe
-    // Owner 22.11.2026: gross und blass.
-    ctx.globalAlpha = s.phase === 'sucht' ? 0.22 : s.abgetaucht ? 0.32 : 0.15
-    zeichnePunkte(ctx, this.x, this.y, s.radien, (i) => !belege.has(i))
-    if (ruhig) {
-      ctx.globalAlpha = 0.7
-      ctx.font = '11px system-ui, sans-serif'
-      ctx.textAlign = 'center'
-      for (const m of s.raster.jahrMarken) ctx.fillText(String(m.jahr), m.x, s.hoehe - 6)
-    }
-    if (antwort && belege.size > 0) {
-      // Beim Erkunden: das Sternbild der Belege an ihren festen Plaetzen, mit Ring und Nummer.
-      if (s.abgetaucht && s.phase === 'antwort') {
-        const t = zeit / 1000
-        const heim = this.belegIndex.map((i, k) => { const [x, y] = this.heimat(s, i, t); return { x, y, r: s.radien[i], nummer: k + 1 } })
-        ctx.globalAlpha = 0.3
-        zeichneFaden(ctx, heim)
-        ctx.globalAlpha = 0.85
-        zeichneRinge(ctx, heim)
-      }
-      // Unter den Marken: der Faden nur, wo die Karten eine Spalte bilden (kein Zickzack im Raster).
-      if (!s.abgetaucht && this.zug > 0.5) {
-        const lage = this.belegIndex.filter((i) => this.verankert.has(i)).map((i) => ({ x: this.x[i], y: this.y[i] }))
-        const xs = lage.map((p) => p.x)
-        ctx.globalAlpha = 0.6
-        if (lage.length > 1 && Math.max(...xs) - Math.min(...xs) < 16) zeichneFaden(ctx, lage)
-      }
-      ctx.globalAlpha = 0.7
-      zeichnePunkte(ctx, this.x, this.y, s.radien, (i) => belege.has(i), 1.3)
-    }
-    if (ruhig && s.ueber >= 0 && s.ueber < this.x.length) {
-      ctx.globalAlpha = 1
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      ctx.arc(this.x[s.ueber], this.y[s.ueber], s.radien[s.ueber] + 4, 0, 6.2832)
-      ctx.stroke()
-    }
+    if (!this.hinten) return
+    const t = zeit / 1000
+    zeichneTeppich(this.hinten, s, {
+      x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
+      verankert: this.verankert, zug: this.zug, heimat: (i) => this.heimat(s, i, t),
+    })
   }
 }

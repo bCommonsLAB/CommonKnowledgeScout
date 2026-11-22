@@ -19,8 +19,8 @@ todos:
     content: "T3 Frage und Antwort: Vordergrund weicht beim Rechnen, Schwarm mit Mindestdauer, Belege fliegen rechts neben den Text, Faden mit Nummern, Ringe am festen Platz; Fragenbox am unteren Rand. GEBAUT 22.11.2026 ohne Fragenbox und ohne Linien beim Überfahren; Ziel ist `cards=column` statt eines neuen Werts; in Dev angesehen."
     status: completed
   - id: t4-stufen
-    content: "T4 Suchstufen: Meldungen der Suche tragen die Kennungen der Dokumente; Kandidaten, Auswahl, Belege ziehen in Räume nach innen."
-    status: pending
+    content: "T4 Suchstufen: Meldungen der Suche tragen die Kennungen der Dokumente; Kandidaten, Auswahl, Belege ziehen in Räume nach innen. GEBAUT 22.11.2026 mit zwei Stufen (Auswahl der Suche, zitierte Belege); in Dev angesehen."
+    status: completed
 ---
 
 # Teppich der Dokumente
@@ -250,6 +250,21 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
   der echten Meldungen ein. Kommt die Antwort aus dem Cache, gibt es keine Stufen.
 - Das Suchverfahren über Zusammenfassungen meldet eigene Zahlen; welche Stufen es zeigt, wird
   in T4 am Code geklärt und hier nachgetragen.
+
+**Gebaut 22.11.2026 (zwei Stufen statt drei):**
+
+- **Stufe 1, Auswahl der Suche:** `retrieval_complete` trägt `candidateFileIds` (die Dokumente,
+  die dem Sprachmodell vorgelegt werden, je Dokument einmal). Der Orchestrator sendet die Meldung
+  für alle Suchverfahren gleich, also auch für das über Zusammenfassungen. Der Teppich zieht sie
+  beim Schwarm auf einen inneren Kreis (`schwarmKreise`, 0,3 bis 0,4 des Radius) und zeichnet sie
+  deutlicher; alle anderen weichen nach außen.
+- **Stufe 2, definitiv verwendet:** Mit der Antwort fliegen die zitierten Belege zuerst in einen
+  engen Kreis in der Mitte, dann unter ihre Nummernmarken (zweistufiger Flug, doppelte Dauer).
+  Ein eigenes `usedFileIds` an `prompt_complete` entfällt: Vorgelegt wird genau die Auswahl aus
+  Stufe 1, zitiert wird erst in der Antwort.
+- Antworten aus dem Cache haben keine Stufe 1 (keine Suche), Stufe 2 läuft trotzdem.
+- **Angesehen in Dev** (SFSCON lokal, 815 px Breite): Auswahl auf dem inneren Ring sichtbar,
+  Suche 20 bis 37 s, Landung 2,7 bis 2,8 s, dann die Antwort.
 
 ## 4. Wellen
 

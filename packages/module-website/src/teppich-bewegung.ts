@@ -14,6 +14,8 @@
  * Vorbild ist der Schwarm im Klickmodell (`docs/plans/assets/teppich-der-dokumente-prototyp.html`).
  */
 
+import type { ChatProcessingStep } from '@ks/contracts'
+
 export type TeppichPhase = 'ruhe' | 'sucht' | 'landet' | 'antwort'
 
 /** Mindestdauer der Suche: Die Bewegung soll man sehen, auch bei einer Antwort aus dem Cache. */
@@ -83,8 +85,12 @@ export function schwarmStart(x: Float32Array, y: Float32Array): TeppichSchwarm {
   return { x: Float32Array.from(x), y: Float32Array.from(y), vx, vy }
 }
 
-/** Ein Schritt des Schwarms um `mitte` auf einer Flaeche `breite` × `hoehe` (siehe Datei-Kommentar). */
-export function schwarmSchritt(sw: TeppichSchwarm, dt: number, t: number, mitte: { x: number; y: number }, breite: number, hoehe: number): void {
+/**
+ * Ein Schritt des Schwarms um `mitte` auf einer Flaeche `breite` × `hoehe` (siehe Datei-Kommentar).
+ * `kreis` (T4, wahlweise): je Punkt der Anteil am Schwarm-Radius, auf dem er kreist; 0 = sein eigener.
+ * So ziehen die Kandidaten der Suche auf einen inneren Kreis, der Rest nach aussen.
+ */
+export function schwarmSchritt(sw: TeppichSchwarm, dt: number, t: number, mitte: { x: number; y: number }, breite: number, hoehe: number, kreis?: Float32Array): void {
   const m = Math.min(breite, hoehe)
   const sc = m / 800
   const r = 0.46 * m
@@ -98,7 +104,8 @@ export function schwarmSchritt(sw: TeppichSchwarm, dt: number, t: number, mitte:
     const d = Math.hypot(dx, dy) + 0.001
     const ux = dx / d
     const uy = dy / d
-    const rho = r * (0.16 + 0.95 * s1) * (1 + 0.14 * Math.sin(t * 0.9 + s2 * 6.283))
+    const anteil = kreis && kreis[i] > 0 ? kreis[i] : 0.16 + 0.95 * s1
+    const rho = r * anteil * (1 + 0.14 * Math.sin(t * 0.9 + s2 * 6.283))
     const vk = 150 * sc * (0.45 + 0.55 * Math.min(1, d / (0.35 * r)))
     const zug = (rho - d) * 1.6
     const a = Math.sin(sw.x[i] * 0.006 + t * 0.8) * 1.7 + Math.cos(sw.y[i] * 0.007 - t * 0.6) * 1.7 + s2
@@ -141,4 +148,28 @@ export function rasterVerzerrung(
     dx[i] = sx / n
     dy[i] = sy / n
   }
+}
+
+/**
+ * Auswahl der Suche (T4): die Dokumente, die dem Sprachmodell vorgelegt werden, aus dem letzten
+ * Schritt `retrieval_complete`. Leer, solange die Suche laeuft, und bei Antworten aus dem Cache.
+ */
+export function kandidatenAusSchritten(schritte: readonly ChatProcessingStep[]): string[] {
+  for (let i = schritte.length - 1; i >= 0; i--) {
+    const s = schritte[i]
+    if (s.type === 'retrieval_complete') return s.candidateFileIds ?? []
+  }
+  return []
+}
+
+/**
+ * Kreise des Schwarms (T4): Kandidaten auf einem inneren Kreis (0,3 bis 0,4 des Radius), alle
+ * anderen weiter aussen (0,62 bis 1,07), damit die Mitte frei wird. Ohne Kandidaten `undefined`:
+ * jeder Punkt kreist auf seinem eigenen Radius.
+ */
+export function schwarmKreise(anzahl: number, kandidaten: ReadonlySet<number>): Float32Array | undefined {
+  if (kandidaten.size === 0) return undefined
+  const kreis = new Float32Array(anzahl)
+  for (let i = 0; i < anzahl; i++) kreis[i] = kandidaten.has(i) ? 0.3 + 0.1 * punktSaat(i) : 0.62 + 0.45 * punktSaat(i, 0.37)
+  return kreis
 }
