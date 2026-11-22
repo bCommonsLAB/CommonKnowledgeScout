@@ -93,10 +93,14 @@ export function packeTeppich(punkte: readonly TeppichPunkt[], flaeche: TeppichFl
   return { px, py, zelle, spalten, jahrMarken }
 }
 
-/** Radius eines Punkts: aus der Zelle und dem Gewicht; ohne Gewicht der kleinste. */
+/**
+ * Radius eines Punkts: aus der Zelle und dem Gewicht; ohne Gewicht der kleinste.
+ * Nach oben eng begrenzt (Ansicht 22.11.2026 an 220 Dokumenten): Bei wenigen Dokumenten
+ * ist die Zelle gross, die Punkte sollen trotzdem Minikreise bleiben, keine Knoepfe.
+ */
 export function teppichRadius(zelle: number, gewicht: number | null): number {
-  const basis = Math.min(4.5, Math.max(0.8, zelle * 0.32))
-  return basis * (0.7 + 1.6 * (gewicht ?? 0))
+  const basis = Math.min(2.2, Math.max(0.8, zelle * 0.2))
+  return basis * (0.8 + 1.4 * (gewicht ?? 0))
 }
 
 /** Index des naechsten Punkts innerhalb von `maxAbstand`, sonst -1. */

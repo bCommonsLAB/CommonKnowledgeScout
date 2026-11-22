@@ -56,6 +56,11 @@ describe('Teppich: Radius und Treffer', () => {
     expect(teppichRadius(10, null)).toBe(teppichRadius(10, 0))
   })
 
+  it('bleibt bei grossen Zellen (wenige Dokumente) ein Minikreis', () => {
+    expect(teppichRadius(48, 1)).toBeLessThanOrEqual(5.5)
+    expect(teppichRadius(48, null)).toBeLessThanOrEqual(2)
+  })
+
   it('findet den naechsten Punkt nur innerhalb des Abstands', () => {
     const px = new Float32Array([10, 50, 90])
     const py = new Float32Array([10, 10, 10])

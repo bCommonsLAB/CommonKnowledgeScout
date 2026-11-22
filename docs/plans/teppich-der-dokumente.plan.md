@@ -192,8 +192,15 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
   wenn zusätzlich die Library ihn eingeschaltet hat.
 - **Verschoben nach T3:** Linien zu verwandten Dokumenten beim Überfahren. Die Route liefert
   keine Nachbarn; sie kommen mit dem Sternbild der Belege.
-- **Nicht geprüft:** Ansicht im Browser und Bilder je Sekunde. Die `.env` des Worktrees zeigt
-  auf die Prod-Datenbank; ein lokaler Lauf hätte Prod gelesen und geschrieben.
+- **Angesehen 22.11.2026 in Dev** (SFSCON lokal, 220 Dokumente; Nachbarn dafür lokal aus den
+  Embeddings gerechnet, Website-Startseite mit Fragen-Sektion angelegt): Auftrag T1 in 0,7 s,
+  Website-Seite ausgelassen, keine Lücken. Teppich montiert, Tooltip, Klick öffnet die
+  Detailansicht, Ausblenden und Escape gehen. Zwei Nachzüge: Punkte blieben bei wenigen
+  Dokumenten zu groß (Radius jetzt höchstens rund 5 px), der Hinweis beim Ausblenden lag über
+  den Jahreszahlen (jetzt oben).
+- **Nicht gemessen:** Bilder je Sekunde. Das eingebaute Browserfenster lieferte nur 19 Bilder
+  je Sekunde schon für eine leere Schleife; die Messung muss in einem normalen Browser an einer
+  großen Library laufen (E6).
 
 ### 3.4 Ablauf der Sektion (T3)
 
