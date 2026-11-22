@@ -55,6 +55,10 @@ describe('Middleware: anonym lesbare Chat-Routen', () => {
     expect(chatAusnahme().test(`${lib}/docs/by-fileids`)).toBe(true)
   })
 
+  it('laesst die Punkte des Teppichs (teppich) ohne Konto durch', () => {
+    expect(chatAusnahme().test(`${lib}/teppich`)).toBe(true)
+  })
+
   it('die bisherigen Lese-Routen bleiben offen', () => {
     for (const route of ['docs', 'facets', 'config', 'doc-meta', 'doc-by-slug', 'popular-questions']) {
       expect(chatAusnahme().test(`${lib}/${route}`)).toBe(true)

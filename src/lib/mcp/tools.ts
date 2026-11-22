@@ -58,6 +58,7 @@ import { registerQuelleSuchenTool } from './tools-quelle-suchen'
 import { bestimmeSlugs } from '@/lib/library-adresse/slug'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
+import { registerTeppichTool } from './tools-teppich'
 import { registerInfoTool } from './tools-info'
 import { registerSichtenTools } from './tools-sichten'
 import { registerAenderungenTools } from './tools-aenderungen'
@@ -100,6 +101,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerJobTools(server)
   registerJobAufraeumenTool(server)
   registerJobAbbrechenTool(server)
+  // Plan teppich-der-dokumente, T1: feste Plaetze des Teppichs als Job.
+  registerTeppichTool(server)
   // Welle A (Library-Betrieb): Index-Seite und Batches sichtbar machen, lesend.
   registerBestandTools(server)
   registerBatchBilanzTool(server)
