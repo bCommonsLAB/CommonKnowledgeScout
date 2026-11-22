@@ -11,7 +11,7 @@
  * hier gefragt wird, steht dort in der Chronik.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSessionHeaders, type InstanceApi } from '@ks/api-client'
 import type { DocCardMeta, DocReference, GalleryFilters } from '@ks/contracts'
 import { paare, useNeuStellen, useStoryKonversation } from '@ks/module-story/react'
@@ -95,12 +95,27 @@ export function useBelegDokumente(instanz: InstanceApi, libraryId: string, refer
  * Referenzen noch unterwegs sind. Die Karten-Darstellungen zeigen so lange
  * Platzhalter, statt erst die Textantwort und Sekunden spaeter die Karten
  * (Owner 10.11.2026).
+ *
+ * `fehler` (23.11.2026): Das Laden ist gescheitert (Netz, Server, HTTP-Fehler). Die
+ * Karten-Darstellung zeigt dann einen Hinweis mit `erneut`, statt still zu verschwinden.
  */
-export function useBelegDokumenteStand(instanz: InstanceApi, libraryId: string, references: DocReference[], sessionHeaders: SessionHeaders): { docs: DocCardMeta[]; laedt: boolean } {
-  const [stand, setStand] = useState<{ docs: DocCardMeta[]; fuer: string }>({ docs: [], fuer: '' })
-  const setDocs = (docs: DocCardMeta[], fuer: string) => setStand({ docs, fuer })
+export interface BelegDokumenteStand {
+  docs: DocCardMeta[]
+  laedt: boolean
+  fehler: boolean
+  erneut: () => void
+}
+
+export function useBelegDokumenteStand(instanz: InstanceApi, libraryId: string, references: DocReference[], sessionHeaders: SessionHeaders): BelegDokumenteStand {
+  const [stand, setStand] = useState<{ docs: DocCardMeta[]; fuer: string; fehler: boolean }>({ docs: [], fuer: '', fehler: false })
+  const [versuch, setVersuch] = useState(0)
+  const setDocs = (docs: DocCardMeta[], fuer: string, fehler = false) => setStand({ docs, fuer, fehler })
   const fileIds = useMemo(() => Array.from(new Set(references.map((r) => r.fileId))).sort(), [references])
   const schluessel = fileIds.join('|')
+  const erneut = useCallback(() => {
+    setStand((s) => ({ ...s, fuer: '', fehler: false }))
+    setVersuch((v) => v + 1)
+  }, [])
 
   useEffect(() => {
     if (fileIds.length === 0) { setDocs([], ''); return }
@@ -111,18 +126,19 @@ export function useBelegDokumenteStand(instanz: InstanceApi, libraryId: string, 
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = (await res.json()) as { items?: unknown }
-        if (!abgebrochen) setDocs(Array.isArray(json.items) ? (json.items as DocCardMeta[]) : [], schluessel)
+        if (!Array.isArray(json.items)) throw new Error('Antwort ohne items')
+        if (!abgebrochen) setDocs(json.items as DocCardMeta[], schluessel)
       })
       .catch((e: unknown) => {
         console.error('[useBelegDokumente] Zitierte Dokumente nicht ladbar', e)
-        if (!abgebrochen) setDocs([], schluessel)
+        if (!abgebrochen) setDocs([], schluessel, true)
       })
     return () => { abgebrochen = true }
     // `schluessel` steht fuer die Menge der fileIds; `fileIds` selbst ist je Render neu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanz, libraryId, schluessel, sessionHeaders])
+  }, [instanz, libraryId, schluessel, sessionHeaders, versuch])
 
   // Dokumente eines frueheren Referenz-Satzes gelten nicht fuer den neuen.
   const aktuell = stand.fuer === schluessel
-  return { docs: aktuell ? stand.docs : [], laedt: fileIds.length > 0 && !aktuell }
+  return { docs: aktuell ? stand.docs : [], laedt: fileIds.length > 0 && !aktuell, fehler: aktuell && stand.fehler, erneut }
 }

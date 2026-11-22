@@ -1055,6 +1055,8 @@
       },
       "anpassen": "Antworten anpassen",
       "teppichZurueck": "Klick auf eine freie Stelle holt den Text zurück",
+      "belegeFehler": "{label} konnten nicht geladen werden.",
+      "belegeErneut": "Erneut laden",
       "teppich": {
         "suche": "Dokumente werden durchsucht …",
         "gefunden": "{count} passende Dokumente gefunden",

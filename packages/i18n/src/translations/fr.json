@@ -1008,6 +1008,8 @@
       },
       "anpassen": "Adapter les réponses",
       "teppichZurueck": "Cliquez sur un espace libre pour revoir le texte",
+      "belegeFehler": "{label} : chargement impossible.",
+      "belegeErneut": "Réessayer",
       "teppich": {
         "suche": "Recherche dans les documents …",
         "gefunden": "{count} documents pertinents trouvés",

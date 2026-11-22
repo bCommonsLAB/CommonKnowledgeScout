@@ -1008,6 +1008,8 @@
       },
       "anpassen": "Adjust answers",
       "teppichZurueck": "Click an empty spot to bring the text back",
+      "belegeFehler": "{label} could not be loaded.",
+      "belegeErneut": "Try again",
       "teppich": {
         "suche": "Searching the documents …",
         "gefunden": "{count} matching documents found",
