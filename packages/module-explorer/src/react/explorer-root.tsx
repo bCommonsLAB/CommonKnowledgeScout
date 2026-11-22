@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle, Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import { useExplorerLibrary } from './use-explorer-library'
 import { ExplorerHeader } from './explorer-header'
+import { SeitenScrollAnbieter } from './seiten-scroll'
 import type { ExplorerRootProps } from './types'
 
 /** Ganzseitiger Ladezustand — solange Library ODER Anmeldezustand offen sind. */
@@ -55,6 +56,8 @@ export function ExplorerRoot({
   const {
     library, context, loading, error, accessStatus, requestingAccess, requestAccess,
   } = useExplorerLibrary(slug, viewer, texts, instanz)
+  // Die Galerie-Wurzel meldet, ob die Webseiten-Ansicht offen ist (`seiten-scroll.tsx`).
+  const [fensterScroll, setFensterScroll] = React.useState(false)
 
   if (loading || !viewer.isLoaded) {
     return <ExplorerLoading />
@@ -133,18 +136,21 @@ export function ExplorerRoot({
   const showSiteTab = library.siteEnabled === true
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
+    // Webseiten-Ansicht: keine feste Hoehe, das Fenster scrollt (`seiten-scroll.tsx`).
+    <div className={fensterScroll ? 'flex min-h-screen flex-col' : 'flex h-screen min-h-0 flex-col overflow-hidden'}>
       <ExplorerHeader library={library} renderNotice={renderNotice} />
 
       {/* Padding-Top bewusst auf 0: die Tabs (Inhalte / Story Mode) sollen direkt unter der
          Trennlinie des Page-Headers andocken — analog zur Library-Gallery-Ansicht.
          Seitliches und unteres Padding bleiben wie zuvor (Inhalte sollen nicht am Rand kleben). */}
-      <div className="flex-1 min-h-0 overflow-hidden px-2 pt-0 pb-2 sm:px-4 sm:pb-4">
+      <div className={fensterScroll ? 'flex-1 px-2 pt-0 pb-2 sm:px-4 sm:pb-4' : 'flex-1 min-h-0 overflow-hidden px-2 pt-0 pb-2 sm:px-4 sm:pb-4'}>
         {/* flex flex-col noetig: sonst ist das flex-1 des Galerie-Rootes wirkungslos,
            der Inhalt waechst ueber die Wrapper-Hoehe hinaus und overflow-hidden schneidet
            unten ab (Symptom: Summen-Fusszeile der Tabelle nicht/halb sichtbar). */}
-        <div className="flex h-full min-h-0 flex-col overflow-hidden">
-          {renderGallery({ libraryId: library.id, showSiteTab })}
+        <div className={fensterScroll ? 'flex flex-col' : 'flex h-full min-h-0 flex-col overflow-hidden'}>
+          <SeitenScrollAnbieter value={setFensterScroll}>
+            {renderGallery({ libraryId: library.id, showSiteTab })}
+          </SeitenScrollAnbieter>
         </div>
       </div>
     </div>
