@@ -63,7 +63,8 @@ export async function computeAndStoreTeppich(
   if (ergebnis.ohneNachbarn === eingaben.length) {
     throw new Error(
       'Kein Dokument hat Aehnlichkeits-Nachbarn. Zuerst die Nachbarn berechnen ' +
-        '(Galerie, Ansicht Graph, Quelle Aehnlichkeit: „Nachbarn neu berechnen"), dann den Teppich.',
+        '(Bruecke: nachbarn_berechnen; oder Galerie, Ansicht Graph, Quelle Aehnlichkeit: ' +
+        '„Nachbarn neu berechnen"), dann den Teppich.',
     )
   }
 

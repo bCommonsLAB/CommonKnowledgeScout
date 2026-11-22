@@ -21,7 +21,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.81.0'
+export const TOOLSET_VERSION = '2.82.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -73,6 +73,8 @@ export const TOOL_NAMES = [
   'job_abbrechen',
   // Plan teppich-der-dokumente, T1 — feste Plaetze des Teppichs.
   'teppich_berechnen',
+  // Owner 23.11.2026 — Nachbarn ueber die Bruecke statt ueber die Graph-Ansicht.
+  'nachbarn_berechnen',
   // Welle A — Library-Betrieb: Index-Seite und Batches lesen.
   'dokumente_auflisten',
   // Welle K1 — Lesersicht eines Eintrags.
@@ -147,6 +149,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.82.0: Neues Werkzeug nachbarn_berechnen (Owner, schreibt, Plan teppich-der-dokumente, 23.11.): rechnet die Aehnlichkeits-Nachbarn aller Dokumente als Job doc-similarity, wie „Nachbarn neu berechnen" in der Graph-Ansicht der Galerie, die nicht jede Library zeigt. Voraussetzung fuer teppich_berechnen; dessen Fehlermeldung nennt jetzt dieses Werkzeug.',
   '2.81.0: Teppich der Dokumente hinter der Fragen-Sektion (Plan teppich-der-dokumente, Welle T2, 22.11.). Neuer Library-Schalter publicPublishing.carpetEnabled (Vorgabe false): veroeffentlichung_setzen nimmt ihn an, veroeffentlichung_lesen nennt ihn. Mit true zeichnet die Fragen-Sektion der Website (layout=story) jedes Dokument als Punkt an seinem Platz; die Plaetze rechnet teppich_berechnen.',
   '2.80.0: Teppich der Dokumente, feste Plaetze (Plan teppich-der-dokumente, Welle T1, 22.11.). Neues Werkzeug teppich_berechnen (Owner und Co-Creator, schreibt): startet einen Job doc-teppich, der fuer jedes Dokument teppich_x (Rang in der Zeit), teppich_y (Ordnung nach Aehnlichkeit), teppich_gewicht (Umfang) und teppich_stand in die Metadaten schreibt; Seiten der Website bleiben aussen vor. Setzt die Aehnlichkeits-Nachbarn voraus. Ergebnis mit job_status.',
   '2.79.0: Common-UX-Buehne ausgebaut (Plan teppich-der-dokumente, Welle T0b, Owner 22.11.). Der Library-Schalter publicPublishing.stageEnabled entfaellt: veroeffentlichung_setzen nimmt das Feld nicht mehr an, veroeffentlichung_lesen nennt es nicht mehr. An der Fragen-Sektion der Website gibt es kein Symbol „Zur Buehne" mehr. Der Teppich der Dokumente bekommt spaeter einen eigenen Schalter.',
