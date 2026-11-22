@@ -99,7 +99,8 @@ export function WebsiteStorySektionRahmen({
         </div>
       </div>
       {abgetaucht && (
-        <p className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
+        // Oben, weil unten die Jahreszahlen des Teppichs stehen (Ansicht 22.11.2026).
+        <p className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
           {t("website.story.teppichZurueck")}
         </p>
       )}
