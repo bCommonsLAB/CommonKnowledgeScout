@@ -1007,8 +1007,7 @@
         "many": "{count} earlier questions from this session in Story mode"
       },
       "anpassen": "Adjust answers",
-      "zurBuehne": "To the stage",
-      "zumText": "Back to the text",
+      "teppichZurueck": "Click an empty spot to bring the text back",
       "quellenAnzeigen": "Show sources ({count})",
       "quellenAnzeigenKurz": "Show sources",
       "belegnummern": "Show source numbers in the text",

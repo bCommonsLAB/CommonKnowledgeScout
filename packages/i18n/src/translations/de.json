@@ -1054,8 +1054,7 @@
         "many": "{count} frühere Fragen dieser Sitzung im Story-Modus"
       },
       "anpassen": "Antworten anpassen",
-      "zurBuehne": "Zur Bühne",
-      "zumText": "Zurück zum Text",
+      "teppichZurueck": "Klick auf eine freie Stelle holt den Text zurück",
       "quellenAnzeigen": "Quellen anzeigen ({count})",
       "quellenAnzeigenKurz": "Quellen anzeigen",
       "belegnummern": "Belegnummern im Text anzeigen",

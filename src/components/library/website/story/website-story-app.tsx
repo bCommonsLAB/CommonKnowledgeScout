@@ -12,7 +12,8 @@
  *  - Dialog „Antworten anpassen" (`PerspektiveDialogApp`, speichert ins Profil),
  *  - Fuss der Antwort: Konfig-Anzeige, Verbrauchsseite der Sitzung,
  *    Berechnungsschritte fuer Angemeldete,
- *  - das Logo neben der Antwort und die Detailansicht mit den App-Renderern.
+ *  - das Logo neben der Antwort und die Detailansicht mit den App-Renderern,
+ *  - der Teppich der Dokumente, wenn die Library ihn eingeschaltet hat (`carpetEnabled`).
  *
  * `website-landing-live.tsx` laedt diese Datei faul (`next/dynamic`), damit nur
  * Seiten mit `layout=story` oder `layout=topics` Story-Paket und Clerk ziehen.
@@ -23,6 +24,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
 import { SAME_ORIGIN_API } from '@ks/api-client'
+import { useLibraries } from '@ks/shell/react'
 import { useTranslation } from '@ks/i18n/react'
 import type { Nachricht } from '@ks/module-story/react'
 import {
@@ -52,6 +54,9 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
   const perspektive = useWebsitePerspektive()
   const { cfg, loading, error } = useLibraryConfig(libraryId)
   const { speichern } = useProfilPerspektive()
+  // Teppich T2: Schalter je Library. Die Library steht im Atom (Site-Modus) oder kommt mit der Chat-Konfig (Root-Modus).
+  const imAtom = useLibraries().find((lib) => lib.id === libraryId)
+  const teppich = (imAtom ? imAtom.config?.publicPublishing?.carpetEnabled : cfg?.publicPublishing?.carpetEnabled) === true
   const slug = cfg?.publicPublishing?.slugName
   // 10.11.2026: was diese Sitzung kostet — die Verbrauchsseite, vorgefiltert auf die eigene Sitzung.
   const verbrauchHref = slug ? `/explore/${encodeURIComponent(slug)}/verbrauch?sicht=session` : null
@@ -85,8 +90,9 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
       ),
       antwortAvatar: <AppLogo size={32} />,
       detail: ({ doc, page, onClose }) => <WebsiteStoryDetail libraryId={libraryId} doc={doc} page={page} onClose={onClose} />,
+      teppich,
     }),
-    [libraryId, angemeldet, perspektive, cfg, loading, error, speichern, verbrauchHref, t],
+    [libraryId, angemeldet, perspektive, cfg, loading, error, speichern, verbrauchHref, t, teppich],
   )
 }
 

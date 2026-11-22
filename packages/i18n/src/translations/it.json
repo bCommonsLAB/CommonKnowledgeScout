@@ -1007,8 +1007,7 @@
         "many": "{count} domande precedenti di questa sessione in modalità Story"
       },
       "anpassen": "Adatta le risposte",
-      "zurBuehne": "Al palcoscenico",
-      "zumText": "Torna al testo",
+      "teppichZurueck": "Clicca su uno spazio libero per riavere il testo",
       "quellenAnzeigen": "Mostra fonti ({count})",
       "quellenAnzeigenKurz": "Mostra fonti",
       "belegnummern": "Mostra i numeri delle fonti nel testo",

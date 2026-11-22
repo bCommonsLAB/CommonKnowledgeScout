@@ -49,6 +49,8 @@ export interface EmbedSiteInhaltProps {
   /** Wechsel der Container-Anwendung fuer Klicks ohne Link (Prop `navigate`); ohne: `window.location.assign`. */
   navigate: ((href: string) => void) | undefined
   menu: boolean
+  /** Prop `carpet`: Die Container-Seite laesst den Teppich zu (Standard an). */
+  teppichErlaubt: boolean
   eigenerScroll: boolean
   /** Portal-Ort am `body` (Klasse `.ks-embed`) fuer Blaetter, Dialoge und Detailansicht. */
   portal: HTMLElement
@@ -75,7 +77,7 @@ function Hinweis({ children, alarm = false }: { children: string; alarm?: boolea
   return <p role={alarm ? 'alert' : 'status'} className="p-4 text-sm text-muted-foreground">{children}</p>
 }
 
-function EmbedSite({ library: slug, instanz, locale, page, hrefFor, dokumenteZuerstContainer, navigate, menu, eigenerScroll, portal }: EmbedSiteInhaltProps) {
+function EmbedSite({ library: slug, instanz, locale, page, hrefFor, dokumenteZuerstContainer, navigate, menu, teppichErlaubt, eigenerScroll, portal }: EmbedSiteInhaltProps) {
   const { t } = useTranslation()
   const texte = useMemo(
     () => ({ slugMissing: t('explore.slugMissing'), libraryNotFound: t('explore.libraryNotFound'), errorLoadingLibrary: t('explore.errorLoadingLibrary') }),
@@ -97,7 +99,7 @@ function EmbedSite({ library: slug, instanz, locale, page, hrefFor, dokumenteZue
   )
   const [detail, setDetail] = useState<{ doc: DocCardMeta; page?: number } | null>(null)
   const schliessen = useCallback(() => setDetail(null), [])
-  const gastgeber = useEmbedGastgeber(library, instanz, locale, navigation, dokumenteZuerstContainer, portal)
+  const gastgeber = useEmbedGastgeber(library, instanz, locale, navigation, dokumenteZuerstContainer, portal, teppichErlaubt)
 
   const storySlot = useCallback(
     (section: WebsiteSection, { headingCase, theme }: WebsiteSlotKontext): ReactNode =>
@@ -146,6 +148,7 @@ function useEmbedGastgeber(
   navigation: ReturnType<typeof embedSiteNavigation>,
   zuerstContainer: boolean,
   portal: HTMLElement,
+  teppichErlaubt: boolean,
 ): { libraryId: string; story: WebsiteStoryGastgeber } | null {
   const { t } = useTranslation()
   const modell = useOeffentlichesModell(instanz, library !== null)
@@ -172,7 +175,9 @@ function useEmbedGastgeber(
       detail: ({ doc, page, onClose }) => (
         <EmbedSiteDetail library={library} doc={doc} page={page} onClose={onClose} navigation={navigation} zuerstContainer={zuerstContainer} portal={portal} />
       ),
+      // Teppich T2: nur, wenn die Library ihn eingeschaltet hat UND die Container-Seite ihn zulaesst.
+      teppich: teppichErlaubt && library.carpetEnabled === true,
     }
     return { libraryId: library.id, story }
-  }, [library, modell, perspektive, instanz, chat, t, speichern, navigation, zuerstContainer, portal])
+  }, [library, modell, perspektive, instanz, chat, t, speichern, navigation, zuerstContainer, portal, teppichErlaubt])
 }

@@ -439,6 +439,13 @@ export interface StorageConfig {
      * Library etwas. Bewerten bleibt Mitgliedern vorbehalten.
      */
     starCountsPublic?: boolean;
+    /**
+     * Teppich der Dokumente hinter der Fragen-Sektion der Website (Plan
+     * `teppich-der-dokumente`, T2). Mit `true` zeichnet die Sektion jedes
+     * Dokument als Punkt an seinem festen Platz (Felder `teppich_*`, Auftrag
+     * `doc-teppich`). Vorgabe `false`: ohne den Schalter aendert sich nichts.
+     */
+    carpetEnabled?: boolean;
   };
 }
 

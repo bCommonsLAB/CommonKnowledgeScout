@@ -13,8 +13,8 @@ todos:
     content: "T1 Feste Plätze: Auftrag berechnet und speichert die Lage je Dokument; schlanke, anonym lesbare Punkte-Abfrage. GEBAUT 22.11.2026 (`phase-doc-teppich`, `GET /api/chat/<id>/teppich`, Brücke `teppich_berechnen` 2.80.0); Lauf an einer echten Library offen."
     status: completed
   - id: t2-hintergrund
-    content: "T2 Hintergrund in Ruhe: Canvas-Baustein im Paket, über den Gastgeber montiert; Schweben, Tooltip, verwandte Dokumente, Klick blendet den Vordergrund aus; Schalter je Library."
-    status: pending
+    content: "T2 Hintergrund in Ruhe: Canvas-Baustein im Paket, über den Gastgeber montiert; Schweben, Tooltip, Klick blendet den Vordergrund aus; Schalter je Library. GEBAUT 22.11.2026 (Brücke 2.81.0, `carpetEnabled`); Linien zu verwandten Dokumenten nach T3 verschoben; Ansicht an einer echten Library und Messung der Bilder je Sekunde offen."
+    status: completed
   - id: t3-ablauf
     content: "T3 Frage und Antwort: Vordergrund weicht beim Rechnen, Schwarm mit Mindestdauer, Belege fliegen rechts neben den Text, Faden mit Nummern, Ringe am festen Platz; Fragenbox am unteren Rand."
     status: pending
@@ -172,6 +172,28 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
   geht darin auf.
 - Embed (E5): `KnowledgeScoutSite` zeigt den Teppich ebenfalls, wenn die Library ihn
   eingeschaltet hat; die einbettende Anwendung kann ihn über eine Prop abschalten.
+
+**Gebaut 22.11.2026:**
+
+- Bausteine im Paket: `teppich-packen.ts` (reine Funktionen: Spalten nach Zeit, gleich voll,
+  jede Spalte nach Ähnlichkeit mittig gestapelt; Jahreszahlen, Radius, Treffer),
+  `react/website-teppich.tsx` (Canvas), `react/website-teppich-ebene.tsx` (lädt Punkte,
+  öffnet Dokumente über `docs/by-fileids`, Escape).
+- Ort: eine Ebene hinter der ganzen Sektion `layout=story`, nicht nur hinter der Karte. Die
+  Karte bleibt weiß und sachlich; Klicks gehen nur dort an den Teppich, wo keine Karte liegt.
+  Klick ins Leere blendet Kopfzeile und Karte aus (Hinweis unten), ein zweiter Klick oder
+  Escape holt sie zurück.
+- Farbe der Punkte = Schriftfarbe der Sektionsfläche (hell auf dunklen Flächen).
+- Gastgeber-Feld `teppich?: boolean` statt `buehne`; die Bühnen-Teile im Paket
+  (`website-story-buehne.tsx`, `website-story-anker.ts`, Symbol „Zur Bühne") sind entfernt.
+  `gespraechAusStory` bleibt für T3.
+- App: `carpetEnabled` aus dem Library-Atom (Site-Modus) oder der Chat-Konfig (Root-Modus).
+  Embed: `KnowledgeScoutSite` hat die Prop `carpet` (Standard an); der Teppich erscheint nur,
+  wenn zusätzlich die Library ihn eingeschaltet hat.
+- **Verschoben nach T3:** Linien zu verwandten Dokumenten beim Überfahren. Die Route liefert
+  keine Nachbarn; sie kommen mit dem Sternbild der Belege.
+- **Nicht geprüft:** Ansicht im Browser und Bilder je Sekunde. Die `.env` des Worktrees zeigt
+  auf die Prod-Datenbank; ein lokaler Lauf hätte Prod gelesen und geschrieben.
 
 ### 3.4 Ablauf der Sektion (T3)
 

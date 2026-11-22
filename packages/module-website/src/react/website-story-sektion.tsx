@@ -41,7 +41,7 @@ import { WebsiteStoryBelege } from './website-story-belege'
 import { wegGehen } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
 import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
-import { useStoryBuehne } from './website-story-buehne'
+import { WebsiteTeppichEbene } from './website-teppich-ebene'
 import { StoryStatus } from './website-story-status'
 import { StoryPopulaereFragen } from './website-story-populaer'
 import { WebsiteStoryKonversation } from './website-story-konversation'
@@ -123,22 +123,18 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     [setChatReferences],
   )
 
-  // P4/K4: mit Buehne des Gastgebers — Gespraech melden, Marken messen und faerben, Symbol im Kopf; ohne: nichts.
-  const antwort = s.sichtbar.paar?.antwort
-  const belegZeigen = useCallback(() => { if (antwort) belegeOeffnen(antwort) }, [antwort, belegeOeffnen])
-  const buehne = useStoryBuehne(gastgeber.buehne, { paare: s.paare, laeuft: s.k.laeuft, schritte: s.k.schritte, fehler: s.k.fehler !== null }, { onFrage: senden, onBeleg: belegZeigen })
+  // T2: Teppich der Dokumente hinter der Sektion; Klick auf eine freie Stelle blendet den Vordergrund aus.
+  const [abgetaucht, setAbgetaucht] = useState(false)
+  const teppich = gastgeber.teppich ? (
+    <WebsiteTeppichEbene instanz={gastgeber.instanz} libraryId={p.libraryId} abgetaucht={abgetaucht} onAbgetaucht={setAbgetaucht} onDokument={dokumentOeffnen} />
+  ) : undefined
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
-  const kopf = gastgeber.perspektiveDialog || buehne.knopf ? (
-    <div className="flex items-center gap-2">
-      {gastgeber.perspektiveDialog && (
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
-          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-          {t('website.story.anpassen')}
-        </Button>
-      )}
-      {buehne.knopf}
-    </div>
+  const kopf = gastgeber.perspektiveDialog ? (
+    <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
+      <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+      {t('website.story.anpassen')}
+    </Button>
   ) : undefined
 
   let inhalt
@@ -174,8 +170,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
       <div ref={anker} className="scroll-mt-4">
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} hintergrund={buehne.hintergrund} hintergrundVorn={buehne.vorn} fuss={eingabe}>
-          {buehne.umschliesse(inhalt)}
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} teppich={teppich} abgetaucht={teppich !== undefined && abgetaucht} fuss={eingabe}>
+          {inhalt}
         </WebsiteStorySektionRahmen>
       </div>
       {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen })}

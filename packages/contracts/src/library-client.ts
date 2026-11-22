@@ -217,6 +217,8 @@ export interface ClientLibrary {
       siteTheme?: SiteTheme;
       /** Fokus aus Sternen (ADR 0012): Sterne-Zahl auch anonym sichtbar, Namen nie (fehlend = false) */
       starCountsPublic?: boolean;
+      /** Teppich der Dokumente hinter der Fragen-Sektion der Website (fehlend = false) */
+      carpetEnabled?: boolean;
     };
     /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
     nextcloud?: {

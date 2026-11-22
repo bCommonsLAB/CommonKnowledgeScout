@@ -61,6 +61,8 @@ const publicFormSchema = z.object({
   siteEnabled: z.boolean().default(false),
   // Fokus aus Sternen (ADR 0012): Sterne-Zahl anonym sichtbar, Namen nie.
   starCountsPublic: z.boolean().default(false),
+  // Teppich T2: Teppich der Dokumente hinter der Fragen-Sektion der Website.
+  carpetEnabled: z.boolean().default(false),
   // Welle S2: Design-Profil als JSON-Text; leer = Vorlage. Geprueft mit denselben Regeln wie die Bruecke.
   siteThemeJson: z.string().optional().superRefine((wert, ctx) => {
     if (!wert?.trim()) return
@@ -148,6 +150,7 @@ export function PublicForm() {
         requiresAuth: false,
         siteEnabled: false,
         starCountsPublic: false,
+        carpetEnabled: false,
         siteThemeJson: "",
         showOnHomepage: true,
         backgroundImageUrl: "",
@@ -177,6 +180,7 @@ export function PublicForm() {
       requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
       siteEnabled: activeLibrary.config?.publicPublishing?.siteEnabled === true || false,
       starCountsPublic: activeLibrary.config?.publicPublishing?.starCountsPublic === true,
+      carpetEnabled: activeLibrary.config?.publicPublishing?.carpetEnabled === true,
       siteThemeJson: activeLibrary.config?.publicPublishing?.siteTheme
         ? JSON.stringify(activeLibrary.config.publicPublishing.siteTheme, null, 2)
         : "",
@@ -275,6 +279,7 @@ export function PublicForm() {
       requiresAuth: data.requiresAuth,
       siteEnabled: data.siteEnabled,
       starCountsPublic: data.starCountsPublic,
+      carpetEnabled: data.carpetEnabled,
       // S2: leeres Feld = Profil loeschen (null), sonst das geparste Profil (Schema hat es geprueft).
       siteTheme: data.siteThemeJson?.trim() ? (JSON.parse(data.siteThemeJson) as unknown) : null,
       showOnHomepage: data.showOnHomepage,
@@ -646,6 +651,27 @@ export function PublicForm() {
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
+
+            <FormField
+              control={form.control}
+              name="carpetEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Teppich der Dokumente an der Fragen-Sektion</FormLabel>
+                    <FormDescription>
+                      Hinter der Fragen-Sektion der Website liegt jedes Dokument der Library als Punkt an seinem festen Platz: links die älteren, rechts die neueren, Ähnliches beieinander. Besucher sehen beim Überfahren den Titel, ein Klick öffnet das Dokument. Die Plätze berechnet der Auftrag „Teppich berechnen“ (Werkzeug teppich_berechnen); vorher bleibt der Hintergrund leer.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
                   </FormControl>
                 </FormItem>
               )}

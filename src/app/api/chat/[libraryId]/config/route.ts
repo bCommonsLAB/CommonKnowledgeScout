@@ -63,6 +63,8 @@ export async function GET(
         isPublic: ctx.library.config.publicPublishing.isPublic,
         gallery: ctx.library.config.publicPublishing.gallery,
         story: ctx.library.config.publicPublishing.story,
+        // Teppich T2: Teppich der Dokumente hinter der Fragen-Sektion (Schalter, kein Secret); fehlend => false
+        carpetEnabled: ctx.library.config.publicPublishing.carpetEnabled === true,
         // API-Key nicht an Client senden
       } : undefined,
     }

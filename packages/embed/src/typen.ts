@@ -171,6 +171,12 @@ export interface KnowledgeScoutSiteProps {
   height?: string
   /** Zusaetzliche Klassen fuer den Rahmen. */
   className?: string
+  /**
+   * Teppich der Dokumente hinter der Fragen-Sektion: jedes Dokument als Punkt an seinem
+   * festen Platz. Er erscheint nur, wenn die Library ihn eingeschaltet hat. Standard:
+   * an; `false` laesst ihn in dieser Seite weg.
+   */
+  carpet?: boolean
 }
 
 /**

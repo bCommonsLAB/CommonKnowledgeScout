@@ -38,13 +38,13 @@ export interface WebsiteStorySektionRahmenProps {
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
   /**
-   * Eine Ebene hinter dem Chat (die Common-UX-Buehne, P4). Der Bereich des Chats ist ihr
-   * Fenster: `clip-path` schneidet auch eine am Bildschirm feste Ebene darauf zu.
+   * Teppich der Dokumente (Plan `teppich-der-dokumente`, T2): eine Ebene hinter der ganzen
+   * Sektion. Sie nimmt Klicks an, wo keine Karte liegt.
    */
-  hintergrund?: React.ReactNode
-  /** Die Ebene steht vorn und nimmt Klicks an (Buehnen-Modus, K4); sonst erreichen Klicks sie nie. */
-  hintergrundVorn?: boolean
-  /** Unter dem Chat, ausserhalb des Fensters der Ebene (die Eingabe). */
+  teppich?: React.ReactNode
+  /** Der Vordergrund ist ausgeblendet, damit man den Teppich erkunden kann. */
+  abgetaucht?: boolean
+  /** Unter dem Chat (die Eingabe). */
   fuss?: React.ReactNode
 }
 
@@ -55,8 +55,8 @@ export function WebsiteStorySektionRahmen({
   status,
   kopf,
   children,
-  hintergrund,
-  hintergrundVorn = false,
+  teppich,
+  abgetaucht = false,
   fuss,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
@@ -64,10 +64,19 @@ export function WebsiteStorySektionRahmen({
   const { vor, fragen, nach } = React.useMemo(() => storyBloecke(section), [section])
 
   return (
-    <section className={cn("px-6 py-14", flaeche.className)} style={flaeche.style} data-website-story>
-      <div className="mx-auto max-w-5xl">
+    <section className={cn("relative isolate px-6 py-14", flaeche.className)} style={flaeche.style} data-website-story>
+      {teppich && <div className="absolute inset-0 z-0">{teppich}</div>}
+      {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
+      <div
+        className={cn(
+          "relative z-10 mx-auto max-w-5xl transition-opacity duration-300",
+          teppich && "pointer-events-none",
+          abgetaucht && "invisible opacity-0",
+        )}
+        aria-hidden={abgetaucht || undefined}
+      >
         {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
-        <div className="overflow-hidden rounded-3xl border border-black/10 bg-white text-neutral-900 shadow-lg">
+        <div className={cn("overflow-hidden rounded-3xl border border-black/10 bg-white text-neutral-900 shadow-lg", teppich && "pointer-events-auto")}>
           {(status || kopf) && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-6 py-4">
               <div>{status}</div>
@@ -77,23 +86,7 @@ export function WebsiteStorySektionRahmen({
           <div className="px-6 pb-6 pt-8 sm:px-10">
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
             {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
-            {hintergrund ? (
-              // Das Fenster der Buehne: so breit wie die Karte, so hoch wie der Inhalt.
-              <div className="relative">
-                <div
-                  className={cn("absolute inset-y-0 -inset-x-6 sm:-inset-x-10", !hintergrundVorn && "pointer-events-none")}
-                  style={{ clipPath: "inset(0)" }}
-                  aria-hidden={hintergrundVorn ? undefined : true}
-                  data-story-hintergrund={hintergrundVorn ? "vorn" : "hinten"}
-                >
-                  {hintergrund}
-                </div>
-                {/* Vorn gehen die Klicks durch den leeren Raum an die Buehne. */}
-                <div className={cn("relative", hintergrundVorn && "pointer-events-none")}>{children}</div>
-              </div>
-            ) : (
-              children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />
-            )}
+            {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}
             {fuss}
             {nach.length > 0 && (
               // Legende/Vertrauenszeile: klein und dezent (Vorlage) — ueberschreibt die
@@ -105,6 +98,11 @@ export function WebsiteStorySektionRahmen({
           </div>
         </div>
       </div>
+      {abgetaucht && (
+        <p className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
+          {t("website.story.teppichZurueck")}
+        </p>
+      )}
     </section>
   )
 }
