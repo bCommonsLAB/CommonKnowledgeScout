@@ -1008,6 +1008,13 @@
       },
       "anpassen": "Adatta le risposte",
       "teppichZurueck": "Clicca su uno spazio libero per riavere il testo",
+      "teppich": {
+        "suche": "Ricerca nei documenti …",
+        "gefunden": "{count} documenti pertinenti trovati",
+        "gewichtet": "Valutazione dei documenti pertinenti …",
+        "schreiben": "La risposta prende forma …",
+        "storyline": "La tua storyline: la risposta si basa su queste {count} fonti"
+      },
       "quellenAnzeigen": "Mostra fonti ({count})",
       "quellenAnzeigenKurz": "Mostra fonti",
       "belegnummern": "Mostra i numeri delle fonti nel testo",

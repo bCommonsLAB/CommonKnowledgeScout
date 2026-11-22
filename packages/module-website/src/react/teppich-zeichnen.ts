@@ -2,7 +2,7 @@
  * Zeichnen und Messen fuer den Teppich der Dokumente (Plan `teppich-der-dokumente`, T3).
  *
  * Hilfen ohne React fuer `website-teppich.tsx`: Punkte, Ringe mit Nummern, der Faden der
- * Belege, und die Lage der Belegkarten (`data-story-karte-datei`) relativ zur Leinwand.
+ * Belege, die Vorbereitung der Leinwand und der Stand, den die Szene je Bild bekommt.
  */
 
 import type { TeppichPhase, TeppichPunkt, TeppichRaster } from '..'
@@ -15,6 +15,8 @@ export interface TeppichSzenenStand {
   phase: TeppichPhase
   /** Belege in der Reihenfolge ihrer Nummern (fileIds). */
   belege: readonly string[]
+  /** T4: Kandidaten der Suche (fileIds); leer, solange unbekannt. */
+  kandidaten: readonly string[]
   abgetaucht: boolean
   bewegung: boolean
   ueber: number
@@ -59,25 +61,6 @@ export function zeichneFaden(ctx: CanvasRenderingContext2D, punkte: Array<{ x: n
   ctx.beginPath()
   punkte.forEach((p, k) => (k === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
   ctx.stroke()
-}
-
-/**
- * Platz eines Belegs: die Mitte der Nummernmarke an seiner Karte (letztes Element der Karte,
- * `Zitatmarke`), relativ zur Leinwand — Beleg und Marke liegen deckungsgleich, auch ausserhalb
- * des sichtbaren Bereichs. `null`, wenn die Karte nicht im Dokument steht (andere
- * Karten-Darstellung) — dann bleibt der Beleg an seinem Platz.
- */
-export function markenPlatz(sektion: Element, leinwand: DOMRect, fileId: string): { x: number; y: number } | null {
-  const karte = sektion.querySelector(`[data-story-karte-datei="${CSS.escape(fileId)}"]`)
-  const marke = karte?.lastElementChild
-  if (!marke) return null
-  const r = marke.getBoundingClientRect()
-  if (r.width === 0 && r.height === 0) return null
-  const x = r.left + r.width / 2 - leinwand.left
-  const y = r.top + r.height / 2 - leinwand.top
-  // Auch Marken ausserhalb des Bildes zaehlen: Der Beleg steht schon dort, wo seine Karte beim
-  // Scrollen erscheint — kein Sprung, wenn sie hereinrollt (Owner 22.11.2026).
-  return { x, y }
 }
 
 /** Bereitet eine Leinwand auf Groesse und Pixeldichte vor und gibt ihren Kontext zurueck. */

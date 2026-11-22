@@ -5,10 +5,9 @@
  *
  * `WebsiteTeppich` ist die hintere Leinwand hinter der Fragen-Sektion: jedes Dokument ein
  * Punkt an seinem Platz (`packeTeppich`), Groesse nach Gewicht, Jahreszahlen unten. In Ruhe
- * schwebt jeder Punkt leicht; beim Fragen schwaermen alle. Steht die Antwort, liegt jeder Beleg
- * unter der Nummernmarke seiner Karte, das Raster verzieht sich mit (`TeppichSzene`). Die Karte
- * der Sektion ist dafuer leicht durchscheinend. Die Schleife laeuft nur, solange die Flaeche
- * sichtbar ist.
+ * schwebt jeder Punkt leicht; beim Fragen schwaermen alle. Mit der Antwort verdichten sich die
+ * Belege zur Storyline in der Mitte, danach dreht sich der Schwarm langsam weiter
+ * (`TeppichSzene`). Die Schleife laeuft nur, solange die Flaeche sichtbar ist.
  *
  * In Ruhe und bei stehender Antwort: Ueberfahren zeigt Titel und Jahr, Klick auf einen Punkt
  * meldet ihn (`onPunkt`), Klick auf eine freie Stelle `onFreieStelle`. Waehrend der Suche und
@@ -29,6 +28,8 @@ export interface WebsiteTeppichProps {
   phase?: TeppichPhase
   /** Belege der stehenden Antwort, in der Reihenfolge ihrer Nummern (fileIds). */
   belege?: readonly string[]
+  /** T4: Kandidaten der Suche (fileIds), sobald die Suche sie meldet. */
+  kandidaten?: readonly string[]
   /** Der Flug der Belege ist fertig. */
   onGelandet?: () => void
   /** Gemeinsame Szene mit der vorderen Leinwand; ohne Angabe eine eigene. */
@@ -64,7 +65,7 @@ function useBewegungErlaubt(): boolean {
 }
 
 export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
-  const { punkte, abgetaucht, onPunkt, onFreieStelle, phase = 'ruhe', belege = KEINE_BELEGE, onGelandet } = p
+  const { punkte, abgetaucht, onPunkt, onFreieStelle, phase = 'ruhe', belege = KEINE_BELEGE, kandidaten = KEINE_BELEGE, onGelandet } = p
   const eigene = React.useMemo(() => new TeppichSzene(), [])
   const szene = p.szene ?? eigene
   const huelle = React.useRef<HTMLDivElement>(null)
@@ -102,7 +103,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   // Jeder Render reicht den neuen Stand an die Szene; die Schleife liest ihn im naechsten Bild.
   React.useEffect(() => {
     szene.setze({
-      punkte, raster, radien, phase, belege, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
+      punkte, raster, radien, phase, belege, kandidaten, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
       breite: groesse.breite, hoehe: groesse.hoehe,
       farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
       onGelandet: () => gelandet.current?.(),

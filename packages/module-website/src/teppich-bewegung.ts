@@ -14,6 +14,8 @@
  * Vorbild ist der Schwarm im Klickmodell (`docs/plans/assets/teppich-der-dokumente-prototyp.html`).
  */
 
+import type { ChatProcessingStep } from '@ks/contracts'
+
 export type TeppichPhase = 'ruhe' | 'sucht' | 'landet' | 'antwort'
 
 /** Mindestdauer der Suche: Die Bewegung soll man sehen, auch bei einer Antwort aus dem Cache. */
@@ -83,8 +85,12 @@ export function schwarmStart(x: Float32Array, y: Float32Array): TeppichSchwarm {
   return { x: Float32Array.from(x), y: Float32Array.from(y), vx, vy }
 }
 
-/** Ein Schritt des Schwarms um `mitte` auf einer Flaeche `breite` × `hoehe` (siehe Datei-Kommentar). */
-export function schwarmSchritt(sw: TeppichSchwarm, dt: number, t: number, mitte: { x: number; y: number }, breite: number, hoehe: number): void {
+/**
+ * Ein Schritt des Schwarms um `mitte` auf einer Flaeche `breite` × `hoehe` (siehe Datei-Kommentar).
+ * `kreis` (T4, wahlweise): je Punkt der Anteil am Schwarm-Radius, auf dem er kreist; 0 = sein eigener.
+ * So ziehen die Kandidaten der Suche auf einen inneren Kreis, der Rest nach aussen.
+ */
+export function schwarmSchritt(sw: TeppichSchwarm, dt: number, t: number, mitte: { x: number; y: number }, breite: number, hoehe: number, kreis?: Float32Array): void {
   const m = Math.min(breite, hoehe)
   const sc = m / 800
   const r = 0.46 * m
@@ -98,7 +104,8 @@ export function schwarmSchritt(sw: TeppichSchwarm, dt: number, t: number, mitte:
     const d = Math.hypot(dx, dy) + 0.001
     const ux = dx / d
     const uy = dy / d
-    const rho = r * (0.16 + 0.95 * s1) * (1 + 0.14 * Math.sin(t * 0.9 + s2 * 6.283))
+    const anteil = kreis && kreis[i] > 0 ? kreis[i] : 0.16 + 0.95 * s1
+    const rho = r * anteil * (1 + 0.14 * Math.sin(t * 0.9 + s2 * 6.283))
     const vk = 150 * sc * (0.45 + 0.55 * Math.min(1, d / (0.35 * r)))
     const zug = (rho - d) * 1.6
     const a = Math.sin(sw.x[i] * 0.006 + t * 0.8) * 1.7 + Math.cos(sw.y[i] * 0.007 - t * 0.6) * 1.7 + s2
@@ -119,26 +126,64 @@ export function flugVerlauf(p: number): number {
 }
 
 /**
- * Verzerrung des Rasters, wenn Belege an neue Plaetze ruecken (T3). Jeder Anker (Index `i`,
- * Verschiebung `dx`/`dy`) rueckt genau um seine Verschiebung; jeder andere Punkt folgt allen
- * Ankern mit einem Gewicht, das mit dem Abstand im Raster weich abfaellt (Gauss, Breite `sigma`).
- * Schreibt in `dx`/`dy` (gleiche Laenge wie `px`).
+ * Auswahl der Suche (T4): die Dokumente, die dem Sprachmodell vorgelegt werden, aus dem letzten
+ * Schritt `retrieval_complete`. Leer, solange die Suche laeuft, und bei Antworten aus dem Cache.
  */
-export function rasterVerzerrung(
-  px: Float32Array, py: Float32Array, anker: ReadonlyArray<{ i: number; dx: number; dy: number }>,
-  sigma: number, dx: Float32Array, dy: Float32Array,
-): void {
-  const zweiSigmaQ = 2 * sigma * sigma
-  for (let i = 0; i < px.length; i++) {
-    let sx = 0, sy = 0, sw = 0
-    for (const a of anker) {
-      const w = a.i === i ? 1e6 : Math.exp(-((px[i] - px[a.i]) ** 2 + (py[i] - py[a.i]) ** 2) / zweiSigmaQ)
-      sx += w * a.dx
-      sy += w * a.dy
-      sw += w
-    }
-    const n = Math.max(1, sw)
-    dx[i] = sx / n
-    dy[i] = sy / n
+export function kandidatenAusSchritten(schritte: readonly ChatProcessingStep[]): string[] {
+  for (let i = schritte.length - 1; i >= 0; i--) {
+    const s = schritte[i]
+    if (s.type === 'retrieval_complete') return s.candidateFileIds ?? []
   }
+  return []
+}
+
+/**
+ * Kreise des Schwarms (T4): Belege der Antwort auf dem innersten Kreis (0,1 bis 0,16 des
+ * Radius), Kandidaten der Suche auf einem inneren (0,3 bis 0,4), alle anderen weiter aussen
+ * (0,62 bis 1,07), damit die Mitte frei wird. Ohne Kandidaten und Belege `undefined`: jeder Punkt
+ * kreist auf seinem eigenen Radius.
+ */
+export function schwarmKreise(anzahl: number, kandidaten: ReadonlySet<number>, belege: ReadonlySet<number> = new Set()): Float32Array | undefined {
+  if (kandidaten.size === 0 && belege.size === 0) return undefined
+  const kreis = new Float32Array(anzahl)
+  for (let i = 0; i < anzahl; i++) {
+    kreis[i] = belege.has(i) ? 0.1 + 0.06 * punktSaat(i)
+      : kandidaten.has(i) ? 0.3 + 0.1 * punktSaat(i)
+        : 0.62 + 0.45 * punktSaat(i, 0.37)
+  }
+  return kreis
+}
+
+/** Wie lange die fertige Storyline steht, bevor die Antwort erscheint (ms) — Zeit zum Lesen. */
+export const STORYLINE_MS = 3200
+
+/**
+ * Botschaft der Animation (Owner 22.11.2026): erklaert den Rechenweg in Worten. Stufen in dieser
+ * Reihenfolge: 0 Dokumente werden durchsucht, 1 passende gefunden, 2 werden gewichtet, 3 die
+ * Antwort entsteht. Liefert die Stufe, die die Meldungen des Servers schon erreicht haben.
+ */
+export type BotschaftsStufe = 0 | 1 | 2 | 3
+
+export function botschaftsStufe(schritte: readonly ChatProcessingStep[]): BotschaftsStufe {
+  let stufe: BotschaftsStufe = 0
+  for (const s of schritte) {
+    if (s.type === 'retrieval_complete' && stufe < 1) stufe = 1
+    else if (s.type === 'prompt_building' && stufe < 2) stufe = 2
+    else if ((s.type === 'prompt_complete' || s.type === 'llm_progress') && stufe < 3) stufe = 3
+  }
+  return stufe
+}
+
+/**
+ * Lage der Storyline (Owner 22.11.2026): Die Belege der Antwort stehen als Liste in der Mitte der
+ * Flaeche, untereinander in der Reihenfolge ihrer Nummern; rechts neben jedem Kreis der Titel.
+ * Liefert die Mitte jedes Kreises; `zeile` ist der Abstand zweier Kreise, `x` die gemeinsame Spalte.
+ */
+export function storylineLage(anzahl: number, breite: number, hoehe: number): { x: number; ys: number[]; zeile: number } {
+  // Hoechstens 40 px; bei vielen Belegen enger, die Liste bleibt in 72 % der Hoehe.
+  const zeile = anzahl > 0 ? Math.min(40, (hoehe * 0.72) / anzahl) : 0
+  const listenBreite = Math.min(560, breite - 48)
+  const x = Math.max(24, (breite - listenBreite) / 2) + 14
+  const oben = hoehe / 2 - ((anzahl - 1) * zeile) / 2
+  return { x, ys: Array.from({ length: anzahl }, (_, k) => oben + k * zeile), zeile }
 }

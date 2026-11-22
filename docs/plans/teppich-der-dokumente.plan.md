@@ -19,8 +19,8 @@ todos:
     content: "T3 Frage und Antwort: Vordergrund weicht beim Rechnen, Schwarm mit Mindestdauer, Belege fliegen rechts neben den Text, Faden mit Nummern, Ringe am festen Platz; Fragenbox am unteren Rand. GEBAUT 22.11.2026 ohne Fragenbox und ohne Linien beim Überfahren; Ziel ist `cards=column` statt eines neuen Werts; in Dev angesehen."
     status: completed
   - id: t4-stufen
-    content: "T4 Suchstufen: Meldungen der Suche tragen die Kennungen der Dokumente; Kandidaten, Auswahl, Belege ziehen in Räume nach innen."
-    status: pending
+    content: "T4 Suchstufen: Meldungen der Suche tragen die Kennungen der Dokumente; Kandidaten, Auswahl, Belege ziehen in Räume nach innen. GEBAUT 22.11.2026 mit zwei Stufen (Auswahl der Suche, zitierte Belege); in Dev angesehen."
+    status: completed
 ---
 
 # Teppich der Dokumente
@@ -219,7 +219,8 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
 - Ablauf als reine Funktion `naechstePhase` (`ruhe` → `sucht` → `landet` → `antwort`, Mindestdauer
   2,5 s, Fehler endet in `ruhe`), geführt von `use-teppich-ablauf.ts`; Schwarm, Schweben und Flug in
   `teppich-bewegung.ts`, Zeichnen in `react/teppich-szene.ts` und `react/teppich-zeichnen.ts`.
-- **Deckungsgleich und verzogen (Owner 22.11.2026):** Steht die Antwort, liegt jeder Beleg genau
+- **Deckungsgleich und verzogen (Owner 22.11.2026; abgelöst am 23.11. durch die Storyline, siehe
+  3.5):** Steht die Antwort, liegt jeder Beleg genau
   unter der Nummernmarke seiner Karte, auch wenn die Karte noch außerhalb des Bildes liegt (kein
   Sprung beim Scrollen). Das Raster verzieht sich mit (`rasterVerzerrung`, Gauß um jeden Beleg,
   Breite mindestens 60 px bzw. drei Zellen). Erkunden oder eine neue Frage: alles gleitet zurück,
@@ -250,6 +251,37 @@ eigene PR; bis T2 hat die Fragen-Sektion keinen Hintergrund.
   der echten Meldungen ein. Kommt die Antwort aus dem Cache, gibt es keine Stufen.
 - Das Suchverfahren über Zusammenfassungen meldet eigene Zahlen; welche Stufen es zeigt, wird
   in T4 am Code geklärt und hier nachgetragen.
+
+**Gebaut 22.11.2026 (zwei Stufen statt drei):**
+
+- **Stufe 1, Auswahl der Suche:** `retrieval_complete` trägt `candidateFileIds` (die Dokumente,
+  die dem Sprachmodell vorgelegt werden, je Dokument einmal). Der Orchestrator sendet die Meldung
+  für alle Suchverfahren gleich, also auch für das über Zusammenfassungen. Der Teppich zieht sie
+  beim Schwarm auf einen inneren Kreis (`schwarmKreise`, 0,3 bis 0,4 des Radius) und zeichnet sie
+  deutlicher; alle anderen weichen nach außen.
+- **Stufe 2, definitiv verwendet:** Mit der Antwort fliegen die zitierten Belege zuerst in einen
+  engen Kreis in der Mitte, dann in die Storyline (siehe unten). Ein eigenes `usedFileIds` an `prompt_complete` entfällt: Vorgelegt wird genau die Auswahl aus
+  Stufe 1, zitiert wird erst in der Antwort.
+- Antworten aus dem Cache haben keine Stufe 1 (keine Suche), Stufe 2 läuft trotzdem.
+- **Angesehen in Dev** (SFSCON lokal, 815 px Breite): Auswahl auf dem inneren Ring sichtbar,
+  Suche 20 bis 37 s, Landung 2,7 bis 2,8 s, dann die Antwort.
+
+**Umgebaut 23.11.2026, Storyline statt Nummernmarken (Owner 22.11.2026):** Den Flug unter die
+Nummernmarken und die Verzerrung des Rasters verstand niemand; beides ist entfernt
+(`rasterVerzerrung`, `markenPlatz`, `data-story-karte-datei`).
+
+- **Storyline:** Die Belege verdichten sich zu einer Liste in der Mitte der Fläche, untereinander
+  in der Reihenfolge ihrer Nummern, mit Nummer im Kreis und Titel daneben (`storylineLage`). Die
+  Liste steht `STORYLINE_MS` (3,2 s) zum Lesen, dann erscheint die Antwort.
+- **Botschaften unten** erklären den Rechenweg in Worten (`botschaftsStufe`,
+  `use-teppich-botschaft.ts`, Schlüssel `website.story.teppich.*`): Dokumente werden durchsucht,
+  {count} passende gefunden, gewichtet, die Antwort entsteht, zum Schluss „Ihre Storyline: Die
+  Antwort stützt sich auf diese {count} Belege". Je Stufe mindestens 1,4 s.
+- **Nach der Antwort** dreht der Schwarm langsam weiter (Belege blass im innersten Kreis), bis die
+  Frage ausgeblendet oder eine neue gestellt wird; erst dann geht es zurück ins Raster. Wann genau
+  es zurückgeht, ist noch offen.
+- **Angesehen in Dev 23.11.2026** (SFSCON lokal, zwei Fragen): Botschaften in der richtigen
+  Reihenfolge, Storyline mit 10 bzw. 13 Titeln lesbar, nach 5,8 bis 6,1 s die Antwort.
 
 ## 4. Wellen
 
