@@ -44,6 +44,7 @@ import type { QueryLog } from '@/types/query-log'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { applyDraftExclusionToChunkFilter } from '@/lib/chat/publication-filter'
+import { applyWebsiteExclusionToChunkFilter } from '@/lib/chat/website-ausschluss'
 import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { createChat, touchChat, getChatById, updateChatTitle } from '@/lib/db/chats-repo'
@@ -431,6 +432,8 @@ export async function POST(
             libraryId,
             userEmail || null,
           )
+          // Erzeugte Webseiten sind keine Quelle — fuer alle Fragenden (website-ausschluss.ts).
+          await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
 
           // Schritt 2: Retriever-Modus automatisch entscheiden (für Cache-Hash benötigt)
           const retrieverDecision = await decideRetrieverMode({
@@ -693,6 +696,8 @@ export async function POST(
             libraryId,
             userEmail || null,
           )
+          // Erzeugte Webseiten sind keine Quelle — fuer alle Fragenden (website-ausschluss.ts).
+          await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
           retrieverDecision = await decideRetrieverMode({
             libraryId,
             userEmail: userEmail || '',
@@ -718,6 +723,8 @@ export async function POST(
             libraryId,
             userEmail || null,
           )
+          // Erzeugte Webseiten sind keine Quelle — fuer alle Fragenden (website-ausschluss.ts).
+          await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
           retrieverDecision = await decideRetrieverMode({
             libraryId,
             userEmail: userEmail || '',

@@ -13,6 +13,8 @@
  */
 
 import { buildFilters } from '@/lib/chat/common/filters'
+import { applyWebsiteExclusionToChunkFilter } from '@/lib/chat/website-ausschluss'
+import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { dokumenteNummerieren } from '@/lib/chat/common/zitatmarken'
@@ -101,6 +103,8 @@ export async function beantworteFrage(args: {
   }
   const explicit = args.retriever === 'auto' ? null : args.retriever
   const built = buildFilters(new URL('http://bruecke.local/'), ctx.library, userEmail, libraryId, explicit ?? 'chunk')
+  // Erzeugte Webseiten sind keine Quelle (website-ausschluss.ts).
+  await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
   const entscheidung = await decideRetrieverMode({ libraryId, userEmail, filter: built.mongo, isTOCQuery: false, explicitRetriever: explicit })
   const retriever = entscheidung.mode
 

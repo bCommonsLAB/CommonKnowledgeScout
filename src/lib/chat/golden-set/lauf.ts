@@ -12,13 +12,14 @@
  */
 
 import { buildFilters } from '@/lib/chat/common/filters'
+import { applyWebsiteExclusionToChunkFilter } from '@/lib/chat/website-ausschluss'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { callLlmJson } from '@/lib/chat/common/llm'
 import { dokumenteNummerieren } from '@/lib/chat/common/zitatmarken'
 import { ANSWER_LENGTH_DEFAULT } from '@/lib/chat/constants'
 import { startQueryLog } from '@/lib/logging/query-logger'
-import { getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { pruefeGoldenSetGegenFacetten, type GoldenSet } from './schema'
 import { antwortOhneFussnote, pruefeGoldenSetFrage } from './pruefung'
 import { buildRichterMessages, richterSchemaJson, richterUrteilSchema, werteRichterUrteil, type RichterErgebnis } from './richter'
@@ -89,6 +90,8 @@ export async function fahreGoldenSet(args: GoldenSetLaufArgs): Promise<GoldenSet
   for (const [index, frage] of fragen.entries()) {
     const explicit = args.retriever === 'auto' ? null : args.retriever
     const built = buildFilters(new URL('http://golden-set.local/'), ctx.library, userEmail, libraryId, explicit ?? 'chunk')
+    // Erzeugte Webseiten sind keine Quelle (website-ausschluss.ts).
+    await applyWebsiteExclusionToChunkFilter(built.mongo as Record<string, unknown>, getCollectionNameForLibrary(ctx.library), libraryId)
     const entscheidung = await decideRetrieverMode({ libraryId, userEmail, filter: built.mongo, isTOCQuery: false, explicitRetriever: explicit })
     const retriever = entscheidung.mode
     const queryId = await startQueryLog({
