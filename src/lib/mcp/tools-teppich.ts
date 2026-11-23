@@ -1,6 +1,7 @@
 /**
  * @fileoverview `teppich_berechnen` — feste Plaetze des Teppichs ueber die Bruecke anstossen
- * (Plan `teppich-der-dokumente`, T1).
+ * (Plan `teppich-der-dokumente`, T1) — und `nachbarn_berechnen`, die Aehnlichkeits-Nachbarn,
+ * die der Teppich voraussetzt (Owner 23.11.2026: ohne Umweg ueber die Graph-Ansicht).
  *
  * @description
  * Derselbe Auftrag wie `POST /api/library/<id>/doc-teppich/recompute`: EIN External Job
@@ -11,12 +12,13 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { isCoCreatorOrOwner, isLibraryOwner } from '@/lib/repositories/library-members-repo'
 import { enqueueDocTeppichJob } from '@/lib/external-jobs/enqueue-doc-teppich'
+import { enqueueDocSimilarityJob } from '@/lib/external-jobs/enqueue-doc-similarity'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 
-/** Registriert `teppich_berechnen` (siehe Datei-Kommentar). */
+/** Registriert `teppich_berechnen` und `nachbarn_berechnen` (siehe Datei-Kommentar). */
 export function registerTeppichTool(server: McpServer): void {
   server.registerTool(
     'teppich_berechnen',
@@ -54,6 +56,48 @@ export function registerTeppichTool(server: McpServer): void {
               jobId,
               angestossen,
               hinweis: 'Ergebnis mit job_status abfragen (Schritt phase-doc-teppich, Details).',
+            })
+          },
+        )
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
+
+  server.registerTool(
+    'nachbarn_berechnen',
+    {
+      title: 'Aehnlichkeits-Nachbarn berechnen (SCHREIBT)',
+      description:
+        'Rechnet fuer jedes Dokument der Library seine aehnlichsten Dokumente und speichert sie ' +
+        '(similarity_neighbors in den Metadaten). Grundlage fuer teppich_berechnen und die ' +
+        'Graph-Ansicht der Galerie; derselbe Auftrag wie dort „Nachbarn neu berechnen". Laeuft als ' +
+        'Job mit einer Vector-Suche je Dokument, nacheinander (schont die Datenbank) — bei ' +
+        'tausenden Dokumenten bis zu einer Stunde. Fortschritt und Ergebnis mit job_status; ' +
+        'danach teppich_berechnen. Nur Owner. SCHREIBT; nur nach Bestaetigung.',
+      inputSchema: { libraryId: LIBRARY_ID, begruendung: BEGRUENDUNG },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ libraryId, begruendung }) => {
+      try {
+        return await mitProtokoll(
+          { werkzeug: 'nachbarn_berechnen', libraryId, akteur: mcpUserEmail(), begruendung },
+          async () => {
+            const userEmail = mcpUserEmail()
+            await requireLibrary(userEmail, libraryId)
+            if (!(await isLibraryOwner(libraryId, userEmail))) {
+              throw new Error(`Nur der Owner der Library ${libraryId} darf die Nachbarn berechnen`)
+            }
+            const { jobId } = await enqueueDocSimilarityJob({ libraryId, userEmail })
+            const { ExternalJobsWorker } = await import('@/lib/external-jobs-worker')
+            // Best effort wie die Route: Der Job bleibt queued, falls der Anstoss scheitert.
+            const angestossen = await ExternalJobsWorker.tickNow().then(() => true, () => false)
+            return jsonResult({
+              libraryId,
+              jobId,
+              angestossen,
+              hinweis: 'Fortschritt mit job_status; wenn completed, teppich_berechnen aufrufen.',
             })
           },
         )
