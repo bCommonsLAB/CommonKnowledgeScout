@@ -37,6 +37,11 @@ export interface TeppichFlaeche {
   hoehe: number
   /** Abstand zum Rand der Flaeche in Pixeln. */
   rand: number
+  /**
+   * Verschiebung nach rechts (Pixel): Die Leinwand ist breiter als die Flaeche des Rasters,
+   * damit der Schwarm ueber deren Rand hinaus fliegen kann (Owner 23.11.2026).
+   */
+  versatz?: number
 }
 
 export interface TeppichRaster {
@@ -66,7 +71,7 @@ export function packeTeppich(punkte: readonly TeppichPunkt[], flaeche: TeppichFl
   const proSpalte = Math.ceil(n / spalten)
   const zelle = Math.min(w / spalten, h / proSpalte)
   const breiteRaster = spalten * (w / spalten)
-  const links = flaeche.rand + (w - breiteRaster) / 2
+  const links = (flaeche.versatz ?? 0) + flaeche.rand + (w - breiteRaster) / 2
   const mitte = flaeche.rand + h / 2
 
   const nachZeit = Array.from({ length: n }, (_, i) => i)
@@ -101,6 +106,32 @@ export function packeTeppich(punkte: readonly TeppichPunkt[], flaeche: TeppichFl
 export function teppichRadius(zelle: number, gewicht: number | null): number {
   const basis = Math.min(6, Math.max(1, zelle * 0.24))
   return basis * (0.8 + 1.2 * (gewicht ?? 0))
+}
+
+/** Platz ueber dem Kasten (die Frage) und darunter (die Botschaft), in Pixeln. */
+export const TEPPICH_OBEN = 96
+export const TEPPICH_UNTEN = 64
+/** Breite der Antwort (`max-w-5xl`) samt Rand der Sektion (`px-6`). */
+const ANTWORT_BREITE = 1024
+const SEKTION_RAND = 24
+
+export interface TeppichKasten {
+  /** Breite und Hoehe der Flaeche, auf der das Raster liegt. */
+  breite: number
+  hoehe: number
+  /** Abstand vom linken Rand der Leinwand. */
+  links: number
+}
+
+/**
+ * Kasten des Teppichs (Owner 23.11.2026): so breit wie die Antwort und so hoch wie der sichtbare
+ * Bereich abzueglich Frage und Botschaft — alles zusammen bleibt ganz im Bild. `breite` ist die
+ * Breite der Sektion, `sicht` die sichtbare Hoehe, `sektion` die Hoehe der Sektion.
+ */
+export function teppichKasten(breite: number, sicht: number, sektion: number): TeppichKasten {
+  const kb = Math.floor(Math.max(0, Math.min(ANTWORT_BREITE, breite - 2 * SEKTION_RAND)))
+  const hoehe = Math.floor(Math.max(0, Math.min(sicht, sektion) - TEPPICH_OBEN - TEPPICH_UNTEN))
+  return { breite: kb, hoehe, links: Math.floor((breite - kb) / 2) }
 }
 
 /** Index des naechsten Punkts innerhalb von `maxAbstand`, sonst -1. */

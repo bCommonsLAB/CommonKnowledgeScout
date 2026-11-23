@@ -20,7 +20,7 @@ import { TeppichSzene } from './teppich-szene'
 import { useTeppichAblauf } from './use-teppich-ablauf'
 import { useTeppichBotschaft } from './use-teppich-botschaft'
 
-type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'hinweis' | 'frage' | 'botschaft'>
+type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'hinweis'>
 
 export function useStoryTeppich(
   gastgeber: WebsiteStoryGastgeber,
@@ -46,12 +46,11 @@ export function useStoryTeppich(
         <WebsiteTeppichEbene
           instanz={gastgeber.instanz} libraryId={libraryId} abgetaucht={abgetaucht} onAbgetaucht={setAbgetaucht}
           onDokument={onDokument} phase={ablauf.phase} belege={belege} kandidaten={kandidaten} onGelandet={ablauf.gelandet} szene={szene}
+          frage={fragt ? paar?.frage.text : undefined} botschaft={botschaft}
         />
       ),
       abgetaucht: abgetaucht || fragt,
       hinweis: abgetaucht && !fragt,
-      frage: fragt ? paar?.frage.text : undefined,
-      botschaft,
     },
   }
 }

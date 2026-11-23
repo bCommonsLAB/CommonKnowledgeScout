@@ -277,11 +277,101 @@ Nummernmarken und die Verzerrung des Rasters verstand niemand; beides ist entfer
   `use-teppich-botschaft.ts`, Schlüssel `website.story.teppich.*`): Dokumente werden durchsucht,
   {count} passende gefunden, gewichtet, die Antwort entsteht, zum Schluss „Ihre Storyline: Die
   Antwort stützt sich auf diese {count} Belege". Je Stufe mindestens 1,4 s.
-- **Nach der Antwort** dreht der Schwarm langsam weiter (Belege blass im innersten Kreis), bis die
-  Frage ausgeblendet oder eine neue gestellt wird; erst dann geht es zurück ins Raster. Wann genau
-  es zurückgeht, ist noch offen.
+- **Nach der Antwort** ~~dreht der Schwarm langsam weiter~~ — entschieden 23.11.2026 (Owner, nach
+  dem Prod-Test auf FOSDEM): Das Kreisen störte. Mit der Antwort fliegen alle Punkte an ihren Platz
+  im Raster zurück.
+- **Kleiner Kasten statt ganzer Sektion (Owner 23.11.2026):** Der Teppich war so hoch wie die
+  Sektion; man sah entweder die Frage oben oder die Botschaft unten. Jetzt liegt das Raster in
+  einem Kasten so breit wie die Antwort und so hoch wie der sichtbare Bereich, darüber die Frage,
+  darunter die Botschaft (`teppichKasten`, `TEPPICH_OBEN`/`TEPPICH_UNTEN`); alles zusammen klebt
+  oben. Die Leinwand ist so breit wie die Sektion, der Schwarm fliegt über den Kasten hinaus.
+- **Zur Frage scrollen (Owner 23.11.2026):** Beim Absenden einer Frage, auch einer Folgefrage
+  unten in der Eingabe, scrollt die Seite an den Anfang der Fragen-Sektion
+  (`use-zur-frage-scrollen.ts`).
 - **Angesehen in Dev 23.11.2026** (SFSCON lokal, zwei Fragen): Botschaften in der richtigen
   Reihenfolge, Storyline mit 10 bzw. 13 Titeln lesbar, nach 5,8 bis 6,1 s die Antwort.
+
+### 3.6 Wolke statt Raster (T5, geplant 23.11.2026)
+
+**Wunsch des Owners:** Die Animation soll aus der Punktwolke der Graph-Ansicht entstehen, nicht
+aus einem Raster. Die Wolke zeigt, was zusammengehört; das Raster zeigt es nur als Reihenfolge.
+
+**Ausgangslage.** Beide Ansichten lesen dieselben Nachbarn (`similarity_neighbors`, Job
+`doc-similarity`, Brücke `nachbarn_berechnen`). Verschieden ist nur, wo die Lage entsteht:
+
+| | Graph-Ansicht (Galerie, Expertenmodus) | Teppich (T1–T4) |
+|---|---|---|
+| Lage | Physik im Browser (`d3-force`: Kanten ziehen, alle stoßen sich ab), bei jedem Aufruf neu | Ordnung auf dem Server: Zeit nach rechts, Ähnlichkeit nach unten |
+| Zeichnen | SVG, ein React-Render je Rechenschritt | Canvas, eigene Schleife |
+| Grenze | höchstens 2.000 Punkte, Ausschnitt per Hand zoomen | 2.184 Punkte bei 60 fps gemessen |
+
+**Bau.** Die Physik der Graph-Ansicht läuft einmal auf dem Server, im Job `doc-teppich`, und ihr
+Ergebnis wird der feste Platz jedes Punkts. Schwarm, Storyline und Rückflug bleiben, wie sie sind;
+sie starten aus der Wolke und kehren in sie zurück.
+
+1. **Lage rechnen** (`src/lib/graph/teppich-wolke.ts`, reine Funktion): `d3-force` ohne Browser
+   (`forceSimulation(...).stop()`, dann eine feste Zahl `tick()`), mit denselben Kräften wie
+   `use-graph-simulation.ts` und einer Kollisionskraft, damit sich Punkte nicht decken.
+   Deterministisch: feste Startlage (Phyllotaxis-Spirale nach `fileId`-Reihenfolge, wie d3 sie
+   ohne Startwerte setzt), d3-eigener fester Zufall, feste Schrittzahl. Liegt eine frühere Wolke
+   vor, startet die Rechnung dort; bestehende Plätze bleiben nah. Dokumente ohne Nachbarn: ein
+   Ring außen, gezählt, nicht verschwiegen.
+2. **Speichern** flach in `docMetaJson`: `teppich_wx`, `teppich_wy` (0..1, auf die Hülle der
+   Wolke normiert) neben `teppich_x`/`teppich_y`. Kein neues Format, kein verschachteltes Feld.
+3. **Punkte-Abfrage** (`GET /api/chat/<id>/teppich`): je Punkt zusätzlich `wx`, `wy` und die
+   stärksten Nachbarn als Indizes (höchstens 3 je Punkt, für die Linien). Bei 2.184 Punkten etwa
+   +60 kB; zu messen.
+4. **Zeichnen** (`packages/module-website`): `packeWolke` setzt `wx`/`wy` in den Kasten
+   (`teppichKasten`), Seitenverhältnis der Wolke erhalten. `naechsterTeppichPunkt` trifft
+   weiter. Die Jahreszahlen unten entfallen (siehe E8).
+5. **Linien** zwischen Nachbarn nach E9.
+6. **Nebenbei, eigene PR:** Die Graph-Ansicht passt sich nach dem Rechnen selbst auf die ganze
+   Wolke ein (Zoom auf die Hülle), statt dass man herauszoomen muss. Später kann sie die
+   gespeicherte Lage lesen und braucht dann weder die Rechenzeit noch die Grenze von 2.000.
+
+**Zweite Animation: die Wolke bildet sich (Owner 23.11.2026).** Statt des Kreisens beim Rechnen
+zeigt sie, wie die Wolke entsteht — der spannende Moment. Sie ersetzt den Schwarm NICHT, sondern
+ist wählbar (E10).
+
+1. **Ruhe:** die Wolke an ihren festen Plätzen. Weil die fertige Wolke bekannt ist, steht der
+   Ausschnitt von Anfang an richtig (auf die Hülle eingepasst), es wird nie gezoomt.
+2. **Frage abgeschickt:** alle Punkte ziehen sich in einen Punkt in der Mitte zusammen.
+3. **Suche läuft:** der Punkt explodiert in alle Richtungen, die Wolke bildet sich vor den Augen.
+   Weil die Rechnung deterministisch ist, endet sie genau in der gespeicherten Wolke (E11).
+4. **Auswahl der Suche bekannt** (`retrieval_complete`, wie T4): Die Kandidaten kristallisieren
+   sich heraus. Niemand schiebt sie: Zwischen ihnen entstehen zusätzliche, starke Kanten (sie
+   sind jetzt eng verbunden), die Physik zieht sie zu einem Knäuel zusammen; die übrigen weichen
+   durch die Abstoßung von selbst etwas aus.
+5. **Belege bekannt:** Auch die Storyline bildet die Physik, kein Flug. Die Belege bekommen Kanten
+   zum nächsten in ihrer Reihenfolge (1–2, 2–3, …) und eine Kraft zu einer gemeinsamen Spalte
+   (`forceX`) sowie eine schwächere zu ihrem Platz in der Liste (`forceY`). Sie ziehen sich an wie
+   beim Entstehen der Wolke, finden sich erst als Knäuel und ordnen sich dann zur Linie — in der
+   Reihenfolge der Antwort. Erst wenn die Bewegung abgeklungen ist (Energie der Simulation unter
+   einer Schwelle, höchstens nach einer festen Zeit), erscheinen Nummern und Titel.
+6. **Antwort steht:** Die Zusatzkräfte fallen weg, eine Kraft zum eigenen Platz in der Wolke zieht
+   jeden Punkt zurück.
+
+**Grundsatz (Owner 23.11.2026): eine Physik, ein Bewegungsmuster.** In dieser Animation gibt es
+keine berechneten Flüge (`flugVerlauf`). Es läuft durchgehend EINE Simulation; die Phasen ändern
+nur ihre Kräfte — Kanten dazu oder weg, Ziele für `forceX`/`forceY`, Stärken. Eine physikalische
+Ordnung wird nie durch eine mechanische ersetzt.
+
+Die Mindestdauer der Suche (`SUCHE_MINDESTENS_MS`) gilt weiter, damit die Explosion auch bei
+einer Antwort aus dem Cache zu sehen ist. Bei reduzierter Bewegung: keine Explosion, die Auswahl
+wird nur hervorgehoben, dann steht die Storyline.
+
+**Wahl der Animation** (E10): ein Parameter der Fragen-Sektion wie `cards=` und `rules=`, etwa
+`animation=schwarm|wolke`; ohne Angabe `schwarm` (der heutige Ablauf). Ein unbekannter Wert ist
+ein Fehler in der Konsole, kein stiller Rückfall. Beide Animationen teilen Szene, Storyline,
+Botschaften und Rückflug; verschieden ist nur die Bewegung in der Phase `sucht`. Im Code: je
+Animation eine Bewegungs-Strategie hinter einer Schnittstelle in `teppich-szene.ts`, nicht ein
+Sonderzweig je Stelle.
+
+**Aufwand der Rechnung:** `d3-force` mit Barnes-Hut wächst mit n·log n; für 2.184 Punkte und
+rund 8.000 Kanten bei 300 Schritten wenige Sekunden im Job. Zu messen an FOSDEM, Abnahme wie T1.
+
+**Contracts:** T5a fasst `src/lib/graph/**` und den Job an (`contracts-pipeline`,
+no-silent-fallbacks), T5b `packages/module-website/**` (`contracts-ui`).
 
 ## 4. Wellen
 
@@ -293,6 +383,10 @@ Nummernmarken und die Verzerrung des Rasters verstand niemand; beides ist entfer
 | T2 | Hintergrund in Ruhe, Erkunden, Schalter | Teppich hinter der Startseite |
 | T3 | Schwarm, Flug, `cards=thread`, Fragenbox | Startseite wie das Klickmodell, ohne Stufen |
 | T4 | Meldungen mit Kennungen, Räume | Aussieben in Stufen |
+| T5a | Wolke auf dem Server: Lage rechnen, speichern, Punkte-Abfrage mit `wx`/`wy` und Nachbarn | Zahlen in der Antwort der Route |
+| T5b | Wolke zeichnen, Linien, Rückflug in die Wolke | Startseite mit Wolke statt Raster |
+| T5c | Graph-Ansicht passt sich ein (eigene PR, unabhängig) | Ganze Wolke ohne Zoomen |
+| T5d | Zweite Animation „die Wolke bildet sich", Parameter `animation=` | Explosion statt Kreisen, wählbar |
 
 Je Welle eine PR. T1 fasst `src/lib/external-jobs/**` an (Skill `contracts-pipeline`), T2 und
 T3 `packages/module-website/**` und `src/components/library/website/**` (Skill `contracts-ui`),
@@ -328,8 +422,18 @@ Nicht gemessen. Annahmen, die T2 an einem Bestand mit über 2.000 Dokumenten pr�
 | E4 | Reichweite | Zuerst nur die Fragen-Sektion der Startseite. |
 | E5 | Startseiten-Embed | Der Teppich läuft auch dort. |
 
+Entschieden 23.11.2026 (Owner, Wolke T5):
+
+| Nr. | Frage | Entscheid |
+|---|---|---|
+| E7 | Wolke oder Raster | Die Wolke ersetzt das Raster, eine Regel für alle Libraries; das Raster fällt nach T5b weg. Löst E2 ab (Zeit nach rechts). |
+| E8 | Zeit in der Wolke | Zuerst gar nicht; nach dem Ansehen von T5b neu entscheiden (etwa Helligkeit nach Jahr). |
+| E9 | Linien zwischen Nachbarn | Nur beim Überfahren eines Punkts und bei den Belegen der Antwort. |
+| E10 | Wer wählt die Animation | Wer die Seite einrichtet, per Parameter der Sektion (`animation=`); ein Umschalter für Besucher kann später darauf aufsetzen. |
+| E11 | Wie die Wolke sich bewegt | Echte Physik im Browser, durchgehend, nie ein Flug (Grundsatz in §3.6). |
+
 Offen:
 
 | Nr. | Frage | Wann |
 |---|---|---|
-| E6 | Obergrenze bewegter Punkte auf dem Telefon | Nach der Messung in T2. |
+| E6 | Obergrenze bewegter Punkte auf dem Telefon; mit E11: ist die Physik zu langsam, bewegen sich weniger Punkte (die fernen ruhen), nie ein Flug | Nach der Messung in T2 bzw. T5d. |
