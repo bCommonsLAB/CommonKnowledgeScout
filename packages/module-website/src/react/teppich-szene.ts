@@ -15,7 +15,7 @@ import {
 } from '..'
 import type { TeppichSzenenStand } from './teppich-zeichnen'
 import { zeichneTeppich } from './teppich-bild'
-import { TeppichWolkenPhysik } from './teppich-wolken-physik'
+import { TeppichWolkenBuehne } from './teppich-wolken-buehne'
 
 interface Flug { start: number; vonX: Float32Array; vonY: Float32Array }
 interface Verdichtung extends Flug { listeSeit: number | null; gemeldet: boolean }
@@ -26,6 +26,9 @@ export class TeppichSzene {
   zeiger: { x: number; y: number } | null = null
   private x = new Float32Array(0)
   private y = new Float32Array(0)
+
+  /** Aktuelle Lage der Punkte (Pixel), etwa fuer Treffer beim Ueberfahren. */
+  get lage(): { x: Float32Array; y: Float32Array } { return { x: this.x, y: this.y } }
   private schwarm: TeppichSchwarm | null = null
   private rueckflug: Flug | null = null
   private verdichtung: Verdichtung | null = null
@@ -37,10 +40,14 @@ export class TeppichSzene {
   private kandidaten = new Set<number>()
   private kreis: Float32Array | undefined
   private kreisSchluessel = ''
+  private standPhase: TeppichPhase = 'ruhe'
   private stand: TeppichSzenenStand | null = null
   /** Animation `wolke` (Parameter `animation=wolke`): durchgehend Physik statt Schwarm und Flug. */
-  private wolke = new TeppichWolkenPhysik()
+  private wolke = new TeppichWolkenBuehne()
 
+  /** Wolke: Punkt `i` an die Stelle (`x`, `y`) der Leinwand ziehen; das Netz zieht seine Nachbarn mit. */
+  zieh(i: number, x: number, y: number): void { this.wolke.zieh(i, x, y) }
+  lasse(): void { this.wolke.lasse() }
   setze(s: TeppichSzenenStand): void {
     if (s.punkte.length !== this.x.length) {
       this.x = Float32Array.from(s.plaetze.px)
@@ -54,9 +61,14 @@ export class TeppichSzene {
     const nachIndex = (ids: readonly string[]) => ids.map((id) => index.get(id)).filter((i): i is number => i !== undefined)
     this.belegIndex = nachIndex(s.belege)
     const schluessel = `${s.kandidaten.join('|')}#${s.belege.join('|')}`
-    if (schluessel !== this.kreisSchluessel) {
+    const neueFrage = s.phase === 'sucht' && this.standPhase !== 'sucht'
+    this.standPhase = s.phase
+    if (schluessel !== this.kreisSchluessel || neueFrage) {
       this.kreisSchluessel = schluessel
-      this.kandidaten = new Set(nachIndex(s.kandidaten))
+      const gemeldet = new Set(nachIndex(s.kandidaten))
+      // Wolke (Owner 23.11.2026): Die erste Auswahl bleibt bis zur naechsten Frage markiert — die
+      // Seite meldet sie nicht mehr, sobald die Antwort da ist, und sie ging auf einen Schlag verloren.
+      if (s.animation !== 'wolke' || gemeldet.size > 0 || neueFrage || s.phase === 'ruhe') this.kandidaten = gemeldet
       this.kreis = schwarmKreise(s.punkte.length, this.kandidaten, new Set(this.belegIndex))
     }
     this.stand = s
@@ -76,8 +88,13 @@ export class TeppichSzene {
     }
     zeichneTeppich(this.hinten, s, {
       x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
-      daheim: wolke ? !this.wolke.aktiv : !this.schwarm, titel: wolke ? this.wolke.titel : this.titel,
-      heimat: (i) => this.heimat(s, i, t),
+      // In der Wolke gehoeren die Lagen der Physik: Ringe und Linien stehen dort, wo die Punkte sind.
+      daheim: wolke ? s.phase === 'ruhe' || s.phase === 'antwort' : !this.schwarm,
+      titel: wolke ? this.wolke.titel : this.titel,
+      uebergang: wolke ? this.wolke.uebergang : 1,
+      kandStaerke: wolke ? this.wolke.staerke : () => 1,
+      belegMarke: wolke ? this.wolke.belegMarke : () => 1,
+      heimat: wolke ? (i) => [this.x[i], this.y[i]] : (i) => this.heimat(s, i, t),
     })
   }
 
@@ -88,11 +105,7 @@ export class TeppichSzene {
       const [hx, hy] = this.heimat(s, i, t)
       this.x[i] = hx; this.y[i] = hy
     }
-    this.wolke.schritt({
-      phase: s.phase, zeit, breite: s.breite, hoehe: s.hoehe, zelle: s.plaetze.zelle, radien: s.radien,
-      px: s.plaetze.px, py: s.plaetze.py, nachbarn: (i) => s.punkte[i].nachbarn, kandidaten: [...this.kandidaten], belege: this.belegIndex,
-      onGelandet: s.onGelandet,
-    }, this.x, this.y)
+    this.wolke.schritt(s, zeit, this.kandidaten, this.belegIndex, this.x, this.y)
   }
 
   private wechsle(s: TeppichSzenenStand, zeit: number): void {

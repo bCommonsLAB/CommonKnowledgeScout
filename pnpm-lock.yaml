@@ -158,6 +158,9 @@ importers:
       d3:
         specifier: ^7
         version: 7.9.0
+      d3-force:
+        specifier: ^3.0.0
+        version: 3.0.0
       date-fns:
         specifier: ^3.6.0
         version: 3.6.0
@@ -315,6 +318,9 @@ importers:
       '@types/d3':
         specifier: ^7
         version: 7.4.3
+      '@types/d3-force':
+        specifier: ^3.0.10
+        version: 3.0.10
       '@types/mime-types':
         specifier: ^2.1.4
         version: 2.1.4
