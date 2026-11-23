@@ -367,6 +367,12 @@ Botschaften und Rückflug; verschieden ist nur die Bewegung in der Phase `sucht`
 Animation eine Bewegungs-Strategie hinter einer Schnittstelle in `teppich-szene.ts`, nicht ein
 Sonderzweig je Stelle.
 
+**T5a gebaut (23.11.2026):** `src/lib/graph/teppich-wolke.ts` (`berechneWolke`) läuft im Job
+`doc-teppich` nach dem Raster und schreibt `teppich_wx`/`teppich_wy`; der Job meldet
+`wolkeKanten`, `wolkeSchritte`, `wolkeMs`. Die Route liefert je Punkt `wx`, `wy` (vier Stellen,
+`null` vor dem ersten Lauf) und `nachbarn` (Indizes, höchstens 3). Gemessen im Test: 2.000
+Dokumente mit 8.000 Kanten in 3,6 s. Die Seite liest die Wolke erst ab T5b.
+
 **Aufwand der Rechnung:** `d3-force` mit Barnes-Hut wächst mit n·log n; für 2.184 Punkte und
 rund 8.000 Kanten bei 300 Schritten wenige Sekunden im Job. Zu messen an FOSDEM, Abnahme wie T1.
 

@@ -8,7 +8,8 @@
  * Auftrag und Route dieselbe Regel haben.
  *
  * Felder (flach in `docMetaJson`, wie `similarity_neighbors`):
- * `teppich_x`, `teppich_y`, `teppich_gewicht` (fehlt ohne Umfang), `teppich_stand`.
+ * `teppich_x`, `teppich_y`, `teppich_gewicht` (fehlt ohne Umfang), `teppich_stand`;
+ * seit T5a die Wolke `teppich_wx`, `teppich_wy` (0..1, `teppich-wolke.ts`).
  *
  * @usedIn src/lib/graph/teppich-persist.ts, src/lib/graph/teppich-antwort.ts
  */
@@ -22,7 +23,7 @@ export const TEPPICH_PROJEKTION = {
   'docMetaJson.date': 1, 'docMetaJson.year': 1, 'docMetaJson.title': 1, 'docMetaJson.detailViewType': 1,
   'docMetaJson.similarity_neighbors': 1,
   'docMetaJson.teppich_x': 1, 'docMetaJson.teppich_y': 1, 'docMetaJson.teppich_gewicht': 1,
-  'docMetaJson.teppich_stand': 1,
+  'docMetaJson.teppich_stand': 1, 'docMetaJson.teppich_wx': 1, 'docMetaJson.teppich_wy': 1,
 } as const
 
 /** Strukturelle Seiten der Website sind kein Inhalt und liegen nicht auf dem Teppich. */
@@ -47,6 +48,9 @@ export interface TeppichPunkt {
   gewicht: number | null
   jahr: number | null
   titel: string
+  /** Platz in der Wolke (T5a); `null`, solange der Lauf sie noch nicht gerechnet hat. */
+  wx: number | null
+  wy: number | null
 }
 
 const TITEL_MAX = 80
@@ -86,7 +90,7 @@ export function istTeppichInhalt(zeile: TeppichMetaZeile): boolean {
   return zeile.detailViewType !== TEPPICH_OHNE_TYP && meta.detailViewType !== TEPPICH_OHNE_TYP
 }
 
-function nachbarnAus(roh: unknown): Array<{ fileId: string; weight: number }> {
+export function nachbarnAus(roh: unknown): Array<{ fileId: string; weight: number }> {
   if (!Array.isArray(roh)) return []
   const out: Array<{ fileId: string; weight: number }> = []
   for (const n of roh) {
@@ -115,6 +119,16 @@ export function leseTeppichEingabe(zeile: TeppichMetaZeile): TeppichEingabe | nu
   }
 }
 
+const vierStellen = (v: number | null): number | null => (v === null ? null : Math.round(v * 1e4) / 1e4)
+
+/** Fruehere Wolke (T5a) als Startlage des naechsten Laufs; `null` ohne. */
+export function leseWolkeVorher(zeile: TeppichMetaZeile): { x: number; y: number } | null {
+  const meta = zeile.docMetaJson ?? {}
+  const x = zahl(meta.teppich_wx)
+  const y = zahl(meta.teppich_wy)
+  return x !== null && y !== null ? { x, y } : null
+}
+
 /** Punkt fuer die Lese-Route; `null`, wenn das Dokument noch keine Lage hat. */
 export function leseTeppichPunkt(zeile: TeppichMetaZeile): TeppichPunkt | null {
   const fileId = text(zeile.fileId)
@@ -130,5 +144,8 @@ export function leseTeppichPunkt(zeile: TeppichMetaZeile): TeppichPunkt | null {
     gewicht: zahl(meta.teppich_gewicht),
     jahr: jahrFuerAnzeige(zeile),
     titel: titel.length > TITEL_MAX ? `${titel.slice(0, TITEL_MAX - 1)}…` : titel,
+    // Vier Stellen reichen (ein Zehntel Pixel auf 1.000 Pixeln) und halten die Antwort klein.
+    wx: vierStellen(zahl(meta.teppich_wx)),
+    wy: vierStellen(zahl(meta.teppich_wy)),
   }
 }
