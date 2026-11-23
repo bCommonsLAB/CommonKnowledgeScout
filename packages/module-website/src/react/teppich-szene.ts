@@ -2,11 +2,11 @@
  * Szene des Teppichs der Dokumente (Plan `teppich-der-dokumente`, T3/T4).
  *
  * Haelt die Lage jedes Punkts ueber die Bilder hinweg. Ablauf einer Frage (Owner 22.11.2026):
- * Die Punkte loesen sich aus dem Raster und schwaermen; die Auswahl der Suche zieht auf einen
+ * Die Punkte loesen sich aus der Wolke und schwaermen; die Auswahl der Suche zieht auf einen
  * inneren Kreis. Mit der Antwort verdichten sich die zitierten Belege: erst in einen engen Kreis
  * der Mitte, dann zur Storyline — eine Liste in der Bildmitte, in der Reihenfolge der Antwort, mit
  * Nummer und Titel. Sie steht einen Moment, dann erscheint die Antwort, und alle Punkte fliegen an
- * ihren Platz im Raster zurueck — kein Kreisen hinter der Antwort (Owner 23.11.2026).
+ * ihren Platz in der Wolke zurueck — kein Kreisen hinter der Antwort (Owner 23.11.2026).
  */
 
 import {
@@ -40,8 +40,8 @@ export class TeppichSzene {
 
   setze(s: TeppichSzenenStand): void {
     if (s.punkte.length !== this.x.length) {
-      this.x = Float32Array.from(s.raster.px)
-      this.y = Float32Array.from(s.raster.py)
+      this.x = Float32Array.from(s.plaetze.px)
+      this.y = Float32Array.from(s.plaetze.py)
       this.schwarm = null
       this.rueckflug = null
       if (this.verdichtung && !this.verdichtung.gemeldet) s.onGelandet()
@@ -69,7 +69,7 @@ export class TeppichSzene {
     const t = zeit / 1000
     zeichneTeppich(this.hinten, s, {
       x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
-      imRaster: !this.schwarm, titel: this.titel, heimat: (i) => this.heimat(s, i, t),
+      daheim: !this.schwarm, titel: this.titel, heimat: (i) => this.heimat(s, i, t),
     })
   }
 
@@ -88,13 +88,13 @@ export class TeppichSzene {
   }
 
   private heimat(s: TeppichSzenenStand, i: number, t: number): [number, number] {
-    const { px, py, zelle } = s.raster
+    const { px, py, zelle } = s.plaetze
     if (!s.bewegung) return [px[i], py[i]]
     const [dx, dy] = driftVersatz(i, px[i], py[i], t, Math.max(1.2, Math.min(4, zelle * 0.3)), Math.max(1.4, Math.min(6, zelle * 0.45)))
     return [px[i] + dx, py[i] + dy]
   }
 
-  /** Schwarm in Suche und Verdichtung; Raster in Ruhe, bei der Antwort und beim Erkunden. */
+  /** Schwarm in Suche und Verdichtung; feste Plaetze in Ruhe, bei der Antwort und beim Erkunden. */
   private bewege(s: TeppichSzenenStand, zeit: number, dt: number): void {
     const t = zeit / 1000
     const schwaermt = s.bewegung && (s.phase === 'sucht' || (s.phase === 'landet' && !s.abgetaucht))

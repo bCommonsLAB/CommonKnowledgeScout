@@ -1,21 +1,27 @@
 /**
- * @fileoverview Teppich der Dokumente: Punkte auf eine Flaeche packen (Plan
- * `teppich-der-dokumente`, T2).
+ * @fileoverview Teppich der Dokumente: Punkte auf eine Flaeche legen (Plan
+ * `teppich-der-dokumente`, T2/T5b).
  *
  * @description
- * Reine Funktionen ohne React und ohne Browser. Der Server speichert je Dokument nur
- * Ordnungen (`x` = Rang in der Zeit, `y` = Ordnung nach Aehnlichkeit, beide 0..1,
- * Route `GET /api/chat/<id>/teppich`). Hier entsteht daraus ein Raster fuer eine
- * bestimmte Flaeche: Spalten nach der Zeit, gleich voll; jede Spalte von oben nach
- * unten nach Aehnlichkeit, mittig gestapelt. Dazu die Jahreszahlen unter den
- * Spalten, an denen ein neues Jahr beginnt.
+ * Reine Funktionen ohne React und ohne Browser. Seit T5b (Owner 23.11.2026, E7) liegen die
+ * Punkte in der Wolke: Der Server rechnet sie einmal mit der Physik der Graph-Ansicht und
+ * liefert je Dokument `wx`, `wy` (0..1, Seitenverhaeltnis erhalten) und die staerksten
+ * Nachbarn (Route `GET /api/chat/<id>/teppich`). Hier wird die Wolke in den Kasten eingepasst:
+ * gleicher Massstab auf beiden Achsen, mittig. Das fruehere Raster (Zeit nach rechts) und die
+ * Jahreszahlen entfallen (E8).
  */
 
 /** Ein Punkt, wie ihn die Lese-Route liefert. */
 export interface TeppichPunkt {
   fileId: string
+  /** Fruehere Ordnung (Raster); die Seite nutzt sie seit T5b nicht mehr. */
   x: number
   y: number
+  /** Platz in der Wolke (T5a); `null`, solange der Lauf sie nicht gerechnet hat. */
+  wx: number | null
+  wy: number | null
+  /** Staerkste Nachbarn als Indizes in `items`, staerkster zuerst. */
+  nachbarn: number[]
   gewicht: number | null
   jahr: number | null
   titel: string
@@ -38,64 +44,52 @@ export interface TeppichFlaeche {
   /** Abstand zum Rand der Flaeche in Pixeln. */
   rand: number
   /**
-   * Verschiebung nach rechts (Pixel): Die Leinwand ist breiter als die Flaeche des Rasters,
-   * damit der Schwarm ueber deren Rand hinaus fliegen kann (Owner 23.11.2026).
+   * Verschiebung nach rechts (Pixel): Die Leinwand ist breiter als der Kasten,
+   * damit der Schwarm ueber dessen Rand hinaus fliegen kann (Owner 23.11.2026).
    */
   versatz?: number
 }
 
-export interface TeppichRaster {
-  /** Lage je Punkt, gleiche Reihenfolge wie die Eingabe. */
+export interface TeppichPlaetze {
+  /** Platz je Punkt in Pixeln der Leinwand, gleiche Reihenfolge wie die Eingabe. */
   px: Float32Array
   py: Float32Array
-  /** Abstand zweier Nachbarn im Raster (Pixel). */
+  /** Mittlerer Abstand zweier Punkte (Pixel); bestimmt Radius und Trefferweite. */
   zelle: number
-  spalten: number
-  jahrMarken: Array<{ jahr: number; x: number }>
 }
 
-/** Mindestabstand zweier Jahreszahlen in Pixeln. */
-const JAHR_ABSTAND = 44
+/** Hat jeder Punkt einen Platz in der Wolke? Sonst ist der Lauf `teppich_berechnen` faellig. */
+export function hatWolke(punkte: readonly TeppichPunkt[]): boolean {
+  return punkte.length > 0 && punkte.every((p) => p.wx !== null && p.wy !== null)
+}
 
-/** Packt die Punkte auf die Flaeche (siehe Datei-Kommentar). Leere Eingabe ergibt ein leeres Raster. */
-export function packeTeppich(punkte: readonly TeppichPunkt[], flaeche: TeppichFlaeche): TeppichRaster {
+/**
+ * Passt die Wolke in die Flaeche: ein Massstab fuer beide Achsen, mittig. Ein Punkt ohne Platz in
+ * der Wolke ist ein Fehler (vorher `hatWolke` pruefen), kein stiller Rueckfall.
+ */
+export function packeWolke(punkte: readonly TeppichPunkt[], flaeche: TeppichFlaeche): TeppichPlaetze {
   const n = punkte.length
   const px = new Float32Array(n)
   const py = new Float32Array(n)
+  if (n === 0) return { px, py, zelle: 0 }
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (const p of punkte) {
+    if (p.wx === null || p.wy === null) throw new Error(`Teppich: ${p.fileId} hat keinen Platz in der Wolke — teppich_berechnen ausfuehren`)
+    minX = Math.min(minX, p.wx); maxX = Math.max(maxX, p.wx)
+    minY = Math.min(minY, p.wy); maxY = Math.max(maxY, p.wy)
+  }
   const w = Math.max(1, flaeche.breite - 2 * flaeche.rand)
   const h = Math.max(1, flaeche.hoehe - 2 * flaeche.rand)
-  if (n === 0) return { px, py, zelle: 0, spalten: 0, jahrMarken: [] }
-
-  // Spaltenzahl so, dass die Zellen etwa quadratisch werden; mindestens eine.
-  const spalten = Math.max(1, Math.min(n, Math.round(Math.sqrt((n * w) / h))))
-  const proSpalte = Math.ceil(n / spalten)
-  const zelle = Math.min(w / spalten, h / proSpalte)
-  const breiteRaster = spalten * (w / spalten)
-  const links = (flaeche.versatz ?? 0) + flaeche.rand + (w - breiteRaster) / 2
-  const mitte = flaeche.rand + h / 2
-
-  const nachZeit = Array.from({ length: n }, (_, i) => i)
-    .sort((a, b) => punkte[a].x - punkte[b].x || (punkte[a].fileId < punkte[b].fileId ? -1 : 1))
-  const jahrMarken: Array<{ jahr: number; x: number }> = []
-  let letztesJahr: number | null = null
-  for (let s = 0; s < spalten; s++) {
-    const spalte = nachZeit.slice(s * proSpalte, (s + 1) * proSpalte)
-    if (spalte.length === 0) continue
-    spalte.sort((a, b) => punkte[a].y - punkte[b].y || (punkte[a].fileId < punkte[b].fileId ? -1 : 1))
-    const x = links + (s + 0.5) * (w / spalten)
-    spalte.forEach((i, r) => {
-      px[i] = x
-      py[i] = mitte + (r - (spalte.length - 1) / 2) * zelle
-    })
-    const jahre = spalte.map((i) => punkte[i].jahr).filter((j): j is number => j !== null)
-    const jahr = jahre.length ? Math.min(...jahre) : null
-    if (jahr !== null && (letztesJahr === null || jahr > letztesJahr)) {
-      const vorige = jahrMarken[jahrMarken.length - 1]
-      if (!vorige || x - vorige.x >= JAHR_ABSTAND) jahrMarken.push({ jahr, x })
-      letztesJahr = jahr
-    }
-  }
-  return { px, py, zelle, spalten, jahrMarken }
+  const sx = maxX - minX || 1
+  const sy = maxY - minY || 1
+  const mass = Math.min(w / sx, h / sy)
+  const mx = (flaeche.versatz ?? 0) + flaeche.breite / 2
+  const my = flaeche.hoehe / 2
+  punkte.forEach((p, i) => {
+    px[i] = mx + ((p.wx as number) - (minX + maxX) / 2) * mass
+    py[i] = my + ((p.wy as number) - (minY + maxY) / 2) * mass
+  })
+  return { px, py, zelle: Math.sqrt((sx * mass * sy * mass) / n) }
 }
 
 /**

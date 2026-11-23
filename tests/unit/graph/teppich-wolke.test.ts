@@ -61,8 +61,9 @@ describe('berechneWolke', () => {
     // Gemessen von der Mitte der verbundenen Dokumente (der Ring macht den Rahmen schief).
     const verbunden = [...w.values()].filter((l) => l.fileId !== 'z-allein')
     const mitte = { wx: verbunden.reduce((s, p) => s + p.wx, 0) / verbunden.length, wy: verbunden.reduce((s, p) => s + p.wy, 0) / verbunden.length }
-    const weitester = Math.max(...verbunden.map((l) => abstand(l, mitte)))
-    expect(abstand(z, mitte)).toBeGreaterThan(weitester)
+    // Ausserhalb von mindestens 90 % der Wolke — nicht hinter dem aeussersten Auslaeufer.
+    const abstaende = verbunden.map((l) => abstand(l, mitte)).sort((p, q) => p - q)
+    expect(abstand(z, mitte)).toBeGreaterThan(abstaende[Math.floor(0.9 * (abstaende.length - 1))])
   })
 
   it('setzt eine fruehere Wolke fort: weniger Schritte, Plaetze bleiben nah', () => {

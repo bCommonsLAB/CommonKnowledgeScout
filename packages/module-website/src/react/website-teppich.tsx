@@ -4,8 +4,8 @@
  * Zeichenflaechen des Teppichs der Dokumente (Plan `teppich-der-dokumente`, T2/T3).
  *
  * `WebsiteTeppich` ist die Leinwand hinter der Fragen-Sektion: jedes Dokument ein Punkt an
- * seinem Platz (`packeTeppich`), Groesse nach Gewicht, Jahreszahlen unten. Owner 23.11.2026:
- * Das Raster liegt in einem Kasten so breit wie die Antwort, 16:9, nie hoeher als der sichtbare
+ * seinem Platz in der Wolke (`packeWolke`, T5b), Groesse nach Gewicht. Owner 23.11.2026:
+ * Die Wolke liegt in einem Kasten so breit wie die Antwort, 16:9, nie hoeher als der sichtbare
  * Bereich; darueber die Frage, darunter die Botschaft, alles zusammen klebt oben (sticky) und
  * bleibt ganz im Bild. Die Leinwand ist so breit wie die Sektion, der Schwarm darf ueber den
  * Kasten hinaus fliegen. Mit der Antwort fliegen alle Punkte an ihren Platz zurueck
@@ -17,7 +17,7 @@
  */
 
 import * as React from 'react'
-import { TEPPICH_OBEN, TEPPICH_UNTEN, naechsterTeppichPunkt, packeTeppich, teppichRadius, type TeppichPhase, type TeppichPunkt } from '..'
+import { TEPPICH_OBEN, TEPPICH_UNTEN, naechsterTeppichPunkt, packeWolke, teppichRadius, type TeppichPhase, type TeppichPunkt } from '..'
 import { TeppichSzene } from './teppich-szene'
 import { useTeppichFlaeche } from './use-teppich-flaeche'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
@@ -71,18 +71,18 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const ruhig = phase === 'ruhe' || phase === 'antwort'
   useZurFrageScrollen(huelle, phase, bewegung)
 
-  const raster = React.useMemo(
-    () => packeTeppich(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links }),
+  const plaetze = React.useMemo(
+    () => packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links }),
     [punkte, kasten],
   )
-  const radien = React.useMemo(() => Float32Array.from(punkte, (q) => teppichRadius(raster.zelle, q.gewicht)), [punkte, raster.zelle])
+  const radien = React.useMemo(() => Float32Array.from(punkte, (q) => teppichRadius(plaetze.zelle, q.gewicht)), [punkte, plaetze.zelle])
   const gelandet = React.useRef(onGelandet)
   gelandet.current = onGelandet
 
   // Jeder Render reicht den neuen Stand an die Szene; die Schleife liest ihn im naechsten Bild.
   React.useEffect(() => {
     szene.setze({
-      punkte, raster, radien, phase, belege, kandidaten, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
+      punkte, plaetze, radien, phase, belege, kandidaten, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
       breite, hoehe: kasten.hoehe, kasten,
       farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
       onGelandet: () => gelandet.current?.(),
@@ -128,7 +128,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const treffer = (e: React.PointerEvent | React.MouseEvent): number => {
     const rect = flaeche.current?.getBoundingClientRect()
     if (!rect || !ruhig) return -1
-    return naechsterTeppichPunkt(raster.px, raster.py, e.clientX - rect.left, e.clientY - rect.top, Math.max(6, raster.zelle * 0.8))
+    return naechsterTeppichPunkt(plaetze.px, plaetze.py, e.clientX - rect.left, e.clientY - rect.top, Math.max(6, plaetze.zelle * 0.8))
   }
   const punkt = ruhig && ueber >= 0 ? punkte[ueber] : undefined
 
@@ -158,7 +158,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
         {punkt && (
           <div
             className="pointer-events-none absolute z-20 max-w-60 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-md"
-            style={{ left: Math.min(breite - 248, raster.px[ueber] + 12), top: Math.max(4, raster.py[ueber] - 44) }}
+            style={{ left: Math.min(breite - 248, plaetze.px[ueber] + 12), top: Math.max(4, plaetze.py[ueber] - 44) }}
             data-teppich-tooltip
           >
             <span className="block font-medium">{punkt.titel}</span>

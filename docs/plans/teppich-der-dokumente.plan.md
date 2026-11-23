@@ -373,6 +373,14 @@ Sonderzweig je Stelle.
 `null` vor dem ersten Lauf) und `nachbarn` (Indizes, höchstens 3). Gemessen im Test: 2.000
 Dokumente mit 8.000 Kanten in 3,6 s. Die Seite liest die Wolke erst ab T5b.
 
+**T5b gebaut (23.11.2026):** Der Teppich zeigt die Wolke (`packeWolke`: ein Maßstab für beide
+Achsen, mittig im Kasten) statt des Rasters; Jahreszahlen entfallen (E8). Linien zu den
+Nachbarn nur beim Überfahren (dazu die Nachbarn kräftiger) und bei den Belegen der Antwort (E9).
+Fehlt die Wolke (Lauf vor T5a), bleibt die Ebene leer, die Konsole nennt `teppich_berechnen`;
+kein Rückfall aufs Raster. **Reihenfolge beim Ausrollen:** erst `teppich_berechnen` an jeder
+Library mit Teppich, dann T5b deployen. Offen als Aufräumen: das Raster auf dem Server
+(`teppich-lage.ts`, `teppich_x`/`teppich_y`) ausbauen.
+
 **Aufwand der Rechnung:** `d3-force` mit Barnes-Hut wächst mit n·log n; für 2.184 Punkte und
 rund 8.000 Kanten bei 300 Schritten wenige Sekunden im Job. Zu messen an FOSDEM, Abnahme wie T1.
 

@@ -15,7 +15,7 @@
 import * as React from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '@ks/contracts'
-import type { TeppichAntwort, TeppichPhase, TeppichPunkt } from '..'
+import { hatWolke, type TeppichAntwort, type TeppichPhase, type TeppichPunkt } from '..'
 import { WebsiteTeppich } from './website-teppich'
 import type { TeppichSzene } from './teppich-szene'
 
@@ -33,6 +33,13 @@ export function useTeppichPunkte(instanz: InstanceApi, libraryId: string): Teppi
           console.warn(`[WebsiteTeppich] Teppich fuer ${libraryId} noch nicht berechnet (${antwort.gesamt} Dokumente) — teppich_berechnen ausfuehren`)
         } else if (antwort.zustand === 'veraltet') {
           console.info(`[WebsiteTeppich] ${antwort.ohneLage} von ${antwort.gesamt} Dokumenten noch ohne Platz`)
+        }
+        // T5b: Der Teppich zeigt die Wolke. Hat der letzte Lauf sie noch nicht gerechnet (vor T5a),
+        // bleibt die Ebene leer — kein Rueckfall auf das alte Raster.
+        if (antwort.items.length > 0 && !hatWolke(antwort.items)) {
+          console.warn(`[WebsiteTeppich] Teppich fuer ${libraryId} ohne Wolke — teppich_berechnen erneut ausfuehren`)
+          setPunkte([])
+          return
         }
         setPunkte(antwort.items)
       })
