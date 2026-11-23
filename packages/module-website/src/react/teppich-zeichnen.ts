@@ -5,7 +5,7 @@
  * Belege, die Vorbereitung der Leinwand und der Stand, den die Szene je Bild bekommt.
  */
 
-import type { TeppichPhase, TeppichPunkt, TeppichRaster } from '..'
+import type { TeppichKasten, TeppichPhase, TeppichPunkt, TeppichRaster } from '..'
 
 /** Was die Szene je Bild vom Baustein bekommt (`TeppichSzene.setze`). */
 export interface TeppichSzenenStand {
@@ -20,8 +20,11 @@ export interface TeppichSzenenStand {
   abgetaucht: boolean
   bewegung: boolean
   ueber: number
+  /** Breite der Leinwand (= Sektion) und Hoehe des Kastens. */
   breite: number
   hoehe: number
+  /** Der Kasten des Rasters in der Leinwand (so breit wie die Antwort). */
+  kasten: TeppichKasten
   farbe: string
   onGelandet: () => void
 }

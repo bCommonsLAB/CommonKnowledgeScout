@@ -5,9 +5,8 @@
  * Die Punkte loesen sich aus dem Raster und schwaermen; die Auswahl der Suche zieht auf einen
  * inneren Kreis. Mit der Antwort verdichten sich die zitierten Belege: erst in einen engen Kreis
  * der Mitte, dann zur Storyline — eine Liste in der Bildmitte, in der Reihenfolge der Antwort, mit
- * Nummer und Titel. Sie steht einen Moment, dann erscheint die Antwort, und der Schwarm dreht sich
- * langsam weiter (Belege auf dem innersten Kreis). Erst beim Erkunden oder in Ruhe gleitet alles
- * zurueck ins Raster.
+ * Nummer und Titel. Sie steht einen Moment, dann erscheint die Antwort, und alle Punkte fliegen an
+ * ihren Platz im Raster zurueck — kein Kreisen hinter der Antwort (Owner 23.11.2026).
  */
 
 import {
@@ -82,13 +81,9 @@ export class TeppichSzene {
     if (s.phase === 'landet') {
       this.verdichtung = { start: zeit, vonX: Float32Array.from(this.x), vonY: Float32Array.from(this.y), listeSeit: null, gemeldet: false }
     } else if (vorher === 'landet') {
-      // Die Belege kreisen aus der Storyline heraus weiter, ohne Sprung.
+      // Die Belege fliegen aus der Storyline heraus an ihren Platz (Rueckflug in `bewege`).
       this.verdichtung = null
       this.titel = 0
-      if (this.schwarm) for (const i of this.belegIndex) {
-        this.schwarm.x[i] = this.x[i]; this.schwarm.y[i] = this.y[i]
-        this.schwarm.vx[i] = 0; this.schwarm.vy[i] = 0
-      }
     }
   }
 
@@ -99,20 +94,21 @@ export class TeppichSzene {
     return [px[i] + dx, py[i] + dy]
   }
 
-  /** Schwarm in Suche, Verdichtung und Antwort; Raster in Ruhe und beim Erkunden. */
+  /** Schwarm in Suche und Verdichtung; Raster in Ruhe, bei der Antwort und beim Erkunden. */
   private bewege(s: TeppichSzenenStand, zeit: number, dt: number): void {
     const t = zeit / 1000
-    const schwaermt = s.bewegung && (s.phase === 'sucht' || ((s.phase === 'landet' || s.phase === 'antwort') && !s.abgetaucht))
+    const schwaermt = s.bewegung && (s.phase === 'sucht' || (s.phase === 'landet' && !s.abgetaucht))
     if (schwaermt) {
       if (!this.schwarm) { this.schwarm = schwarmStart(this.x, this.y); this.rueckflug = null }
       if (s.phase === 'sucht' && this.zeiger) {
-        const gx = Math.min(0.75 * s.breite, Math.max(0.25 * s.breite, this.zeiger.x))
+        // Die Mitte des Schwarms folgt dem Zeiger, bleibt aber in der inneren Haelfte des Kastens.
+        const k = s.kasten
+        const gx = Math.min(k.links + 0.75 * k.breite, Math.max(k.links + 0.25 * k.breite, this.zeiger.x))
         const gy = Math.min(0.68 * s.hoehe, Math.max(0.32 * s.hoehe, this.zeiger.y))
         this.mitte.x += (gx - this.mitte.x) * Math.min(1, dt * 2.5)
         this.mitte.y += (gy - this.mitte.y) * Math.min(1, dt * 2.5)
       }
-      // Nach der Antwort dreht sich die Geschichte langsam weiter.
-      schwarmSchritt(this.schwarm, s.phase === 'antwort' ? dt * 0.3 : dt, t, this.mitte, s.breite, s.hoehe, this.kreis)
+      schwarmSchritt(this.schwarm, dt, t, this.mitte, s.kasten.breite, s.hoehe, this.kreis)
       this.x.set(this.schwarm.x)
       this.y.set(this.schwarm.y)
       return

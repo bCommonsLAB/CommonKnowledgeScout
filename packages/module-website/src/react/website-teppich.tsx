@@ -3,10 +3,12 @@
 /**
  * Zeichenflaechen des Teppichs der Dokumente (Plan `teppich-der-dokumente`, T2/T3).
  *
- * `WebsiteTeppich` ist die hintere Leinwand hinter der Fragen-Sektion: jedes Dokument ein
- * Punkt an seinem Platz (`packeTeppich`), Groesse nach Gewicht, Jahreszahlen unten. In Ruhe
- * schwebt jeder Punkt leicht; beim Fragen schwaermen alle. Mit der Antwort verdichten sich die
- * Belege zur Storyline in der Mitte, danach dreht sich der Schwarm langsam weiter
+ * `WebsiteTeppich` ist die Leinwand hinter der Fragen-Sektion: jedes Dokument ein Punkt an
+ * seinem Platz (`packeTeppich`), Groesse nach Gewicht, Jahreszahlen unten. Owner 23.11.2026:
+ * Das Raster liegt in einem Kasten so breit wie die Antwort, 16:9, nie hoeher als der sichtbare
+ * Bereich; darueber die Frage, darunter die Botschaft, alles zusammen klebt oben (sticky) und
+ * bleibt ganz im Bild. Die Leinwand ist so breit wie die Sektion, der Schwarm darf ueber den
+ * Kasten hinaus fliegen. Mit der Antwort fliegen alle Punkte an ihren Platz zurueck
  * (`TeppichSzene`). Die Schleife laeuft nur, solange die Flaeche sichtbar ist.
  *
  * In Ruhe und bei stehender Antwort: Ueberfahren zeigt Titel und Jahr, Klick auf einen Punkt
@@ -15,8 +17,10 @@
  */
 
 import * as React from 'react'
-import { naechsterTeppichPunkt, packeTeppich, teppichRadius, type TeppichPhase, type TeppichPunkt } from '..'
+import { TEPPICH_OBEN, TEPPICH_UNTEN, naechsterTeppichPunkt, packeTeppich, teppichRadius, type TeppichPhase, type TeppichPunkt } from '..'
 import { TeppichSzene } from './teppich-szene'
+import { useTeppichFlaeche } from './use-teppich-flaeche'
+import { useZurFrageScrollen } from './use-zur-frage-scrollen'
 
 export interface WebsiteTeppichProps {
   punkte: readonly TeppichPunkt[]
@@ -32,25 +36,16 @@ export interface WebsiteTeppichProps {
   kandidaten?: readonly string[]
   /** Der Flug der Belege ist fertig. */
   onGelandet?: () => void
-  /** Gemeinsame Szene mit der vorderen Leinwand; ohne Angabe eine eigene. */
+  /** Gemeinsame Szene; ohne Angabe eine eigene. */
   szene?: TeppichSzene
+  /** Waehrend einer Frage: die Frage ueber dem Kasten. */
+  frage?: string
+  /** Waehrend einer Frage: was die Animation gerade zeigt, in Worten (unter dem Kasten). */
+  botschaft?: string
 }
 
-const RAND = 24
+const RAND = 12
 const KEINE_BELEGE: readonly string[] = []
-
-/**
- * Hoehe des sichtbaren Bereichs: der naechste scrollende Behaelter (Site-Modus der App), sonst
- * das Fenster. Der Teppich ist hoechstens so hoch und bleibt beim Scrollen stehen (sticky) —
- * er ist immer ganz im Bild, nicht nur ein Ausschnitt der Sektion (Owner 22.11.2026).
- */
-function sichtHoehe(el: HTMLElement): number {
-  for (let p = el.parentElement; p; p = p.parentElement) {
-    const o = getComputedStyle(p).overflowY
-    if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight) return p.clientHeight
-  }
-  return window.innerHeight
-}
 
 function useBewegungErlaubt(): boolean {
   const [erlaubt, setErlaubt] = React.useState(true)
@@ -69,33 +64,17 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const eigene = React.useMemo(() => new TeppichSzene(), [])
   const szene = p.szene ?? eigene
   const huelle = React.useRef<HTMLDivElement>(null)
-  const [groesse, setGroesse] = React.useState({ breite: 0, hoehe: 0 })
-  const [sichtbar, setSichtbar] = React.useState(true)
+  const flaeche = React.useRef<HTMLDivElement>(null)
+  const { breite, kasten, sichtbar } = useTeppichFlaeche(huelle)
   const [ueber, setUeber] = React.useState(-1)
   const bewegung = useBewegungErlaubt()
   const ruhig = phase === 'ruhe' || phase === 'antwort'
+  useZurFrageScrollen(huelle, phase, bewegung)
 
-  React.useEffect(() => {
-    const el = huelle.current
-    const flaeche = el?.parentElement
-    if (!el || !flaeche) return
-    // Breite und Hoehe der Sektion; der Teppich nimmt davon hoechstens die sichtbare Hoehe.
-    const miss = () => {
-      const r = flaeche.getBoundingClientRect()
-      const breite = Math.floor(r.width)
-      const hoehe = Math.floor(Math.min(r.height, sichtHoehe(flaeche)))
-      // Nur bei echter Aenderung: ein neues Objekt hiesse ein neues Raster.
-      setGroesse((g) => (g.breite === breite && g.hoehe === hoehe ? g : { breite, hoehe }))
-    }
-    const ro = new ResizeObserver(miss)
-    ro.observe(flaeche)
-    window.addEventListener('resize', miss)
-    const io = new IntersectionObserver(([e]) => setSichtbar(e.isIntersecting))
-    io.observe(el)
-    return () => { ro.disconnect(); io.disconnect(); window.removeEventListener('resize', miss) }
-  }, [])
-
-  const raster = React.useMemo(() => packeTeppich(punkte, { ...groesse, rand: RAND }), [punkte, groesse])
+  const raster = React.useMemo(
+    () => packeTeppich(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links }),
+    [punkte, kasten],
+  )
   const radien = React.useMemo(() => Float32Array.from(punkte, (q) => teppichRadius(raster.zelle, q.gewicht)), [punkte, raster.zelle])
   const gelandet = React.useRef(onGelandet)
   gelandet.current = onGelandet
@@ -104,7 +83,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   React.useEffect(() => {
     szene.setze({
       punkte, raster, radien, phase, belege, kandidaten, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
-      breite: groesse.breite, hoehe: groesse.hoehe,
+      breite, hoehe: kasten.hoehe, kasten,
       farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
       onGelandet: () => gelandet.current?.(),
     })
@@ -138,7 +117,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   React.useEffect(() => {
     if (phase !== 'sucht') { szene.zeiger = null; return }
     const bewegt = (e: PointerEvent) => {
-      const r = huelle.current?.getBoundingClientRect()
+      const r = flaeche.current?.getBoundingClientRect()
       if (r) szene.zeiger = { x: e.clientX - r.left, y: e.clientY - r.top }
     }
     window.addEventListener('pointermove', bewegt)
@@ -147,37 +126,53 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
 
   const leinwand = React.useCallback((el: HTMLCanvasElement | null) => { szene.hinten = el }, [szene])
   const treffer = (e: React.PointerEvent | React.MouseEvent): number => {
-    const rect = huelle.current?.getBoundingClientRect()
+    const rect = flaeche.current?.getBoundingClientRect()
     if (!rect || !ruhig) return -1
     return naechsterTeppichPunkt(raster.px, raster.py, e.clientX - rect.left, e.clientY - rect.top, Math.max(6, raster.zelle * 0.8))
   }
   const punkt = ruhig && ueber >= 0 ? punkte[ueber] : undefined
 
   return (
-    <div ref={huelle} className="sticky top-0 w-full text-current" style={{ height: groesse.hoehe || undefined }} data-website-teppich data-teppich-phase={phase}>
-      <canvas
-        ref={leinwand}
-        className={punkt ? 'h-full w-full cursor-pointer' : 'h-full w-full'}
-        aria-hidden="true"
-        onPointerMove={(e) => { const i = treffer(e); if (i !== ueber) setUeber(i) }}
-        onPointerLeave={() => setUeber(-1)}
-        onClick={(e) => {
-          if (!ruhig) return
-          const i = treffer(e)
-          if (i >= 0) onPunkt(punkte[i])
-          else onFreieStelle()
-        }}
-      />
-      {punkt && (
-        <div
-          className="pointer-events-none absolute z-20 max-w-60 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-md"
-          style={{ left: Math.min(groesse.breite - 248, raster.px[ueber] + 12), top: Math.max(4, raster.py[ueber] - 44) }}
-          data-teppich-tooltip
-        >
-          <span className="block font-medium">{punkt.titel}</span>
-          {punkt.jahr !== null && <span className="text-neutral-500">{punkt.jahr}</span>}
-        </div>
-      )}
+    <div ref={huelle} className="sticky top-0 w-full text-current" data-website-teppich data-teppich-phase={phase}>
+      <div className="flex items-end justify-center px-6 pb-3" style={{ height: TEPPICH_OBEN }}>
+        {p.frage && (
+          <p className="pointer-events-none line-clamp-2 max-w-3xl text-balance text-center text-xl font-semibold leading-snug" data-teppich-frage>
+            {p.frage}
+          </p>
+        )}
+      </div>
+      <div ref={flaeche} className="relative w-full" style={{ height: kasten.hoehe || undefined }}>
+        <canvas
+          ref={leinwand}
+          className={punkt ? 'h-full w-full cursor-pointer' : 'h-full w-full'}
+          aria-hidden="true"
+          onPointerMove={(e) => { const i = treffer(e); if (i !== ueber) setUeber(i) }}
+          onPointerLeave={() => setUeber(-1)}
+          onClick={(e) => {
+            if (!ruhig) return
+            const i = treffer(e)
+            if (i >= 0) onPunkt(punkte[i])
+            else onFreieStelle()
+          }}
+        />
+        {punkt && (
+          <div
+            className="pointer-events-none absolute z-20 max-w-60 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-md"
+            style={{ left: Math.min(breite - 248, raster.px[ueber] + 12), top: Math.max(4, raster.py[ueber] - 44) }}
+            data-teppich-tooltip
+          >
+            <span className="block font-medium">{punkt.titel}</span>
+            {punkt.jahr !== null && <span className="text-neutral-500">{punkt.jahr}</span>}
+          </div>
+        )}
+      </div>
+      <div className="flex items-start justify-center px-6 pt-3" style={{ height: TEPPICH_UNTEN }}>
+        {p.botschaft && (
+          <p className="pointer-events-none max-w-2xl text-balance text-center text-base font-medium" aria-live="polite" data-teppich-botschaft>
+            {p.botschaft}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

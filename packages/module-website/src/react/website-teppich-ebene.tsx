@@ -56,9 +56,12 @@ export interface WebsiteTeppichEbeneProps {
   onGelandet?: () => void
   /** Gemeinsame Szene mit der vorderen Leinwand (`WebsiteTeppichVorn`). */
   szene?: TeppichSzene
+  /** Waehrend einer Frage: die Frage ueber dem Kasten und die Botschaft darunter. */
+  frage?: string
+  botschaft?: string
 }
 
-export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene }: WebsiteTeppichEbeneProps): React.ReactElement {
+export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, frage, botschaft }: WebsiteTeppichEbeneProps): React.ReactElement {
   const punkte = useTeppichPunkte(instanz, libraryId)
 
   React.useEffect(() => {
@@ -92,6 +95,8 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
       kandidaten={kandidaten}
       onGelandet={onGelandet}
       szene={szene}
+      frage={frage}
+      botschaft={botschaft}
     />
   )
 }

@@ -38,18 +38,15 @@ export interface WebsiteStorySektionRahmenProps {
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
   /**
-   * Teppich der Dokumente (Plan `teppich-der-dokumente`, T2): eine Ebene hinter der ganzen
-   * Sektion. Sie nimmt Klicks an, wo keine Karte liegt.
+   * Teppich der Dokumente (Plan `teppich-der-dokumente`, T2): eine Ebene hinter der Sektion,
+   * oben ein Kasten so breit wie die Antwort samt Frage und Botschaft waehrend einer Frage
+   * (Owner 23.11.2026). Sie nimmt Klicks an, wo keine Karte liegt.
    */
   teppich?: React.ReactNode
   /** Der Vordergrund ist ausgeblendet (Erkunden oder laufende Frage). */
   abgetaucht?: boolean
   /** Den Hinweis „Klick auf eine freie Stelle …" zeigen (nur beim Erkunden). */
   hinweis?: boolean
-  /** Waehrend einer Frage: die Frage allein ueber dem Teppich (T3). */
-  frage?: string
-  /** Waehrend einer Frage: was die Animation gerade zeigt, in Worten (unten). */
-  botschaft?: string
   /** Unter dem Chat (die Eingabe). */
   fuss?: React.ReactNode
 }
@@ -71,8 +68,6 @@ export function WebsiteStorySektionRahmen({
   teppich,
   abgetaucht = false,
   hinweis = false,
-  frage,
-  botschaft,
   fuss,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
@@ -114,16 +109,6 @@ export function WebsiteStorySektionRahmen({
           </div>
         </div>
       </div>
-      {frage && (
-        <p className="pointer-events-none absolute inset-x-6 top-10 z-10 mx-auto max-w-3xl text-balance text-center text-2xl font-semibold leading-snug" data-teppich-frage>
-          {frage}
-        </p>
-      )}
-      {botschaft && (
-        <p className="pointer-events-none absolute inset-x-6 bottom-8 z-10 mx-auto max-w-2xl text-balance text-center text-base font-medium" aria-live="polite" data-teppich-botschaft>
-          {botschaft}
-        </p>
-      )}
       {hinweis && (
         // Oben, weil unten die Jahreszahlen des Teppichs stehen (Ansicht 22.11.2026).
         <p className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
