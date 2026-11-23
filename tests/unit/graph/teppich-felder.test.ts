@@ -55,7 +55,12 @@ describe('Teppich-Felder: Punkt der Lese-Route', () => {
       fileId: 'f1', shortTitle: 'Kurz', title: 'Lang', year: 2021,
       docMetaJson: { teppich_x: 0.1, teppich_y: 0.2, teppich_gewicht: 0.5 },
     })
-    expect(p).toEqual({ fileId: 'f1', x: 0.1, y: 0.2, gewicht: 0.5, jahr: 2021, titel: 'Kurz' })
+    expect(p).toEqual({ fileId: 'f1', x: 0.1, y: 0.2, gewicht: 0.5, jahr: 2021, titel: 'Kurz', wx: null, wy: null })
+  })
+
+  it('liefert die Wolke (T5a), sobald der Lauf sie gerechnet hat', () => {
+    const p = leseTeppichPunkt({ fileId: 'f1', docMetaJson: { teppich_x: 0.1, teppich_y: 0.2, teppich_wx: 0.3, teppich_wy: 0.7 } })
+    expect(p).toMatchObject({ wx: 0.3, wy: 0.7 })
   })
 
   it('kuerzt lange Titel und meldet fehlende Lage als null', () => {

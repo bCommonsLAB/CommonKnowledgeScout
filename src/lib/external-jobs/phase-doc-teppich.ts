@@ -39,6 +39,7 @@ export async function runDocTeppichPhase(job: ExternalJob): Promise<TeppichPersi
       dokumente: result.dokumente, geschrieben: result.geschrieben,
       ohneDatum: result.ohneDatum, ohneNachbarn: result.ohneNachbarn, ohneUmfang: result.ohneUmfang,
       ausgelassenWebsite: result.ausgelassenWebsite, ohneKennung: result.ohneKennung,
+      wolkeKanten: result.wolkeKanten, wolkeSchritte: result.wolkeSchritte, wolkeMs: result.wolkeMs,
     },
   })
   await repo.setStatus(job.jobId, 'completed')
