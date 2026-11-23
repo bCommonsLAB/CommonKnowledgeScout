@@ -15,6 +15,7 @@ import {
 } from '..'
 import type { TeppichSzenenStand } from './teppich-zeichnen'
 import { zeichneTeppich } from './teppich-bild'
+import { TeppichWolkenPhysik } from './teppich-wolken-physik'
 
 interface Flug { start: number; vonX: Float32Array; vonY: Float32Array }
 interface Verdichtung extends Flug { listeSeit: number | null; gemeldet: boolean }
@@ -37,6 +38,8 @@ export class TeppichSzene {
   private kreis: Float32Array | undefined
   private kreisSchluessel = ''
   private stand: TeppichSzenenStand | null = null
+  /** Animation `wolke` (Parameter `animation=wolke`): durchgehend Physik statt Schwarm und Flug. */
+  private wolke = new TeppichWolkenPhysik()
 
   setze(s: TeppichSzenenStand): void {
     if (s.punkte.length !== this.x.length) {
@@ -63,14 +66,33 @@ export class TeppichSzene {
   bild(zeit: number, dt: number): void {
     const s = this.stand
     if (!s || !this.hinten || s.breite === 0) return
-    this.wechsle(s, zeit)
-    this.bewege(s, zeit, dt)
-    this.verdichte(s, zeit)
     const t = zeit / 1000
+    const wolke = s.animation === 'wolke' && s.bewegung
+    if (wolke) this.wolkeBild(s, zeit, t)
+    else {
+      this.wechsle(s, zeit)
+      this.bewege(s, zeit, dt)
+      this.verdichte(s, zeit)
+    }
     zeichneTeppich(this.hinten, s, {
       x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
-      daheim: !this.schwarm, titel: this.titel, heimat: (i) => this.heimat(s, i, t),
+      daheim: wolke ? !this.wolke.aktiv : !this.schwarm, titel: wolke ? this.wolke.titel : this.titel,
+      heimat: (i) => this.heimat(s, i, t),
     })
+  }
+
+  /** Animation `wolke`: alle an ihrem Platz (mit Schweben), die bewegten Punkte rechnet die Physik. */
+  private wolkeBild(s: TeppichSzenenStand, zeit: number, t: number): void {
+    this.phase = s.phase
+    for (let i = 0; i < this.x.length; i++) {
+      const [hx, hy] = this.heimat(s, i, t)
+      this.x[i] = hx; this.y[i] = hy
+    }
+    this.wolke.schritt({
+      phase: s.phase, zeit, breite: s.breite, hoehe: s.hoehe, zelle: s.plaetze.zelle, radien: s.radien,
+      px: s.plaetze.px, py: s.plaetze.py, nachbarn: (i) => s.punkte[i].nachbarn, kandidaten: [...this.kandidaten], belege: this.belegIndex,
+      onGelandet: s.onGelandet,
+    }, this.x, this.y)
   }
 
   private wechsle(s: TeppichSzenenStand, zeit: number): void {

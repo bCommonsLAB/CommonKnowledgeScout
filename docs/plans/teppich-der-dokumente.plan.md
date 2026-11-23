@@ -381,6 +381,15 @@ kein Rückfall aufs Raster. **Reihenfolge beim Ausrollen:** erst `teppich_berech
 Library mit Teppich, dann T5b deployen. Offen als Aufräumen: das Raster auf dem Server
 (`teppich-lage.ts`, `teppich_x`/`teppich_y`) ausbauen.
 
+**T5d gebaut (23.11.2026):** Parameter `animation=wolke` an der Fragen-Sektion (ohne Angabe
+`schwarm`). `teppich-wolken-physik.ts` (eine `d3-force`-Simulation) mit den Stufen
+`sammeln` (700 ms in einen Punkt), `explosion` (2,6 s; Abstoßung und Nachbar-Kanten klingen ab,
+der Zug heim wächst, bis die Wolke wieder genau steht), `auswahl` (Kandidaten mit Kanten zum
+nächsten und übernächsten, schwacher Zug zur Mitte), `storyline` (Kette der Belege, Zug auf die
+Achse, Titel erst nach dem Abklingen, höchstens 4,5 s), `heim` (nur der Zug an den Platz). Die
+Kräfte je Stufe stehen in `teppich-wolken-kraefte.ts`. Wer daheim ist und nichts mehr zu tun hat,
+rechnet nicht mehr mit. `d3-force` ist Abhängigkeit von `@ks/module-website`.
+
 **Aufwand der Rechnung:** `d3-force` mit Barnes-Hut wächst mit n·log n; für 2.184 Punkte und
 rund 8.000 Kanten bei 300 Schritten wenige Sekunden im Job. Zu messen an FOSDEM, Abnahme wie T1.
 

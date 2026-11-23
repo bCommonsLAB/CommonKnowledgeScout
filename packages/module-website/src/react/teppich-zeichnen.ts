@@ -5,7 +5,7 @@
  * Belege, die Vorbereitung der Leinwand und der Stand, den die Szene je Bild bekommt.
  */
 
-import type { TeppichKasten, TeppichPhase, TeppichPlaetze, TeppichPunkt } from '..'
+import type { TeppichAnimation, TeppichKasten, TeppichPhase, TeppichPlaetze, TeppichPunkt } from '..'
 
 /** Was die Szene je Bild vom Baustein bekommt (`TeppichSzene.setze`). */
 export interface TeppichSzenenStand {
@@ -19,6 +19,8 @@ export interface TeppichSzenenStand {
   /** T4: Kandidaten der Suche (fileIds); leer, solange unbekannt. */
   kandidaten: readonly string[]
   abgetaucht: boolean
+  /** `schwarm` (Standard) oder `wolke` (Physik, Plan §3.6). */
+  animation: TeppichAnimation
   bewegung: boolean
   ueber: number
   /** Breite der Leinwand (= Sektion) und Hoehe des Kastens. */

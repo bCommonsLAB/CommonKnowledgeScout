@@ -567,6 +567,9 @@ importers:
       '@ks/viewers':
         specifier: workspace:*
         version: link:../viewers
+      d3-force:
+        specifier: ^3.0.0
+        version: 3.0.0
       jotai:
         specifier: ^2.11.0
         version: 2.12.5(@types/react@19.3.0)(react@19.2.4)
@@ -582,6 +585,10 @@ importers:
       zod:
         specifier: ^3.24.1
         version: 3.25.55
+    devDependencies:
+      '@types/d3-force':
+        specifier: ^3.0.10
+        version: 3.0.10
 
   packages/shell:
     dependencies:

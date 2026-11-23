@@ -15,7 +15,7 @@
 import * as React from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '@ks/contracts'
-import { hatWolke, type TeppichAntwort, type TeppichPhase, type TeppichPunkt } from '..'
+import { hatWolke, type TeppichAnimation, type TeppichAntwort, type TeppichPhase, type TeppichPunkt } from '..'
 import { WebsiteTeppich } from './website-teppich'
 import type { TeppichSzene } from './teppich-szene'
 
@@ -63,12 +63,14 @@ export interface WebsiteTeppichEbeneProps {
   onGelandet?: () => void
   /** Gemeinsame Szene mit der vorderen Leinwand (`WebsiteTeppichVorn`). */
   szene?: TeppichSzene
+  /** Animation des Teppichs (`animation=` der Sektion). */
+  animation?: TeppichAnimation
   /** Waehrend einer Frage: die Frage ueber dem Kasten und die Botschaft darunter. */
   frage?: string
   botschaft?: string
 }
 
-export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, frage, botschaft }: WebsiteTeppichEbeneProps): React.ReactElement {
+export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, frage, botschaft, animation }: WebsiteTeppichEbeneProps): React.ReactElement {
   const punkte = useTeppichPunkte(instanz, libraryId)
 
   React.useEffect(() => {
@@ -103,6 +105,7 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
       onGelandet={onGelandet}
       szene={szene}
       frage={frage}
+      animation={animation}
       botschaft={botschaft}
     />
   )

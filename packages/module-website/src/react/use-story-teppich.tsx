@@ -11,7 +11,7 @@
 
 import * as React from 'react'
 import type { DocCardMeta } from '@ks/contracts'
-import { belegReihenfolge, kandidatenAusSchritten } from '..'
+import { belegReihenfolge, kandidatenAusSchritten, type TeppichAnimation } from '..'
 import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
 import type { WebsiteStoryStand } from './use-website-story'
 import type { WebsiteStorySektionRahmenProps } from './website-story-sektion-rahmen'
@@ -27,6 +27,7 @@ export function useStoryTeppich(
   libraryId: string,
   s: WebsiteStoryStand,
   onDokument: (doc: DocCardMeta) => void,
+  animation: TeppichAnimation,
 ): { rahmen: TeppichRahmen } {
   const an = gastgeber.teppich === true
   const [abgetaucht, setAbgetaucht] = React.useState(false)
@@ -46,7 +47,7 @@ export function useStoryTeppich(
         <WebsiteTeppichEbene
           instanz={gastgeber.instanz} libraryId={libraryId} abgetaucht={abgetaucht} onAbgetaucht={setAbgetaucht}
           onDokument={onDokument} phase={ablauf.phase} belege={belege} kandidaten={kandidaten} onGelandet={ablauf.gelandet} szene={szene}
-          frage={fragt ? paar?.frage.text : undefined} botschaft={botschaft}
+          frage={fragt ? paar?.frage.text : undefined} botschaft={botschaft} animation={animation}
         />
       ),
       abgetaucht: abgetaucht || fragt,

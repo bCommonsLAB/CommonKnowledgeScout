@@ -17,7 +17,7 @@
  */
 
 import * as React from 'react'
-import { TEPPICH_OBEN, TEPPICH_UNTEN, naechsterTeppichPunkt, packeWolke, teppichRadius, type TeppichPhase, type TeppichPunkt } from '..'
+import { TEPPICH_OBEN, TEPPICH_UNTEN, naechsterTeppichPunkt, packeWolke, teppichRadius, type TeppichAnimation, type TeppichPhase, type TeppichPunkt } from '..'
 import { TeppichSzene } from './teppich-szene'
 import { useTeppichFlaeche } from './use-teppich-flaeche'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
@@ -38,6 +38,8 @@ export interface WebsiteTeppichProps {
   onGelandet?: () => void
   /** Gemeinsame Szene; ohne Angabe eine eigene. */
   szene?: TeppichSzene
+  /** Animation (Parameter `animation=` der Sektion); ohne Angabe `schwarm`. */
+  animation?: TeppichAnimation
   /** Waehrend einer Frage: die Frage ueber dem Kasten. */
   frage?: string
   /** Waehrend einer Frage: was die Animation gerade zeigt, in Worten (unter dem Kasten). */
@@ -82,7 +84,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   // Jeder Render reicht den neuen Stand an die Szene; die Schleife liest ihn im naechsten Bild.
   React.useEffect(() => {
     szene.setze({
-      punkte, plaetze, radien, phase, belege, kandidaten, abgetaucht, bewegung, ueber: ruhig ? ueber : -1,
+      punkte, plaetze, radien, phase, belege, kandidaten, abgetaucht, animation: p.animation ?? 'schwarm', bewegung, ueber: ruhig ? ueber : -1,
       breite, hoehe: kasten.hoehe, kasten,
       farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
       onGelandet: () => gelandet.current?.(),

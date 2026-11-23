@@ -57,6 +57,12 @@ export const SECTION_IMAGE_ALIGNS: readonly SectionImageAlign[] = ['center', 'to
  */
 export type StoryCards = 'hidden' | 'column' | 'inline'
 export const STORY_CARDS: readonly StoryCards[] = ['hidden', 'column', 'inline']
+/**
+ * Animation des Teppichs (Plan `teppich-der-dokumente` §3.6, E10): `schwarm` (Kreisen beim Suchen,
+ * Storyline als Flug) oder `wolke` (alles aus der Wolke heraus, durchgehend Physik).
+ */
+export type TeppichAnimation = 'schwarm' | 'wolke'
+export const TEPPICH_ANIMATIONEN: readonly TeppichAnimation[] = ['schwarm', 'wolke']
 
 /** Schreibweise der Sektions-Ueberschriften (Frontmatter `heading_case`). */
 export type HeadingCase = 'capitalize' | 'none'
@@ -110,6 +116,8 @@ export interface WebsiteSection {
    * (`rules=einladung`); geht als Adress-Parameter `rules` an den Chat-Stream.
    */
   rules?: string
+  /** Nur `layout=story`: Animation des Teppichs (`animation=wolke`); fehlt = `schwarm`. */
+  animation?: TeppichAnimation
   /**
    * Welle S3: `markdown` zerlegt in Text und Sonderbloecke (Kacheln, Chips,
    * Kasten; `parse-section-blocks.ts`). Der Renderer liest DIESE Folge;

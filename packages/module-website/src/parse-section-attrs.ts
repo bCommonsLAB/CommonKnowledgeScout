@@ -15,6 +15,8 @@ import {
   type SectionLayout,
   STORY_CARDS,
   type StoryCards,
+  TEPPICH_ANIMATIONEN,
+  type TeppichAnimation,
 } from './types'
 import { storyFilterAusAttribut } from './story-filter'
 
@@ -72,6 +74,7 @@ export interface SectionAttrs {
   citationsVisible?: boolean
   cards?: StoryCards
   rules?: string
+  animation?: TeppichAnimation
 }
 
 export function parseAttrs(raw: string): SectionAttrs {
@@ -85,6 +88,7 @@ export function parseAttrs(raw: string): SectionAttrs {
   let citationsVisible: boolean | undefined
   let cards: StoryCards | undefined
   let rules: string | undefined
+  let animation: TeppichAnimation | undefined
   ATTR_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTR_RE.exec(raw)) !== null) {
@@ -136,6 +140,11 @@ export function parseAttrs(raw: string): SectionAttrs {
         throw new Error(`Ungueltiges section rules="${value}". Erwartet den Namen eines Regelsatzes der Library (klein, a-z, 0-9, - und _)`)
       }
       rules = name
+    } else if (key === 'animation') {
+      if (!(TEPPICH_ANIMATIONEN as readonly string[]).includes(value)) {
+        throw new Error(`Ungueltiges section animation="${value}". Erlaubt: ${TEPPICH_ANIMATIONEN.join(', ')}`)
+      }
+      animation = value as TeppichAnimation
     }
   }
   if (placeholder !== undefined && layout !== 'story') {
@@ -153,11 +162,14 @@ export function parseAttrs(raw: string): SectionAttrs {
   if (rules !== undefined && layout !== 'story') {
     throw new Error(`section rules gilt nur fuer layout=story (hier: ${layout})`)
   }
+  if (animation !== undefined && layout !== 'story') {
+    throw new Error(`section animation gilt nur fuer layout=story (hier: ${layout})`)
+  }
   const hatBildspalte = layout === 'image-left' || layout === 'image-right'
   if (!hatBildspalte && (imageWidth || imageAlign)) {
     throw new Error(
       `section image_width/image_align gelten nur fuer layout=image-left oder image-right (hier: ${layout})`,
     )
   }
-  return { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter, citationsVisible, cards, rules }
+  return { layout, bg, kicker, imageWidth, imageAlign, placeholder, filter, citationsVisible, cards, rules, animation }
 }
