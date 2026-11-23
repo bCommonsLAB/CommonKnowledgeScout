@@ -180,8 +180,9 @@ export function botschaftsStufe(schritte: readonly ChatProcessingStep[]): Botsch
  * Liefert die Mitte jedes Kreises; `zeile` ist der Abstand zweier Kreise, `x` die gemeinsame Spalte.
  */
 export function storylineLage(anzahl: number, breite: number, hoehe: number): { x: number; ys: number[]; zeile: number } {
-  // Hoechstens 40 px; bei vielen Belegen enger, die Liste bleibt in 72 % der Hoehe.
-  const zeile = anzahl > 0 ? Math.min(40, (hoehe * 0.72) / anzahl) : 0
+  // Hoechstens 44 px; bei vielen Belegen enger, die Liste nutzt bis zu 94 % der Hoehe (Owner
+  // 23.11.2026: „ein bisschen mehr Abstand" — bei 19 Belegen lagen die Kreise fast aneinander).
+  const zeile = anzahl > 0 ? Math.min(44, (hoehe * 0.94) / anzahl) : 0
   const listenBreite = Math.min(560, breite - 48)
   const x = Math.max(24, (breite - listenBreite) / 2) + 14
   const oben = hoehe / 2 - ((anzahl - 1) * zeile) / 2

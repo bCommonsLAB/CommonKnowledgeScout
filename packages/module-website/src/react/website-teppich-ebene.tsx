@@ -15,8 +15,9 @@
 import * as React from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '@ks/contracts'
-import type { TeppichAntwort, TeppichPhase, TeppichPunkt } from '..'
+import { hatWolke, type TeppichAnimation, type TeppichAntwort, type TeppichPhase, type TeppichPunkt } from '..'
 import { WebsiteTeppich } from './website-teppich'
+import type { TeppichBotschaft } from './use-teppich-botschaft'
 import type { TeppichSzene } from './teppich-szene'
 
 /** Laedt die Punkte einmal je Library; leer, bis sie da sind oder wenn sie fehlen. */
@@ -33,6 +34,13 @@ export function useTeppichPunkte(instanz: InstanceApi, libraryId: string): Teppi
           console.warn(`[WebsiteTeppich] Teppich fuer ${libraryId} noch nicht berechnet (${antwort.gesamt} Dokumente) — teppich_berechnen ausfuehren`)
         } else if (antwort.zustand === 'veraltet') {
           console.info(`[WebsiteTeppich] ${antwort.ohneLage} von ${antwort.gesamt} Dokumenten noch ohne Platz`)
+        }
+        // T5b: Der Teppich zeigt die Wolke. Hat der letzte Lauf sie noch nicht gerechnet (vor T5a),
+        // bleibt die Ebene leer — kein Rueckfall auf das alte Raster.
+        if (antwort.items.length > 0 && !hatWolke(antwort.items)) {
+          console.warn(`[WebsiteTeppich] Teppich fuer ${libraryId} ohne Wolke — teppich_berechnen erneut ausfuehren`)
+          setPunkte([])
+          return
         }
         setPunkte(antwort.items)
       })
@@ -56,19 +64,30 @@ export interface WebsiteTeppichEbeneProps {
   onGelandet?: () => void
   /** Gemeinsame Szene mit der vorderen Leinwand (`WebsiteTeppichVorn`). */
   szene?: TeppichSzene
+  /** Animation des Teppichs (`animation=` der Sektion). */
+  animation?: TeppichAnimation
   /** Waehrend einer Frage: die Frage ueber dem Kasten und die Botschaft darunter. */
-  frage?: string
-  botschaft?: string
+  botschaft?: TeppichBotschaft
 }
 
-export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, frage, botschaft }: WebsiteTeppichEbeneProps): React.ReactElement {
+export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, botschaft, animation }: WebsiteTeppichEbeneProps): React.ReactElement {
   const punkte = useTeppichPunkte(instanz, libraryId)
 
   React.useEffect(() => {
     if (!abgetaucht) return
     const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') onAbgetaucht(false) }
+    // Owner 23.11.2026: „Ich komme aus der Graph-Ansicht nicht mehr heraus" — die Leinwand beginnt
+    // erst bei der Frage, ein Klick darueber ging ins Leere. Jeder Klick ausserhalb der Wolke holt
+    // den Text zurueck. Der Klick, der die Ansicht gerade geoeffnet hat, zaehlt nicht.
+    const seit = performance.now()
+    const klick = (e: MouseEvent) => {
+      if (e.timeStamp <= seit) return
+      if (e.target instanceof Element && e.target.closest('[data-website-teppich]')) return
+      onAbgetaucht(false)
+    }
     window.addEventListener('keydown', taste)
-    return () => window.removeEventListener('keydown', taste)
+    window.addEventListener('click', klick)
+    return () => { window.removeEventListener('keydown', taste); window.removeEventListener('click', klick) }
   }, [abgetaucht, onAbgetaucht])
 
   const oeffnen = React.useCallback((punkt: TeppichPunkt) => {
@@ -95,7 +114,7 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
       kandidaten={kandidaten}
       onGelandet={onGelandet}
       szene={szene}
-      frage={frage}
+      animation={animation}
       botschaft={botschaft}
     />
   )

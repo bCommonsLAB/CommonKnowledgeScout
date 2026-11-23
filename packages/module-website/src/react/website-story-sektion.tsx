@@ -124,7 +124,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   )
 
   // T2/T3: Teppich der Dokumente hinter der Sektion (`use-story-teppich.tsx`).
-  const teppich = useStoryTeppich(gastgeber, p.libraryId, s, dokumentOeffnen)
+  const teppich = useStoryTeppich(gastgeber, p.libraryId, s, dokumentOeffnen, p.section.animation ?? 'schwarm')
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
   const kopf = gastgeber.perspektiveDialog ? (
@@ -156,6 +156,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             onText={setText}
             onBelege={belegeOeffnen}
             onDokument={dokumentOeffnen}
+            onGraph={teppich.graphZeigen}
           />
         )}
       </>

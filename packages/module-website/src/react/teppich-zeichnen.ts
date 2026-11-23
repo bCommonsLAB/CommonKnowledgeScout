@@ -5,12 +5,13 @@
  * Belege, die Vorbereitung der Leinwand und der Stand, den die Szene je Bild bekommt.
  */
 
-import type { TeppichKasten, TeppichPhase, TeppichPunkt, TeppichRaster } from '..'
+import type { TeppichAnimation, TeppichKasten, TeppichPhase, TeppichPlaetze, TeppichPunkt } from '..'
 
 /** Was die Szene je Bild vom Baustein bekommt (`TeppichSzene.setze`). */
 export interface TeppichSzenenStand {
   punkte: readonly TeppichPunkt[]
-  raster: TeppichRaster
+  /** Feste Plaetze der Punkte in der Wolke (Pixel der Leinwand). */
+  plaetze: TeppichPlaetze
   radien: Float32Array
   phase: TeppichPhase
   /** Belege in der Reihenfolge ihrer Nummern (fileIds). */
@@ -18,6 +19,8 @@ export interface TeppichSzenenStand {
   /** T4: Kandidaten der Suche (fileIds); leer, solange unbekannt. */
   kandidaten: readonly string[]
   abgetaucht: boolean
+  /** `schwarm` (Standard) oder `wolke` (Physik, Plan §3.6). */
+  animation: TeppichAnimation
   bewegung: boolean
   ueber: number
   /** Breite der Leinwand (= Sektion) und Hoehe des Kastens. */
@@ -55,6 +58,18 @@ export function zeichneRinge(ctx: CanvasRenderingContext2D, punkte: Array<{ x: n
     ctx.stroke()
     ctx.fillText(String(p.nummer), p.x + Math.max(7, p.r + 6), p.y - 5)
   }
+}
+
+/** Linien von Punkt `i` zu seinen Nachbarn (Indizes), an ihrer aktuellen Lage (E9). */
+export function zeichneNachbarLinien(ctx: CanvasRenderingContext2D, x: Float32Array, y: Float32Array, i: number, nachbarn: readonly number[]): void {
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (const j of nachbarn) {
+    if (j < 0 || j >= x.length) continue
+    ctx.moveTo(x[i], y[i])
+    ctx.lineTo(x[j], y[j])
+  }
+  ctx.stroke()
 }
 
 /** Der Faden: eine Linie durch die Belege in der Reihenfolge ihrer Nummern. */

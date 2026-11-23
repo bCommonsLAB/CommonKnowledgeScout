@@ -12,7 +12,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { SAME_ORIGIN_API } from '@ks/api-client'
 import { WebsiteTeppichEbene } from '@ks/module-website/react'
 
-const PUNKT = { fileId: 'f1', x: 0.5, y: 0.5, gewicht: 0.5, jahr: 2024, titel: 'Vortrag über Wasser' }
+const PUNKT = { fileId: 'f1', x: 0.5, y: 0.5, wx: 0.5, wy: 0.5, nachbarn: [], gewicht: 0.5, jahr: 2024, titel: 'Vortrag über Wasser' }
 
 function antwort(zustand: string, items: unknown[]) {
   return { ok: true, status: 200, json: async () => ({ zustand, stand: null, gesamt: items.length || 3, ohneLage: 0, items }) }
@@ -95,6 +95,16 @@ describe('Teppich-Ebene', () => {
     const { leinwand, container } = zeichne()
     await waitFor(() => expect(warnung).toHaveBeenCalledWith(expect.stringContaining('noch nicht berechnet')))
     fireEvent.pointerMove(leinwand, { clientX: 400, clientY: 200 })
+    expect(container.querySelector('[data-teppich-tooltip]')).toBeNull()
+    warnung.mockRestore()
+  })
+
+  it('T5b: Teppich ohne Wolke (Lauf vor T5a) bleibt leer, kein Rueckfall aufs Raster', async () => {
+    const warnung = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    vi.stubGlobal('fetch', vi.fn(async () => antwort('bereit', [{ ...PUNKT, wx: null, wy: null }])))
+    const { leinwand, container } = zeichne()
+    await waitFor(() => expect(warnung).toHaveBeenCalledWith(expect.stringContaining('ohne Wolke')))
+    fireEvent.pointerMove(leinwand, { clientX: 400, clientY: 120 })
     expect(container.querySelector('[data-teppich-tooltip]')).toBeNull()
     warnung.mockRestore()
   })

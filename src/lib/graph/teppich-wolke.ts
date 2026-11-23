@@ -33,8 +33,13 @@ const KOLLISION = 10
 /** Schritte ohne bzw. mit frueherer Wolke (d3 kuehlt nach etwa 300 Schritten aus). */
 export const WOLKE_SCHRITTE_NEU = 300
 export const WOLKE_SCHRITTE_FORTSETZUNG = 80
-/** Ring der Dokumente ohne Nachbarn, als Vielfaches des groessten Abstands zur Mitte. */
-const RING = 1.12
+/**
+ * Ring der Dokumente ohne Nachbarn: Vielfaches des Abstands, innerhalb dessen `RING_ANTEIL` der
+ * Wolke liegt. Nicht der groesste Abstand — ein einzelner Auslaeufer machte den Ring sonst so
+ * gross, dass die Wolke nur die Haelfte der Flaeche fuellt (FOSDEM, 23.11.2026).
+ */
+const RING = 1.05
+const RING_ANTEIL = 0.9
 
 export interface WolkenEingabe {
   fileId: string
@@ -112,11 +117,12 @@ export function berechneWolke(eingabenRoh: readonly WolkenEingabe[]): WolkenErge
   const n = Math.max(1, knoten.length)
   const cx = knoten.reduce((a, k) => a + (k.x ?? 0), 0) / n
   const cy = knoten.reduce((a, k) => a + (k.y ?? 0), 0) / n
-  const rMax = knoten.reduce((a, k) => Math.max(a, Math.hypot((k.x ?? 0) - cx, (k.y ?? 0) - cy)), 0) || KANTE_ABSTAND
+  const abstaende = knoten.map((k) => Math.hypot((k.x ?? 0) - cx, (k.y ?? 0) - cy)).sort((p, q) => p - q)
+  const rRing = (abstaende[Math.floor(RING_ANTEIL * (abstaende.length - 1))] || KANTE_ABSTAND) * RING
   const roh: Array<{ fileId: string; x: number; y: number }> = knoten.map((k) => ({ fileId: k.id, x: (k.x ?? 0) - cx, y: (k.y ?? 0) - cy }))
   allein.forEach((e, i) => {
     const w = (i / allein.length) * 2 * Math.PI
-    roh.push({ fileId: e.fileId, x: Math.cos(w) * rMax * RING, y: Math.sin(w) * rMax * RING })
+    roh.push({ fileId: e.fileId, x: Math.cos(w) * rRing, y: Math.sin(w) * rRing })
   })
 
   // Normieren: laengere Achse 0..1, mittig, Seitenverhaeltnis erhalten.
