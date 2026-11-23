@@ -390,6 +390,39 @@ Achse, Titel erst nach dem Abklingen, höchstens 4,5 s), `heim` (nur der Zug an 
 Kräfte je Stufe stehen in `teppich-wolken-kraefte.ts`. Wer daheim ist und nichts mehr zu tun hat,
 rechnet nicht mehr mit. `d3-force` ist Abhängigkeit von `@ks/module-website`.
 
+**T5d umgebaut (23.11.2026, nach Owner-Durchsicht am Bildschirm) — dieser Stand gilt, der Absatz
+darüber beschreibt den ersten Wurf:**
+
+- **Elastisches Netz wie in der Graph-Ansicht.** Jede Nachbar-Verbindung ist eine Feder mit dem
+  Abstand der gespeicherten Wolke als Ruhelänge; der Zug an den eigenen Platz ist schwach. Wer
+  gezogen wird, zieht seine Nachbarn mit. Abstand halten über ein eigenes Raster
+  (`teppich-wolken-stoss.ts`) statt `forceCollide`/`forceManyBody` (gemessen 14 ms je Schritt bei
+  2.184 Punkten, das Raster 2–3 ms).
+- **Stufen:** `sammeln` → `explosion` (ein Stoß, genau einmal je Frage) → `auswahl` → `storyline`
+  → `frei` (alles losgelassen, die Wolke findet zurück). Zeiten in `teppich-wolken-takt.ts`.
+- **Weich statt ruckartig.** Ein Rechenschritt je 50 ms, dazwischen überblendet; jede Stufe blendet
+  ihre Kräfte ein, die Storyline blendet zugleich die der Auswahl aus; die Energie springt nicht.
+  Eine Größenänderung der Fläche oder nachkommende Kandidaten ändern nur die Kräfte, sie starten
+  nichts neu.
+- **Staffeln.** Kandidaten setzen über 1,5 s nacheinander ein, die Belege im 150-ms-Takt in der
+  Reihenfolge ihrer Nummern; jeder fliegt ab seinem Einsatz an seinen Platz. Titel erst, wenn alle
+  auf 2,5 px an ihrem Platz stehen.
+- **Erste Auswahl bleibt.** Die Kandidaten bleiben bis zur nächsten Frage als dunkleres Grau
+  markiert, auch hinter der Antwort: Es gibt mehr passende Dokumente als die zitierten.
+- **Drehung.** Das Bild dreht sich langsam um die Mitte (eine Umdrehung in 12 Minuten); die
+  Rechnung nicht. Die Belege der Storyline drehen nicht mit.
+- **Ruhiges Layout.** Der Vordergrund bleibt beim Fragen stehen; nur die Teile der Antwort sind
+  verborgen und blenden danach ein. Die Wolke liegt hinter der Zone der Antwort, ist zwei Drittel
+  des sichtbaren Bereichs hoch (unabhängig von der Höhe der Sektion) und scrollt mit. Die Zone hält
+  ihren Platz (`--teppich-platz`), die Seite wächst nur nach unten; genau ein Scroll je Frage, und
+  nur, wenn die Zone nicht ganz im Bild steht. Titel und Schritte stehen oben links über der Wolke.
+- **Graph-Ansicht.** Stehen die Karten neben der Antwort, ersetzt ein Graph-Knopf „Quellen
+  anzeigen": Die Zone der Antwort weicht, Punkte lassen sich überfahren, anklicken und ziehen.
+  Jeder Klick außerhalb der Wolke holt den Text zurück.
+
+Offen: Telefon (E6; der Textblock oben links liegt auf schmalen Bildschirmen über der Liste),
+Leistung auf schwachen Geräten, das Raster auf dem Server ausbauen.
+
 **Aufwand der Rechnung:** `d3-force` mit Barnes-Hut wächst mit n·log n; für 2.184 Punkte und
 rund 8.000 Kanten bei 300 Schritten wenige Sekunden im Job. Zu messen an FOSDEM, Abnahme wie T1.
 

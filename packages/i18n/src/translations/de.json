@@ -1054,6 +1054,7 @@
         "many": "{count} frühere Fragen dieser Sitzung im Story-Modus"
       },
       "anpassen": "Antworten anpassen",
+      "graph": "Graph ansehen",
       "teppichZurueck": "Klick auf eine freie Stelle holt den Text zurück",
       "belegeFehler": "{label} konnten nicht geladen werden.",
       "belegeErneut": "Erneut laden",
@@ -1062,6 +1063,7 @@
         "gefunden": "{count} passende Dokumente gefunden",
         "gewichtet": "Die passenden Dokumente werden gewichtet …",
         "schreiben": "Die Antwort entsteht …",
+        "titel": "Ihre Antwort wird berechnet",
         "storyline": "Ihre Storyline: Die Antwort stützt sich auf diese {count} Belege"
       },
       "quellenAnzeigen": "Quellen anzeigen ({count})",

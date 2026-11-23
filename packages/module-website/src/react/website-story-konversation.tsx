@@ -22,7 +22,7 @@
  */
 
 import { useCallback, useMemo } from 'react'
-import { List } from 'lucide-react'
+import { List, Waypoints } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
@@ -48,6 +48,11 @@ export interface WebsiteStoryKonversationProps {
   onBelege: (antwort: Nachricht) => void
   /** Karte angeklickt: Detailansicht ueber der Startseite (10.11.2026). */
   onDokument: (doc: DocCardMeta) => void
+  /**
+   * Mit Teppich: die Wolke der Dokumente zum Erkunden freigeben. Stehen die Karten schon neben der
+   * Antwort, ersetzt dieser Knopf „Quellen anzeigen" (Owner 23.11.2026: die Liste waere doppelt).
+   */
+  onGraph?: () => void
 }
 
 const PROSE = 'prose prose-sm max-w-none dark:prose-invert'
@@ -70,6 +75,14 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   const kopfAktion = useCallback(
     (a: Nachricht, api: AntwortKopfApi) => {
       if (new Set((a.belege ?? []).map((b) => b.fileId)).size === 0) return null
+      if (p.onGraph && p.cards !== 'hidden') {
+        return (
+          <Button variant="outline" size="sm" className="gap-1.5" data-story-graph-knopf onClick={p.onGraph}>
+            <Waypoints className="h-4 w-4" aria-hidden="true" />
+            {t('website.story.graph')}
+          </Button>
+        )
+      }
       return (
         <Button variant="outline" size="sm" className="gap-1.5" data-story-belege-knopf onClick={() => { api.setSichtbar(true); p.onBelege(a) }}>
           <List className="h-4 w-4" aria-hidden="true" />
@@ -77,7 +90,7 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
         </Button>
       )
     },
-    [bezeichnung.anzeigen, p],
+    [bezeichnung.anzeigen, p, t],
   )
 
   // N5: schlanke Fusszeile — eine dezente Zeile statt KI-Block und Parameter-Liste;

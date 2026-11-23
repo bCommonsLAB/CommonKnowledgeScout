@@ -4,9 +4,8 @@
  * Der Teppich der Dokumente an der Fragen-Sektion (Plan `teppich-der-dokumente`, T2/T3).
  *
  * T2: Ebene hinter der Sektion; Klick auf eine freie Stelle blendet den Vordergrund aus.
- * T3: Beim Fragen weicht der Vordergrund bis auf die Frage, die Punkte schwaermen; mit der
- * Antwort fliegen die Belege neben ihre Karten (`cards=column`), dann kommt der Vordergrund
- * zurueck. Liefert, was der Rahmen der Sektion braucht; ohne Teppich am Gastgeber nichts.
+ * T3: Beim Fragen bleibt der Vordergrund stehen, nur die Antwort ist verborgen; dahinter arbeitet
+ * die Wolke, dann blendet die Antwort ein (Owner 23.11.2026: nichts soll springen). Liefert, was der Rahmen der Sektion braucht; ohne Teppich am Gastgeber nichts.
  */
 
 import * as React from 'react'
@@ -20,7 +19,7 @@ import { TeppichSzene } from './teppich-szene'
 import { useTeppichAblauf } from './use-teppich-ablauf'
 import { useTeppichBotschaft } from './use-teppich-botschaft'
 
-type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'hinweis'>
+type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'fragt' | 'hinweis'>
 
 export function useStoryTeppich(
   gastgeber: WebsiteStoryGastgeber,
@@ -28,7 +27,7 @@ export function useStoryTeppich(
   s: WebsiteStoryStand,
   onDokument: (doc: DocCardMeta) => void,
   animation: TeppichAnimation,
-): { rahmen: TeppichRahmen } {
+): { rahmen: TeppichRahmen; graphZeigen?: () => void } {
   const an = gastgeber.teppich === true
   const [abgetaucht, setAbgetaucht] = React.useState(false)
   const paar = s.sichtbar.paar
@@ -47,11 +46,14 @@ export function useStoryTeppich(
         <WebsiteTeppichEbene
           instanz={gastgeber.instanz} libraryId={libraryId} abgetaucht={abgetaucht} onAbgetaucht={setAbgetaucht}
           onDokument={onDokument} phase={ablauf.phase} belege={belege} kandidaten={kandidaten} onGelandet={ablauf.gelandet} szene={szene}
-          frage={fragt ? paar?.frage.text : undefined} botschaft={botschaft} animation={animation}
+          botschaft={botschaft} animation={animation}
         />
       ),
-      abgetaucht: abgetaucht || fragt,
+      abgetaucht,
+      fragt,
       hinweis: abgetaucht && !fragt,
     },
+    // Der Graph-Knopf der Antwort: Vordergrund weg, die Wolke zum Erkunden frei.
+    graphZeigen: () => setAbgetaucht(true),
   }
 }

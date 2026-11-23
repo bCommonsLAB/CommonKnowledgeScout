@@ -98,7 +98,9 @@ export function packeWolke(punkte: readonly TeppichPunkt[], flaeche: TeppichFlae
  * Punkte duerfen die Zelle gut zur Haelfte fuellen, hoechstens 6 px Grundmass.
  */
 export function teppichRadius(zelle: number, gewicht: number | null): number {
-  const basis = Math.min(6, Math.max(1, zelle * 0.24))
+  // Owner 23.11.2026 (Wolke): kleiner als im Raster — in der dichten Wolke ueberdeckten sich
+  // die Kreise; wie in der Graph-Ansicht braucht es Luft zwischen den Punkten.
+  const basis = Math.min(4, Math.max(1, zelle * 0.14))
   return basis * (0.8 + 1.2 * (gewicht ?? 0))
 }
 
@@ -117,14 +119,19 @@ export interface TeppichKasten {
   links: number
 }
 
+/** Anteil der verfuegbaren Hoehe, den die Wolke einnimmt (Owner 23.11.2026: „2/3"). */
+export const TEPPICH_HOEHE_ANTEIL = 2 / 3
+
 /**
- * Kasten des Teppichs (Owner 23.11.2026): so breit wie die Antwort und so hoch wie der sichtbare
- * Bereich abzueglich Frage und Botschaft — alles zusammen bleibt ganz im Bild. `breite` ist die
- * Breite der Sektion, `sicht` die sichtbare Hoehe, `sektion` die Hoehe der Sektion.
+ * Kasten des Teppichs (Owner 23.11.2026): so breit wie die Antwort und zwei Drittel des sichtbaren
+ * Bereichs abzueglich Frage und Botschaft hoch. Die Hoehe haengt NUR an der sichtbaren Hoehe, nicht
+ * an der Sektion: Die Sektion waechst und schrumpft beim Fragen und mit der Antwort, und jede
+ * Aenderung liess die Wolke springen („das Bild sollte einfach ruhig bleiben").
+ * `breite` ist die Breite der Sektion, `sicht` die sichtbare Hoehe.
  */
-export function teppichKasten(breite: number, sicht: number, sektion: number): TeppichKasten {
+export function teppichKasten(breite: number, sicht: number): TeppichKasten {
   const kb = Math.floor(Math.max(0, Math.min(ANTWORT_BREITE, breite - 2 * SEKTION_RAND)))
-  const hoehe = Math.floor(Math.max(0, Math.min(sicht, sektion) - TEPPICH_OBEN - TEPPICH_UNTEN))
+  const hoehe = Math.floor(Math.max(0, (sicht - TEPPICH_OBEN - TEPPICH_UNTEN) * TEPPICH_HOEHE_ANTEIL))
   return { breite: kb, hoehe, links: Math.floor((breite - kb) / 2) }
 }
 

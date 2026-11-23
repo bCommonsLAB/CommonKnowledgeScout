@@ -59,8 +59,8 @@ describe('Teppich: Radius und Treffer', () => {
     expect(teppichRadius(10, null)).toBe(teppichRadius(10, 0))
   })
 
-  it('fuellt bei grossen Zellen gut die Haelfte, aber nie mehr als die Zelle', () => {
-    expect(teppichRadius(48, null)).toBeGreaterThanOrEqual(4)
+  it('bleibt klein (Wolke, Owner 23.11.2026) und nie groesser als die Zelle', () => {
+    expect(teppichRadius(48, null)).toBeCloseTo(3.2)
     expect(teppichRadius(48, 1) * 2).toBeLessThanOrEqual(48)
     expect(teppichRadius(4, null)).toBeGreaterThanOrEqual(0.8)
   })

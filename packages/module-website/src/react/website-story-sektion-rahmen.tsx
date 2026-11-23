@@ -38,13 +38,14 @@ export interface WebsiteStorySektionRahmenProps {
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
   /**
-   * Teppich der Dokumente (Plan `teppich-der-dokumente`, T2): eine Ebene hinter der Sektion,
-   * oben ein Kasten so breit wie die Antwort samt Frage und Botschaft waehrend einer Frage
-   * (Owner 23.11.2026). Sie nimmt Klicks an, wo keine Karte liegt.
+   * Teppich der Dokumente (Plan `teppich-der-dokumente`, T2): eine Ebene hinter der Sektion, die
+   * Wolke liegt hinter der Antwort (Owner 23.11.2026). Sie nimmt Klicks an, wo keine Karte liegt.
    */
   teppich?: React.ReactNode
-  /** Der Vordergrund ist ausgeblendet (Erkunden oder laufende Frage). */
+  /** Erkunden (Graph-Ansicht): die Zone der Antwort weicht, die Wolke liegt frei (`ERKUNDEN`). */
   abgetaucht?: boolean
+  /** Eine Frage laeuft: nur die Teile der Antwort sind verborgen, danach blenden sie ein. */
+  fragt?: boolean
   /** Den Hinweis „Klick auf eine freie Stelle …" zeigen (nur beim Erkunden). */
   hinweis?: boolean
   /** Unter dem Chat (die Eingabe). */
@@ -58,6 +59,26 @@ export interface WebsiteStorySektionRahmenProps {
  */
 const TEPPICH_KARTE = "pointer-events-auto bg-transparent [&_[data-antwort]_div]:!bg-transparent [&_[data-antwort]_div]:!shadow-none [&_[data-antwort]_div]:!border-transparent"
 
+/**
+ * Ruhiges Layout beim Fragen (Owner 23.11.2026: „es baut sich nach unten die Antwort auf"): Die
+ * Zone der Antwort haelt den Platz der Wolke frei (`--teppich-platz`, gesetzt von `useTeppichHalt`),
+ * die Seite waechst nur nach unten. Die Teile der Antwort blenden weich ein und aus.
+ */
+const TEPPICH_ZONE = "[&_[data-story-karten-modus]]:min-h-[var(--teppich-platz,0px)]"
+/**
+ * Die Antwort blendet fliessend ein, nicht auf einen Schlag (Owner 23.11.2026): erst der Text, kurz
+ * danach die Karten. Als Animation, damit es auch gilt, wenn die Teile erst in diesem Moment entstehen
+ * (ein Uebergang der Deckkraft greift bei frisch eingehaengten Elementen nicht).
+ */
+const ANTWORT_EIN = "@keyframes ks-antwort-ein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}"
+const ANTWORT_SICHTBAR = "[&_[data-antwort]]:[animation:ks-antwort-ein_1400ms_ease_both] [&_[data-story-karten]]:[animation:ks-antwort-ein_1400ms_ease_500ms_both] [&_[data-story-fruehere-fragen]]:[animation:ks-antwort-ein_1400ms_ease_500ms_both]"
+/**
+ * Erkunden (Owner 23.11.2026: „der Graph beginnt erst ab der Frage, was drueber ist, kann stehen
+ * bleiben"): nur die Zone der Antwort weicht; gibt es noch keine, der ganze Vordergrund.
+ */
+const ERKUNDEN = "[&_[data-story-karten-modus]]:invisible [&:not(:has([data-story-karten-modus]))]:invisible"
+const ANTWORT_VERBORGEN = "[&_[data-antwort]]:pointer-events-none [&_[data-antwort]]:opacity-0 [&_[data-antwort-laeuft]]:opacity-0 [&_[data-story-karten]]:pointer-events-none [&_[data-story-karten]]:opacity-0 [&_[data-story-fruehere-fragen]]:opacity-0"
+
 export function WebsiteStorySektionRahmen({
   section,
   headingCase = "capitalize",
@@ -67,6 +88,7 @@ export function WebsiteStorySektionRahmen({
   children,
   teppich,
   abgetaucht = false,
+  fragt = false,
   hinweis = false,
   fuss,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
@@ -76,15 +98,17 @@ export function WebsiteStorySektionRahmen({
 
   return (
     <section className={cn("relative isolate px-6 py-14", flaeche.className)} style={flaeche.style} data-website-story>
+      {teppich && <style>{ANTWORT_EIN}</style>}
       {teppich && <div className="absolute inset-0 z-0">{teppich}</div>}
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
       <div
         className={cn(
           "relative z-10 mx-auto max-w-5xl transition-opacity duration-300",
           teppich && "pointer-events-none",
-          abgetaucht && "invisible opacity-0",
+          teppich && TEPPICH_ZONE,
+          teppich && (fragt ? ANTWORT_VERBORGEN : ANTWORT_SICHTBAR),
+          abgetaucht && ERKUNDEN,
         )}
-        aria-hidden={abgetaucht || undefined}
       >
         {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
         <div className={cn("overflow-hidden text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
@@ -110,8 +134,8 @@ export function WebsiteStorySektionRahmen({
         </div>
       </div>
       {hinweis && (
-        // Oben, weil unten die Jahreszahlen des Teppichs stehen (Ansicht 22.11.2026).
-        <p className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
+        // An der Oberkante der Wolke (`--teppich-oben` aus `useTeppichHalt`): dort, wo man hinsieht.
+        <p className="pointer-events-none absolute left-1/2 top-[calc(var(--teppich-oben,0px)+0.75rem)] z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
           {t("website.story.teppichZurueck")}
         </p>
       )}

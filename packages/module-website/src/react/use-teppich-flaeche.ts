@@ -4,8 +4,9 @@
  * Masse des Teppichs der Dokumente (Plan `teppich-der-dokumente`, Owner 23.11.2026).
  *
  * Die Leinwand ist so breit wie die Sektion, damit der Schwarm ueber den Rand fliegen kann; das
- * Raster liegt im Kasten in der Mitte (`teppichKasten`): so breit wie die Antwort, 16:9, nie
- * hoeher als der sichtbare Bereich. Dazu, ob die Flaeche im Bild ist.
+ * Raster liegt im Kasten in der Mitte (`teppichKasten`): so breit wie die Antwort, zwei Drittel
+ * des sichtbaren Bereichs hoch — unabhaengig von der Hoehe der Sektion. Dazu, ob die Flaeche im
+ * Bild ist.
  */
 
 import * as React from 'react'
@@ -42,7 +43,7 @@ export function useTeppichFlaeche(huelle: React.RefObject<HTMLDivElement | null>
     const miss = () => {
       const r = ebene.getBoundingClientRect()
       const breite = Math.floor(r.width)
-      const k = teppichKasten(breite, sichtHoehe(ebene), r.height)
+      const k = teppichKasten(breite, sichtHoehe(ebene))
       // Nur bei echter Aenderung: ein neues Objekt hiesse ein neues Raster.
       setMasse((m) => (m.breite === breite && m.kasten.breite === k.breite && m.kasten.hoehe === k.hoehe
         ? m : { ...m, breite, kasten: k }))

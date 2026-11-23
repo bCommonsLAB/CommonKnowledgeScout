@@ -1007,6 +1007,7 @@
         "many": "{count} preguntas anteriores de esta sesión en el modo Story"
       },
       "anpassen": "Ajustar respuestas",
+      "graph": "Explorar el grafo",
       "teppichZurueck": "Haz clic en un espacio libre para volver al texto",
       "belegeFehler": "{label}: no se pudieron cargar.",
       "belegeErneut": "Reintentar",
@@ -1015,6 +1016,7 @@
         "gefunden": "{count} documentos pertinentes encontrados",
         "gewichtet": "Ponderando los documentos pertinentes …",
         "schreiben": "La respuesta se está formando …",
+        "titel": "Tu respuesta se está calculando",
         "storyline": "Tu storyline: la respuesta se basa en estas {count} fuentes"
       },
       "quellenAnzeigen": "Mostrar fuentes ({count})",

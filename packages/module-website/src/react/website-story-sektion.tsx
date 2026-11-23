@@ -156,6 +156,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             onText={setText}
             onBelege={belegeOeffnen}
             onDokument={dokumentOeffnen}
+            onGraph={teppich.graphZeigen}
           />
         )}
       </>
