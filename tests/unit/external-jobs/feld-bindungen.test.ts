@@ -38,6 +38,18 @@ kind: composite-transcript
 - Statement: not counted
 
 </source>
+
+<source file="01 Fiji - Statement.pdf" index="2" inhalt="PDF-Text">
+Text
+</source>
+
+<source file="02 Chad - Statement.pdf" index="3" inhalt="PDF-Text">
+Text
+</source>
+
+<source file="Notes.txt" index="4" inhalt="Text">
+Text
+</source>
 `
 
 describe('leseFeldBindungen', () => {
@@ -99,8 +111,8 @@ describe('wendeFeldBindungenAn', () => {
     expect(r.cleanedMeta.pdf_count).toBeNull()
     expect(r.nichtBerechenbar.map((n) => n.grund)).toEqual([
       'Abschnitt „Speakers" gibt es im Material nicht',
-      'Das Material nennt keine _source_files (keine Sammeldatei)',
-      'Das Material nennt keine _source_files (keine Sammeldatei)',
+      'Das Material nennt keine Quelldateien (keine Sammeldatei)',
+      'Das Material nennt keine Quelldateien (keine Sammeldatei)',
     ])
   })
 
@@ -108,6 +120,56 @@ describe('wendeFeldBindungenAn', () => {
     const r = wendeFeldBindungenAn({ themes: ['a'], summary: 'kurz' }, bindungen.filter((b) => !b.berechnet), MATERIAL)
     expect(r.grenzen).toEqual([])
     expect(r.cleanedMeta).toEqual({ themes: ['a'], summary: 'kurz' })
+  })
+})
+
+describe('Material ohne Frontmatter (so kommt es in der Pipeline an)', () => {
+  // Die Start-Route entfernt das Frontmatter; uebrig bleiben Quellenuebersicht und Quellbloecke.
+  const OHNE_KOPF = `# Quellenübersicht
+
+| Nr. | Datei | Typ |
+|-----|-------|-----|
+| 0 | Session.md | Text |
+| 1 | Programme.md | Text |
+| 2 | 01 Fiji - Statement.pdf | PDF |
+| 3 | 02 Chad - Statement.pdf | PDF |
+
+---
+
+<source file="Session.md" index="0" inhalt="Markdown">
+
+Eigener Text
+
+</source>
+
+<source file="Programme.md" index="1" inhalt="Markdown">
+
+## Speakers
+1. Fiji — Statement: yes
+
+</source>
+
+<source file="01 Fiji - Statement.pdf" index="2" inhalt="PDF-Text">
+
+Text
+
+</source>
+
+<source file="02 Chad - Statement.pdf" index="3">
+
+Text
+
+</source>
+`
+
+  it('liest die Quelldateien aus den Quellbloecken, ohne die Sammeldatei selbst', () => {
+    expect(quellenAusMaterial(OHNE_KOPF)).toEqual(['Programme.md', '01 Fiji - Statement.pdf', '02 Chad - Statement.pdf'])
+  })
+
+  it('rechnet Zaehlfeld und Quellenarten', () => {
+    const r = wendeFeldBindungenAn({ statement_count: 17, pdf_count: 0, source_types: ['webcast'] }, leseFeldBindungen(VORLAGE), OHNE_KOPF)
+    expect(r.nichtBerechenbar).toEqual([])
+    expect(r.cleanedMeta).toMatchObject({ statement_count: 1, pdf_count: 2, source_types: ['statement', 'programme'] })
   })
 })
 

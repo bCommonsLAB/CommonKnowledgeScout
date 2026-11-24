@@ -15,7 +15,7 @@ import { resolveSlideImagesFromTwinFragments } from '@/lib/ingestion/slide-image
 import { medienAusEigenenFragmenten, type MedienAusEigenenFragmenten } from '@/lib/ingestion/medien-aus-eigenen-fragmenten'
 import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatter-json-lists'
 import { ladeGeordneteQuellen, type QuellenTwin } from '@/lib/ingestion/quellen-fragmente'
-import { coverAusQuellenErlaubt, waehleCover } from '@/lib/ingestion/cover-aus-quellen'
+import { coverAusQuellenErlaubt, istCoverAusQuellen, waehleCover } from '@/lib/ingestion/cover-aus-quellen'
 import { coverKandidatAusMedienliste } from '@/lib/ingestion/cover-aus-medienliste'
 import { medienVerzeichnisAusFragmenten } from '@/lib/ingestion/medien-verzeichnis'
 import { anhaengeAusQuellen, anhangReihenfolge, ersetzePdfLinks, quelldateienAusMeta } from '@/lib/ingestion/anhaenge-aus-quellen'
@@ -392,8 +392,25 @@ export class IngestionService {
           // PRIORITÄT 0: Prüfe ob Azure-URL bereits im Frontmatter oder in binaryFragments vorhanden ist
           // Dies verhindert Doppelverarbeitung: Wenn das Bild bereits hochgeladen wurde,
           // verwenden wir die vorhandene URL direkt ohne erneutes Laden/Hochladen
-          const frontmatterCoverImageUrl = (metaEffective as { coverImageUrl?: string })?.coverImageUrl
-          const frontmatterCoverThumbnailUrl = (metaEffective as { coverThumbnailUrl?: string })?.coverThumbnailUrl
+          let frontmatterCoverImageUrl = (metaEffective as { coverImageUrl?: string })?.coverImageUrl
+          let frontmatterCoverThumbnailUrl = (metaEffective as { coverThumbnailUrl?: string })?.coverThumbnailUrl
+          // Schalter cover_from_sources: false gilt auch fuer ein Cover, das ein frueherer Lauf aus den
+          // Quellen gerechnet hat und das die Template-Phase weitergetragen hat (Befund der Abnahme:
+          // das alte Bild blieb stehen). Erkennbar daran, dass es ein Seitenbild einer Quelle ist.
+          let altesQuellenCoverEntfernt = false
+          try {
+            if (typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim() && !coverAusQuellenErlaubt(metaEffective)
+              && istCoverAusQuellen(frontmatterCoverImageUrl, await ladeQuellenTwins())) {
+              frontmatterCoverImageUrl = undefined
+              frontmatterCoverThumbnailUrl = undefined
+              delete docMetaJsonObj.coverImageUrl
+              delete docMetaJsonObj.coverThumbnailUrl
+              altesQuellenCoverEntfernt = true
+              FileLogger.info('ingestion', 'Altes Cover aus den Quellen entfernt (cover_from_sources: false)', { fileId })
+            }
+          } catch (error) {
+            FileLogger.warn('ingestion', 'Altes Cover nicht pruefbar (cover_from_sources)', { fileId, error: error instanceof Error ? error.message : String(error) })
+          }
           
           if (frontmatterCoverImageUrl && typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0) {
             // FALL A: coverImageUrl ist bereits eine vollständige URL (http/https)
@@ -589,7 +606,12 @@ export class IngestionService {
           try {
             coverAusQuellenAus = !coverAusQuellenErlaubt(metaEffective)
             if (coverAusQuellenAus && !coverImageUrl && frontmatterCoverLeer && jobId && !coverKandidatMedienliste) {
-              await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'none', grund: 'cover_from_sources: false — Cover aus den Quellen ist abgeschaltet' })
+              await emitIngestTraceEvent(repo, jobId, 'cover_source', {
+                source: 'none',
+                grund: altesQuellenCoverEntfernt
+                  ? 'cover_from_sources: false — das Cover aus einem frueheren Lauf (Seitenbild einer Quelle) wurde entfernt'
+                  : 'cover_from_sources: false — Cover aus den Quellen ist abgeschaltet',
+              })
             }
           } catch (error) {
             const grund = error instanceof Error ? error.message : String(error)

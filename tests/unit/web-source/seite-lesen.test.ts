@@ -61,3 +61,10 @@ describe('zeichensatzVon', () => {
     expect(zeichensatzVon('text/html', '<html>')).toBe('utf-8')
   })
 })
+
+describe('Seite ohne Bild', () => {
+  it('nennt kein Bild, statt die Seitenadresse als Bild auszugeben', () => {
+    const r = leseSeiteAusHtml('<html><head><title>T</title></head><body><main><p>Ein Absatz mit Text.</p></main></body></html>', 'https://a.example/d/1', 'https://a.example/d/1')
+    expect(r.meta.imageUrl).toBe('')
+  })
+})

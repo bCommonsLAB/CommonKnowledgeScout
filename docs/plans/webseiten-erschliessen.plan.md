@@ -2,7 +2,7 @@
 name: webseiten-erschliessen
 overview: "Eine ganze Webseite über die Brücke erschließen, ohne dass der Agent eine eigene Shell oder den Rechner des Nutzers braucht: Seiten wörtlich lesen, Links folgen, verlinkte Dateien holen, Seiten ohne Fließtext als Sammeldatei übernehmen, später Medien und gerenderte Seiten. Anlass: der Aufbau einer Library aus der Website einer Konferenzreihe (Übersichten mit Rednerlisten, Dokumentseiten, PDF-Statements, Webcasts); die Anforderungen und das Testmaterial stehen im Handover im Archiv."
 vorhaben: [4]
-status: welle-2c-gebaut-abnahme-offen
+status: welle-2d-gebaut-abnahme-offen
 todos:
   - id: w1-schutz
     content: "Welle 1: Schutz gegen interne Adressen (adress-schutz.ts) und sicherer Abruf (sicherer-abruf.ts) für jeden Abruf im Auftrag von außen; bestehende Abrufe (Seite, Cover, direkt genanntes Medium) darauf umgestellt. Gebaut 24.11.2026."
@@ -32,8 +32,11 @@ todos:
     content: "Welle 2c, Befunde aus dem Piloten (B4, B5, B6, B7): Feld-Bindungen in Vorlagen (<<max:N>>, <<maxWoerter:N>>, berechnete Felder =quellen, =zeilen, =quellenarten) mit Befund; Quellblöcke im Material nennen ihre Art; Ingest-Schalter cover_from_sources und attachments_order; medienHerkunft bei sammeldatei_anlegen. Gebaut 24.11.2026, Werkzeugsatz 2.86.0."
     status: done
   - id: w2c-abnahme
-    content: "Welle 2c Abnahme am Piloten: Vorlage mit <<max:6>> und =zeilen(…) schreiben, Sammeldatei neu transformieren, Befund und berechneten Wert prüfen; Ingest mit cover_from_sources: false und attachments_order: source_files prüfen. Offen ist, ob feste Felder der Vorlage unverändert im Frontmatter des Ergebnisses ankommen."
+    content: "Welle 2c Abnahme am Piloten, gelaufen 24.11.2026: Obergrenzen wirken und werden gemeldet, feste Felder der Vorlage kommen im Frontmatter des Ergebnisses an, Anhänge in der Reihenfolge der Sammeldatei. Nicht bestanden: berechnete Felder und das alte Cover (behoben in 2d). Offen: Wiederholung nach 2d."
     status: pending
+  - id: w2d-abnahme-befunde
+    content: "Welle 2d, Befunde der Abnahme von 2c: berechnete Felder lesen die Quelldateien aus den Quellblöcken (das Frontmatter des Materials ist in der Pipeline entfernt); cover_from_sources: false entfernt auch ein Cover, das ein früherer Lauf aus den Quellen gerechnet hat; eine Seite ohne Bild liefert kein Bild statt der Seitenadresse; htmlDatei an seite_lesen und webseite_erschliessen; Feld-Paare (field__label / field__item) in einer Zeile. Gebaut 24.11.2026, Werkzeugsatz 2.87.0."
+    status: done
   - id: w3-rechte
     content: "Welle 3 (C2, C3, Befund B8): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API; der Ingest hängt bei „nur Zusammenfassung\" keine Quelldateien als Anhang an die Seite. Erst ADR, dann Code."
     status: pending
@@ -282,6 +285,35 @@ Transformation setzt der Secretary (dort in der Konfiguration niedrig
 vorgegeben); ob die laufende Instanz davon abweicht, ist zu prüfen. Die
 Bindungen machen die Schwankung sichtbar und begrenzen ihre Folgen, sie
 beseitigen sie nicht.
+
+## Welle 2d: Befunde der Abnahme (gebaut 24.11.2026, Werkzeugsatz 2.87.0)
+
+Die Abnahme von 2b und 2c am Piloten hat bestätigt: Der Adress-Schutz lehnt
+interne Adressen ab, die Zielseite gibt dem Server eine Schutzseite (als
+`schutzseite` erkannt), übergebenes HTML wird gelesen, Obergrenzen wirken,
+feste Felder der Vorlage kommen im Ergebnis an.
+
+Zwei Fehler, beide behoben:
+
+- **Berechnete Felder blieben an jeder Sammeldatei leer.** Die Rechnung
+  suchte `_source_files` im Frontmatter des Materials; die Pipeline entfernt
+  das Frontmatter aber vorher. Der Test hatte ein Material mit Frontmatter
+  benutzt, das es so im Betrieb nicht gibt. Die Quelldateien kommen jetzt aus
+  den Quellblöcken; ein Test bildet das Material ohne Frontmatter nach.
+- **`cover_from_sources: false` ließ ein altes Cover stehen.** Die
+  Template-Phase trägt ein bestehendes Cover in die neue Transformation
+  weiter. Ist dieses Cover ein Seitenbild einer Quelle, entfernt der Ingest
+  es jetzt und meldet das; ein von Hand gesetztes oder erzeugtes Cover bleibt.
+
+Drei kleinere Punkte:
+
+- Nennt eine Seite kein Bild, wurde die Seitenadresse als Bild ausgegeben.
+- `htmlDatei`: Das HTML einer großen Seite muss nicht mehr durch den Kontext
+  des Agenten; die gespeicherte Seite liegt als Datei in der Library.
+- Ausgezeichnete Feld-Paare einer Seite (`field__label` / `field__item`)
+  stehen als „Bezeichnung: Wert" in einer Zeile. Ein Datum wird daraus nicht
+  geraten; das Datumsfeld füllt weiter nur, was die Seite maschinenlesbar
+  nennt.
 
 ## Abnahme Welle 1
 

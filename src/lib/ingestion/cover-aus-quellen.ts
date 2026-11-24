@@ -57,6 +57,19 @@ export function coverAusQuellenErlaubt(meta: Record<string, unknown>): boolean {
   throw new Error(`cover_from_sources: "${String(wert)}" ist weder true noch false`)
 }
 
+/**
+ * true, wenn die Adresse ein Seitenbild einer Quelle der Sammeldatei ist — also ein Cover,
+ * das ein frueherer Lauf aus den Quellen gerechnet hat. Die Template-Phase traegt ein
+ * bestehendes Cover in die neue Transformation weiter; mit `cover_from_sources: false`
+ * darf genau dieses nicht stehen bleiben. Ein von Hand gesetztes oder erzeugtes Cover
+ * ist kein Seitenbild einer Quelle und bleibt.
+ */
+export function istCoverAusQuellen(url: string, quellen: QuellenTwin[]): boolean {
+  const gesucht = url.trim()
+  if (!gesucht) return false
+  return quellen.some((q) => !q.eigener && q.fragments.some((f) => f.url === gesucht))
+}
+
 /** Reine Auswahl auf einer bereits geordneten Quellenliste (testbar ohne Mongo). */
 export function waehleCover(quellen: QuellenTwin[]): CoverAusQuellen | null {
   const pdfs = quellen.filter((q) => !q.eigener && istPdf(q) && seitenbilder(q) > 0)
