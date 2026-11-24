@@ -178,10 +178,11 @@ export function zeichneTeppich(cv: HTMLCanvasElement, stand: TeppichSzenenStand,
       for (const i of b.belegIndex) zeichneNachbarLinien(ctx, b.x, b.y, i, s.punkte[i].nachbarn)
       ctx.globalAlpha = 0.18
       zeichneFaden(ctx, heim)
-      ctx.globalAlpha = 0.45
+      ctx.globalAlpha = s.abgetaucht ? 0.9 : 0.45
       zeichneRinge(ctx, heim)
     }
-    ctx.globalAlpha = 0.28
+    // In der Graph-Ansicht kraeftig: dort sind die Belege das, was man sucht (Owner 24.11.2026).
+    ctx.globalAlpha = s.abgetaucht ? 0.8 : 0.28
     zeichnePunkte(ctx, b.x, b.y, s.radien, (i) => belege.has(i), 1.3)
   }
   // Ueberfahren: Ring um den Punkt, Linien zu seinen Nachbarn, die Nachbarn etwas kraeftiger.
