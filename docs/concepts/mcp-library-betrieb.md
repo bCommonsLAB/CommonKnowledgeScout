@@ -467,3 +467,18 @@ Plan `docs/plans/webseiten-erschliessen.plan.md`.
   nennt ihn.
 - **Was fehlt.** Kein JavaScript-Rendering, kein Kartieren ganzer Websites,
   Herkunft einer geholten Datei nur im Aktions-Protokoll, noch nicht am Twin.
+
+## Nachtrag 2.84.0 (24.11.2026): Webseiten erschließen, Welle 2
+
+Plan `docs/plans/webseiten-erschliessen.plan.md`.
+
+- **Eine Liste erlaubter Werte, eine Quelle.** Vorlagen nennen das
+  Facetten-Wörterbuch der Library per `<<werte:metaKey>>` oder
+  `<<legende:metaKey>>`, statt es abzuschreiben. Der Platzhalter bindet das
+  Feld: Die Pipeline verwirft Werte außerhalb des Wörterbuchs und meldet sie
+  in `job_status.befunde`.
+- **Vorlagen sind über die Brücke les- und schreibbar** (`vorlage_lesen`,
+  `vorlage_schreiben`), ohne Datei in `templates/`.
+- **Eine neue Library ist sofort benutzbar.** `bibliothek_anlegen` legt ihr
+  Verzeichnis auf der Speicher-Verbindung an; `speicher_pruefen` sagt, ob die
+  Verbindung nicht antwortet oder nur das Verzeichnis fehlt.

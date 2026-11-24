@@ -2,7 +2,7 @@
 name: webseiten-erschliessen
 overview: "Eine ganze Webseite über die Brücke erschließen, ohne dass der Agent eine eigene Shell oder den Rechner des Nutzers braucht: Seiten wörtlich lesen, Links folgen, verlinkte Dateien holen, Seiten ohne Fließtext als Sammeldatei übernehmen, später Medien und gerenderte Seiten. Anlass: der Aufbau einer Library aus der Website einer Konferenzreihe (Übersichten mit Rednerlisten, Dokumentseiten, PDF-Statements, Webcasts); die Anforderungen und das Testmaterial stehen im Handover im Archiv."
 vorhaben: [4]
-status: welle-1-gebaut-abnahme-offen
+status: welle-2-gebaut-abnahme-offen
 todos:
   - id: w1-schutz
     content: "Welle 1: Schutz gegen interne Adressen (adress-schutz.ts) und sicherer Abruf (sicherer-abruf.ts) für jeden Abruf im Auftrag von außen; bestehende Abrufe (Seite, Cover, direkt genanntes Medium) darauf umgestellt. Gebaut 24.11.2026."
@@ -20,7 +20,10 @@ todos:
     content: "Welle 1 Abnahme über die Brücke am Testmaterial des Handovers: Übersicht mit seite_lesen vollständig und jeder Link in seiner Zeile; Dokumentseite mit seitenModus struktur als Sammeldatei; ein PDF mit datei_von_adresse_holen im Zielordner. Zeigt zugleich, ob die Zielseite dem Server antwortet."
     status: pending
   - id: w2-kleines
-    content: "Welle 2 (E1, E2, E5, C1): bibliothek_anlegen legt den Zielordner an oder benennt den Grund; vorlage_lesen und vorlage_schreiben; vorlagenKopieren mit Auswahl; Facetten-Platzhalter in Vorlagen und Prüfung der Werte nach der Transformation als Befund."
+    content: "Welle 2 (E1, E2, E5, C1): bibliothek_anlegen legt das Verzeichnis auf der Speicher-Verbindung an, speicher_pruefen unterscheidet fehlendes Verzeichnis von toter Verbindung; vorlage_lesen und vorlage_schreiben; vorlagenNamen beim Kopieren; Facetten-Platzhalter <<werte:…>> und <<legende:…>> in Vorlagen, Prüfung der gebundenen Felder nach der Transformation als Befund. Gebaut 24.11.2026, Werkzeugsatz 2.84.0."
+    status: done
+  - id: w2-abnahme
+    content: "Welle 2 Abnahme über die Brücke: eine Vorlage mit <<werte:…>> schreiben, eine Quelle transformieren, einen erfundenen Wert im Befund und nicht im Index sehen; eine Library mit neuem Verzeichnis anlegen und speicher_pruefen grün sehen."
     status: pending
   - id: w3-rechte
     content: "Welle 3 (C2, C3): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API. Erst ADR, dann Code."
@@ -127,6 +130,60 @@ Aktions-Protokoll. Am Twin steht sie noch nicht; das ist Welle 5.
   ein Aufruf reicht dafür nicht. Steht bei Welle 5.
 - robots.txt und Drosselung: gelten für das Kartieren (Welle 5). Ein
   einzelner, vom Menschen genannter Abruf verhält sich wie ein Browser.
+
+## Welle 2 (gebaut 24.11.2026, Werkzeugsatz 2.84.0)
+
+### Facetten-Wörterbuch in Vorlagen
+
+Die erlaubten Werte einer Facette standen zweimal: im Wörterbuch
+(`chat.gallery.facets[].werte`) und abgeschrieben in der Vorlage. Zwei
+Platzhalter ersetzen die Abschrift, überall in der Vorlage (Feldbeschreibung,
+Body, Systemprompt), immer einzeilig:
+
+- `<<werte:metaKey>>` wird zu `a, b, c`
+- `<<legende:metaKey>>` wird zu `a = Label (Bedeutung); b = Label`
+
+Entschieden:
+
+- **Eigene Schreibweise, nicht `{{…}}`.** Die Antwortregeln im Chat nutzen
+  `{{facette:…}}`; in einer Vorlage gehört `{{feld|beschreibung}}` dem
+  Feld-Parser, und der liest bis zur ersten `}`.
+- **Der Platzhalter bindet das Feld.** Nach der Transformation werden Werte
+  außerhalb des Wörterbuchs verworfen (Liste: Eintrag weg, Einzelwert: null)
+  und als Befund gemeldet (`job_status.befunde`, Ereignis
+  `facet_values_rejected`). Das folgt dem Muster der Medien-Prüfung im selben
+  Schritt.
+- **Facetten ohne Platzhalter bleiben ungeprüft.** Bestehende Wörterbücher
+  tragen oft nur Bedeutungen und sind nicht vollständig; eine Prüfung für alle
+  hätte in bestehenden Libraries Werte gestrichen.
+- **Nicht auflösbar ist ein Fehler.** Unbekannte Facette, fehlendes Wörterbuch
+  oder ein Schreibfehler lassen den Job im Template-Schritt scheitern, bevor
+  das Sprachmodell läuft; `vorlage_schreiben` weist so eine Vorlage schon beim
+  Speichern ab.
+
+Voraussetzung: Der `metaKey` der Facette ist der Name des Frontmatter-Felds.
+
+**Offen:** Das Vorlagen-Formular der Oberfläche und `vorlage_uebernehmen`
+prüfen die Platzhalter beim Speichern noch nicht; dort fällt ein Fehler erst
+beim ersten Job auf.
+
+### `vorlage_lesen`, `vorlage_schreiben`
+
+Eine Vorlage als Markdown lesen und aus Markdown anlegen oder ersetzen, ohne
+Umweg über eine Datei in `templates/`. Geschrieben wird nur, was der
+Vorlagen-Parser fehlerfrei liest; ersetzt wird nur mit `ueberschreiben: true`
+und immer ganz.
+
+### `bibliothek_anlegen`, `speicher_pruefen`
+
+`bibliothek_anlegen` legt das Verzeichnis der Library auf der
+Speicher-Verbindung an, wenn es fehlt, über einen Provider an der Wurzel der
+Verbindung (`getServerProviderAnVerbindungsWurzel`). Die Antwort nennt
+`zielordner`. Scheitert das Anlegen, bleibt die Library bestehen und der Grund
+steht in der Antwort. `vorlagenNamen` kopiert nur die genannten Vorlagen.
+
+`speicher_pruefen` sagt bei nicht lesbarer Wurzel, ob die Verbindung selbst
+antwortet oder nur das Verzeichnis fehlt.
 
 ## Abnahme Welle 1
 

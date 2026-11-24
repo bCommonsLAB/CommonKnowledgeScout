@@ -58,6 +58,15 @@ gegebenenfalls `grund`. `abgelehnt` und `nicht_begonnen` dem Menschen nennen.
 Die geholten Dateien liegen als Quellen im Ordner und gehen danach über
 `quelle_erschliessen` oder `sammeldatei_anlegen` weiter.
 
+**Vorlage und Facetten-Wörterbuch** (ab 2.84.0): `vorlage_lesen` gibt eine
+Vorlage als Markdown, `vorlage_schreiben` legt sie an oder ersetzt sie
+(`ueberschreiben: true`, immer der ganze Text). Die erlaubten Werte einer
+Facette nicht abschreiben, sondern mit `<<werte:metaKey>>` oder
+`<<legende:metaKey>>` einsetzen lassen. Der Platzhalter bindet das Feld:
+Schreibt das Sprachmodell einen Wert außerhalb des Wörterbuchs, wird er
+verworfen und steht in `job_status.befunde` — nach jeder Transformation dort
+nachsehen und dem Menschen nennen.
+
 ## Ablauf über die Brücke
 
 1. **Ordner und Dateiname festlegen.** Der Mensch nennt beides; Dateinamen

@@ -76,6 +76,7 @@ import { registerUmzugTools } from './tools-umzug'
 import { registerUebergebenTool } from './tools-uebergeben'
 import { registerStorageTools } from './storage'
 import { registerVorlagenTool } from './tools-vorlagen'
+import { registerVorlageTextTools } from './tools-vorlage-text'
 import { registerWebsitePublizierenTools } from './tools-website-publizieren'
 import { registerWebsiteFelderTool } from './tools-website-felder'
 import { registerWebsitePruefenTool } from './tools-website-pruefen'
@@ -94,6 +95,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerKorrekturTools(server)
   registerTranskriptKorrigierenTool(server)
   registerVorlagenTool(server)
+  registerVorlageTextTools(server)
   registerWebsitePublizierenTools(server)
   registerWebsiteFelderTool(server)
   registerWebsitePruefenTool(server)
