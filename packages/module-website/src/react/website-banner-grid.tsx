@@ -29,6 +29,7 @@ import {
   BUTTON_STRONG,
   HEADING_FONT,
   surfaceStyle,
+  SECTION_WIDTH,
   wegFehltMelden,
   type WebsiteNavigation,
 } from ".."
@@ -97,8 +98,8 @@ export function WebsiteBannerGrid({
   if (zurGalerie === null) wegFehltMelden("Galerie hat in dieser Seite keine Adresse — „mehr Inhalte\" entfaellt")
 
   return (
-    <section className={cn("px-4 py-12", flaeche.className)} style={flaeche.style}>
-      <div className="mx-auto max-w-5xl">
+    <section className={cn("px-4 py-12 sm:px-6", flaeche.className)} style={flaeche.style}>
+      <div className={SECTION_WIDTH}>
         <div className="mb-6 flex items-center justify-between gap-4">
           <h2 className={cn("text-2xl font-semibold text-[color:var(--site-heading)]", HEADING_FONT)}>{title || STANDARD_TITEL}</h2>
           {zurGalerie && (

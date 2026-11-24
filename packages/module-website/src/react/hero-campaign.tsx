@@ -17,6 +17,7 @@ import {
   BUTTON_SECONDARY,
   HEADING_FONT,
   surfaceStyle,
+  SECTION_WIDTH,
   type WebsiteNavigation,
 } from ".."
 import { AutorenLink } from "./weg-link"
@@ -47,7 +48,7 @@ export function HeroCampaign({
 
   return (
     <header className={cn("px-6 pt-8 pb-12 md:pt-12 md:pb-16", flaeche.className)} style={flaeche.style}>
-      <div className="mx-auto max-w-6xl">
+      <div className={SECTION_WIDTH}>
         <div className="relative overflow-hidden rounded-2xl shadow-md">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

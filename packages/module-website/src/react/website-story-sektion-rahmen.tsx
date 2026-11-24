@@ -22,6 +22,7 @@ import {
   type SiteThemeResolved,
   KICKER_CLASS,
   surfaceStyle,
+  SECTION_WIDTH,
 } from ".."
 import { SectionContent } from "./section-content"
 import { cn } from "@ks/util"
@@ -61,10 +62,11 @@ export interface WebsiteStorySektionRahmenProps {
 /**
  * Mit Teppich ist die Antwort kein eigenes Fenster: kein Hintergrund, kein Rand, kein Schatten;
  * auch die Flaechen der Antwort werden durchsichtig, die Punktwolke liegt sichtbar dahinter
- * (Owner 22.11.2026). Klicks nimmt nur, was im Inhalt steht. Auf dem Telefon (R2, 24.11.2026)
- * faellt auch der Innenabstand weg: keine Karte in der Karte, die Lesebreite ist die der Sektion.
+ * (Owner 22.11.2026). Klicks nimmt nur, was im Inhalt steht. Der waagrechte Innenabstand faellt
+ * auf jeder Breite weg (Telefon R2, breit Owner 24.11.2026): keine Karte in der Karte, der Text
+ * steht an der gemeinsamen linken Kante der Sektionen (`SECTION_WIDTH`).
  */
-const TEPPICH_KARTE = "pointer-events-auto bg-transparent [&_[data-antwort]>div:last-child]:!px-0 sm:[&_[data-antwort]>div:last-child]:!px-5 [&_[data-antwort]_div]:!bg-transparent [&_[data-antwort]_div]:!shadow-none [&_[data-antwort]_div]:!border-transparent"
+const TEPPICH_KARTE = "pointer-events-auto bg-transparent [&_[data-antwort]>div:last-child]:!px-0 [&_[data-antwort]_div]:!bg-transparent [&_[data-antwort]_div]:!shadow-none [&_[data-antwort]_div]:!border-transparent"
 
 /**
  * Ruhiges Layout beim Fragen (Owner 23.11.2026: „es baut sich nach unten die Antwort auf"): Die
@@ -128,7 +130,8 @@ export function WebsiteStorySektionRahmen({
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
       <div
         className={cn(
-          "relative z-10 mx-auto max-w-5xl transition-opacity duration-300",
+          "relative z-10 transition-opacity duration-300",
+          SECTION_WIDTH,
           teppich && "pointer-events-none",
           teppich && TEPPICH_ZONE,
           teppich && (fragt ? ANTWORT_VERBORGEN : ANTWORT_SICHTBAR),
@@ -137,7 +140,7 @@ export function WebsiteStorySektionRahmen({
       >
         {section.kicker && !vollbild && <p className={KICKER_CLASS}>{section.kicker}</p>}
         <div className={cn(vollbild ? "overflow-visible" : "overflow-hidden", "text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
-          <div className={cn("pb-5 sm:px-10 sm:pb-6 sm:pt-8", vollbild ? "pt-0" : "pt-6", teppich ? "px-0" : "px-4")}>
+          <div className={cn("pb-5 sm:pb-6 sm:pt-8", vollbild ? "pt-0" : "pt-6", teppich ? "px-0" : "px-4 sm:px-10")}>
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
             {/* Status-Plakette klein ueber der Ueberschrift (Owner 24.11.2026) — keine eigene Kopfzeile mehr. */}
             {status && !vollbild && <div className="mb-3" data-story-status>{status}</div>}

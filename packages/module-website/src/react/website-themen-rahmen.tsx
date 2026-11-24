@@ -22,6 +22,7 @@ import {
   type SiteThemeResolved,
   KICKER_CLASS,
   surfaceStyle,
+  SECTION_WIDTH,
 } from ".."
 import { SectionContent } from "./section-content"
 import { cn } from "@ks/util"
@@ -40,7 +41,7 @@ export function WebsiteThemenRahmen({ section, headingCase = "capitalize", theme
   const flaeche = surfaceStyle(section.bg, theme)
   return (
     <section className={cn("px-4 py-10 sm:px-6 sm:py-14", flaeche.className)} style={flaeche.style} data-website-themen>
-      <div className="mx-auto max-w-5xl">
+      <div className={SECTION_WIDTH}>
         {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
         {section.blocks.length > 0 && <SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} />}
         {children ?? (

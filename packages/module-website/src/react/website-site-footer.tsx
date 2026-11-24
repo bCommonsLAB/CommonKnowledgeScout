@@ -19,6 +19,7 @@ import {
   OLDIES_THEME,
   type SiteThemeResolved,
   surfaceStyle,
+  SECTION_WIDTH,
   wegFehltMelden,
   type WebsiteNavigation,
 } from ".."
@@ -84,7 +85,7 @@ export function WebsiteSiteFooter({
       ))}
       {footerLinkDocs.length > 0 && (
         <nav className={cn("px-6 py-4 text-sm", linkZeile.className)} style={linkZeile.style}>
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 text-[color:var(--site-paragraph)]">
+          <div className={cn(SECTION_WIDTH, "flex flex-wrap items-center gap-x-6 gap-y-2 text-[color:var(--site-paragraph)]")}>
             {footerLinkDocs.map((d) => {
               const param = getSiteParamForDoc(d)
               if (!param) return null

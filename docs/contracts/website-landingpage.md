@@ -147,6 +147,15 @@ importiert kein `@commonux/*`.
   fuellt die Box und wird SOFORT gestellt (im Story-Modus fuellt eine
   Weiterfrage weiter nur das Feld). Gibt es eine Antwort, klappen die
   Beispielfragen zu einer Zeile ein (`website-story-beispiele.tsx`).
+  **Gemeinsame Breite (Owner 24.11.2026):** Kopf (`campaign`, `cover`),
+  Sektionen, Fragebox, Themen, Raster, Fusszeile und Detail nehmen ihre
+  Breite aus `SECTION_WIDTH` (`surface-style.ts`, `max-w-5xl`) und fluchten ab
+  `sm` an EINER linken Kante; kein Baustein setzt daneben eine eigene
+  `max-w-*`-Stufe (`tests/unit/packages/module-website/sektions-breite.test.ts`).
+  Reine Textsektionen und das Kontaktformular sind schmaler
+  (`SECTION_READING_WIDTH`), stehen aber an derselben Kante, nicht mittig.
+  Mit Teppich hat die Fragebox auf keiner Breite einen waagrechten
+  Innenabstand. Ausnahme: der Kopf `band` (Text mittig).
   **Telefon (unter `sm`, Owner 24.11.2026):** Sektionen mit 16 px Rand und
   kleinerem Abstand (`px-4 py-10`), keine Karte in der Karte (mit Teppich
   ohne Innenabstand, die Antwort ohne Bild-Spalte in voller Lesebreite), die

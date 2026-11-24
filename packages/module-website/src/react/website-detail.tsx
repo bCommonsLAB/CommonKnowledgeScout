@@ -13,6 +13,7 @@ import {
   BUTTON_PRIMARY,
   KICKER_CLASS,
   surfaceStyle,
+  SECTION_WIDTH,
 } from ".."
 import { cn, isSafeVideoIframeSrc } from "@ks/util"
 import type { InstanceApi } from "@ks/api-client"
@@ -181,7 +182,7 @@ export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = nul
             <React.Fragment key={i}>
               {(s.markdown || s.kicker) && (
                 <section className={cn("px-6 pt-14", flaeche.className)} style={flaeche.style}>
-                  <div className="mx-auto max-w-5xl">
+                  <div className={SECTION_WIDTH}>
                     {s.kicker && <p className={KICKER_CLASS}>{s.kicker}</p>}
                     {s.markdown && <SectionContent blocks={s.blocks} bg={s.bg} headingCase={headingCase} theme={theme} navigation={navigation} />}
                   </div>

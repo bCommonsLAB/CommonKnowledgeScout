@@ -16,6 +16,8 @@ import {
   type SiteThemeResolved,
   KICKER_CLASS,
   surfaceStyle,
+  SECTION_WIDTH,
+  SECTION_READING_WIDTH,
   type WebsiteNavigation,
 } from '..'
 import { cn } from '@ks/util'
@@ -52,7 +54,7 @@ export function SectionBlock({
       section.videoUrl && isSafeVideoIframeSrc(section.videoUrl) ? section.videoUrl : null
     return (
       <section className={cn('px-4 py-10 sm:px-6 sm:py-14', flaeche.className)} style={flaeche.style}>
-        <div className="mx-auto max-w-4xl">
+        <div className={SECTION_WIDTH}>
           {kicker}
           {section.markdown && (
             <div className="mb-6"><SectionContent blocks={section.blocks} bg={section.bg} headingCase={headingCase} theme={theme} navigation={navigation} /></div>
@@ -78,7 +80,8 @@ export function SectionBlock({
     <section className={cn('px-4 py-10 sm:px-6 sm:py-14', flaeche.className)} style={flaeche.style}>
       <div
         className={cn(
-          'max-w-5xl mx-auto gap-10',
+          SECTION_WIDTH,
+          'gap-10',
           oben ? 'items-start' : 'items-center',
           twoCol && hasImage ? (schmal ? 'grid md:grid-cols-3' : 'grid md:grid-cols-2') : 'flex flex-col',
         )}
@@ -109,7 +112,7 @@ export function SectionBlock({
               ? imageFirst
                 ? 'md:order-2'
                 : 'md:order-1'
-              : 'mx-auto max-w-3xl',
+              : cn(SECTION_READING_WIDTH, 'self-start'),
             twoCol && hasImage && schmal ? 'md:col-span-2' : null,
           )}
         >
@@ -125,7 +128,7 @@ export function SectionBlock({
 export function VideoEmbed({ url }: { url: string }): React.ReactElement {
   return (
     <section className="px-4 py-10 sm:px-6 sm:py-14">
-      <div className="max-w-4xl mx-auto aspect-video rounded-xl overflow-hidden bg-muted">
+      <div className={cn(SECTION_WIDTH, "aspect-video rounded-xl overflow-hidden bg-muted")}>
         <iframe
           src={url}
           className="w-full h-full"

@@ -75,5 +75,14 @@ export const BUTTON_SECONDARY =
   'inline-block rounded-[var(--site-radius)] border border-black/10 bg-white px-6 py-3 font-medium text-neutral-800 transition-colors hover:bg-neutral-100'
 /** Kennzeile: kleine Versalzeile ueber der Ueberschrift (`kicker=`, `hero_kicker`). */
 export const KICKER_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--site-kicker)] font-[family-name:var(--site-font-kicker)]'
+/**
+ * Breite und linke Kante ALLER Sektionen der Seite (Owner 24.11.2026): Kopf,
+ * Sektionen, Fragebox, Raster, Fusszeile und Detail fluchten an derselben
+ * Kante. Wer eine Sektion baut, nimmt diese Konstante statt einer eigenen
+ * `max-w-*`-Klasse. Unter `sm` zaehlt nur der Seitenrand der Sektion (`px-4`).
+ */
+export const SECTION_WIDTH = 'mx-auto w-full max-w-5xl'
+/** Lesebreite fuer Fliesstext und Formulare INNERHALB von `SECTION_WIDTH`: schmaler, aber an der gemeinsamen linken Kante. */
+export const SECTION_READING_WIDTH = 'w-full max-w-3xl'
 /** Ueberschriften-Schrift aus dem Profil (ohne Profil: erbt, also die App-Schrift). */
 export const HEADING_FONT = 'font-[family-name:var(--site-font-heading)]'

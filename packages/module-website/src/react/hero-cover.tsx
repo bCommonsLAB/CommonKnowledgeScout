@@ -21,6 +21,7 @@ import {
   BUTTON_PRIMARY,
   HEADING_FONT,
   surfaceStyle,
+  SECTION_WIDTH,
   type WebsiteNavigation,
 } from ".."
 import { AutorenLink } from "./weg-link"
@@ -44,7 +45,7 @@ export function HeroCover({ title, subtitle, imageUrl, imageAlt, ctaLabel, ctaUr
 
   return (
     <header className={cn("relative overflow-hidden px-6 pt-16 pb-10 md:pt-24 md:pb-16", flaeche.className)} style={flaeche.style}>
-      <div className="relative mx-auto max-w-6xl">
+      <div className={cn("relative", SECTION_WIDTH)}>
         {/* Bild DAHINTER (z-0): rechts, vertikal zentriert — wird vom grossen Titel ueberlagert. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
