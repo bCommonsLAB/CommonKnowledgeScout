@@ -159,7 +159,14 @@ importiert kein `@commonux/*`.
   `data-story-vollbild`) — kein Portal, kein zweiter Baum: oben die Fragebox
   mit Schliessen-Knopf, in der Mitte die Wolke, die Botschaft als Statusblatt
   am unteren Rand (nie ueber der Wolke); danach scrollt die Antwort als
-  Leseansicht in der Sektion. Zu geht es nur durch den Leser; dann steht die
+  Leseansicht in der Sektion. **Schreiben im Vollbild (R5):** Schon der Tipp
+  in die Fragebox oeffnet es (`oeffnen`), damit ueber der Tastatur Platz ist:
+  die Box gross (mehrzeilig, Antwortlaenge, breiter Sende-Knopf), darunter
+  die Beispielfragen. Gross ist sie, solange eine neue Frage entsteht (noch
+  keine gestellt oder der Text geaendert), sonst die schmale Zeile ueber der
+  Antwort. Die Huelle um die Box ist in der Seite und im Vollbild DIESELBE —
+  das Feld darf beim Wechsel nicht neu eingehaengt werden, sonst verliert es
+  Fokus und Tastatur. Zu geht es nur durch den Leser; dann steht die
   Antwort inline in der Seite. Solange das Vollbild steht, haelt der Anker die
   Hoehe der Sektion, die Seite scrollt nicht, und `useZurFrageScrollen` tut
   nichts. Ist die Fragebox aus dem Bild, bleibt auf dem Telefon eine
@@ -421,6 +428,23 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   Ziel `dokument`. Blaetter, Dialoge und Detailansicht liegen in einem
   Portal-Ort am `body` (Klasse `.ks-embed`), also ueber dem Fenster; der Rahmen
   hat kein `contain: layout`.
+- **Ueberlagerungen der Fragen-Sektion** (Telefon-Vollbild, Graph-Ansicht,
+  Statusblatt, Frage-Leiste; Owner 24.11.2026) liegen NICHT im Portal, sondern
+  in der Sektion und haengen per `position: fixed` am Bildschirm. Spannt ein
+  Vorfahr in der fremden Seite selbst den Bezug auf (`transform`, `filter`,
+  `perspective`, `contain`, `will-change`, `container-type`), blieben sie in
+  ihm gefangen. `useBildschirmFest` (`use-ueberlagerung.ts`) erkennt das; dann
+  gilt: kein Telefon-Vollbild (die Frage laeuft in der Seite, die Botschaft
+  frei ueber der Wolke), keine Frage-Leiste, und die Graph-Ansicht liegt auf
+  der Flaeche der Sektion (`absolute`), die Seite scrollt weiter. Elemente der
+  fremden Seite mit `z-index` ueber 50 liegen ueber den Ueberlagerungen — wie
+  ueber den Blaettern.
+- **Zurueck-Taste:** In der App schliesst sie die zuletzt geoeffnete
+  Ueberlagerung (`WebsiteStoryGastgeber.zurueckTaste`, App-Teil
+  `src/components/library/website/story/zurueck-taste.ts`: ein Schritt in der
+  Chronik je Ueberlagerung, gleiche Adresse). Das Paket fasst die Chronik
+  nicht an (Paketgrenze). Das Embed reicht die Funktion NICHT herein — die
+  Chronik der fremden Seite bleibt unberuehrt, dort schliesst nur der Knopf.
 - Menuezeile oben (Entscheid B): Website-Seiten nach `menu_order`, „Inhalte",
   „Story" — alle ueber `hrefFor`; `menu={false}` blendet sie aus.
 - Kontaktformular im Embed: nein (Entscheid C), die Sektion zeigt den Hinweis.

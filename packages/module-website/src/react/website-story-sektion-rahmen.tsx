@@ -46,6 +46,8 @@ export interface WebsiteStorySektionRahmenProps {
   abgetaucht?: boolean
   /** Eine Frage laeuft: nur die Teile der Antwort sind verborgen, danach blenden sie ein. */
   fragt?: boolean
+  /** Duerfen Ueberlagerungen am Bildschirm haengen (`useBildschirmFest`)? Ohne Angabe ja. */
+  fest?: boolean
   /** Die Fragebox: ueber dem Chat, direkt unter dem Markdown der Sektion (R1, 24.11.2026). */
   eingabe?: React.ReactNode
   /**
@@ -93,6 +95,7 @@ export function WebsiteStorySektionRahmen({
   teppich,
   abgetaucht = false,
   fragt = false,
+  fest = true,
   eingabe,
   vollbild = false,
   onVollbildZu,
@@ -119,7 +122,8 @@ export function WebsiteStorySektionRahmen({
       {teppich && <style>{ANTWORT_EIN}</style>}
       {teppich && (
         // Graph-Ansicht: die Ebene liegt als eigene Seite ueber dem Bildschirm, deckend in der Farbe der Flaeche.
-        <div className={abgetaucht ? cn("fixed inset-0 z-50", flaeche.className) : "absolute inset-0 z-0"} style={abgetaucht ? flaeche.style : undefined}>{teppich}</div>
+        // Haelt der Bildschirm sie nicht fest (`fest` = false), bleibt sie auf der Flaeche der Sektion.
+        <div className={abgetaucht ? cn(fest ? "fixed" : "absolute", "inset-0 z-50", flaeche.className) : "absolute inset-0 z-0"} style={abgetaucht ? flaeche.style : undefined}>{teppich}</div>
       )}
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
       <div
@@ -138,19 +142,21 @@ export function WebsiteStorySektionRahmen({
             {/* Status-Plakette klein ueber der Ueberschrift (Owner 24.11.2026) — keine eigene Kopfzeile mehr. */}
             {status && !vollbild && <div className="mb-3" data-story-status>{status}</div>}
             {vor.length > 0 && !vollbild && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
-            {vollbild ? (
-              // Kopf des Vollbilds: bleibt beim Lesen der Antwort oben stehen, deckend in der Farbe der Flaeche.
-              <div
-                className={cn("pointer-events-auto sticky top-0 z-20 -mx-4 mb-2 flex items-start gap-1 px-2 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]", teppich ? flaeche.className : "bg-white")}
-                style={teppich ? flaeche.style : undefined}
-                data-story-vollbild-kopf
-              >
+            {/* Die Huelle um die Fragebox bleibt in der Seite wie im Vollbild DIESELBE (R5, 24.11.2026): Geht das
+                Vollbild beim Tippen in die Box auf, behaelt das Feld Fokus und Tastatur. Im Vollbild ist sie der
+                Kopf: bleibt beim Lesen oben stehen, deckend in der Farbe der Flaeche. */}
+            <div
+              className={vollbild ? cn("pointer-events-auto sticky top-0 z-20 -mx-4 mb-2 flex items-start gap-1 px-2 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]", teppich ? flaeche.className : "bg-white") : undefined}
+              style={vollbild && teppich ? flaeche.style : undefined}
+              data-story-vollbild-kopf={vollbild || undefined}
+            >
+              {vollbild && (
                 <button type="button" onClick={onVollbildZu} aria-label={t("website.story.vollbildZu")} title={t("website.story.vollbildZu")} className="flex h-12 w-11 shrink-0 items-center justify-center rounded-full text-current" data-story-vollbild-zu>
                   <X className="h-5 w-5" aria-hidden="true" />
                 </button>
-                <div className="min-w-0 flex-1">{eingabe}</div>
-              </div>
-            ) : eingabe}
+              )}
+              <div className={vollbild ? "min-w-0 flex-1" : undefined}>{eingabe}</div>
+            </div>
             {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}
             {nach.length > 0 && !vollbild && (
               // Legende/Vertrauenszeile: klein und dezent (Vorlage) — ueberschreibt die

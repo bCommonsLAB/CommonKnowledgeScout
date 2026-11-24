@@ -187,6 +187,24 @@ describe('WebsiteStorySektion mit Gastgeber', () => {
       expect(screen.getByText('Frag den Scout')).toBeTruthy()
     })
 
+    // R5 (24.11.2026): schreiben im Vollbild ueber der Tastatur.
+    it('Tipp in die Fragebox oeffnet das Vollbild; das Feld bleibt dasselbe und behaelt den Fokus', async () => {
+      telefon()
+      const { g } = gastgeber()
+      const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+      const feld = screen.getByPlaceholderText('Deine Frage …') as HTMLTextAreaElement
+      feld.focus()
+      await waitFor(() => expect(container.querySelector('[data-story-vollbild]')).not.toBeNull())
+      expect(screen.getByPlaceholderText('Deine Frage …')).toBe(feld)
+      expect(document.activeElement).toBe(feld)
+      // Gross: mit Antwortlaenge und den Beispielfragen darunter.
+      expect(screen.getByText('chat.input.answerLength')).toBeTruthy()
+      expect(screen.getByText('Was ist das?')).toBeTruthy()
+      fireEvent.click(container.querySelector('[data-story-vollbild-zu]') as Element)
+      expect(container.querySelector('[data-story-vollbild]')).toBeNull()
+      expect(document.activeElement).not.toBe(feld)
+    })
+
     it('ohne Frage bleibt die Sektion in der Seite', () => {
       telefon()
       const { g } = gastgeber()

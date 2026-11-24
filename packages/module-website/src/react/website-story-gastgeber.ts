@@ -58,4 +58,13 @@ export interface WebsiteStoryGastgeber {
    * Gastgeber ihn zulaesst. Fehlt das Feld, bleibt die Sektion, wie sie ist.
    */
   teppich?: boolean
+  /**
+   * Zurueck-Taste fuer Ueberlagerungen der Sektion (Telefon-Vollbild, Graph-Ansicht; Owner
+   * 24.11.2026). Die Sektion ruft dies, sobald eine aufgeht: Der Gastgeber legt einen Schritt in
+   * die Chronik und ruft `onZurueck`, wenn der Leser zurueckgeht. Die Rueckgabe meldet ab —
+   * `schrittZurueck: true`, wenn der Leser selbst geschlossen hat (der Gastgeber nimmt seinen
+   * Schritt zurueck), `false`, wenn die Sektion verschwindet. Fehlt das Feld (Embed: die Chronik
+   * der fremden Seite bleibt unberuehrt), schliesst nur der Knopf.
+   */
+  zurueckTaste?: (onZurueck: () => void) => (schrittZurueck: boolean) => void
 }
