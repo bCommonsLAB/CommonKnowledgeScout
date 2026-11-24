@@ -29,6 +29,8 @@ export interface TeppichSzenenStand {
   /** Der Kasten des Rasters in der Leinwand (so breit wie die Antwort). */
   kasten: TeppichKasten
   farbe: string
+  /** Akzent der Site (`--site-accent-ink`) fuer die Belege; ohne Design-Profil die Schriftfarbe. */
+  akzent: string
   onGelandet: () => void
 }
 

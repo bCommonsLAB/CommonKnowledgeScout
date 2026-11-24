@@ -3,9 +3,9 @@
 /**
  * Plaetze und Radien der Punkte (aus `website-teppich.tsx` herausgeloest, 24.11.2026).
  *
- * In der Seite liegt die Wolke im Kasten hinter der Antwort. In der Graph-Ansicht fuellt sie die
- * ganze Flaeche; steht eine Antwort, sind ihre Belege doppelt so gross und halten Respektabstand
- * (`haltAbstand`, Owner 24.11.2026) — so sieht und trifft man sie.
+ * In der Seite liegt die Wolke im Kasten hinter der Antwort, in der Graph-Ansicht fuellt sie die
+ * ganze Flaeche. Steht eine Antwort, sind ihre Belege doppelt so gross und halten Respektabstand
+ * (`haltAbstand`, Owner 24.11.2026) — in beiden Ansichten, schon am Ende der Animation.
  */
 
 import * as React from 'react'
@@ -32,10 +32,11 @@ export function useTeppichPlaetze(e: TeppichPlaetzeEingabe): { plaetze: TeppichP
     const index = new Map(punkte.map((p, i) => [p.fileId, i]))
     return belege.map((id) => index.get(id)).filter((i): i is number => i !== undefined)
   }, [punkte, belege])
-  const hervor = graph ? belegIndex : KEINE
+  const hervor = belegIndex
   const plaetze = React.useMemo(() => {
-    if (!graph) return packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links })
-    const roh = packeWolke(punkte, { breite, hoehe: vollHoehe, rand: GRAPH_RAND })
+    const roh = graph
+      ? packeWolke(punkte, { breite, hoehe: vollHoehe, rand: GRAPH_RAND })
+      : packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links })
     // Frei bleibt der doppelt grosse Kreis des Belegs samt Ring und etwas Luft.
     return haltAbstand(roh, hervor, Math.max(14, roh.zelle * 2.2))
   }, [punkte, kasten, graph, breite, vollHoehe, hervor])
@@ -46,5 +47,3 @@ export function useTeppichPlaetze(e: TeppichPlaetzeEingabe): { plaetze: TeppichP
   }, [punkte, plaetze.zelle, hervor])
   return { plaetze, radien, belegIndex }
 }
-
-const KEINE: number[] = []

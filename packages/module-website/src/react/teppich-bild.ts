@@ -8,6 +8,7 @@
  * Linien (E9: Linien nur dort). Keine Jahreszahlen mehr (E8).
  */
 
+import { inSicht } from './teppich-bild-sicht'
 import { leinwandBereit, zeichneFaden, zeichneNachbarLinien, zeichnePunkte, zeichneRinge, type TeppichSzenenStand } from './teppich-zeichnen'
 
 export interface TeppichBildLage {
@@ -40,6 +41,8 @@ const STORY_R = 11
 /** Deckkraft der ersten Auswahl in der Wolke: waehrend der Frage und hinter der Antwort. */
 const KANDIDAT = 0.22
 const KANDIDAT_HINTEN = 0.14
+/** Deckkraft der Wolke hinter dem Text (Ruhe und stehende Antwort). */
+const HINTEN = 0.055
 /** Die Faeden der ersten Auswahl sind deutlich blasser als die der Belege. */
 const FADEN_KANDIDAT = 0.35
 
@@ -56,6 +59,8 @@ function zeichneStoryline(ctx: CanvasRenderingContext2D, s: TeppichSzenenStand, 
   ctx.font = '600 11px system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+  // Die Kreise der Storyline tragen schon den Akzent der Belege (Owner 24.11.2026); die Titel bleiben in der Schriftfarbe.
+  ctx.fillStyle = s.akzent
   b.belegIndex.forEach((i, k) => {
     const u = b.belegMarke(k)
     // Vom Kandidaten (dunkel, etwas groesser) zum Kreis der Storyline, dann zum Kreis mit Nummer.
@@ -73,6 +78,7 @@ function zeichneStoryline(ctx: CanvasRenderingContext2D, s: TeppichSzenenStand, 
       ctx.globalCompositeOperation = 'source-over'
     }
   })
+  ctx.fillStyle = s.farbe
   if (b.titel <= 0) return
   ctx.font = '14px system-ui, sans-serif'
   ctx.textAlign = 'left'
@@ -118,26 +124,6 @@ function zeichneVerbindungen(ctx: CanvasRenderingContext2D, s: TeppichSzenenStan
   } else faeden(markiert, FADEN_KANDIDAT * (1 - u))
 }
 
-const sichtX = { a: new Float32Array(0) }
-const sichtY = { a: new Float32Array(0) }
-const sichtR = { a: new Float32Array(0) }
-
-/**
- * Graph-Ansicht: Die Lagen wandern mit Vergroesserung und Ausschnitt, die Punkte selbst wachsen
- * nur mit der Wurzel — beim Hineinzoomen ruecken sie auseinander, statt zu Flecken zu werden.
- * Linien und Schrift behalten ihre Staerke.
- */
-function inSicht(s: TeppichSzenenStand, b: TeppichBildLage): [TeppichSzenenStand, TeppichBildLage] {
-  const { z, x: tx, y: ty } = b.sicht
-  if (z === 1 && tx === 0 && ty === 0) return [s, b]
-  const n = b.x.length
-  if (sichtX.a.length !== n) { sichtX.a = new Float32Array(n); sichtY.a = new Float32Array(n); sichtR.a = new Float32Array(n) }
-  const w = Math.sqrt(z)
-  for (let i = 0; i < n; i++) { sichtX.a[i] = b.x[i] * z + tx; sichtY.a[i] = b.y[i] * z + ty; sichtR.a[i] = s.radien[i] * w }
-  const heimat = (i: number): [number, number] => { const [hx, hy] = b.heimat(i); return [hx * z + tx, hy * z + ty] }
-  return [{ ...s, radien: sichtR.a }, { ...b, x: sichtX.a, y: sichtY.a, heimat }]
-}
-
 export function zeichneTeppich(cv: HTMLCanvasElement, stand: TeppichSzenenStand, lage: TeppichBildLage): void {
   const [s, b] = inSicht(stand, lage)
   const ctx = leinwandBereit(cv, s.breite, s.hoehe)
@@ -154,7 +140,9 @@ export function zeichneTeppich(cv: HTMLCanvasElement, stand: TeppichSzenenStand,
   ctx.strokeStyle = s.farbe
   // Owner 22.11.2026: gross und blass.
   // Hinter der Antwort und in Ruhe heller, damit die Wolke beim Lesen nicht stoert (Owner 23.11.2026).
-  const blass = s.phase === 'sucht' ? 0.22 : s.abgetaucht ? 0.32 : s.phase === 'landet' ? 0.15 : 0.08
+  // Owner 24.11.2026: hinter dem Text noch blasser — man soll gut lesen koennen; die Graph-Ansicht zeigt die normalen Farben.
+  const vorn = s.abgetaucht
+  const blass = s.phase === 'sucht' ? 0.22 : vorn ? 0.32 : s.phase === 'landet' ? 0.15 : HINTEN
   ctx.globalAlpha = verblassen ? 0.22 + (blass - 0.22) * b.uebergang : blass
   zeichnePunkte(ctx, b.x, b.y, s.radien, (i) => !belege.has(i))
   // Die Kandidaten werden einzeln dunkel (jeder mit seinem Einsatz), nicht alle im selben Bild.
@@ -174,16 +162,22 @@ export function zeichneTeppich(cv: HTMLCanvasElement, stand: TeppichSzenenStand,
     // Beim Erkunden: das Sternbild der Belege an ihren festen Plaetzen, mit Ring und Nummer.
     if (b.daheim) {
       const heim = b.belegIndex.map((i, k) => { const [x, y] = b.heimat(i); return { x, y, r: s.radien[i], nummer: k + 1 } })
-      ctx.globalAlpha = 0.1
+      ctx.globalAlpha = vorn ? 0.1 : 0.05
       for (const i of b.belegIndex) zeichneNachbarLinien(ctx, b.x, b.y, i, s.punkte[i].nachbarn)
-      ctx.globalAlpha = 0.18
+      // Die Belege tragen den Akzent der Site, wie ihre Nummern im Text (Owner 24.11.2026).
+      ctx.fillStyle = s.akzent
+      ctx.strokeStyle = s.akzent
+      ctx.globalAlpha = vorn ? 0.3 : 0.12
       zeichneFaden(ctx, heim)
-      ctx.globalAlpha = s.abgetaucht ? 0.9 : 0.45
+      ctx.globalAlpha = vorn ? 0.9 : 0.4
       zeichneRinge(ctx, heim)
     }
-    // In der Graph-Ansicht kraeftig: dort sind die Belege das, was man sucht (Owner 24.11.2026).
-    ctx.globalAlpha = s.abgetaucht ? 0.8 : 0.28
+    // Kraeftig in der Graph-Ansicht (dort sind die Belege das, was man sucht), zurueckhaltend hinter dem Text.
+    ctx.fillStyle = s.akzent
+    ctx.globalAlpha = vorn ? 0.85 : 0.3
     zeichnePunkte(ctx, b.x, b.y, s.radien, (i) => belege.has(i), 1.3)
+    ctx.fillStyle = s.farbe
+    ctx.strokeStyle = s.farbe
   }
   // Ueberfahren: Ring um den Punkt, Linien zu seinen Nachbarn, die Nachbarn etwas kraeftiger.
   if (b.daheim && s.ueber >= 0 && s.ueber < b.x.length) {
