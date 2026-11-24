@@ -43,8 +43,14 @@ gelesen), `abschnitt` und `kontext` (die Zeile, in der er steht). Damit lässt
 sich eine Übersichtsseite prüfen, bevor etwas angelegt wird. `linkArten`
 begrenzt die Liste (z. B. `["pdf"]`), `maxZeichen`/`offset` blättern.
 
-Ist `markdown` leer und nennt `hinweise` JavaScript, entsteht die Seite erst
-im Browser; das kann die Brücke noch nicht. Dem Menschen sagen, nicht raten.
+Ist `markdown` leer, nennt `leereAntwort` den Grund, soweit er erkennbar ist
+(`art`: `leer`, `schutzseite`, `javascript`, `unbekannt`), dazu `rohAnfang`.
+Manche Websites geben dem Server eine Schutzseite oder sperren nach wenigen
+schnellen Abrufen mit 403. **Ausweg mit Browser** (ab 2.85.0): die Seite im
+Browser öffnen, `document.documentElement.outerHTML` auslesen und als `html`
+an `seite_lesen` oder `webseite_erschliessen` geben; `url` bleibt die Adresse
+der Seite. Mehrere Seiten derselben Website mit einigen Sekunden Abstand
+laden. Ohne Browser: dem Menschen sagen, nicht raten.
 
 **Seiten ohne Fließtext** (Übersicht, Terminseite, Dokumentseite) weist
 `webseite_erschliessen` im Modus `artikel` ab. Mit `seitenModus: "struktur"`
@@ -66,6 +72,16 @@ Facette nicht abschreiben, sondern mit `<<werte:metaKey>>` oder
 Schreibt das Sprachmodell einen Wert außerhalb des Wörterbuchs, wird er
 verworfen und steht in `job_status.befunde` — nach jeder Transformation dort
 nachsehen und dem Menschen nennen.
+
+**Obergrenzen und Zählfelder** (ab 2.86.0) gehören in die Vorlage, nicht in
+wiederholte Läufe: `<<max:6>>` in der Beschreibung eines Listenfelds kürzt
+hinten (das Modell nach Gewicht ordnen lassen), `<<maxWoerter:450>>` meldet
+zu lange Texte. Was abzählbar ist, rechnet der Server, wenn die Beschreibung
+mit `=` beginnt: `=quellen("* - Statement.pdf")`,
+`=zeilen("Speakers", "Statement:")`,
+`=quellenarten(statement: "* - Statement.*"; programme: "*Programme*")`.
+Für eine Seite aus vielen gleichrangigen PDFs: `cover_from_sources: false`
+und `attachments_order: source_files` als feste Felder der Vorlage.
 
 ## Ablauf über die Brücke
 

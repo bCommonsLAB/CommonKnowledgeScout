@@ -2,7 +2,7 @@
 name: webseiten-erschliessen
 overview: "Eine ganze Webseite über die Brücke erschließen, ohne dass der Agent eine eigene Shell oder den Rechner des Nutzers braucht: Seiten wörtlich lesen, Links folgen, verlinkte Dateien holen, Seiten ohne Fließtext als Sammeldatei übernehmen, später Medien und gerenderte Seiten. Anlass: der Aufbau einer Library aus der Website einer Konferenzreihe (Übersichten mit Rednerlisten, Dokumentseiten, PDF-Statements, Webcasts); die Anforderungen und das Testmaterial stehen im Handover im Archiv."
 vorhaben: [4]
-status: welle-2-gebaut-abnahme-offen
+status: welle-2c-gebaut-abnahme-offen
 todos:
   - id: w1-schutz
     content: "Welle 1: Schutz gegen interne Adressen (adress-schutz.ts) und sicherer Abruf (sicherer-abruf.ts) für jeden Abruf im Auftrag von außen; bestehende Abrufe (Seite, Cover, direkt genanntes Medium) darauf umgestellt. Gebaut 24.11.2026."
@@ -25,14 +25,23 @@ todos:
   - id: w2-abnahme
     content: "Welle 2 Abnahme über die Brücke: eine Vorlage mit <<werte:…>> schreiben, eine Quelle transformieren, einen erfundenen Wert im Befund und nicht im Index sehen; eine Library mit neuem Verzeichnis anlegen und speicher_pruefen grün sehen."
     status: pending
+  - id: w2b-pilot
+    content: "Welle 2b, Befunde aus dem Piloten (B1, B2, B10): leere Antwort eingeordnet (leer, Schutzseite, JavaScript, unbekannt) mit Länge und Anfang des rohen HTML; seite_lesen und webseite_erschliessen nehmen fertiges HTML aus dem Browser entgegen (html); 403/429 nennt Sperre und Auswege; Beschreibung von datei_von_adresse_holen gekürzt. Gebaut 24.11.2026, Werkzeugsatz 2.85.0."
+    status: done
+  - id: w2c-normalisierung
+    content: "Welle 2c, Befunde aus dem Piloten (B4, B5, B6, B7): Feld-Bindungen in Vorlagen (<<max:N>>, <<maxWoerter:N>>, berechnete Felder =quellen, =zeilen, =quellenarten) mit Befund; Quellblöcke im Material nennen ihre Art; Ingest-Schalter cover_from_sources und attachments_order; medienHerkunft bei sammeldatei_anlegen. Gebaut 24.11.2026, Werkzeugsatz 2.86.0."
+    status: done
+  - id: w2c-abnahme
+    content: "Welle 2c Abnahme am Piloten: Vorlage mit <<max:6>> und =zeilen(…) schreiben, Sammeldatei neu transformieren, Befund und berechneten Wert prüfen; Ingest mit cover_from_sources: false und attachments_order: source_files prüfen. Offen ist, ob feste Felder der Vorlage unverändert im Frontmatter des Ergebnisses ankommen."
+    status: pending
   - id: w3-rechte
-    content: "Welle 3 (C2, C3): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API. Erst ADR, dann Code."
+    content: "Welle 3 (C2, C3, Befund B8): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API; der Ingest hängt bei „nur Zusammenfassung\" keine Quelldateien als Anhang an die Seite. Erst ADR, dann Code."
     status: pending
   - id: w4-medien
     content: "Welle 4 (A4, A5, D3), mit Secretary: gerenderte Seiten (Headless-Browser), medienAdresse für bekannte Stream-Adressen, Transkript an eine Rednerliste binden."
     status: pending
   - id: w5-kartieren
-    content: "Welle 5 (B1, B3, E4): webseite_kartieren zweistufig wie playlist_erschliessen, mit robots.txt, Drosselung und Obergrenze je Lauf; Herkunft (Adresse, Abrufzeit, Hash) am Twin und erneuter Abruf; Stapel für webseite_erschliessen."
+    content: "Welle 5 (B1, B3, E4, Befund B3 des Piloten: Abstand je Host, 403/429 als „später erneut\"): webseite_kartieren zweistufig wie playlist_erschliessen, mit robots.txt, Drosselung und Obergrenze je Lauf; Herkunft (Adresse, Abrufzeit, Hash) am Twin und erneuter Abruf; Stapel für webseite_erschliessen."
     status: pending
   - id: w6-struktur
     content: "Welle 6 (B2, C4, D1, D2): Zuordnungsregeln je Library, Belegpflicht für Facettenwerte, Teil-Dokumente mit eigenen Facetten, mehrsprachige Quellen. Braucht vorher ein Konzept im Archiv."
@@ -184,6 +193,95 @@ steht in der Antwort. `vorlagenNamen` kopiert nur die genannten Vorlagen.
 
 `speicher_pruefen` sagt bei nicht lesbarer Wurzel, ob die Verbindung selbst
 antwortet oder nur das Verzeichnis fehlt.
+
+## Welle 2b: Befunde aus dem Piloten (gebaut 24.11.2026, Werkzeugsatz 2.85.0)
+
+Der Pilot hat die Wellen 1 und 2 an einer echten Website benutzt. Die
+Befunde im Wortlaut liegen im Archiv (Handover 4 im Vorhabensordner).
+
+**Belegt:** `datei_von_adresse_holen` holt 19 von 19 PDFs; `vorlage_lesen`,
+`vorlage_schreiben` und die Facetten-Platzhalter arbeiten wie gebaut.
+
+**Nicht bestanden:** `seite_lesen` bekam von der Zielseite mit HTTP 200 eine
+Antwort ohne Text und ohne Titel. Der Hinweis nannte JavaScript; die Seite
+steht im Browser aber als gewöhnliches HTML. Vermutlich gibt die Website dem
+Server eine Schutzseite gegen Automaten. Damit trugen `seite_lesen` und der
+Struktur-Modus für diese Quelle nicht.
+
+Daraus gebaut:
+
+- **Leere Antwort einordnen** (`leere-antwort.ts`): `leereAntwort` nennt
+  `art` (`leer | schutzseite | javascript | unbekannt`), die Länge und den
+  Anfang des rohen HTML. „JavaScript" steht nur noch dort, wo das HTML ein
+  Anwendungsgerüst zeigt; ohne Indiz heißt es „Grund nicht erkennbar".
+- **HTML von außen annehmen**: `seite_lesen` und `webseite_erschliessen`
+  nehmen mit `html` das fertige HTML einer im Browser geöffneten Seite
+  entgegen und laden dann nicht selbst. `url` bleibt Herkunft und Basis der
+  Links. Es entsteht dieselbe Sammeldatei, egal wer geladen hat. Das ersetzt
+  das Rendern auf dem Server überall, wo ein Rechner mit Browser
+  angeschlossen ist.
+- **403 und 429** beim Laden nennen die Sperre und beide Auswege.
+
+Nicht gebaut und im Plan verteilt: Abstand je Host (Welle 5), neutrale
+Quellen-Kopfzeilen, berechnete Felder, Obergrenzen, Cover und Reihenfolge der
+Anhänge (Welle 2c), Anhänge als Rechtefrage (Welle 3).
+
+**Offen aus dem Piloten:** Der Sicherheitstest mit internen Adressen über die
+Brücke ist nicht gelaufen. Parallele Brücken-Aufrufe kamen im Piloten ohne
+Ergebnis zurück; ob das an der Brücke oder am Client liegt, ist ungeklärt.
+
+## Welle 2c: Normalisierung prüfbar machen (gebaut 24.11.2026, Werkzeugsatz 2.86.0)
+
+Aus dem Piloten: Die Vorlage verlangte höchstens 6 Themen und bekam 16, ein
+Zählfeld war in zwei Läufen falsch, und das Modell ordnete PDF-Text als
+Transkript ein. Grundsatz dieser Welle: Was sich prüfen oder ausrechnen
+lässt, bleibt nicht dem Sprachmodell überlassen.
+
+### Feld-Bindungen (`src/lib/external-jobs/feld-bindungen.ts`)
+
+In der Beschreibung eines Felds `{{feld|beschreibung}}`:
+
+- `<<max:N>>`: Liste mit höchstens N Einträgen. Mehr wird hinten gekürzt und
+  gemeldet. Die Vorlage sollte das Modell deshalb nach Gewicht ordnen lassen.
+- `<<maxWoerter:N>>`: Text mit höchstens N Wörtern. Mehr wird gemeldet, der
+  Text bleibt; einen Text mitten im Satz abzuschneiden wäre schlimmer als ein
+  zu langer.
+
+Beginnt die Beschreibung mit `=`, rechnet der Server das Feld:
+
+- `=quellen("muster")`: Anzahl der Quelldateien der Sammeldatei, deren Name
+  auf das Muster passt (`*`, `?`).
+- `=zeilen("abschnitt", "text")`: Zeilen des Abschnitts im Material, die den
+  Text enthalten.
+- `=quellenarten(wert: "muster"; …)`: die Werte, deren Muster auf mindestens
+  eine Quelldatei passt.
+
+Der Wert des Modells wird ersetzt und steht zum Vergleich im Ereignis
+`field_bindings_applied`. Lässt sich ein Feld nicht rechnen (Abschnitt fehlt,
+keine Sammeldatei), wird es leer und Befund. Ein Schreibfehler in der Vorlage
+ist ein Fehler vor dem Lauf; `vorlage_schreiben` weist ihn ab.
+
+Eine bewusst kleine, feste Menge von Funktionen, keine Ausdruckssprache.
+
+### Material, Cover, Anhänge
+
+- Jeder Quellblock im Material trägt `inhalt` (`PDF-Text`,
+  `Audio-Transkript`, `Markdown` …). Die Quellenübersicht bleibt, wie sie ist.
+- `cover_from_sources: false` im Frontmatter: kein Cover aus den Seitenbildern
+  der Quellen. Vorgabe bleibt an.
+- `attachments_order: source_files`: PDF-Anhänge in der Reihenfolge der
+  Sammeldatei. Vorgabe bleibt „Folien zuerst", weil das für einen Vortrag
+  richtig ist.
+- `sammeldatei_anlegen` erklärt `medienErkannt` mit `medienHerkunft`.
+
+Beide Schalter sind flache Frontmatter-Felder des Ergebnisses; sie kommen als
+festes Feld aus der Vorlage oder über `dokument_felder_setzen`.
+
+**Nicht gebaut:** Die Schwankung zwischen zwei Läufen. Die Temperatur der
+Transformation setzt der Secretary (dort in der Konfiguration niedrig
+vorgegeben); ob die laufende Instanz davon abweicht, ist zu prüfen. Die
+Bindungen machen die Schwankung sichtbar und begrenzen ihre Folgen, sie
+beseitigen sie nicht.
 
 ## Abnahme Welle 1
 

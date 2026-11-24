@@ -43,6 +43,20 @@ function coverVonTwin(q: QuellenTwin, page: number, quelle: CoverAusQuellen['que
   }
 }
 
+/**
+ * Schalter `cover_from_sources` im Frontmatter (Vorlage oder Sammeldatei): `false` nimmt
+ * KEIN Cover aus den Seitenbildern der Quellen. Bei einer Seite aus vielen gleichrangigen
+ * PDFs (Befund: 19 Stellungnahmen) ist die zweite Seite irgendeiner Quelle kein Cover.
+ * Fehlt das Feld, gilt wie bisher true. Ein anderer Wert ist ein Fehler, kein true.
+ */
+export function coverAusQuellenErlaubt(meta: Record<string, unknown>): boolean {
+  const wert = meta['cover_from_sources']
+  if (wert === undefined || wert === null || wert === '') return true
+  if (wert === true || wert === 'true') return true
+  if (wert === false || wert === 'false') return false
+  throw new Error(`cover_from_sources: "${String(wert)}" ist weder true noch false`)
+}
+
 /** Reine Auswahl auf einer bereits geordneten Quellenliste (testbar ohne Mongo). */
 export function waehleCover(quellen: QuellenTwin[]): CoverAusQuellen | null {
   const pdfs = quellen.filter((q) => !q.eigener && istPdf(q) && seitenbilder(q) > 0)

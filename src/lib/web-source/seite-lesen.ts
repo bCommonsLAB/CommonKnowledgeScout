@@ -5,13 +5,15 @@
  * @description
  * Gemeinsamer Kern von `seite_lesen` (Bruecke) und dem Struktur-Modus von
  * `webseite_erschliessen`. Kein Sprachmodell, kein JavaScript: Gelesen wird
- * das HTML, das der Server ausliefert. Baut eine Seite ihren Inhalt erst im
- * Browser auf, ist das Markdown leer — das steht dann als Hinweis im
- * Ergebnis, es wird nichts ersatzweise erfunden.
+ * das HTML, das der Server ausliefert — oder HTML, das der Aufrufer uebergibt
+ * (eine im Browser geoeffnete Seite, wenn die Website den Server abweist).
+ * Traegt das HTML keinen Text, ist das Markdown leer; `leereAntwort` ordnet
+ * ein, warum (leere-antwort.ts). Es wird nichts ersatzweise erfunden.
  *
  * @module web-source
  */
 
+import { deuteLeereAntwort, type LeereAntwort } from './leere-antwort'
 import { extractWebPage, type WebPageExtract } from './page-extract'
 import { ladeSeite } from './seite-laden'
 import type { SeitenLink } from './seite-links'
@@ -28,24 +30,41 @@ export interface GeleseneSeite {
   links: SeitenLink[]
   bereich: SeitenMarkdown['bereich']
   hinweise: string[]
+  /** Woher das HTML kam: vom Server geladen oder vom Aufrufer uebergeben (z. B. aus einem Browser). */
+  herkunft: 'geladen' | 'uebergeben'
+  /** Nur wenn das Markdown leer ist: Einordnung der Antwort mit Laenge und Anfang des rohen HTML. */
+  leereAntwort?: LeereAntwort
 }
 
-export const HINWEIS_OHNE_TEXT =
-  'Das HTML der Seite traegt keinen lesbaren Text — vermutlich baut die Seite ihren Inhalt erst im Browser auf (JavaScript). ' +
-  'Das Rendern solcher Seiten kann die Bruecke noch nicht.'
+export interface LeseOptionen {
+  ganzeSeite?: boolean
+  /** Fertiges HTML der Seite — dann wird NICHT geladen; `adresse` ist Herkunft und Basis der Links. */
+  html?: string
+}
 
-/** Baut das Leseergebnis aus schon geladenem HTML (auch fuer Tests). */
-export function leseSeiteAusHtml(html: string, adresse: string, endAdresse: string, optionen: { ganzeSeite?: boolean } = {}): GeleseneSeite {
+/** Obergrenze fuer uebergebenes HTML (Zeichen). */
+export const MAX_HTML_ZEICHEN = 3_000_000
+
+/** Baut das Leseergebnis aus schon vorliegendem HTML. */
+export function leseSeiteAusHtml(html: string, adresse: string, endAdresse: string, optionen: { ganzeSeite?: boolean } = {}, herkunft: GeleseneSeite['herkunft'] = 'geladen'): GeleseneSeite {
   const meta = extractWebPage(html, endAdresse)
   const { markdown, links, bereich } = seiteAlsMarkdown(html, endAdresse, optionen)
   const hinweise: string[] = []
-  if (!markdown.trim()) hinweise.push(HINWEIS_OHNE_TEXT)
+  const leereAntwort = markdown.trim() ? undefined : deuteLeereAntwort(html)
+  if (leereAntwort) hinweise.push(leereAntwort.hinweis)
   if (endAdresse !== adresse) hinweise.push(`Umgeleitet nach ${endAdresse}`)
-  return { adresse, endAdresse, meta, markdown, links, bereich, hinweise }
+  if (herkunft === 'uebergeben') hinweise.push('Das HTML wurde uebergeben, nicht vom Server geladen — sein Stand ist der des Aufrufers')
+  return { adresse, endAdresse, meta, markdown, links, bereich, hinweise, herkunft, ...(leereAntwort ? { leereAntwort } : {}) }
 }
 
-/** Laedt die Seite (sicherer Abruf) und liest sie. Wirft, wenn sie nicht ladbar oder kein HTML ist. */
-export async function leseSeite(adresse: string, optionen: { ganzeSeite?: boolean } = {}): Promise<GeleseneSeite> {
+/** Liest die Seite: uebergebenes HTML, sonst sicherer Abruf. Wirft, wenn sie nicht ladbar oder kein HTML ist. */
+export async function leseSeite(adresse: string, optionen: LeseOptionen = {}): Promise<GeleseneSeite> {
+  if (optionen.html !== undefined) {
+    if (optionen.html.length > MAX_HTML_ZEICHEN) throw new Error(`Uebergebenes HTML ist ${optionen.html.length} Zeichen lang (Grenze ${MAX_HTML_ZEICHEN})`)
+    const url = new URL(adresse)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`url muss http/https sein, nicht "${url.protocol}"`)
+    return leseSeiteAusHtml(optionen.html, adresse, adresse, optionen, 'uebergeben')
+  }
   const { html, endAdresse } = await ladeSeite(adresse)
   return leseSeiteAusHtml(html, adresse, endAdresse, optionen)
 }

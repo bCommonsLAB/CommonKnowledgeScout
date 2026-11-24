@@ -33,6 +33,8 @@ export const LESERSICHT_EREIGNISSE = [
   'frontmatter_json_list_invalid',
   // Template-Schritt (facetten-bindung.ts): Werte ausserhalb des Facetten-Woerterbuchs verworfen.
   'facet_values_rejected',
+  // Template-Schritt (feld-bindungen.ts): Obergrenzen und berechnete Felder der Vorlage.
+  'field_bindings_applied',
 ] as const
 
 export type LesersichtEreignisName = (typeof LESERSICHT_EREIGNISSE)[number]

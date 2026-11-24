@@ -482,3 +482,19 @@ Plan `docs/plans/webseiten-erschliessen.plan.md`.
 - **Eine neue Library ist sofort benutzbar.** `bibliothek_anlegen` legt ihr
   Verzeichnis auf der Speicher-Verbindung an; `speicher_pruefen` sagt, ob die
   Verbindung nicht antwortet oder nur das Verzeichnis fehlt.
+
+## Nachtrag 2.85.0 und 2.86.0 (24.11.2026): Befunde aus dem ersten Piloten
+
+Plan `docs/plans/webseiten-erschliessen.plan.md`, Wellen 2b und 2c.
+
+- **Der Server lädt nicht alles.** Manche Websites geben ihm eine Schutzseite
+  oder sperren nach wenigen Abrufen. `seite_lesen` sagt dann, was es bekommen
+  hat (`leereAntwort`), und beide Werkzeuge nehmen fertiges HTML aus einem
+  Browser entgegen (`html`). Wer geladen hat, ändert das Ergebnis nicht.
+- **Was sich prüfen oder ausrechnen lässt, macht der Server.** Vorlagen
+  binden Felder: Werte an ein Wörterbuch (`<<werte:…>>`), Listen und Texte an
+  Obergrenzen (`<<max:N>>`, `<<maxWoerter:N>>`), Zählfelder an eine Rechnung
+  (`=quellen`, `=zeilen`, `=quellenarten`). Jede Abweichung steht in
+  `job_status.befunde`. Eine Bitte in der Vorlage ist keine Regel.
+- **Das Material sagt, was es ist.** Quellblöcke tragen ihre Art; nur Audio
+  und Video sind Transkripte.

@@ -13,7 +13,7 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { leseSeite } from '@/lib/web-source/seite-lesen'
+import { MAX_HTML_ZEICHEN, leseSeite } from '@/lib/web-source/seite-lesen'
 import type { LinkArt } from '@/lib/web-source/seite-links'
 import { errorResult, jsonResult, mcpUserEmail } from './tool-shared'
 
@@ -33,9 +33,12 @@ export function registerSeiteLesenTool(server: McpServer): void {
         'Endung gelesen), abschnitt (letzte Ueberschrift davor) und kontext (die Zeile, in der der Link steht). Gelesen wird der ' +
         'Inhaltsbereich (main, sonst das einzige article, sonst body ohne Navigation und Fuss); ganzeSeite nimmt alles. ' +
         'maxZeichen/offset blaettern im Markdown, linkArten/maxLinks begrenzen die Linkliste. Kein JavaScript: Baut die Seite ' +
-        'ihren Inhalt erst im Browser auf, ist das Markdown leer und hinweise sagt es. Interne Adressen werden nicht abgerufen. Liest nur.',
+        'ihren Inhalt erst im Browser auf oder gibt die Website dem Server eine Schutzseite, ist das Markdown leer; leereAntwort ' +
+        'nennt dann art (leer | schutzseite | javascript | unbekannt), rohZeichen und rohAnfang. Abhilfe: die Seite im Browser ' +
+        'oeffnen und ihr HTML als html uebergeben — dann wird nicht geladen. Interne Adressen werden nicht abgerufen. Liest nur.',
       inputSchema: {
         url: z.string().url().describe('Adresse der Seite (http/https)'),
+        html: z.string().min(1).max(MAX_HTML_ZEICHEN).optional().describe('Fertiges HTML der Seite (document.documentElement.outerHTML aus dem Browser) — dann wird die Seite nicht geladen; url bleibt Herkunft und Basis der Links'),
         ganzeSeite: z.boolean().optional().describe('true = ganzer body inkl. Navigation und Fuss; Vorgabe false'),
         maxZeichen: z.number().int().min(100).max(400_000).optional().describe(`Laenge des Markdown-Ausschnitts, Vorgabe ${VORGABE_ZEICHEN}`),
         offset: z.number().int().min(0).optional().describe('Zeichen-Offset im Markdown (naechsterOffset aus der vorigen Antwort)'),
@@ -44,10 +47,10 @@ export function registerSeiteLesenTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ url, ganzeSeite, maxZeichen, offset, linkArten, maxLinks }) => {
+    async ({ url, html, ganzeSeite, maxZeichen, offset, linkArten, maxLinks }) => {
       try {
         mcpUserEmail()
-        const seite = await leseSeite(url, { ganzeSeite: ganzeSeite === true })
+        const seite = await leseSeite(url, { ganzeSeite: ganzeSeite === true, html })
         const ab = offset ?? 0
         if (ab > seite.markdown.length) throw new Error(`offset ${ab} liegt hinter dem Ende des Markdown (${seite.markdown.length} Zeichen)`)
         const bis = Math.min(seite.markdown.length, ab + (maxZeichen ?? VORGABE_ZEICHEN))
@@ -58,6 +61,7 @@ export function registerSeiteLesenTool(server: McpServer): void {
         return jsonResult({
           adresse: seite.adresse,
           endAdresse: seite.endAdresse,
+          herkunft: seite.herkunft,
           bereich: seite.bereich,
           titel: seite.meta.title,
           beschreibung: seite.meta.description,
@@ -76,6 +80,7 @@ export function registerSeiteLesenTool(server: McpServer): void {
           linksNachArt,
           linksGekuerzt: gewaehlt.length > grenze,
           hinweise: seite.hinweise,
+          ...(seite.leereAntwort ? { leereAntwort: seite.leereAntwort } : {}),
         })
       } catch (error) {
         return errorResult(error)

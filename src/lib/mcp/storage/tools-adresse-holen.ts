@@ -23,7 +23,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { StorageProvider } from '@/lib/storage/types'
-import { holeDatei, MAX_DATEI_BYTES, saubererName } from '@/lib/web-source/datei-holen'
+import { holeDatei, saubererName } from '@/lib/web-source/datei-holen'
 import { BEGRUENDUNG, mitProtokoll } from '../protokoll'
 import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
 import { kindPfad, normalisiere } from './adressierung'
@@ -101,13 +101,10 @@ export function registerStorageAdresseHolenTool(server: McpServer): void {
     {
       title: 'Dateien von Adressen ins Archiv holen (SCHREIBT)',
       description:
-        `Der SERVER laedt bis zu ${MAX_ADRESSEN} Dateien (PDF, Dokument, Bild) von http/https-Adressen und legt sie im Ordner ab — ` +
-        'der Weg fuer verlinkte Dateien einer Webseite (Adressen aus seite_lesen), ohne base64 durch den Kontext. Je Datei geprueft: ' +
-        'keine HTML-Seite statt der Datei (Anmelde-/Sperrseite), erwarteterTyp, Endung passend zum Content-Type, Signatur bei PDF, ' +
-        `Bild und Office, Grenze ${MAX_DATEI_BYTES / 1024 / 1024} MB. dateiname weglassen = aus Content-Disposition oder Adresse. ` +
-        'Jede Adresse hat ihr eigenes Ergebnis: abgelegt (pfad, id, groesse, mimeType, sha256, endAdresse, abgerufenAm) | abgelehnt | ' +
-        'vorhanden | nicht_begonnen (Zeitbudget), jeweils mit grund. Vorhandene Dateien werden NIE ueberschrieben. Interne Adressen ' +
-        'werden nicht abgerufen. Medien (Audio/Video) gehoeren ueber webseite_erschliessen. Nur nach Bestaetigung durch den Menschen.',
+        `Der Server laedt bis zu ${MAX_ADRESSEN} Dateien von http/https-Adressen in einen Ordner (z. B. die PDF-Links aus seite_lesen), ` +
+        'ohne base64 durch den Kontext. Jede Adresse hat ein eigenes Ergebnis: abgelegt | abgelehnt | vorhanden | nicht_begonnen, ' +
+        'mit grund. Abgelehnt wird, was nicht passt: Typ, Endung, Signatur, Groesse, interne Adresse. Nichts wird ueberschrieben. ' +
+        'Audio/Video gehoeren ueber webseite_erschliessen. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         ordner: z.string().min(1).describe('Library-relativer Zielordner'),

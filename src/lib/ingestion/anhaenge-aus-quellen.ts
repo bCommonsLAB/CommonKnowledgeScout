@@ -25,9 +25,47 @@ export interface AnhangQuelle {
   name: string
 }
 
-/** PDF-Quellen in Anzeige-Reihenfolge: Folien (meiste Seitenbilder), Unterlagen, Flyer zuletzt. */
-export function anhaengeAusQuellen(quellen: QuellenTwin[]): AnhangQuelle[] {
+export type AnhangReihenfolge = 'slides_first' | 'source_files'
+
+/**
+ * Schalter `attachments_order` im Frontmatter: `slides_first` (Vorgabe: Folien zuerst,
+ * Flyer zuletzt — richtig fuer einen Vortrag) oder `source_files` (Reihenfolge der
+ * Sammeldatei — richtig fuer viele gleichrangige PDFs). Ein anderer Wert ist ein Fehler.
+ */
+export function anhangReihenfolge(meta: Record<string, unknown>): AnhangReihenfolge {
+  const wert = meta['attachments_order']
+  if (wert === undefined || wert === null || wert === '') return 'slides_first'
+  if (wert === 'slides_first' || wert === 'source_files') return wert
+  throw new Error(`attachments_order: "${String(wert)}" ist unbekannt — erlaubt: slides_first, source_files`)
+}
+
+/** `_source_files` aus dem Frontmatter als Namensliste (Liste oder JSON-Text); wirft, wenn sie fehlt. */
+export function quelldateienAusMeta(meta: Record<string, unknown>): string[] {
+  let roh: unknown = meta['_source_files']
+  if (typeof roh === 'string' && roh.trim().startsWith('[')) {
+    try {
+      roh = JSON.parse(roh)
+    } catch {
+      throw new Error('attachments_order: source_files — _source_files im Frontmatter ist kein lesbares JSON')
+    }
+  }
+  if (!Array.isArray(roh) || roh.length === 0) throw new Error('attachments_order: source_files — das Frontmatter nennt keine _source_files')
+  return roh.filter((n): n is string => typeof n === 'string')
+}
+
+/**
+ * PDF-Quellen in Anzeige-Reihenfolge. Vorgabe: Folien (meiste Seitenbilder), Unterlagen, Flyer zuletzt.
+ * Mit `quelldateien`: in der Reihenfolge der Sammeldatei; eine PDF-Quelle, die dort nicht steht, kommt ans Ende.
+ */
+export function anhaengeAusQuellen(quellen: QuellenTwin[], quelldateien?: ReadonlyArray<string>): AnhangQuelle[] {
   const pdfs = quellen.filter((q) => !q.eigener && istPdf(q) && q.sourceName.trim() !== '')
+  if (quelldateien) {
+    const platz = (q: QuellenTwin): number => {
+      const i = quelldateien.findIndex((n) => n.toLowerCase() === q.sourceName.toLowerCase())
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i
+    }
+    return pdfs.map((q, i) => ({ q, i })).sort((a, b) => platz(a.q) - platz(b.q) || a.i - b.i).map(({ q }) => ({ sourceId: q.sourceId, name: q.sourceName }))
+  }
   const ohneFlyer = pdfs.filter((q) => !istFlyer(q))
   const flyer = pdfs.filter((q) => istFlyer(q))
   // Die geordnete Liste hat PDFs schon nach Seitenbildern sortiert; hier nur

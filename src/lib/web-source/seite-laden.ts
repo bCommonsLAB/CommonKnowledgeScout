@@ -36,6 +36,12 @@ export function zeichensatzVon(contentType: string, kopf: string): string {
 
 export async function ladeSeite(url: string): Promise<GeladeneSeite> {
   const res = await sichererAbruf(url, { headers: { 'User-Agent': PAGE_USER_AGENT, Accept: 'text/html,*/*' }, maxBytes: MAX_SEITE_BYTES, timeoutMs: 30_000 })
+  if (res.status === 403 || res.status === 429) {
+    throw new Error(
+      `Seite nicht ladbar: HTTP ${res.status} — die Website weist den Abruf ab (Sperre fuer automatische Abrufe oder zu viele Abrufe in kurzer Zeit). ` +
+        'Spaeter mit Abstand erneut versuchen, oder die Seite im Browser oeffnen und ihr HTML uebergeben (Parameter html).',
+    )
+  }
   if (res.status < 200 || res.status >= 300) throw new Error(`Seite nicht ladbar: HTTP ${res.status}`)
   const type = res.headers['content-type'] ?? ''
   if (!/html|xml/i.test(type)) throw new Error(`Adresse liefert kein HTML (Content-Type "${type || 'unbekannt'}")`)
