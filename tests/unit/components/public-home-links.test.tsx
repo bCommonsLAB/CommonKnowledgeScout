@@ -30,9 +30,8 @@ vi.mock('@ks/i18n/react', () => ({
         'home.cta.title': 'CTA Title',
         'home.cta.description1': 'Description 1',
         'home.cta.description2': 'Description 2',
-        'home.cta.description3': 'Description 3',
         'home.cta.buttonContact': 'Contact',
-        'home.cta.buttonView': 'About',
+        'home.cta.buttonTalk': 'Talk',
       }
       return translations[key] ?? key
     },

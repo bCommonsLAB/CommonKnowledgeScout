@@ -4,15 +4,14 @@
       "badge": "Common Knowledge Libraries",
       "title": "Non chiedere all'IA.",
       "subtitle": "Chiedi alla conoscenza collettiva.",
-      "description": "Qui si sta creando un archivio di conoscenza collettivo – portato da voci, testi ed esperienze reali. Scegli una libreria, esplora contenuti aperti e inizia la tua conversazione.",
-      "buttonDiscover": "Scopri la conoscenza",
-      "buttonLearnMore": "Scopri di più sul progetto",
+      "description": "Una cartella di documenti, registrazioni e pagine web diventa una biblioteca a cui fare domande – e che dice sempre chi ha scritto cosa.",
+      "buttonDiscover": "Interroga una libreria",
       "imageAttribution": "Immagine",
       "imageAttributionCC": "CC BY 2.0 Belgium"
     },
     "libraryGrid": {
-      "title": "Scegli la tua biblioteca di conoscenza",
-      "description": "Ogni libreria raggruppa conoscenze liberamente disponibili da conferenze, studi o progetti. Puoi cercarle – o interrogarle come un partner di conversazione e portare la tua prospettiva.",
+      "title": "Scegli una libreria",
+      "description": "Ogni libreria raccoglie il sapere di una comunità: conferenze, studi, proposte, esperienze. Puoi sfogliarla o interrogarla.",
       "loading": "Caricamento librerie...",
       "noLibraries": "Nessuna libreria pubblica disponibile ancora.",
       "buttonQuery": "Interroga",
@@ -38,34 +37,33 @@
       },
       "subtext": "La conoscenza non viene inventata. Viene ricombinata da contributi reali – tracciabile e trasparente."
     },
-    "philosophy": {
-      "title": "Trasparenza invece di scatola nera",
-      "subtitle": "Ogni risposta si basa su persone che condividono le loro esperienze. Il contenuto sottostante rimane sempre visibile e verificabile. Questo crea uno spazio di conoscenza aperto, affidabile e mantenuto dalla comunità.",
-      "transparent": {
-        "title": "Verificabile",
-        "description": "Tutte le fonti sono collegate in modo trasparente e verificabili."
+    "trust": {
+      "title": "Perché puoi fidarti della risposta",
+      "subtitle": "Qui l’IA è traduttrice, non autrice.",
+      "original": {
+        "title": "L’originale resta",
+        "description": "Ogni pagina conserva il suo originale, invariato e a un clic di distanza."
       },
-      "human": {
-        "title": "Umano",
-        "description": "La base sono voci reali, non opinioni artificiali."
+      "source": {
+        "title": "Ogni affermazione ha la sua fonte",
+        "description": "Le risposte indicano i documenti da cui provengono. Puoi leggerli tu stesso."
       },
-      "trustworthy": {
-        "title": "Affidabile",
-        "description": "Le librerie sono curate da ricerca, comunità e ONG."
+      "order": {
+        "title": "L’ordine non si compra",
+        "description": "Che cosa appare per primo lo decide il testo, non un budget."
       },
-      "behindLibraries": {
-        "title": "Chi sta dietro le librerie?",
-        "description": "Queste librerie sono create in collaborazione con università, gruppi di ricerca, ONG e comunità aperte. Contribuiscono con i loro contenuti, valori e prospettive – affinché la conoscenza non serva attori individuali, ma benefici tutti."
-      }
+      "storage": {
+        "title": "I file restano da te",
+        "description": "Il sapere sta nel tuo spazio di archiviazione, leggibile anche senza questo software."
+      },
+      "note": "Le risposte possono essere incomplete o sbagliate. Per questo ci sono le fonti."
     },
     "cta": {
-      "title": "Un progetto di avventura condiviso",
-      "description1": "Knowledge Scout non è un prodotto finito, ma un laboratorio aperto – un progetto di avventura in sviluppo.",
-      "description2": "Sperimentiamo con tecnologie aperte per scoprire come la conoscenza collettiva sarà sperimentata in futuro: attraverso l'ascolto, la lettura, la comprensione e la riflessione condivisa.",
-      "description3": "Se questo ti interessa, sei invitato a pensare insieme, testare o contribuire tu stesso alle librerie.",
-      "buttonResearch": "Ricerca e test",
-      "buttonContact": "Contatto",
-      "buttonView": "Visualizza progetto"
+      "title": "Software libero, già in uso",
+      "description1": "KnowledgeScout è già usato nella pratica e cresce con ogni libreria.",
+      "description2": "Usalo, porta ciò che sai, oppure costruiscilo con noi.",
+      "buttonContact": "Contattaci",
+      "buttonTalk": "Guarda l’intervento"
     }
   },
   "common": {

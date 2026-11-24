@@ -4,15 +4,14 @@
       "badge": "Common Knowledge Libraries",
       "title": "No preguntes a la IA.",
       "subtitle": "Pregunta al conocimiento colectivo.",
-      "description": "Aquí se está creando un archivo de conocimiento colectivo – llevado por voces, textos y experiencias reales. Elige una biblioteca, explora contenido abierto y comienza tu conversación.",
-      "buttonDiscover": "Descubrir conocimiento",
-      "buttonLearnMore": "Saber más sobre el proyecto",
+      "description": "Una carpeta de documentos, grabaciones y páginas web se convierte en una biblioteca a la que puedes preguntar – y que siempre dice quién escribió qué.",
+      "buttonDiscover": "Preguntar a una biblioteca",
       "imageAttribution": "Imagen",
       "imageAttributionCC": "CC BY 2.0 Belgium"
     },
     "libraryGrid": {
-      "title": "Elige tu biblioteca de conocimiento",
-      "description": "Cada biblioteca agrupa conocimiento libremente disponible de charlas, estudios o proyectos. Puedes buscarlos – o consultarlos como un compañero de conversación y aportar tu propia perspectiva.",
+      "title": "Elige una biblioteca",
+      "description": "Cada biblioteca reúne el saber de una comunidad: charlas, estudios, propuestas, experiencias. Puedes recorrerla o preguntarle.",
       "loading": "Cargando bibliotecas...",
       "noLibraries": "Aún no hay bibliotecas públicas disponibles.",
       "buttonQuery": "Consultar",
@@ -38,34 +37,33 @@
       },
       "subtext": "El conocimiento no se inventa. Se recombina a partir de contribuciones reales – rastreable y transparente."
     },
-    "philosophy": {
-      "title": "Transparencia en lugar de caja negra",
-      "subtitle": "Cada respuesta se basa en personas que comparten sus experiencias. El contenido subyacente siempre permanece visible y verificable. Esto crea un espacio de conocimiento abierto, confiable y mantenido por la comunidad.",
-      "transparent": {
-        "title": "Verificable",
-        "description": "Todas las fuentes están vinculadas de forma transparente y son verificables."
+    "trust": {
+      "title": "Por qué puedes fiarte de la respuesta",
+      "subtitle": "Aquí la IA es traductora, no autora.",
+      "original": {
+        "title": "El original se queda",
+        "description": "Cada página conserva su original, sin cambios y a un clic."
       },
-      "human": {
-        "title": "Humano",
-        "description": "La base son voces reales, no opiniones artificiales."
+      "source": {
+        "title": "Cada afirmación tiene su fuente",
+        "description": "Las respuestas nombran los documentos de los que proceden. Puedes leerlos tú mismo."
       },
-      "trustworthy": {
-        "title": "Confiable",
-        "description": "Las bibliotecas están curadas por investigación, comunidades y ONG."
+      "order": {
+        "title": "El orden no se compra",
+        "description": "Lo que aparece primero lo decide el texto, no un presupuesto."
       },
-      "behindLibraries": {
-        "title": "¿Quién está detrás de las bibliotecas?",
-        "description": "Estas bibliotecas se crean en colaboración con universidades, grupos de investigación, ONG y comunidades abiertas. Contribuyen con su contenido, valores y perspectivas – para que el conocimiento no sirva a actores individuales, sino que beneficie a todos."
-      }
+      "storage": {
+        "title": "Los archivos se quedan contigo",
+        "description": "El saber está en tu propio almacenamiento, legible incluso sin este software."
+      },
+      "note": "Las respuestas pueden ser incompletas o erróneas. Para eso están las fuentes."
     },
     "cta": {
-      "title": "Un proyecto de aventura compartido",
-      "description1": "Knowledge Scout no es un producto terminado, sino un laboratorio abierto – un proyecto de aventura en desarrollo.",
-      "description2": "Experimentamos con tecnologías abiertas para descubrir cómo se experimentará el conocimiento colectivo en el futuro: a través de escuchar, leer, entender y reflexionar juntos.",
-      "description3": "Si esto te interesa, estás invitado a pensar junto, probar o contribuir bibliotecas tú mismo.",
-      "buttonResearch": "Investigar y probar",
-      "buttonContact": "Contacto",
-      "buttonView": "Ver proyecto"
+      "title": "Software libre, ya en uso",
+      "description1": "KnowledgeScout ya se usa en la práctica y crece con cada biblioteca.",
+      "description2": "Úsalo, aporta lo que sabes o constrúyelo con nosotros.",
+      "buttonContact": "Contactar",
+      "buttonTalk": "Ver la charla"
     }
   },
   "common": {

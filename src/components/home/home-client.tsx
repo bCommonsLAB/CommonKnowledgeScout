@@ -4,7 +4,7 @@ import { Suspense, useLayoutEffect, useState } from "react"
 import { HeroSection } from "@/components/home/hero-section"
 import { LibraryGrid } from "@/components/home/library-grid"
 import { HowItWorks } from "@/components/home/how-it-works"
-import { PhilosophySection } from "@/components/home/philosophy-section"
+import { TrustSection } from "@/components/home/trust-section"
 import { CTASection } from "@/components/home/cta-section"
 import { useApplyLocale } from "@ks/i18n/react"
 import { getLocale, type Locale } from "@ks/i18n"
@@ -44,7 +44,7 @@ export function HomeClient() {
       <HeroSection />
       <LibraryGrid />
       <HowItWorks />
-      <PhilosophySection />
+      <TrustSection />
       <CTASection />
     </Suspense>
   )

@@ -4,15 +4,14 @@
       "badge": "Common Knowledge Libraries",
       "title": "Don't ask the AI.",
       "subtitle": "Ask collective knowledge.",
-      "description": "Here a collective knowledge archive is being created – carried by real voices, texts, and experiences. Choose a library, explore open content, and begin your conversation.",
-      "buttonDiscover": "Discover Knowledge",
-      "buttonLearnMore": "Learn about the project",
+      "description": "A folder of documents, recordings and web pages becomes a library you can ask – and it always tells you who wrote what.",
+      "buttonDiscover": "Ask a library",
       "imageAttribution": "Image",
       "imageAttributionCC": "CC BY 2.0 Belgium"
     },
     "libraryGrid": {
-      "title": "Choose your knowledge library",
-      "description": "Each library bundles freely available knowledge from talks, studies, or projects. You can search through them – or query them like a conversation partner and bring in your own perspective.",
+      "title": "Choose a library",
+      "description": "Each library holds the knowledge of one community: talks, studies, proposals, experience. Browse it or ask it.",
       "loading": "Loading libraries...",
       "noLibraries": "No public libraries available yet.",
       "buttonQuery": "Query",
@@ -38,34 +37,33 @@
       },
       "subtext": "Knowledge is not invented. It is recombined from real contributions – traceable and transparent."
     },
-    "philosophy": {
-      "title": "Transparency instead of black box",
-      "subtitle": "Every answer is based on people who share their experiences. The underlying content always remains visible and verifiable. This creates a knowledge space that is open, trustworthy, and maintained by the community.",
-      "transparent": {
-        "title": "Verifiable",
-        "description": "All sources are transparently linked and verifiable."
+    "trust": {
+      "title": "Why you can trust the answer",
+      "subtitle": "Here the AI is a translator, not the author.",
+      "original": {
+        "title": "The original stays",
+        "description": "Every page keeps its original, unchanged and one click away."
       },
-      "human": {
-        "title": "Human",
-        "description": "The foundation is real voices, not artificial opinions."
+      "source": {
+        "title": "Every statement has its source",
+        "description": "Answers name the documents they come from. You can read them yourself."
       },
-      "trustworthy": {
-        "title": "Trustworthy",
-        "description": "The libraries are curated by research, communities, and NGOs."
+      "order": {
+        "title": "The order cannot be bought",
+        "description": "What comes up first is decided by the text, not by a budget."
       },
-      "behindLibraries": {
-        "title": "Who stands behind the libraries?",
-        "description": "These libraries are created in collaboration with universities, research groups, NGOs, and open communities. They contribute their content, values, and perspectives – so that knowledge does not serve individual actors, but benefits everyone."
-      }
+      "storage": {
+        "title": "The files stay with you",
+        "description": "The knowledge lives in your own storage, readable even without this software."
+      },
+      "note": "Answers can be incomplete or wrong. That is what the sources are for."
     },
     "cta": {
-      "title": "A shared adventure project",
-      "description1": "Knowledge Scout is not a finished product, but an open laboratory – an adventure project in development.",
-      "description2": "We experiment with open technologies to find out how collective knowledge will be experienced in the future: through listening, reading, understanding, and shared reflection.",
-      "description3": "If this interests you, you are invited to think along, test, or contribute libraries yourself.",
-      "buttonResearch": "Research & Test",
-      "buttonContact": "Contact",
-      "buttonView": "View Project"
+      "title": "Free software, already in use",
+      "description1": "KnowledgeScout is already used in practice and grows with every library.",
+      "description2": "Use it, bring what you know, or build it with us.",
+      "buttonContact": "Get in touch",
+      "buttonTalk": "Watch the talk"
     }
   },
   "common": {

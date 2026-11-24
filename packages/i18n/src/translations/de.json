@@ -4,15 +4,14 @@
       "badge": "Common Knowledge Libraries",
       "title": "Befrage nicht die KI.",
       "subtitle": "Befrage kollektives Wissen.",
-      "description": "Hier entsteht ein gemeinschaftliches Wissensarchiv – getragen von echten Stimmen, Texten und Erfahrungen. Wähle eine Library, erkunde offene Inhalte und beginne dein Gespräch.",
-      "buttonDiscover": "Wissen entdecken",
-      "buttonLearnMore": "Über das Projekt erfahren",
+      "description": "Aus einem Ordner mit Dokumenten, Aufnahmen und Webseiten wird eine Bibliothek, die man fragen kann – und die sagt, wer was geschrieben hat.",
+      "buttonDiscover": "Eine Library befragen",
       "imageAttribution": "Bild",
       "imageAttributionCC": "CC BY 2.0 Belgium"
     },
     "libraryGrid": {
-      "title": "Wähle deine Wissensbibliothek",
-      "description": "Jede Library bündelt frei verfügbares Wissen aus Vorträgen, Studien oder Projekten. Du kannst sie durchsuchen – oder wie einen Gesprächspartner befragen und deine eigene Perspektive einbringen.",
+      "title": "Wähle eine Library",
+      "description": "Jede Library bündelt das Wissen einer Gemeinschaft: Vorträge, Studien, Vorschläge, Erfahrungen. Du kannst sie durchstöbern oder befragen.",
       "loading": "Lade Libraries...",
       "noLibraries": "Noch keine öffentlichen Libraries verfügbar.",
       "buttonQuery": "Befragen",
@@ -38,34 +37,33 @@
       },
       "subtext": "Wissen wird nicht erfunden. Es wird aus echten Beiträgen rekombiniert – nachvollziehbar und transparent."
     },
-    "philosophy": {
-      "title": "Transparenz statt Blackbox",
-      "subtitle": "Jede Antwort basiert auf Menschen, die ihre Erfahrungen teilen. Die zugrunde liegenden Inhalte bleiben immer sichtbar und überprüfbar. So entsteht ein Wissensraum, der offen, vertrauenswürdig und gemeinschaftlich gepflegt ist.",
-      "transparent": {
-        "title": "Nachvollziehbar",
-        "description": "Alle Quellen sind transparent verlinkt und überprüfbar."
+    "trust": {
+      "title": "Warum du der Antwort trauen kannst",
+      "subtitle": "Die KI ist hier Übersetzerin, nicht Autorin.",
+      "original": {
+        "title": "Das Original bleibt",
+        "description": "Jede Seite behält ihr Original, unverändert und einen Klick entfernt."
       },
-      "human": {
-        "title": "Menschlich",
-        "description": "Die Grundlage sind echte Stimmen, keine künstlichen Meinungen."
+      "source": {
+        "title": "Jede Aussage hat ihre Quelle",
+        "description": "Antworten nennen die Dokumente, aus denen sie stammen. Du kannst nachlesen."
       },
-      "trustworthy": {
-        "title": "Vertrauenswürdig",
-        "description": "Die Libraries werden von Forschung, Communities und NGOs kuratiert."
+      "order": {
+        "title": "Die Reihenfolge ist nicht käuflich",
+        "description": "Was oben steht, entscheidet der Text, nicht ein Budget."
       },
-      "behindLibraries": {
-        "title": "Wer steht hinter den Libraries?",
-        "description": "Diese Libraries entstehen in Zusammenarbeit mit Universitäten, Forschungsgruppen, NGOs und offenen Communities. Sie bringen ihre Inhalte, Werte und Perspektiven ein – damit Wissen nicht einzelnen Akteuren dient, sondern allen zugutekommt."
-      }
+      "storage": {
+        "title": "Die Dateien bleiben bei dir",
+        "description": "Das Wissen liegt im eigenen Speicher, lesbar auch ohne diese Software."
+      },
+      "note": "Antworten können unvollständig oder falsch sein. Dafür sind die Quellen da."
     },
     "cta": {
-      "title": "Ein gemeinsames Adventure-Projekt",
-      "description1": "Knowledge Scout ist kein fertiges Produkt, sondern ein offenes Labor – ein Adventure-Projekt in Entwicklung.",
-      "description2": "Wir experimentieren mit offenen Technologien, um herauszufinden, wie kollektives Wissen in Zukunft erfahrbar wird: durchs Hören, Lesen, Verstehen und gemeinsame Reflektieren.",
-      "description3": "Wenn dich das interessiert, bist du eingeladen, mitzudenken, zu testen oder selbst Libraries beizutragen.",
-      "buttonResearch": "Mitforschen & Testen",
+      "title": "Freie Software, schon im Einsatz",
+      "description1": "KnowledgeScout wird bereits in der Praxis genutzt und wächst mit jeder Library.",
+      "description2": "Nutze es, bring ein, was du weißt, oder bau mit.",
       "buttonContact": "Kontakt aufnehmen",
-      "buttonView": "Projekt ansehen"
+      "buttonTalk": "Vortrag ansehen"
     }
   },
   "common": {
