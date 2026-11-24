@@ -49,6 +49,7 @@ import { registerMessenTools } from './tools-messen'
 import { registerFragenLogTools } from './tools-fragen-log'
 import { registerSammeldateiTools } from './tools-sammeldatei'
 import { registerWebseiteTool } from './tools-webseite'
+import { registerSeiteLesenTool } from './tools-seite-lesen'
 import { registerPlaylistTool } from './tools-playlist'
 import { registerVideoAnmeldungTool } from './tools-video-anmeldung'
 import { registerArtefaktTool } from './tools-artefakt'
@@ -118,6 +119,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   // Welle E (Veranstaltungen): Einheiten bilden und Abhaengige finden.
   registerSammeldateiTools(server)
   registerWebseiteTool(server)
+  registerSeiteLesenTool(server)
   registerPlaylistTool(server)
   registerVideoAnmeldungTool(server)
   // Welle G: Artefakte ohne Spiegel lesen.
