@@ -2,8 +2,7 @@
 
 /**
  * Rahmen der Story-Sektion (Welle N1, Plan website-story-sektion): die Karte
- * auf der Flaeche der Sektion mit Kopfzeile (Status links, „Antworten
- * anpassen" rechts), dem Markdown VOR dem Block `questions`, der Fragebox,
+ * auf der Flaeche der Sektion mit der Status-Plakette, dem Markdown VOR dem Block `questions`, der Fragebox,
  * dem Chat und dem Markdown DANACH darunter. Der Chat selbst kommt als Kinder vom
  * Live-Baustein (`website-story-sektion.tsx`); ohne Kinder (Archiv-Vorschau,
  * kein Slot) stehen die Fragen als Liste mit Hinweis.
@@ -34,10 +33,8 @@ export interface WebsiteStorySektionRahmenProps {
   section: WebsiteSection
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
-  /** Links im Kopf der Karte (Status-Plakette). */
+  /** Status-Plakette, klein ueber dem Markdown der Sektion. */
   status?: React.ReactNode
-  /** Rechts im Kopf der Karte („Antworten anpassen"). */
-  kopf?: React.ReactNode
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
   /**
@@ -94,7 +91,6 @@ export function WebsiteStorySektionRahmen({
   headingCase = "capitalize",
   theme = OLDIES_THEME,
   status,
-  kopf,
   children,
   teppich,
   abgetaucht = false,
@@ -135,14 +131,10 @@ export function WebsiteStorySektionRahmen({
       >
         {section.kicker && !vollbild && <p className={KICKER_CLASS}>{section.kicker}</p>}
         <div className={cn(vollbild ? "overflow-visible" : "overflow-hidden", "text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
-          {(status || kopf) && !vollbild && (
-            <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-3 sm:px-6 sm:py-4", teppich ? "px-0" : "px-4")}>
-              <div>{status}</div>
-              <div>{kopf}</div>
-            </div>
-          )}
           <div className={cn("pb-5 sm:px-10 sm:pb-6 sm:pt-8", vollbild ? "pt-0" : "pt-6", teppich ? "px-0" : "px-4")}>
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
+            {/* Status-Plakette klein ueber der Ueberschrift (Owner 24.11.2026) — keine eigene Kopfzeile mehr. */}
+            {status && !vollbild && <div className="mb-3" data-story-status>{status}</div>}
             {vor.length > 0 && !vollbild && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
             {vollbild ? (
               // Kopf des Vollbilds: bleibt beim Lesen der Antwort oben stehen, deckend in der Farbe der Flaeche.
