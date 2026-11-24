@@ -1035,6 +1035,22 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           }
         }
       }
+      // Feld-Bindungen der Vorlage: Obergrenzen durchsetzen, Zaehlfelder berechnen (feld-bindungen.ts).
+      // Jede Kuerzung und jedes nicht rechenbare Feld wird gemeldet (Log + Trace → job_status.befunde).
+      if (facettenBindung.felder.length > 0 && metadataFromTemplate) {
+        const { wendeFeldBindungenAn } = await import('@/lib/external-jobs/feld-bindungen')
+        const felder = wendeFeldBindungenAn(metadataFromTemplate, facettenBindung.felder, extractedText || '')
+        metadataFromTemplate = felder.cleanedMeta
+        const details = { grenzen: felder.grenzen, berechnet: felder.berechnet, nichtBerechenbar: felder.nichtBerechenbar }
+        bufferLog(jobId, { phase: 'field_bindings_applied', message: 'Feld-Bindungen der Vorlage angewendet', details })
+        try {
+          await repo.traceAddEvent(jobId, { spanId: 'template', name: 'field_bindings_applied', attributes: details })
+        } catch (traceError) {
+          FileLogger.warn('phase-template', 'Trace-Event field_bindings_applied konnte nicht geschrieben werden', {
+            jobId, error: traceError instanceof Error ? traceError.message : String(traceError),
+          })
+        }
+      }
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
     } else {
       // runTemplateTransform gibt im Fehlerfall `{ metadata: null, error }` zurueck —

@@ -21,6 +21,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { formatiereBindungsFehler, gebundeneFacetten, pruefeFacettenPlatzhalter } from '@/lib/external-jobs/facetten-bindung'
 import { ladeBindungsFacetten } from '@/lib/external-jobs/facetten-bindung-job'
+import { leseFeldBindungen } from '@/lib/external-jobs/feld-bindungen'
 import { parseTemplate } from '@/lib/templates/template-parser'
 import { listTemplatesFromMongoDB, serializeTemplateToMarkdown } from '@/lib/templates/template-service-mongodb'
 import type { TemplateDocument } from '@/lib/templates/template-types'
@@ -94,7 +95,9 @@ export function registerVorlageTextTools(server: McpServer): void {
         'Schreibt EINE Vorlage der Library aus Markdown (Form wie vorlage_lesen: Frontmatter mit {{feld|beschreibung}}, Body, ' +
         '„--- systemprompt"). Der Vorlagen-Parser muss sie fehlerfrei lesen; Facetten-Platzhalter <<werte:metaKey>> und ' +
         '<<legende:metaKey>> muessen im Facetten-Schema der Library aufloesbar sein (sie binden das Feld: Werte ausserhalb des ' +
-        'Woerterbuchs werden bei der Transformation verworfen und als Befund gemeldet). Vorhandene Vorlage nur mit ' +
+        'Woerterbuchs werden bei der Transformation verworfen und als Befund gemeldet). In Feldbeschreibungen ausserdem: ' +
+        '<<max:N>> (Liste, hinten gekuerzt + Befund), <<maxWoerter:N>> (Text, Befund) und berechnete Felder, deren Beschreibung mit = ' +
+        'beginnt: =quellen("muster"), =zeilen("abschnitt", "text"), =quellenarten(wert: "muster"; …). Vorhandene Vorlage nur mit ' +
         'ueberschreiben: true — immer der GANZE Text, kein Teil-Update; vorher vorlage_lesen. Nur der Owner. Bestehende ' +
         'Transformationen aendern sich nicht, erst ein neuer Lauf. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
@@ -116,6 +119,13 @@ export function registerVorlageTextTools(server: McpServer): void {
           if ((template.metadata?.fields?.length ?? 0) === 0) throw new Error(`Vorlage "${name}" traegt kein Frontmatter-Feld — nichts geschrieben`)
           const fehler = pruefeFacettenPlatzhalter(inhalt, await ladeBindungsFacetten(userEmail, libraryId))
           if (fehler.length > 0) throw new Error(`Facetten-Platzhalter nicht auflösbar — ${formatiereBindungsFehler(fehler)}. Nichts geschrieben`)
+          // Obergrenzen und Berechnungen: ein Schreibfehler faellt hier auf, nicht erst im ersten bezahlten Job.
+          let feldBindungen
+          try {
+            feldBindungen = leseFeldBindungen(inhalt)
+          } catch (bindungsFehler) {
+            throw new Error(`${bindungsFehler instanceof Error ? bindungsFehler.message : String(bindungsFehler)}. Nichts geschrieben`)
+          }
           const zielBestand = await eigeneVorlagen(libraryId, userEmail)
           const aktion = await schreibeVorlage({
             inhalt: { name, metadata: template.metadata, systemprompt: template.systemprompt, markdownBody: template.markdownBody, creation: template.creation },
@@ -123,6 +133,7 @@ export function registerVorlageTextTools(server: McpServer): void {
           })
           return jsonResult({
             name, aktion, felder: template.metadata.fields.length, gebundeneFacetten: gebundeneFacetten(inhalt),
+            feldBindungen: feldBindungen.map((b) => ({ feld: b.feld, ...(b.max !== undefined ? { max: b.max } : {}), ...(b.maxWoerter !== undefined ? { maxWoerter: b.maxWoerter } : {}), ...(b.berechnet ? { berechnet: b.berechnet.art } : {}) })),
             hinweis: 'Bestehende Transformationen bleiben, wie sie sind — neu transformieren, wo die Aenderung wirken soll.',
           })
         })

@@ -105,6 +105,24 @@ function facettenBefunde(ereignisse: readonly JobEreignis[]): string[] {
   return befunde
 }
 
+/** Template-Schritt: ueberschrittene Obergrenzen und nicht rechenbare Felder (Trace-Attribute, im Log unter `details`). */
+function feldBefunde(ereignisse: readonly JobEreignis[]): string[] {
+  const befunde: string[] = []
+  for (const e of ereignisse) {
+    if (e.name !== 'field_bindings_applied') continue
+    const quelle = (e.attribute['details'] ?? e.attribute) as { grenzen?: unknown; nichtBerechenbar?: unknown }
+    for (const g of (Array.isArray(quelle.grenzen) ? quelle.grenzen : []) as Array<{ feld?: unknown; art?: unknown; erlaubt?: unknown; erhalten?: unknown }>) {
+      befunde.push(g.art === 'max'
+        ? `Feld "${String(g.feld)}": ${String(g.erhalten)} Eintraege, erlaubt sind ${String(g.erlaubt)} — hinten gekuerzt`
+        : `Feld "${String(g.feld)}": ${String(g.erhalten)} Woerter, erlaubt sind ${String(g.erlaubt)} — nicht gekuerzt`)
+    }
+    for (const n of (Array.isArray(quelle.nichtBerechenbar) ? quelle.nichtBerechenbar : []) as Array<{ feld?: unknown; grund?: unknown }>) {
+      befunde.push(`Feld "${String(n.feld)}": nicht berechenbar, bleibt leer (${String(n.grund)})`)
+    }
+  }
+  return befunde
+}
+
 export function befundeFuerJob(args: {
   status: string
   steps: ExternalJobStep[] | undefined
@@ -119,5 +137,6 @@ export function befundeFuerJob(args: {
   }
   befunde.push(...seitenbilderBefunde(args.ereignisse))
   befunde.push(...facettenBefunde(args.ereignisse))
+  befunde.push(...feldBefunde(args.ereignisse))
   return befunde
 }
