@@ -93,6 +93,8 @@ function typeOf(node: JsonLdNode): string {
 }
 
 function absolute(raw: string, base: string): string {
+  // Leer bleibt leer: `new URL('', base)` waere die Seitenadresse selbst (Befund: sie wurde als Cover geladen).
+  if (!raw.trim()) return ''
   try {
     return new URL(raw, base).toString()
   } catch {

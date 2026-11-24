@@ -15,7 +15,8 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { MAX_HTML_ZEICHEN, leseSeite } from '@/lib/web-source/seite-lesen'
 import type { LinkArt } from '@/lib/web-source/seite-links'
-import { errorResult, jsonResult, mcpUserEmail } from './tool-shared'
+import { leseHtmlDatei } from './html-datei'
+import { errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
 
 const LINK_ARTEN = ['seite', 'pdf', 'dokument', 'medium', 'bild', 'mail'] as const
 const VORGABE_ZEICHEN = 60_000
@@ -35,10 +36,13 @@ export function registerSeiteLesenTool(server: McpServer): void {
         'maxZeichen/offset blaettern im Markdown, linkArten/maxLinks begrenzen die Linkliste. Kein JavaScript: Baut die Seite ' +
         'ihren Inhalt erst im Browser auf oder gibt die Website dem Server eine Schutzseite, ist das Markdown leer; leereAntwort ' +
         'nennt dann art (leer | schutzseite | javascript | unbekannt), rohZeichen und rohAnfang. Abhilfe: die Seite im Browser ' +
-        'oeffnen und ihr HTML als html uebergeben — dann wird nicht geladen. Interne Adressen werden nicht abgerufen. Liest nur.',
+        'oeffnen und ihr HTML als html uebergeben, oder die gespeicherte Seite in die Library legen und als htmlDatei (mit libraryId) ' +
+        'nennen — dann wird nicht geladen. Interne Adressen werden nicht abgerufen. Liest nur.',
       inputSchema: {
         url: z.string().url().describe('Adresse der Seite (http/https)'),
         html: z.string().min(1).max(MAX_HTML_ZEICHEN).optional().describe('Fertiges HTML der Seite (document.documentElement.outerHTML aus dem Browser) — dann wird die Seite nicht geladen; url bleibt Herkunft und Basis der Links'),
+        htmlDatei: z.string().min(1).optional().describe('ALTERNATIVE zu html: library-relativer Pfad einer gespeicherten .html-Datei der Seite (braucht libraryId) — das HTML laeuft dann nicht durch den Kontext'),
+        libraryId: z.string().min(1).optional().describe('Nur mit htmlDatei: Library, in der die Datei liegt'),
         ganzeSeite: z.boolean().optional().describe('true = ganzer body inkl. Navigation und Fuss; Vorgabe false'),
         maxZeichen: z.number().int().min(100).max(400_000).optional().describe(`Laenge des Markdown-Ausschnitts, Vorgabe ${VORGABE_ZEICHEN}`),
         offset: z.number().int().min(0).optional().describe('Zeichen-Offset im Markdown (naechsterOffset aus der vorigen Antwort)'),
@@ -47,10 +51,18 @@ export function registerSeiteLesenTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ url, html, ganzeSeite, maxZeichen, offset, linkArten, maxLinks }) => {
+    async ({ url, html, htmlDatei, libraryId, ganzeSeite, maxZeichen, offset, linkArten, maxLinks }) => {
       try {
-        mcpUserEmail()
-        const seite = await leseSeite(url, { ganzeSeite: ganzeSeite === true, html })
+        const userEmail = mcpUserEmail()
+        if (html && htmlDatei) throw new Error('Entweder html ODER htmlDatei angeben — nicht beides')
+        if (htmlDatei && !libraryId) throw new Error('htmlDatei braucht libraryId')
+        if (libraryId && !htmlDatei) throw new Error('libraryId gilt nur zusammen mit htmlDatei')
+        let uebergeben = html
+        if (htmlDatei && libraryId) {
+          await requireLibrary(userEmail, libraryId)
+          uebergeben = await leseHtmlDatei(await requireProvider(userEmail, libraryId), htmlDatei)
+        }
+        const seite = await leseSeite(url, { ganzeSeite: ganzeSeite === true, html: uebergeben })
         const ab = offset ?? 0
         if (ab > seite.markdown.length) throw new Error(`offset ${ab} liegt hinter dem Ende des Markdown (${seite.markdown.length} Zeichen)`)
         const bis = Math.min(seite.markdown.length, ab + (maxZeichen ?? VORGABE_ZEICHEN))

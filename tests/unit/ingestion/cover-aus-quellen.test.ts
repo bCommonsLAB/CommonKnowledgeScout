@@ -67,3 +67,17 @@ describe('Schalter cover_from_sources', () => {
     expect(() => coverAusQuellenErlaubt({ cover_from_sources: 'nein' })).toThrow('weder true noch false')
   })
 })
+
+describe('istCoverAusQuellen', () => {
+  it('erkennt ein Seitenbild einer Quelle, nicht ein fremdes oder eigenes Bild', async () => {
+    const { istCoverAusQuellen } = await import('@/lib/ingestion/cover-aus-quellen')
+    const quellen = [
+      { sourceId: 'sammel', sourceName: 'Session.md', fragments: [{ name: 'eigen.jpg', url: 'https://b/eigen.jpg' }], eigener: true },
+      { sourceId: 'q1', sourceName: '28 Statement.pdf', fragments: [{ name: 'page_2.jpeg', url: 'https://b/q1/page_2.jpeg', pageNumber: 2 }], eigener: false },
+    ]
+    expect(istCoverAusQuellen('https://b/q1/page_2.jpeg', quellen)).toBe(true)
+    expect(istCoverAusQuellen('https://b/eigen.jpg', quellen)).toBe(false)
+    expect(istCoverAusQuellen('https://woanders/cover.png', quellen)).toBe(false)
+    expect(istCoverAusQuellen('', quellen)).toBe(false)
+  })
+})

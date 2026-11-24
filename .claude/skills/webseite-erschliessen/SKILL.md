@@ -52,6 +52,30 @@ an `seite_lesen` oder `webseite_erschliessen` geben; `url` bleibt die Adresse
 der Seite. Mehrere Seiten derselben Website mit einigen Sekunden Abstand
 laden. Ohne Browser: dem Menschen sagen, nicht raten.
 
+**Großes HTML nicht durch den Kontext schicken** (ab 2.87.0). Eine Seite hat
+roh schnell einige hunderttausend Zeichen. Zwei Wege:
+
+1. Am Rechner mit synchronisiertem Library-Ordner: die Seite als `.html`
+   dort speichern und mit `htmlDatei` (bei `seite_lesen` zusätzlich
+   `libraryId`) nennen. Die Brücke liest die Datei selbst.
+2. Sonst im Browser entschlacken und das Ergebnis als `html` geben. Rezept:
+
+```js
+(() => {
+  const d = document.cloneNode(true)
+  d.querySelectorAll('script,style,noscript,svg,iframe,nav,footer,aside,form,link').forEach((e) => e.remove())
+  const inhalt = d.querySelector('main') ?? d.body
+  inhalt.querySelectorAll('*').forEach((e) => {
+    for (const a of [...e.attributes]) if (!['href', 'class', 'datetime', 'colspan', 'rowspan'].includes(a.name)) e.removeAttribute(a.name)
+  })
+  const meta = [...document.querySelectorAll('meta[property^="og:"],meta[name="description"],meta[property^="article:"]')].map((m) => m.outerHTML).join('')
+  return `<html lang="${document.documentElement.lang}"><head><title>${document.title}</title>${meta}</head><body><main>${inhalt.innerHTML}</main></body></html>`
+})()
+```
+
+   `class` bleibt stehen, weil daran Feld-Paare erkannt werden
+   (`field__label` / `field__item` werden zu „Bezeichnung: Wert").
+
 **Seiten ohne Fließtext** (Übersicht, Terminseite, Dokumentseite) weist
 `webseite_erschliessen` im Modus `artikel` ab. Mit `seitenModus: "struktur"`
 kommt die Seite wörtlich in die Sammeldatei (Abschnitt „Seite"), verlinkte
