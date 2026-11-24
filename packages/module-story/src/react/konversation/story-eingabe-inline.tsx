@@ -47,12 +47,26 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
   const { t } = useTranslation()
   const feld = useRef<HTMLTextAreaElement>(null)
 
-  // Das Feld waechst mit dem Text (auch wenn der Gastgeber ihn setzt, z. B. eine Beispielfrage).
+  // Das Feld waechst mit dem Text (auch wenn der Gastgeber ihn setzt, z. B. eine Beispielfrage) — und
+  // misst neu, wenn es schmaler oder breiter wird (Vollbild auf dem Telefon: derselbe Text bricht anders um).
   useLayoutEffect(() => {
     const el = feld.current
     if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, MAX_HOEHE)}px`
+    const passe = () => {
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, MAX_HOEHE)}px`
+    }
+    passe()
+    // Ohne `ResizeObserver` (Testumgebung ohne Layout) gibt es keine Breite, die sich aendern koennte.
+    if (typeof ResizeObserver === 'undefined') return
+    let breite = el.clientWidth
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === breite) return
+      breite = el.clientWidth
+      passe()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [p.text, p.gross])
 
   const senden = () => {
