@@ -64,7 +64,7 @@ describe('seiteAlsMarkdown', () => {
 
   it('schreibt Definitionslisten und Feld-Paare', () => {
     expect(markdown).toContain('- **Document Type:** Statements\n- **Language:** Spanish')
-    expect(markdown).toContain('Publication date\n\n17 Nov 2026')
+    expect(markdown).toContain('- **Publication date:** 17 Nov 2026')
   })
 
   it('listet Links mit Art, Abschnitt und Kontext — Anker und Skripte nicht', () => {
@@ -89,6 +89,17 @@ describe('seiteAlsMarkdown', () => {
     const r = seiteAlsMarkdown('<html><head><base href="https://cdn.example/x/"></head><body><article><p>Eins <a href="a.pdf">A</a></p></article><article><p>Zwei</p></article></body></html>', BASIS)
     expect(r.bereich).toBe('body')
     expect(r.markdown).toBe('Eins [A](https://cdn.example/x/a.pdf)\n\nZwei')
+  })
+})
+
+describe('Feld-Paare', () => {
+  it('schreibt Bezeichnung und Wert in eine Zeile, auch mit mehreren Werten und Link', () => {
+    const html = '<main><div class="field field--name-date"><div class="field__label">Publication date:</div><div class="field__item">18 Nov 2026</div></div>' +
+      '<div class="field"><div class="field__label">Topics</div><div class="field__items"><div class="field__item"><a href="/t/1">Finance</a></div><div class="field__item">Adaptation</div></div></div>' +
+      '<div class="box"><div class="title">Kein Paar</div><div class="field__item">bleibt lose</div></div></main>'
+    const r = seiteAlsMarkdown(html, 'https://a.example/d/1')
+    expect(r.markdown).toBe('- **Publication date:** 18 Nov 2026\n- **Topics:** [Finance](https://a.example/t/1) Adaptation\n\nKein Paar\n\nbleibt lose')
+    expect(r.links[0]).toMatchObject({ text: 'Finance', kontext: '**Topics:** Finance Adaptation' })
   })
 })
 

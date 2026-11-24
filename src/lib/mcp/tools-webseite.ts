@@ -19,6 +19,7 @@ import { MAX_HTML_ZEICHEN } from '@/lib/web-source/seite-lesen'
 import { webseiteErschliessen } from '@/lib/web-source/webseite-erschliessen'
 import { audioOptionenAusEingabe, bestimmeAudioWeg } from './erschliessen-wege'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+import { leseHtmlDatei } from './html-datei'
 import { ordnerSicherstellen } from './storage/pfad-helfer'
 import { pruefeSchreibschutz } from './storage/schreibschutz'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
@@ -39,7 +40,8 @@ export function registerWebseiteTool(server: McpServer): void {
         'OHNE Fliesstext: seitenModus "struktur" uebernimmt die Seite woertlich mit Listen, Tabellen und Links (Abschnitt „Seite") ' +
         'und listet verlinkte PDF, Dokumente und Medien unter „Verlinkte Dateien" — vorher mit seite_lesen ansehen. ' +
         'Weist die Website den Server ab (leere Antwort, Schutzseite, 403): die Seite im Browser oeffnen und ihr HTML als html ' +
-        'uebergeben — dieselbe Sammeldatei, nur laedt der Server die Seite nicht selbst. ' +
+        'uebergeben, oder die gespeicherte Seite in die Library legen und als htmlDatei nennen (grosses HTML laeuft dann nicht durch den ' +
+        'Kontext) — dieselbe Sammeldatei, nur laedt der Server die Seite nicht selbst. ' +
         'Interne Adressen werden nicht abgerufen. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -49,6 +51,7 @@ export function registerWebseiteTool(server: McpServer): void {
         ordnerId: z.string().min(1).optional().describe('ALTERNATIVE: Storage-Id des Ordners'),
         elternAnlegen: z.boolean().optional().describe('Nur mit ordner: fehlende Ordner des Pfades anlegen; Vorgabe false'),
         html: z.string().min(1).max(MAX_HTML_ZEICHEN).optional().describe('Fertiges HTML der Seite (document.documentElement.outerHTML aus dem Browser) — dann wird die Seite nicht geladen; url bleibt Herkunft und Basis der Links'),
+        htmlDatei: z.string().min(1).optional().describe('ALTERNATIVE zu html: library-relativer Pfad einer gespeicherten .html-Datei der Seite — das HTML laeuft dann nicht durch den Kontext'),
         seitenModus: z.enum(['artikel', 'struktur']).optional().describe('artikel (Vorgabe) = Absaetze des Artikeltexts, Seite ohne Absaetze wird abgewiesen; struktur = Seite woertlich mit Listen, Tabellen und Links, fuer Seiten ohne Fliesstext'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache der Transkription, Default de'),
         medienHolen: z.boolean().optional().describe('false = nur Seite lesen und Sammeldatei anlegen, kein Medium; Default true'),
@@ -60,12 +63,13 @@ export function registerWebseiteTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, url, dateiname, ordner, ordnerId, elternAnlegen, html, seitenModus, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
+    async ({ libraryId, url, dateiname, ordner, ordnerId, elternAnlegen, html, htmlDatei, seitenModus, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'webseite_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, pfad: ordner }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
+          if (html && htmlDatei) throw new Error('Entweder html ODER htmlDatei angeben — nicht beides')
           if (elternAnlegen && !ordner) throw new Error('elternAnlegen braucht ordner (einen Pfad) — eine ordnerId gibt es nur fuer bestehende Ordner')
           if (elternAnlegen && ordnerId) throw new Error('Entweder ordner ODER ordnerId angeben — nicht beides')
           if (ordner) pruefeSchreibschutz(`${ordner}/${dateiname}`, 'anlegen')
@@ -80,7 +84,7 @@ export function registerWebseiteTool(server: McpServer): void {
             medienHolen: medienHolen ?? true,
             medienEinbetten: medienEinbetten ?? true,
             seitenModus: seitenModus ?? 'artikel',
-            seitenHtml: html,
+            seitenHtml: htmlDatei ? await leseHtmlDatei(provider, htmlDatei) : html,
           })
           const weg = ergebnis.medium ? bestimmeAudioWeg(audioContext, library) : null
           return jsonResult({

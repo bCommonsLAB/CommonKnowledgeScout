@@ -17,6 +17,7 @@
 
 import { attribut, findeAlle, findeErstes, istElement, zerlegeHtml, type HtmlElement, type HtmlKnoten } from './html-baum'
 import { linkAdresse, linkArt, type SeitenLink } from './seite-links'
+import { feldPaar, verbinde } from './seite-markdown-teile'
 
 export interface SeitenMarkdown {
   markdown: string
@@ -167,16 +168,14 @@ function gehe(knoten: HtmlKnoten[], lauf: Lauf): void {
     else if (k.tag === 'pre') block(lauf, `\`\`\`\n${inline(k.kinder, lauf).replace(/^\n+|\s+$/g, '')}\n\`\`\``, ab)
     else if (k.tag === 'blockquote') block(lauf, `> ${glatt(inline(k.kinder, lauf))}`, ab)
     else if (k.tag === 'hr') continue
+    else if (feldPaar(k)) {
+      const paar = feldPaar(k) as NonNullable<ReturnType<typeof feldPaar>>
+      block(lauf, `- **${glatt(inline(paar.label.kinder, lauf)).replace(/:$/, '')}:** ${paar.werte.map((w) => glatt(inline(w.kinder, lauf))).filter(Boolean).join('; ')}`, ab)
+    }
     else if (k.tag === 'p' || !hatBlock(k)) block(lauf, glatt(inline(k.kinder, lauf)), ab)
     else gehe(k.kinder, lauf)
   }
   spuele()
-}
-
-/** Bloecke mit Leerzeile verbinden — aufeinanderfolgende Listenzeilen bleiben eine Liste. */
-function verbinde(bloecke: string[]): string {
-  const istZeile = (b: string): boolean => /^(?: {2})*(?:-|\d+\.) /.test(b) && !b.includes('\n')
-  return bloecke.map((b, i) => (i === 0 ? b : `${istZeile(b) && istZeile(bloecke[i - 1]) ? '\n' : '\n\n'}${b}`)).join('')
 }
 
 /** Wandelt das HTML einer Seite in woertliches Markdown und eine Linkliste. `basis` loest relative Links auf. */

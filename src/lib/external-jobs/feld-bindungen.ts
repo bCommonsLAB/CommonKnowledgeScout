@@ -111,12 +111,21 @@ function passt(muster: string, name: string): boolean {
   return new RegExp(`^${re}$`, 'i').test(name)
 }
 
-/** `_source_files` aus dem Kopf des Materials einer Sammeldatei; null, wenn das Material keine nennt. */
+/**
+ * Quelldateien der Sammeldatei aus dem Material; null, wenn das Material keine nennt.
+ * Die Pipeline entfernt das Frontmatter, bevor das Material hier ankommt (Befund der
+ * Abnahme: `_source_files` fehlte, obwohl 20 Quellen da waren). Massgeblich sind deshalb
+ * die Quellbloecke `<source file="…" index="N">`; index 0 ist die Sammeldatei selbst und
+ * zaehlt nicht. Ein noch vorhandenes Frontmatter wird ebenfalls gelesen.
+ */
 export function quellenAusMaterial(material: string): string[] | null {
-  const m = /^_source_files:\s*(\[.*\])\s*$/m.exec(material.slice(0, 20_000))
-  if (!m) return null
+  const bloecke = [...material.matchAll(/^<source file="([^"]*)" index="(\d+)"[^>]*>\s*$/gm)]
+    .filter((m) => m[2] !== '0').map((m) => m[1])
+  if (bloecke.length > 0) return bloecke
+  const kopf = /^_source_files:\s*(\[.*\])\s*$/m.exec(material.slice(0, 20_000))
+  if (!kopf) return null
   try {
-    const liste: unknown = JSON.parse(m[1])
+    const liste: unknown = JSON.parse(kopf[1])
     return Array.isArray(liste) ? liste.filter((n): n is string => typeof n === 'string') : null
   } catch {
     return null
@@ -141,7 +150,7 @@ function rechne(b: Berechnung, material: string): number | string[] {
     return zeilen.filter((z) => z.toLowerCase().includes(b.text.toLowerCase())).length
   }
   const quellen = quellenAusMaterial(material)
-  if (!quellen) throw new Error('Das Material nennt keine _source_files (keine Sammeldatei)')
+  if (!quellen) throw new Error('Das Material nennt keine Quelldateien (keine Sammeldatei)')
   if (b.art === 'quellen') return quellen.filter((q) => passt(b.muster, q)).length
   return b.paare.filter((p) => quellen.some((q) => passt(p.muster, q))).map((p) => p.wert)
 }

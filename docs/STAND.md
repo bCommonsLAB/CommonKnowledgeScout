@@ -293,10 +293,16 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 2. Quellblöcke im Material nennen ihre Art (PDF-Text, Audio-Transkript …).
 3. Ingest-Schalter `cover_from_sources` und `attachments_order`.
 
+**Gemacht (Welle 2d, 24.11., Werkzeugsatz 2.87.0), nach der Abnahme von 2c:**
+
+1. Fehler behoben: berechnete Felder blieben an jeder Sammeldatei leer.
+2. Fehler behoben: `cover_from_sources: false` ließ ein altes Cover stehen.
+3. `htmlDatei` an `seite_lesen` und `webseite_erschliessen`; Feld-Paare einer
+   Seite in einer Zeile; keine Seitenadresse mehr als Bild.
+
 **Geplant:**
 
-- Abnahme Welle 2c am Piloten; offen ist, ob feste Felder der Vorlage
-  unverändert im Frontmatter des Ergebnisses ankommen.
+- Wiederholung der Abnahme der berechneten Felder und des Covers nach 2d.
 - Schwankung zwischen Läufen: Temperatur der laufenden Secretary-Instanz
   prüfen.
 - Abnahme-Reste: Struktur-Modus, Ablehnung interner Adressen über die Brücke
