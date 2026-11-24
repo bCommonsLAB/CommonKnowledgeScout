@@ -16,6 +16,8 @@ const ABFRAGE = '(max-width: 639px)'
 export function useSchmal(): boolean {
   const [schmal, setSchmal] = React.useState(false)
   React.useEffect(() => {
+    // Ohne `matchMedia` (Testumgebung ohne Layout) gibt es keine Breite zu messen: es bleibt bei breit.
+    if (typeof window.matchMedia !== 'function') return
     const mq = window.matchMedia(ABFRAGE)
     const lies = () => setSchmal(mq.matches)
     lies()

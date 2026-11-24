@@ -13,7 +13,7 @@
  */
 
 import * as React from "react"
-import { ArrowUpRight } from "lucide-react"
+import { X } from "lucide-react"
 import { useTranslation } from "@ks/i18n/react"
 import {
   type HeadingCase,
@@ -26,6 +26,9 @@ import {
 } from ".."
 import { SectionContent } from "./section-content"
 import { cn } from "@ks/util"
+import { StoryVorschau } from "./website-story-kacheln"
+
+export { StoryFragenKacheln } from "./website-story-kacheln"
 
 export interface WebsiteStorySektionRahmenProps {
   section: WebsiteSection
@@ -50,6 +53,12 @@ export interface WebsiteStorySektionRahmenProps {
   hinweis?: boolean
   /** Die Fragebox: ueber dem Chat, direkt unter dem Markdown der Sektion (R1, 24.11.2026). */
   eingabe?: React.ReactNode
+  /**
+   * Telefon (R3, 24.11.2026): Die Sektion liegt fest ueber dem Bildschirm — oben die Fragebox mit
+   * Schliessen-Knopf, darunter nur Wolke und Antwort; Kopfzeile, Markdown und Legende ruhen.
+   */
+  vollbild?: boolean
+  onVollbildZu?: () => void
 }
 
 /**
@@ -92,13 +101,26 @@ export function WebsiteStorySektionRahmen({
   fragt = false,
   hinweis = false,
   eingabe,
+  vollbild = false,
+  onVollbildZu,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
   const flaeche = surfaceStyle(section.bg, theme)
   const { vor, fragen, nach } = React.useMemo(() => storyBloecke(section), [section])
 
   return (
-    <section className={cn("relative isolate px-4 py-8 sm:px-6 sm:py-14", flaeche.className)} style={flaeche.style} data-website-story>
+    <section
+      className={cn(
+        "isolate px-4 sm:px-6",
+        // Vollbild: dieselbe Sektion, fest ueber dem Bildschirm; sie scrollt in sich (Leseansicht).
+        // Solange die Frage laeuft, gehoert jede Fingerbewegung dem Schwarm.
+        vollbild ? cn("fixed inset-0 z-50 overflow-y-auto overscroll-contain pb-8", fragt && "touch-none") : "relative py-8 sm:py-14",
+        flaeche.className,
+      )}
+      style={flaeche.style}
+      data-website-story
+      data-story-vollbild={vollbild || undefined}
+    >
       {teppich && <style>{ANTWORT_EIN}</style>}
       {teppich && <div className="absolute inset-0 z-0">{teppich}</div>}
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
@@ -111,20 +133,32 @@ export function WebsiteStorySektionRahmen({
           abgetaucht && ERKUNDEN,
         )}
       >
-        {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
-        <div className={cn("overflow-hidden text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
-          {(status || kopf) && (
+        {section.kicker && !vollbild && <p className={KICKER_CLASS}>{section.kicker}</p>}
+        <div className={cn(vollbild ? "overflow-visible" : "overflow-hidden", "text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
+          {(status || kopf) && !vollbild && (
             <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-3 sm:px-6 sm:py-4", teppich ? "px-0" : "px-4")}>
               <div>{status}</div>
               <div>{kopf}</div>
             </div>
           )}
-          <div className={cn("pb-5 pt-6 sm:px-10 sm:pb-6 sm:pt-8", teppich ? "px-0" : "px-4")}>
+          <div className={cn("pb-5 sm:px-10 sm:pb-6 sm:pt-8", vollbild ? "pt-0" : "pt-6", teppich ? "px-0" : "px-4")}>
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
-            {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
-            {eingabe}
+            {vor.length > 0 && !vollbild && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
+            {vollbild ? (
+              // Kopf des Vollbilds: bleibt beim Lesen der Antwort oben stehen, deckend in der Farbe der Flaeche.
+              <div
+                className={cn("pointer-events-auto sticky top-0 z-20 -mx-4 mb-2 flex items-start gap-1 px-2 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]", teppich ? flaeche.className : "bg-white")}
+                style={teppich ? flaeche.style : undefined}
+                data-story-vollbild-kopf
+              >
+                <button type="button" onClick={onVollbildZu} aria-label={t("website.story.vollbildZu")} title={t("website.story.vollbildZu")} className="flex h-12 w-11 shrink-0 items-center justify-center rounded-full text-current" data-story-vollbild-zu>
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <div className="min-w-0 flex-1">{eingabe}</div>
+              </div>
+            ) : eingabe}
             {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}
-            {nach.length > 0 && (
+            {nach.length > 0 && !vollbild && (
               // Legende/Vertrauenszeile: klein und dezent (Vorlage) — ueberschreibt die
               // Prose-Groesse der Absaetze, die sonst 20 px betraegt.
               <div className="mt-6 [&_p]:mb-0 [&_p]:!text-xs [&_p]:leading-relaxed [&_p]:text-neutral-500 sm:[&_p]:!text-sm">
@@ -141,62 +175,5 @@ export function WebsiteStorySektionRahmen({
         </p>
       )}
     </section>
-  )
-}
-
-/** Die Beispielfragen als Kacheln; Klick stellt die Frage sofort. */
-export function StoryFragenKacheln({
-  fragen,
-  onFrage,
-  gesperrt = false,
-}: {
-  fragen: string[]
-  onFrage: (frage: string) => void
-  gesperrt?: boolean
-}): React.ReactElement | null {
-  const { t } = useTranslation()
-  if (fragen.length === 0) return null
-  return (
-    <div
-      // Telefon (R2): eine waagrechte Reihe zum Wischen statt gestapelter Kacheln — das Fragefeld bleibt im Blick.
-      className="not-prose mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0"
-      role="group"
-      aria-label={t("website.story.beispielfragen")}
-      data-story-fragen
-      // N5: zartes Gruen der Site, damit die Beispielfragen sich abheben; die gewaehlte
-      // Frage traegt dann das kraeftigere „Deine Frage"-Gruen.
-      style={{
-        ['--kachel-bg' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 4%, white)',
-        ['--kachel-bg-hover' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 10%, white)',
-        ['--kachel-border' as string]: 'color-mix(in srgb, var(--site-accent, #16a34a) 18%, white)',
-      }}
-    >
-      {fragen.map((frage, i) => (
-        <button
-          key={i}
-          type="button"
-          disabled={gesperrt}
-          onClick={() => onFrage(frage)}
-          className={cn(fragen.length > 1 ? "w-[82%]" : "w-full", "flex shrink-0 snap-start items-center justify-between gap-3 sm:w-auto rounded-xl border border-[color:var(--kachel-border)] bg-[color:var(--kachel-bg)] px-4 py-3 text-left text-sm leading-snug text-neutral-800 transition-colors hover:border-[color:var(--site-accent)] hover:bg-[color:var(--kachel-bg-hover)] disabled:opacity-60")}
-        >
-          <span>{frage}</span>
-          <ArrowUpRight className="h-4 w-4 shrink-0 text-[color:var(--site-accent)]" aria-hidden="true" />
-        </button>
-      ))}
-    </div>
-  )
-}
-
-/** Archiv-Vorschau ohne Chat: Fragen als Liste, Hinweis statt Eingabe. */
-function StoryVorschau({ fragen, hinweis }: { fragen: string[]; hinweis: string }): React.ReactElement {
-  return (
-    <div className="not-prose mt-4" data-story-vorschau>
-      {fragen.length > 0 && (
-        <ul className="list-disc space-y-1 pl-5 text-sm text-neutral-800">
-          {fragen.map((f, i) => <li key={i}>{f}</li>)}
-        </ul>
-      )}
-      <p className="mt-4 rounded-lg border border-dashed border-black/15 px-4 py-3 text-sm text-neutral-500">{hinweis}</p>
-    </div>
   )
 }

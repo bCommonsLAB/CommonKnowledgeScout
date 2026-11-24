@@ -16,13 +16,13 @@ vi.mock('@ks/i18n/react', () => ({
 }))
 
 // Die Konversation selbst prueft das Story-Paket; hier zaehlt nur, was die Sektion vom Gastgeber nimmt.
-const zustand = vi.hoisted(() => ({ nachrichten: [] as unknown[], frageSenden: vi.fn() }))
+const zustand = vi.hoisted(() => ({ nachrichten: [] as unknown[], frageSenden: vi.fn(), laeuft: false }))
 vi.mock('@ks/module-story/react', async (original) => {
   const echt = await original<typeof import('@ks/module-story/react')>()
   return {
     ...echt,
     useStoryKonversation: () => ({
-      stand: 's', nachrichten: zustand.nachrichten, laeuft: false, schritte: [], fehler: null, fehlerDetail: null,
+      stand: 's', nachrichten: zustand.nachrichten, laeuft: zustand.laeuft, schritte: [], fehler: null, fehlerDetail: null,
       antwortLaenge: 'mittel', setAntwortLaenge: vi.fn(), frageSenden: zustand.frageSenden,
     }),
     useNeuStellen: () => undefined,
@@ -55,6 +55,8 @@ afterEach(() => {
   cleanup()
   zustand.nachrichten = []
   zustand.frageSenden.mockClear()
+  zustand.laeuft = false
+  Reflect.deleteProperty(window, 'matchMedia')
 })
 
 function paar(n: number) {
@@ -156,5 +158,39 @@ describe('WebsiteStorySektion mit Gastgeber', () => {
     expect(screen.queryByText('Was ist das?')).toBeNull()
     fireEvent.click(container.querySelector('[data-story-beispiele] button') as Element)
     expect(screen.getByText('Was ist das?')).toBeTruthy()
+  })
+
+  // R3 (24.11.2026): auf dem Telefon laeuft die Frage im Vollbild — dieselbe Sektion, fest ueber dem Bildschirm.
+  describe('Telefon', () => {
+    function telefon() {
+      window.matchMedia = ((query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+      vi.stubGlobal('IntersectionObserver', class { observe() {} disconnect() {} })
+    }
+
+    it('eine laufende Frage oeffnet das Vollbild; Schliessen legt die Sektion zurueck in die Seite', async () => {
+      telefon()
+      zustand.laeuft = true
+      zustand.nachrichten = [paar(1)[0]]
+      const { g } = gastgeber()
+      const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+      await waitFor(() => expect(container.querySelector('[data-story-vollbild]')).not.toBeNull())
+      // Im Vollbild: nur Fragebox und Antwortzone — keine Beispielfragen, keine Ueberschrift der Sektion.
+      expect(container.querySelectorAll('[data-story-eingabe-inline]').length).toBe(1)
+      expect(screen.queryByText('Was ist das?')).toBeNull()
+      expect(screen.queryByText('Frag den Scout')).toBeNull()
+      expect(document.documentElement.style.overflow).toBe('hidden')
+      fireEvent.click(container.querySelector('[data-story-vollbild-zu]') as Element)
+      expect(container.querySelector('[data-story-vollbild]')).toBeNull()
+      expect(document.documentElement.style.overflow).toBe('')
+      expect(screen.getByText('Frag den Scout')).toBeTruthy()
+    })
+
+    it('ohne Frage bleibt die Sektion in der Seite', () => {
+      telefon()
+      const { g } = gastgeber()
+      const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+      expect(container.querySelector('[data-story-vollbild]')).toBeNull()
+      expect(screen.getByText('Was ist das?')).toBeTruthy()
+    })
   })
 })

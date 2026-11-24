@@ -24,6 +24,7 @@ import { useTeppichHalt } from './use-teppich-halt'
 import { useTeppichZeiger } from './use-teppich-zeiger'
 import type { TeppichBotschaft } from './use-teppich-botschaft'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
+import { useSchmal } from './use-schmal'
 
 export interface WebsiteTeppichProps {
   punkte: readonly TeppichPunkt[]
@@ -74,6 +75,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   // Der Punkt unter dem Zeiger (`useTeppichZeiger`, weiter unten); die Szene liest ihn je Render.
   const ueberRef = React.useRef(-1)
   const bewegung = useBewegungErlaubt()
+  const schmal = useSchmal()
   const ruhig = phase === 'ruhe' || phase === 'antwort'
   useZurFrageScrollen(huelle, phase, bewegung)
   const halt = useTeppichHalt(huelle, phase, kasten.hoehe)
@@ -160,9 +162,17 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
         )}
         {p.botschaft && (
           // Oben buendig (Owner 23.11.2026): Titel, darunter waechst die Liste der Schritte nach unten.
-          <div className="pointer-events-none absolute top-24 max-w-xs" style={{ left: kasten.links + 84 }} aria-live="polite" data-teppich-botschaft>
+          // Telefon (R3, 24.11.2026): ein Statusblatt fest am unteren Bildschirmrand — der Text liegt nie ueber der Wolke.
+          <div
+            className={schmal
+              ? 'pointer-events-none fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-black/10 bg-white px-5 pt-4 text-neutral-900 shadow-[0_-4px_16px_rgba(0,0,0,0.1)] pb-[max(1.5rem,env(safe-area-inset-bottom))]'
+              : 'pointer-events-none absolute top-10 max-w-xs'}
+            style={schmal ? undefined : { left: kasten.links + 84 }}
+            aria-live="polite"
+            data-teppich-botschaft={schmal ? 'blatt' : 'frei'}
+          >
             <style>{EIN}</style>
-            <p className="text-sm font-semibold">{p.botschaft.titel}</p>
+            <p className={schmal ? 'text-base font-semibold' : 'text-sm font-semibold'}>{p.botschaft.titel}</p>
             <ol className="mt-2 space-y-1 text-sm">
               {p.botschaft.schritte.map((schritt, k, alle) => (
                 <li key={k} className={k === alle.length - 1 ? 'transition-opacity duration-500' : 'opacity-50 transition-opacity duration-500'} style={{ animation: 'ks-teppich-ein 600ms ease backwards' }}>

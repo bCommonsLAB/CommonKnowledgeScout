@@ -153,7 +153,18 @@ importiert kein `@commonux/*`.
   Beispielfragen als waagrechte Reihe zum Wischen, die Themen als Akkordeon
   (`useSchmal`, erstes Thema offen), Tippziele mindestens 44 px. Die Variante
   `max-sm:` erzeugt dieses Tailwind-Setup NICHT — Telefon ist der
-  Grundzustand, `sm:` stellt die breite Darstellung her. Aeltere Fragen erreicht der
+  Grundzustand, `sm:` stellt die breite Darstellung her.
+  **Vollbild der Frage (Telefon, Owner 24.11.2026):** Mit dem Absenden liegt
+  DIESELBE Sektion fest ueber dem Bildschirm (`use-story-vollbild.ts`,
+  `data-story-vollbild`) — kein Portal, kein zweiter Baum: oben die Fragebox
+  mit Schliessen-Knopf, in der Mitte die Wolke, die Botschaft als Statusblatt
+  am unteren Rand (nie ueber der Wolke); danach scrollt die Antwort als
+  Leseansicht in der Sektion. Zu geht es nur durch den Leser; dann steht die
+  Antwort inline in der Seite. Solange das Vollbild steht, haelt der Anker die
+  Hoehe der Sektion, die Seite scrollt nicht, und `useZurFrageScrollen` tut
+  nichts. Ist die Fragebox aus dem Bild, bleibt auf dem Telefon eine
+  Frage-Leiste am unteren Rand (`website-story-frage-leiste.tsx`), nur solange
+  die Seite der Sektion im Bild ist. Aeltere Fragen erreicht der
   Verweis „N fruehere Fragen dieser Sitzung im Story-Modus" unter der
   Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
   aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die
