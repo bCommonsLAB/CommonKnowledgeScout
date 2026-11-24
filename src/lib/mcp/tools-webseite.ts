@@ -18,6 +18,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { webseiteErschliessen } from '@/lib/web-source/webseite-erschliessen'
 import { audioOptionenAusEingabe, bestimmeAudioWeg } from './erschliessen-wege'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+import { ordnerSicherstellen } from './storage/pfad-helfer'
+import { pruefeSchreibschutz } from './storage/schreibschutz'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
 import { standardLlmModell } from './tools-erschliessen-shared'
 
@@ -32,13 +34,18 @@ export function registerWebseiteTool(server: McpServer): void {
         'aufgeloest und als „<Basis> - Audio.mp3" daneben abgelegt, Coverbild der Seite als „<Basis> - Cover.jpg", ' +
         'Transkription des Mediums gestartet (nur Transkript, kein Ingest). Vorhandene Dateinamen werden ' +
         'nicht ueberschrieben. Danach: job_status abwarten, dann transformation_starten (Vorlage artikel-de) ' +
-        'mit bewusstem ingest. Kein Medium oder kein Cover steht mit Grund in der Antwort. SCHREIBT; nur nach Bestaetigung.',
+        'mit bewusstem ingest. Kein Medium oder kein Cover steht mit Grund in der Antwort. Uebersichts-, Termin- und Dokumentseiten ' +
+        'OHNE Fliesstext: seitenModus "struktur" uebernimmt die Seite woertlich mit Listen, Tabellen und Links (Abschnitt „Seite") ' +
+        'und listet verlinkte PDF, Dokumente und Medien unter „Verlinkte Dateien" — vorher mit seite_lesen ansehen. ' +
+        'Interne Adressen werden nicht abgerufen. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         url: z.string().url().describe('Adresse der Artikelseite (http/https)'),
         dateiname: z.string().min(1).max(200).describe('Dateiname der Sammeldatei, endet auf .md; Medium und Cover heissen „<Basis> - Audio.mp3" / „<Basis> - Cover.jpg"'),
         ordner: z.string().min(1).optional().describe('Ordnerpfad (library-relativ)'),
         ordnerId: z.string().min(1).optional().describe('ALTERNATIVE: Storage-Id des Ordners'),
+        elternAnlegen: z.boolean().optional().describe('Nur mit ordner: fehlende Ordner des Pfades anlegen; Vorgabe false'),
+        seitenModus: z.enum(['artikel', 'struktur']).optional().describe('artikel (Vorgabe) = Absaetze des Artikeltexts, Seite ohne Absaetze wird abgewiesen; struktur = Seite woertlich mit Listen, Tabellen und Links, fuer Seiten ohne Fliesstext'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache der Transkription, Default de'),
         medienHolen: z.boolean().optional().describe('false = nur Seite lesen und Sammeldatei anlegen, kein Medium; Default true'),
         medienEinbetten: z.boolean().optional().describe('false = Medium nur als Quelle transkribieren, OHNE Player und Video-Embed im Eintrag (nur Vorschaubild und Link zum Original, z. B. aus rechtlichen Gruenden); Default true'),
@@ -49,13 +56,18 @@ export function registerWebseiteTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, url, dateiname, ordner, ordnerId, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
+    async ({ libraryId, url, dateiname, ordner, ordnerId, elternAnlegen, seitenModus, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'webseite_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, pfad: ordner }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
-          const folderId = await resolveScope({ userEmail, libraryId, folderId: ordnerId, pfad: ordner })
+          if (elternAnlegen && !ordner) throw new Error('elternAnlegen braucht ordner (einen Pfad) — eine ordnerId gibt es nur fuer bestehende Ordner')
+          if (elternAnlegen && ordnerId) throw new Error('Entweder ordner ODER ordnerId angeben — nicht beides')
+          if (ordner) pruefeSchreibschutz(`${ordner}/${dateiname}`, 'anlegen')
+          const folderId = elternAnlegen && ordner
+            ? await ordnerSicherstellen(provider, ordner, true)
+            : await resolveScope({ userEmail, libraryId, folderId: ordnerId, pfad: ordner })
           if (!folderId) throw new Error('ordner oder ordnerId ist erforderlich')
           const audioContext = audioOptionenAusEingabe({ sprecherErkennung, kontext, begriffe })
           const ergebnis = await webseiteErschliessen({
@@ -63,6 +75,7 @@ export function registerWebseiteTool(server: McpServer): void {
             targetLanguage: zielsprache ?? 'de', audioContext, llmModel: standardLlmModell(library),
             medienHolen: medienHolen ?? true,
             medienEinbetten: medienEinbetten ?? true,
+            seitenModus: seitenModus ?? 'artikel',
           })
           const weg = ergebnis.medium ? bestimmeAudioWeg(audioContext, library) : null
           return jsonResult({

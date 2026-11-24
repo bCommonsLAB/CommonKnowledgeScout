@@ -16,6 +16,7 @@
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { zeitmarke, type MediaKapitel } from './media-metadata'
 import type { WebPageExtract } from './page-extract'
+import type { SeitenLink } from './seite-links'
 
 export interface ArtikelSammeldateiInput {
   seite: WebPageExtract
@@ -40,6 +41,29 @@ export interface ArtikelSammeldateiInput {
    * das Transkript das Material und ein leerer Body kein Fehler. Default false.
    */
   ohneTextErlaubt?: boolean
+  /**
+   * Modus `struktur`: die Seite woertlich als Markdown (Listen, Tabellen) und ihre Links.
+   * Tritt an die Stelle des Abschnitts „Artikel"; ein leerer Artikeltext ist dann kein Fehler.
+   */
+  struktur?: { markdown: string; links: SeitenLink[] }
+}
+
+/** Ueberschriften der Seite um zwei Ebenen tiefer setzen — `#` und `##` gehoeren der Sammeldatei. */
+export function stufeUeberschriftenAb(markdown: string): string {
+  return markdown.replace(/^(#{1,6}) /gm, (_m, rauten: string) => `${'#'.repeat(Math.min(6, rauten.length + 2))} `)
+}
+
+/** Verlinkte Dateien (PDF, Dokument, Medium) als Liste, je Adresse einmal, in Lesereihenfolge. */
+export function verlinkteDateien(links: SeitenLink[]): string[] {
+  const gesehen = new Set<string>()
+  const zeilen: string[] = []
+  for (const l of links) {
+    if ((l.art !== 'pdf' && l.art !== 'dokument' && l.art !== 'medium') || gesehen.has(l.url)) continue
+    gesehen.add(l.url)
+    const kontext = l.kontext && l.kontext !== l.text ? ` — ${l.kontext}` : ''
+    zeilen.push(`- ${l.art}: [${(l.text || l.url).replace(/[[\]]/g, '\\$&')}](${l.url})${kontext}`)
+  }
+  return zeilen
 }
 
 function dauerText(sekunden: number | null): string {
@@ -55,7 +79,7 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   const einbetten = input.medienEinbetten !== false
   const videoEmbedUrl = einbetten ? (input.videoEmbedUrl ?? null) : null
   if (!seite.title.trim()) throw new Error('Seite ohne Titel — Sammeldatei nicht gebaut')
-  if (seite.bloecke.length === 0 && input.ohneTextErlaubt !== true) {
+  if (seite.bloecke.length === 0 && input.ohneTextErlaubt !== true && !input.struktur) {
     throw new Error('Seite ohne Artikeltext (keine Absaetze gefunden) — Sammeldatei nicht gebaut')
   }
   const kapitel = input.kapitel ?? []
@@ -85,7 +109,11 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
   const beschreibungImText = seite.bloecke.some((b) => b.trim() === seite.description.trim())
   if (seite.description && !beschreibungImText) zeilen.push(`*${seite.description}*`, '')
   zeilen.push(herkunft.join(' · '), '')
-  if (seite.bloecke.length > 0) {
+  if (input.struktur) {
+    zeilen.push('## Seite', '', stufeUeberschriftenAb(input.struktur.markdown), '')
+    const dateien = verlinkteDateien(input.struktur.links)
+    if (dateien.length > 0) zeilen.push('## Verlinkte Dateien', '', ...dateien, '')
+  } else if (seite.bloecke.length > 0) {
     zeilen.push('## Artikel', '')
     for (const block of seite.bloecke) zeilen.push(block, '')
   }
