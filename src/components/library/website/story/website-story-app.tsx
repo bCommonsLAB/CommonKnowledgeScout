@@ -75,8 +75,8 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
         fehler: error,
       },
       zurueckTaste,
-      perspektiveDialog: ({ offen, onOpenChange }) => (
-        <PerspektiveDialogApp open={offen} onOpenChange={onOpenChange} onProfil={speichern} darstellung="blatt" />
+      perspektiveDialog: ({ offen, onOpenChange, antwortLaenge }) => (
+        <PerspektiveDialogApp open={offen} onOpenChange={onOpenChange} onProfil={speichern} darstellung="blatt" antwortLaenge={antwortLaenge} />
       ),
       antwortFuss: (a: Nachricht) => (
         <>

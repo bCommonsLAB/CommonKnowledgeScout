@@ -8,7 +8,8 @@
  */
 
 import * as React from 'react'
-import { Send } from 'lucide-react'
+import { Send, SlidersHorizontal } from 'lucide-react'
+import { useTranslation } from '@ks/i18n/react'
 import { useSchmal } from './use-schmal'
 
 export interface StoryFrageLeisteProps {
@@ -59,5 +60,25 @@ export function StoryFrageLeiste({ anker, text, aus }: StoryFrageLeisteProps): R
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white" aria-hidden="true"><Send className="h-4 w-4" /></span>
       </button>
     </div>
+  )
+}
+
+/**
+ * Der Knopf „Antworten anpassen" in der Fragebox (Owner 24.11.2026): dezent, nur das Regler-Symbol,
+ * mit Beschriftung fuer Vorleser und Tooltip. Er oeffnet den Dialog, in dem auch die Antwortlaenge steht.
+ */
+export function StoryAnpassenKnopf({ onClick }: { onClick: () => void }): React.ReactElement {
+  const { t } = useTranslation()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={t('website.story.anpassen')}
+      aria-label={t('website.story.anpassen')}
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+      data-story-perspektive-knopf
+    >
+      <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+    </button>
   )
 }

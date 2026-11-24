@@ -50,6 +50,7 @@ export { StoryKopfzeile, type StoryKopfzeileProps } from './story-kopfzeile'
 
 // 09.10.2026: die Perspektiv-Wahl als Dialog — ersetzt die Perspektiv-Seite der App.
 export { PerspektiveDialog, type PerspektiveDialogProps } from './perspektive/perspektive-dialog'
+export type { AntwortLaengeWahl } from './perspektive/antwort-laenge-abschnitt'
 export { PerspektivePlaketten } from './perspektive/perspektive-plaketten'
 export {
   umschalten,

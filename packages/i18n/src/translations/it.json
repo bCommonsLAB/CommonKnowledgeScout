@@ -644,6 +644,8 @@
       "accessPerspectiveSectionSelectedCount": "{count} di 5 selezionati",
       "socialContextSectionTitle": "Stile linguistico",
       "socialContextSectionHelp": "Come dovrebbero suonare le risposte?",
+      "answerLengthSectionTitle": "Lunghezza della risposta",
+      "answerLengthSectionHelp": "Quanto devono essere dettagliate le risposte?",
       "socialContextSectionNote": "Determini solo lo stile – non il contenuto. Le risposte si basano sulle stesse fonti.",
       "saveButton": "Inizia con questa prospettiva",
       "saveButtonFooter": "Puoi cambiare la tua selezione in qualsiasi momento dopo nella modalità Story.",
@@ -659,6 +661,12 @@
       "send": "Invia",
       "closeChat": "Chiudi chat",
       "askQuestion": "Fai una domanda"
+    },
+    "answerLengthTooltips": {
+      "kurz": "L’essenziale in poche frasi",
+      "mittel": "Una panoramica dei punti principali",
+      "ausführlich": "Strutturata, con dettagli e fonti",
+      "unbegrenzt": "Lunga quanto richiede l’argomento"
     },
     "answerLengthLabels": {
       "kurz": "Breve",

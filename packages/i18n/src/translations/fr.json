@@ -644,6 +644,8 @@
       "accessPerspectiveSectionSelectedCount": "{count} sur 5 sélectionnés",
       "socialContextSectionTitle": "Style de langue",
       "socialContextSectionHelp": "Comment les réponses doivent-elles sonner ?",
+      "answerLengthSectionTitle": "Longueur de la réponse",
+      "answerLengthSectionHelp": "Quel niveau de détail pour les réponses ?",
       "socialContextSectionNote": "Vous déterminez uniquement le style – pas le contenu. Les réponses sont basées sur les mêmes sources.",
       "saveButton": "Commencer avec cette perspective",
       "saveButtonFooter": "Vous pouvez modifier votre sélection à tout moment plus tard dans le mode Story.",
@@ -659,6 +661,12 @@
       "send": "Envoyer",
       "closeChat": "Fermer le chat",
       "askQuestion": "Poser une question"
+    },
+    "answerLengthTooltips": {
+      "kurz": "L’essentiel en quelques phrases",
+      "mittel": "Une vue d’ensemble des points principaux",
+      "ausführlich": "Structurée, avec détails et sources",
+      "unbegrenzt": "Aussi longue que le sujet l’exige"
     },
     "answerLengthLabels": {
       "kurz": "Court",

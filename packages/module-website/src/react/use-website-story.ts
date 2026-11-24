@@ -56,7 +56,8 @@ export function useWebsiteStory(gastgeber: WebsiteStoryGastgeber, libraryId: str
   const alle = useMemo(() => paare(k.nachrichten), [k.nachrichten])
   const sichtbar = useMemo(() => sichtbaresPaar(alle), [alle])
   // Nach „Mit dieser Perspektive starten": die sichtbare Frage neu stellen, ohne weiteren Klick.
-  useNeuStellen({ stand: k.stand, laeuft: k.laeuft, frage: sichtbar.paar?.frage.text ?? null, frageSenden: k.frageSenden })
+  // Auch eine geaenderte Antwortlaenge stellt die Frage neu (sie steht seit 24.11.2026 im selben Dialog).
+  useNeuStellen({ stand: `${k.stand}|${k.antwortLaenge}`, laeuft: k.laeuft, frage: sichtbar.paar?.frage.text ?? null, frageSenden: k.frageSenden })
 
   // Zahl des Katalogs fuer den Weg „alle Quellen" in der Belegliste (anonym lesbar).
   const [katalogAnzahl, setKatalogAnzahl] = useState<number>(0)

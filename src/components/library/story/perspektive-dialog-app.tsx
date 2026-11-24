@@ -15,7 +15,7 @@ import { useEffect, useMemo } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useLlmModels } from '@ks/api-client'
 import { useTranslation } from '@ks/i18n/react'
-import { PerspektiveDialog, sprachenSortiert, type PerspektivWahl } from '@ks/module-story/react'
+import { PerspektiveDialog, sprachenSortiert, type AntwortLaengeWahl, type PerspektivWahl } from '@ks/module-story/react'
 import { saveStoryContextToLocalStorage, useStoryContext } from '@/hooks/use-story-context'
 
 export interface PerspektiveDialogAppProps {
@@ -25,9 +25,11 @@ export interface PerspektiveDialogAppProps {
   onProfil: (wahl: PerspektivWahl) => void
   /** Zentrierter Dialog (Default) oder Blatt von rechts (Website-Story-Sektion, Welle N3). */
   darstellung?: 'dialog' | 'blatt'
+  /** Antwortlaenge im Dialog zur Wahl stellen (Fragen-Sektion der Startseite). */
+  antwortLaenge?: AntwortLaengeWahl
 }
 
-export function PerspektiveDialogApp({ open, onOpenChange, onProfil, darstellung }: PerspektiveDialogAppProps) {
+export function PerspektiveDialogApp({ open, onOpenChange, onProfil, darstellung, antwortLaenge }: PerspektiveDialogAppProps) {
   const { locale } = useTranslation()
   const { isSignedIn } = useUser()
   const ctx = useStoryContext()
@@ -69,6 +71,7 @@ export function PerspektiveDialogApp({ open, onOpenChange, onProfil, darstellung
       sprachwahl={{ sprachen, labels: ctx.targetLanguageLabels }}
       modellwahl={{ modelle: modelle.data ?? [], laedt: modelle.isLoading }}
       darstellung={darstellung}
+      antwortLaenge={antwortLaenge}
     />
   )
 }

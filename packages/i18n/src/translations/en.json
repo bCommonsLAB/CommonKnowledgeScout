@@ -644,6 +644,8 @@
       "accessPerspectiveSectionSelectedCount": "{count} of 5 selected",
       "socialContextSectionTitle": "Language Style",
       "socialContextSectionHelp": "How should the answers sound?",
+      "answerLengthSectionTitle": "Answer length",
+      "answerLengthSectionHelp": "How detailed should the answers be?",
       "socialContextSectionNote": "You determine only the style – not the content. The answers are based on the same sources.",
       "saveButton": "Start with this perspective",
       "saveButtonFooter": "You can change your selection anytime later in Story Mode.",
@@ -659,6 +661,12 @@
       "send": "Send",
       "closeChat": "Close chat",
       "askQuestion": "Ask question"
+    },
+    "answerLengthTooltips": {
+      "kurz": "The essentials in a few sentences",
+      "mittel": "An overview of the main points",
+      "ausführlich": "Structured, with details and sources",
+      "unbegrenzt": "As long as the topic needs"
     },
     "answerLengthLabels": {
       "kurz": "Short",
