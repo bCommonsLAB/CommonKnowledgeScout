@@ -151,7 +151,8 @@ importiert kein `@commonux/*`.
   kleinerem Abstand (`px-4 py-10`), keine Karte in der Karte (mit Teppich
   ohne Innenabstand, die Antwort ohne Bild-Spalte in voller Lesebreite), die
   Beispielfragen als waagrechte Reihe zum Wischen, die Themen als Akkordeon
-  (`useSchmal`, erstes Thema offen), Tippziele mindestens 44 px. Die Variante
+  (`useSchmal`, erstes Thema offen), Tippziele mindestens 44 px. Breit sind
+  die Themen ebenfalls ein Akkordeon, anfangs alle zu (Owner 24.11.2026). Die Variante
   `max-sm:` erzeugt dieses Tailwind-Setup NICHT — Telefon ist der
   Grundzustand, `sm:` stellt die breite Darstellung her.
   **Vollbild der Frage (Telefon, Owner 24.11.2026):** Mit dem Absenden liegt
