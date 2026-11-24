@@ -2,7 +2,8 @@
 
 /**
  * Konversationsblock der Story-Sektion (aus `website-story-sektion.tsx`
- * herausgeloest, 09.11.2026, Dateigrenze): das juengste Frage-Antwort-Paar
+ * herausgeloest, 09.11.2026, Dateigrenze): die juengste Antwort (die Frage
+ * steht in der Fragebox darueber, R1 24.11.2026)
  * mit Kopfzeile („N Vortraege zitiert", „Vortraege anzeigen"), Fusszeile und
  * dem Verweis auf fruehere Fragen — plus die Karten-Darstellungen der
  * zitierten Dokumente (Owner 09.11.2026, Figma S2-A/S2-B):
@@ -42,8 +43,8 @@ export interface WebsiteStoryKonversationProps {
   cards: StoryCards
   bezeichnung: EintragsBezeichnung
   markenAnfangsVerborgen: boolean
-  /** Anschlussfrage oder „neu stellen": Text in die Eingabe. */
-  onText: (text: string) => void
+  /** Weiterfrage gewaehlt: Sie fuellt die Fragebox und wird sofort gestellt (R1, wie eine Beispielfrage). */
+  onFrage: (text: string) => void
   /** Belege-Blatt zu dieser Antwort oeffnen. */
   onBelege: (antwort: Nachricht) => void
   /** Karte angeklickt: Detailansicht ueber der Startseite (10.11.2026). */
@@ -134,8 +135,8 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
           schritte={s.k.schritte}
           fehler={s.k.fehler}
           fehlerDetail={s.k.fehlerDetail}
-          onFrage={p.onText}
-          onErneut={p.onText}
+          onFrage={p.onFrage}
+          ohneFrage
           fuss={fuss}
           kopfAktion={kopfAktion}
           markenAnfangsVerborgen={p.markenAnfangsVerborgen}

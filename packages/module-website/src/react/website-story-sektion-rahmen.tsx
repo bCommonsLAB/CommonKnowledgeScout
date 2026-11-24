@@ -3,8 +3,8 @@
 /**
  * Rahmen der Story-Sektion (Welle N1, Plan website-story-sektion): die Karte
  * auf der Flaeche der Sektion mit Kopfzeile (Status links, „Antworten
- * anpassen" rechts), dem Markdown VOR dem Block `questions` ueber dem Chat
- * und dem Markdown DANACH darunter. Der Chat selbst kommt als Kinder vom
+ * anpassen" rechts), dem Markdown VOR dem Block `questions`, der Fragebox,
+ * dem Chat und dem Markdown DANACH darunter. Der Chat selbst kommt als Kinder vom
  * Live-Baustein (`website-story-sektion.tsx`); ohne Kinder (Archiv-Vorschau,
  * kein Slot) stehen die Fragen als Liste mit Hinweis.
  *
@@ -48,8 +48,8 @@ export interface WebsiteStorySektionRahmenProps {
   fragt?: boolean
   /** Den Hinweis „Klick auf eine freie Stelle …" zeigen (nur beim Erkunden). */
   hinweis?: boolean
-  /** Unter dem Chat (die Eingabe). */
-  fuss?: React.ReactNode
+  /** Die Fragebox: ueber dem Chat, direkt unter dem Markdown der Sektion (R1, 24.11.2026). */
+  eingabe?: React.ReactNode
 }
 
 /**
@@ -90,7 +90,7 @@ export function WebsiteStorySektionRahmen({
   abgetaucht = false,
   fragt = false,
   hinweis = false,
-  fuss,
+  eingabe,
 }: WebsiteStorySektionRahmenProps): React.ReactElement {
   const { t } = useTranslation()
   const flaeche = surfaceStyle(section.bg, theme)
@@ -121,8 +121,8 @@ export function WebsiteStorySektionRahmen({
           <div className="px-6 pb-6 pt-8 sm:px-10">
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
             {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
+            {eingabe}
             {children ?? <StoryVorschau fragen={fragen} hinweis={t("website.story.vorschauHinweis")} />}
-            {fuss}
             {nach.length > 0 && (
               // Legende/Vertrauenszeile: klein und dezent (Vorlage) — ueberschreibt die
               // Prose-Groesse der Absaetze, die sonst 20 px betraegt.

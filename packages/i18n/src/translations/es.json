@@ -992,7 +992,8 @@
       "weiterfragen": "Más preguntas"
     },
     "eingabeInline": {
-      "enterHint": "Intro envía · Mayús+Intro para salto de línea"
+      "enterHint": "Intro envía · Mayús+Intro para salto de línea",
+      "leeren": "Borrar la pregunta"
     }
   },
   "website": {

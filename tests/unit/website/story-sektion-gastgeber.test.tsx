@@ -16,14 +16,14 @@ vi.mock('@ks/i18n/react', () => ({
 }))
 
 // Die Konversation selbst prueft das Story-Paket; hier zaehlt nur, was die Sektion vom Gastgeber nimmt.
-const zustand = vi.hoisted(() => ({ nachrichten: [] as unknown[] }))
+const zustand = vi.hoisted(() => ({ nachrichten: [] as unknown[], frageSenden: vi.fn() }))
 vi.mock('@ks/module-story/react', async (original) => {
   const echt = await original<typeof import('@ks/module-story/react')>()
   return {
     ...echt,
     useStoryKonversation: () => ({
       stand: 's', nachrichten: zustand.nachrichten, laeuft: false, schritte: [], fehler: null, fehlerDetail: null,
-      antwortLaenge: 'mittel', setAntwortLaenge: vi.fn(), frageSenden: vi.fn(),
+      antwortLaenge: 'mittel', setAntwortLaenge: vi.fn(), frageSenden: zustand.frageSenden,
     }),
     useNeuStellen: () => undefined,
   }
@@ -54,6 +54,7 @@ function gastgeber(teil: Partial<WebsiteStoryGastgeber> = {}): { g: WebsiteStory
 afterEach(() => {
   cleanup()
   zustand.nachrichten = []
+  zustand.frageSenden.mockClear()
 })
 
 function paar(n: number) {
@@ -104,5 +105,56 @@ describe('WebsiteStorySektion mit Gastgeber', () => {
     expect(verweis.getAttribute('href')).toBe('?mode=story&q=q-1')
     fireEvent.click(verweis)
     expect(onShowStory).toHaveBeenCalledWith({ q: 'q-1' })
+  })
+
+  // R1 (24.11.2026): eine Fragebox — Eingabe und Anzeige der Frage zugleich.
+  it('Beispielfrage: fuellt die Box und wird sofort gestellt', () => {
+    const { g } = gastgeber()
+    render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+    fireEvent.click(screen.getByText('Was ist das?'))
+    expect(zustand.frageSenden).toHaveBeenCalledWith('Was ist das?')
+    expect((screen.getByPlaceholderText('Deine Frage …') as HTMLTextAreaElement).value).toBe('Was ist das?')
+  })
+
+  it('Antwort: die Frage steht in der Box (kein Block „Deine Frage"), die Box steht ueber der Antwort', () => {
+    zustand.nachrichten = paar(1)
+    const { g } = gastgeber()
+    const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+    const feld = screen.getByPlaceholderText('Deine Frage …') as HTMLTextAreaElement
+    expect(feld.value).toBe('Frage 1')
+    expect(container.querySelector('[data-story-frage]')).toBeNull()
+    expect(screen.queryByText('story.konversation.deineFrage')).toBeNull()
+    expect(container.querySelectorAll('[data-story-eingabe-inline]').length).toBe(1)
+    const antwort = container.querySelector('[data-antwort]') as Element
+    expect(feld.compareDocumentPosition(antwort) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('geaenderte Frage: Enter stellt sie neu', () => {
+    zustand.nachrichten = paar(1)
+    const { g } = gastgeber()
+    render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+    const feld = screen.getByPlaceholderText('Deine Frage …')
+    fireEvent.change(feld, { target: { value: 'Frage 1, genauer' } })
+    fireEvent.keyDown(feld, { key: 'Enter' })
+    expect(zustand.frageSenden).toHaveBeenCalledWith('Frage 1, genauer')
+  })
+
+  it('Weiterfrage: wird sofort gestellt und steht in der Box', () => {
+    const [frage, antwort] = paar(1)
+    zustand.nachrichten = [frage, { ...antwort, anschlussfragen: ['Und weiter?'] }]
+    const { g } = gastgeber()
+    render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+    fireEvent.click(screen.getByText('Und weiter?'))
+    expect(zustand.frageSenden).toHaveBeenCalledWith('Und weiter?')
+    expect((screen.getByPlaceholderText('Deine Frage …') as HTMLTextAreaElement).value).toBe('Und weiter?')
+  })
+
+  it('Beispielfragen: nach der Antwort eingeklappt, ein Klick holt sie zurueck', () => {
+    zustand.nachrichten = paar(1)
+    const { g } = gastgeber()
+    const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
+    expect(screen.queryByText('Was ist das?')).toBeNull()
+    fireEvent.click(container.querySelector('[data-story-beispiele] button') as Element)
+    expect(screen.getByText('Was ist das?')).toBeTruthy()
   })
 })

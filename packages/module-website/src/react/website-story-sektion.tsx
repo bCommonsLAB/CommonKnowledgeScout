@@ -2,10 +2,12 @@
 
 /**
  * Die Story-Sektion der Website-Landingpage (Welle N1, Plan
- * website-story-sektion): der Chat der Library auf der Startseite —
- * Beispielfragen als Kacheln, sichtbare Eingabe, darunter NUR das juengste
- * Frage-Antwort-Paar (Owner 08.11.2026: wie eine Suche, nicht wie ein Chat;
- * aeltere Fragen erreicht der Verweis in den Story-Modus). „Erst fragen, dann
+ * website-story-sektion): der Chat der Library auf der Startseite — EINE
+ * Fragebox (R1, 24.11.2026), darunter die Beispielfragen und NUR die juengste
+ * Antwort (Owner 08.11.2026: wie eine Suche, nicht wie ein Chat; aeltere Fragen
+ * erreicht der Verweis in den Story-Modus). Die Box enthaelt die gestellte Frage
+ * und bleibt editierbar; jede angebotene Frage (Beispiel, populaer, Thema,
+ * Weiterfrage) fuellt die Box und wird sofort gestellt. „Erst fragen, dann
  * einstellen": kein Dialog beim Betreten, Perspektive nur per Knopf, Belege als Blatt.
  *
  * Komponiert `@ks/module-story`, kopiert nichts aus `StoryRoot`. Der Konversationsblock mit den
@@ -37,6 +39,7 @@ import {
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { websiteStoryFrageAtom } from './website-story-frage-atom'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
+import { StoryBeispiele } from './website-story-beispiele'
 import { WebsiteStoryBelege } from './website-story-belege'
 import { wegGehen } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
@@ -88,11 +91,17 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     (frage: string) => {
       const f = frage.trim()
       if (!f || s.k.laeuft) return
-      setText('')
+      // Die Frage bleibt in der Box stehen: dort wird sie gelesen, geaendert und neu gestellt.
+      setText(f)
       void s.k.frageSenden(f)
     },
     [s.k],
   )
+  // Die Box zeigt die Frage zur sichtbaren Antwort — auch nach dem Wiederkommen in die Sitzung.
+  const gestellt = s.sichtbar.paar?.frage.text
+  useEffect(() => {
+    if (gestellt) setText(gestellt)
+  }, [gestellt])
 
   // 18.11.2026: Frage aus der Themen-Sektion (`layout=topics`) — einmal annehmen, hinaufrollen, stellen.
   const [auftrag, setAuftrag] = useAtom(websiteStoryFrageAtom)
@@ -142,8 +151,12 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     const konversation = anzahl > 0 || s.k.laeuft || s.k.fehler
     inhalt = (
       <>
-        <StoryFragenKacheln fragen={bloecke.fragen} onFrage={senden} gesperrt={s.k.laeuft} />
-        {bloecke.populaer !== null && <StoryPopulaereFragen instanz={gastgeber.instanz} libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
+        {(bloecke.fragen.length > 0 || bloecke.populaer !== null) && (
+          <StoryBeispiele eingeklappt={Boolean(konversation)} frage={gestellt}>
+            <StoryFragenKacheln fragen={bloecke.fragen} onFrage={senden} gesperrt={s.k.laeuft} />
+            {bloecke.populaer !== null && <StoryPopulaereFragen instanz={gastgeber.instanz} libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
+          </StoryBeispiele>
+        )}
         {konversation && (
           <WebsiteStoryKonversation
             libraryId={p.libraryId}
@@ -153,7 +166,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             cards={p.section.cards ?? 'hidden'}
             bezeichnung={bezeichnung}
             markenAnfangsVerborgen={p.section.citationsVisible !== true}
-            onText={setText}
+            onFrage={senden}
             onBelege={belegeOeffnen}
             onDokument={dokumentOeffnen}
             onGraph={teppich.graphZeigen}
@@ -168,7 +181,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
       <div ref={anker} className="scroll-mt-4">
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} {...teppich.rahmen} fuss={eingabe}>
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} {...teppich.rahmen} eingabe={eingabe}>
           {inhalt}
         </WebsiteStorySektionRahmen>
       </div>
