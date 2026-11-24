@@ -86,6 +86,25 @@ function webSourceBefund(steps: readonly ExternalJobStep[]): string | null {
   return `Playlist: ${d.fehlgeschlagen}${lesbar} Videos nicht lesbar${grund}`
 }
 
+/** Template-Schritt: verworfene Facettenwerte (Trace-Attribut `verworfen`, im Log unter `details.verworfen`). */
+function facettenBefunde(ereignisse: readonly JobEreignis[]): string[] {
+  const befunde: string[] = []
+  for (const e of ereignisse) {
+    if (e.name !== 'facet_values_rejected') continue
+    const details = e.attribute['details'] as { verworfen?: unknown } | undefined
+    const liste = e.attribute['verworfen'] ?? details?.verworfen
+    if (!Array.isArray(liste)) {
+      befunde.push('Facetten: Werte ausserhalb des Woerterbuchs verworfen (Einzelheiten im Ereignis facet_values_rejected nicht lesbar)')
+      continue
+    }
+    for (const eintrag of liste as Array<{ feld?: unknown; verworfen?: unknown }>) {
+      const werte = Array.isArray(eintrag.verworfen) ? eintrag.verworfen.map((w) => String(w)) : []
+      befunde.push(`Facette "${String(eintrag.feld)}": ${werte.length} Wert(e) ausserhalb des Woerterbuchs verworfen${namenKurz(werte)}`)
+    }
+  }
+  return befunde
+}
+
 export function befundeFuerJob(args: {
   status: string
   steps: ExternalJobStep[] | undefined
@@ -99,5 +118,6 @@ export function befundeFuerJob(args: {
     if (b) befunde.push(b)
   }
   befunde.push(...seitenbilderBefunde(args.ereignisse))
+  befunde.push(...facettenBefunde(args.ereignisse))
   return befunde
 }

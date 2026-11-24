@@ -747,7 +747,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     // aus der Vorlage genommen (Lauf-Parameter, Vorlage in MongoDB bleibt).
     // Jede Ausprägung landet im Trace — kein stiller Default.
     const slidesOption = applySlidesOption(picked.templateContent, job.parameters?.slidesAsTable)
-    const templateContent = slidesOption.content
+    // Facetten-Platzhalter (<<werte:key>>, <<legende:key>>) aus dem Schema der Library einsetzen.
+    // Nicht aufloesbar = Fehler, bevor das Sprachmodell laeuft (facetten-bindung.ts).
+    const { bindeFacettenAnVorlage } = await import('@/lib/external-jobs/facetten-bindung-job')
+    const facettenBindung = await bindeFacettenAnVorlage(slidesOption.content, job.userEmail, job.libraryId)
+    const templateContent = facettenBindung.content
     try {
       await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_slides_option', attributes: slidesOption.trace })
     } catch (traceError) {
@@ -1013,6 +1017,23 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           error: err instanceof Error ? err.message : String(err),
         })
         metadataFromTemplate = rawMetaFromLlm
+      }
+      // Gebundene Facetten: Werte ausserhalb des Woerterbuchs verwerfen und MELDEN
+      // (Log + Trace → job_status.befunde). Kein stilles Durchwinken, kein stilles Streichen.
+      if (facettenBindung.gebunden.length > 0 && metadataFromTemplate) {
+        const { pruefeFacettenWerte } = await import('@/lib/external-jobs/facetten-bindung')
+        const pruefung = pruefeFacettenWerte(metadataFromTemplate, facettenBindung.gebunden, facettenBindung.facetten)
+        metadataFromTemplate = pruefung.cleanedMeta
+        if (pruefung.verworfen.length > 0) {
+          bufferLog(jobId, { phase: 'facet_values_rejected', message: 'Facettenwerte ausserhalb des Woerterbuchs verworfen', details: { verworfen: pruefung.verworfen } })
+          try {
+            await repo.traceAddEvent(jobId, { spanId: 'template', name: 'facet_values_rejected', attributes: { verworfen: pruefung.verworfen } })
+          } catch (traceError) {
+            FileLogger.warn('phase-template', 'Trace-Event facet_values_rejected konnte nicht geschrieben werden', {
+              jobId, error: traceError instanceof Error ? traceError.message : String(traceError),
+            })
+          }
+        }
       }
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
     } else {

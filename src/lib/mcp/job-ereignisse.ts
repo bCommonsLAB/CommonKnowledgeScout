@@ -31,6 +31,8 @@ export const LESERSICHT_EREIGNISSE = [
   'extract_only_page_images_skipped',
   'extract_only_page_images_error',
   'frontmatter_json_list_invalid',
+  // Template-Schritt (facetten-bindung.ts): Werte ausserhalb des Facetten-Woerterbuchs verworfen.
+  'facet_values_rejected',
 ] as const
 
 export type LesersichtEreignisName = (typeof LESERSICHT_EREIGNISSE)[number]
