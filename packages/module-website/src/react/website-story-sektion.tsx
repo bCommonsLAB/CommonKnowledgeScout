@@ -135,7 +135,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     const konversation = anzahl > 0 || s.k.laeuft || s.k.fehler
     inhalt = (
       <>
-        {!v.vollbild && (bloecke.fragen.length > 0 || bloecke.populaer !== null) && (
+        {(!v.vollbild || !konversation) && (bloecke.fragen.length > 0 || bloecke.populaer !== null) && (
           <StoryBeispiele eingeklappt={Boolean(konversation)} frage={gestellt}>
             <StoryFragenKacheln fragen={bloecke.fragen} onFrage={senden} gesperrt={s.k.laeuft} />
             {bloecke.populaer !== null && <StoryPopulaereFragen instanz={gastgeber.instanz} libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
@@ -159,7 +159,9 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
         )}
       </>
     )
-    eingabe = <StoryEingabeInline className={v.vollbild ? '' : 'mt-6'} ohneLaenge={v.vollbild} text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} antwortLaenge={s.k.antwortLaenge} setAntwortLaenge={s.k.setAntwortLaenge} placeholder={platzhalter} />
+    // R5: Im Vollbild ist die Box gross, solange eine neue Frage entsteht — sonst die schmale Zeile ueber der Antwort.
+    const schreibt = v.vollbild && !s.k.laeuft && (gestellt === undefined || text !== gestellt)
+    eingabe = <StoryEingabeInline className={v.vollbild ? '' : 'mt-6'} ohneLaenge={v.vollbild && !schreibt} gross={schreibt} onFokus={v.oeffnen} text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} antwortLaenge={s.k.antwortLaenge} setAntwortLaenge={s.k.setAntwortLaenge} placeholder={platzhalter} />
   }
 
   return (

@@ -159,7 +159,14 @@ importiert kein `@commonux/*`.
   `data-story-vollbild`) — kein Portal, kein zweiter Baum: oben die Fragebox
   mit Schliessen-Knopf, in der Mitte die Wolke, die Botschaft als Statusblatt
   am unteren Rand (nie ueber der Wolke); danach scrollt die Antwort als
-  Leseansicht in der Sektion. Zu geht es nur durch den Leser; dann steht die
+  Leseansicht in der Sektion. **Schreiben im Vollbild (R5):** Schon der Tipp
+  in die Fragebox oeffnet es (`oeffnen`), damit ueber der Tastatur Platz ist:
+  die Box gross (mehrzeilig, Antwortlaenge, breiter Sende-Knopf), darunter
+  die Beispielfragen. Gross ist sie, solange eine neue Frage entsteht (noch
+  keine gestellt oder der Text geaendert), sonst die schmale Zeile ueber der
+  Antwort. Die Huelle um die Box ist in der Seite und im Vollbild DIESELBE —
+  das Feld darf beim Wechsel nicht neu eingehaengt werden, sonst verliert es
+  Fokus und Tastatur. Zu geht es nur durch den Leser; dann steht die
   Antwort inline in der Seite. Solange das Vollbild steht, haelt der Anker die
   Hoehe der Sektion, die Seite scrollt nicht, und `useZurFrageScrollen` tut
   nichts. Ist die Fragebox aus dem Bild, bleibt auf dem Telefon eine

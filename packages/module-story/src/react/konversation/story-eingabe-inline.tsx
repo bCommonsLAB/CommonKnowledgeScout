@@ -28,6 +28,14 @@ export interface StoryEingabeInlineProps {
   placeholder?: string
   /** Telefon: die Zeile mit der Antwortlaenge weglassen (Vollbild der Startseite — dort zaehlt der Platz). */
   ohneLaenge?: boolean
+  /**
+   * Telefon, Schreiben im Vollbild (R5): das Feld mehrzeilig ueber die ganze Breite, darunter der
+   * Sende-Knopf breit und beschriftet. Die Lage der Elemente im Baum bleibt gleich — das Feld
+   * behaelt den Fokus, wenn die Darstellung wechselt.
+   */
+  gross?: boolean
+  /** Das Feld hat den Fokus bekommen (der Gastgeber oeffnet darauf z. B. sein Vollbild). */
+  onFokus?: () => void
   /** Zusaetzliche Klassen fuer den Rahmen (Gastgeber-Flaeche). */
   className?: string
 }
@@ -45,7 +53,7 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, MAX_HOEHE)}px`
-  }, [p.text])
+  }, [p.text, p.gross])
 
   const senden = () => {
     if (!p.text.trim() || p.laeuft) return
@@ -68,11 +76,12 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
       className={`rounded-2xl border-2 border-primary/40 bg-background shadow-sm focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/10 ${p.className ?? ''}`}
       data-story-eingabe-inline
     >
-      <div className="flex items-end gap-1.5 p-2 pl-4 sm:gap-2 sm:pl-5">
+      <div className={p.gross ? 'flex flex-wrap items-center gap-2 p-3' : 'flex items-end gap-1.5 p-2 pl-4 sm:gap-2 sm:pl-5'}>
         <textarea
           ref={feld}
           value={p.text}
           onChange={(e) => p.setText(e.target.value)}
+          onFocus={p.onFokus}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -83,7 +92,7 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
           placeholder={p.placeholder || t('chat.input.placeholderExample')}
           aria-label={t('chat.input.askQuestion')}
           title={t('story.eingabeInline.enterHint')}
-          className="min-h-[44px] min-w-0 flex-1 resize-none bg-transparent py-2.5 text-base font-medium text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:outline-none"
+          className={`${p.gross ? 'min-h-[112px] basis-full px-1 text-lg' : 'min-h-[44px] min-w-0 flex-1 text-base'} resize-none bg-transparent py-2.5 font-medium text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:outline-none`}
         />
         {p.text !== '' && (
           <Button type="button" variant="ghost" size="sm" className="h-11 w-11 shrink-0 p-0 text-muted-foreground" aria-label={t('story.eingabeInline.leeren')} title={t('story.eingabeInline.leeren')} data-story-eingabe-leeren onClick={() => { p.setText(''); feld.current?.focus() }}>
@@ -91,9 +100,9 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
           </Button>
         )}
         <div className="hidden shrink-0 items-center self-center sm:flex">{laenge}</div>
-        <Button onClick={senden} className="h-11 w-11 shrink-0 gap-2 rounded-full p-0 sm:w-auto sm:px-5" disabled={p.laeuft || !p.text.trim()} aria-label={t('chat.input.askQuestion')} data-story-eingabe-senden>
+        <Button onClick={senden} className={p.gross ? 'order-last h-12 flex-1 gap-2 rounded-full px-5' : 'h-11 w-11 shrink-0 gap-2 rounded-full p-0 sm:w-auto sm:px-5'} disabled={p.laeuft || !p.text.trim()} aria-label={t('chat.input.askQuestion')} data-story-eingabe-senden>
           {p.laeuft ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
-          <span className="hidden sm:inline">{p.laeuft ? t('chat.input.waiting') : t('chat.input.askQuestion')}</span>
+          <span className={p.gross ? 'inline' : 'hidden sm:inline'}>{p.laeuft ? t('chat.input.waiting') : t('chat.input.askQuestion')}</span>
         </Button>
       </div>
       {!p.ohneLaenge && (
