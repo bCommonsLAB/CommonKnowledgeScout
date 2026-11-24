@@ -28,14 +28,16 @@ export interface WebsiteStoryVortragskarteProps {
   libraryId: string
   /** Oeffnet die Detailansicht des Eintrags ueber der Seite. */
   onOpen: (doc: DocCardMeta) => void
+  /** Zusaetzliche Klassen der Karte (Breite in der Reihe zum Wischen). */
+  className?: string
 }
 
 const MARKE = 'pointer-events-none absolute -left-2 -top-2 z-20 shadow-md ring-2 ring-white'
 
-export function WebsiteStoryVortragskarte({ eintrag, libraryId, onOpen }: WebsiteStoryVortragskarteProps) {
+export function WebsiteStoryVortragskarte({ eintrag, libraryId, onOpen, className }: WebsiteStoryVortragskarteProps) {
   const { nummer, doc, titel } = eintrag
   return (
-    <div className="relative min-w-0" id={`beleg-${nummer}`} data-story-karte={nummer} data-story-karte-laedt={doc ? undefined : 'true'}>
+    <div className={className ? `relative min-w-0 ${className}` : 'relative min-w-0'} id={`beleg-${nummer}`} data-story-karte={nummer} data-story-karte-laedt={doc ? undefined : 'true'}>
       {doc ? (
         <DocumentCard doc={doc} libraryId={libraryId} cardDensity="compact" teaser onOpen={onOpen} />
       ) : (
