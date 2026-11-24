@@ -25,13 +25,13 @@ export function StoryStatus({ anzahl, filter }: StoryStatusProps) {
   const beschriftung = filter && Object.keys(filter).length > 0 ? storyFilterBeschriftung(filter) : null
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700">
+      <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">
         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--site-accent)]" aria-hidden="true" />
         {stand}
       </span>
       {beschriftung && (
         <span
-          className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--site-accent)] bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--site-accent)] bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-600"
           data-story-filter={beschriftung}
           title={t('website.story.filterHinweis')}
         >

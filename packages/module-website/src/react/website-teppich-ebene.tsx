@@ -5,8 +5,8 @@
  *
  * Laedt die Punkte (`GET /api/chat/<id>/teppich`) und reicht sie an die Zeichenflaeche.
  * Ein Klick auf einen Punkt laedt die Karte des Dokuments (`docs/by-fileids`) und oeffnet
- * sie wie einen Beleg; ein Klick auf eine freie Stelle blendet den Vordergrund aus und
- * wieder ein, Escape holt ihn zurueck.
+ * sie wie einen Beleg; ein Klick mit der Maus auf eine freie Stelle oeffnet die Graph-Ansicht,
+ * ihr Schliessen-Knopf oder Escape holt die Seite zurueck.
  *
  * Kein stiller Rueckfall: Ist der Teppich noch nicht berechnet, bleibt die Ebene leer
  * und die Konsole sagt es einmal; ein Ladefehler steht als Fehler in der Konsole.
@@ -73,21 +73,17 @@ export interface WebsiteTeppichEbeneProps {
 export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, botschaft, animation }: WebsiteTeppichEbeneProps): React.ReactElement {
   const punkte = useTeppichPunkte(instanz, libraryId)
 
+  // Graph-Ansicht (Owner 24.11.2026): eine eigene Seite ueber dem Bildschirm. Zu geht sie ueber ihren
+  // Schliessen-Knopf oder Escape — nicht mehr ueber einen Klick auf den Hintergrund (zu ungenau, und
+  // mit dem Finger liess sich so kein Punkt ansehen). Die Seite darunter scrollt solange nicht.
   React.useEffect(() => {
     if (!abgetaucht) return
     const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') onAbgetaucht(false) }
-    // Owner 23.11.2026: „Ich komme aus der Graph-Ansicht nicht mehr heraus" — die Leinwand beginnt
-    // erst bei der Frage, ein Klick darueber ging ins Leere. Jeder Klick ausserhalb der Wolke holt
-    // den Text zurueck. Der Klick, der die Ansicht gerade geoeffnet hat, zaehlt nicht.
-    const seit = performance.now()
-    const klick = (e: MouseEvent) => {
-      if (e.timeStamp <= seit) return
-      if (e.target instanceof Element && e.target.closest('[data-website-teppich]')) return
-      onAbgetaucht(false)
-    }
+    const wurzel = document.documentElement
+    const vorher = wurzel.style.overflow
+    wurzel.style.overflow = 'hidden'
     window.addEventListener('keydown', taste)
-    window.addEventListener('click', klick)
-    return () => { window.removeEventListener('keydown', taste); window.removeEventListener('click', klick) }
+    return () => { window.removeEventListener('keydown', taste); wurzel.style.overflow = vorher }
   }, [abgetaucht, onAbgetaucht])
 
   const oeffnen = React.useCallback((punkt: TeppichPunkt) => {
@@ -108,7 +104,9 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
       punkte={punkte}
       abgetaucht={abgetaucht}
       onPunkt={oeffnen}
-      onFreieStelle={() => onAbgetaucht(!abgetaucht)}
+      // Mit der Maus oeffnet ein Klick ins Leere die Graph-Ansicht; mit dem Finger nicht (zu leicht versehentlich).
+      onFreieStelle={(touch) => { if (!touch) onAbgetaucht(true) }}
+      onZu={() => onAbgetaucht(false)}
       phase={phase}
       belege={belege}
       kandidaten={kandidaten}

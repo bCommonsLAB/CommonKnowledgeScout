@@ -20,8 +20,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSetAtom } from 'jotai'
-import { SlidersHorizontal } from 'lucide-react'
-import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
 import { chatReferencesAtom } from '@ks/module-explorer/react'
@@ -126,12 +124,6 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   const platzhalter = p.section.placeholder ?? gastgeber.eingabe.platzhalter
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
-  const kopf = gastgeber.perspektiveDialog ? (
-    <Button variant="outline" size="sm" className="gap-2" onClick={() => setPerspektiveOffen(true)} data-story-perspektive-knopf>
-      <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-      {t('website.story.anpassen')}
-    </Button>
-  ) : undefined
 
   let inhalt
   let eingabe
@@ -160,6 +152,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             onBelege={belegeOeffnen}
             onDokument={dokumentOeffnen}
             onGraph={teppich.graphZeigen}
+            onAnpassen={gastgeber.perspektiveDialog ? () => setPerspektiveOffen(true) : undefined}
           />
         )}
       </>
@@ -171,7 +164,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
       <div ref={anker} className="scroll-mt-4" style={v.platz}>
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} {...teppich.rahmen} eingabe={eingabe} vollbild={v.vollbild} onVollbildZu={v.schliessen}>
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} {...teppich.rahmen} eingabe={eingabe} vollbild={v.vollbild} onVollbildZu={v.schliessen}>
           {inhalt}
         </WebsiteStorySektionRahmen>
       </div>

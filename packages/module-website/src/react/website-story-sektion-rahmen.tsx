@@ -2,8 +2,7 @@
 
 /**
  * Rahmen der Story-Sektion (Welle N1, Plan website-story-sektion): die Karte
- * auf der Flaeche der Sektion mit Kopfzeile (Status links, „Antworten
- * anpassen" rechts), dem Markdown VOR dem Block `questions`, der Fragebox,
+ * auf der Flaeche der Sektion mit der Status-Plakette, dem Markdown VOR dem Block `questions`, der Fragebox,
  * dem Chat und dem Markdown DANACH darunter. Der Chat selbst kommt als Kinder vom
  * Live-Baustein (`website-story-sektion.tsx`); ohne Kinder (Archiv-Vorschau,
  * kein Slot) stehen die Fragen als Liste mit Hinweis.
@@ -34,10 +33,8 @@ export interface WebsiteStorySektionRahmenProps {
   section: WebsiteSection
   headingCase?: HeadingCase
   theme?: SiteThemeResolved
-  /** Links im Kopf der Karte (Status-Plakette). */
+  /** Status-Plakette, klein ueber dem Markdown der Sektion. */
   status?: React.ReactNode
-  /** Rechts im Kopf der Karte („Antworten anpassen"). */
-  kopf?: React.ReactNode
   /** Der Chat (Kacheln, Konversation, Eingabe). Ohne Kinder: Vorschau mit den Fragen als Liste. */
   children?: React.ReactNode
   /**
@@ -45,12 +42,10 @@ export interface WebsiteStorySektionRahmenProps {
    * Wolke liegt hinter der Antwort (Owner 23.11.2026). Sie nimmt Klicks an, wo keine Karte liegt.
    */
   teppich?: React.ReactNode
-  /** Erkunden (Graph-Ansicht): die Zone der Antwort weicht, die Wolke liegt frei (`ERKUNDEN`). */
+  /** Graph-Ansicht: die Ebene des Teppichs liegt als eigene Seite ueber dem Bildschirm, der Vordergrund ruht (`ERKUNDEN`). */
   abgetaucht?: boolean
   /** Eine Frage laeuft: nur die Teile der Antwort sind verborgen, danach blenden sie ein. */
   fragt?: boolean
-  /** Den Hinweis „Klick auf eine freie Stelle …" zeigen (nur beim Erkunden). */
-  hinweis?: boolean
   /** Die Fragebox: ueber dem Chat, direkt unter dem Markdown der Sektion (R1, 24.11.2026). */
   eingabe?: React.ReactNode
   /**
@@ -94,12 +89,10 @@ export function WebsiteStorySektionRahmen({
   headingCase = "capitalize",
   theme = OLDIES_THEME,
   status,
-  kopf,
   children,
   teppich,
   abgetaucht = false,
   fragt = false,
-  hinweis = false,
   eingabe,
   vollbild = false,
   onVollbildZu,
@@ -115,6 +108,8 @@ export function WebsiteStorySektionRahmen({
         // Vollbild: dieselbe Sektion, fest ueber dem Bildschirm; sie scrollt in sich (Leseansicht).
         // Solange die Frage laeuft, gehoert jede Fingerbewegung dem Schwarm.
         vollbild ? cn("fixed inset-0 z-50 overflow-y-auto overscroll-contain pb-8", fragt && "touch-none") : "relative py-8 sm:py-14",
+        // Die Graph-Ansicht liegt in dieser Sektion: sie muss ueber der Navigation der Seite stehen.
+        abgetaucht && !vollbild && "z-50",
         flaeche.className,
       )}
       style={flaeche.style}
@@ -122,7 +117,10 @@ export function WebsiteStorySektionRahmen({
       data-story-vollbild={vollbild || undefined}
     >
       {teppich && <style>{ANTWORT_EIN}</style>}
-      {teppich && <div className="absolute inset-0 z-0">{teppich}</div>}
+      {teppich && (
+        // Graph-Ansicht: die Ebene liegt als eigene Seite ueber dem Bildschirm, deckend in der Farbe der Flaeche.
+        <div className={abgetaucht ? cn("fixed inset-0 z-50", flaeche.className) : "absolute inset-0 z-0"} style={abgetaucht ? flaeche.style : undefined}>{teppich}</div>
+      )}
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
       <div
         className={cn(
@@ -135,14 +133,10 @@ export function WebsiteStorySektionRahmen({
       >
         {section.kicker && !vollbild && <p className={KICKER_CLASS}>{section.kicker}</p>}
         <div className={cn(vollbild ? "overflow-visible" : "overflow-hidden", "text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
-          {(status || kopf) && !vollbild && (
-            <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-3 sm:px-6 sm:py-4", teppich ? "px-0" : "px-4")}>
-              <div>{status}</div>
-              <div>{kopf}</div>
-            </div>
-          )}
           <div className={cn("pb-5 sm:px-10 sm:pb-6 sm:pt-8", vollbild ? "pt-0" : "pt-6", teppich ? "px-0" : "px-4")}>
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
+            {/* Status-Plakette klein ueber der Ueberschrift (Owner 24.11.2026) — keine eigene Kopfzeile mehr. */}
+            {status && !vollbild && <div className="mb-3" data-story-status>{status}</div>}
             {vor.length > 0 && !vollbild && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
             {vollbild ? (
               // Kopf des Vollbilds: bleibt beim Lesen der Antwort oben stehen, deckend in der Farbe der Flaeche.
@@ -168,12 +162,6 @@ export function WebsiteStorySektionRahmen({
           </div>
         </div>
       </div>
-      {hinweis && (
-        // An der Oberkante der Wolke (`--teppich-oben` aus `useTeppichHalt`): dort, wo man hinsieht.
-        <p className="pointer-events-none absolute left-1/2 top-[calc(var(--teppich-oben,0px)+0.75rem)] z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm" data-teppich-hinweis>
-          {t("website.story.teppichZurueck")}
-        </p>
-      )}
     </section>
   )
 }

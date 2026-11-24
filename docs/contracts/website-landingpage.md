@@ -169,6 +169,20 @@ importiert kein `@commonux/*`.
   Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
   aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die
   Uebersicht), kein Loesch-Knopf;
+  **Graph-Ansicht (Owner 24.11.2026):** „Graph ansehen" legt die Ebene des
+  Teppichs als eigene Seite ueber den Bildschirm (`fixed`, in der Farbe der
+  Flaeche; die Sektion steht dann auf `z-50`). Kopfzeile mit Schliessen-Knopf
+  und Zoom-Knoepfen; Mausrad und zwei Finger zoomen, Ziehen verschiebt
+  (`use-teppich-sicht.ts`, die Sicht liegt an der Szene, Punkte wachsen nur
+  mit der Wurzel). Ein Tipp auf einen Punkt WAEHLT ihn (Karte mit Titel und
+  „Dokument oeffnen"), ein Tipp ins Leere waehlt ab. Zu geht sie NUR ueber
+  den Knopf oder Escape, nie ueber den Hintergrund; eine neue Frage schliesst
+  sie. Mit der Maus oeffnet ein Klick auf eine freie Stelle der Wolke sie
+  weiterhin, mit dem Finger nicht.
+  Der Knopf „Antworten anpassen" steht als Symbol im Kopf der ANTWORT, neben
+  „Graph ansehen" (Owner 24.11.2026; nicht mehr im Kopf der Sektion — so ist
+  er auch im Telefon-Vollbild da; vor der ersten Antwort gibt es ihn nicht:
+  erst fragen, dann einstellen).
   Belege einer Antwort und die Perspektive („Antworten anpassen") kommen als
   Blatt, nie von selbst. Dokumentgetrieben: Markdown VOR dem Block
   `<!-- questions -->` (+ Markdown-Liste) steht ueber der Eingabe, die Liste

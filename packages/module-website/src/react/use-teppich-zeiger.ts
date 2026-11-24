@@ -21,13 +21,15 @@ type Ereignis = React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCan
 
 export interface TeppichZeigerEingabe {
   szene: TeppichSzene
-  flaeche: React.RefObject<HTMLDivElement | null>
+  /** Bildschirmpunkt → Ort in der Wolke (die Graph-Ansicht zoomt und verschiebt). */
+  zuWelt: (clientX: number, clientY: number) => [number, number]
   /** Nur in Ruhe und bei stehender Antwort nimmt die Leinwand den Zeiger an. */
   ruhig: boolean
   /** Index des Punkts unter dem Zeiger, sonst -1. */
   treffer: (e: Ereignis) => number
   onPunkt: (i: number) => void
-  onFreieStelle: () => void
+  /** `touch`: mit dem Finger getippt. */
+  onFreieStelle: (touch: boolean) => void
 }
 
 export function useTeppichZeiger(o: TeppichZeigerEingabe): { ueber: number; leinwand: React.CanvasHTMLAttributes<HTMLCanvasElement> } {
@@ -49,8 +51,8 @@ export function useTeppichZeiger(o: TeppichZeigerEingabe): { ueber: number; lein
         if (!z) { const i = o.treffer(e); if (i !== ueber) setUeber(i); return }
         if (!z.bewegt && Math.hypot(e.clientX - z.x0, e.clientY - z.y0) < ZIEH_SCHWELLE) return
         z.bewegt = true
-        const r = o.flaeche.current?.getBoundingClientRect()
-        if (r) o.szene.zieh(z.i, e.clientX - r.left, e.clientY - r.top)
+        const [wx, wy] = o.zuWelt(e.clientX, e.clientY)
+        o.szene.zieh(z.i, wx, wy)
       },
       onPointerUp: (e) => {
         const z = zug.current
@@ -67,7 +69,7 @@ export function useTeppichZeiger(o: TeppichZeigerEingabe): { ueber: number; lein
         if (!o.ruhig) return
         const i = o.treffer(e)
         if (i >= 0) o.onPunkt(i)
-        else o.onFreieStelle()
+        else o.onFreieStelle('pointerType' in e.nativeEvent && e.nativeEvent.pointerType === 'touch')
       },
     },
   }

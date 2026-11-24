@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useMemo } from 'react'
-import { List, Waypoints } from 'lucide-react'
+import { List, SlidersHorizontal, Waypoints } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
@@ -54,10 +54,17 @@ export interface WebsiteStoryKonversationProps {
    * Antwort, ersetzt dieser Knopf „Quellen anzeigen" (Owner 23.11.2026: die Liste waere doppelt).
    */
   onGraph?: () => void
+  /**
+   * „Antworten anpassen" (Owner 24.11.2026): steht bei der Antwort, nicht mehr im Kopf der Sektion —
+   * so ist der Knopf auch im Telefon-Vollbild da. Ohne Dialog des Gastgebers kein Knopf.
+   */
+  onAnpassen?: () => void
 }
 
 // Ohne `max-sm:` (die Variante erzeugt dieses Tailwind-Setup nicht): Grundzustand Telefon, ab `sm` zurueck.
 const TELEFON = '[&_[data-antwort]>div:first-child]:hidden sm:[&_[data-antwort]>div:first-child]:block [&_[data-antwort-laeuft]>div:first-child]:hidden sm:[&_[data-antwort-laeuft]>div:first-child]:block'
+/** Symbolknoepfe im Kopf der Antwort: Tippziel 44 px auf dem Telefon, 36 px ab `sm`. */
+const SYMBOL = 'h-11 w-11 shrink-0 p-0 sm:h-9 sm:w-9'
 const PROSE = 'prose prose-sm max-w-none dark:prose-invert'
 
 export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
@@ -77,20 +84,26 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   // Antwort. Der Klick blendet die Zitatmarken ein UND oeffnet die Belege als Blatt.
   const kopfAktion = useCallback(
     (a: Nachricht, api: AntwortKopfApi) => {
-      if (new Set((a.belege ?? []).map((b) => b.fileId)).size === 0) return null
-      if (p.onGraph && p.cards !== 'hidden') {
-        return (
-          <Button variant="outline" size="sm" className="gap-1.5" data-story-graph-knopf onClick={p.onGraph}>
-            <Waypoints className="h-4 w-4" aria-hidden="true" />
-            {t('website.story.graph')}
-          </Button>
-        )
-      }
+      const mitBelegen = new Set((a.belege ?? []).map((b) => b.fileId)).size > 0
+      if (!mitBelegen && !p.onAnpassen) return null
       return (
-        <Button variant="outline" size="sm" className="gap-1.5" data-story-belege-knopf onClick={() => { api.setSichtbar(true); p.onBelege(a) }}>
-          <List className="h-4 w-4" aria-hidden="true" />
-          {bezeichnung.anzeigen}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5" data-story-antwort-aktionen>
+          {p.onAnpassen && (
+            <Button variant="outline" size="sm" className={SYMBOL} title={t('website.story.anpassen')} aria-label={t('website.story.anpassen')} data-story-perspektive-knopf onClick={p.onAnpassen}>
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          )}
+          {mitBelegen && (p.onGraph && p.cards !== 'hidden' ? (
+            <Button variant="outline" size="sm" className={SYMBOL} title={t('website.story.graph')} aria-label={t('website.story.graph')} data-story-graph-knopf onClick={p.onGraph}>
+              <Waypoints className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1.5" data-story-belege-knopf onClick={() => { api.setSichtbar(true); p.onBelege(a) }}>
+              <List className="h-4 w-4" aria-hidden="true" />
+              {bezeichnung.anzeigen}
+            </Button>
+          ))}
+        </div>
       )
     },
     [bezeichnung.anzeigen, p, t],

@@ -3,17 +3,21 @@
 /**
  * Zeichenflaechen des Teppichs der Dokumente (Plan `teppich-der-dokumente`, T2/T3).
  *
- * `WebsiteTeppich` ist die Leinwand hinter der Fragen-Sektion: jedes Dokument ein Punkt an
- * seinem Platz in der Wolke (`packeWolke`, T5b), Groesse nach Gewicht. Owner 23.11.2026:
- * Die Wolke liegt in einem Kasten so breit wie die Antwort, 16:9, nie hoeher als der sichtbare
- * Bereich; darunter die Botschaft. Sie liegt hinter der Zone der Antwort und scrollt mit der Seite
- * (`useTeppichHalt`); die Frage steht als Frage-Block der Konversation darueber. Die Leinwand ist so breit wie die Sektion, der Schwarm darf ueber den
- * Kasten hinaus fliegen. Mit der Antwort fliegen alle Punkte an ihren Platz zurueck
- * (`TeppichSzene`). Die Schleife laeuft nur, solange die Flaeche sichtbar ist.
+ * `WebsiteTeppich` ist die Leinwand hinter der Fragen-Sektion: jedes Dokument ein Punkt an seinem
+ * Platz in der Wolke (`packeWolke`, T5b), Groesse nach Gewicht. Die Wolke liegt in einem Kasten so
+ * breit wie die Antwort, hinter der Zone der Antwort, und scrollt mit der Seite (`useTeppichHalt`).
+ * Die Leinwand ist so breit wie die Sektion, der Schwarm darf ueber den Kasten hinaus fliegen. Mit
+ * der Antwort fliegen alle Punkte zurueck (`TeppichSzene`). Die Schleife laeuft nur bei Sicht.
  *
  * In Ruhe und bei stehender Antwort: Ueberfahren zeigt Titel und Jahr, Klick auf einen Punkt
  * meldet ihn (`onPunkt`), Klick auf eine freie Stelle `onFreieStelle`. Waehrend der Suche und
  * des Flugs nimmt die Leinwand keine Klicks an, der Schwarm folgt dem Zeiger.
+ *
+ * Graph-Ansicht (`abgetaucht`, Owner 24.11.2026): Die Ebene liegt als eigene Seite ueber dem
+ * Bildschirm (der Rahmen der Sektion legt sie fest), die Wolke fuellt sie. Mausrad und zwei Finger
+ * zoomen, Ziehen verschiebt (`useTeppichSicht`). Ein Tipp auf einen Punkt WAEHLT ihn — Karte mit
+ * Titel und dem Weg zum Dokument —, ein Tipp ins Leere waehlt ab. Zu geht es nur ueber den
+ * Schliessen-Knopf oder Escape, nie ueber den Hintergrund.
  */
 
 import * as React from 'react'
@@ -25,13 +29,20 @@ import { useTeppichZeiger } from './use-teppich-zeiger'
 import type { TeppichBotschaft } from './use-teppich-botschaft'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
 import { useSchmal } from './use-schmal'
+import { useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
+import { useTeppichSicht } from './use-teppich-sicht'
+import { TeppichGraphKarte, TeppichGraphKopf } from './website-teppich-graph'
+import { TeppichBotschaftBlatt } from './website-teppich-botschaft'
 
 export interface WebsiteTeppichProps {
   punkte: readonly TeppichPunkt[]
   /** Der Vordergrund ist ausgeblendet: Punkte deutlicher. */
   abgetaucht: boolean
   onPunkt: (punkt: TeppichPunkt) => void
-  onFreieStelle: () => void
+  /** `touch`: mit dem Finger getippt (ein Tipp ins Leere oeffnet die Graph-Ansicht nicht). */
+  onFreieStelle: (touch: boolean) => void
+  /** Graph-Ansicht schliessen (Knopf in ihrer Kopfzeile). */
+  onZu?: () => void
   /** Phase der Frage (T3); ohne Angabe Ruhe. */
   phase?: TeppichPhase
   /** Belege der stehenden Antwort, in der Reihenfolge ihrer Nummern (fileIds). */
@@ -49,21 +60,9 @@ export interface WebsiteTeppichProps {
 }
 
 const RAND = 12
-/** Neue Zeilen der Botschaft gleiten weich herein. */
-const EIN = '@keyframes ks-teppich-ein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
+/** Rand der Wolke in der Graph-Ansicht und Trefferweite fuer den Finger (Pixel am Bildschirm). */
+const [GRAPH_RAND, FINGER] = [28, 22]
 const KEINE_BELEGE: readonly string[] = []
-
-function useBewegungErlaubt(): boolean {
-  const [erlaubt, setErlaubt] = React.useState(true)
-  React.useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const lies = () => setErlaubt(!mq.matches)
-    lies()
-    mq.addEventListener('change', lies)
-    return () => mq.removeEventListener('change', lies)
-  }, [])
-  return erlaubt
-}
 
 export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const { punkte, abgetaucht, onPunkt, onFreieStelle, phase = 'ruhe', belege = KEINE_BELEGE, kandidaten = KEINE_BELEGE, onGelandet } = p
@@ -79,20 +78,26 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const ruhig = phase === 'ruhe' || phase === 'antwort'
   useZurFrageScrollen(huelle, phase, bewegung)
   const halt = useTeppichHalt(huelle, phase, kasten.hoehe)
+  const vollHoehe = useGraphHoehe(flaeche, abgetaucht, breite)
+  const graph = abgetaucht && vollHoehe > 0
+  const hoehe = graph ? vollHoehe : kasten.hoehe
+  const [gewaehlt, setGewaehlt] = React.useState(-1)
+  React.useEffect(() => { if (!abgetaucht) setGewaehlt(-1) }, [abgetaucht])
 
   const plaetze = React.useMemo(
-    () => packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links }),
-    [punkte, kasten],
+    () => (graph
+      ? packeWolke(punkte, { breite, hoehe: vollHoehe, rand: GRAPH_RAND })
+      : packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links })),
+    [punkte, kasten, graph, breite, vollHoehe],
   )
   const radien = React.useMemo(() => Float32Array.from(punkte, (q) => teppichRadius(plaetze.zelle, q.gewicht)), [punkte, plaetze.zelle])
-  const gelandet = React.useRef(onGelandet)
-  gelandet.current = onGelandet
+  const gelandet = React.useRef(onGelandet); gelandet.current = onGelandet
 
   // Jeder Render reicht den neuen Stand an die Szene; die Schleife liest ihn im naechsten Bild.
   React.useEffect(() => {
     szene.setze({
       punkte, plaetze, radien, phase, belege, kandidaten, abgetaucht, animation: p.animation ?? 'schwarm', bewegung, ueber: ruhig ? ueberRef.current : -1,
-      breite, hoehe: kasten.hoehe, kasten,
+      breite, hoehe, kasten: graph ? { breite, hoehe, links: 0 } : kasten,
       farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
       onGelandet: () => gelandet.current?.(),
     })
@@ -134,54 +139,61 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   }, [phase, szene])
 
   const leinwand = React.useCallback((el: HTMLCanvasElement | null) => { szene.hinten = el }, [szene])
+  const sichtRef = React.useRef<{ zuWelt: (x: number, y: number) => [number, number] } | null>(null)
   const treffer = (e: React.PointerEvent | React.MouseEvent): number => {
-    const rect = flaeche.current?.getBoundingClientRect()
-    if (!rect || !ruhig) return -1
+    if (!ruhig || !sichtRef.current) return -1
+    const [wx, wy] = sichtRef.current.zuWelt(e.clientX, e.clientY)
     // Die Punkte liegen, wo die Szene sie zeichnet (in der Wolke nicht immer am festen Platz).
     const { x, y } = szene.lage.x.length === punkte.length ? szene.lage : { x: plaetze.px, y: plaetze.py }
-    return naechsterTeppichPunkt(x, y, e.clientX - rect.left, e.clientY - rect.top, Math.max(6, plaetze.zelle * 0.8))
+    // Mit dem Finger trifft man grosszuegiger; die Weite gilt am Bildschirm, nicht in der gezoomten Wolke.
+    const finger = 'pointerType' in e.nativeEvent && e.nativeEvent.pointerType === 'touch'
+    return naechsterTeppichPunkt(x, y, wx, wy, Math.max(6, plaetze.zelle * 0.8, (finger ? FINGER : 0) / szene.sicht.z))
   }
-  const zeiger = useTeppichZeiger({ szene, flaeche, ruhig, treffer, onPunkt: (i) => onPunkt(punkte[i]), onFreieStelle })
-  const ueber = zeiger.ueber
+  const sicht = useTeppichSicht({ szene, flaeche, aktiv: graph, aufPunkt: (e) => treffer(e) >= 0 })
+  sichtRef.current = sicht
+  const zeiger = useTeppichZeiger({
+    szene, ruhig, treffer, zuWelt: sicht.zuWelt,
+    // Graph-Ansicht: ein Tipp waehlt den Punkt, das Dokument oeffnet erst der Knopf der Karte.
+    onPunkt: (i) => (abgetaucht ? setGewaehlt(i) : onPunkt(punkte[i])),
+    onFreieStelle: (touch) => (abgetaucht ? setGewaehlt(-1) : onFreieStelle(touch)),
+  })
+  const z = zeiger.leinwand
+  const ereignisse: React.CanvasHTMLAttributes<HTMLCanvasElement> = {
+    ...z, onPointerDown: (e) => { if (!sicht.unten(e)) z.onPointerDown?.(e) },
+    onPointerMove: (e) => { if (!sicht.bewegt(e)) z.onPointerMove?.(e) },
+    onPointerUp: (e) => { if (!sicht.oben(e)) z.onPointerUp?.(e) },
+    onPointerCancel: (e) => { sicht.oben(e) },
+    // Das Loslassen nach Verschieben oder Zoomen ist kein Tipp.
+    onClick: (e) => { if (!sicht.warGeste()) z.onClick?.(e) },
+  }
+  const ueber = abgetaucht && gewaehlt >= 0 ? gewaehlt : zeiger.ueber
   ueberRef.current = ueber
   const punkt = ruhig && ueber >= 0 ? punkte[ueber] : undefined
+  const ort = (i: number): [number, number] => {
+    const s = szene.sicht
+    return [(szene.lage.x[i] ?? plaetze.px[i]) * s.z + s.x, (szene.lage.y[i] ?? plaetze.py[i]) * s.z + s.y]
+  }
 
   return (
-    <div ref={huelle} className="w-full text-current" style={halt} data-website-teppich data-teppich-phase={phase}>
-      <div ref={flaeche} className="relative w-full" style={{ height: kasten.hoehe || undefined }}>
-        <canvas ref={leinwand} className={punkt ? 'h-full w-full cursor-grab touch-none' : 'h-full w-full'} aria-hidden="true" {...zeiger.leinwand} />
-        {punkt && (
+    <div ref={huelle} className={abgetaucht ? 'flex h-full w-full flex-col text-current' : 'w-full text-current'} style={abgetaucht ? undefined : halt} data-website-teppich data-teppich-phase={phase} data-teppich-graph={abgetaucht || undefined}>
+      {abgetaucht && p.onZu && <TeppichGraphKopf onZu={p.onZu} onZoom={sicht.zoom} />}
+      <div ref={flaeche} className={abgetaucht ? 'relative min-h-0 w-full flex-1 touch-none overflow-hidden' : 'relative w-full'} style={abgetaucht ? undefined : { height: kasten.hoehe || undefined }}>
+        <canvas ref={leinwand} className={abgetaucht ? 'h-full w-full cursor-grab touch-none' : punkt ? 'h-full w-full cursor-grab touch-none' : 'h-full w-full'} aria-hidden="true" {...ereignisse} />
+        {punkt && !(abgetaucht && gewaehlt >= 0) && (
           <div
             className="pointer-events-none absolute z-20 max-w-60 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-md"
-            style={{ left: Math.min(breite - 248, (szene.lage.x[ueber] ?? plaetze.px[ueber]) + 12), top: Math.max(4, (szene.lage.y[ueber] ?? plaetze.py[ueber]) - 44) }}
+            style={{ left: Math.max(4, Math.min(breite - 248, ort(ueber)[0] + 12)), top: Math.max(4, ort(ueber)[1] - 44) }}
             data-teppich-tooltip
           >
             <span className="block font-medium">{punkt.titel}</span>
             {punkt.jahr !== null && <span className="text-neutral-500">{punkt.jahr}</span>}
           </div>
         )}
-        {p.botschaft && (
-          // Oben buendig (Owner 23.11.2026): Titel, darunter waechst die Liste der Schritte nach unten.
-          // Telefon (R3, 24.11.2026): ein Statusblatt fest am unteren Bildschirmrand — der Text liegt nie ueber der Wolke.
-          <div
-            className={schmal
-              ? 'pointer-events-none fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-black/10 bg-white px-5 pt-4 text-neutral-900 shadow-[0_-4px_16px_rgba(0,0,0,0.1)] pb-[max(1.5rem,env(safe-area-inset-bottom))]'
-              : 'pointer-events-none absolute top-10 max-w-xs'}
-            style={schmal ? undefined : { left: kasten.links + 84 }}
-            aria-live="polite"
-            data-teppich-botschaft={schmal ? 'blatt' : 'frei'}
-          >
-            <style>{EIN}</style>
-            <p className={schmal ? 'text-base font-semibold' : 'text-sm font-semibold'}>{p.botschaft.titel}</p>
-            <ol className="mt-2 space-y-1 text-sm">
-              {p.botschaft.schritte.map((schritt, k, alle) => (
-                <li key={k} className={k === alle.length - 1 ? 'transition-opacity duration-500' : 'opacity-50 transition-opacity duration-500'} style={{ animation: 'ks-teppich-ein 600ms ease backwards' }}>
-                  {schritt}
-                </li>
-              ))}
-            </ol>
-          </div>
+        {abgetaucht && gewaehlt >= 0 && punkte[gewaehlt] && (
+          <TeppichGraphKarte punkt={punkte[gewaehlt]} onOeffnen={() => onPunkt(punkte[gewaehlt])} onZu={() => setGewaehlt(-1)} />
         )}
+        {/* Oben buendig (Owner 23.11.2026), auf dem Telefon als Statusblatt am unteren Rand (R3). */}
+        {p.botschaft && <TeppichBotschaftBlatt botschaft={p.botschaft} schmal={schmal} links={kasten.links + 84} />}
       </div>
     </div>
   )
