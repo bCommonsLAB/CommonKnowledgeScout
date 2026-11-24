@@ -28,7 +28,6 @@ import { useTeppichHalt } from './use-teppich-halt'
 import { useTeppichZeiger } from './use-teppich-zeiger'
 import type { TeppichBotschaft } from './use-teppich-botschaft'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
-import { useSchmal } from './use-schmal'
 import { botschaftFlaeche, teppichFarben, useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
 import { useTeppichPlaetze } from './use-teppich-plaetze'
 import { useTeppichSicht } from './use-teppich-sicht'
@@ -58,6 +57,8 @@ export interface WebsiteTeppichProps {
   animation?: TeppichAnimation
   /** Waehrend einer Frage: Titel und Schritte, oben links ueber der Wolke (unter dem Frage-Block). */
   botschaft?: TeppichBotschaft
+  /** Telefon: die Botschaft als Statusblatt fest am unteren Bildschirmrand (R3). */
+  botschaftAlsBlatt?: boolean
 }
 
 /** Trefferweite fuer den Finger (Pixel am Bildschirm). */
@@ -74,7 +75,6 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   // Der Punkt unter dem Zeiger (`useTeppichZeiger`, weiter unten); die Szene liest ihn je Render.
   const ueberRef = React.useRef(-1)
   const bewegung = useBewegungErlaubt()
-  const schmal = useSchmal()
   const ruhig = phase === 'ruhe' || phase === 'antwort'
   useZurFrageScrollen(huelle, phase, bewegung)
   const halt = useTeppichHalt(huelle, phase, kasten.hoehe)
@@ -192,7 +192,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
           <TeppichGraphKarte punkt={punkte[gewaehlt]} onOeffnen={() => onPunkt(punkte[gewaehlt])} onZu={() => setGewaehlt(-1)} />
         )}
         {/* Oben buendig (Owner 23.11.2026), auf dem Telefon als Statusblatt am unteren Rand (R3). */}
-        {p.botschaft && <TeppichBotschaftBlatt botschaft={p.botschaft} schmal={schmal} links={kasten.links + 84} />}
+        {p.botschaft && <TeppichBotschaftBlatt botschaft={p.botschaft} schmal={p.botschaftAlsBlatt === true} links={kasten.links + 84} />}
       </div>
     </div>
   )

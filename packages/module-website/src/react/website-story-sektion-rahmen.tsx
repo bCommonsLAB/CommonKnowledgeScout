@@ -46,6 +46,8 @@ export interface WebsiteStorySektionRahmenProps {
   abgetaucht?: boolean
   /** Eine Frage laeuft: nur die Teile der Antwort sind verborgen, danach blenden sie ein. */
   fragt?: boolean
+  /** Duerfen Ueberlagerungen am Bildschirm haengen (`useBildschirmFest`)? Ohne Angabe ja. */
+  fest?: boolean
   /** Die Fragebox: ueber dem Chat, direkt unter dem Markdown der Sektion (R1, 24.11.2026). */
   eingabe?: React.ReactNode
   /**
@@ -93,6 +95,7 @@ export function WebsiteStorySektionRahmen({
   teppich,
   abgetaucht = false,
   fragt = false,
+  fest = true,
   eingabe,
   vollbild = false,
   onVollbildZu,
@@ -119,7 +122,8 @@ export function WebsiteStorySektionRahmen({
       {teppich && <style>{ANTWORT_EIN}</style>}
       {teppich && (
         // Graph-Ansicht: die Ebene liegt als eigene Seite ueber dem Bildschirm, deckend in der Farbe der Flaeche.
-        <div className={abgetaucht ? cn("fixed inset-0 z-50", flaeche.className) : "absolute inset-0 z-0"} style={abgetaucht ? flaeche.style : undefined}>{teppich}</div>
+        // Haelt der Bildschirm sie nicht fest (`fest` = false), bleibt sie auf der Flaeche der Sektion.
+        <div className={abgetaucht ? cn(fest ? "fixed" : "absolute", "inset-0 z-50", flaeche.className) : "absolute inset-0 z-0"} style={abgetaucht ? flaeche.style : undefined}>{teppich}</div>
       )}
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
       <div

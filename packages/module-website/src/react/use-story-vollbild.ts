@@ -8,13 +8,16 @@
  * Leseansicht. Es ist DIESELBE Sektion, nur fest ueber den Bildschirm gelegt (kein Portal,
  * kein zweiter Baum) — Schliessen legt sie zurueck in die Seite, die Antwort steht dort inline.
  *
- * - Auf geht es mit `laeuft` (eine Frage wurde gestellt), zu nur durch den Leser.
+ * - Auf geht es mit `laeuft` (eine Frage wurde gestellt), zu nur durch den Leser: mit dem Knopf
+ *   oder der Zurueck-Taste (`useZurueckTaste`, wenn der Gastgeber sie anbietet).
  * - Solange das Vollbild steht, haelt der Anker die Hoehe der Sektion (die Seite darunter
  *   springt nicht) und die Seite scrollt nicht mit.
  */
 
 import * as React from 'react'
 import { useSchmal } from './use-schmal'
+import { useZurueckTaste } from './use-ueberlagerung'
+import type { WebsiteStoryGastgeber } from './website-story-gastgeber'
 
 export interface StoryVollbild {
   vollbild: boolean
@@ -23,11 +26,14 @@ export interface StoryVollbild {
   platz: React.CSSProperties | undefined
 }
 
-export function useStoryVollbild(anker: React.RefObject<HTMLElement | null>, laeuft: boolean): StoryVollbild {
+export function useStoryVollbild(
+  anker: React.RefObject<HTMLElement | null>, laeuft: boolean, fest: boolean, zurueckTaste: WebsiteStoryGastgeber['zurueckTaste'],
+): StoryVollbild {
   const schmal = useSchmal()
   const [offen, setOffen] = React.useState(false)
   const hoehe = React.useRef(0)
-  const vollbild = schmal && offen
+  // Haelt der Bildschirm die Sektion nicht fest (Embed in einem Behaelter mit `transform`), bleibt sie in der Seite.
+  const vollbild = schmal && offen && fest
 
   React.useEffect(() => {
     if (schmal && laeuft) setOffen(true)
@@ -51,6 +57,8 @@ export function useStoryVollbild(anker: React.RefObject<HTMLElement | null>, lae
     // Zurueck in der Seite: die Fragebox steht oben im Bild, darunter die Antwort.
     requestAnimationFrame(() => anker.current?.scrollIntoView({ block: 'start' }))
   }, [anker])
+
+  useZurueckTaste(zurueckTaste, vollbild, schliessen)
 
   return { vollbild, schliessen, platz: vollbild ? { minHeight: hoehe.current } : undefined }
 }

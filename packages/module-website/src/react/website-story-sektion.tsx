@@ -38,6 +38,7 @@ import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-s
 import { StoryBeispiele } from './website-story-beispiele'
 import { StoryFrageLeiste } from './website-story-frage-leiste'
 import { useStoryVollbild } from './use-story-vollbild'
+import { useBildschirmFest } from './use-ueberlagerung'
 import { useFrageAuftrag } from './use-story-frage-auftrag'
 import { WebsiteStoryBelege } from './website-story-belege'
 import { wegGehen } from './use-website-story-navigation'
@@ -118,9 +119,10 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   )
 
   // T2/T3: Teppich der Dokumente hinter der Sektion (`use-story-teppich.tsx`).
-  const teppich = useStoryTeppich(gastgeber, p.libraryId, s, dokumentOeffnen, p.section.animation ?? 'schwarm')
+  const fest = useBildschirmFest(anker)
+  const teppich = useStoryTeppich(gastgeber, p.libraryId, s, dokumentOeffnen, p.section.animation ?? 'schwarm', fest)
   // R3: auf dem Telefon laeuft die Frage im Vollbild (`use-story-vollbild.ts`).
-  const v = useStoryVollbild(anker, s.k.laeuft)
+  const v = useStoryVollbild(anker, s.k.laeuft, fest, gastgeber.zurueckTaste)
   const platzhalter = p.section.placeholder ?? gastgeber.eingabe.platzhalter
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
@@ -168,7 +170,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
           {inhalt}
         </WebsiteStorySektionRahmen>
       </div>
-      <StoryFrageLeiste anker={anker} text={platzhalter ?? t('chat.input.askQuestion')} aus={v.vollbild || s.loading || Boolean(s.error)} />
+      <StoryFrageLeiste anker={anker} text={platzhalter ?? t('chat.input.askQuestion')} aus={!fest || v.vollbild || s.loading || Boolean(s.error)} />
       {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen })}
       {blatt && (
         <WebsiteStoryBelege

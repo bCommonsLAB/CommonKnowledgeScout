@@ -421,6 +421,23 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   Ziel `dokument`. Blaetter, Dialoge und Detailansicht liegen in einem
   Portal-Ort am `body` (Klasse `.ks-embed`), also ueber dem Fenster; der Rahmen
   hat kein `contain: layout`.
+- **Ueberlagerungen der Fragen-Sektion** (Telefon-Vollbild, Graph-Ansicht,
+  Statusblatt, Frage-Leiste; Owner 24.11.2026) liegen NICHT im Portal, sondern
+  in der Sektion und haengen per `position: fixed` am Bildschirm. Spannt ein
+  Vorfahr in der fremden Seite selbst den Bezug auf (`transform`, `filter`,
+  `perspective`, `contain`, `will-change`, `container-type`), blieben sie in
+  ihm gefangen. `useBildschirmFest` (`use-ueberlagerung.ts`) erkennt das; dann
+  gilt: kein Telefon-Vollbild (die Frage laeuft in der Seite, die Botschaft
+  frei ueber der Wolke), keine Frage-Leiste, und die Graph-Ansicht liegt auf
+  der Flaeche der Sektion (`absolute`), die Seite scrollt weiter. Elemente der
+  fremden Seite mit `z-index` ueber 50 liegen ueber den Ueberlagerungen — wie
+  ueber den Blaettern.
+- **Zurueck-Taste:** In der App schliesst sie die zuletzt geoeffnete
+  Ueberlagerung (`WebsiteStoryGastgeber.zurueckTaste`, App-Teil
+  `src/components/library/website/story/zurueck-taste.ts`: ein Schritt in der
+  Chronik je Ueberlagerung, gleiche Adresse). Das Paket fasst die Chronik
+  nicht an (Paketgrenze). Das Embed reicht die Funktion NICHT herein — die
+  Chronik der fremden Seite bleibt unberuehrt, dort schliesst nur der Knopf.
 - Menuezeile oben (Entscheid B): Website-Seiten nach `menu_order`, „Inhalte",
   „Story" — alle ueber `hrefFor`; `menu={false}` blendet sie aus.
 - Kontaktformular im Embed: nein (Entscheid C), die Sektion zeigt den Hinweis.

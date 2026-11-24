@@ -41,6 +41,7 @@ import { AppLogo } from '@/components/shared/app-logo'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useProfilPerspektive } from '@/hooks/use-profil-perspektive'
 import { useWebsitePerspektive } from './use-website-perspektive'
+import { zurueckTaste } from './zurueck-taste'
 
 // Die Detailansicht zieht die Renderer aller Typen nach — erst laden, wenn jemand einen Eintrag oeffnet.
 const WebsiteStoryDetail = dynamic(() => import('./website-story-detail').then((m) => ({ default: m.WebsiteStoryDetail })), { ssr: false })
@@ -73,6 +74,7 @@ export function useWebsiteStoryGastgeber(libraryId: string): WebsiteStoryGastgeb
         laedt: loading,
         fehler: error,
       },
+      zurueckTaste,
       perspektiveDialog: ({ offen, onOpenChange }) => (
         <PerspektiveDialogApp open={offen} onOpenChange={onOpenChange} onProfil={speichern} darstellung="blatt" />
       ),

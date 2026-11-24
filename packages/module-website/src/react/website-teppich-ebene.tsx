@@ -19,6 +19,7 @@ import { hatWolke, type TeppichAnimation, type TeppichAntwort, type TeppichPhase
 import { WebsiteTeppich } from './website-teppich'
 import type { TeppichBotschaft } from './use-teppich-botschaft'
 import type { TeppichSzene } from './teppich-szene'
+import { useSchmal } from './use-schmal'
 
 /** Laedt die Punkte einmal je Library; leer, bis sie da sind oder wenn sie fehlen. */
 export function useTeppichPunkte(instanz: InstanceApi, libraryId: string): TeppichPunkt[] {
@@ -68,9 +69,11 @@ export interface WebsiteTeppichEbeneProps {
   animation?: TeppichAnimation
   /** Waehrend einer Frage: die Frage ueber dem Kasten und die Botschaft darunter. */
   botschaft?: TeppichBotschaft
+  /** Duerfen Graph-Ansicht und Statusblatt am Bildschirm haengen? Ohne Angabe ja. */
+  fest?: boolean
 }
 
-export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, botschaft, animation }: WebsiteTeppichEbeneProps): React.ReactElement {
+export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetaucht, onDokument, phase, belege, kandidaten, onGelandet, szene, botschaft, animation, fest = true }: WebsiteTeppichEbeneProps): React.ReactElement {
   const punkte = useTeppichPunkte(instanz, libraryId)
 
   // Graph-Ansicht (Owner 24.11.2026): eine eigene Seite ueber dem Bildschirm. Zu geht sie ueber ihren
@@ -79,12 +82,18 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
   React.useEffect(() => {
     if (!abgetaucht) return
     const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') onAbgetaucht(false) }
+    window.addEventListener('keydown', taste)
+    // Auf der Flaeche der Sektion (nicht am Bildschirm): die Seite scrollt weiter, der Kopf der Ansicht kommt ins Bild.
+    if (!fest) {
+      szene?.hinten?.closest('[data-website-story]')?.scrollIntoView({ block: 'start' })
+      return () => window.removeEventListener('keydown', taste)
+    }
     const wurzel = document.documentElement
     const vorher = wurzel.style.overflow
     wurzel.style.overflow = 'hidden'
-    window.addEventListener('keydown', taste)
     return () => { window.removeEventListener('keydown', taste); wurzel.style.overflow = vorher }
-  }, [abgetaucht, onAbgetaucht])
+  }, [abgetaucht, onAbgetaucht, fest, szene])
+  const schmal = useSchmal()
 
   const oeffnen = React.useCallback((punkt: TeppichPunkt) => {
     const params = new URLSearchParams({ fileId: punkt.fileId })
@@ -101,6 +110,7 @@ export function WebsiteTeppichEbene({ instanz, libraryId, abgetaucht, onAbgetauc
 
   return (
     <WebsiteTeppich
+      botschaftAlsBlatt={schmal && fest}
       punkte={punkte}
       abgetaucht={abgetaucht}
       onPunkt={oeffnen}
