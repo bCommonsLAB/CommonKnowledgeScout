@@ -176,7 +176,11 @@ importiert kein `@commonux/*`.
   (`use-teppich-sicht.ts`, die Sicht liegt an der Szene, Punkte wachsen nur
   mit der Wurzel). Ein Tipp auf einen Punkt WAEHLT ihn (Karte mit Titel und
   „Dokument oeffnen"), ein Tipp ins Leere waehlt ab. Zu geht sie NUR ueber
-  den Knopf oder Escape, nie ueber den Hintergrund; eine neue Frage schliesst
+  den Knopf oder Escape, nie ueber den Hintergrund. Steht eine Antwort, sind
+  ihre Belege dort doppelt so gross, kraeftig gezeichnet und halten
+  Respektabstand: die uebrigen Punkte weichen aus ihrem Umkreis, Belege
+  ruecken auseinander (`teppich-respekt.ts`, nur in der Graph-Ansicht); beim
+  Treffen haben sie Vorrang. Eine neue Frage schliesst
   sie. Mit der Maus oeffnet ein Klick auf eine freie Stelle der Wolke sie
   weiterhin, mit dem Finger nicht.
   Der Knopf „Antworten anpassen" steht als Symbol im Kopf der ANTWORT, neben

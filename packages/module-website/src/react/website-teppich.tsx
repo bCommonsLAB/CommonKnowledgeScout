@@ -21,7 +21,7 @@
  */
 
 import * as React from 'react'
-import { naechsterTeppichPunkt, packeWolke, teppichRadius, type TeppichAnimation, type TeppichPhase, type TeppichPunkt } from '..'
+import { hervorTreffer, naechsterTeppichPunkt, type TeppichAnimation, type TeppichPhase, type TeppichPunkt } from '..'
 import { TeppichSzene } from './teppich-szene'
 import { useTeppichFlaeche } from './use-teppich-flaeche'
 import { useTeppichHalt } from './use-teppich-halt'
@@ -30,6 +30,7 @@ import type { TeppichBotschaft } from './use-teppich-botschaft'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
 import { useSchmal } from './use-schmal'
 import { useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
+import { useTeppichPlaetze } from './use-teppich-plaetze'
 import { useTeppichSicht } from './use-teppich-sicht'
 import { TeppichGraphKarte, TeppichGraphKopf } from './website-teppich-graph'
 import { TeppichBotschaftBlatt } from './website-teppich-botschaft'
@@ -59,9 +60,8 @@ export interface WebsiteTeppichProps {
   botschaft?: TeppichBotschaft
 }
 
-const RAND = 12
-/** Rand der Wolke in der Graph-Ansicht und Trefferweite fuer den Finger (Pixel am Bildschirm). */
-const [GRAPH_RAND, FINGER] = [28, 22]
+/** Trefferweite fuer den Finger (Pixel am Bildschirm). */
+const FINGER = 22
 const KEINE_BELEGE: readonly string[] = []
 
 export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
@@ -84,13 +84,8 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const [gewaehlt, setGewaehlt] = React.useState(-1)
   React.useEffect(() => { if (!abgetaucht) setGewaehlt(-1) }, [abgetaucht])
 
-  const plaetze = React.useMemo(
-    () => (graph
-      ? packeWolke(punkte, { breite, hoehe: vollHoehe, rand: GRAPH_RAND })
-      : packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links })),
-    [punkte, kasten, graph, breite, vollHoehe],
-  )
-  const radien = React.useMemo(() => Float32Array.from(punkte, (q) => teppichRadius(plaetze.zelle, q.gewicht)), [punkte, plaetze.zelle])
+  // Graph-Ansicht mit Antwort: die Belege doppelt so gross und mit Respektabstand (`use-teppich-plaetze.ts`).
+  const { plaetze, radien, belegIndex } = useTeppichPlaetze({ punkte, kasten, breite, graph, vollHoehe, belege: phase === 'antwort' ? belege : KEINE_BELEGE })
   const gelandet = React.useRef(onGelandet); gelandet.current = onGelandet
 
   // Jeder Render reicht den neuen Stand an die Szene; die Schleife liest ihn im naechsten Bild.
@@ -147,6 +142,10 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
     const { x, y } = szene.lage.x.length === punkte.length ? szene.lage : { x: plaetze.px, y: plaetze.py }
     // Mit dem Finger trifft man grosszuegiger; die Weite gilt am Bildschirm, nicht in der gezoomten Wolke.
     const finger = 'pointerType' in e.nativeEvent && e.nativeEvent.pointerType === 'touch'
+    // Graph-Ansicht: die Belege zuerst, in der Groesse, in der sie gezeichnet sind (plus Ring).
+    const sz = szene.sicht.z
+    const beleg = graph ? hervorTreffer(x, y, belegIndex, wx, wy, (i) => (radien[i] * 1.3 * Math.sqrt(sz) + (finger ? 14 : 5)) / sz) : -1
+    if (beleg >= 0) return beleg
     return naechsterTeppichPunkt(x, y, wx, wy, Math.max(6, plaetze.zelle * 0.8, (finger ? FINGER : 0) / szene.sicht.z))
   }
   const sicht = useTeppichSicht({ szene, flaeche, aktiv: graph, aufPunkt: (e) => treffer(e) >= 0 })
