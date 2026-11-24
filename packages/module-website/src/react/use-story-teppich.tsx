@@ -19,7 +19,7 @@ import { TeppichSzene } from './teppich-szene'
 import { useTeppichAblauf } from './use-teppich-ablauf'
 import { useTeppichBotschaft } from './use-teppich-botschaft'
 
-type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'fragt' | 'hinweis'>
+type TeppichRahmen = Pick<WebsiteStorySektionRahmenProps, 'teppich' | 'abgetaucht' | 'fragt'>
 
 export function useStoryTeppich(
   gastgeber: WebsiteStoryGastgeber,
@@ -36,6 +36,8 @@ export function useStoryTeppich(
   const kandidaten = React.useMemo(() => kandidatenAusSchritten(s.k.schritte), [s.k.schritte])
   const ablauf = useTeppichAblauf(an, { laeuft: s.k.laeuft, fehler: s.k.fehler !== null, hatAntwort: belege.length > 0 })
   const fragt = ablauf.phase === 'sucht' || ablauf.phase === 'landet'
+  // Eine Frage laeuft: die Graph-Ansicht weicht, sonst saehe man die Antwort nicht entstehen.
+  React.useEffect(() => { if (fragt) setAbgetaucht(false) }, [fragt])
   const szene = React.useMemo(() => new TeppichSzene(), [])
   // Erklaert den Rechenweg in Worten, zum Schluss die Storyline (Owner 22.11.2026).
   const botschaft = useTeppichBotschaft(ablauf.phase, s.k.schritte, kandidaten.length, belege.length)
@@ -51,7 +53,6 @@ export function useStoryTeppich(
       ),
       abgetaucht,
       fragt,
-      hinweis: abgetaucht && !fragt,
     },
     // Der Graph-Knopf der Antwort: Vordergrund weg, die Wolke zum Erkunden frei.
     graphZeigen: () => setAbgetaucht(true),

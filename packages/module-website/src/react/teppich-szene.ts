@@ -24,6 +24,8 @@ export class TeppichSzene {
   hinten: HTMLCanvasElement | null = null
   /** Zeiger relativ zur Leinwand; der Schwarm folgt ihm waehrend der Suche. */
   zeiger: { x: number; y: number } | null = null
+  /** Graph-Ansicht: Vergroesserung und Ausschnitt (`useTeppichSicht`); sonst die Einheit. */
+  sicht: { z: number; x: number; y: number } = { z: 1, x: 0, y: 0 }
   private x = new Float32Array(0)
   private y = new Float32Array(0)
 
@@ -34,12 +36,10 @@ export class TeppichSzene {
   private verdichtung: Verdichtung | null = null
   /** Anteil 0..1, wie weit die Titel der Storyline eingeblendet sind. */
   private titel = 0
-  private phase: TeppichPhase = 'ruhe'
-  private mitte = { x: 0, y: 0 }
+  private phase: TeppichPhase = 'ruhe'; private mitte = { x: 0, y: 0 }
   private belegIndex: number[] = []
   private kandidaten = new Set<number>()
-  private kreis: Float32Array | undefined
-  private kreisSchluessel = ''
+  private kreis: Float32Array | undefined; private kreisSchluessel = ''
   private standPhase: TeppichPhase = 'ruhe'
   private stand: TeppichSzenenStand | null = null
   /** Animation `wolke` (Parameter `animation=wolke`): durchgehend Physik statt Schwarm und Flug. */
@@ -87,7 +87,7 @@ export class TeppichSzene {
       this.verdichte(s, zeit)
     }
     zeichneTeppich(this.hinten, s, {
-      x: this.x, y: this.y, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
+      x: this.x, y: this.y, sicht: this.sicht, belegIndex: this.belegIndex, kandidaten: this.kandidaten,
       // In der Wolke gehoeren die Lagen der Physik: Ringe und Linien stehen dort, wo die Punkte sind.
       daheim: wolke ? s.phase === 'ruhe' || s.phase === 'antwort' : !this.schwarm,
       titel: wolke ? this.wolke.titel : this.titel,

@@ -30,7 +30,7 @@ beforeEach(() => {
     disconnect() {}
   })
   // Reduzierte Bewegung: ein Bild statt Schleife.
-  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }))
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduced-motion'), addEventListener() {}, removeEventListener() {} }))
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']
   // Der Teppich misst die Flaeche, auf der er liegt; jsdom kennt keine Lage, also 800 × 400 bei (0, 0).
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
@@ -87,6 +87,40 @@ describe('Teppich-Ebene', () => {
     const zweit = zeichne({ abgetaucht: true })
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(zweit.onAbgetaucht).toHaveBeenCalledWith(false)
+  })
+
+  // Owner 24.11.2026: die Graph-Ansicht ist eine eigene Seite — zu nur ueber den Knopf, Punkte lassen sich ansehen.
+  it('Graph-Ansicht: Tipp ins Leere schliesst nicht, ein Punkt wird gewaehlt, der Knopf der Karte oeffnet, X schliesst', async () => {
+    const fetchMock = vi.fn(async (url: string) => (String(url).includes('/teppich')
+      ? antwort('bereit', [PUNKT])
+      : { ok: true, status: 200, json: async () => ({ items: [{ id: 'f1', fileId: 'f1', title: 'Vortrag über Wasser' }] }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { leinwand, container, onAbgetaucht, onDokument } = zeichne({ abgetaucht: true })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(container.querySelector('[data-teppich-graph-kopf]')).not.toBeNull()
+
+    fireEvent.click(leinwand, { clientX: 30, clientY: 30 })
+    expect(onAbgetaucht).not.toHaveBeenCalled()
+
+    await waitFor(() => {
+      fireEvent.click(leinwand, { clientX: 400, clientY: 200 })
+      expect(container.querySelector('[data-teppich-graph-karte]')).not.toBeNull()
+    })
+    expect(onDokument).not.toHaveBeenCalled()
+    fireEvent.click(container.querySelector('[data-teppich-graph-oeffnen]') as Element)
+    await waitFor(() => expect(onDokument).toHaveBeenCalledWith(expect.objectContaining({ fileId: 'f1' })))
+
+    fireEvent.click(container.querySelector('[data-teppich-graph-zu]') as Element)
+    expect(onAbgetaucht).toHaveBeenCalledWith(false)
+  })
+
+  it('mit dem Finger oeffnet ein Tipp ins Leere die Graph-Ansicht nicht', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => antwort('bereit', [PUNKT])))
+    const { leinwand, onAbgetaucht } = zeichne()
+    const tipp = new MouseEvent('click', { bubbles: true, clientX: 30, clientY: 30 })
+    Object.defineProperty(tipp, 'pointerType', { value: 'touch' })
+    fireEvent(leinwand, tipp)
+    expect(onAbgetaucht).not.toHaveBeenCalled()
   })
 
   it('ohne berechneten Teppich bleibt die Ebene leer und die Konsole sagt es', async () => {

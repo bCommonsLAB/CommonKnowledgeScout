@@ -13,6 +13,8 @@ import { leinwandBereit, zeichneFaden, zeichneNachbarLinien, zeichnePunkte, zeic
 export interface TeppichBildLage {
   x: Float32Array
   y: Float32Array
+  /** Vergroesserung und Ausschnitt der Graph-Ansicht; die Einheit (1, 0, 0) ausserhalb. */
+  sicht: { z: number; x: number; y: number }
   /** Belege in der Reihenfolge ihrer Nummern (Indizes). */
   belegIndex: readonly number[]
   /** Kandidaten der Suche (Indizes, T4). */
@@ -116,7 +118,28 @@ function zeichneVerbindungen(ctx: CanvasRenderingContext2D, s: TeppichSzenenStan
   } else faeden(markiert, FADEN_KANDIDAT * (1 - u))
 }
 
-export function zeichneTeppich(cv: HTMLCanvasElement, s: TeppichSzenenStand, b: TeppichBildLage): void {
+const sichtX = { a: new Float32Array(0) }
+const sichtY = { a: new Float32Array(0) }
+const sichtR = { a: new Float32Array(0) }
+
+/**
+ * Graph-Ansicht: Die Lagen wandern mit Vergroesserung und Ausschnitt, die Punkte selbst wachsen
+ * nur mit der Wurzel — beim Hineinzoomen ruecken sie auseinander, statt zu Flecken zu werden.
+ * Linien und Schrift behalten ihre Staerke.
+ */
+function inSicht(s: TeppichSzenenStand, b: TeppichBildLage): [TeppichSzenenStand, TeppichBildLage] {
+  const { z, x: tx, y: ty } = b.sicht
+  if (z === 1 && tx === 0 && ty === 0) return [s, b]
+  const n = b.x.length
+  if (sichtX.a.length !== n) { sichtX.a = new Float32Array(n); sichtY.a = new Float32Array(n); sichtR.a = new Float32Array(n) }
+  const w = Math.sqrt(z)
+  for (let i = 0; i < n; i++) { sichtX.a[i] = b.x[i] * z + tx; sichtY.a[i] = b.y[i] * z + ty; sichtR.a[i] = s.radien[i] * w }
+  const heimat = (i: number): [number, number] => { const [hx, hy] = b.heimat(i); return [hx * z + tx, hy * z + ty] }
+  return [{ ...s, radien: sichtR.a }, { ...b, x: sichtX.a, y: sichtY.a, heimat }]
+}
+
+export function zeichneTeppich(cv: HTMLCanvasElement, stand: TeppichSzenenStand, lage: TeppichBildLage): void {
+  const [s, b] = inSicht(stand, lage)
   const ctx = leinwandBereit(cv, s.breite, s.hoehe)
   if (!ctx) return
   const belege = new Set(s.phase === 'landet' || s.phase === 'antwort' ? b.belegIndex : [])
