@@ -4,7 +4,7 @@
  * @description
  * Owner 24.11.2026: In der Graph-Ansicht liegen die Belege der Antwort in ihrem Umfeld — in der
  * dichten Wolke ueberlagert, kaum zu sehen und kaum zu treffen. Die Belege werden groesser
- * gezeichnet (`BELEG_FAKTOR`) und halten Abstand: zueinander, und die uebrigen Punkte weichen aus
+ * gezeichnet (als Marke, `BELEG_RADIUS`) und halten Abstand: zueinander, und die uebrigen Punkte weichen aus
  * ihrem Umkreis an dessen Rand. Die Nachbarschaft bleibt lesbar (wer nah war, bleibt nah), nur der
  * Kreis um den Beleg ist frei. Reine Funktionen ohne React.
  *
@@ -13,8 +13,8 @@
 
 import type { TeppichPlaetze } from './teppich-packen'
 
-/** So viel groesser als die uebrigen Punkte zeichnet die Graph-Ansicht die Belege. */
-export const BELEG_FAKTOR = 2
+/** Radius der Belegmarke in der Wolke (Pixel): 20 px Durchmesser wie die Zitatmarke im Text der Antwort. */
+export const BELEG_RADIUS = 10
 /** Belege halten zueinander das Anderthalbfache des Abstands, den die uebrigen Punkte halten. */
 const UNTEREINANDER = 1.5
 const RUNDEN = 12

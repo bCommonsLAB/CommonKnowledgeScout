@@ -66,6 +66,21 @@ describe('Storyline (Ende der Animation)', () => {
     const viele = storylineLage(40, 800, 400)
     expect(viele.ys[39] - viele.ys[0]).toBeLessThanOrEqual(400)
   })
+
+  // Owner 24.11.2026: am Rechner steht links oben die Botschaft — die Liste liegt nicht darunter.
+  it('Storyline weicht der Botschaft aus: rechts daneben, sonst darunter', () => {
+    const ohne = storylineLage(8, 1280, 500)
+    const frei = { rechts: 532, unten: 190 }
+    const daneben = storylineLage(8, 1280, 500, frei)
+    expect(daneben.x - 14).toBeGreaterThanOrEqual(frei.rechts + 24)
+    expect(daneben.ys).toEqual(ohne.ys)
+    // Schmale Flaeche: rechts bleibt kein Platz fuer Titel, die Liste rueckt unter die Botschaft.
+    const darunter = storylineLage(8, 700, 500, { rechts: 430, unten: 190 })
+    expect(darunter.ys[0] - darunter.zeile / 2).toBeGreaterThanOrEqual(190)
+    expect(darunter.ys[7]).toBeLessThanOrEqual(500)
+    // Liegt die Liste ohnehin frei (Botschaft weit links oben), bleibt sie, wo sie war.
+    expect(storylineLage(2, 1280, 500, { rechts: 200, unten: 60 })).toEqual(storylineLage(2, 1280, 500))
+  })
 })
 
 describe('Belege in der Reihenfolge ihrer Dokumentnummer', () => {

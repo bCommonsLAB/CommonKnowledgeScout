@@ -4,12 +4,12 @@
  * Plaetze und Radien der Punkte (aus `website-teppich.tsx` herausgeloest, 24.11.2026).
  *
  * In der Seite liegt die Wolke im Kasten hinter der Antwort, in der Graph-Ansicht fuellt sie die
- * ganze Flaeche. Steht eine Antwort, sind ihre Belege doppelt so gross und halten Respektabstand
+ * ganze Flaeche. Steht eine Antwort, stehen ihre Belege als Marken (wie die Nummern im Text) und halten Respektabstand
  * (`haltAbstand`, Owner 24.11.2026) — in beiden Ansichten, schon am Ende der Animation.
  */
 
 import * as React from 'react'
-import { BELEG_FAKTOR, haltAbstand, packeWolke, teppichRadius, type TeppichKasten, type TeppichPlaetze, type TeppichPunkt } from '..'
+import { BELEG_RADIUS, haltAbstand, packeWolke, teppichRadius, type TeppichKasten, type TeppichPlaetze, type TeppichPunkt } from '..'
 
 const RAND = 12
 /** Rand der Wolke in der Graph-Ansicht (Pixel). */
@@ -37,12 +37,12 @@ export function useTeppichPlaetze(e: TeppichPlaetzeEingabe): { plaetze: TeppichP
     const roh = graph
       ? packeWolke(punkte, { breite, hoehe: vollHoehe, rand: GRAPH_RAND })
       : packeWolke(punkte, { breite: kasten.breite, hoehe: kasten.hoehe, rand: RAND, versatz: kasten.links })
-    // Frei bleibt der doppelt grosse Kreis des Belegs samt Ring und etwas Luft.
-    return haltAbstand(roh, hervor, Math.max(14, roh.zelle * 2.2))
+    // Frei bleibt die Marke des Belegs und etwas Luft.
+    return haltAbstand(roh, hervor, Math.max(BELEG_RADIUS + 8, roh.zelle * 2.2))
   }, [punkte, kasten, graph, breite, vollHoehe, hervor])
   const radien = React.useMemo(() => {
     const r = Float32Array.from(punkte, (q) => teppichRadius(plaetze.zelle, q.gewicht))
-    for (const i of hervor) r[i] *= BELEG_FAKTOR
+    for (const i of hervor) r[i] = BELEG_RADIUS
     return r
   }, [punkte, plaetze.zelle, hervor])
   return { plaetze, radien, belegIndex }
