@@ -36,7 +36,7 @@ describe('ThemenKarten', () => {
     expect(screen.getByText('Miteinander')).toBeTruthy()
     expect(screen.getByText('Werte und Rituale')).toBeTruthy()
     expect(screen.getByRole('group', { name: 'website.story.themenFragen:Miteinander' })).toBeTruthy()
-    expect(screen.getAllByRole('button')).toHaveLength(3)
+    expect(screen.getAllByRole('button')).toHaveLength(5)
   })
 
   it('gibt die angeklickte Frage weiter', () => {
@@ -59,6 +59,21 @@ describe('ThemenKarten auf dem Telefon (R2)', () => {
     expect(koepfe[0].getAttribute('aria-expanded')).toBe('false')
     expect(container.querySelectorAll('[data-thema-offen="true"]')).toHaveLength(1)
     expect(container.querySelector('[data-thema-offen="true"]')?.textContent).toContain('Wirtschaften')
+  })
+})
+
+describe('ThemenKarten breit (Owner 24.11.2026)', () => {
+  it('Akkordeon: anfangs sind alle Themen zu, ein Klick auf den Titel klappt eines auf', () => {
+    const { container } = render(<ThemenKarten themen={THEMEN} onFrage={() => {}} />)
+    const koepfe = container.querySelectorAll('[data-thema-kopf]')
+    expect(koepfe).toHaveLength(2)
+    expect(container.querySelectorAll('[data-thema-offen="true"]')).toHaveLength(0)
+    expect(koepfe[0].getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(koepfe[0])
+    expect(koepfe[0].getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelector('[data-thema-offen="true"]')?.textContent).toContain('Miteinander')
+    fireEvent.click(koepfe[0])
+    expect(container.querySelectorAll('[data-thema-offen="true"]')).toHaveLength(0)
   })
 })
 

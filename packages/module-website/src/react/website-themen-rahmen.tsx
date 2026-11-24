@@ -55,29 +55,35 @@ export function WebsiteThemenRahmen({ section, headingCase = "capitalize", theme
 
 /**
  * Eine Karte je Thema; Klick auf eine Frage uebergibt sie an die Story-Sektion.
- * Telefon (R2, 24.11.2026): ein Akkordeon — der Titel klappt Kurztext und Fragen
- * auf, anfangs ist das erste Thema offen. So bleibt die Seite kurz.
+ * Akkordeon auf jeder Breite (Owner 24.11.2026): der Titel klappt Kurztext und
+ * Fragen auf. Telefon (R2): anfangs ist das erste Thema offen. Breit: anfangs
+ * sind alle Themen zu — bei vielen Themen bleibt die Uebersicht eine Uebersicht.
  */
 export function ThemenKarten({ themen, onFrage }: { themen: StoryTopic[]; onFrage: (frage: string) => void }): React.ReactElement {
   const { t } = useTranslation()
   const schmal = useSchmal()
   const [offen, setOffen] = React.useState<string | null>(themen[0]?.id ?? null)
+  // Bis zum ersten Klick gilt die Vorgabe „erstes Thema offen" nur auf dem Telefon.
+  const [gewaehlt, setGewaehlt] = React.useState(false)
   return (
-    <ul className="not-prose mt-6 grid gap-2 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3" data-themen-karten={themen.length}>
+    <ul className="not-prose mt-6 grid items-start gap-2 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3" data-themen-karten={themen.length}>
       {themen.map((thema) => {
-        const auf = offen === thema.id
+        const vorgabe = !gewaehlt && offen === thema.id
+        const auf = gewaehlt ? offen === thema.id : vorgabe && schmal
+        const waehle = () => {
+          setGewaehlt(true)
+          setOffen(auf ? null : thema.id)
+        }
         return (
-          <li key={thema.id} className="flex flex-col rounded-2xl border border-black/10 bg-white p-4 text-neutral-900 shadow-sm sm:p-5" data-thema-offen={schmal ? auf : undefined}>
+          <li key={thema.id} className="flex flex-col rounded-2xl border border-black/10 bg-white p-4 text-neutral-900 shadow-sm sm:p-5" data-thema-offen={auf}>
             <h3 className="text-base font-semibold leading-snug">
-              {schmal ? (
-                <button type="button" aria-expanded={auf} onClick={() => setOffen(auf ? null : thema.id)} className="flex min-h-[44px] w-full items-center justify-between gap-3 text-left" data-thema-kopf>
-                  <span>{thema.title}</span>
-                  <ChevronDown className={cn("h-4 w-4 shrink-0 text-neutral-500 transition-transform", auf && "rotate-180")} aria-hidden="true" />
-                </button>
-              ) : thema.title}
+              <button type="button" aria-expanded={auf} onClick={waehle} className="flex min-h-[44px] w-full items-center justify-between gap-3 text-left sm:min-h-0" data-thema-kopf>
+                <span>{thema.title}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-neutral-500 transition-transform", vorgabe ? "rotate-180 sm:rotate-0" : auf && "rotate-180")} aria-hidden="true" />
+              </button>
             </h3>
             {/* Vor dem ersten Effekt entscheidet allein die Breite (`sm:`): kein Aufklappen-und-wieder-Zuklappen. */}
-            <div className={auf ? "block" : "hidden sm:block"}>
+            <div className={vorgabe ? "block sm:hidden" : auf ? "block" : "hidden"}>
               {thema.summary && <p className="mt-2 text-sm leading-relaxed text-neutral-600">{thema.summary}</p>}
               {thema.questions.length > 0 && (
                 <div className="mt-4 flex flex-col gap-2" role="group" aria-label={t("website.story.themenFragen", { title: thema.title })}>
