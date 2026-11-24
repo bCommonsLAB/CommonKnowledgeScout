@@ -24,6 +24,8 @@ import {
   type SiteThemeResolved,
   BUTTON_STRONG,
   surfaceStyle,
+  SECTION_WIDTH,
+  SECTION_READING_WIDTH,
   type WebsiteNavigation,
 } from ".."
 import { cn } from "@ks/util"
@@ -112,7 +114,8 @@ export function WebsiteContactFormSection({
 
   return (
     <section className={cn("px-4 py-10 sm:px-6 sm:py-14", flaeche.className)} style={flaeche.style}>
-      <div className="mx-auto max-w-2xl">
+      <div className={SECTION_WIDTH}>
+      <div className={SECTION_READING_WIDTH}>
         {section.markdown && (
           <div className="mb-8">{renderMarkdownText(section.markdown, "mint", undefined, theme, navigation)}</div>
         )}
@@ -177,6 +180,7 @@ export function WebsiteContactFormSection({
             )}
           </form>
         )}
+      </div>
       </div>
     </section>
   )
