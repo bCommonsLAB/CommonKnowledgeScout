@@ -135,11 +135,25 @@ importiert kein `@commonux/*`.
   `kind` werfen im Parser — `seite_pruefen` meldet sie vor dem Publizieren.
 
 - **Story-Sektion (Welle N1, Plan `website-story-sektion`):** `layout=story`
-  setzt den Chat der Library an diese Stelle der Seite — Beispielfragen als
-  Kacheln, immer sichtbare Eingabe, darunter NUR das juengste
-  Frage-Antwort-Paar der Sitzung (Owner 08.11.2026: wie eine Suche — eine
+  setzt den Chat der Library an diese Stelle der Seite — EINE Fragebox
+  (Owner 24.11.2026), darunter die Beispielfragen als Kacheln und NUR die
+  juengste Antwort der Sitzung (Owner 08.11.2026: wie eine Suche — eine
   neue Frage ersetzt die Anzeige; `sichtbaresPaar` in
-  `packages/module-website/src/story-sichtbares-paar.ts`); aeltere Fragen erreicht der
+  `packages/module-website/src/story-sichtbares-paar.ts`). Die Box ist Eingabe
+  UND Anzeige der gestellten Frage: der Text bleibt nach dem Senden stehen und
+  ist editierbar, es gibt weder einen Block „Deine Frage" (`ohneFrage` an
+  `StoryKonversation`) noch eine zweite Eingabe unter der Antwort. Jede
+  angebotene Frage — Beispiel, populaer, Thema, Weiterfrage unter der Antwort —
+  fuellt die Box und wird SOFORT gestellt (im Story-Modus fuellt eine
+  Weiterfrage weiter nur das Feld). Gibt es eine Antwort, klappen die
+  Beispielfragen zu einer Zeile ein (`website-story-beispiele.tsx`).
+  **Telefon (unter `sm`, Owner 24.11.2026):** Sektionen mit 16 px Rand und
+  kleinerem Abstand (`px-4 py-10`), keine Karte in der Karte (mit Teppich
+  ohne Innenabstand, die Antwort ohne Bild-Spalte in voller Lesebreite), die
+  Beispielfragen als waagrechte Reihe zum Wischen, die Themen als Akkordeon
+  (`useSchmal`, erstes Thema offen), Tippziele mindestens 44 px. Die Variante
+  `max-sm:` erzeugt dieses Tailwind-Setup NICHT — Telefon ist der
+  Grundzustand, `sm:` stellt die breite Darstellung her. Aeltere Fragen erreicht der
   Verweis „N fruehere Fragen dieser Sitzung im Story-Modus" unter der
   Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
   aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die

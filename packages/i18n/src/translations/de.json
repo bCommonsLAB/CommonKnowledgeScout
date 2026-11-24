@@ -1039,7 +1039,8 @@
       "weiterfragen": "Weiterfragen"
     },
     "eingabeInline": {
-      "enterHint": "Enter sendet · Shift+Enter für Zeilenumbruch"
+      "enterHint": "Enter sendet · Shift+Enter für Zeilenumbruch",
+      "leeren": "Frage leeren"
     }
   },
   "website": {

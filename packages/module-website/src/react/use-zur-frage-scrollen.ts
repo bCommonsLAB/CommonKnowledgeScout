@@ -6,7 +6,8 @@
  * Eingabe —, soll die Zone sehen, in der Frage, Wolke und spaeter die Antwort stehen.
  *
  * - Steht die Zone schon ganz im Bild, scrollt nichts.
- * - Sonst gleitet die Seite EINMAL an ihren Anfang (den Frage-Block der Konversation).
+ * - Sonst gleitet die Seite EINMAL an ihren Anfang: die Fragebox (R1, 24.11.2026 — sie zeigt die
+ *   gestellte Frage und steht direkt ueber der Zone der Antwort).
  * - Verschiebt sich das Ziel, waehrend die Seite noch gleitet (gemessen: 64 px, wenn ueber der
  *   Antwort die Kopfzeile wegfaellt), wird dieselbe Bewegung umgelenkt statt daneben zu landen.
  * - Scrollt der Mensch selbst, hat er Vorrang.
@@ -18,7 +19,7 @@ import { sichtHoehe } from './use-teppich-flaeche'
 
 /** So lange nach dem Absenden folgt das Scrollen einem verschobenen Ziel. */
 const NACHFUEHREN_MS = 3000
-/** Luft ueber dem Frage-Block (passt zu `scroll-mt-6` an der Konversation). */
+/** Luft ueber der Fragebox. */
 const LUFT = 24
 
 /** Der Behaelter, der die Seite scrollt (Site-Modus der App), sonst das Dokument. */
@@ -46,23 +47,24 @@ export function useZurFrageScrollen(huelle: React.RefObject<HTMLElement | null>,
     if (phase !== 'sucht' || war === 'sucht') return
     const el = huelle.current
     const ziel = el?.closest('[data-website-story]')?.querySelector<HTMLElement>('[data-story-karten-modus]')
-    if (!el || !ziel) {
-      console.warn('[WebsiteTeppich] Zone der Antwort nicht gefunden, kein Scrollen zur Frage')
+    const box = el?.closest('[data-website-story]')?.querySelector<HTMLElement>('[data-story-eingabe-inline]')
+    if (!el || !ziel || !box) {
+      console.warn('[WebsiteTeppich] Fragebox oder Zone der Antwort nicht gefunden, kein Scrollen zur Frage')
       return
     }
-    // Die Zone (Frage-Block und Wolke samt Botschaft) steht schon ganz im Bild: nichts scrollt.
+    // Die Fragebox und die Zone (Wolke samt Botschaft) stehen schon ganz im Bild: nichts scrollt.
     const behaelter = scrollBehaelter(el)
     const bildOben = behaelter === document.scrollingElement ? 0 : behaelter.getBoundingClientRect().top
     const oben = ziel.getBoundingClientRect().top - bildOben
-    if (oben >= 0 && oben + el.getBoundingClientRect().height <= sichtHoehe(el)) return
+    if (box.getBoundingClientRect().top - bildOben >= 0 && oben + el.getBoundingClientRect().height <= sichtHoehe(el)) return
     const art: ScrollBehavior = bewegung ? 'smooth' : 'auto'
-    const hin = () => behaelter.scrollTo({ top: Math.max(0, lageIm(behaelter, ziel) - LUFT), behavior: art })
+    const hin = () => behaelter.scrollTo({ top: Math.max(0, lageIm(behaelter, box) - LUFT), behavior: art })
     hin()
-    let lage = lageIm(behaelter, ziel)
+    let lage = lageIm(behaelter, box)
     const bis = performance.now() + NACHFUEHREN_MS
     let bild = 0
     const folge = () => {
-      const jetzt = lageIm(behaelter, ziel)
+      const jetzt = lageIm(behaelter, box)
       if (Math.abs(jetzt - lage) > 2) {
         lage = jetzt
         hin()

@@ -68,6 +68,11 @@ export interface StoryKonversationProps {
    * Library (z. B. „5 Talks zitiert"). Ohne: die Paket-Texte.
    */
   quellenPlakette?: (anzahl: number) => string
+  /**
+   * R1 (24.11.2026): Der Gastgeber zeigt die Frage selbst (die Fragebox der Startseite enthaelt
+   * sie und bleibt editierbar) — der Block „Deine Frage" samt „neu stellen" entfaellt hier.
+   */
+  ohneFrage?: boolean
 }
 
 /** Zahl der verschiedenen zitierten Dokumente einer Antwort. */
@@ -112,7 +117,7 @@ function FrageAktionen({ paar, onLoeschen, onErneut }: Pick<StoryKonversationPro
   )
 }
 
-export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut, markenAnfangsVerborgen = false, kopfAktion, antwortAvatar, antwortDarstellung, quellenPlakette }: StoryKonversationProps) {
+export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetail, onFrage, fuss, onLoeschen, onErneut, markenAnfangsVerborgen = false, kopfAktion, antwortAvatar, antwortDarstellung, quellenPlakette, ohneFrage = false }: StoryKonversationProps) {
   const { t } = useTranslation()
   // Avatar der Antwort: das Logo des Gastgebers, sonst ein neutraler Funke.
   const avatar = antwortAvatar ?? (
@@ -141,7 +146,7 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
         const quellen = antwort ? quellenZahl(antwort) : 0
         return (
           <article key={paar.kennung} data-konversation-id={paar.kennung} className="space-y-4">
-            <div className="flex gap-3">
+            {!ohneFrage && <div className="flex gap-3" data-story-frage>
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <User className="h-4 w-4" />
               </div>
@@ -158,7 +163,7 @@ export function StoryKonversation({ paare, laeuft, schritte, fehler, fehlerDetai
                 <p className="whitespace-pre-wrap break-words text-base font-semibold">{paar.frage.text}</p>
               </div>
               <FrageAktionen paar={paar} onLoeschen={onLoeschen} onErneut={onErneut} />
-            </div>
+            </div>}
             {antwort ? (
               <div className="flex gap-3" data-antwort={antwortId}>
                 <div className="shrink-0" aria-hidden="true">{avatar}</div>

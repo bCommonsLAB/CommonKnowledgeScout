@@ -992,7 +992,8 @@
       "weiterfragen": "Altre domande"
     },
     "eingabeInline": {
-      "enterHint": "Invio invia · Maiusc+Invio per andare a capo"
+      "enterHint": "Invio invia · Maiusc+Invio per andare a capo",
+      "leeren": "Cancella la domanda"
     }
   },
   "website": {

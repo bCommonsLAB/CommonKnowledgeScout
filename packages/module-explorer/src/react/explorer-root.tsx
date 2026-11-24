@@ -142,8 +142,9 @@ export function ExplorerRoot({
 
       {/* Padding-Top bewusst auf 0: die Tabs (Inhalte / Story Mode) sollen direkt unter der
          Trennlinie des Page-Headers andocken — analog zur Library-Gallery-Ansicht.
-         Seitliches und unteres Padding bleiben wie zuvor (Inhalte sollen nicht am Rand kleben). */}
-      <div className={fensterScroll ? 'flex-1 px-2 pt-0 pb-2 sm:px-4 sm:pb-4' : 'flex-1 min-h-0 overflow-hidden px-2 pt-0 pb-2 sm:px-4 sm:pb-4'}>
+         Seitliches und unteres Padding bleiben wie zuvor (Inhalte sollen nicht am Rand kleben).
+         Webseiten-Ansicht auf dem Telefon: randlos — die Sektionen bringen ihren Rand selbst mit (R2, 24.11.2026). */}
+      <div className={fensterScroll ? 'flex-1 px-0 pt-0 pb-0 sm:px-4 sm:pb-4' : 'flex-1 min-h-0 overflow-hidden px-2 pt-0 pb-2 sm:px-4 sm:pb-4'}>
         {/* flex flex-col noetig: sonst ist das flex-1 des Galerie-Rootes wirkungslos,
            der Inhalt waechst ueber die Wrapper-Hoehe hinaus und overflow-hidden schneidet
            unten ab (Symptom: Summen-Fusszeile der Tabelle nicht/halb sichtbar). */}

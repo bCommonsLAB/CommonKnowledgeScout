@@ -4,7 +4,7 @@
  * Thema mit Kurztext und Fragen; der Klick gibt die Frage weiter. Ohne Kinder
  * zeigt der Rahmen den Hinweis fuer die Archiv-Vorschau.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { StoryTopic } from '@ks/contracts'
 import { ThemenKarten, WebsiteThemenRahmen } from '@ks/module-website/react'
@@ -17,6 +17,11 @@ vi.mock('@ks/i18n/react', () => ({
   }),
 }))
 
+/** jsdom kennt kein `matchMedia`: breit ist die Vorgabe, `schmal` stellt das Telefon. */
+function breite(schmal: boolean) {
+  window.matchMedia = ((query: string) => ({ matches: schmal, media: query, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
+}
+beforeEach(() => breite(false))
 afterEach(() => cleanup())
 
 const THEMEN: StoryTopic[] = [
@@ -39,6 +44,21 @@ describe('ThemenKarten', () => {
     render(<ThemenKarten themen={THEMEN} onFrage={onFrage} />)
     fireEvent.click(screen.getByText('Wie teilen wir Risiken?'))
     expect(onFrage).toHaveBeenCalledWith('Wie teilen wir Risiken?')
+  })
+})
+
+describe('ThemenKarten auf dem Telefon (R2)', () => {
+  it('Akkordeon: das erste Thema ist offen, ein Tipp auf den Titel wechselt', () => {
+    breite(true)
+    const { container } = render(<ThemenKarten themen={THEMEN} onFrage={() => {}} />)
+    const koepfe = container.querySelectorAll('[data-thema-kopf]')
+    expect(koepfe).toHaveLength(2)
+    expect(koepfe[0].getAttribute('aria-expanded')).toBe('true')
+    expect(koepfe[1].getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(koepfe[1])
+    expect(koepfe[0].getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelectorAll('[data-thema-offen="true"]')).toHaveLength(1)
+    expect(container.querySelector('[data-thema-offen="true"]')?.textContent).toContain('Wirtschaften')
   })
 })
 

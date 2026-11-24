@@ -992,7 +992,8 @@
       "weiterfragen": "Autres questions"
     },
     "eingabeInline": {
-      "enterHint": "Entrée envoie · Maj+Entrée pour un retour à la ligne"
+      "enterHint": "Entrée envoie · Maj+Entrée pour un retour à la ligne",
+      "leeren": "Effacer la question"
     }
   },
   "website": {

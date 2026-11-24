@@ -992,7 +992,8 @@
       "weiterfragen": "Follow-up questions"
     },
     "eingabeInline": {
-      "enterHint": "Enter sends · Shift+Enter for a new line"
+      "enterHint": "Enter sends · Shift+Enter for a new line",
+      "leeren": "Clear question"
     }
   },
   "website": {

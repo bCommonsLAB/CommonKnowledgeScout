@@ -111,7 +111,7 @@ export function WebsiteContactFormSection({
   const flaeche = surfaceStyle("mint", theme)
 
   return (
-    <section className={cn("px-6 py-14", flaeche.className)} style={flaeche.style}>
+    <section className={cn("px-4 py-10 sm:px-6 sm:py-14", flaeche.className)} style={flaeche.style}>
       <div className="mx-auto max-w-2xl">
         {section.markdown && (
           <div className="mb-8">{renderMarkdownText(section.markdown, "mint", undefined, theme, navigation)}</div>

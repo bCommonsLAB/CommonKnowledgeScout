@@ -33,7 +33,7 @@ export function HeroBand({ title, subtitle, kicker, imageUrl, imageAlt, imagePos
   return (
     <header
       className={cn(
-        "relative overflow-hidden bg-[color:var(--site-accent-strong)] px-6 py-10 md:py-14",
+        "relative overflow-hidden bg-[color:var(--site-accent-strong)] px-5 py-8 sm:px-6 sm:py-10 md:py-14",
         // Mit Bild: weisser Text auf dunklem Schleier — die Akzent-Textfarbe ist nur fuer die Akzentflaeche gedacht.
         imageUrl ? "text-white" : "text-[color:var(--site-accent-text)]",
       )}
