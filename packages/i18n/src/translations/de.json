@@ -1055,6 +1055,7 @@
         "many": "{count} frühere Fragen dieser Sitzung im Story-Modus"
       },
       "anpassen": "Antworten anpassen",
+      "vollbildZu": "Vollbild schließen",
       "graph": "Graph ansehen",
       "teppichZurueck": "Klick auf eine freie Stelle holt den Text zurück",
       "belegeFehler": "{label} konnten nicht geladen werden.",

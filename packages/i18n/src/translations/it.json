@@ -1008,6 +1008,7 @@
         "many": "{count} domande precedenti di questa sessione in modalità Story"
       },
       "anpassen": "Adatta le risposte",
+      "vollbildZu": "Chiudi schermo intero",
       "graph": "Esplora il grafo",
       "teppichZurueck": "Clicca su uno spazio libero per riavere il testo",
       "belegeFehler": "{label}: caricamento non riuscito.",

@@ -26,6 +26,8 @@ export interface StoryEingabeInlineProps {
   antwortLaenge: AntwortLaenge
   setAntwortLaenge: (l: AntwortLaenge) => void
   placeholder?: string
+  /** Telefon: die Zeile mit der Antwortlaenge weglassen (Vollbild der Startseite — dort zaehlt der Platz). */
+  ohneLaenge?: boolean
   /** Zusaetzliche Klassen fuer den Rahmen (Gastgeber-Flaeche). */
   className?: string
 }
@@ -94,10 +96,12 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
           <span className="hidden sm:inline">{p.laeuft ? t('chat.input.waiting') : t('chat.input.askQuestion')}</span>
         </Button>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-1.5 sm:hidden">
-        <span className="text-xs text-muted-foreground">{t('chat.input.answerLength')}</span>
-        {laenge}
-      </div>
+      {!p.ohneLaenge && (
+        <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-1.5 sm:hidden">
+          <span className="text-xs text-muted-foreground">{t('chat.input.answerLength')}</span>
+          {laenge}
+        </div>
+      )}
     </div>
   )
 }

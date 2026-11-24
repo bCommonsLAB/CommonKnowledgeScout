@@ -1008,6 +1008,7 @@
         "many": "{count} earlier questions from this session in Story mode"
       },
       "anpassen": "Adjust answers",
+      "vollbildZu": "Close full screen",
       "graph": "Explore graph",
       "teppichZurueck": "Click an empty spot to bring the text back",
       "belegeFehler": "{label} could not be loaded.",

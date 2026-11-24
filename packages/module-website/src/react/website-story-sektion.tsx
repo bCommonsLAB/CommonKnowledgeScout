@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAtom, useSetAtom } from 'jotai'
+import { useSetAtom } from 'jotai'
 import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
@@ -33,13 +33,14 @@ import {
   storyBloecke,
   eintragsBezeichnung,
   type BezeichnungQuelle,
-  auftragSchritt,
   type WebsiteNavigation,
 } from '..'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
-import { websiteStoryFrageAtom } from './website-story-frage-atom'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { StoryBeispiele } from './website-story-beispiele'
+import { StoryFrageLeiste } from './website-story-frage-leiste'
+import { useStoryVollbild } from './use-story-vollbild'
+import { useFrageAuftrag } from './use-story-frage-auftrag'
 import { WebsiteStoryBelege } from './website-story-belege'
 import { wegGehen } from './use-website-story-navigation'
 import { useBelegDokumente, useWebsiteStory, type BelegeBlatt } from './use-website-story'
@@ -104,22 +105,8 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
   }, [gestellt])
 
   // 18.11.2026: Frage aus der Themen-Sektion (`layout=topics`) — einmal annehmen, hinaufrollen, stellen.
-  const [auftrag, setAuftrag] = useAtom(websiteStoryFrageAtom)
   const anker = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!auftrag) return
-    const schritt = auftragSchritt({ laedt: s.loading, fehler: Boolean(s.error), laeuft: s.k.laeuft })
-    if (schritt === 'warten') return
-    setAuftrag(null)
-    if (schritt === 'verwerfen') {
-      console.error('[WebsiteStorySektion] Frage aus der Themenuebersicht verworfen — die Sektion zeigt einen Fehler', auftrag.text)
-      return
-    }
-    anker.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    // Laeuft noch eine Antwort, steht die Frage im Feld und geht nicht verloren.
-    if (schritt === 'eintragen') setText(auftrag.text)
-    else senden(auftrag.text)
-  }, [auftrag, s.loading, s.error, s.k.laeuft, setAuftrag, senden])
+  useFrageAuftrag(anker, { laedt: s.loading, fehler: Boolean(s.error), laeuft: s.k.laeuft }, senden, setText)
 
   const belegeOeffnen = useCallback(
     (antwort: Nachricht) => {
@@ -134,6 +121,9 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
 
   // T2/T3: Teppich der Dokumente hinter der Sektion (`use-story-teppich.tsx`).
   const teppich = useStoryTeppich(gastgeber, p.libraryId, s, dokumentOeffnen, p.section.animation ?? 'schwarm')
+  // R3: auf dem Telefon laeuft die Frage im Vollbild (`use-story-vollbild.ts`).
+  const v = useStoryVollbild(anker, s.k.laeuft)
+  const platzhalter = p.section.placeholder ?? gastgeber.eingabe.platzhalter
   const anzahl = s.paare.length
   const status = <StoryStatus anzahl={anzahl} filter={p.section.filter} />
   const kopf = gastgeber.perspektiveDialog ? (
@@ -151,7 +141,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
     const konversation = anzahl > 0 || s.k.laeuft || s.k.fehler
     inhalt = (
       <>
-        {(bloecke.fragen.length > 0 || bloecke.populaer !== null) && (
+        {!v.vollbild && (bloecke.fragen.length > 0 || bloecke.populaer !== null) && (
           <StoryBeispiele eingeklappt={Boolean(konversation)} frage={gestellt}>
             <StoryFragenKacheln fragen={bloecke.fragen} onFrage={senden} gesperrt={s.k.laeuft} />
             {bloecke.populaer !== null && <StoryPopulaereFragen instanz={gastgeber.instanz} libraryId={p.libraryId} n={bloecke.populaer} onFrage={senden} gesperrt={s.k.laeuft} />}
@@ -174,17 +164,18 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
         )}
       </>
     )
-    eingabe = <StoryEingabeInline className="mt-6" text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} antwortLaenge={s.k.antwortLaenge} setAntwortLaenge={s.k.setAntwortLaenge} placeholder={p.section.placeholder ?? gastgeber.eingabe.platzhalter} />
+    eingabe = <StoryEingabeInline className={v.vollbild ? '' : 'mt-6'} ohneLaenge={v.vollbild} text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} antwortLaenge={s.k.antwortLaenge} setAntwortLaenge={s.k.setAntwortLaenge} placeholder={platzhalter} />
   }
 
   return (
     <>
       {/* Anker fuer Fragen aus der Themen-Sektion: die Seite rollt hierher. */}
-      <div ref={anker} className="scroll-mt-4">
-        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} {...teppich.rahmen} eingabe={eingabe}>
+      <div ref={anker} className="scroll-mt-4" style={v.platz}>
+        <WebsiteStorySektionRahmen section={p.section} headingCase={p.headingCase} theme={p.theme} status={status} kopf={kopf} {...teppich.rahmen} eingabe={eingabe} vollbild={v.vollbild} onVollbildZu={v.schliessen}>
           {inhalt}
         </WebsiteStorySektionRahmen>
       </div>
+      <StoryFrageLeiste anker={anker} text={platzhalter ?? t('chat.input.askQuestion')} aus={v.vollbild || s.loading || Boolean(s.error)} />
       {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen })}
       {blatt && (
         <WebsiteStoryBelege

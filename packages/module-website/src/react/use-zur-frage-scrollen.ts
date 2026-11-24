@@ -46,6 +46,8 @@ export function useZurFrageScrollen(huelle: React.RefObject<HTMLElement | null>,
     vorher.current = phase
     if (phase !== 'sucht' || war === 'sucht') return
     const el = huelle.current
+    // Telefon-Vollbild (R3): die Sektion liegt fest ueber dem Bildschirm, die Fragebox steht oben — nichts zu scrollen.
+    if (el?.closest('[data-story-vollbild]')) return
     const ziel = el?.closest('[data-website-story]')?.querySelector<HTMLElement>('[data-story-karten-modus]')
     const box = el?.closest('[data-website-story]')?.querySelector<HTMLElement>('[data-story-eingabe-inline]')
     if (!el || !ziel || !box) {
