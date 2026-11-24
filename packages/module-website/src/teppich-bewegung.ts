@@ -174,17 +174,27 @@ export function botschaftsStufe(schritte: readonly ChatProcessingStep[]): Botsch
   return stufe
 }
 
+/** Abstand der Storyline zur Botschaft und die Breite, die fuer Titel mindestens bleiben muss (Pixel). */
+const [LUFT, TITEL_MINDESTENS] = [24, 260]
+
 /**
  * Lage der Storyline (Owner 22.11.2026): Die Belege der Antwort stehen als Liste in der Mitte der
  * Flaeche, untereinander in der Reihenfolge ihrer Nummern; rechts neben jedem Kreis der Titel.
  * Liefert die Mitte jedes Kreises; `zeile` ist der Abstand zweier Kreise, `x` die gemeinsame Spalte.
  */
-export function storylineLage(anzahl: number, breite: number, hoehe: number): { x: number; ys: number[]; zeile: number } {
+export function storylineLage(anzahl: number, breite: number, hoehe: number, frei?: { rechts: number; unten: number }): { x: number; ys: number[]; zeile: number } {
   // Hoechstens 44 px; bei vielen Belegen enger, die Liste nutzt bis zu 94 % der Hoehe (Owner
   // 23.11.2026: „ein bisschen mehr Abstand" — bei 19 Belegen lagen die Kreise fast aneinander).
   const zeile = anzahl > 0 ? Math.min(44, (hoehe * 0.94) / anzahl) : 0
-  const listenBreite = Math.min(560, breite - 48)
-  const x = Math.max(24, (breite - listenBreite) / 2) + 14
+  const x = Math.max(24, (breite - Math.min(560, breite - 48)) / 2) + 14
   const oben = hoehe / 2 - ((anzahl - 1) * zeile) / 2
-  return { x, ys: Array.from({ length: anzahl }, (_, k) => oben + k * zeile), zeile }
+  const liste = (lx: number, start: number, z: number) => ({ x: lx, ys: Array.from({ length: anzahl }, (_, k) => start + k * z), zeile: z })
+  // Owner 24.11.2026: Links oben steht die Botschaft (`frei`). Laege die Liste darunter, rueckt sie
+  // rechts daneben — oder, wenn dort kein Platz fuer Titel bleibt, unter die Botschaft.
+  if (!frei || anzahl === 0 || x - 14 >= frei.rechts + LUFT || oben - zeile / 2 >= frei.unten + LUFT) return liste(x, oben, zeile)
+  const daneben = frei.rechts + LUFT + 14
+  if (breite - daneben - 24 >= TITEL_MINDESTENS) return liste(daneben, oben, zeile)
+  const platz = Math.max(0, hoehe - frei.unten - LUFT)
+  const eng = Math.min(44, (platz * 0.94) / anzahl)
+  return liste(x, frei.unten + LUFT + platz / 2 - ((anzahl - 1) * eng) / 2, eng)
 }

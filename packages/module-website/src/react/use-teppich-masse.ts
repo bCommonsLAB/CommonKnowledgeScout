@@ -38,9 +38,22 @@ export function useGraphHoehe(flaeche: React.RefObject<HTMLDivElement | null>, a
  * (`--site-accent-ink`, wie die Belegnummern im Text) fuer die Belege. Ausserhalb einer Website
  * mit Design-Profil gibt es keinen Akzent — dann tragen die Belege die Schriftfarbe.
  */
-export function teppichFarben(el: HTMLElement | null): { farbe: string; akzent: string } {
-  if (!el) return { farbe: 'currentColor', akzent: 'currentColor' }
+export function teppichFarben(el: HTMLElement | null): { farbe: string; akzent: string; schrift: string } {
+  if (!el) return { farbe: 'currentColor', akzent: 'currentColor', schrift: 'system-ui, sans-serif' }
   const stil = getComputedStyle(el)
   const akzent = stil.getPropertyValue('--site-accent-ink').trim()
-  return { farbe: stil.color, akzent: akzent !== '' ? akzent : stil.color }
+  return { farbe: stil.color, akzent: akzent !== '' ? akzent : stil.color, schrift: stil.fontFamily || 'system-ui, sans-serif' }
+}
+
+/**
+ * Rechner: die Flaeche, die die Botschaft links oben ueber der Wolke belegt (Pixel der Leinwand).
+ * Die Storyline weicht ihr aus, statt unter dem Text zu liegen. Auf dem Telefon steht die Botschaft
+ * als Blatt am Bildschirmrand — dort gibt es nichts auszuweichen.
+ */
+export function botschaftFlaeche(flaeche: HTMLElement | null): { rechts: number; unten: number } | undefined {
+  const el = flaeche?.querySelector('[data-teppich-botschaft="frei"]')
+  if (!flaeche || !el) return undefined
+  const f = flaeche.getBoundingClientRect()
+  const r = el.getBoundingClientRect()
+  return { rechts: r.right - f.left, unten: r.bottom - f.top }
 }

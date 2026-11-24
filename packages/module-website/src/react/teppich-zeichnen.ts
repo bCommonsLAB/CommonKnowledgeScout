@@ -5,7 +5,7 @@
  * Belege, die Vorbereitung der Leinwand und der Stand, den die Szene je Bild bekommt.
  */
 
-import type { TeppichAnimation, TeppichKasten, TeppichPhase, TeppichPlaetze, TeppichPunkt } from '..'
+import { BELEG_RADIUS, type TeppichAnimation, type TeppichKasten, type TeppichPhase, type TeppichPlaetze, type TeppichPunkt } from '..'
 
 /** Was die Szene je Bild vom Baustein bekommt (`TeppichSzene.setze`). */
 export interface TeppichSzenenStand {
@@ -31,6 +31,10 @@ export interface TeppichSzenenStand {
   farbe: string
   /** Akzent der Site (`--site-accent-ink`) fuer die Belege; ohne Design-Profil die Schriftfarbe. */
   akzent: string
+  /** Schriftfamilie der Seite, fuer die Nummern der Belegmarken. */
+  schrift: string
+  /** Rechner: die Flaeche, die die Botschaft links oben belegt (Pixel der Leinwand) — die Storyline weicht ihr aus. */
+  frei?: { rechts: number; unten: number }
   onGelandet: () => void
 }
 
@@ -49,17 +53,27 @@ export function zeichnePunkte(
   ctx.fill()
 }
 
-/** Ringe mit Nummern an den festen Plaetzen der Belege: Hier kommen sie her. */
-export function zeichneRinge(ctx: CanvasRenderingContext2D, punkte: Array<{ x: number; y: number; r: number; nummer: number }>): void {
+/**
+ * Belegmarken wie im Text der Antwort (`Zitatmarke` in `@ks/ui`, Groesse `text`; Owner 24.11.2026):
+ * ein Kreis von 20 px mit duennem Rand in der Akzentfarbe, innen weiss, die Nummer mittig in 12 px
+ * halbfett. So erkennt man die Nummern aus dem Text in der Wolke wieder.
+ */
+export function zeichneMarken(ctx: CanvasRenderingContext2D, marken: Array<{ x: number; y: number; nummer: number }>, akzent: string, schrift: string): void {
   ctx.lineWidth = 1
-  ctx.font = '600 10px system-ui, sans-serif'
-  ctx.textAlign = 'left'
-  for (const p of punkte) {
+  ctx.font = `600 12px ${schrift}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.strokeStyle = akzent
+  for (const m of marken) {
     ctx.beginPath()
-    ctx.arc(p.x, p.y, Math.max(5, p.r + 3.5), 0, 6.2832)
+    ctx.arc(m.x, m.y, BELEG_RADIUS, 0, 6.2832)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
     ctx.stroke()
-    ctx.fillText(String(p.nummer), p.x + Math.max(7, p.r + 6), p.y - 5)
+    ctx.fillStyle = akzent
+    ctx.fillText(String(m.nummer), m.x, m.y + 0.5)
   }
+  ctx.textBaseline = 'alphabetic'
 }
 
 /** Linien von Punkt `i` zu seinen Nachbarn (Indizes), an ihrer aktuellen Lage (E9). */

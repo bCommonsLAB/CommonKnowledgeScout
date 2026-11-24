@@ -181,8 +181,12 @@ importiert kein `@commonux/*`.
   weichen aus ihrem Umkreis, Belege ruecken auseinander
   (`teppich-respekt.ts`); beim Treffen haben sie Vorrang. Das gilt schon am
   Ende der Animation HINTER der Antwort und in der Graph-Ansicht. Belege
-  tragen den Akzent der Site (`--site-accent-ink`, wie ihre Nummern im Text;
-  auch die Kreise der Storyline). Hinter dem Text ist die Wolke blass
+  stehen als MARKEN wie im Text der Antwort (`zeichneMarken`, Vorbild
+  `Zitatmarke` Groesse `text`): Kreis von 20 px, duenner Rand im Akzent der
+  Site (`--site-accent-ink`), innen weiss, die Nummer mittig in 12 px
+  halbfett, Schrift der Seite — auch in der Storyline. Am Rechner weicht die
+  Liste der Storyline der Botschaft links oben aus (`storylineLage` mit
+  `frei`): rechts daneben, bei wenig Breite darunter. Hinter dem Text ist die Wolke blass
   (Deckkraft `HINTEN` in `teppich-bild.ts`, Belege zurueckhaltend), in der
   Graph-Ansicht hat sie ihre normalen Farben. Eine neue Frage schliesst
   sie. Mit der Maus oeffnet ein Klick auf eine freie Stelle der Wolke sie

@@ -9,7 +9,8 @@
  */
 
 import { inSicht } from './teppich-bild-sicht'
-import { leinwandBereit, zeichneFaden, zeichneNachbarLinien, zeichnePunkte, zeichneRinge, type TeppichSzenenStand } from './teppich-zeichnen'
+import { BELEG_RADIUS } from '..'
+import { leinwandBereit, zeichneFaden, zeichneMarken, zeichneNachbarLinien, zeichnePunkte, type TeppichSzenenStand } from './teppich-zeichnen'
 
 export interface TeppichBildLage {
   x: Float32Array
@@ -37,7 +38,6 @@ export interface TeppichBildLage {
   heimat: (i: number) => [number, number]
 }
 
-const STORY_R = 11
 /** Deckkraft der ersten Auswahl in der Wolke: waehrend der Frage und hinter der Antwort. */
 const KANDIDAT = 0.22
 const KANDIDAT_HINTEN = 0.14
@@ -54,37 +54,30 @@ function passend(ctx: CanvasRenderingContext2D, text: string, breite: number): s
   return `${t}…`
 }
 
-/** Storyline: Kreis mit Nummer (ausgestanzt), daneben der Titel. */
+/** Storyline: erst der Punkt in Akzentfarbe, dann die Belegmarke mit Nummer; daneben der Titel. */
 function zeichneStoryline(ctx: CanvasRenderingContext2D, s: TeppichSzenenStand, b: TeppichBildLage): void {
-  ctx.font = '600 11px system-ui, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  // Die Kreise der Storyline tragen schon den Akzent der Belege (Owner 24.11.2026); die Titel bleiben in der Schriftfarbe.
   ctx.fillStyle = s.akzent
   b.belegIndex.forEach((i, k) => {
     const u = b.belegMarke(k)
-    // Vom Kandidaten (dunkel, etwas groesser) zum Kreis der Storyline, dann zum Kreis mit Nummer.
+    // Vom Kandidaten (etwas groesser) zum Kreis in der Groesse der Marke.
     const basis = s.radien[i] * (1.15 + 0.45 * u)
-    const r = basis + (STORY_R - basis) * b.titel
     const von = s.animation === 'wolke' ? KANDIDAT : 0.5
-    ctx.globalAlpha = von + (0.85 - von) * u
+    ctx.globalAlpha = (von + (0.85 - von) * u) * (1 - b.titel)
     ctx.beginPath()
-    ctx.arc(b.x[i], b.y[i], r, 0, 6.2832)
+    ctx.arc(b.x[i], b.y[i], basis + (BELEG_RADIUS - basis) * b.titel, 0, 6.2832)
     ctx.fill()
-    if (b.titel > 0) {
-      ctx.globalAlpha = b.titel
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.fillText(String(k + 1), b.x[i], b.y[i] + 0.5)
-      ctx.globalCompositeOperation = 'source-over'
-    }
   })
+  if (b.titel <= 0) { ctx.fillStyle = s.farbe; return }
+  ctx.globalAlpha = b.titel
+  zeichneMarken(ctx, b.belegIndex.map((i, k) => ({ x: b.x[i], y: b.y[i], nummer: k + 1 })), s.akzent, s.schrift)
   ctx.fillStyle = s.farbe
-  if (b.titel <= 0) return
-  ctx.font = '14px system-ui, sans-serif'
+  ctx.strokeStyle = s.farbe
+  ctx.font = `14px ${s.schrift}`
   ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
   ctx.globalAlpha = 0.9 * b.titel
   for (const i of b.belegIndex) {
-    const x = b.x[i] + STORY_R + 10
+    const x = b.x[i] + BELEG_RADIUS + 10
     ctx.fillText(passend(ctx, s.punkte[i].titel, Math.max(60, s.breite - x - 24)), x, b.y[i])
   }
   ctx.textBaseline = 'alphabetic'
@@ -159,23 +152,17 @@ export function zeichneTeppich(cv: HTMLCanvasElement, stand: TeppichSzenenStand,
   if (s.animation === 'wolke') zeichneVerbindungen(ctx, s, b, belege, kandidaten)
   if (s.phase === 'landet') zeichneStoryline(ctx, s, b)
   else if (s.phase === 'antwort' && belege.size > 0) {
-    // Beim Erkunden: das Sternbild der Belege an ihren festen Plaetzen, mit Ring und Nummer.
+    // Das Sternbild der Belege: blasse Linien zu den Nachbarn, der Faden in Akzentfarbe (Owner 24.11.2026).
     if (b.daheim) {
-      const heim = b.belegIndex.map((i, k) => { const [x, y] = b.heimat(i); return { x, y, r: s.radien[i], nummer: k + 1 } })
       ctx.globalAlpha = vorn ? 0.1 : 0.05
       for (const i of b.belegIndex) zeichneNachbarLinien(ctx, b.x, b.y, i, s.punkte[i].nachbarn)
-      // Die Belege tragen den Akzent der Site, wie ihre Nummern im Text (Owner 24.11.2026).
-      ctx.fillStyle = s.akzent
       ctx.strokeStyle = s.akzent
       ctx.globalAlpha = vorn ? 0.3 : 0.12
-      zeichneFaden(ctx, heim)
-      ctx.globalAlpha = vorn ? 0.9 : 0.4
-      zeichneRinge(ctx, heim)
+      zeichneFaden(ctx, b.belegIndex.map((i) => ({ x: b.x[i], y: b.y[i] })))
     }
-    // Kraeftig in der Graph-Ansicht (dort sind die Belege das, was man sucht), zurueckhaltend hinter dem Text.
-    ctx.fillStyle = s.akzent
-    ctx.globalAlpha = vorn ? 0.85 : 0.3
-    zeichnePunkte(ctx, b.x, b.y, s.radien, (i) => belege.has(i), 1.3)
+    // Die Belege als Marken wie im Text. Kraeftig in der Graph-Ansicht, zurueckhaltend hinter dem Text.
+    ctx.globalAlpha = vorn ? 1 : 0.55
+    zeichneMarken(ctx, b.belegIndex.map((i, k) => ({ x: b.x[i], y: b.y[i], nummer: k + 1 })), s.akzent, s.schrift)
     ctx.fillStyle = s.farbe
     ctx.strokeStyle = s.farbe
   }

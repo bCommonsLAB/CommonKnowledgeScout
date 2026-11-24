@@ -21,7 +21,7 @@
  */
 
 import * as React from 'react'
-import { hervorTreffer, naechsterTeppichPunkt, type TeppichAnimation, type TeppichPhase, type TeppichPunkt } from '..'
+import { BELEG_RADIUS, hervorTreffer, naechsterTeppichPunkt, type TeppichAnimation, type TeppichPhase, type TeppichPunkt } from '..'
 import { TeppichSzene } from './teppich-szene'
 import { useTeppichFlaeche } from './use-teppich-flaeche'
 import { useTeppichHalt } from './use-teppich-halt'
@@ -29,7 +29,7 @@ import { useTeppichZeiger } from './use-teppich-zeiger'
 import type { TeppichBotschaft } from './use-teppich-botschaft'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
 import { useSchmal } from './use-schmal'
-import { teppichFarben, useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
+import { botschaftFlaeche, teppichFarben, useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
 import { useTeppichPlaetze } from './use-teppich-plaetze'
 import { useTeppichSicht } from './use-teppich-sicht'
 import { TeppichGraphKarte, TeppichGraphKopf } from './website-teppich-graph'
@@ -93,7 +93,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
     szene.setze({
       punkte, plaetze, radien, phase, belege, kandidaten, abgetaucht, animation: p.animation ?? 'schwarm', bewegung, ueber: ruhig ? ueberRef.current : -1,
       breite, hoehe, kasten: graph ? { breite, hoehe, links: 0 } : kasten,
-      ...teppichFarben(huelle.current),
+      ...teppichFarben(huelle.current), frei: botschaftFlaeche(flaeche.current),
       onGelandet: () => gelandet.current?.(),
     })
   })
@@ -142,9 +142,9 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
     const { x, y } = szene.lage.x.length === punkte.length ? szene.lage : { x: plaetze.px, y: plaetze.py }
     // Mit dem Finger trifft man grosszuegiger; die Weite gilt am Bildschirm, nicht in der gezoomten Wolke.
     const finger = 'pointerType' in e.nativeEvent && e.nativeEvent.pointerType === 'touch'
-    // Die Belege zuerst, in der Groesse, in der sie gezeichnet sind (plus Ring).
+    // Die Belege zuerst, in der Groesse ihrer Marke.
     const sz = szene.sicht.z
-    const beleg = belegIndex.length > 0 ? hervorTreffer(x, y, belegIndex, wx, wy, (i) => (radien[i] * 1.3 * Math.sqrt(sz) + (finger ? 14 : 5)) / sz) : -1
+    const beleg = hervorTreffer(x, y, belegIndex, wx, wy, () => (BELEG_RADIUS + (finger ? 14 : 4)) / sz)
     if (beleg >= 0) return beleg
     return naechsterTeppichPunkt(x, y, wx, wy, Math.max(6, plaetze.zelle * 0.8, (finger ? FINGER : 0) / szene.sicht.z))
   }

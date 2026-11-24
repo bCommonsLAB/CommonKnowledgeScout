@@ -171,7 +171,7 @@ export class TeppichSzene {
     const v = this.verdichtung
     if (s.phase !== 'landet' || !v) return
     const n = this.belegIndex.length
-    const { x: lx, ys } = storylineLage(n, s.breite, s.hoehe)
+    const { x: lx, ys } = storylineLage(n, s.breite, s.hoehe, s.frei)
     const rr = 0.1 * Math.min(s.breite, s.hoehe)
     let fertig = true
     this.belegIndex.forEach((i, k) => {
