@@ -21,7 +21,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.83.0'
+export const TOOLSET_VERSION = '2.84.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -60,6 +60,9 @@ export const TOOL_NAMES = [
   // Wunschliste 7, B1 — Wortlautkorrektur im Transkript, der einzige Schreibweg in den `_`-Ordner.
   'transkript_korrigieren',
   'vorlagen_auflisten',
+  // Webseiten erschliessen, Welle 2 (2.84.0): Vorlage als Text lesen und schreiben.
+  'vorlage_lesen',
+  'vorlage_schreiben',
   'transformation_starten',
   'dokument_publizieren',
   'dokument_depublizieren',
@@ -153,6 +156,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.84.0: Webseiten erschliessen, Welle 2 (Plan webseiten-erschliessen). FACETTEN-WOERTERBUCH IN VORLAGEN: Die Platzhalter <<werte:metaKey>> (rohe Werte, kommagetrennt) und <<legende:metaKey>> (Wert = Label (Bedeutung)) setzen in Feldbeschreibung, Body und Systemprompt einer Vorlage die erlaubten Werte aus chat.gallery.facets ein, statt sie abzuschreiben. Ein Platzhalter BINDET das Feld: Nach der Transformation werden Werte ausserhalb des Woerterbuchs verworfen (Liste: Eintrag weg, Einzelwert: null) und stehen in job_status.befunde (Ereignis facet_values_rejected). Nicht aufloesbare Platzhalter lassen den Job im Template-Schritt scheitern, bevor das Sprachmodell laeuft. Facetten ohne Platzhalter bleiben ungeprueft. NEU: vorlage_lesen (liest nur) gibt eine Vorlage als Markdown zurueck, vorlage_schreiben (Owner, schreibt) legt sie aus Markdown an oder ersetzt sie mit ueberschreiben: true — geprueft durch den Vorlagen-Parser und gegen das Facetten-Schema. bibliothek_anlegen: legt das verzeichnis auf der Speicher-Verbindung an, wenn es fehlt (Antwort: zielordner mit angelegt | vorhanden | nicht_geprueft | fehler); vorlagenNamen kopiert nur die genannten Vorlagen. speicher_pruefen: ist die Wurzel nicht lesbar, sagt diagnose, ob die Verbindung selbst antwortet oder nur das Verzeichnis fehlt.',
   '2.83.0: Webseiten erschliessen, Welle 1 (Plan webseiten-erschliessen). NEU: seite_lesen (liest nur) laedt eine Webseite auf dem Server und gibt sie ohne Sprachmodell zurueck — Metadaten, den Seitentext woertlich als Markdown (Listen, Tabellen, Definitionslisten ungefiltert) und die Linkliste mit Text, Adresse, Art (aus der Endung), abschnitt und kontext; maxZeichen/offset blaettern, linkArten/maxLinks begrenzen. Kein JavaScript-Rendering: eine erst im Browser aufgebaute Seite kommt mit leerem Markdown und Hinweis zurueck. NEU: datei_von_adresse_holen (schreibt) — der Server laedt bis zu 30 Dateien von Adressen in einen Ordner, ohne base64 durch den Kontext; je Datei geprueft (keine HTML-Seite statt der Datei, erwarteterTyp, Endung passend zum Content-Type, Signatur bei PDF/Bild/Office, 100 MB) und mit eigenem Ergebnis: abgelegt (pfad, id, groesse, mimeType, sha256, endAdresse, abgerufenAm) | abgelehnt | vorhanden | nicht_begonnen, je mit grund; nie ueberschrieben. webseite_erschliessen: seitenModus "struktur" uebernimmt Uebersichts-, Termin- und Dokumentseiten ohne Fliesstext woertlich (Abschnitt „Seite", dazu „Verlinkte Dateien" mit PDF-, Dokument- und Medien-Links; Antwort nennt seitenModus und verlinkteDateien); die Absage im Modus artikel nennt diesen Weg. elternAnlegen legt fehlende Ordner des Zielpfades an. SCHUTZ: Alle Abrufe im Auftrag von aussen (seite_lesen, webseite_erschliessen: Seite, Cover, direkt genanntes Medium) gehen nur noch an oeffentliche Adressen — http/https auf Port 80/443, keine internen Namen oder IPs, jede Umleitung neu geprueft. Der Zeichensatz der Seite wird beachtet (Content-Type, meta charset).',
   '2.82.0: Neues Werkzeug nachbarn_berechnen (Owner, schreibt, Plan teppich-der-dokumente, 23.11.): rechnet die Aehnlichkeits-Nachbarn aller Dokumente als Job doc-similarity, wie „Nachbarn neu berechnen" in der Graph-Ansicht der Galerie, die nicht jede Library zeigt. Voraussetzung fuer teppich_berechnen; dessen Fehlermeldung nennt jetzt dieses Werkzeug.',
   '2.81.0: Teppich der Dokumente hinter der Fragen-Sektion (Plan teppich-der-dokumente, Welle T2, 22.11.). Neuer Library-Schalter publicPublishing.carpetEnabled (Vorgabe false): veroeffentlichung_setzen nimmt ihn an, veroeffentlichung_lesen nennt ihn. Mit true zeichnet die Fragen-Sektion der Website (layout=story) jedes Dokument als Punkt an seinem Platz; die Plaetze rechnet teppich_berechnen.',

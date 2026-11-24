@@ -257,7 +257,7 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   (`24.09 KnowledgeScout/`, 24.11.2026); Plan
   [`plans/webseiten-erschliessen.plan.md`](plans/webseiten-erschliessen.plan.md).
 
-**Gemacht (Welle 1, 24.11., Werkzeugsatz 2.83.0):**
+**Gemacht (Welle 1, 24.11., Werkzeugsatz 2.83.0, #493):**
 
 1. Schutz gegen interne Adressen für jeden Abruf im Auftrag von außen
    (`sichererAbruf`), auch für die bestehenden Abrufe von
@@ -268,13 +268,21 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 4. `datei_von_adresse_holen`: der Server lädt bis zu 30 Dateien in einen
    Ordner, geprüft nach Typ, Endung und Signatur.
 
+**Gemacht (Welle 2, 24.11., Werkzeugsatz 2.84.0):**
+
+1. Facetten-Wörterbuch in Vorlagen: Platzhalter `<<werte:…>>` und
+   `<<legende:…>>`; gebundene Felder werden nach der Transformation geprüft,
+   Werte außerhalb verworfen und als Befund gemeldet.
+2. `vorlage_lesen` und `vorlage_schreiben`.
+3. `bibliothek_anlegen` legt das Verzeichnis auf der Speicher-Verbindung an
+   und kopiert Vorlagen nach Auswahl; `speicher_pruefen` unterscheidet
+   fehlendes Verzeichnis von einer Verbindung, die nicht antwortet.
+
 **Geplant:**
 
-- Abnahme Welle 1 über die Brücke am Testmaterial; zeigt zugleich, ob die
-  Zielseite dem Server antwortet.
-- Welle 2: `bibliothek_anlegen` mit Zielordner, `vorlage_lesen` /
-  `vorlage_schreiben`, Auswahl beim Vorlagen-Kopieren, Facetten-Wörterbuch in
-  der Transformation durchsetzen.
+- Abnahme der Wellen 1 und 2 über die Brücke am Testmaterial; zeigt
+  zugleich, ob die Zielseite dem Server antwortet.
+- Platzhalter-Prüfung auch im Vorlagen-Formular und in `vorlage_uebernehmen`.
 - Welle 3: Rechte-Status am Dokument (Volltext oder nur Zusammenfassung),
   erst ADR.
 - Welle 4 (mit Secretary): gerenderte Seiten, `medienAdresse`, Transkript an

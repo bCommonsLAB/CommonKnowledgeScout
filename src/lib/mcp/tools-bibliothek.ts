@@ -26,6 +26,9 @@ import { beschreibeSpeicherVerbindung } from './speicher-verbindung-info'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { registerBibliothekAnlegenTool } from './tools-bibliothek-anlegen'
 import { registerSpeicherVerbindungenTools } from './tools-speicher-verbindungen'
+import { LibraryService } from '@/lib/services/library-service'
+import { hatSpeicherVerbindung } from '@/lib/storage/server-provider-wurzel'
+import { diagnoseVerzeichnis } from './bibliothek-zielordner'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireOwner, requireProvider } from './tool-shared'
 import { uebernimmAusDatei, uebernimmAusLibrary } from './vorlage-uebernahme'
 
@@ -40,7 +43,8 @@ export function registerBibliothekTools(server: McpServer): void {
         'Prueft die Speicher-Verbindung einer Library wie der Knopf „Verbindung pruefen", aber ohne ' +
         'Testordner anzulegen: Konfiguration gueltig? Wurzel lesbar (Anzahl Eintraege)? Nennt Typ, ' +
         'Verzeichnis und die Speicher-Verbindung (Id, Bezeichnung, letzter Test, bei Nextcloud URL und Benutzer, ob ein ' +
-        'Geheimnis hinterlegt ist) — nie dessen Wert. Ohne Verbindung: speicher_verbindung_zuweisen. Liest nur.',
+        'Geheimnis hinterlegt ist) — nie dessen Wert. Ist die Wurzel nicht lesbar, sagt diagnose, ob die Verbindung ' +
+        'selbst antwortet oder nur das Verzeichnis fehlt (verzeichnisFehlt). Ohne Verbindung: speicher_verbindung_zuweisen. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID },
       annotations: { readOnlyHint: true },
     },
@@ -57,7 +61,9 @@ export function registerBibliothekTools(server: McpServer): void {
           const wurzel = await provider.listItemsById('root')
           return jsonResult({ ...kopf, verbunden: true, wurzelEintraege: wurzel.length })
         } catch (error) {
-          return jsonResult({ ...kopf, verbunden: false, fehler: error instanceof Error ? error.message : String(error) })
+          // Antwortet die Verbindung nicht, oder fehlt nur das Verzeichnis der Library? (Befund: 404 wurde als Adressfehler gedeutet.)
+          const diagnose = await diagnoseVerzeichnis({ userEmail, libraryId, verzeichnis: library.path, hatVerbindung: hatSpeicherVerbindung(library) && (await LibraryService.getInstance().isOwner(userEmail, libraryId)) })
+          return jsonResult({ ...kopf, verbunden: false, fehler: error instanceof Error ? error.message : String(error), ...(diagnose ? { diagnose } : {}) })
         }
       } catch (error) {
         return errorResult(error)

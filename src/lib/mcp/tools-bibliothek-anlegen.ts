@@ -26,6 +26,7 @@ import { STORAGE_CONNECTIONS_PATH } from '@/lib/storage-connections/onedrive-cal
 import { NICHT_UEBERNOMMEN, SPEICHER_TYPEN, baueLibrary, uebernimmKonfiguration } from '@/lib/library-setup/entwurf'
 import { bestimmeSpeicher } from './bibliothek-anlegen'
 import { alsFragen } from './bibliothek-rueckfragen'
+import { stelleZielordnerSicher } from './bibliothek-zielordner'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { errorResult, jsonResult, mcpUserEmail } from './tool-shared'
 import { uebernimmAusLibrary } from './vorlage-uebernahme'
@@ -44,7 +45,9 @@ export function registerBibliothekAnlegenTool(server: McpServer): void {
         'erneut aufrufen mit entscheidungen { schluessel: wert } und/oder ueberspringen [schluessel] (nur empfohlene). ' +
         'vorlageVon (libraryId) beantwortet, was die Vorlage traegt: Chat (Facetten, Antwortregeln, Galerie, Sprache), ' +
         'Verarbeitung und Ingest-Schalter — keine Zugangsdaten, keine Veroeffentlichung; vorlagenKopieren: true kopiert ' +
-        'deren Vorlagen. Gleichnamige Library wird abgewiesen. Nur nach Bestaetigung durch den Menschen.',
+        'deren Vorlagen (vorlagenNamen: nur diese). Mit Speicher-Verbindung wird das verzeichnis dort angelegt, wenn es ' +
+        'fehlt — zielordner nennt angelegt | vorhanden | nicht_geprueft | fehler mit Grund. Gleichnamige Library wird ' +
+        'abgewiesen. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         name: z.string().trim().min(3).max(120).describe('Anzeigename der Library'),
         inhaltstyp: z.enum(DETAIL_VIEW_TYPES).optional().describe('detailViewType; ohne vorlageVon Pflicht, sonst Vorgabe der Vorlage-Library'),
@@ -53,6 +56,7 @@ export function registerBibliothekAnlegenTool(server: McpServer): void {
         verzeichnis: z.string().optional().describe('Verbindung: Unterpfad darauf (z. B. "/Archiv - Kopie"); local: absoluter Serverpfad'),
         vorlageVon: z.string().min(1).optional().describe('libraryId einer eigenen Library, deren Konfiguration uebernommen wird'),
         vorlagenKopieren: z.boolean().optional().describe('mit vorlageVon: auch die Vorlagen (Templates) kopieren; Vorgabe false'),
+        vorlagenNamen: z.array(z.string().min(1)).min(1).max(30).optional().describe('mit vorlagenKopieren: nur diese Vorlagen kopieren; weglassen = alle'),
         entscheidungen: z.record(z.unknown()).optional().describe(
           'Antworten auf offeneEntscheidungen mit antwortweg "entscheidungen.<schluessel>", z. B. ' +
           '{ "facetten": "standard", "graph": false, "antwortsprache": "de", "aufnahmeSprachen": ["de","it"], "bekannteNamen": ["…"], "antwortregeln": "…" }',
@@ -73,6 +77,7 @@ export function registerBibliothekAnlegenTool(server: McpServer): void {
           const verbindungenUrl = `${getSelfBaseUrl()}${STORAGE_CONNECTIONS_PATH}`
           const { speicher, verbindung } = bestimmeSpeicher({ speicherTyp, speicherVerbindung, verzeichnis }, await listStorageConnectionSummaries(userEmail))
           if (vorlagenKopieren && !vorlageVon) throw new Error('vorlagenKopieren braucht vorlageVon')
+          if (eingabe.vorlagenNamen && !vorlagenKopieren) throw new Error('vorlagenNamen gilt nur mit vorlagenKopieren: true')
           const eigene = await service.getUserLibraries(userEmail)
           const gleichnamig = eigene.find((l) => l.label.trim().toLowerCase() === name.trim().toLowerCase())
           if (gleichnamig) throw new Error(`Es gibt schon eine Library "${gleichnamig.label}" (${gleichnamig.id}) — anderen Namen waehlen`)
@@ -108,8 +113,10 @@ export function registerBibliothekAnlegenTool(server: McpServer): void {
           }
           if (!(await service.updateLibrary(userEmail, entwurf))) throw new Error('Library konnte nicht gespeichert werden')
 
+          // Verzeichnis auf der Verbindung anlegen — sonst scheitert schon speicher_pruefen an der fehlenden Wurzel.
+          const zielordner = await stelleZielordnerSicher({ userEmail, libraryId, verzeichnis: entwurf.path, hatVerbindung: Boolean(verbindung) })
           const vorlagen = vorlageVon && vorlagenKopieren
-            ? await uebernimmAusLibrary({ vonLibraryId: vorlageVon, zielLibraryId: libraryId, userEmail, ueberschreiben: false })
+            ? await uebernimmAusLibrary({ vonLibraryId: vorlageVon, zielLibraryId: libraryId, userEmail, namen: eingabe.vorlagenNamen, ueberschreiben: false })
             : null
           return jsonResult({
             angelegt: true,
@@ -122,8 +129,11 @@ export function registerBibliothekAnlegenTool(server: McpServer): void {
             uebersprungen: pruefung.alle.filter((s) => s.status === 'uebersprungen').map((s) => s.schluessel),
             spaeterInDenSettings: pruefung.alle.filter((s) => s.gewicht === 'spaeter' && s.status === 'offen').map((s) => s.titel),
             ...(vorlageVon ? { vorlageVon, uebernommen: uebernahme?.uebernommen ?? [], nichtUebernommen: NICHT_UEBERNOMMEN } : {}),
+            zielordner,
             ...(vorlagen ? { vorlagen } : {}),
-            naechsterSchritt: speicher.typ === 'local' ? 'ordner_listen' : 'speicher_pruefen, dann ordner_listen',
+            naechsterSchritt: zielordner.status === 'fehler'
+              ? `Das Verzeichnis liess sich nicht anlegen (${zielordner.grund}) — speicher_pruefen nennt, ob die Verbindung antwortet`
+              : speicher.typ === 'local' ? 'ordner_listen' : 'speicher_pruefen, dann ordner_listen',
           })
         })
       } catch (error) {

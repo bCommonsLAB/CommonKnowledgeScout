@@ -23,7 +23,7 @@ import type { TemplateDocument } from '@/lib/templates/template-types'
 import { resolveItemByPath } from './resolve-folder'
 
 /** Inhalt einer Vorlage ohne Kennung und Zeitstempel. */
-type VorlagenInhalt = Pick<TemplateDocument, 'name' | 'metadata' | 'systemprompt' | 'markdownBody' | 'creation' | 'kind'>
+export type VorlagenInhalt = Pick<TemplateDocument, 'name' | 'metadata' | 'systemprompt' | 'markdownBody' | 'creation' | 'kind'>
 
 export interface UebernahmeZeile {
   name: string
@@ -42,7 +42,7 @@ function findeNachName(vorlagen: TemplateDocument[], name: string): TemplateDocu
 }
 
 /** Legt an oder aktualisiert (nur mit `ueberschreiben`) — wirft, wenn die Vorlage schon da ist. */
-async function schreibeVorlage(args: {
+export async function schreibeVorlage(args: {
   inhalt: VorlagenInhalt
   zielLibraryId: string
   userEmail: string
