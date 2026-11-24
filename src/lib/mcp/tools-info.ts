@@ -21,7 +21,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.82.0'
+export const TOOLSET_VERSION = '2.83.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -46,6 +46,8 @@ export const TOOL_NAMES = [
   'datei_anlegen',
   'datei_binaer_lesen',
   'datei_binaer_anlegen',
+  // Webseiten erschliessen, Welle 1 (2.83.0): der Server laedt Dateien von Adressen.
+  'datei_von_adresse_holen',
   'ordner_anlegen',
   'verschieben',
   'kopieren',
@@ -101,6 +103,8 @@ export const TOOL_NAMES = [
   'abhaengige_dokumente',
   // Webseite als Quelle (2.49.0): Artikel mit eingebettetem Medium als Sammeldatei.
   'webseite_erschliessen',
+  // Webseiten erschliessen, Welle 1 (2.83.0): Seite woertlich lesen, ohne zu schreiben.
+  'seite_lesen',
   // Playlist als Quelle (2.61.0, Plan playlist-erschliessen K3).
   'playlist_erschliessen',
   // Welle C3 — Video-Anmeldung am Konto (cookies.txt), Status lesen.
@@ -149,6 +153,7 @@ export const TOOL_NAMES = [
  * Werkzeug, aber vier Schema-Aenderungen).
  */
 export const NEU_IN_VERSION: readonly string[] = [
+  '2.83.0: Webseiten erschliessen, Welle 1 (Plan webseiten-erschliessen). NEU: seite_lesen (liest nur) laedt eine Webseite auf dem Server und gibt sie ohne Sprachmodell zurueck — Metadaten, den Seitentext woertlich als Markdown (Listen, Tabellen, Definitionslisten ungefiltert) und die Linkliste mit Text, Adresse, Art (aus der Endung), abschnitt und kontext; maxZeichen/offset blaettern, linkArten/maxLinks begrenzen. Kein JavaScript-Rendering: eine erst im Browser aufgebaute Seite kommt mit leerem Markdown und Hinweis zurueck. NEU: datei_von_adresse_holen (schreibt) — der Server laedt bis zu 30 Dateien von Adressen in einen Ordner, ohne base64 durch den Kontext; je Datei geprueft (keine HTML-Seite statt der Datei, erwarteterTyp, Endung passend zum Content-Type, Signatur bei PDF/Bild/Office, 100 MB) und mit eigenem Ergebnis: abgelegt (pfad, id, groesse, mimeType, sha256, endAdresse, abgerufenAm) | abgelehnt | vorhanden | nicht_begonnen, je mit grund; nie ueberschrieben. webseite_erschliessen: seitenModus "struktur" uebernimmt Uebersichts-, Termin- und Dokumentseiten ohne Fliesstext woertlich (Abschnitt „Seite", dazu „Verlinkte Dateien" mit PDF-, Dokument- und Medien-Links; Antwort nennt seitenModus und verlinkteDateien); die Absage im Modus artikel nennt diesen Weg. elternAnlegen legt fehlende Ordner des Zielpfades an. SCHUTZ: Alle Abrufe im Auftrag von aussen (seite_lesen, webseite_erschliessen: Seite, Cover, direkt genanntes Medium) gehen nur noch an oeffentliche Adressen — http/https auf Port 80/443, keine internen Namen oder IPs, jede Umleitung neu geprueft. Der Zeichensatz der Seite wird beachtet (Content-Type, meta charset).',
   '2.82.0: Neues Werkzeug nachbarn_berechnen (Owner, schreibt, Plan teppich-der-dokumente, 23.11.): rechnet die Aehnlichkeits-Nachbarn aller Dokumente als Job doc-similarity, wie „Nachbarn neu berechnen" in der Graph-Ansicht der Galerie, die nicht jede Library zeigt. Voraussetzung fuer teppich_berechnen; dessen Fehlermeldung nennt jetzt dieses Werkzeug.',
   '2.81.0: Teppich der Dokumente hinter der Fragen-Sektion (Plan teppich-der-dokumente, Welle T2, 22.11.). Neuer Library-Schalter publicPublishing.carpetEnabled (Vorgabe false): veroeffentlichung_setzen nimmt ihn an, veroeffentlichung_lesen nennt ihn. Mit true zeichnet die Fragen-Sektion der Website (layout=story) jedes Dokument als Punkt an seinem Platz; die Plaetze rechnet teppich_berechnen.',
   '2.80.0: Teppich der Dokumente, feste Plaetze (Plan teppich-der-dokumente, Welle T1, 22.11.). Neues Werkzeug teppich_berechnen (Owner und Co-Creator, schreibt): startet einen Job doc-teppich, der fuer jedes Dokument teppich_x (Rang in der Zeit), teppich_y (Ordnung nach Aehnlichkeit), teppich_gewicht (Umfang) und teppich_stand in die Metadaten schreibt; Seiten der Website bleiben aussen vor. Setzt die Aehnlichkeits-Nachbarn voraus. Ergebnis mit job_status.',

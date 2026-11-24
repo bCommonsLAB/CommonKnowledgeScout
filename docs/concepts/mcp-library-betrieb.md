@@ -448,3 +448,22 @@ mit (`cookies` im Body, Welle C1 dort). Die Brücke sieht nur den Status
 (`video_anmeldung_lesen`): hinterlegt, Domains, gültig bis, abgelaufen. Die
 Fehlerdeutung `youtube_anmeldung` zeigt auf die Konto-Einstellung, nicht auf
 den Server. Plan `docs/plans/playlist-erschliessen.plan.md`, Abschnitt 8.
+
+## Nachtrag 2.83.0 (24.11.2026): Webseiten erschließen, Welle 1
+
+Plan `docs/plans/webseiten-erschliessen.plan.md`.
+
+- **Der Server lädt, nicht der Agent.** `seite_lesen` (liest nur) gibt eine
+  Seite wörtlich als Markdown mit Linkliste zurück, `datei_von_adresse_holen`
+  legt verlinkte Dateien in einen Ordner. Beide brauchen beim Agenten weder
+  Shell noch Netzzugang.
+- **Schutz gegen interne Adressen.** Jeder Abruf im Auftrag von außen läuft
+  über `sichererAbruf` (`src/lib/web-source/`): nur öffentliche Adressen auf
+  Port 80 und 443, die Namensauflösung der Verbindung selbst geprüft, jede
+  Umleitung neu geprüft. Wer ein Werkzeug baut, das eine genannte Adresse
+  lädt, nimmt diesen Weg und kein `fetch`.
+- **Seiten ohne Fließtext.** `webseite_erschliessen` nimmt sie mit
+  `seitenModus: "struktur"` wörtlich; ohne den Modus bleibt die Absage, sie
+  nennt ihn.
+- **Was fehlt.** Kein JavaScript-Rendering, kein Kartieren ganzer Websites,
+  Herkunft einer geholten Datei nur im Aktions-Protokoll, noch nicht am Twin.

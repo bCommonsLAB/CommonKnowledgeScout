@@ -21,15 +21,15 @@
 import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ladeVideoCookies } from '@/lib/video-login/video-login-service'
-import { basisName, baueArtikelSammeldatei } from './artikel-sammeldatei'
+import { basisName, baueArtikelSammeldatei, verlinkteDateien } from './artikel-sammeldatei'
 import { resolveMediaViaSecretary, type ResolvedMedia } from './media-resolve'
 import { holeCover, holeMedium, type MediumWeg } from './medium-und-cover'
 import type { WebPageExtract } from './page-extract'
-import { leseSeitenbild, type MetadatenQuelle } from './seitenbild'
+import { leseSeitenbild, type MetadatenQuelle, type SeitenModus } from './seitenbild'
 import { embedUrlFuerVideo } from './video-embed'
 
-export type { MetadatenQuelle } from './seitenbild'
-export { ladeSeiteHtml } from './seitenbild'
+export type { MetadatenQuelle, SeitenModus } from './seitenbild'
+export { ladeSeiteHtml } from './seite-laden'
 
 export interface WebseiteErschliessenInput {
   libraryId: string
@@ -47,6 +47,8 @@ export interface WebseiteErschliessenInput {
   medienHolen: boolean
   /** false = Medium nur als Quelle (Transkription), ohne Player und Video-Embed. Default true. */
   medienEinbetten?: boolean
+  /** `struktur` = Seite woertlich mit Listen, Tabellen und Links statt Artikeltext. Default `artikel`. */
+  seitenModus?: SeitenModus
   /** Welle K3: Stapel-Zugehoerigkeit, die der Transkriptions-Job erbt. */
   batch?: { batchId: string; batchName?: string }
   /** Welle C3: Video-Anmeldung (cookies.txt); weggelassen = vom Konto der Person laden, null = ohne. */
@@ -58,6 +60,9 @@ export interface WebseiteErschliessenResult {
   seite: Pick<WebPageExtract, 'title' | 'siteName' | 'author' | 'datePublished' | 'imageUrl' | 'language'> & { bloecke: number; medienGefunden: number }
   /** Woher Titel, Text, Datum und Cover kommen: yt-dlp-Metadaten oder das HTML der Seite. */
   metadatenQuelle: MetadatenQuelle
+  /** Wie die Seite in die Sammeldatei kam; bei `struktur` zaehlt `verlinkteDateien` die gefundenen PDF-, Dokument- und Medien-Links. */
+  seitenModus: SeitenModus
+  verlinkteDateien: number
   /** Zahl der Kapitel aus yt-dlp (0 ohne). */
   kapitel: number
   /** Was der Mensch wissen sollte (Datum ist Upload-Datum, Video ohne Beschreibung, Secretary ohne Metadaten-Block). */
@@ -90,7 +95,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
       resolved = { fehler: error instanceof Error ? error.message : String(error) }
     }
   }
-  const { seite, metadatenQuelle, kapitel, hinweise } = await leseSeitenbild(url, resolved, cookies !== null)
+  const { seite, metadatenQuelle, kapitel, hinweise, struktur } = await leseSeitenbild(url, resolved, cookies !== null, input.seitenModus ?? 'artikel')
 
   const medium = medienHolen && resolved ? await holeMedium(seite, resolved, cookies) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
@@ -108,7 +113,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   const videoEmbedUrl = medienEinbetten ? embedUrlFuerVideo(url, seite.media) : null
   const markdown = baueArtikelSammeldatei({
     seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl, medienEinbetten,
-    kapitel, ohneTextErlaubt: metadatenQuelle === 'ytdlp',
+    kapitel, ohneTextErlaubt: metadatenQuelle === 'ytdlp', struktur,
   })
 
   const geschrieben: Array<{ id: string; name: string }> = []
@@ -161,6 +166,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
       imageUrl: seite.imageUrl, language: seite.language, bloecke: seite.bloecke.length, medienGefunden: seite.media.length,
     },
     metadatenQuelle, kapitel: kapitel.length, hinweise,
+    seitenModus: struktur ? 'struktur' : 'artikel', verlinkteDateien: struktur ? verlinkteDateien(struktur.links).length : 0,
     medium: mediumErgebnis,
     videoEmbedUrl,
     mediumGrund: 'grund' in medium ? medium.grund : null,

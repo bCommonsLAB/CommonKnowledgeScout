@@ -33,6 +33,31 @@ Nach Transformation und Ingest: ein Eintrag der Ereignis-Ansicht (Dokumentart
 Originaltitel, Teaser, Facetten wie bei den Vorträgen; das Transkript liegt als
 Anhang in der Suche.
 
+## Erst lesen, dann schreiben: `seite_lesen`
+
+`seite_lesen` lädt eine Seite auf dem Server und schreibt nichts. Die Antwort
+trägt Metadaten, den Seitentext wörtlich als Markdown (Listen, Tabellen,
+Definitionslisten ungefiltert) und die Linkliste: je Link `text`, `url`,
+`art` (`seite | pdf | dokument | medium | bild | mail`, nur aus der Endung
+gelesen), `abschnitt` und `kontext` (die Zeile, in der er steht). Damit lässt
+sich eine Übersichtsseite prüfen, bevor etwas angelegt wird. `linkArten`
+begrenzt die Liste (z. B. `["pdf"]`), `maxZeichen`/`offset` blättern.
+
+Ist `markdown` leer und nennt `hinweise` JavaScript, entsteht die Seite erst
+im Browser; das kann die Brücke noch nicht. Dem Menschen sagen, nicht raten.
+
+**Seiten ohne Fließtext** (Übersicht, Terminseite, Dokumentseite) weist
+`webseite_erschliessen` im Modus `artikel` ab. Mit `seitenModus: "struktur"`
+kommt die Seite wörtlich in die Sammeldatei (Abschnitt „Seite"), verlinkte
+PDF, Dokumente und Medien stehen unter „Verlinkte Dateien".
+
+**Verlinkte Dateien holen:** `datei_von_adresse_holen` mit `ordner` und bis
+zu 30 `dateien` (`url`, optional `dateiname`, `erwarteterTyp`). Der Server
+lädt und prüft; jede Adresse hat ihr eigenes Ergebnis mit `status` und
+gegebenenfalls `grund`. `abgelehnt` und `nicht_begonnen` dem Menschen nennen.
+Die geholten Dateien liegen als Quellen im Ordner und gehen danach über
+`quelle_erschliessen` oder `sammeldatei_anlegen` weiter.
+
 ## Ablauf über die Brücke
 
 1. **Ordner und Dateiname festlegen.** Der Mensch nennt beides; Dateinamen
