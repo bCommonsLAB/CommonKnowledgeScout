@@ -406,8 +406,20 @@ export async function findQueryByQuestionAndContext(args: {
   llmModel?: string // Optional: LLM-Modell-ID (Teil des Cache-Hashes)
   antwortregeln?: string // Optional: aufgelöste Antwortregeln (Teil des Cache-Hashes, m2)
   facettenKontext?: string // Optional: Labels und Wörterbuch der Facetten (Teil des Cache-Hashes, m3)
+  /**
+   * Der bereits berechnete Cache-Hash des Aufrufers. Ist er da, wird GENAU damit gesucht und nicht
+   * neu gerechnet (Befund 24.11.2026): Die Stream-Route rechnet ihren Hash mit der Sprache der
+   * Oberfläche (`targetLanguage: 'global'` + `uiLocale`), diese Funktion kannte `uiLocale` nicht und
+   * suchte mit 'global' — bei automatischer Sprache gab es deshalb NIE einen Treffer, jede Frage und
+   * jede Themenübersicht der Startseite wurde neu berechnet.
+   */
+  cacheHash?: string
 }): Promise<QueryLog | null> {
   const col = await getQueriesCollection()
+  if (args.cacheHash !== undefined) {
+    if (args.cacheHash === '') throw new Error('[findQueryByQuestionAndContext] Leerer cacheHash übergeben')
+    return (await col.findOne(cacheTrefferFilter(args.cacheHash, args.libraryId), { sort: { createdAt: -1 } })) || null
+  }
   
   // NOTE: userEmail und sessionId werden nicht mehr für Cache-Suche verwendet
   // Cache ist benutzerübergreifend und basiert nur auf cacheHash + libraryId
