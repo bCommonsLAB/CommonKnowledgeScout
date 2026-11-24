@@ -4,15 +4,14 @@
       "badge": "Common Knowledge Libraries",
       "title": "Ne demandez pas à l'IA.",
       "subtitle": "Demandez à la connaissance collective.",
-      "description": "Ici se crée une archive de connaissances collective – portée par de vraies voix, textes et expériences. Choisissez une bibliothèque, explorez le contenu ouvert et commencez votre conversation.",
-      "buttonDiscover": "Découvrir la connaissance",
-      "buttonLearnMore": "En savoir plus sur le projet",
+      "description": "Un dossier de documents, d’enregistrements et de pages web devient une bibliothèque que l’on peut interroger – et qui dit toujours qui a écrit quoi.",
+      "buttonDiscover": "Interroger une bibliothèque",
       "imageAttribution": "Image",
       "imageAttributionCC": "CC BY 2.0 Belgium"
     },
     "libraryGrid": {
-      "title": "Choisissez votre bibliothèque de connaissances",
-      "description": "Chaque bibliothèque regroupe des connaissances librement disponibles provenant de conférences, d'études ou de projets. Vous pouvez les parcourir – ou les interroger comme un partenaire de conversation et apporter votre propre perspective.",
+      "title": "Choisissez une bibliothèque",
+      "description": "Chaque bibliothèque rassemble le savoir d’une communauté : conférences, études, propositions, expériences. Vous pouvez la parcourir ou l’interroger.",
       "loading": "Chargement des bibliothèques...",
       "noLibraries": "Aucune bibliothèque publique disponible pour le moment.",
       "buttonQuery": "Interroger",
@@ -38,34 +37,33 @@
       },
       "subtext": "La connaissance n'est pas inventée. Elle est recombinée à partir de contributions réelles – traçable et transparente."
     },
-    "philosophy": {
-      "title": "Transparence au lieu de boîte noire",
-      "subtitle": "Chaque réponse est basée sur des personnes qui partagent leurs expériences. Le contenu sous-jacent reste toujours visible et vérifiable. Cela crée un espace de connaissances ouvert, digne de confiance et maintenu par la communauté.",
-      "transparent": {
-        "title": "Vérifiable",
-        "description": "Toutes les sources sont transparentement liées et vérifiables."
+    "trust": {
+      "title": "Pourquoi vous pouvez vous fier à la réponse",
+      "subtitle": "Ici, l’IA est traductrice, pas autrice.",
+      "original": {
+        "title": "L’original reste",
+        "description": "Chaque page garde son original, inchangé et à un clic."
       },
-      "human": {
-        "title": "Humain",
-        "description": "La base est constituée de vraies voix, pas d'opinions artificielles."
+      "source": {
+        "title": "Chaque affirmation a sa source",
+        "description": "Les réponses citent les documents dont elles proviennent. Vous pouvez les lire vous-même."
       },
-      "trustworthy": {
-        "title": "Digne de confiance",
-        "description": "Les bibliothèques sont organisées par la recherche, les communautés et les ONG."
+      "order": {
+        "title": "L’ordre ne s’achète pas",
+        "description": "Ce qui apparaît en premier dépend du texte, pas d’un budget."
       },
-      "behindLibraries": {
-        "title": "Qui se cache derrière les bibliothèques ?",
-        "description": "Ces bibliothèques sont créées en collaboration avec des universités, des groupes de recherche, des ONG et des communautés ouvertes. Elles apportent leur contenu, leurs valeurs et leurs perspectives – afin que la connaissance ne serve pas des acteurs individuels, mais profite à tous."
-      }
+      "storage": {
+        "title": "Les fichiers restent chez vous",
+        "description": "Le savoir se trouve dans votre propre espace de stockage, lisible même sans ce logiciel."
+      },
+      "note": "Les réponses peuvent être incomplètes ou fausses. C’est à cela que servent les sources."
     },
     "cta": {
-      "title": "Un projet d'aventure partagé",
-      "description1": "Knowledge Scout n'est pas un produit fini, mais un laboratoire ouvert – un projet d'aventure en développement.",
-      "description2": "Nous expérimentons avec des technologies ouvertes pour découvrir comment la connaissance collective sera vécue à l'avenir : par l'écoute, la lecture, la compréhension et la réflexion partagée.",
-      "description3": "Si cela vous intéresse, vous êtes invité à réfléchir ensemble, à tester ou à contribuer vous-même aux bibliothèques.",
-      "buttonResearch": "Rechercher et tester",
-      "buttonContact": "Contact",
-      "buttonView": "Voir le projet"
+      "title": "Logiciel libre, déjà utilisé",
+      "description1": "KnowledgeScout est déjà utilisé en pratique et grandit avec chaque bibliothèque.",
+      "description2": "Utilisez-le, apportez ce que vous savez, ou construisez-le avec nous.",
+      "buttonContact": "Nous contacter",
+      "buttonTalk": "Voir la conférence"
     }
   },
   "common": {

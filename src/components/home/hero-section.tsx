@@ -17,44 +17,40 @@ export function HeroSection() {
       {/* schwarzes Overlay mit 30% Transparenz zum Abschwächen des Bildes */}
       <div className="absolute inset-0 bg-black/60" />
 
-      <div className="container relative mx-auto px-4 py-12 md:py-16 lg:py-20">
+      <div className="container relative mx-auto px-4 py-8 md:py-10">
         <div className="mx-auto max-w-4xl text-center">
           {/* Logo */}
-          <div className="mb-6 flex justify-center">
-            <AppLogo size={100} />
+          <div className="mb-4 flex justify-center">
+            <AppLogo size={64} />
           </div>
 
           {/* Badge mit hellem Hintergrund und dunklem Text für Kontrast */}
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-4 py-2 text-sm font-medium text-white">
-            <BookOpen className="h-4 w-4" />
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1 text-xs font-medium text-white">
+            <BookOpen className="h-3.5 w-3.5" />
             {t('home.hero.badge')}
           </div>
 
-          {/* Hauptüberschrift in weiß */}
-          <h1 className="mb-6 text-5xl font-bold tracking-tight text-balance text-white sm:text-6xl md:text-7xl lg:text-8xl">
+          {/* Hauptüberschrift in weiß: höchstens drei Zeilen, auch auf dem Handy */}
+          <h1 className="mb-4 text-3xl font-bold tracking-tight text-balance text-white sm:text-4xl md:text-5xl">
             {t('home.hero.title')}
             <br />
             {t('home.hero.subtitle')}
           </h1>
 
           {/* Beschreibungstext in hellem Grau/Weiß */}
-          <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-white/90 md:text-xl text-pretty">
+          <p className="mx-auto mb-6 max-w-2xl text-base leading-relaxed text-white/90 md:text-lg text-pretty">
             {t('home.hero.description')}
           </p>
-          
-          {/* Buttons mit invertierten Farben für dunklen Hintergrund */}
-          {/* TEMPORÄR AUSGEBLENDET - Später wieder einblenden */}
-          {false && (
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" className="gap-2 text-base bg-white text-black hover:bg-white/90">
+
+          {/* Ein Knopf: zur Library-Liste */}
+          <div className="flex justify-center">
+            <Button className="gap-2 bg-white text-black hover:bg-white/90" asChild>
+              <a href="#libraries">
                 {t('home.hero.buttonDiscover')}
                 <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button size="lg" variant="outline" className="text-base bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white/40">
-                {t('home.hero.buttonLearnMore')}
-              </Button>
-            </div>
-          )}
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
 
