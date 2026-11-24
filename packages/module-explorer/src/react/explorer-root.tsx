@@ -44,6 +44,7 @@ export function ExplorerRoot({
   renderGallery,
   renderSignInPrompt,
   renderNotice,
+  titelInNavigation = false,
 }: ExplorerRootProps) {
   const { t } = useTranslation()
 
@@ -138,7 +139,7 @@ export function ExplorerRoot({
   return (
     // Webseiten-Ansicht: keine feste Hoehe, das Fenster scrollt (`seiten-scroll.tsx`).
     <div className={fensterScroll ? 'flex min-h-screen flex-col' : 'flex h-screen min-h-0 flex-col overflow-hidden'}>
-      <ExplorerHeader library={library} renderNotice={renderNotice} />
+      <ExplorerHeader library={library} renderNotice={renderNotice} titelInNavigation={titelInNavigation} />
 
       {/* Padding-Top bewusst auf 0: die Tabs (Inhalte / Story Mode) sollen direkt unter der
          Trennlinie des Page-Headers andocken — analog zur Library-Gallery-Ansicht.

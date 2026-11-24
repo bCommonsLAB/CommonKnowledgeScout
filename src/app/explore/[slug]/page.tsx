@@ -38,6 +38,7 @@ export default function ExplorePage() {
       slug={slug}
       viewer={{ isLoaded, isSignedIn: isSignedIn === true }}
       instanz={SAME_ORIGIN_API}
+      titelInNavigation
       renderSignInPrompt={({ slug: targetSlug }) => (
         <SignInButton mode="modal" fallbackRedirectUrl={`/explore/${targetSlug}`}>
           <Button>
