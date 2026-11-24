@@ -169,6 +169,10 @@ importiert kein `@commonux/*`.
   Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
   aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die
   Uebersicht), kein Loesch-Knopf;
+  Der Knopf „Antworten anpassen" steht als Symbol im Kopf der ANTWORT, neben
+  „Graph ansehen" (Owner 24.11.2026; nicht mehr im Kopf der Sektion — so ist
+  er auch im Telefon-Vollbild da; vor der ersten Antwort gibt es ihn nicht:
+  erst fragen, dann einstellen).
   Belege einer Antwort und die Perspektive („Antworten anpassen") kommen als
   Blatt, nie von selbst. Dokumentgetrieben: Markdown VOR dem Block
   `<!-- questions -->` (+ Markdown-Liste) steht ueber der Eingabe, die Liste

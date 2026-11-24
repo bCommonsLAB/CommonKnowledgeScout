@@ -76,11 +76,13 @@ describe('WebsiteStorySektion mit Gastgeber', () => {
     await waitFor(() => expect(abrufe.some((p) => p.startsWith('/api/chat/lib/docs?'))).toBe(true))
   })
 
-  it('mit Dialog-Slot: Knopf „Antworten anpassen" oeffnet ihn', () => {
+  it('mit Dialog-Slot: Knopf „Antworten anpassen" steht bei der Antwort und oeffnet ihn', () => {
+    zustand.nachrichten = paar(1)
     const { g } = gastgeber({ perspektiveDialog: ({ offen }) => (offen ? <div data-testid="dialog">Dialog</div> : null) })
     const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
-    const knopf = container.querySelector('[data-story-perspektive-knopf]')
+    const knopf = container.querySelector('[data-antwort] [data-story-perspektive-knopf]')
     expect(knopf).not.toBeNull()
+    expect(container.querySelectorAll('[data-story-perspektive-knopf]')).toHaveLength(1)
     fireEvent.click(knopf as Element)
     expect(screen.getByTestId('dialog')).toBeTruthy()
   })
