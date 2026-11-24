@@ -18,6 +18,7 @@
 import { getSecretaryConfig } from '@/lib/env'
 import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
 import { parseMediaMetadata, type MediaMetadata } from './media-metadata'
+import { sichererAbruf } from './sicherer-abruf'
 
 export interface ResolvedMedia {
   directUrl: string
@@ -136,13 +137,11 @@ export async function downloadMedia(
   options: { ext?: string; istAudio?: boolean; httpHeaders?: Record<string, string>; maxBytes?: number; timeoutMs?: number } = {},
 ): Promise<DownloadedMedia> {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES
-  const res = await fetchWithTimeout(directUrl, { headers: options.httpHeaders ?? {}, timeoutMs: options.timeoutMs ?? 10 * 60_000 })
-  if (!res.ok) throw new Error(`Medien-Download HTTP ${res.status} fuer ${directUrl.slice(0, 120)}`)
-  const contentType = res.headers.get('content-type') ?? ''
-  const declared = Number(res.headers.get('content-length') ?? '0')
-  if (declared > maxBytes) throw new Error(`Medium zu gross: ${declared} Bytes (Grenze ${maxBytes})`)
-  const buffer = Buffer.from(await res.arrayBuffer())
-  if (buffer.length > maxBytes) throw new Error(`Medium zu gross: ${buffer.length} Bytes (Grenze ${maxBytes})`)
+  // Die Adresse stammt von der Seite oder aus yt-dlp, also von aussen: sicherer Abruf (keine internen Adressen).
+  const res = await sichererAbruf(directUrl, { headers: options.httpHeaders ?? {}, maxBytes, timeoutMs: options.timeoutMs ?? 10 * 60_000 })
+  if (res.status < 200 || res.status >= 300) throw new Error(`Medien-Download HTTP ${res.status} fuer ${directUrl.slice(0, 120)}`)
+  const contentType = res.headers['content-type'] ?? ''
+  const buffer = res.buffer
   if (buffer.length === 0) throw new Error('Medien-Download lieferte 0 Bytes')
   const ext = options.ext && options.ext !== 'bin' ? options.ext : (extFromMime(contentType) ?? 'bin')
   const mimeType = mimeFuer(ext, options.istAudio === true, contentType.split(';')[0].trim() || 'application/octet-stream')

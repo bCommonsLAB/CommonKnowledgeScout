@@ -29,7 +29,7 @@ import { leseSeitenbild, type MetadatenQuelle } from './seitenbild'
 import { embedUrlFuerVideo } from './video-embed'
 
 export type { MetadatenQuelle } from './seitenbild'
-export { ladeSeiteHtml } from './seitenbild'
+export { ladeSeiteHtml } from './seite-laden'
 
 export interface WebseiteErschliessenInput {
   libraryId: string

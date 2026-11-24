@@ -12,11 +12,10 @@
  * @module web-source
  */
 
-import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
 import { istVideoExtractor, type MediaKapitel } from './media-metadata'
 import type { ResolvedMedia } from './media-resolve'
-import { PAGE_USER_AGENT } from './medium-und-cover'
 import { seiteAusMetadaten } from './metadaten-seite'
+import { ladeSeiteHtml } from './seite-laden'
 import { extractWebPage, type WebPageExtract } from './page-extract'
 import { embedUrlAusAdresse } from './video-embed'
 
@@ -27,15 +26,6 @@ export interface Seitenbild {
   metadatenQuelle: MetadatenQuelle
   kapitel: MediaKapitel[]
   hinweise: string[]
-}
-
-/** Laedt das HTML einer Seite (Browser-UA, Timeout). */
-export async function ladeSeiteHtml(url: string): Promise<string> {
-  const res = await fetchWithTimeout(url, { headers: { 'User-Agent': PAGE_USER_AGENT, Accept: 'text/html,*/*' }, timeoutMs: 30_000 })
-  if (!res.ok) throw new Error(`Seite nicht ladbar: HTTP ${res.status}`)
-  const type = res.headers.get('content-type') ?? ''
-  if (!/html|xml/i.test(type)) throw new Error(`Adresse liefert kein HTML (Content-Type "${type || 'unbekannt'}")`)
-  return res.text()
 }
 
 /** Seitenbild aus yt-dlp bei Videoseiten, sonst aus dem HTML; `videoAnmeldung` nur fuer die Fehlermeldung. */

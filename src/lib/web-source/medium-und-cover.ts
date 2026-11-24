@@ -12,11 +12,15 @@
  * @module web-source
  */
 
-import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
 import { downloadDeclaredMedia, downloadMedia, downloadMediaViaSecretary, type DownloadedMedia, type ResolvedMedia } from './media-resolve'
 import type { WebPageExtract } from './page-extract'
+import { PAGE_USER_AGENT } from './seite-laden'
+import { sichererAbruf } from './sicherer-abruf'
 
-export const PAGE_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 KnowledgeScout'
+export { PAGE_USER_AGENT } from './seite-laden'
+
+/** Obergrenze fuer ein Coverbild. */
+const MAX_COVER_BYTES = 20 * 1024 * 1024
 
 export type MediumWeg = 'secretary' | 'secretary-download' | 'seite'
 
@@ -56,12 +60,12 @@ export async function holeMedium(seite: WebPageExtract, resolved: ResolvedMedia 
 export async function holeCover(imageUrl: string, pageUrl: string): Promise<CoverErgebnis> {
   if (!imageUrl) return { grund: 'Seite nennt kein Bild (og:image/JSON-LD/Thumbnail)' }
   try {
-    const res = await fetchWithTimeout(imageUrl, { headers: { Referer: pageUrl, 'User-Agent': PAGE_USER_AGENT }, timeoutMs: 30_000 })
-    if (!res.ok) return { grund: `Bild HTTP ${res.status}` }
-    const mimeType = (res.headers.get('content-type') ?? '').split(';')[0].trim()
+    const res = await sichererAbruf(imageUrl, { headers: { Referer: pageUrl, 'User-Agent': PAGE_USER_AGENT }, maxBytes: MAX_COVER_BYTES, timeoutMs: 30_000 })
+    if (res.status < 200 || res.status >= 300) return { grund: `Bild HTTP ${res.status}` }
+    const mimeType = (res.headers['content-type'] ?? '').split(';')[0].trim()
     const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : mimeType === 'image/jpeg' ? 'jpg' : ''
     if (!ext) return { grund: `Bild ist kein JPEG/PNG/WebP (Content-Type "${mimeType || 'unbekannt'}")` }
-    const buffer = Buffer.from(await res.arrayBuffer())
+    const buffer = res.buffer
     if (buffer.length === 0) return { grund: 'Bild lieferte 0 Bytes' }
     return { buffer, ext, mimeType }
   } catch (error) {
