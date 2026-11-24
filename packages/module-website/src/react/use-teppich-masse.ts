@@ -2,7 +2,8 @@
 
 /**
  * Kleine Messungen fuer die Leinwand des Teppichs (aus `website-teppich.tsx` herausgeloest,
- * 24.11.2026, Dateigrenze): ob Bewegung erlaubt ist, und wie hoch die Flaeche der Graph-Ansicht ist.
+ * 24.11.2026, Dateigrenze): ob Bewegung erlaubt ist, wie hoch die Flaeche der Graph-Ansicht ist,
+ * und die Farben der Leinwand.
  */
 
 import * as React from 'react'
@@ -30,4 +31,16 @@ export function useGraphHoehe(flaeche: React.RefObject<HTMLDivElement | null>, a
     return () => window.removeEventListener('resize', miss)
   }, [aktiv, breite, flaeche])
   return hoehe
+}
+
+/**
+ * Farben der Leinwand aus dem Stil der Ebene: die Schriftfarbe fuer die Wolke, der Akzent der Site
+ * (`--site-accent-ink`, wie die Belegnummern im Text) fuer die Belege. Ausserhalb einer Website
+ * mit Design-Profil gibt es keinen Akzent — dann tragen die Belege die Schriftfarbe.
+ */
+export function teppichFarben(el: HTMLElement | null): { farbe: string; akzent: string } {
+  if (!el) return { farbe: 'currentColor', akzent: 'currentColor' }
+  const stil = getComputedStyle(el)
+  const akzent = stil.getPropertyValue('--site-accent-ink').trim()
+  return { farbe: stil.color, akzent: akzent !== '' ? akzent : stil.color }
 }

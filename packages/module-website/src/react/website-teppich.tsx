@@ -29,7 +29,7 @@ import { useTeppichZeiger } from './use-teppich-zeiger'
 import type { TeppichBotschaft } from './use-teppich-botschaft'
 import { useZurFrageScrollen } from './use-zur-frage-scrollen'
 import { useSchmal } from './use-schmal'
-import { useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
+import { teppichFarben, useBewegungErlaubt, useGraphHoehe } from './use-teppich-masse'
 import { useTeppichPlaetze } from './use-teppich-plaetze'
 import { useTeppichSicht } from './use-teppich-sicht'
 import { TeppichGraphKarte, TeppichGraphKopf } from './website-teppich-graph'
@@ -84,7 +84,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
   const [gewaehlt, setGewaehlt] = React.useState(-1)
   React.useEffect(() => { if (!abgetaucht) setGewaehlt(-1) }, [abgetaucht])
 
-  // Graph-Ansicht mit Antwort: die Belege doppelt so gross und mit Respektabstand (`use-teppich-plaetze.ts`).
+  // Steht eine Antwort: ihre Belege doppelt so gross und mit Respektabstand (`use-teppich-plaetze.ts`).
   const { plaetze, radien, belegIndex } = useTeppichPlaetze({ punkte, kasten, breite, graph, vollHoehe, belege: phase === 'antwort' ? belege : KEINE_BELEGE })
   const gelandet = React.useRef(onGelandet); gelandet.current = onGelandet
 
@@ -93,7 +93,7 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
     szene.setze({
       punkte, plaetze, radien, phase, belege, kandidaten, abgetaucht, animation: p.animation ?? 'schwarm', bewegung, ueber: ruhig ? ueberRef.current : -1,
       breite, hoehe, kasten: graph ? { breite, hoehe, links: 0 } : kasten,
-      farbe: huelle.current ? getComputedStyle(huelle.current).color : 'currentColor',
+      ...teppichFarben(huelle.current),
       onGelandet: () => gelandet.current?.(),
     })
   })
@@ -142,9 +142,9 @@ export function WebsiteTeppich(p: WebsiteTeppichProps): React.ReactElement {
     const { x, y } = szene.lage.x.length === punkte.length ? szene.lage : { x: plaetze.px, y: plaetze.py }
     // Mit dem Finger trifft man grosszuegiger; die Weite gilt am Bildschirm, nicht in der gezoomten Wolke.
     const finger = 'pointerType' in e.nativeEvent && e.nativeEvent.pointerType === 'touch'
-    // Graph-Ansicht: die Belege zuerst, in der Groesse, in der sie gezeichnet sind (plus Ring).
+    // Die Belege zuerst, in der Groesse, in der sie gezeichnet sind (plus Ring).
     const sz = szene.sicht.z
-    const beleg = graph ? hervorTreffer(x, y, belegIndex, wx, wy, (i) => (radien[i] * 1.3 * Math.sqrt(sz) + (finger ? 14 : 5)) / sz) : -1
+    const beleg = belegIndex.length > 0 ? hervorTreffer(x, y, belegIndex, wx, wy, (i) => (radien[i] * 1.3 * Math.sqrt(sz) + (finger ? 14 : 5)) / sz) : -1
     if (beleg >= 0) return beleg
     return naechsterTeppichPunkt(x, y, wx, wy, Math.max(6, plaetze.zelle * 0.8, (finger ? FINGER : 0) / szene.sicht.z))
   }

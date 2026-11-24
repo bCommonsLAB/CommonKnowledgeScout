@@ -177,10 +177,14 @@ importiert kein `@commonux/*`.
   mit der Wurzel). Ein Tipp auf einen Punkt WAEHLT ihn (Karte mit Titel und
   „Dokument oeffnen"), ein Tipp ins Leere waehlt ab. Zu geht sie NUR ueber
   den Knopf oder Escape, nie ueber den Hintergrund. Steht eine Antwort, sind
-  ihre Belege dort doppelt so gross, kraeftig gezeichnet und halten
-  Respektabstand: die uebrigen Punkte weichen aus ihrem Umkreis, Belege
-  ruecken auseinander (`teppich-respekt.ts`, nur in der Graph-Ansicht); beim
-  Treffen haben sie Vorrang. Eine neue Frage schliesst
+  ihre Belege doppelt so gross und halten Respektabstand: die uebrigen Punkte
+  weichen aus ihrem Umkreis, Belege ruecken auseinander
+  (`teppich-respekt.ts`); beim Treffen haben sie Vorrang. Das gilt schon am
+  Ende der Animation HINTER der Antwort und in der Graph-Ansicht. Belege
+  tragen den Akzent der Site (`--site-accent-ink`, wie ihre Nummern im Text;
+  auch die Kreise der Storyline). Hinter dem Text ist die Wolke blass
+  (Deckkraft `HINTEN` in `teppich-bild.ts`, Belege zurueckhaltend), in der
+  Graph-Ansicht hat sie ihre normalen Farben. Eine neue Frage schliesst
   sie. Mit der Maus oeffnet ein Klick auf eine freie Stelle der Wolke sie
   weiterhin, mit dem Finger nicht.
   Der Knopf „Antworten anpassen" steht als Symbol im Kopf der ANTWORT, neben
