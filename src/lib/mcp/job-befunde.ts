@@ -50,9 +50,10 @@ function coverBefund(ereignisse: readonly JobEreignis[]): string | null {
 function anhaengeBefund(ereignisse: readonly JobEreignis[]): string | null {
   const letzte = [...ereignisse].reverse().find((e) => e.name === 'attachments_source')
   if (!letzte) return null
-  return letzte.attribute['anzahl'] === 0
-    ? 'Anhaenge: keine PDF-Quelle unter den compositeSources der Sammeldatei gefunden'
-    : null
+  if (letzte.attribute['anzahl'] !== 0) return null
+  return typeof letzte.attribute['grund'] === 'string'
+    ? `Anhaenge: nicht gerechnet (${letzte.attribute['grund']})`
+    : 'Anhaenge: keine PDF-Quelle unter den compositeSources der Sammeldatei gefunden'
 }
 
 function seitenbilderBefunde(ereignisse: readonly JobEreignis[]): string[] {

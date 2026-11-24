@@ -56,3 +56,14 @@ describe('waehleCover', () => {
     expect(waehleCover(ordneQuellen(eigenerMitBildern, [audio, pdfOhneBilder]))).toBeNull()
   })
 })
+
+describe('Schalter cover_from_sources', () => {
+  it('ist ohne Angabe an, mit false aus, und kennt keinen dritten Wert', async () => {
+    const { coverAusQuellenErlaubt } = await import('@/lib/ingestion/cover-aus-quellen')
+    expect(coverAusQuellenErlaubt({})).toBe(true)
+    expect(coverAusQuellenErlaubt({ cover_from_sources: true })).toBe(true)
+    expect(coverAusQuellenErlaubt({ cover_from_sources: false })).toBe(false)
+    expect(coverAusQuellenErlaubt({ cover_from_sources: 'false' })).toBe(false)
+    expect(() => coverAusQuellenErlaubt({ cover_from_sources: 'nein' })).toThrow('weder true noch false')
+  })
+})

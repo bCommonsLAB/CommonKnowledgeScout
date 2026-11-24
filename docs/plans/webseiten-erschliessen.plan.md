@@ -2,7 +2,7 @@
 name: webseiten-erschliessen
 overview: "Eine ganze Webseite über die Brücke erschließen, ohne dass der Agent eine eigene Shell oder den Rechner des Nutzers braucht: Seiten wörtlich lesen, Links folgen, verlinkte Dateien holen, Seiten ohne Fließtext als Sammeldatei übernehmen, später Medien und gerenderte Seiten. Anlass: der Aufbau einer Library aus der Website einer Konferenzreihe (Übersichten mit Rednerlisten, Dokumentseiten, PDF-Statements, Webcasts); die Anforderungen und das Testmaterial stehen im Handover im Archiv."
 vorhaben: [4]
-status: welle-2b-gebaut-pilot-teilweise
+status: welle-2c-gebaut-abnahme-offen
 todos:
   - id: w1-schutz
     content: "Welle 1: Schutz gegen interne Adressen (adress-schutz.ts) und sicherer Abruf (sicherer-abruf.ts) für jeden Abruf im Auftrag von außen; bestehende Abrufe (Seite, Cover, direkt genanntes Medium) darauf umgestellt. Gebaut 24.11.2026."
@@ -29,7 +29,10 @@ todos:
     content: "Welle 2b, Befunde aus dem Piloten (B1, B2, B10): leere Antwort eingeordnet (leer, Schutzseite, JavaScript, unbekannt) mit Länge und Anfang des rohen HTML; seite_lesen und webseite_erschliessen nehmen fertiges HTML aus dem Browser entgegen (html); 403/429 nennt Sperre und Auswege; Beschreibung von datei_von_adresse_holen gekürzt. Gebaut 24.11.2026, Werkzeugsatz 2.85.0."
     status: done
   - id: w2c-normalisierung
-    content: "Welle 2c, Befunde aus dem Piloten (B4, B5, B6, B7): Quellen im Material für das Modell mit neutraler Kopfzeile (Dateiname, Art) statt durchgehend „Transkript\"; berechnete Felder (Anzahl Quellen je Namensmuster, Zeilen eines Abschnitts mit Muster, Quellenarten aus den Dateinamen); Obergrenzen als Bindung (Anzahl bei Listen, Wörter bei Texten) mit Befund; Cover aus Quellen abschaltbar, Anhänge in der Reihenfolge der Sammeldatei, medienErkannt erklärt; Temperatur der Transformation prüfen."
+    content: "Welle 2c, Befunde aus dem Piloten (B4, B5, B6, B7): Feld-Bindungen in Vorlagen (<<max:N>>, <<maxWoerter:N>>, berechnete Felder =quellen, =zeilen, =quellenarten) mit Befund; Quellblöcke im Material nennen ihre Art; Ingest-Schalter cover_from_sources und attachments_order; medienHerkunft bei sammeldatei_anlegen. Gebaut 24.11.2026, Werkzeugsatz 2.86.0."
+    status: done
+  - id: w2c-abnahme
+    content: "Welle 2c Abnahme am Piloten: Vorlage mit <<max:6>> und =zeilen(…) schreiben, Sammeldatei neu transformieren, Befund und berechneten Wert prüfen; Ingest mit cover_from_sources: false und attachments_order: source_files prüfen. Offen ist, ob feste Felder der Vorlage unverändert im Frontmatter des Ergebnisses ankommen."
     status: pending
   - id: w3-rechte
     content: "Welle 3 (C2, C3, Befund B8): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API; der Ingest hängt bei „nur Zusammenfassung\" keine Quelldateien als Anhang an die Seite. Erst ADR, dann Code."
@@ -226,6 +229,59 @@ Anhänge (Welle 2c), Anhänge als Rechtefrage (Welle 3).
 **Offen aus dem Piloten:** Der Sicherheitstest mit internen Adressen über die
 Brücke ist nicht gelaufen. Parallele Brücken-Aufrufe kamen im Piloten ohne
 Ergebnis zurück; ob das an der Brücke oder am Client liegt, ist ungeklärt.
+
+## Welle 2c: Normalisierung prüfbar machen (gebaut 24.11.2026, Werkzeugsatz 2.86.0)
+
+Aus dem Piloten: Die Vorlage verlangte höchstens 6 Themen und bekam 16, ein
+Zählfeld war in zwei Läufen falsch, und das Modell ordnete PDF-Text als
+Transkript ein. Grundsatz dieser Welle: Was sich prüfen oder ausrechnen
+lässt, bleibt nicht dem Sprachmodell überlassen.
+
+### Feld-Bindungen (`src/lib/external-jobs/feld-bindungen.ts`)
+
+In der Beschreibung eines Felds `{{feld|beschreibung}}`:
+
+- `<<max:N>>`: Liste mit höchstens N Einträgen. Mehr wird hinten gekürzt und
+  gemeldet. Die Vorlage sollte das Modell deshalb nach Gewicht ordnen lassen.
+- `<<maxWoerter:N>>`: Text mit höchstens N Wörtern. Mehr wird gemeldet, der
+  Text bleibt; einen Text mitten im Satz abzuschneiden wäre schlimmer als ein
+  zu langer.
+
+Beginnt die Beschreibung mit `=`, rechnet der Server das Feld:
+
+- `=quellen("muster")`: Anzahl der Quelldateien der Sammeldatei, deren Name
+  auf das Muster passt (`*`, `?`).
+- `=zeilen("abschnitt", "text")`: Zeilen des Abschnitts im Material, die den
+  Text enthalten.
+- `=quellenarten(wert: "muster"; …)`: die Werte, deren Muster auf mindestens
+  eine Quelldatei passt.
+
+Der Wert des Modells wird ersetzt und steht zum Vergleich im Ereignis
+`field_bindings_applied`. Lässt sich ein Feld nicht rechnen (Abschnitt fehlt,
+keine Sammeldatei), wird es leer und Befund. Ein Schreibfehler in der Vorlage
+ist ein Fehler vor dem Lauf; `vorlage_schreiben` weist ihn ab.
+
+Eine bewusst kleine, feste Menge von Funktionen, keine Ausdruckssprache.
+
+### Material, Cover, Anhänge
+
+- Jeder Quellblock im Material trägt `inhalt` (`PDF-Text`,
+  `Audio-Transkript`, `Markdown` …). Die Quellenübersicht bleibt, wie sie ist.
+- `cover_from_sources: false` im Frontmatter: kein Cover aus den Seitenbildern
+  der Quellen. Vorgabe bleibt an.
+- `attachments_order: source_files`: PDF-Anhänge in der Reihenfolge der
+  Sammeldatei. Vorgabe bleibt „Folien zuerst", weil das für einen Vortrag
+  richtig ist.
+- `sammeldatei_anlegen` erklärt `medienErkannt` mit `medienHerkunft`.
+
+Beide Schalter sind flache Frontmatter-Felder des Ergebnisses; sie kommen als
+festes Feld aus der Vorlage oder über `dokument_felder_setzen`.
+
+**Nicht gebaut:** Die Schwankung zwischen zwei Läufen. Die Temperatur der
+Transformation setzt der Secretary (dort in der Konfiguration niedrig
+vorgegeben); ob die laufende Instanz davon abweicht, ist zu prüfen. Die
+Bindungen machen die Schwankung sichtbar und begrenzen ihre Folgen, sie
+beseitigen sie nicht.
 
 ## Abnahme Welle 1
 

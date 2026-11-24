@@ -15,10 +15,10 @@ import { resolveSlideImagesFromTwinFragments } from '@/lib/ingestion/slide-image
 import { medienAusEigenenFragmenten, type MedienAusEigenenFragmenten } from '@/lib/ingestion/medien-aus-eigenen-fragmenten'
 import { parseJsonListFields, JSON_LIST_FIELDS } from '@/lib/ingestion/frontmatter-json-lists'
 import { ladeGeordneteQuellen, type QuellenTwin } from '@/lib/ingestion/quellen-fragmente'
-import { waehleCover } from '@/lib/ingestion/cover-aus-quellen'
+import { coverAusQuellenErlaubt, waehleCover } from '@/lib/ingestion/cover-aus-quellen'
 import { coverKandidatAusMedienliste } from '@/lib/ingestion/cover-aus-medienliste'
 import { medienVerzeichnisAusFragmenten } from '@/lib/ingestion/medien-verzeichnis'
-import { anhaengeAusQuellen, ersetzePdfLinks } from '@/lib/ingestion/anhaenge-aus-quellen'
+import { anhaengeAusQuellen, anhangReihenfolge, ersetzePdfLinks, quelldateienAusMeta } from '@/lib/ingestion/anhaenge-aus-quellen'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
 import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
@@ -584,7 +584,20 @@ export class IngestionService {
           // (die Template-Phase reicht das Feld in den Twin durch). Das Ereignis
           // „none" faellt erst, wenn auch dieser Weg nichts findet.
           const coverKandidatMedienliste = coverKandidatAusMedienliste(metaEffective)
-          if (!coverImageUrl && frontmatterCoverLeer) {
+          // Schalter cover_from_sources: false — kein Cover aus den Seitenbildern der Quellen, gemeldet.
+          let coverAusQuellenAus = false
+          try {
+            coverAusQuellenAus = !coverAusQuellenErlaubt(metaEffective)
+            if (coverAusQuellenAus && !coverImageUrl && frontmatterCoverLeer && jobId && !coverKandidatMedienliste) {
+              await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'none', grund: 'cover_from_sources: false — Cover aus den Quellen ist abgeschaltet' })
+            }
+          } catch (error) {
+            const grund = error instanceof Error ? error.message : String(error)
+            FileLogger.warn('ingestion', 'Schalter cover_from_sources nicht lesbar', { fileId, error: grund })
+            if (jobId) await emitIngestTraceEvent(repo, jobId, 'cover_source', { source: 'none', grund })
+            coverAusQuellenAus = true
+          }
+          if (!coverImageUrl && frontmatterCoverLeer && !coverAusQuellenAus) {
             try {
               const cover = waehleCover(await ladeQuellenTwins())
               if (cover) {
@@ -678,17 +691,22 @@ export class IngestionService {
               || (Array.isArray(vorhandeneAnhaenge) && vorhandeneAnhaenge.length === 0)
               || (typeof vorhandeneAnhaenge === 'string' && vorhandeneAnhaenge.trim() === '')
             if (anhaengeLeer) {
-              const anhaenge = anhaengeAusQuellen(await ladeQuellenTwins())
+              // Schalter attachments_order: source_files — Reihenfolge der Sammeldatei statt „Folien zuerst".
+              const reihenfolge = anhangReihenfolge(metaEffective)
+              const anhaenge = anhaengeAusQuellen(await ladeQuellenTwins(), reihenfolge === 'source_files' ? quelldateienAusMeta(metaEffective) : undefined)
               for (const a of anhaenge) anhangIdByName.set(a.name, a.sourceId)
               if (anhaenge.length > 0) {
                 docMetaJsonObj.attachments_url = anhaenge.map((a) => a.name)
                 docMetaJsonObj.attachments_names = anhaenge.map((a) => a.name)
               }
               FileLogger.info('ingestion', 'Anhaenge aus Quellen-Twins gerechnet', { fileId, anhaenge })
-              if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_source', { anzahl: anhaenge.length, namen: anhaenge.map((a) => a.name) })
+              if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_source', { anzahl: anhaenge.length, namen: anhaenge.map((a) => a.name), reihenfolge })
             }
           } catch (error) {
-            FileLogger.warn('ingestion', 'Anhaenge aus Quellen-Twins nicht rechenbar', { fileId, error: error instanceof Error ? error.message : String(error) })
+            const grund = error instanceof Error ? error.message : String(error)
+            FileLogger.warn('ingestion', 'Anhaenge aus Quellen-Twins nicht rechenbar', { fileId, error: grund })
+            // Nicht nur ins Log: Ohne Ereignis saehe der Job aus, als gaebe es schlicht keine Anhaenge.
+            if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_source', { anzahl: 0, grund })
           }
 
           // Medien-Felder: Dateiname, `_Quelle.pdf/fragment.jpeg` oder URL — Auflösung über Anker- + Quell-Shadow-Twin-Fragmente

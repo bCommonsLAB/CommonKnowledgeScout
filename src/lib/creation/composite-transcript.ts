@@ -775,7 +775,7 @@ function assembleFlattenedMarkdown(options: FlattenedAssembleOptions): string {
           }
         }
         if (section.transcriptOnlyRefs.length > 0) {
-          parts.push('*Im Transkript erwähnt:*')
+          parts.push('*Im Text dieser PDF erwähnt:*')
           for (const ref of section.transcriptOnlyRefs) {
             parts.push(`- ${ref}`)
           }
@@ -799,19 +799,21 @@ function assembleFlattenedMarkdown(options: FlattenedAssembleOptions): string {
     }
   }
 
-  // Trennlinie vor den Transkripten
+  // Trennlinie vor den Quelltexten
   parts.push('')
   parts.push('---')
 
   // <source>-Blöcke pro Quelle
   for (const s of sources) {
     parts.push('')
-    parts.push(`<source file="${s.name}" index="${s.index}">`)
+    // `inhalt` sagt dem Modell, WAS in dem Block steht: Nicht jeder Quelltext ist ein Transkript
+    // (Befund: PDF-Text wurde als „webcast-transcript" eingeordnet, weil alles Transkript hiess).
+    parts.push(`<source file="${s.name}" index="${s.index}" inhalt="${inhaltsArt(s.mimeType)}">`)
     parts.push('')
     if (s.markdown) {
       parts.push(s.markdown.trim())
     } else {
-      parts.push(`*(Kein Transkript für "${s.name}" verfügbar)*`)
+      parts.push(`*(Kein Text für "${s.name}" verfügbar)*`)
     }
     parts.push('')
     parts.push('</source>')
@@ -846,6 +848,21 @@ function guessMimeType(fileName: string): string {
     png: 'image/png',
   }
   return map[ext] || 'application/octet-stream'
+}
+
+/**
+ * Art des Textes, den eine Quelle ins Material fuer das Modell bringt — nur Audio und Video
+ * liefern ein Transkript; PDF, Office und Markdown liefern ihren Text.
+ */
+export function inhaltsArt(mimeType: string): string {
+  if (mimeType.startsWith('audio/')) return 'Audio-Transkript'
+  if (mimeType.startsWith('video/')) return 'Video-Transkript'
+  if (mimeType.startsWith('image/')) return 'Bild (kein Text)'
+  if (mimeType.includes('pdf')) return 'PDF-Text'
+  if (mimeType.includes('markdown')) return 'Markdown'
+  if (mimeType.includes('text/plain')) return 'Text'
+  if (mimeType.includes('word') || mimeType.includes('document') || mimeType.includes('presentation')) return 'Dokument-Text'
+  return 'Text'
 }
 
 /** Gibt ein lesbares Label für den Dateityp zurück */

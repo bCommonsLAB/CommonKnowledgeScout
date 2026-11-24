@@ -73,6 +73,16 @@ Schreibt das Sprachmodell einen Wert außerhalb des Wörterbuchs, wird er
 verworfen und steht in `job_status.befunde` — nach jeder Transformation dort
 nachsehen und dem Menschen nennen.
 
+**Obergrenzen und Zählfelder** (ab 2.86.0) gehören in die Vorlage, nicht in
+wiederholte Läufe: `<<max:6>>` in der Beschreibung eines Listenfelds kürzt
+hinten (das Modell nach Gewicht ordnen lassen), `<<maxWoerter:450>>` meldet
+zu lange Texte. Was abzählbar ist, rechnet der Server, wenn die Beschreibung
+mit `=` beginnt: `=quellen("* - Statement.pdf")`,
+`=zeilen("Speakers", "Statement:")`,
+`=quellenarten(statement: "* - Statement.*"; programme: "*Programme*")`.
+Für eine Seite aus vielen gleichrangigen PDFs: `cover_from_sources: false`
+und `attachments_order: source_files` als feste Felder der Vorlage.
+
 ## Ablauf über die Brücke
 
 1. **Ordner und Dateiname festlegen.** Der Mensch nennt beides; Dateinamen

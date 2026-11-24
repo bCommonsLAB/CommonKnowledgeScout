@@ -33,8 +33,9 @@ Vorhaben im Repo (Durchsicht 13.10.2026, Stand 18.10.):
   `datei_von_adresse_holen`; Facetten-Platzhalter in Vorlagen mit Prüfung
   nach der Transformation, `vorlage_lesen` / `vorlage_schreiben`,
   `bibliothek_anlegen` mit Zielordner; nach dem Piloten (2b) HTML aus dem
-  Browser übergeben und leere Antworten einordnen. Geplant: Abnahme-Reste,
-  Welle 2c (berechnete Felder, Obergrenzen), dann Wellen 3–6 nach [`docs/plans/webseiten-erschliessen.plan.md`](docs/plans/webseiten-erschliessen.plan.md).
+  Browser übergeben und leere Antworten einordnen, (2c) Obergrenzen und
+  berechnete Felder in Vorlagen, Schalter für Cover und Anhänge. Geplant:
+  Abnahme-Reste, dann Wellen 3–6 nach [`docs/plans/webseiten-erschliessen.plan.md`](docs/plans/webseiten-erschliessen.plan.md).
 - **Zwischenschnitt Speicher-Verbindungen und Library-Anlage — erledigt**:
   B1, A1–A3, C1–C3 gemergt (#390–#394), Migration in Dev und Prod gelaufen.
   A4 (Mitglieder) geht in ADR 0011 und

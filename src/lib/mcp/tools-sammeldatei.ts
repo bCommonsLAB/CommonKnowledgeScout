@@ -98,6 +98,12 @@ export function registerSammeldateiTools(server: McpServer): void {
           return jsonResult({
             sourceId: datei.id, name: dateiname, ordnerId: folderId, quellen: referenz.sourceFileNames,
             medienErkannt: referenz.mediaFiles.length, medienErgaenzt: medien ?? [],
+            // Was gezaehlt wurde: Bilder im Ordner und aus den Quellen extrahierte Bilder (bei PDFs die Seitenbilder).
+            medienHerkunft: {
+              imOrdner: referenz.mediaFiles.filter((m) => !m.sourceFile).length,
+              ausQuellenExtrahiert: referenz.mediaFiles.filter((m) => Boolean(m.sourceFile)).length,
+              hinweis: 'Diese Bilder stehen dem Sprachmodell als Liste zur Auswahl; in die Seite geht nur, was die Vorlage in einem Medienfeld nennt (und das Cover).',
+            },
             transformation,
             ...(ingestEntscheidung ? { ingest: ingestEntscheidung } : {}),
             hinweis: transformation

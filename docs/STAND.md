@@ -286,14 +286,22 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 2. `seite_lesen` und `webseite_erschliessen` nehmen fertiges HTML aus dem
    Browser entgegen (`html`).
 
+**Gemacht (Welle 2c, 24.11., Werkzeugsatz 2.86.0), nach dem Piloten:**
+
+1. Feld-Bindungen in Vorlagen: Obergrenzen (`<<max:N>>`, `<<maxWoerter:N>>`)
+   und berechnete Felder (`=quellen`, `=zeilen`, `=quellenarten`), mit Befund.
+2. Quellblöcke im Material nennen ihre Art (PDF-Text, Audio-Transkript …).
+3. Ingest-Schalter `cover_from_sources` und `attachments_order`.
+
 **Geplant:**
 
+- Abnahme Welle 2c am Piloten; offen ist, ob feste Felder der Vorlage
+  unverändert im Frontmatter des Ergebnisses ankommen.
+- Schwankung zwischen Läufen: Temperatur der laufenden Secretary-Instanz
+  prüfen.
 - Abnahme-Reste: Struktur-Modus, Ablehnung interner Adressen über die Brücke
   (Sicherheitstest), Wert außerhalb des Wörterbuchs, Library mit neuem
   Verzeichnis.
-- Welle 2c (Befunde des Piloten): neutrale Quellen-Kopfzeilen im Material,
-  berechnete Felder, Obergrenzen als Bindung mit Befund, Cover aus Quellen
-  abschaltbar, Anhänge in der Reihenfolge der Sammeldatei.
 - Ungeklärt: parallele Brücken-Aufrufe ohne Ergebnis (Brücke oder Client).
 - Platzhalter-Prüfung auch im Vorlagen-Formular und in `vorlage_uebernehmen`.
 - Welle 3: Rechte-Status am Dokument (Volltext oder nur Zusammenfassung),
