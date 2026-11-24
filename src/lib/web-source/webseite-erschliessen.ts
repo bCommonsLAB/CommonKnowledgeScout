@@ -47,6 +47,8 @@ export interface WebseiteErschliessenInput {
   medienHolen: boolean
   /** false = Medium nur als Quelle (Transkription), ohne Player und Video-Embed. Default true. */
   medienEinbetten?: boolean
+  /** Fertiges HTML der Seite (z. B. aus einem Browser) — dann laedt der Server die Seite nicht selbst. */
+  seitenHtml?: string
   /** `struktur` = Seite woertlich mit Listen, Tabellen und Links statt Artikeltext. Default `artikel`. */
   seitenModus?: SeitenModus
   /** Welle K3: Stapel-Zugehoerigkeit, die der Transkriptions-Job erbt. */
@@ -95,7 +97,7 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
       resolved = { fehler: error instanceof Error ? error.message : String(error) }
     }
   }
-  const { seite, metadatenQuelle, kapitel, hinweise, struktur } = await leseSeitenbild(url, resolved, cookies !== null, input.seitenModus ?? 'artikel')
+  const { seite, metadatenQuelle, kapitel, hinweise, struktur } = await leseSeitenbild(url, resolved, cookies !== null, input.seitenModus ?? 'artikel', input.seitenHtml)
 
   const medium = medienHolen && resolved ? await holeMedium(seite, resolved, cookies) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)

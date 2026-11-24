@@ -17,7 +17,7 @@ import type { ResolvedMedia } from './media-resolve'
 import { seiteAusMetadaten } from './metadaten-seite'
 import type { WebPageExtract } from './page-extract'
 import type { SeitenLink } from './seite-links'
-import { HINWEIS_OHNE_TEXT, leseSeite } from './seite-lesen'
+import { leseSeite } from './seite-lesen'
 import { embedUrlAusAdresse } from './video-embed'
 
 export type MetadatenQuelle = 'ytdlp' | 'seite'
@@ -39,7 +39,7 @@ export interface Seitenbild {
 }
 
 /** Seitenbild aus yt-dlp bei Videoseiten, sonst aus dem HTML; `videoAnmeldung` nur fuer die Fehlermeldung. */
-export async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fehler: string } | null, videoAnmeldung: boolean, modus: SeitenModus = 'artikel'): Promise<Seitenbild> {
+export async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fehler: string } | null, videoAnmeldung: boolean, modus: SeitenModus = 'artikel', html?: string): Promise<Seitenbild> {
   const hinweise: string[] = []
   if (resolved && !('fehler' in resolved) && istVideoExtractor(resolved.extractor)) {
     if (resolved.metadata) {
@@ -59,11 +59,13 @@ export async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fe
         `(Video-Anmeldung am Konto: ${videoAnmeldung ? 'hinterlegt' : 'nicht hinterlegt — Einstellungen → Mein Zugang'})`,
     )
   }
-  const gelesen = await leseSeite(url)
+  const gelesen = await leseSeite(url, { html })
+  if (gelesen.herkunft === 'uebergeben') hinweise.push('Seite aus uebergebenem HTML gelesen, nicht vom Server geladen')
+  const ohneText = gelesen.leereAntwort?.hinweis ?? 'Die Seite traegt keinen lesbaren Text.'
   // source_url bleibt die genannte Adresse, auch nach einer Umleitung (wie bisher).
   const seite: WebPageExtract = { ...gelesen.meta, url }
   if (modus === 'struktur') {
-    if (!gelesen.markdown.trim()) throw new Error(`${HINWEIS_OHNE_TEXT} Nichts geschrieben.`)
+    if (!gelesen.markdown.trim()) throw new Error(`${ohneText} Nichts geschrieben.`)
     return { seite, metadatenQuelle: 'seite', kapitel: [], hinweise, struktur: { markdown: gelesen.markdown, links: gelesen.links } }
   }
   if (seite.bloecke.length === 0) {
@@ -71,7 +73,7 @@ export async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fe
       'Seite ohne Artikeltext (keine Absaetze in article/main/body) — nichts geschrieben. ' +
         (gelesen.markdown.trim()
           ? 'Die Seite traegt aber Listen, Tabellen oder Links: mit seitenModus "struktur" wird sie woertlich uebernommen (vorher mit seite_lesen ansehen).'
-          : HINWEIS_OHNE_TEXT),
+          : ohneText),
     )
   }
   return { seite, metadatenQuelle: 'seite', kapitel: [], hinweise }

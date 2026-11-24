@@ -43,8 +43,14 @@ gelesen), `abschnitt` und `kontext` (die Zeile, in der er steht). Damit lässt
 sich eine Übersichtsseite prüfen, bevor etwas angelegt wird. `linkArten`
 begrenzt die Liste (z. B. `["pdf"]`), `maxZeichen`/`offset` blättern.
 
-Ist `markdown` leer und nennt `hinweise` JavaScript, entsteht die Seite erst
-im Browser; das kann die Brücke noch nicht. Dem Menschen sagen, nicht raten.
+Ist `markdown` leer, nennt `leereAntwort` den Grund, soweit er erkennbar ist
+(`art`: `leer`, `schutzseite`, `javascript`, `unbekannt`), dazu `rohAnfang`.
+Manche Websites geben dem Server eine Schutzseite oder sperren nach wenigen
+schnellen Abrufen mit 403. **Ausweg mit Browser** (ab 2.85.0): die Seite im
+Browser öffnen, `document.documentElement.outerHTML` auslesen und als `html`
+an `seite_lesen` oder `webseite_erschliessen` geben; `url` bleibt die Adresse
+der Seite. Mehrere Seiten derselben Website mit einigen Sekunden Abstand
+laden. Ohne Browser: dem Menschen sagen, nicht raten.
 
 **Seiten ohne Fließtext** (Übersicht, Terminseite, Dokumentseite) weist
 `webseite_erschliessen` im Modus `artikel` ab. Mit `seitenModus: "struktur"`

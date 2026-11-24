@@ -15,6 +15,7 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { MAX_HTML_ZEICHEN } from '@/lib/web-source/seite-lesen'
 import { webseiteErschliessen } from '@/lib/web-source/webseite-erschliessen'
 import { audioOptionenAusEingabe, bestimmeAudioWeg } from './erschliessen-wege'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
@@ -37,6 +38,8 @@ export function registerWebseiteTool(server: McpServer): void {
         'mit bewusstem ingest. Kein Medium oder kein Cover steht mit Grund in der Antwort. Uebersichts-, Termin- und Dokumentseiten ' +
         'OHNE Fliesstext: seitenModus "struktur" uebernimmt die Seite woertlich mit Listen, Tabellen und Links (Abschnitt „Seite") ' +
         'und listet verlinkte PDF, Dokumente und Medien unter „Verlinkte Dateien" — vorher mit seite_lesen ansehen. ' +
+        'Weist die Website den Server ab (leere Antwort, Schutzseite, 403): die Seite im Browser oeffnen und ihr HTML als html ' +
+        'uebergeben — dieselbe Sammeldatei, nur laedt der Server die Seite nicht selbst. ' +
         'Interne Adressen werden nicht abgerufen. SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
@@ -45,6 +48,7 @@ export function registerWebseiteTool(server: McpServer): void {
         ordner: z.string().min(1).optional().describe('Ordnerpfad (library-relativ)'),
         ordnerId: z.string().min(1).optional().describe('ALTERNATIVE: Storage-Id des Ordners'),
         elternAnlegen: z.boolean().optional().describe('Nur mit ordner: fehlende Ordner des Pfades anlegen; Vorgabe false'),
+        html: z.string().min(1).max(MAX_HTML_ZEICHEN).optional().describe('Fertiges HTML der Seite (document.documentElement.outerHTML aus dem Browser) — dann wird die Seite nicht geladen; url bleibt Herkunft und Basis der Links'),
         seitenModus: z.enum(['artikel', 'struktur']).optional().describe('artikel (Vorgabe) = Absaetze des Artikeltexts, Seite ohne Absaetze wird abgewiesen; struktur = Seite woertlich mit Listen, Tabellen und Links, fuer Seiten ohne Fliesstext'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache der Transkription, Default de'),
         medienHolen: z.boolean().optional().describe('false = nur Seite lesen und Sammeldatei anlegen, kein Medium; Default true'),
@@ -56,7 +60,7 @@ export function registerWebseiteTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, url, dateiname, ordner, ordnerId, elternAnlegen, seitenModus, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
+    async ({ libraryId, url, dateiname, ordner, ordnerId, elternAnlegen, html, seitenModus, zielsprache, medienHolen, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'webseite_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, pfad: ordner }, async () => {
           const userEmail = mcpUserEmail()
@@ -76,6 +80,7 @@ export function registerWebseiteTool(server: McpServer): void {
             medienHolen: medienHolen ?? true,
             medienEinbetten: medienEinbetten ?? true,
             seitenModus: seitenModus ?? 'artikel',
+            seitenHtml: html,
           })
           const weg = ergebnis.medium ? bestimmeAudioWeg(audioContext, library) : null
           return jsonResult({

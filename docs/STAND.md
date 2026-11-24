@@ -278,10 +278,23 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
    und kopiert Vorlagen nach Auswahl; `speicher_pruefen` unterscheidet
    fehlendes Verzeichnis von einer Verbindung, die nicht antwortet.
 
+**Gemacht (Welle 2b, 24.11., Werkzeugsatz 2.85.0), nach dem Piloten:**
+
+1. Leere Antwort eingeordnet (leer, Schutzseite, JavaScript, unbekannt) statt
+   pauschal „JavaScript"; die Zielseite des Piloten gab dem Server eine
+   Antwort ohne Text.
+2. `seite_lesen` und `webseite_erschliessen` nehmen fertiges HTML aus dem
+   Browser entgegen (`html`).
+
 **Geplant:**
 
-- Abnahme der Wellen 1 und 2 über die Brücke am Testmaterial; zeigt
-  zugleich, ob die Zielseite dem Server antwortet.
+- Abnahme-Reste: Struktur-Modus, Ablehnung interner Adressen über die Brücke
+  (Sicherheitstest), Wert außerhalb des Wörterbuchs, Library mit neuem
+  Verzeichnis.
+- Welle 2c (Befunde des Piloten): neutrale Quellen-Kopfzeilen im Material,
+  berechnete Felder, Obergrenzen als Bindung mit Befund, Cover aus Quellen
+  abschaltbar, Anhänge in der Reihenfolge der Sammeldatei.
+- Ungeklärt: parallele Brücken-Aufrufe ohne Ergebnis (Brücke oder Client).
 - Platzhalter-Prüfung auch im Vorlagen-Formular und in `vorlage_uebernehmen`.
 - Welle 3: Rechte-Status am Dokument (Volltext oder nur Zusammenfassung),
   erst ADR.

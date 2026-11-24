@@ -2,7 +2,7 @@
 name: webseiten-erschliessen
 overview: "Eine ganze Webseite über die Brücke erschließen, ohne dass der Agent eine eigene Shell oder den Rechner des Nutzers braucht: Seiten wörtlich lesen, Links folgen, verlinkte Dateien holen, Seiten ohne Fließtext als Sammeldatei übernehmen, später Medien und gerenderte Seiten. Anlass: der Aufbau einer Library aus der Website einer Konferenzreihe (Übersichten mit Rednerlisten, Dokumentseiten, PDF-Statements, Webcasts); die Anforderungen und das Testmaterial stehen im Handover im Archiv."
 vorhaben: [4]
-status: welle-2-gebaut-abnahme-offen
+status: welle-2b-gebaut-pilot-teilweise
 todos:
   - id: w1-schutz
     content: "Welle 1: Schutz gegen interne Adressen (adress-schutz.ts) und sicherer Abruf (sicherer-abruf.ts) für jeden Abruf im Auftrag von außen; bestehende Abrufe (Seite, Cover, direkt genanntes Medium) darauf umgestellt. Gebaut 24.11.2026."
@@ -25,14 +25,20 @@ todos:
   - id: w2-abnahme
     content: "Welle 2 Abnahme über die Brücke: eine Vorlage mit <<werte:…>> schreiben, eine Quelle transformieren, einen erfundenen Wert im Befund und nicht im Index sehen; eine Library mit neuem Verzeichnis anlegen und speicher_pruefen grün sehen."
     status: pending
+  - id: w2b-pilot
+    content: "Welle 2b, Befunde aus dem Piloten (B1, B2, B10): leere Antwort eingeordnet (leer, Schutzseite, JavaScript, unbekannt) mit Länge und Anfang des rohen HTML; seite_lesen und webseite_erschliessen nehmen fertiges HTML aus dem Browser entgegen (html); 403/429 nennt Sperre und Auswege; Beschreibung von datei_von_adresse_holen gekürzt. Gebaut 24.11.2026, Werkzeugsatz 2.85.0."
+    status: done
+  - id: w2c-normalisierung
+    content: "Welle 2c, Befunde aus dem Piloten (B4, B5, B6, B7): Quellen im Material für das Modell mit neutraler Kopfzeile (Dateiname, Art) statt durchgehend „Transkript\"; berechnete Felder (Anzahl Quellen je Namensmuster, Zeilen eines Abschnitts mit Muster, Quellenarten aus den Dateinamen); Obergrenzen als Bindung (Anzahl bei Listen, Wörter bei Texten) mit Befund; Cover aus Quellen abschaltbar, Anhänge in der Reihenfolge der Sammeldatei, medienErkannt erklärt; Temperatur der Transformation prüfen."
+    status: pending
   - id: w3-rechte
-    content: "Welle 3 (C2, C3): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API. Erst ADR, dann Code."
+    content: "Welle 3 (C2, C3, Befund B8): Rechte-Status am Dokument (Volltext oder nur Zusammenfassung) für Galerie, Detailseite, Chat und Headless-API; der Ingest hängt bei „nur Zusammenfassung\" keine Quelldateien als Anhang an die Seite. Erst ADR, dann Code."
     status: pending
   - id: w4-medien
     content: "Welle 4 (A4, A5, D3), mit Secretary: gerenderte Seiten (Headless-Browser), medienAdresse für bekannte Stream-Adressen, Transkript an eine Rednerliste binden."
     status: pending
   - id: w5-kartieren
-    content: "Welle 5 (B1, B3, E4): webseite_kartieren zweistufig wie playlist_erschliessen, mit robots.txt, Drosselung und Obergrenze je Lauf; Herkunft (Adresse, Abrufzeit, Hash) am Twin und erneuter Abruf; Stapel für webseite_erschliessen."
+    content: "Welle 5 (B1, B3, E4, Befund B3 des Piloten: Abstand je Host, 403/429 als „später erneut\"): webseite_kartieren zweistufig wie playlist_erschliessen, mit robots.txt, Drosselung und Obergrenze je Lauf; Herkunft (Adresse, Abrufzeit, Hash) am Twin und erneuter Abruf; Stapel für webseite_erschliessen."
     status: pending
   - id: w6-struktur
     content: "Welle 6 (B2, C4, D1, D2): Zuordnungsregeln je Library, Belegpflicht für Facettenwerte, Teil-Dokumente mit eigenen Facetten, mehrsprachige Quellen. Braucht vorher ein Konzept im Archiv."
@@ -184,6 +190,42 @@ steht in der Antwort. `vorlagenNamen` kopiert nur die genannten Vorlagen.
 
 `speicher_pruefen` sagt bei nicht lesbarer Wurzel, ob die Verbindung selbst
 antwortet oder nur das Verzeichnis fehlt.
+
+## Welle 2b: Befunde aus dem Piloten (gebaut 24.11.2026, Werkzeugsatz 2.85.0)
+
+Der Pilot hat die Wellen 1 und 2 an einer echten Website benutzt. Die
+Befunde im Wortlaut liegen im Archiv (Handover 4 im Vorhabensordner).
+
+**Belegt:** `datei_von_adresse_holen` holt 19 von 19 PDFs; `vorlage_lesen`,
+`vorlage_schreiben` und die Facetten-Platzhalter arbeiten wie gebaut.
+
+**Nicht bestanden:** `seite_lesen` bekam von der Zielseite mit HTTP 200 eine
+Antwort ohne Text und ohne Titel. Der Hinweis nannte JavaScript; die Seite
+steht im Browser aber als gewöhnliches HTML. Vermutlich gibt die Website dem
+Server eine Schutzseite gegen Automaten. Damit trugen `seite_lesen` und der
+Struktur-Modus für diese Quelle nicht.
+
+Daraus gebaut:
+
+- **Leere Antwort einordnen** (`leere-antwort.ts`): `leereAntwort` nennt
+  `art` (`leer | schutzseite | javascript | unbekannt`), die Länge und den
+  Anfang des rohen HTML. „JavaScript" steht nur noch dort, wo das HTML ein
+  Anwendungsgerüst zeigt; ohne Indiz heißt es „Grund nicht erkennbar".
+- **HTML von außen annehmen**: `seite_lesen` und `webseite_erschliessen`
+  nehmen mit `html` das fertige HTML einer im Browser geöffneten Seite
+  entgegen und laden dann nicht selbst. `url` bleibt Herkunft und Basis der
+  Links. Es entsteht dieselbe Sammeldatei, egal wer geladen hat. Das ersetzt
+  das Rendern auf dem Server überall, wo ein Rechner mit Browser
+  angeschlossen ist.
+- **403 und 429** beim Laden nennen die Sperre und beide Auswege.
+
+Nicht gebaut und im Plan verteilt: Abstand je Host (Welle 5), neutrale
+Quellen-Kopfzeilen, berechnete Felder, Obergrenzen, Cover und Reihenfolge der
+Anhänge (Welle 2c), Anhänge als Rechtefrage (Welle 3).
+
+**Offen aus dem Piloten:** Der Sicherheitstest mit internen Adressen über die
+Brücke ist nicht gelaufen. Parallele Brücken-Aufrufe kamen im Piloten ohne
+Ergebnis zurück; ob das an der Brücke oder am Client liegt, ist ungeklärt.
 
 ## Abnahme Welle 1
 

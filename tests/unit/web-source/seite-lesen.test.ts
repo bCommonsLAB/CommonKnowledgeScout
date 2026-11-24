@@ -4,7 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { HINWEIS_OHNE_TEXT, leseSeiteAusHtml } from '@/lib/web-source/seite-lesen'
+import { leseSeite, leseSeiteAusHtml } from '@/lib/web-source/seite-lesen'
+import { deuteLeereAntwort } from '@/lib/web-source/leere-antwort'
 import { zeichensatzVon } from '@/lib/web-source/seite-laden'
 
 describe('leseSeiteAusHtml', () => {
@@ -18,10 +19,37 @@ describe('leseSeiteAusHtml', () => {
     expect(r.hinweise).toEqual([])
   })
 
-  it('sagt, wenn die Seite erst im Browser entsteht, und nennt die Umleitung', () => {
+  it('nennt bei leerem Markdown die Einordnung und die Umleitung', () => {
     const r = leseSeiteAusHtml('<html><body><div id="app"></div><script src="/app.js"></script></body></html>', 'https://a.example/x', 'https://b.example/y')
     expect(r.markdown).toBe('')
-    expect(r.hinweise).toEqual([HINWEIS_OHNE_TEXT, 'Umgeleitet nach https://b.example/y'])
+    expect(r.leereAntwort?.art).toBe('javascript')
+    expect(r.hinweise).toEqual([r.leereAntwort?.hinweis, 'Umgeleitet nach https://b.example/y'])
+  })
+
+  it('liest uebergebenes HTML, ohne zu laden, und sagt das', async () => {
+    const r = await leseSeite('https://a.example/liste', { html: '<html><body><main><ul><li><a href="x.pdf">X</a></li></ul></main></body></html>' })
+    expect(r.herkunft).toBe('uebergeben')
+    expect(r.markdown).toBe('- [X](https://a.example/x.pdf)')
+    expect(r.hinweise).toEqual(['Das HTML wurde uebergeben, nicht vom Server geladen — sein Stand ist der des Aufrufers'])
+    await expect(leseSeite('file:///etc/passwd', { html: '<p>x</p>' })).rejects.toThrow('http/https')
+  })
+})
+
+describe('deuteLeereAntwort', () => {
+  it('erkennt eine Schutzseite und nennt nicht JavaScript', () => {
+    const d = deuteLeereAntwort('<html><head><META NAME="robots" CONTENT="noindex,nofollow"><script src="/_Incapsula_Resource?SWJIYLWA=1"></script></head><body></body></html>')
+    expect(d.art).toBe('schutzseite')
+    expect(d.hinweis).not.toContain('JavaScript)')
+    expect(d.rohAnfang).toContain('_Incapsula_Resource')
+  })
+
+  it('unterscheidet leer, Anwendungsgeruest und unbekannt', () => {
+    expect(deuteLeereAntwort('  \n').art).toBe('leer')
+    expect(deuteLeereAntwort('<html><body><div id="__next"></div></body></html>').art).toBe('javascript')
+    const unbekannt = deuteLeereAntwort('<html><head><script src="/a.js"></script></head><body></body></html>')
+    expect(unbekannt.art).toBe('unbekannt')
+    expect(unbekannt.rohZeichen).toBeGreaterThan(0)
+    expect(unbekannt.hinweis).toContain('nicht erkennbar')
   })
 })
 
