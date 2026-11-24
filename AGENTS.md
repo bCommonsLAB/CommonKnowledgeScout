@@ -27,6 +27,11 @@ Vorhaben im Repo (Durchsicht 13.10.2026, Stand 18.10.):
   Pruefbericht, kein Code fuer das Modul. Geplant: Owner-Entscheide O1, O2,
   O10–O20, dann Welle 0 nach dem Parallelisierungsplan; die Erfassung wird
   dort in einem Zug bereinigt (Alt-Endpunkte, ADR 0003, Welle 3-VI).
+- **Vorhaben 4: Webseiten erschließen.** Gemacht (Welle 1, 24.11.):
+  Schutz gegen interne Adressen (`sichererAbruf`), `seite_lesen`,
+  `webseite_erschliessen` mit `seitenModus: "struktur"`,
+  `datei_von_adresse_holen`. Geplant: Abnahme über die Brücke, dann Wellen
+  2–6 nach [`docs/plans/webseiten-erschliessen.plan.md`](docs/plans/webseiten-erschliessen.plan.md).
 - **Zwischenschnitt Speicher-Verbindungen und Library-Anlage — erledigt**:
   B1, A1–A3, C1–C3 gemergt (#390–#394), Migration in Dev und Prod gelaufen.
   A4 (Mitglieder) geht in ADR 0011 und

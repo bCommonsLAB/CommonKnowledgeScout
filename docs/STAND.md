@@ -2,7 +2,7 @@
 
 > Eine Quelle für die Frage „was ist gemacht, und was ist geplant?".
 > Gepflegt von Hand bei jedem neuen Punkt.
-> Stand: 2026-10-18 (Durchsicht gegen Code, Pläne und Branches zuletzt 13.10.).
+> Stand: 2026-11-24 (Durchsicht gegen Code, Pläne und Branches zuletzt 13.10.).
 > Die ausführliche Landkarte mit Legende und Motiven aller Wellen liegt in
 > Peters Archiv (`24.09 KnowledgeScout/THEMEN.md`), der Verlauf je Vorhaben
 > mit allen „Neu dazugekommen"-Einträgen in
@@ -248,6 +248,41 @@ Neu dazugekommen: siehe Archiv `STAND-Vorhaben.md` (noch nichts).
 Verlauf und „Neu dazugekommen" (Analyse-Befunde, Klickmodell,
 Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 `24.09 KnowledgeScout/STAND-Vorhaben.md`.
+
+## Vorhaben 4 · Webseiten erschließen
+
+- **Was es ist**: eine ganze Webseite über die Brücke in eine Library
+  bringen, ohne dass der Agent Shell oder Netzzugang braucht. Anlass und
+  Testmaterial (Website einer Konferenzreihe) im Handover des Archivs
+  (`24.09 KnowledgeScout/`, 24.11.2026); Plan
+  [`plans/webseiten-erschliessen.plan.md`](plans/webseiten-erschliessen.plan.md).
+
+**Gemacht (Welle 1, 24.11., Werkzeugsatz 2.83.0):**
+
+1. Schutz gegen interne Adressen für jeden Abruf im Auftrag von außen
+   (`sichererAbruf`), auch für die bestehenden Abrufe von
+   `webseite_erschliessen`.
+2. `seite_lesen`: Seite wörtlich als Markdown mit Linkliste, liest nur.
+3. `webseite_erschliessen`: `seitenModus: "struktur"` für Seiten ohne
+   Fließtext, `elternAnlegen`.
+4. `datei_von_adresse_holen`: der Server lädt bis zu 30 Dateien in einen
+   Ordner, geprüft nach Typ, Endung und Signatur.
+
+**Geplant:**
+
+- Abnahme Welle 1 über die Brücke am Testmaterial; zeigt zugleich, ob die
+  Zielseite dem Server antwortet.
+- Welle 2: `bibliothek_anlegen` mit Zielordner, `vorlage_lesen` /
+  `vorlage_schreiben`, Auswahl beim Vorlagen-Kopieren, Facetten-Wörterbuch in
+  der Transformation durchsetzen.
+- Welle 3: Rechte-Status am Dokument (Volltext oder nur Zusammenfassung),
+  erst ADR.
+- Welle 4 (mit Secretary): gerenderte Seiten, `medienAdresse`, Transkript an
+  Rednerliste binden; dort auch der Adress-Schutz für yt-dlp.
+- Welle 5: `webseite_kartieren` mit robots.txt und Drosselung, Herkunft am
+  Twin, Stapel für `webseite_erschliessen`.
+- Welle 6: Zuordnungsregeln, Belegpflicht für Facettenwerte, Teil-Dokumente,
+  mehrsprachige Quellen; braucht vorher ein Konzept im Archiv.
 
 ## Zwischenschnitt · Speicher-Verbindungen und Library-Anlage — erledigt, A4 in „Zusammenarbeit in Stufen"
 
