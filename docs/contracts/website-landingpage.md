@@ -146,7 +146,14 @@ importiert kein `@commonux/*`.
   angebotene Frage — Beispiel, populaer, Thema, Weiterfrage unter der Antwort —
   fuellt die Box und wird SOFORT gestellt (im Story-Modus fuellt eine
   Weiterfrage weiter nur das Feld). Gibt es eine Antwort, klappen die
-  Beispielfragen zu einer Zeile ein (`website-story-beispiele.tsx`). Aeltere Fragen erreicht der
+  Beispielfragen zu einer Zeile ein (`website-story-beispiele.tsx`).
+  **Telefon (unter `sm`, Owner 24.11.2026):** Sektionen mit 16 px Rand und
+  kleinerem Abstand (`px-4 py-10`), keine Karte in der Karte (mit Teppich
+  ohne Innenabstand, die Antwort ohne Bild-Spalte in voller Lesebreite), die
+  Beispielfragen als waagrechte Reihe zum Wischen, die Themen als Akkordeon
+  (`useSchmal`, erstes Thema offen), Tippziele mindestens 44 px. Die Variante
+  `max-sm:` erzeugt dieses Tailwind-Setup NICHT — Telefon ist der
+  Grundzustand, `sm:` stellt die breite Darstellung her. Aeltere Fragen erreicht der
   Verweis „N fruehere Fragen dieser Sitzung im Story-Modus" unter der
   Antwort (`?mode=story&q=<queryId der juengsten frueheren Frage>`, Ziel-
   aufloesung wie die Kacheln; ohne `q` zeigte der Story-Modus nur die

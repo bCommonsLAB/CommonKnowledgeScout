@@ -55,9 +55,10 @@ export interface WebsiteStorySektionRahmenProps {
 /**
  * Mit Teppich ist die Antwort kein eigenes Fenster: kein Hintergrund, kein Rand, kein Schatten;
  * auch die Flaechen der Antwort werden durchsichtig, die Punktwolke liegt sichtbar dahinter
- * (Owner 22.11.2026). Klicks nimmt nur, was im Inhalt steht.
+ * (Owner 22.11.2026). Klicks nimmt nur, was im Inhalt steht. Auf dem Telefon (R2, 24.11.2026)
+ * faellt auch der Innenabstand weg: keine Karte in der Karte, die Lesebreite ist die der Sektion.
  */
-const TEPPICH_KARTE = "pointer-events-auto bg-transparent [&_[data-antwort]_div]:!bg-transparent [&_[data-antwort]_div]:!shadow-none [&_[data-antwort]_div]:!border-transparent"
+const TEPPICH_KARTE = "pointer-events-auto bg-transparent [&_[data-antwort]>div:last-child]:!px-0 sm:[&_[data-antwort]>div:last-child]:!px-5 [&_[data-antwort]_div]:!bg-transparent [&_[data-antwort]_div]:!shadow-none [&_[data-antwort]_div]:!border-transparent"
 
 /**
  * Ruhiges Layout beim Fragen (Owner 23.11.2026: „es baut sich nach unten die Antwort auf"): Die
@@ -97,7 +98,7 @@ export function WebsiteStorySektionRahmen({
   const { vor, fragen, nach } = React.useMemo(() => storyBloecke(section), [section])
 
   return (
-    <section className={cn("relative isolate px-6 py-14", flaeche.className)} style={flaeche.style} data-website-story>
+    <section className={cn("relative isolate px-4 py-8 sm:px-6 sm:py-14", flaeche.className)} style={flaeche.style} data-website-story>
       {teppich && <style>{ANTWORT_EIN}</style>}
       {teppich && <div className="absolute inset-0 z-0">{teppich}</div>}
       {/* Mit Teppich: Klicks gehen nur dort an die Karte, wo sie liegt; sonst an den Teppich. */}
@@ -113,12 +114,12 @@ export function WebsiteStorySektionRahmen({
         {section.kicker && <p className={KICKER_CLASS}>{section.kicker}</p>}
         <div className={cn("overflow-hidden text-neutral-900", teppich ? TEPPICH_KARTE : "rounded-3xl border border-black/10 bg-white shadow-lg")}>
           {(status || kopf) && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-6 py-4">
+            <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-black/10 py-3 sm:px-6 sm:py-4", teppich ? "px-0" : "px-4")}>
               <div>{status}</div>
               <div>{kopf}</div>
             </div>
           )}
-          <div className="px-6 pb-6 pt-8 sm:px-10">
+          <div className={cn("pb-5 pt-6 sm:px-10 sm:pb-6 sm:pt-8", teppich ? "px-0" : "px-4")}>
             {/* Die Karte ist weiss: Markdown-Farben der Flaeche `default`, nicht der Sektions-Flaeche. */}
             {vor.length > 0 && <SectionContent blocks={vor} bg="default" headingCase={headingCase} theme={theme} />}
             {eingabe}
@@ -157,7 +158,8 @@ export function StoryFragenKacheln({
   if (fragen.length === 0) return null
   return (
     <div
-      className="not-prose mt-6 grid gap-3 sm:grid-cols-2"
+      // Telefon (R2): eine waagrechte Reihe zum Wischen statt gestapelter Kacheln — das Fragefeld bleibt im Blick.
+      className="not-prose mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0"
       role="group"
       aria-label={t("website.story.beispielfragen")}
       data-story-fragen
@@ -175,7 +177,7 @@ export function StoryFragenKacheln({
           type="button"
           disabled={gesperrt}
           onClick={() => onFrage(frage)}
-          className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--kachel-border)] bg-[color:var(--kachel-bg)] px-4 py-3 text-left text-sm leading-snug text-neutral-800 transition-colors hover:border-[color:var(--site-accent)] hover:bg-[color:var(--kachel-bg-hover)] disabled:opacity-60"
+          className={cn(fragen.length > 1 ? "w-[82%]" : "w-full", "flex shrink-0 snap-start items-center justify-between gap-3 sm:w-auto rounded-xl border border-[color:var(--kachel-border)] bg-[color:var(--kachel-bg)] px-4 py-3 text-left text-sm leading-snug text-neutral-800 transition-colors hover:border-[color:var(--site-accent)] hover:bg-[color:var(--kachel-bg-hover)] disabled:opacity-60")}
         >
           <span>{frage}</span>
           <ArrowUpRight className="h-4 w-4 shrink-0 text-[color:var(--site-accent)]" aria-hidden="true" />

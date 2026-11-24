@@ -51,7 +51,7 @@ export function SectionBlock({
     const safeVideo =
       section.videoUrl && isSafeVideoIframeSrc(section.videoUrl) ? section.videoUrl : null
     return (
-      <section className={cn('px-6 py-14', flaeche.className)} style={flaeche.style}>
+      <section className={cn('px-4 py-10 sm:px-6 sm:py-14', flaeche.className)} style={flaeche.style}>
         <div className="mx-auto max-w-4xl">
           {kicker}
           {section.markdown && (
@@ -75,7 +75,7 @@ export function SectionBlock({
   }
 
   return (
-    <section className={cn('py-14 px-6', flaeche.className)} style={flaeche.style}>
+    <section className={cn('px-4 py-10 sm:px-6 sm:py-14', flaeche.className)} style={flaeche.style}>
       <div
         className={cn(
           'max-w-5xl mx-auto gap-10',
@@ -124,7 +124,7 @@ export function SectionBlock({
 /** Eingebettetes Web-Video (PeerTube/YouTube/Vimeo). */
 export function VideoEmbed({ url }: { url: string }): React.ReactElement {
   return (
-    <section className="py-14 px-6">
+    <section className="px-4 py-10 sm:px-6 sm:py-14">
       <div className="max-w-4xl mx-auto aspect-video rounded-xl overflow-hidden bg-muted">
         <iframe
           src={url}

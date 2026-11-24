@@ -56,6 +56,8 @@ export interface WebsiteStoryKonversationProps {
   onGraph?: () => void
 }
 
+// Ohne `max-sm:` (die Variante erzeugt dieses Tailwind-Setup nicht): Grundzustand Telefon, ab `sm` zurueck.
+const TELEFON = '[&_[data-antwort]>div:first-child]:hidden sm:[&_[data-antwort]>div:first-child]:block [&_[data-antwort-laeuft]>div:first-child]:hidden sm:[&_[data-antwort-laeuft]>div:first-child]:block'
 const PROSE = 'prose prose-sm max-w-none dark:prose-invert'
 
 export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
@@ -121,7 +123,8 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   const spalte = p.cards === 'column' && eintraege.length > 0 && antwort !== undefined
   return (
     <div
-      className={spalte ? 'mt-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8' : 'mt-6'}
+      // Telefon (R2, 24.11.2026): ohne Bild-Spalte neben der Antwort — volle Lesebreite.
+      className={`${TELEFON} ${spalte ? 'mt-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8' : 'mt-6'}`}
       data-story-konversation
       data-story-karten-modus={p.cards}
       // N5: Akzent der Antwort-Bausteine (Deine-Frage-Band, Plakette, umrandete
