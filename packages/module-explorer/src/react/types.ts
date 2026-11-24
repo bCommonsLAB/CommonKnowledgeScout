@@ -129,4 +129,10 @@ export interface ExplorerRootProps {
   renderSignInPrompt: (opts: { slug: string }) => ReactNode
   /** Optionaler Hinweis unter dem Kopf (heute: die Verifikations-Warnung). */
   renderNotice?: (opts: { libraryId: string }) => ReactNode
+  /**
+   * Die Anwendung zeigt den Namen der Library auf dem Telefon in ihrer Navigation (Owner 24.11.2026):
+   * Der Kopfstreifen laesst ihn unter `sm` dann weg (fuer Vorleser bleibt die Ueberschrift). Ohne
+   * Angabe — z. B. eingebettet, ohne eigene Navigation — steht der Name wie bisher im Kopf.
+   */
+  titelInNavigation?: boolean
 }

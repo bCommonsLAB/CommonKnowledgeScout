@@ -155,7 +155,12 @@ importiert kein `@commonux/*`.
   die Themen ebenfalls ein Akkordeon, anfangs alle zu (Owner 24.11.2026). Die
   Karten der zitierten Dokumente (`cards=column`) stehen unter der Antwort als
   waagrechte Reihe zum Wischen, ab `sm` (Tablet) als zweispaltiges Raster, ab
-  `lg` als Spalte rechts. Die Variante
+  `lg` als Spalte rechts. Der Name der Library steht auf dem Telefon in der
+  TopNav neben dem Menue (`SiteLogo`, `data-site-titel`; dort gibt es kein
+  Logo) — der Kopfstreifen der Erkunden-Seite zeigt ihn unter `sm` nicht noch
+  einmal (`ExplorerRoot` mit `titelInNavigation`, die Ueberschrift bleibt fuer
+  Vorleser). Ohne die Angabe (Embed ohne eigene Navigation) bleibt der Name
+  im Kopf. Die Variante
   `max-sm:` erzeugt dieses Tailwind-Setup NICHT — Telefon ist der
   Grundzustand, `sm:` stellt die breite Darstellung her.
   **Vollbild der Frage (Telefon, Owner 24.11.2026):** Mit dem Absenden liegt

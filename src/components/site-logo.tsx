@@ -2,7 +2,8 @@
 
 /**
  * Website-Logo in der TopNav (Phase C2) — nur im Site-Kontext (Explore-Slug
- * oder host-gemappte Domain-Root).
+ * oder host-gemappte Domain-Root). Auf dem Telefon, wo kein Logo steht, der
+ * Name der Library (Owner 24.11.2026).
  *
  * Layout wie in der Webflow-Vorlage: Das Logo ist HOEHER als die 64px-Bar und
  * ueberlappt den Folgeabschnitt (absolute Positionierung, z-Index ueber der
@@ -39,6 +40,7 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
   const atomLogoUrl = atomLibrary?.config?.publicPublishing?.logoUrl ?? null
 
   const [fetchedLogoUrl, setFetchedLogoUrl] = React.useState<string | null>(null)
+  const [geholterName, setGeholterName] = React.useState<string | null>(null)
 
   // Fallback fuer die Domain-Root (Atom leer): oeffentliche Slug-API fragen.
   React.useEffect(() => {
@@ -49,14 +51,20 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
         if (!res.ok) return null
         const json = await res.json()
         const url = json?.library?.logoUrl
-        return typeof url === "string" && url.length > 0 ? url : null
+        const name = json?.library?.label
+        return {
+          url: typeof url === "string" && url.length > 0 ? url : null,
+          name: typeof name === "string" && name.length > 0 ? name : null,
+        }
       })
-      .then((url) => {
-        if (!cancelled) setFetchedLogoUrl(url)
+      .then((marke) => {
+        if (cancelled || !marke) return
+        setFetchedLogoUrl(marke.url)
+        setGeholterName(marke.name)
       })
       .catch((e) => {
-        // Logo ist optional — Fehler laut loggen, Navigation nicht blockieren.
-        console.error("[SiteLogo] Logo-URL konnte nicht geladen werden:", e)
+        // Logo und Name sind Zierde der Navigation — Fehler laut loggen, Navigation nicht blockieren.
+        console.error("[SiteLogo] Logo und Name konnten nicht geladen werden:", e)
       })
     return () => {
       cancelled = true
@@ -64,6 +72,8 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
   }, [slug, atomLibrary])
 
   const logoUrl = atomLogoUrl ?? fetchedLogoUrl
+  // Wie die oeffentliche Slug-API: der oeffentliche Name, sonst die Bezeichnung der Library.
+  const name = atomLibrary ? (atomLibrary.config?.publicPublishing?.publicName || atomLibrary.label) : geholterName
 
   // G6: Der Kopf der Erkunden-Seite (ExplorerHeader) haelt unter der TopNav genau so viel
   // Platz frei, wie das Logo ueberhaengt — ein breites Logo (z. B. 2048x768) haengt nicht
@@ -78,11 +88,21 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
     return () => { document.documentElement.style.removeProperty('--site-logo-ueberhang') }
   }, [])
 
-  if (!logoUrl) return null
+  // Telefon (Owner 24.11.2026): Die TopNav zeigt dort kein Logo — der Name der Library steht neben
+  // dem Menue und ersetzt den Kopfstreifen der Erkunden-Seite (`titelInNavigation`).
+  const titel = name ? (
+    <Link href={homeHref} className="mr-2 min-w-0 flex-1 truncate text-base font-semibold sm:hidden" data-site-titel>
+      {name}
+    </Link>
+  ) : null
+
+  if (!logoUrl) return titel
 
   return (
-    // Breiten-Platzhalter im Flex-Layout; das Bild selbst ist absolut,
-    // hoeher als die Bar (h-24 > 64px) und ueberlappt den Inhalt darunter.
+    <>
+    {titel}
+    {/* Breiten-Platzhalter im Flex-Layout; das Bild selbst ist absolut,
+        hoeher als die Bar (h-24, mehr als 64px) und ueberlappt den Inhalt darunter. */}
     <div className="relative mr-2 hidden w-28 self-start sm:block">
       <Link href={homeHref} className="absolute left-0 top-2 z-[60] block">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -96,5 +116,6 @@ export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement 
         />
       </Link>
     </div>
+    </>
   )
 }
