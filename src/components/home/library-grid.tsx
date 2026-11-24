@@ -105,14 +105,14 @@ export function LibraryGrid() {
   }
 
   return (
-    <section className="py-20 md:py-28">
+    <section id="libraries" className="scroll-mt-8 py-12 md:py-16">
       <div className="container mx-auto px-4">
         {/* Titel und Beschreibung werden IMMER angezeigt */}
-        <div className="mx-auto mb-16 max-w-3xl text-center">
-          <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl text-balance">
+        <div className="mx-auto mb-8 max-w-3xl text-center">
+          <h2 className="mb-3 text-2xl font-bold tracking-tight md:text-3xl text-balance">
             {t('home.libraryGrid.title')}
           </h2>
-          <p className="text-lg leading-relaxed text-muted-foreground text-pretty">
+          <p className="leading-relaxed text-muted-foreground text-pretty">
             {t('home.libraryGrid.description')}
           </p>
         </div>
@@ -157,13 +157,13 @@ export function LibraryGrid() {
 
           {/* Libraries-Grid: Wird immer gerendert, aber während Loading unsichtbar */}
           {(!loading || libraries.length > 0) && (
-            <div className={`grid gap-6 md:grid-cols-2 lg:gap-8 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
               {libraries.map((library, index) => {
                 const Icon = getIconComponent(library)
                 const colorConfig = ICON_COLORS[index % ICON_COLORS.length]
                 
                 return (
-                  <Card key={library.id} className="group relative overflow-hidden transition-all hover:shadow-lg">
+                  <Card key={library.id} className="group relative flex flex-col overflow-hidden transition-all hover:shadow-lg">
                     {/* Hintergrundbild für die Library-Karte, falls vorhanden */}
                     {library.backgroundImageUrl && (
                       <>
@@ -178,14 +178,14 @@ export function LibraryGrid() {
                       </>
                     )}
                     
-                    <CardHeader className={`relative z-10 ${library.backgroundImageUrl ? 'text-white' : ''}`}>
+                    <CardHeader className={`relative z-10 flex-1 p-4 pb-3 ${library.backgroundImageUrl ? 'text-white' : ''}`}>
                       <div className="flex flex-col gap-2">
                         <div className="w-full">
-                          <div className="flex items-start justify-between gap-2 mb-4">
+                          <div className="flex items-start justify-between gap-2 mb-3">
                             <div
-                              className={`inline-flex h-12 w-12 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
+                              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
                             >
-                              <Icon className={`h-6 w-6 ${colorConfig.color}`} />
+                              <Icon className={`h-5 w-5 ${colorConfig.color}`} />
                             </div>
                             {library.requiresAuth && (
                               <div className={`rounded-full px-2 py-1 text-xs font-medium shrink-0 ${
@@ -197,15 +197,15 @@ export function LibraryGrid() {
                               </div>
                             )}
                           </div>
-                          <CardTitle className={`text-xl ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
-                          <CardDescription className={`text-base leading-relaxed w-full ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
+                          <CardTitle className={`mb-1 text-base leading-snug ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
+                          <CardDescription className={`line-clamp-3 text-sm leading-relaxed w-full ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="relative z-10">
-                      <Button 
-                        size="lg"
-                        className={`group/btn gap-2 text-base ${
+                    <CardContent className="relative z-10 p-4 pt-0">
+                      <Button
+                        size="sm"
+                        className={`group/btn gap-2 ${
                           library.backgroundImageUrl 
                             ? 'bg-white text-black hover:bg-white/90' 
                             : ''
