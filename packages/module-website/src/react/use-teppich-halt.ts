@@ -11,10 +11,9 @@
  * - **Einblenden statt Verschieben:** Wechselt die Lage weit (erste Frage: von oben in der Sektion
  *   an die Zone der Antwort), erscheint die Wolke dort durch Einblenden.
  * - **Platz:** Die Zone haelt mindestens die Hoehe der Wolke (`--teppich-platz` an der Sektion, der
- *   Rahmen macht daraus die Mindesthoehe), also ragt die Wolke nie aus der Sektion. Ausserhalb einer
- *   Frage haelt sie zudem ihre eigene Hoehe: Faellt bei einer Folgefrage die alte Antwort weg, wird
- *   die Seite nicht schlagartig kuerzer (der Bildschirm rutschte sonst). Erst wenn die neue Antwort
- *   steht, gibt die Zone den alten Platz frei — dann steht der Bildschirm an ihrem Anfang.
+ *   Rahmen macht daraus die Mindesthoehe), also ragt die Wolke nie aus der Sektion. Bei einer neuen
+ *   Frage ist das genau die Hoehe der Wolke: Faellt die alte Antwort weg, wird die Sektion wieder so
+ *   hoch wie bei der ersten Frage (Owner 24.11.2026). Bis dahin hielt sie die Hoehe der alten Antwort.
  */
 
 import * as React from 'react'
@@ -45,7 +44,10 @@ export function useTeppichHalt(huelle: React.RefObject<HTMLDivElement | null>, p
     if (phase === 'antwort' && war !== 'antwort') halte(platz)
     const miss = () => {
       const zone = sektion.querySelector<HTMLElement>('[data-story-karten-modus]')
-      if (zone) halte(fragt ? Math.max(platz, stand.current.halt) : Math.max(platz, zone.getBoundingClientRect().height))
+      // Owner 24.11.2026: Bei einer neuen Frage nimmt die Zone wieder die Hoehe der Wolke an — nicht mehr
+      // die der alten Antwort (die Seite war sonst weit nach unten leer). Die Fragebox steht seit R1 oben,
+      // dorthin gleitet die Seite; der Bildschirm rutscht dabei nicht mehr weg.
+      if (zone) halte(fragt ? platz : Math.max(platz, zone.getBoundingClientRect().height))
       else halte(platz)
       const neu = zone ? Math.round(zone.getBoundingClientRect().top - ebene.getBoundingClientRect().top) : 0
       if (neu === stand.current.oben) return

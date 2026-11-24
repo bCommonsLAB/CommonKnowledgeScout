@@ -39,6 +39,7 @@ import type { LlmModelDto, TargetLanguage } from '@ks/contracts'
 import { ACCESS_PERSPECTIVE_VALUES, CHARACTER_VALUES, SOCIAL_CONTEXT_VALUES } from '@ks/contracts'
 import { storyPerspektiveGespeichertAtom } from '../atoms'
 import { Abschnitt, PlakettenWahl } from './abschnitt'
+import { AntwortLaengeAbschnitt, type AntwortLaengeWahl } from './antwort-laenge-abschnitt'
 import { ModellAbschnitt, SprachAbschnitt } from './sprache-modell'
 import { gesperrt, gewaehlt, kannSpeichern, modelleFuerSprache, modellNachSprachwechsel, umschalten, zumSpeichern, type PerspektivWahl } from './regeln'
 
@@ -54,13 +55,16 @@ export interface PerspektiveDialogProps {
   modellwahl?: { modelle: readonly LlmModelDto[]; laedt: boolean }
   /** Zentrierter Dialog (Default) oder Blatt von rechts (Website-Story-Sektion, Welle N3). */
   darstellung?: 'dialog' | 'blatt'
+  /** Antwortlaenge zur Wahl stellen (Startseite, Owner 24.11.2026); gilt wie alles hier erst mit dem Speichern. */
+  antwortLaenge?: AntwortLaengeWahl
 }
 
-export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprachwahl, modellwahl, darstellung = 'dialog' }: PerspektiveDialogProps) {
+export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprachwahl, modellwahl, darstellung = 'dialog', antwortLaenge }: PerspektiveDialogProps) {
   const { t } = useTranslation()
   const perspektiveGespeichert = useSetAtom(storyPerspektiveGespeichertAtom)
   const [entwurf, setEntwurf] = useState<PerspektivWahl>(wert)
   const [modellGewechselt, setModellGewechselt] = useState(false)
+  const [laenge, setLaenge] = useState(antwortLaenge?.wert)
   // Technik ans Ende und zugeklappt (Davids Vorlage): das Modell steht unter
   // „Erweiterte Einstellungen". Bei einem automatischen Modellwechsel aufklappen,
   // sonst sieht der Mensch den Hinweis nicht.
@@ -77,9 +81,10 @@ export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprac
     if (open && !warOffen.current) {
       setEntwurf(wert)
       setModellGewechselt(false)
+      setLaenge(antwortLaenge?.wert)
     }
     warOffen.current = open
-  }, [open, wert])
+  }, [open, wert, antwortLaenge?.wert])
 
   // Noch kein Modell, die Liste ist da: das erste passende vorschlagen (sichtbar im Abschnitt).
   const modelle = useMemo(
@@ -102,6 +107,7 @@ export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprac
   }
 
   function speichern() {
+    if (antwortLaenge && laenge !== undefined && laenge !== antwortLaenge.wert) antwortLaenge.onWahl(laenge)
     onSpeichern(zumSpeichern(entwurf))
     // Im selben Zug wie die neue Perspektive: die Mitte stellt die letzte Frage neu.
     perspektiveGespeichert((n) => n + 1)
@@ -119,6 +125,7 @@ export function PerspektiveDialog({ open, onOpenChange, wert, onSpeichern, sprac
       {sprachwahl && (
         <SprachAbschnitt sprache={entwurf.targetLanguage} sprachen={sprachwahl.sprachen} labels={sprachwahl.labels} onWahl={spracheWaehlen} />
       )}
+      {antwortLaenge && laenge !== undefined && <AntwortLaengeAbschnitt wert={laenge} onWahl={setLaenge} />}
       <Abschnitt symbol={Compass} titel={t('chat.perspectivePage.characterSectionTitle')} hilfe={t('chat.perspectivePage.characterSectionHelp')}>
         <PlakettenWahl
           werte={CHARACTER_VALUES}

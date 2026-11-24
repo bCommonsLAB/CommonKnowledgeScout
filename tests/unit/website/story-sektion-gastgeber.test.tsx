@@ -76,15 +76,19 @@ describe('WebsiteStorySektion mit Gastgeber', () => {
     await waitFor(() => expect(abrufe.some((p) => p.startsWith('/api/chat/lib/docs?'))).toBe(true))
   })
 
-  it('mit Dialog-Slot: Knopf „Antworten anpassen" steht bei der Antwort und oeffnet ihn', () => {
-    zustand.nachrichten = paar(1)
-    const { g } = gastgeber({ perspektiveDialog: ({ offen }) => (offen ? <div data-testid="dialog">Dialog</div> : null) })
+  // Owner 24.11.2026: der Knopf steht dezent in der Fragebox — auch vor der ersten Antwort —, und der
+  // Dialog bekommt die Antwortlaenge der Sektion zur Wahl (die Box hat dafuer keine eigene Auswahl mehr).
+  it('mit Dialog-Slot: Knopf „Antworten anpassen" steht in der Fragebox und reicht die Antwortlaenge an den Dialog', () => {
+    const { g } = gastgeber({
+      perspektiveDialog: ({ offen, antwortLaenge }) => (offen ? <div data-testid="dialog">Laenge {antwortLaenge.wert}</div> : null),
+    })
     const { container } = render(<WebsiteStorySektion libraryId="lib" section={SEKTION} gastgeber={g} navigation={appNavigation()} />)
-    const knopf = container.querySelector('[data-antwort] [data-story-perspektive-knopf]')
+    const knopf = container.querySelector('[data-story-eingabe-inline] [data-story-perspektive-knopf]')
     expect(knopf).not.toBeNull()
     expect(container.querySelectorAll('[data-story-perspektive-knopf]')).toHaveLength(1)
+    expect(screen.queryByText('chat.input.answerLength')).toBeNull()
     fireEvent.click(knopf as Element)
-    expect(screen.getByTestId('dialog')).toBeTruthy()
+    expect(screen.getByTestId('dialog').textContent).toBe('Laenge mittel')
   })
 
   it('Fehler der Konfig steht als Meldung da', () => {
@@ -197,8 +201,8 @@ describe('WebsiteStorySektion mit Gastgeber', () => {
       await waitFor(() => expect(container.querySelector('[data-story-vollbild]')).not.toBeNull())
       expect(screen.getByPlaceholderText('Deine Frage …')).toBe(feld)
       expect(document.activeElement).toBe(feld)
-      // Gross: mit Antwortlaenge und den Beispielfragen darunter.
-      expect(screen.getByText('chat.input.answerLength')).toBeTruthy()
+      // Gross: der Sende-Knopf beschriftet, die Beispielfragen darunter.
+      expect(container.querySelector('[data-story-eingabe-senden]')?.className).toContain('flex-1')
       expect(screen.getByText('Was ist das?')).toBeTruthy()
       fireEvent.click(container.querySelector('[data-story-vollbild-zu]') as Element)
       expect(container.querySelector('[data-story-vollbild]')).toBeNull()

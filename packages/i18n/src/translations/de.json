@@ -672,6 +672,8 @@
       "accessPerspectiveSectionSelectedCount": "{count} von 5 ausgewählt",
       "socialContextSectionTitle": "Sprachstil",
       "socialContextSectionHelp": "Wie sollen die Antworten klingen?",
+      "answerLengthSectionTitle": "Antwortlänge",
+      "answerLengthSectionHelp": "Wie ausführlich sollen die Antworten sein?",
       "socialContextSectionNote": "Du bestimmst nur den Stil – nicht den Inhalt. Die Antworten basieren auf denselben Quellen.",
       "saveButton": "Mit dieser Perspektive starten",
       "saveButtonFooter": "Du kannst deine Auswahl später im Story Mode jederzeit ändern.",
@@ -688,6 +690,12 @@
       "closeChat": "Chat schließen",
       "askQuestion": "Frage stellen",
       "showAsTopics": "Als Themenübersicht anzeigen"
+    },
+    "answerLengthTooltips": {
+      "kurz": "Das Wichtigste in wenigen Sätzen",
+      "mittel": "Ein Überblick mit den wichtigsten Punkten",
+      "ausführlich": "Gegliedert, mit Einzelheiten und Belegen",
+      "unbegrenzt": "So lang, wie das Thema es braucht"
     },
     "answerLengthLabels": {
       "kurz": "Kurz",

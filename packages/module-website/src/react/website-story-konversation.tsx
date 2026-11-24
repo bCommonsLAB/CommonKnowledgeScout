@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useMemo } from 'react'
-import { List, SlidersHorizontal, Waypoints } from 'lucide-react'
+import { List, Waypoints } from 'lucide-react'
 import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@ks/contracts'
@@ -54,11 +54,6 @@ export interface WebsiteStoryKonversationProps {
    * Antwort, ersetzt dieser Knopf „Quellen anzeigen" (Owner 23.11.2026: die Liste waere doppelt).
    */
   onGraph?: () => void
-  /**
-   * „Antworten anpassen" (Owner 24.11.2026): steht bei der Antwort, nicht mehr im Kopf der Sektion —
-   * so ist der Knopf auch im Telefon-Vollbild da. Ohne Dialog des Gastgebers kein Knopf.
-   */
-  onAnpassen?: () => void
 }
 
 // Ohne `max-sm:` (die Variante erzeugt dieses Tailwind-Setup nicht): Grundzustand Telefon, ab `sm` zurueck.
@@ -85,15 +80,10 @@ export function WebsiteStoryKonversation(p: WebsiteStoryKonversationProps) {
   const kopfAktion = useCallback(
     (a: Nachricht, api: AntwortKopfApi) => {
       const mitBelegen = new Set((a.belege ?? []).map((b) => b.fileId)).size > 0
-      if (!mitBelegen && !p.onAnpassen) return null
+      if (!mitBelegen) return null
       return (
         <div className="flex shrink-0 items-center gap-1.5" data-story-antwort-aktionen>
-          {p.onAnpassen && (
-            <Button variant="outline" size="sm" className={SYMBOL} title={t('website.story.anpassen')} aria-label={t('website.story.anpassen')} data-story-perspektive-knopf onClick={p.onAnpassen}>
-              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          )}
-          {mitBelegen && (p.onGraph && p.cards !== 'hidden' ? (
+          {(p.onGraph && p.cards !== 'hidden' ? (
             <Button variant="outline" size="sm" className={SYMBOL} title={t('website.story.graph')} aria-label={t('website.story.graph')} data-story-graph-knopf onClick={p.onGraph}>
               <Waypoints className="h-4 w-4" aria-hidden="true" />
             </Button>

@@ -216,10 +216,14 @@ importiert kein `@commonux/*`.
   Graph-Ansicht hat sie ihre normalen Farben. Eine neue Frage schliesst
   sie. Mit der Maus oeffnet ein Klick auf eine freie Stelle der Wolke sie
   weiterhin, mit dem Finger nicht.
-  Der Knopf „Antworten anpassen" steht als Symbol im Kopf der ANTWORT, neben
-  „Graph ansehen" (Owner 24.11.2026; nicht mehr im Kopf der Sektion — so ist
-  er auch im Telefon-Vollbild da; vor der ersten Antwort gibt es ihn nicht:
-  erst fragen, dann einstellen).
+  Der Knopf „Antworten anpassen" steht dezent als Regler-Symbol IN DER
+  FRAGEBOX, neben dem Senden (Owner 24.11.2026, zweiter Entscheid des Tages:
+  dort entsteht die Frage; vorher stand er im Kopf der Antwort). Die
+  ANTWORTLAENGE waehlt man in diesem Dialog (`antwortLaenge` am Slot
+  `perspektiveDialog`, Abschnitt `AntwortLaengeAbschnitt`), nicht mehr in der
+  Box; sie gilt wie die uebrige Wahl mit dem Speichern, und die sichtbare
+  Frage wird damit neu gestellt. Ohne Dialog des Gastgebers gibt es weder
+  Knopf noch Laengenwahl — dann gilt die Vorgabe.
   Belege einer Antwort und die Perspektive („Antworten anpassen") kommen als
   Blatt, nie von selbst. Dokumentgetrieben: Markdown VOR dem Block
   `<!-- questions -->` (+ Markdown-Liste) steht ueber der Eingabe, die Liste

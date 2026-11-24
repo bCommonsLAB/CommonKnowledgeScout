@@ -7,27 +7,27 @@
  * eine Karte aufklappt) steht das Feld immer da. Es ist Eingabe UND Anzeige
  * der gestellten Frage: der Gastgeber laesst den Text nach dem Senden stehen,
  * der Leser aendert ihn und sendet erneut. Eine Zeile, die mit dem Text
- * waechst; Enter sendet, Shift+Enter bricht um. Auf dem Telefon steht die
- * Antwortlaenge in einer eigenen Zeile, der Sende-Knopf ist nur das Symbol —
- * so ragt nichts aus dem Feld. Kein `next/*`, kein Clerk.
+ * waechst; Enter sendet, Shift+Enter bricht um. Auf dem Telefon ist der
+ * Sende-Knopf nur das Symbol — so ragt nichts aus dem Feld. Neben dem Senden
+ * hat der Gastgeber Platz fuer einen dezenten Knopf (`aktion`). Kein `next/*`, kein Clerk.
  */
 
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { Loader2, Send, X } from 'lucide-react'
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ks/ui'
+import { Button } from '@ks/ui'
 import { useTranslation } from '@ks/i18n/react'
-import { ANTWORT_LAENGEN, type AntwortLaenge } from './types'
 
 export interface StoryEingabeInlineProps {
   text: string
   setText: (text: string) => void
   onSenden: () => void
   laeuft: boolean
-  antwortLaenge: AntwortLaenge
-  setAntwortLaenge: (l: AntwortLaenge) => void
+  /**
+   * Dezenter Knopf des Gastgebers neben dem Senden (Startseite: „Antworten anpassen", Owner
+   * 24.11.2026 — dort steht seither auch die Antwortlaenge, die frueher hier gewaehlt wurde).
+   */
+  aktion?: ReactNode
   placeholder?: string
-  /** Telefon: die Zeile mit der Antwortlaenge weglassen (Vollbild der Startseite — dort zaehlt der Platz). */
-  ohneLaenge?: boolean
   /**
    * Telefon, Schreiben im Vollbild (R5): das Feld mehrzeilig ueber die ganze Breite, darunter der
    * Sende-Knopf breit und beschriftet. Die Lage der Elemente im Baum bleibt gleich — das Feld
@@ -74,17 +74,6 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
     p.onSenden()
   }
 
-  const laenge = (
-    <Select value={p.antwortLaenge} onValueChange={(v) => p.setAntwortLaenge(v as AntwortLaenge)}>
-      <SelectTrigger className="h-9 w-[116px] text-xs" aria-label={t('chat.input.answerLength')}><SelectValue /></SelectTrigger>
-      <SelectContent>
-        {ANTWORT_LAENGEN.map((l) => (
-          <SelectItem key={l} value={l}>{t(`chat.answerLengthLabels.${l}`)}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-
   return (
     <div
       className={`rounded-2xl border-2 border-primary/40 bg-background shadow-sm focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/10 ${p.className ?? ''}`}
@@ -113,18 +102,12 @@ export function StoryEingabeInline(p: StoryEingabeInlineProps) {
             <X className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
-        <div className="hidden shrink-0 items-center self-center sm:flex">{laenge}</div>
+        {p.aktion}
         <Button onClick={senden} className={p.gross ? 'order-last h-12 flex-1 gap-2 rounded-full px-5' : 'h-11 w-11 shrink-0 gap-2 rounded-full p-0 sm:w-auto sm:px-5'} disabled={p.laeuft || !p.text.trim()} aria-label={t('chat.input.askQuestion')} data-story-eingabe-senden>
           {p.laeuft ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
           <span className={p.gross ? 'inline' : 'hidden sm:inline'}>{p.laeuft ? t('chat.input.waiting') : t('chat.input.askQuestion')}</span>
         </Button>
       </div>
-      {!p.ohneLaenge && (
-        <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-1.5 sm:hidden">
-          <span className="text-xs text-muted-foreground">{t('chat.input.answerLength')}</span>
-          {laenge}
-        </div>
-      )}
     </div>
   )
 }

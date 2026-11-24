@@ -170,7 +170,7 @@ function useEmbedGastgeber(
         fehler: modell === '' ? t('story.modelMissing') : null,
       },
       perspektiveDialog: wahl
-        ? ({ offen, onOpenChange }) => <PerspektiveDialog open={offen} onOpenChange={onOpenChange} wert={wahl} onSpeichern={speichern} />
+        ? ({ offen, onOpenChange, antwortLaenge }) => <PerspektiveDialog open={offen} onOpenChange={onOpenChange} wert={wahl} onSpeichern={speichern} antwortLaenge={antwortLaenge} />
         : undefined,
       detail: ({ doc, page, onClose }) => (
         <EmbedSiteDetail library={library} doc={doc} page={page} onClose={onClose} navigation={navigation} zuerstContainer={zuerstContainer} portal={portal} />

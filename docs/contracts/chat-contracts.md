@@ -159,6 +159,13 @@ Komponenten sollen vorzugsweise via API-Routen kommunizieren.
   Kurztitel `shortTitle` — gehoeren NICHT hinein und nicht in den
   Query-Log-Vergleich; sonst entwerten sich alle Zwischenspeicher. Test:
   `tests/unit/chat/cache-key-utils.test.ts`.
+- **Suchen mit dem Hash, mit dem gespeichert wird** (Befund 24.11.2026): Die
+  Stream-Route rechnet den Hash EINMAL (`cacheHashForLog`, mit `uiLocale` fuer
+  `targetLanguage: 'global'`) und reicht ihn an
+  `findQueryByQuestionAndContext({ cacheHash })`. Die Suche rechnete frueher
+  ohne `uiLocale` neu und fand bei automatischer Antwortsprache nie einen
+  Treffer — jede Frage und jede Themenuebersicht der Startseite wurde neu
+  berechnet. Test: `tests/unit/chat/cache-suche-sprache.test.ts`.
 - **Der Antwort-Cache IST das Fragen-Log** (Collection `queries`). Es gibt
   keinen zweiten Speicher; `findQueryByQuestionAndContext` liefert den
   juengsten Eintrag mit gleichem `cacheHash` in der Library, der eine

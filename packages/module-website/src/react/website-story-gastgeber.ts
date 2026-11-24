@@ -13,7 +13,7 @@
 import type * as React from 'react'
 import type { InstanceApi } from '@ks/api-client'
 import type { DocCardMeta } from '@ks/contracts'
-import type { Nachricht, Perspektive } from '@ks/module-story/react'
+import type { AntwortLaengeWahl, Nachricht, Perspektive } from '@ks/module-story/react'
 
 /** Eingabe der Fragen-Sektion aus der Chat-Konfig der Library. */
 export interface WebsiteStoryEingabe {
@@ -41,8 +41,12 @@ export interface WebsiteStoryGastgeber {
   /** Perspektive der Fragen und der Themenuebersicht, mit Modell. */
   perspektive: Perspektive
   eingabe: WebsiteStoryEingabe
-  /** Dialog „Antworten anpassen"; fehlt er, zeigt die Sektion den Knopf nicht. */
-  perspektiveDialog?: (p: { offen: boolean; onOpenChange: (offen: boolean) => void }) => React.ReactNode
+  /**
+   * Dialog „Antworten anpassen"; fehlt er, zeigt die Sektion den Knopf nicht. `antwortLaenge`: die
+   * Laenge der Antworten dieser Sektion — der Dialog stellt sie mit zur Wahl (Owner 24.11.2026), die
+   * Fragebox hat dafuer keine eigene Auswahl mehr.
+   */
+  perspektiveDialog?: (p: { offen: boolean; onOpenChange: (offen: boolean) => void; antwortLaenge: AntwortLaengeWahl }) => React.ReactNode
   /** Was unter dem KI-Hinweis im Fuss der Antwort steht (App: Konfig-Anzeige, Verbrauch, Verarbeitung). */
   antwortFuss?: (antwort: Nachricht) => React.ReactNode
   /** Bild neben der Antwort (App: das Logo). */

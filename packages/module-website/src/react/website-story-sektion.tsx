@@ -36,7 +36,7 @@ import {
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { StoryFragenKacheln, WebsiteStorySektionRahmen } from './website-story-sektion-rahmen'
 import { StoryBeispiele } from './website-story-beispiele'
-import { StoryFrageLeiste } from './website-story-frage-leiste'
+import { StoryAnpassenKnopf, StoryFrageLeiste } from './website-story-frage-leiste'
 import { useStoryVollbild } from './use-story-vollbild'
 import { useBildschirmFest } from './use-ueberlagerung'
 import { useFrageAuftrag } from './use-story-frage-auftrag'
@@ -154,14 +154,15 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
             onBelege={belegeOeffnen}
             onDokument={dokumentOeffnen}
             onGraph={teppich.graphZeigen}
-            onAnpassen={gastgeber.perspektiveDialog ? () => setPerspektiveOffen(true) : undefined}
           />
         )}
       </>
     )
+    // „Antworten anpassen" (mit der Antwortlaenge) steht dezent in der Fragebox: dort entsteht die Frage (Owner 24.11.2026).
+    const anpassen = gastgeber.perspektiveDialog ? <StoryAnpassenKnopf onClick={() => setPerspektiveOffen(true)} /> : undefined
     // R5: Im Vollbild ist die Box gross, solange eine neue Frage entsteht — sonst die schmale Zeile ueber der Antwort.
     const schreibt = v.vollbild && !s.k.laeuft && (gestellt === undefined || text !== gestellt)
-    eingabe = <StoryEingabeInline className={v.vollbild ? '' : 'mt-6'} ohneLaenge={v.vollbild && !schreibt} gross={schreibt} onFokus={v.oeffnen} text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} antwortLaenge={s.k.antwortLaenge} setAntwortLaenge={s.k.setAntwortLaenge} placeholder={platzhalter} />
+    eingabe = <StoryEingabeInline className={v.vollbild ? '' : 'mt-6'} aktion={anpassen} gross={schreibt} onFokus={v.oeffnen} text={text} setText={setText} onSenden={() => senden(text)} laeuft={s.k.laeuft} placeholder={platzhalter} />
   }
 
   return (
@@ -173,7 +174,7 @@ export function WebsiteStorySektion(p: WebsiteStorySektionProps) {
         </WebsiteStorySektionRahmen>
       </div>
       <StoryFrageLeiste anker={anker} text={platzhalter ?? t('chat.input.askQuestion')} aus={!fest || v.vollbild || s.loading || Boolean(s.error)} />
-      {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen })}
+      {perspektiveOffen && gastgeber.perspektiveDialog?.({ offen: perspektiveOffen, onOpenChange: setPerspektiveOffen, antwortLaenge: { wert: s.k.antwortLaenge, onWahl: s.k.setAntwortLaenge } })}
       {blatt && (
         <WebsiteStoryBelege
           libraryId={p.libraryId}

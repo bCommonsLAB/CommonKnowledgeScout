@@ -493,8 +493,8 @@ export async function POST(
             documentCount,
           })
           
-          // Hash-basierte Cache-Suche (findQueryByQuestionAndContext berechnet intern den Hash)
-          // WICHTIG: Verwende den gleichen Retriever-Wert wie beim Hash-Berechnen oben
+          // Hash-basierte Cache-Suche — mit GENAU dem Hash von oben (`cacheHash`), nicht neu gerechnet:
+          // Die Neuberechnung kannte `uiLocale` nicht und fand bei Sprache 'global' nie etwas (24.11.2026).
           // skipQueryCache: Client verlangt echte Neuberechnung (TOC reload), nicht den Mongo-Treffer
           const cachedQuery =
             skipQueryCache === true
@@ -515,6 +515,7 @@ export async function POST(
                   facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
                   llmModel: llmModelForCache,
                   antwortregeln: antwortregelnAufgeloest, facettenKontext,
+                  cacheHash: cacheHashForLog,
                 })
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
