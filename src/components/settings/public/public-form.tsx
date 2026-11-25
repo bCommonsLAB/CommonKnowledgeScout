@@ -651,6 +651,10 @@ export function PublicForm() {
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -668,10 +672,6 @@ export function PublicForm() {
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
                   </FormControl>
                 </FormItem>
               )}
