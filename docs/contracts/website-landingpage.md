@@ -406,6 +406,15 @@ Einbettung) ist **entfernt**. Nicht neu anlegen:
   stellt genau das her, **ohne Sprachmodell**; ein zweiter Aufruf
   aktualisiert. Der Vorlagenname ist Teil des Artefakt-Schluessels und
   bleibt `website-page` (Website) bzw. `markdown-page` (andere Markdown-Quellen).
+- **Uebersetzen ist ein eigener Schritt** (2.88.0, Befund 25.11.2026):
+  `dokument_publizieren` uebersetzt NICHT. Uebersetzungen entstehen als Jobs
+  `phase-translations`, einer je Zielsprache; sie loest der Knopf
+  „Publizieren" in der Galerie-Tabelle aus — dort stehen website-Seiten nicht —
+  oder `dokument_uebersetzen` (Owner und Moderation). Zielsprachen aus dem
+  Auftrag, sonst `config.translations.targetLocales`; nach einer Textaenderung
+  mit `erzwingen: true`. Der Worker prueft bei website-Seiten Marker und
+  Bild-Adressen (`website-translation-guard.ts`). Gelesen wird die
+  Uebersetzung nach der Sprache der Oberflaeche (`x-locale`).
 - Vor dem Schreiben prueft die Bruecke `detailViewType`, Pflichtfelder der
   Registry, die Sektions-Marker (der Parser wirft) und ob Bild-URLs anonym
   ladbar sind (§5). Warnungen blockieren bis `trotzWarnungen`, harte Fehler
