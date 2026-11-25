@@ -78,6 +78,7 @@ import { registerStorageTools } from './storage'
 import { registerVorlagenTool } from './tools-vorlagen'
 import { registerVorlageTextTools } from './tools-vorlage-text'
 import { registerWebsitePublizierenTools } from './tools-website-publizieren'
+import { registerDokumentUebersetzenTool } from './tools-dokument-uebersetzen'
 import { registerWebsiteFelderTool } from './tools-website-felder'
 import { registerWebsitePruefenTool } from './tools-website-pruefen'
 import { registerWebsiteBilderTools } from './tools-website-bilder'
@@ -97,6 +98,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerVorlagenTool(server)
   registerVorlageTextTools(server)
   registerWebsitePublizierenTools(server)
+  registerDokumentUebersetzenTool(server)
   registerWebsiteFelderTool(server)
   registerWebsitePruefenTool(server)
   registerWebsiteBilderTools(server)

@@ -216,6 +216,14 @@ Erweiterung in den Einstellungen aus- und einschalten.
    Footer-Links, Sektionen je Seite, keine Fehler. `siteEnabled: true` mit
    `veroeffentlichung_setzen`, dann die Seite unter `/explore/<slug>`
    ansehen.
+5b. **Übersetzen** (ab Werkzeugsatz 2.88.0). `dokument_publizieren` übersetzt
+   nicht; ohne diesen Schritt bleibt die Seite in ihrer Sprache, auch wenn die
+   Oberfläche wechselt. `dokument_uebersetzen` mit `sourceIds` der Seiten
+   startet je Zielsprache einen Job (Sprachmodell): Zielsprachen aus
+   `zielsprachen` (en, de, it, fr, es), sonst die der Library (Einstellungen →
+   Übersetzungen). Nach jeder Textänderung an einer Seite erneut, mit
+   `erzwingen: true`. Stand mit `job_status`; danach die Seite in der anderen
+   Sprache ansehen.
 6. **Zurücknehmen.** `dokument_depublizieren` entfernt nur den Eintrag;
    Datei und Twin bleiben.
 
