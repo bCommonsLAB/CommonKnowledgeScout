@@ -50,6 +50,11 @@ import { isFilesystemBacked } from '@/lib/storage/library-capability'
 import { useShadowTwinFreshnessApi } from "@/hooks/use-shadow-twin-freshness"
 import { useSourceArtifacts, useInvalidateSourceArtifacts } from "@/hooks/use-source-artifacts"
 import { ShadowTwinSyncBanner } from "@/components/library/shared/shadow-twin-sync-banner"
+import { useUnchangedRepublish } from "@/hooks/use-unchanged-republish"
+import { isUnchangedPublication } from "@/lib/shadow-twin/unchanged-templates"
+
+/** Oeffnet den Verarbeitungsdialog: 'update' waehlt die vorhandenen Schritte zum Ueberschreiben vor. */
+type PipelineOpener = (mode: 'create' | 'update') => void
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
@@ -138,7 +143,7 @@ function PreviewContent({
   storySteps: StoryStepStatus[];
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
   /** Ref, über den FilePreview die Pipeline-Öffnung triggern kann (Freshness-Banner) */
-  pipelineOpenerRef?: React.MutableRefObject<(() => void) | null>;
+  pipelineOpenerRef?: React.MutableRefObject<PipelineOpener | null>;
   onClearCacheBeforeReview?: () => void;
 }) {
   const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview" | "diva-info">("original")
@@ -551,7 +556,15 @@ function PreviewContent({
   // Registriere Pipeline-Opener für Freshness-Banner (ref-basiert, um Prop-Drilling zu vermeiden)
   React.useEffect(() => {
     if (pipelineOpenerRef) {
-      pipelineOpenerRef.current = () => setIsPipelineOpen(true)
+      pipelineOpenerRef.current = (mode) => {
+        if (mode === 'update') {
+          // Quelle neuer als die Artefakte: alle vorhandenen Schritte vorwaehlen und
+          // ueberschreiben. Ohne das ist im Dialog nichts gewaehlt und der Start gesperrt.
+          setPipelineDefaultSteps({ extract: true, metadata: true, ingest: true })
+          setPipelineDefaultForce(true)
+        }
+        setIsPipelineOpen(true)
+      }
     }
     return () => {
       if (pipelineOpenerRef) pipelineOpenerRef.current = null
@@ -1031,10 +1044,19 @@ export function FilePreview({
   })
   
   // Freshness-Check: Vollständiger Vergleich Source vs. MongoDB vs. Storage (via API)
-  const freshness = useShadowTwinFreshnessApi(activeLibraryId, displayFile, shadowTwinState)
+  const [freshnessRefreshKey, setFreshnessRefreshKey] = React.useState(0)
+  const freshness = useShadowTwinFreshnessApi(activeLibraryId, displayFile, shadowTwinState, freshnessRefreshKey)
+
+  // Unveraendert publizierte Markdown-Quelle (ohne Sprachmodell): eine geaenderte
+  // Datei wird mit EINEM Klick neu uebernommen — es gibt nichts zu entscheiden.
+  const canRepublishUnchanged = freshness.status === 'source-newer' && isUnchangedPublication(freshness.apiArtifacts)
+  const unchangedRepublish = useUnchangedRepublish(activeLibraryId, displayFile?.id, React.useCallback(() => {
+    setFreshnessRefreshKey((v) => v + 1)
+    setShadowTwinAnalysisTrigger((v) => v + 1)
+  }, [setShadowTwinAnalysisTrigger]))
 
   // Ref-basierter Callback, um die Pipeline aus dem Banner heraus zu öffnen
-  const pipelineOpenerRef = React.useRef<(() => void) | null>(null)
+  const pipelineOpenerRef = React.useRef<PipelineOpener | null>(null)
   const [isSyncing, setIsSyncing] = React.useState(false)
 
   // Stiller Auto-Sync: Bei storage-newer oder storage-missing automatisch synchronisieren
@@ -1087,16 +1109,22 @@ export function FilePreview({
       .finally(() => setIsSyncing(false))
   }, [freshness.status, activeLibraryId, displayFile, isSyncing])
 
-  // Request-Update: Nur für source-newer / no-twin → Pipeline öffnen
+  // Request-Update (source-newer / no-twin): unveraendert Publiziertes direkt
+  // uebernehmen, sonst den Verarbeitungsdialog oeffnen — bei source-newer mit
+  // vorgewaehlten Schritten.
   const handleRequestUpdate = React.useCallback(() => {
+    if (canRepublishUnchanged) {
+      unchangedRepublish.run()
+      return
+    }
     if (pipelineOpenerRef.current) {
-      pipelineOpenerRef.current()
+      pipelineOpenerRef.current(freshness.status === 'source-newer' ? 'update' : 'create')
     } else {
       toast.info("Pipeline nicht verfügbar", {
         description: "Bitte verwende den Verarbeitungs-Button in der Toolbar.",
       })
     }
-  }, [])
+  }, [canRepublishUnchanged, unchangedRepublish, freshness.status])
 
   // Refs für Handler von JobReportTab (für Header-Buttons)
   // editHandlerRef wurde entfernt - wird derzeit nicht verwendet
@@ -1272,7 +1300,8 @@ export function FilePreview({
       <ShadowTwinSyncBanner
         freshness={freshness}
         onRequestUpdate={handleRequestUpdate}
-        isUpdating={isSyncing}
+        updateMode={canRepublishUnchanged ? 'direct' : 'dialog'}
+        isUpdating={isSyncing || unchangedRepublish.isRunning}
         fileId={displayFile?.id}
         parentId={displayFile?.parentId}
         libraryId={activeLibraryId || undefined}

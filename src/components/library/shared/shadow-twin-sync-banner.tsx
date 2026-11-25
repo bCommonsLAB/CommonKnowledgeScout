@@ -39,6 +39,11 @@ function formatDiff(diffMs: number | null): string {
 export interface ShadowTwinSyncBannerProps {
   freshness: FreshnessInfo
   onRequestUpdate?: () => void
+  /**
+   * 'direct': der Knopf uebernimmt die Aenderung sofort (unveraendert publizierte
+   * Markdown-Quelle). 'dialog' (Vorgabe): er oeffnet den Verarbeitungsdialog.
+   */
+  updateMode?: 'direct' | 'dialog'
   isUpdating?: boolean
   /** Fuer no-twin: fileId und libraryId, um Rekonstruktion aus Storage zu ermoeglichen */
   fileId?: string
@@ -77,6 +82,7 @@ const STATUS_CONFIG: Partial<Record<
 export function ShadowTwinSyncBanner({
   freshness,
   onRequestUpdate,
+  updateMode = 'dialog',
   isUpdating = false,
   fileId,
   parentId,
@@ -203,7 +209,9 @@ export function ShadowTwinSyncBanner({
               )}
               {freshness.status === "no-twin"
                 ? "Story erstellen"
-                : "Aktualisieren"}
+                : updateMode === "direct"
+                  ? (isUpdating ? "Wird übernommen…" : "Änderung übernehmen")
+                  : "Aktualisieren…"}
             </Button>
           )}
         </div>

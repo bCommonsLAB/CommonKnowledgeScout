@@ -169,11 +169,14 @@ interface FreshnessApiResponse {
  * @param libraryId Aktive Library
  * @param file Die ausgewählte Datei
  * @param shadowTwinState Shadow-Twin State (für Atom-basierte Ergänzung)
+ * @param refreshKey Zaehler des Aufrufers: jede Aenderung laedt den Vergleich neu
+ *   (z.B. nachdem eine Aenderung uebernommen wurde).
  */
 export function useShadowTwinFreshnessApi(
   libraryId: string | null | undefined,
   file: StorageItem | null | undefined,
   shadowTwinState: FrontendShadowTwinState | undefined,
+  refreshKey = 0,
 ): FreshnessInfo {
   // Atom-basierter Check als Basis
   const atomFreshness = useShadowTwinFreshness(file, shadowTwinState)
@@ -215,7 +218,7 @@ export function useShadowTwinFreshnessApi(
   // API aufrufen bei Datei-Wechsel
   useEffect(() => {
     void loadFreshness()
-  }, [loadFreshness])
+  }, [loadFreshness, refreshKey])
 
   // Kombinierter Status: API-Daten haben Vorrang (vollständiger Vergleich)
   return useMemo<FreshnessInfo>(() => {

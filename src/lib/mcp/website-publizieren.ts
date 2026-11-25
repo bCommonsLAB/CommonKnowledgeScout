@@ -24,9 +24,10 @@ import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import type { ResolvedSource } from './tools-erschliessen-shared'
 import { istMarkdownQuelle } from './transformation-markdown'
 import { pruefeMarkdownDokument } from './website-pruefung'
+import { UNCHANGED_TEMPLATE_MARKDOWN, UNCHANGED_TEMPLATE_WEBSITE } from '@/lib/shadow-twin/unchanged-templates'
 
-export const VORLAGE_WEBSITE = 'website-page'
-export const VORLAGE_MARKDOWN = 'markdown-page'
+export const VORLAGE_WEBSITE = UNCHANGED_TEMPLATE_WEBSITE
+export const VORLAGE_MARKDOWN = UNCHANGED_TEMPLATE_MARKDOWN
 
 export interface PublizierZeile {
   quelle: string
