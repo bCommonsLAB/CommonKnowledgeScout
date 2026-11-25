@@ -18,7 +18,7 @@ import { registerProtokollTool } from './tools-protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { scanneUndSpeichere } from '@/lib/agent-view/scan-speichern'
 import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
-import { archivpflegeAktiv } from './archivpflege'
+import { bibliothekenZeilen } from './bibliotheken-liste'
 import { LibraryService } from '@/lib/services/library-service'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { findeKnoten } from '@/lib/agent-view/teilbaum'
@@ -56,7 +56,6 @@ import { registerArtefaktTool } from './tools-artefakt'
 import { registerBibliothekTools } from './tools-bibliothek'
 import { registerAdresseTools } from './tools-adresse'
 import { registerQuelleSuchenTool } from './tools-quelle-suchen'
-import { bestimmeSlugs } from '@/lib/library-adresse/slug'
 import { registerJobAufraeumenTool } from './tools-jobs-aufraeumen'
 import { registerJobAbbrechenTool } from './tools-job-abbrechen'
 import { registerTeppichTool } from './tools-teppich'
@@ -156,7 +155,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     {
       title: 'Bibliotheken auflisten',
       description:
-        'Listet die KnowledgeScout-Libraries des Users (Id + Name + archivpflege + Adress-Slug). archivpflege=false: ' +
+        'Listet die KnowledgeScout-Libraries des Users (Id + Name + rolle + archivpflege + Adress-Slug): eigene und ' +
+        'mit ihm geteilte. rolle eigene | co-creator | reader — bei co-creator und reader gehoert die Library ' +
+        'jemand anderem; Werkzeuge, die dem Owner vorbehalten sind, lehnen dort ab. archivpflege=false: ' +
         'die Library fuehrt keine Archiv-Konventionen — stand_setzen, themen_setzen, ' +
         'erschliessung_block_schreiben, sitzungen_block_schreiben und sichten_regenerieren sind dort gesperrt. slug ist der Teil von ' +
         '[[@<slug>/<pfad>]], mit dem Dokumente auf diese Library verweisen; slugHerkunft gesetzt | ' +
@@ -166,22 +167,15 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     },
     async () => {
       try {
-        const libraries = await LibraryService.getInstance().getUserLibraries(mcpUserEmail())
-        // Wunschliste 8 (G1): Slugs ueber die GANZE Liste bestimmen — Kollisionen
-        // zwischen eigenen Libraries werden benannt, nicht still nummeriert.
-        const slugs = new Map(bestimmeSlugs(libraries).map((eintrag) => [eintrag.libraryId, eintrag]))
-        return jsonResult(libraries.map((library) => {
-          const eintrag = slugs.get(library.id)
-          return {
-            id: library.id,
-            name: library.label,
-            archivpflege: archivpflegeAktiv(library),
-            slug: eintrag?.slug ?? null,
-            slugHerkunft: eintrag?.herkunft ?? null,
-            ...(eintrag?.konflikt ? { slugKonflikt: eintrag.konflikt } : {}),
-            ...(eintrag && eintrag.frueher.length > 0 ? { frueherSlugs: eintrag.frueher } : {}),
-          }
-        }))
+        const service = LibraryService.getInstance()
+        const email = mcpUserEmail()
+        // Eigene UND geteilte Libraries (Co-Creator, Leser) — Befund 25.11.2026:
+        // Eingeladene sahen sonst keine Library, obwohl die Werkzeuge sie durchlassen.
+        const [eigene, geteilte] = await Promise.all([
+          service.getUserLibraries(email),
+          service.getSharedLibrariesForUser(email),
+        ])
+        return jsonResult(bibliothekenZeilen(eigene, geteilte))
       } catch (error) {
         return errorResult(error)
       }
