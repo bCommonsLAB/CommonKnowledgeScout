@@ -347,7 +347,10 @@ nach demselben Muster wie die Vorträge einer Veranstaltung:
   yt-dlp zur direkten Medienadresse auf (Rai News, YouTube, Vimeo, PeerTube …),
   lädt aber nichts; KnowledgeScout lädt die Datei und legt sie als
   `<Basis> - Audio.mp3` neben die Sammeldatei, das Bild als `<Basis> - Cover.jpg`.
-  Kennt yt-dlp die Seite nicht, bleibt die von der Seite genannte Adresse,
+  Drosselt die Quelle einen Abruf am Stück (yt-dlp nennt `http_chunk_size`,
+  z. B. YouTube), lädt stattdessen der Secretary über `POST /api/media/download`
+  in Teilbereichen; dasselbe gilt als zweiter Versuch, wenn der eigene Abruf
+  scheitert. Kennt yt-dlp die Seite nicht, bleibt die von der Seite genannte Adresse,
   wenn sie direkt Audio/Video liefert. Kein Medium = Grund in der Antwort.
 - **Nicht `<Basis>.mp3`**: Eine `<Basis>.md` neben `<Basis>.mp3` gilt im
   Twin-System als Transkript des Mediums (Geschwister-Regel im

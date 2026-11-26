@@ -122,8 +122,8 @@ und `attachments_order: source_files` als feste Felder der Vorlage.
    ohne sie wiederholen; der abgewiesene Aufruf hat nichts geschrieben.
    Die Antwort nennt `seite.bloecke` (Zahl der übernommenen Textblöcke),
    `medium` mit `jobId` und `weg` (`secretary` = direkte Datei, KS lädt;
-   `secretary-download` = Stream oder Video, der Secretary lädt mit ffmpeg nur
-   den Ton; `seite` = ohne
+   `secretary-download` = Stream, Video oder eine Quelle, die den Abruf am
+   Stück drosselt (YouTube), der Secretary lädt nur den Ton; `seite` = ohne
    yt-dlp), `videoEmbedUrl`, `cover`. Steht `mediumGrund` oder `coverGrund`,
    fehlt etwas — dem Menschen nennen, nicht still weitermachen. Bricht ein
    Aufruf nach dem Hochladen ab, entfernt das Werkzeug die schon geschriebenen
