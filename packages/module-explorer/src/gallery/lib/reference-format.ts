@@ -131,7 +131,7 @@ export function referenceDisplayName(url: string): string {
 /**
  * Klassifiziert eine Liste von Verweisen (leere/whitespace-Eintraege fallen
  * weg). Reihenfolge bleibt die der Eingabe. Akzeptiert reine URLs ODER
- * `{ url, name }` (dann bestimmt `name` Format + Anzeige).
+ * `{ url, name }` (dann bestimmt `name` die Anzeige und, wenn er eine Endung traegt, das Format).
  */
 export function classifyReferences(
   inputs: readonly ReferenceInput[] | undefined,
@@ -142,10 +142,12 @@ export function classifyReferences(
     const url = (typeof raw === 'string' ? raw : raw?.url ?? '').trim()
     if (!url) continue
     const name = typeof raw === 'string' ? '' : (raw.name ?? '').trim()
-    const classifyKey = name || url
+    // Der Name bestimmt das Format; traegt er keine erkennbare Endung (Anzeigename wie
+    // „Untertitel von YouTube"), entscheidet die Adresse — sonst wuerde ein Dokument zum Web-Link.
+    const nachName = name ? classifyReference(name) : 'web'
     out.push({
       url,
-      format: classifyReference(classifyKey),
+      format: nachName === 'web' ? classifyReference(url) : nachName,
       name: name || referenceDisplayName(url),
     })
   }

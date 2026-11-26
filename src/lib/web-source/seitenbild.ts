@@ -38,8 +38,11 @@ export interface Seitenbild {
   struktur?: { markdown: string; links: SeitenLink[] }
 }
 
+/** Was das Seitenbild von einer yt-dlp-Antwort braucht — media/resolve und media/subtitles liefern beide diese Felder. */
+export type SeitenbildQuelle = Pick<ResolvedMedia, 'extractor' | 'title' | 'metadata'>
+
 /** Seitenbild aus yt-dlp bei Videoseiten, sonst aus dem HTML; `videoAnmeldung` nur fuer die Fehlermeldung. */
-export async function leseSeitenbild(url: string, resolved: ResolvedMedia | { fehler: string } | null, videoAnmeldung: boolean, modus: SeitenModus = 'artikel', html?: string): Promise<Seitenbild> {
+export async function leseSeitenbild(url: string, resolved: SeitenbildQuelle | { fehler: string } | null, videoAnmeldung: boolean, modus: SeitenModus = 'artikel', html?: string): Promise<Seitenbild> {
   const hinweise: string[] = []
   if (resolved && !('fehler' in resolved) && istVideoExtractor(resolved.extractor)) {
     if (resolved.metadata) {

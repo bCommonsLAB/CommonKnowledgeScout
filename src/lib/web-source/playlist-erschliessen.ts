@@ -9,7 +9,8 @@
  *   Lesejob, der je Video das Upload-Datum holt (Ergebnis ueber job_status).
  * - `playlistAnlegen` schreibt: je gewaehltem Video einen Ordner unter der
  *   Wurzel und EINEN Job, der dort Sammeldatei, Tonspur und Cover anlegt und
- *   die Transkription startet (`phase-web-source`). Antwort sofort mit
+ *   die Transkription startet (`phase-web-source`) — mit `transkript: "untertitel"`
+ *   statt Tonspur und Transkription die fertigen Untertitel des Videos. Antwort sofort mit
  *   batchId; Fortschritt ueber batch_bilanz, Wiederholung ueber batch_neustart.
  *   Vorhandene Ordner werden nicht ueberschrieben (Befund je Zeile), ein
  *   Fehler einer Zeile bricht den Stapel nicht ab.
@@ -23,6 +24,7 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { ladeVideoCookies } from '@/lib/video-login/video-login-service'
 import { ordnerVorschlag, planePlaylistAnlage, type PlaylistZeilePlan } from './playlist-auswahl'
 import { resolvePlaylistViaSecretary, type ResolvedPlaylist } from './playlist-resolve'
+import type { TranskriptWeg } from './untertitel'
 
 export interface PlaylistKopf {
   url: string
@@ -83,6 +85,10 @@ export interface PlaylistAnlegenInput {
   audioContext: Record<string, unknown>
   llmModel?: string
   medienEinbetten: boolean
+  /** Woher das Transkript je Video kommt (wie bei `webseiteErschliessen`). */
+  transkript: TranskriptWeg
+  rueckfall: boolean
+  untertitelSprache?: string
 }
 
 export interface AnlegenZeile extends Omit<PlaylistZeilePlan, 'url'> {
@@ -121,6 +127,7 @@ export async function playlistAnlegen(input: PlaylistAnlegenInput): Promise<Play
           url, folderId: ordner.id, wurzelId, ordner: zeile.ordner, dateiname: `${zeile.ordner}.md`,
           targetLanguage: input.targetLanguage, audioContext: input.audioContext, llmModel: input.llmModel,
           medienEinbetten: input.medienEinbetten, position: zeile.position, titel: zeile.titel,
+          transkript: input.transkript, rueckfall: input.rueckfall, untertitelSprache: input.untertitelSprache,
         },
       })
       zeilen.push({ ...rest, ordnerId: ordner.id, jobId })

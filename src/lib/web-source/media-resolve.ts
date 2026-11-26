@@ -33,6 +33,18 @@ export interface ResolvedMedia {
   extractor: string
   /** Welle K1: Beschreibung, Datum, Kanal, Kapitel, Thumbnail aus yt-dlp; null bei aelterem Secretary ohne Block. */
   metadata: MediaMetadata | null
+  /** Groesse der Datei in Bytes laut yt-dlp; null, wenn unbekannt oder der Secretary das Feld noch nicht liefert. */
+  filesize: number | null
+  /**
+   * Teilbereichs-Groesse in Bytes (yt-dlp `http_chunk_size`): gesetzt, wenn die Quelle einen Abruf am Stueck
+   * drosselt (YouTube: 10 MiB). null bei gewoehnlichen Dateien — und bei einem Secretary ohne das Feld.
+   */
+  httpChunkSize: number | null
+}
+
+/** Nur eine endliche Zahl groesser 0 zaehlt; alles andere (fehlt, null, 0, Text) ist „unbekannt". */
+function positiveZahl(wert: unknown): number | null {
+  return typeof wert === 'number' && Number.isFinite(wert) && wert > 0 ? wert : null
 }
 
 export interface DownloadedMedia {
@@ -112,6 +124,8 @@ export async function resolveMediaViaSecretary(pageUrl: string, cookies: string 
     httpHeaders,
     extractor: typeof d['extractor'] === 'string' ? d['extractor'] : '',
     metadata: parseMediaMetadata(d['metadata']),
+    filesize: positiveZahl(d['filesize']),
+    httpChunkSize: positiveZahl(d['http_chunk_size']),
   }
 }
 

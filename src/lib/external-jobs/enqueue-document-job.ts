@@ -28,6 +28,25 @@ const DOCUMENT_MIME: Record<DocumentMediaKind, string> = {
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 }
 
+/**
+ * Welche Seitenbilder die PDF-Extraktion ablegt (Befund 26.11.2026: 17 Seiten reiner Text
+ * kosteten knapp 12 MB Bilder ohne Nutzen):
+ * - `alle` (Vorgabe, wie bisher): Vorschau (~360 px) und HighRes (200 DPI) je Seite.
+ * - `vorschau`: nur die kleinen Vorschaubilder — reichen fuer Cover und Folien-Erkennung.
+ * - `keine`: keine Seitenbilder — fuer reine Text-PDFs; Cover aus den Quellen gibt es dann nicht.
+ * Bilder, die die Texterkennung IM Dokument findet, bleiben davon unberuehrt.
+ */
+export const SEITENBILDER = ['alle', 'vorschau', 'keine'] as const
+export type Seitenbilder = (typeof SEITENBILDER)[number]
+
+/** Die beiden Schalter der Secretary-Anfrage zu einer Wahl; ein unbekannter Wert wirft. */
+export function seitenbildParameter(wahl: Seitenbilder): { includePreviewPages: boolean; includeHighResPages: boolean } {
+  if (wahl === 'alle') return { includePreviewPages: true, includeHighResPages: true }
+  if (wahl === 'vorschau') return { includePreviewPages: true, includeHighResPages: false }
+  if (wahl === 'keine') return { includePreviewPages: false, includeHighResPages: false }
+  throw new Error(`seitenbilder "${String(wahl)}" ist unbekannt — erlaubt: ${SEITENBILDER.join(', ')}`)
+}
+
 /** Dokument-Art aus dem Dateinamen; null = kein Bruecken-Dokument. */
 export function documentMediaKindFromName(fileName: string): DocumentMediaKind | null {
   const match = fileName.toLowerCase().match(/\.(pdf|docx|xlsx|pptx)$/)
@@ -54,6 +73,8 @@ export async function enqueueSourceDocumentJob(args: {
   optionen?: TransformOptionen
   /** Welle I: Ingest nur auf ausdruecklichen Wunsch — siehe `buildSourceTranscribeJob`. */
   ingest: boolean
+  /** Nur PDF: welche Seitenbilder die Extraktion ablegt; weggelassen = `alle`. */
+  seitenbilder?: Seitenbilder
 }): Promise<{ jobId: string }> {
   const repo = new ExternalJobsRepository()
   const jobId = crypto.randomUUID()
@@ -67,6 +88,10 @@ export async function enqueueSourceDocumentJob(args: {
   const targetLanguage = args.targetLanguage ?? 'de'
   const jobType = mediaKindToJobType(args.mediaKind)
   const isOffice = args.mediaKind !== 'pdf'
+  if (isOffice && args.seitenbilder !== undefined) {
+    throw new Error(`seitenbilder gilt nur fuer PDF — "${args.source.name}" ist ${args.mediaKind}`)
+  }
+  const seitenbildFlags = seitenbildParameter(args.seitenbilder ?? 'alle')
 
   const job: Omit<ExternalJob, 'createdAt' | 'updatedAt'> & { steps: NonNullable<ExternalJob['steps']> } = {
     jobId,
@@ -89,9 +114,11 @@ export async function enqueueSourceDocumentJob(args: {
       },
       options: {
         targetLanguage,
+        // Die Start-Route und die Secretary-Anfrage lesen die Bild-Schalter HIER, nicht aus
+        // `parameters` — dort stehen sie nur zur Ansicht (job_status).
         ...(isOffice
           ? { useCache: true, includeImages: true, includePreviews: true }
-          : {}),
+          : seitenbildFlags),
       },
     },
     steps: [
@@ -121,8 +148,7 @@ export async function enqueueSourceDocumentJob(args: {
         ? {
             extractionMethod: 'mistral_ocr',
             includeOcrImages: true,
-            includePreviewPages: true,
-            includeHighResPages: true,
+            ...seitenbildFlags,
             useCache: true,
           }
         : { useCache: true }),

@@ -122,8 +122,8 @@ und `attachments_order: source_files` als feste Felder der Vorlage.
    ohne sie wiederholen; der abgewiesene Aufruf hat nichts geschrieben.
    Die Antwort nennt `seite.bloecke` (Zahl der übernommenen Textblöcke),
    `medium` mit `jobId` und `weg` (`secretary` = direkte Datei, KS lädt;
-   `secretary-download` = Stream oder Video, der Secretary lädt mit ffmpeg nur
-   den Ton; `seite` = ohne
+   `secretary-download` = Stream, Video oder eine Quelle, die den Abruf am
+   Stück drosselt (YouTube), der Secretary lädt nur den Ton; `seite` = ohne
    yt-dlp), `videoEmbedUrl`, `cover`. Steht `mediumGrund` oder `coverGrund`,
    fehlt etwas — dem Menschen nennen, nicht still weitermachen. Bricht ein
    Aufruf nach dem Hochladen ab, entfernt das Werkzeug die schon geschriebenen
@@ -132,6 +132,24 @@ und `attachments_order: source_files` als feste Felder der Vorlage.
    `seite.datePublished` leer heißt: die Seite nennt kein Datum (Open Graph,
    JSON-LD, `<time>`) — nicht raten, den Menschen fragen und mit
    `dokument_felder_setzen` nachtragen.
+   **Videoseite mit Untertiteln** (Werkzeugsatz 2.89.0): `transkript: "untertitel"`
+   holt statt Tonspur und Transkription die fertigen Untertitel — die von Hand
+   gepflegte Spur (`untertitelSprache`, sonst Originalsprache), sonst die
+   automatisch erzeugte in der Originalsprache; übersetzte Spuren nie. Im Ordner
+   liegt dann `<Basis> - Untertitel.txt` statt `… - Audio`, das Transkript liegt
+   sofort an deren Twin, es gibt keinen Job abzuwarten (Schritt 3 entfällt).
+   Die Antwort nennt `transkript.weg`, `spur` (z. B. `en, automatisch`) und
+   `herkunft`; `hinweise` melden automatisch erzeugte Spuren und Lücken — dem
+   Menschen nennen. Ohne brauchbare Spur scheitert der Aufruf mit Grund und
+   schreibt nichts; `rueckfall: true` nimmt dann die Tonspur. `kontext`,
+   `begriffe` und `sprecherErkennung` gelten nur für die Tonspur. Vorlagen, die
+   die Quelle am Namen erkennen (`=quellenarten`), brauchen das Muster
+   `"* - Untertitel.*"`.
+   Soll die Leserin die Untertitel am Eintrag nachsehen können (der Story-Modus
+   zitiert daraus), setzt die Vorlage das feste Feld
+   `attachments_subtitles: true`; der Ingest hängt dann „Untertitel von
+   <Anbieter>" an die Anhänge. Vorgabe aus — vorher mit dem Menschen klären, ob
+   die Library das ganze Transkript zeigen darf.
 3. **`job_status`** mit der `jobId` des Mediums abwarten (`completed`,
    Schritt `extract_audio` nicht übersprungen). Transkript von Hand prüfen,
    wenn Namen oder Zahlen wichtig sind (`artefakt_lesen`, `transkript_korrigieren`).
@@ -202,6 +220,10 @@ kein Ingest. Werkzeug `playlist_erschliessen`, zwei Stufen:
    gültig für alle Videos. Antwort sofort: `batchId` und je Zeile Ordner,
    `ordnerId`, `jobId` oder `befund` (Ordner gibt es schon — nicht
    überschrieben; nicht abrufbar; Position nicht in der Playlist).
+   Mit `transkript: "untertitel"` (und optional `rueckfall`,
+   `untertitelSprache`) holt jeder Job die fertigen Untertitel statt der
+   Tonspur; es entsteht kein Transkriptions-Job, und `job_status` der Zeile
+   nennt `transkriptWeg`, `transkriptSpur` und `transkriptHerkunft`.
 4. **Abwarten**: `batch_bilanz` mit der `batchId` — je Video ein
    `web-source`-Job (Metadaten, Tonspur, Cover, Sammeldatei) und ein
    Transkriptions-Job mit derselben `batchId`. Gescheiterte Zeilen mit

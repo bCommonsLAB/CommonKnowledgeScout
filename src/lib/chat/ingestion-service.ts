@@ -19,6 +19,8 @@ import { coverAusQuellenErlaubt, istCoverAusQuellen, waehleCover } from '@/lib/i
 import { coverKandidatAusMedienliste } from '@/lib/ingestion/cover-aus-medienliste'
 import { medienVerzeichnisAusFragmenten } from '@/lib/ingestion/medien-verzeichnis'
 import { anhaengeAusQuellen, anhangReihenfolge, ersetzePdfLinks, quelldateienAusMeta } from '@/lib/ingestion/anhaenge-aus-quellen'
+import { haengeAnhaengeAn, ladeUntertitelAnhaenge, untertitelAnhangErlaubt } from '@/lib/ingestion/untertitel-anhang'
+import { entscheideSlug, ladeBestehendenSlug } from '@/lib/ingestion/adresse-bewahren'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
 import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
@@ -1061,6 +1063,32 @@ export class IngestionService {
             })
           }
 
+          // Schalter attachments_subtitles: true — Transkripte aus Untertiteln als einsehbares
+          // Textdokument an die Anhaenge (untertitel-anhang.ts). Sonst zitiert der Story-Modus
+          // eine Quelle, die die Leserin nicht nachsehen kann. Vorgabe aus; Ergebnis im Trace.
+          try {
+            if (untertitelAnhangErlaubt(metaEffective)) {
+              const untertitel = await ladeUntertitelAnhaenge(libraryId, await ladeQuellenTwins())
+              const azureConfigText = resolveAzureStorageConfig(libraryConfig)
+              const veroeffentlicht: Array<{ url: string; name: string }> = []
+              if (untertitel.length > 0) {
+                if (!azureConfigText) throw new Error('Azure Storage nicht konfiguriert — Untertitel nicht veroeffentlicht')
+                const azureStorageText = new AzureStorageService(libraryConfig)
+                for (const u of untertitel) {
+                  const url = await azureStorageText.uploadTextToScope(azureConfigText.containerName, libraryId, isSessionMode ? 'sessions' : 'books', fileId, u.dateiname, u.text)
+                  veroeffentlicht.push({ url, name: u.titel })
+                }
+                haengeAnhaengeAn(docMetaJsonObj, veroeffentlicht)
+              }
+              FileLogger.info('ingestion', 'Untertitel als Anhang veroeffentlicht', { fileId, anzahl: veroeffentlicht.length })
+              if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_subtitles', { anzahl: veroeffentlicht.length, namen: veroeffentlicht.map((v) => v.name) })
+            }
+          } catch (error) {
+            const grund = error instanceof Error ? error.message : String(error)
+            FileLogger.warn('ingestion', 'Untertitel nicht als Anhang veroeffentlicht', { fileId, error: grund })
+            if (jobId) await emitIngestTraceEvent(repo, jobId, 'attachments_subtitles', { anzahl: 0, grund })
+          }
+
           // Verarbeite Markdown-Bilder
           const markdownResult = await ImageProcessor.processMarkdownImages(
             body,
@@ -1430,6 +1458,24 @@ export class IngestionService {
       // chunksUpserted wird später nach dem Embedding gesetzt, initialisiere mit 0
       let chunksUpserted = 0
       
+      // Adresse stabil halten (Owner 26.11.2026, adresse-bewahren.ts): Traegt das Dokument im Index
+      // schon eine Adresse, bleibt sie — der neue Vorschlag aus dem Frontmatter wird verworfen und genannt.
+      try {
+        const adresse = entscheideSlug(docMetaJsonObj.slug, await ladeBestehendenSlug(libraryKey, fileId))
+        if (adresse.herkunft === 'bestehend') {
+          docMetaJsonObj.slug = adresse.slug
+          if (adresse.verworfen) {
+            FileLogger.info('ingestion', 'Bestehende Adresse behalten', { fileId, slug: adresse.slug, verworfen: adresse.verworfen })
+            if (jobId) await emitIngestTraceEvent(repo, jobId, 'slug_preserved', { slug: adresse.slug, verworfen: adresse.verworfen })
+          }
+        }
+      } catch (error) {
+        // Ohne den bisherigen Eintrag ist die alte Adresse unbekannt; der Lauf nimmt die neue und sagt es.
+        const grund = error instanceof Error ? error.message : String(error)
+        FileLogger.warn('ingestion', 'Bestehende Adresse nicht lesbar — neue Adresse gilt', { fileId, error: grund })
+        if (jobId) await emitIngestTraceEvent(repo, jobId, 'slug_preserved', { slug: null, grund })
+      }
+
       if (typeof (docMetaJsonObj as { slug?: unknown }).slug !== 'string' || !(docMetaJsonObj as { slug?: string }).slug?.trim()) {
         docMetaJsonObj.slug = buildDocumentSlugFallback(
           fileName,

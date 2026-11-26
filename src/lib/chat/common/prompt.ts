@@ -132,10 +132,18 @@ export function getSourceDescription(source: RetrievedSource): string {
  * D7: Quellen tragen die Nummer ihres DOKUMENTS (Reihenfolge der ersten
  * Nennung); mehrere Textstellen desselben Dokuments teilen sich eine Nummer
  * und werden als „passage i/n" ausgewiesen.
+ *
+ * Jede Textstelle geht GANZ in den Prompt. Wie viel Text insgesamt hineinpasst,
+ * entscheidet der Retriever mit seinem Zeichenbudget — er rechnet dabei mit der
+ * vollen Laenge jeder Stelle. Frueher schnitt diese Funktion zusaetzlich nach
+ * 800 Zeichen ab: Bei Chunks von 1000 Zeichen fehlte dem Modell das letzte
+ * Fuenftel jeder Stelle, mitten im Satz (Befund 26.11.2026, „genau dort
+ * abgeschnitten, wo das Beispiel beginnt"). `perSnippetLimit` kuerzt nur noch,
+ * wenn ein Aufrufer es ausdruecklich verlangt.
  */
 export function buildContext(
   sources: RetrievedSource[],
-  perSnippetLimit = 800,
+  perSnippetLimit?: number,
   /** m3: Labels und Wörterbuch für den Bedeutungskontext je Textstelle; ohne Defs Rohwerte. */
   facetDefs?: ReadonlyArray<KontextFacette>,
 ): string {
@@ -151,7 +159,7 @@ export function buildContext(
       const metadataParts = formatiereQuellenMetadaten(s.metadata, facetDefs)
       const metadataLine = metadataParts.length > 0 ? ` | ${metadataParts.join(' | ')}` : ''
       
-      return `Source [${nummer ?? '?'}] ${s.fileName ?? s.id} (${stelle}${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
+      return `Source [${nummer ?? '?'}] ${s.fileName ?? s.id} (${stelle}${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${perSnippetLimit === undefined ? (s.text ?? '') : (s.text ?? '').slice(0, perSnippetLimit)}`
     })
     .join('\n\n')
 }

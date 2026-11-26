@@ -300,7 +300,31 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 3. `htmlDatei` an `seite_lesen` und `webseite_erschliessen`; Feld-Paare einer
    Seite in einer Zeile; keine Seitenadresse mehr als Bild.
 
+**Gemacht (26.11., Werkzeugsatz 2.89.0), Untertitel statt Tonspur:**
+
+1. `webseite_erschliessen` und `playlist_erschliessen` mit
+   `transkript: "untertitel"`: fertige Untertitel der Videoseite als Quelle
+   mit Transkript am Twin, ohne Medium und ohne Transkriptions-Job; kein
+   stiller Rückfall auf die Tonspur (`rueckfall`).
+2. Secretary: Route `media/subtitles` (eigenes Repo).
+3. Nach dem ersten Lauf (2.90.0): Story-Modus schneidet Textstellen nicht mehr
+   nach 800 Zeichen ab; Schalter `attachments_subtitles` legt Untertitel als
+   einsehbares Textdokument an den Eintrag; Secretary zerlegt lange Absätze
+   nicht mehr in Ein-Wort-Absätze.
+4. `quelle_erschliessen` mit `seitenbilder` (2.91.0): Text-PDFs lassen sich
+   ohne Seitenbilder erschließen.
+5. Adressen bleiben (2.92.0, Owner-Entscheid 26.11.): Template-Phase und
+   Ingest behalten die Adresse, die ein Dokument im Index schon trägt.
+
 **Geplant:**
+
+- Abnahme des Untertitel-Wegs an echten Videos, sobald der Secretary mit
+  `media/subtitles` ausgerollt ist: Abruf gegen die Plattform (bisher nur
+  gegen nachgebaute Antworten getestet), Vergleich Untertitel gegen
+  Transkription der Tonspur, dann die Vorgabe des Schalters entscheiden.
+- Bestand neu ingestieren, sobald der Secretary mit dem Chunk-Fix ausgerollt
+  ist: Transkripte mit langen Absätzen liegen sonst weiter mit einem Wort je
+  Absatz im Index.
 
 - Wiederholung der Abnahme der berechneten Felder und des Covers nach 2d.
 - Schwankung zwischen Läufen: Temperatur der laufenden Secretary-Instanz

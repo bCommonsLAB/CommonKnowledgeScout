@@ -40,6 +40,7 @@ import { computeRatingRaw } from '@/lib/documents/rating'
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
 import { fehlertextOhneStructuredData } from '@/lib/external-jobs/template-fehlertext'
 import { buildDocumentSlugFallback } from '@ks/util'
+import { entscheideSlug, ladeBestehendenSlug } from '@/lib/ingestion/adresse-bewahren'
 
 // Helper extractFixedFieldsFromTemplate wurde in eigene Datei
 // phase-template/extract-meta.ts ausgelagert (Modul-Split, Plan-Schritt 4
@@ -1523,6 +1524,26 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       attributes: coverDiag,
     })
   } catch { /* Trace-Fehler nicht eskalieren */ }
+
+  // Adresse stabil halten (Owner 26.11.2026, adresse-bewahren.ts): Eine einmal vergebene Adresse bleibt.
+  // Massgeblich ist die Adresse im Index (darauf zeigen die Links), sonst die der bisherigen
+  // Transformation; ein neuer Vorschlag des Modells wird verworfen und im Trace genannt.
+  try {
+    const imIndex = library && coverLookupId ? await ladeBestehendenSlug(getCollectionNameForLibrary(library), coverLookupId) : null
+    const adresse = entscheideSlug(mergedMeta.slug, imIndex ?? (typeof existingMeta?.slug === 'string' ? existingMeta.slug : null))
+    if (adresse.herkunft === 'bestehend') {
+      mergedMeta.slug = adresse.slug
+      if (adresse.verworfen) {
+        bufferLog(jobId, { phase: 'template_slug_preserved', message: `Bestehende Adresse behalten: ${adresse.slug} (verworfen: ${adresse.verworfen})` })
+        await repo.traceAddEvent(jobId, { spanId: 'template', name: 'slug_preserved', level: 'info', attributes: { slug: adresse.slug, verworfen: adresse.verworfen, quelle: imIndex ? 'index' : 'transformation' } })
+      }
+    }
+  } catch (error) {
+    // Ohne den bisherigen Eintrag ist die alte Adresse unbekannt; der Lauf nimmt die neue und sagt es.
+    const grund = error instanceof Error ? error.message : String(error)
+    FileLogger.warn('phase-template', 'Bestehende Adresse nicht lesbar — neue Adresse gilt', { jobId, error: grund })
+    bufferLog(jobId, { phase: 'template_slug_preserved', message: `Bestehende Adresse nicht lesbar, neue Adresse gilt: ${grund}` })
+  }
 
   // Öffnen aus Galerie/Explore erfolgt über docMetaJson.slug.
   // Secretary liefert dieses Feld oft nicht; deshalb stabilen Fallback aus dem Artefaktnamen setzen.

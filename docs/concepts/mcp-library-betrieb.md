@@ -347,7 +347,10 @@ nach demselben Muster wie die Vorträge einer Veranstaltung:
   yt-dlp zur direkten Medienadresse auf (Rai News, YouTube, Vimeo, PeerTube …),
   lädt aber nichts; KnowledgeScout lädt die Datei und legt sie als
   `<Basis> - Audio.mp3` neben die Sammeldatei, das Bild als `<Basis> - Cover.jpg`.
-  Kennt yt-dlp die Seite nicht, bleibt die von der Seite genannte Adresse,
+  Drosselt die Quelle einen Abruf am Stück (yt-dlp nennt `http_chunk_size`,
+  z. B. YouTube), lädt stattdessen der Secretary über `POST /api/media/download`
+  in Teilbereichen; dasselbe gilt als zweiter Versuch, wenn der eigene Abruf
+  scheitert. Kennt yt-dlp die Seite nicht, bleibt die von der Seite genannte Adresse,
   wenn sie direkt Audio/Video liefert. Kein Medium = Grund in der Antwort.
 - **Nicht `<Basis>.mp3`**: Eine `<Basis>.md` neben `<Basis>.mp3` gilt im
   Twin-System als Transkript des Mediums (Geschwister-Regel im
@@ -498,3 +501,89 @@ Plan `docs/plans/webseiten-erschliessen.plan.md`, Wellen 2b und 2c.
   `job_status.befunde`. Eine Bitte in der Vorlage ist keine Regel.
 - **Das Material sagt, was es ist.** Quellblöcke tragen ihre Art; nur Audio
   und Video sind Transkripte.
+
+## Nachtrag 2.89.0 (26.11.2026): Untertitel statt Tonspur
+
+Anlass: eine Konferenz-Library mit mehreren hundert aufgezeichneten Videos. Je
+Video die Tonspur zu laden und zu transkribieren kostet Minuten und Geld; die
+Plattform hält den Wortlaut als Untertitel schon bereit.
+
+- **Ein Schalter, zwei Wege.** `webseite_erschliessen` und
+  `playlist_erschliessen` nehmen `transkript: "tonspur" | "untertitel"`. Die
+  Vorgabe bleibt `tonspur`, bis der neue Weg an echten Videos abgenommen ist.
+- **Welche Spur gilt, entscheidet der Secretary** (`POST /api/media/subtitles`):
+  die von Hand gepflegte Spur der gewünschten Sprache, sonst die automatisch
+  erzeugte Spur in der Originalsprache. Maschinell übersetzte Spuren sind
+  Übersetzungen der automatischen Spur und gelten nie als Transkript.
+- **Die Untertitel sind eine Quelle wie jede andere.** `<Basis> - Untertitel.txt`
+  liegt im Ordner (Text mit Zeitmarken), ihr Twin trägt das Transkript. Die
+  Sammeldatei löst sie auf wie eine transkribierte Tonspur, und
+  `transkript_korrigieren` arbeitet darauf. Es gibt kein Medium im Ordner und
+  keinen Transkriptions-Job.
+- **Die Herkunft ist überall lesbar**: in der Antwort (`transkript.weg`,
+  `spur`, `herkunft`), im Kopf der Datei, im Frontmatter des Transkripts
+  (`transcript_origin: subtitles`, `subtitle_kind`, `subtitle_language`,
+  `subtitle_fetched_at` …) und in der Sammeldatei.
+- **Kein stiller Rückfall.** Trägt das Video keine brauchbare Spur, scheitert
+  der Aufruf mit dem Grund und schreibt nichts. Nur `rueckfall: true` erlaubt
+  die Tonspur; die Antwort nennt dann den Grund (`transkript.rueckfallGrund`).
+- **Was die Antwort über die Qualität sagt.** `hinweise` nennen automatisch
+  erzeugte Spuren (Namen, Fachwörter und Zahlen sind unsicherer), eine Spur,
+  die vor dem Ende des Videos aufhört, und Lücken ab fünf Minuten. Ob eine
+  Spur für eine Zusammenfassung reicht, bleibt eine Abnahme am Material.
+- **Vorlagen.** Ein Muster in `=quellenarten(…)`, das die Tonspur am Namen
+  erkennt (`"* - Audio.*"`), braucht für diesen Weg `"* - Untertitel.*"`.
+
+## Nachtrag 2.90.0 (26.11.2026): Zitierte Quellen ganz lesen und einsehen
+
+Zwei Befunde aus dem ersten Lauf mit Untertiteln, beide am Story-Modus.
+
+- **Textstellen gehen ganz in den Prompt.** `buildContext` schnitt jede Stelle
+  nach 800 Zeichen ab, während der Ingest Chunks von 1000 Zeichen bildet und
+  der Retriever sein Zeichenbudget mit der vollen Länge rechnet. Dem Modell
+  fehlte das Ende jeder Stelle, mitten im Satz. Das Budget liegt jetzt nur noch
+  beim Retriever.
+- **Lange Absätze bleiben Fließtext.** Der Secretary zerlegte Absätze über der
+  Chunk-Größe wortweise; der Rest landete mit einem Wort je Absatz im Index.
+  Betroffen sind vor allem Transkripte mit einem Absatz je Sprecher. Behoben im
+  Secretary; wirksam nach dessen Ausrollen und einem neuen Ingest.
+- **Was zitiert wird, soll man nachsehen können.** Die Transkripte der Quellen
+  bleiben ein unsichtbarer Anhang für die Suche (Owner-Entscheid 05.10.). Für
+  Transkripte aus Untertiteln gibt es jetzt den Schalter
+  `attachments_subtitles: true`: Der Ingest legt das Transkript vom Twin als
+  Textdokument „Untertitel von <Anbieter>" zu den Anhängen des Dokuments. Die
+  Vorgabe ist aus, weil das Zeigen eines ganzen Transkripts eine
+  Rechte-Entscheidung der Library ist; eine Library, die nur Zusammenfassung
+  und Link zeigt, lässt den Schalter weg.
+
+## Nachtrag 2.91.0 (26.11.2026): Seitenbilder eines PDF sind wählbar
+
+Die Extraktion eines PDF legt je Seite ein Vorschaubild und ein Bild in hoher
+Auflösung ab. Für Folien ist das der Zweck (Cover, Folien-Ansicht, geteilte
+Seiten), für ein PDF aus reinem Text ist es Speicher ohne Nutzen.
+
+- `quelle_erschliessen` nimmt `seitenbilder: "alle" | "vorschau" | "keine"`.
+  Die Vorgabe bleibt `alle`; wer Text-PDFs in Masse erschließt, wählt `keine`.
+- Die Wahl steht am Job in `correlation.options`, weil Start-Route und
+  Secretary-Anfrage die Bild-Schalter dort lesen. Vorher standen sie bei
+  Brücken-Jobs nur in `parameters` und blieben ohne Wirkung.
+- Was schon im Blob-Speicher liegt, bleibt liegen; die Option wirkt auf den
+  nächsten Lauf.
+
+## Nachtrag 2.92.0 (26.11.2026): Eine einmal vergebene Adresse bleibt
+
+Owner-Entscheid 26.11.2026. Die Galerie öffnet ein Dokument über
+`docMetaJson.slug`. Der Slug stand im Frontmatter der Transformation, und das
+Sprachmodell füllte ihn bei jeder Neuerzeugung neu; jeder weitergegebene Link
+lief danach ins Leere.
+
+- **Maßgeblich ist die Adresse im Index**, denn auf sie zeigen die Links.
+  Template-Phase und Ingest übernehmen sie (`src/lib/ingestion/adresse-bewahren.ts`).
+  Ist das Dokument noch nicht ingestiert, zählt die Adresse der bisherigen
+  Transformation.
+- **Der neue Vorschlag des Modells wird verworfen und genannt** (Ereignis
+  `slug_preserved` in `job_status`), nicht still übergangen.
+- **Bewusst ändern** geht mit `dokument_felder_setzen` am Feld `slug`; das
+  schreibt Twin und Index, und der nächste Lauf behält den neuen Wert.
+- Die Identität eines Dokuments bleibt die Storage-Id seiner Quelle. Die
+  Adresse ist ein Name dafür, den ein Lauf nicht mehr austauscht.

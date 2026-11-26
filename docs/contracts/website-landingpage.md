@@ -114,7 +114,7 @@ importiert kein `@commonux/*`.
   `packages/module-website/src/hero-bild-position.ts` (wirft bei ungueltigem Wert);
   der Mapper meldet ungueltig laut und zeigt die Mitte,
   `dokument_publizieren` nennt es als Warnung.
-- **Heller Kopf (Owner 26.11.2026, 2.89.0):** `hero_tone: light` am
+- **Heller Kopf (Owner 26.11.2026, 2.93.0):** `hero_tone: light` am
   Standard-Kopf (`hero_layout: overlay` mit `hero_image`) laesst den dunklen
   Schleier weg (`hero-light.tsx`): Bild am rechten Rand ausgerichtet
   (`object-position: 100% <hoehe>`, Hoehe aus `hero_image_position`), Text

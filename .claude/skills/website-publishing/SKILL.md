@@ -337,7 +337,7 @@ Attribute, die es gibt (alles andere schluckt der Marker stumm): `layout`,
 `top`); im Frontmatter `hero_layout` (`overlay`, `cover`, `campaign`,
 `none`). Alles ab 2.48.1; `bruecke_info` prüfen.
 
-**Heller Kopf** (ab 2.89.0): `hero_tone: light` am Standard-Kopf
+**Heller Kopf** (ab 2.93.0): `hero_tone: light` am Standard-Kopf
 (`hero_layout: overlay` mit `hero_image`) nimmt den dunklen Schleier weg —
 für helle, gestaltete Hintergründe, deren Motiv rechts liegt. Text links
 (Titel im Akzent, Unterzeile in der Textfarbe der Fläche `default`),
