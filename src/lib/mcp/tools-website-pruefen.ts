@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { findDocs, getCollectionNameForLibrary, getMetaByFileId } from '@/lib/repositories/vector-repo'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
 import { baueSeitenBericht } from './website-seite'
+import type { KopfFelder } from './website-kopf-befunde'
 
 /** Website-Docs sind wenige; mehr waere ein Zeichen fuer falsche Typen. */
 const MAX_SEITEN = 50
@@ -27,8 +28,8 @@ export function registerWebsitePruefenTool(server: McpServer): void {
       description:
         'Die Vorschau ohne Browser: listet die publizierten website-Docs als Menue (menu_order, ' +
         'menu_area), nennt Startseite, Footer-Links und Footer-Doc und zeigt je Seite die geparsten ' +
-        'Sektionen (layout, bg, Bild; bei layout=story die Zahl der Beispielfragen, der Facettenfilter filter="…", n des Blocks popular, kartenDarstellung cards=column|inline und regelsatz rules=<name>, bei Kachel-Bloecken die Zahl der Kacheln; layout=topics = Themenuebersicht, braucht eine Story-Sektion) mit Befunden — ungueltige Marker, rules ohne Regelsatz in der Library, fehlendes Markdown, nicht ' +
-        'anonym ladbare Bilder, tote ?site=-Links, fehlender menu_order, banner_sort stars ohne ' +
+        'Sektionen (layout, bg, Bild; je Seite heroTon, wenn hero_tone gesetzt ist; bei layout=story die Zahl der Beispielfragen, der Facettenfilter filter="…", n des Blocks popular, kartenDarstellung cards=column|inline und regelsatz rules=<name>, bei Kachel-Bloecken die Zahl der Kacheln; layout=topics = Themenuebersicht, braucht eine Story-Sektion) mit Befunden — ungueltige Marker, rules ohne Regelsatz in der Library, fehlendes Markdown, nicht ' +
+        'anonym ladbare Bilder, tote ?site=-Links, fehlender menu_order, ungueltiger oder wirkungsloser hero_tone, banner_sort stars ohne ' +
         'starCountsPublic (Banner bliebe leer). Dazu die Veroeffentlichung (isPublic, slug, siteEnabled, ' +
         'starCountsPublic) und die Adresse der Seite. Liest nur.',
       inputSchema: {
@@ -47,12 +48,18 @@ export function registerWebsitePruefenTool(server: McpServer): void {
 
         const markdownJeFileId = new Map<string, string | undefined>()
         const bannerSortJeFileId = new Map<string, unknown>()
+        const kopfJeFileId = new Map<string, KopfFelder>()
         for (const doc of items) {
           if (!doc.fileId) continue
           const meta = await getMetaByFileId(libraryKey, doc.fileId)
           const md = meta?.docMetaJson?.['markdown']
           markdownJeFileId.set(doc.fileId, typeof md === 'string' ? md : undefined)
           bannerSortJeFileId.set(doc.fileId, meta?.docMetaJson?.['banner_sort'])
+          kopfJeFileId.set(doc.fileId, {
+            heroTone: meta?.docMetaJson?.['hero_tone'],
+            heroLayout: meta?.docMetaJson?.['hero_layout'],
+            heroImage: meta?.docMetaJson?.['hero_image'],
+          })
         }
 
         const pub = library.config?.publicPublishing
@@ -71,7 +78,7 @@ export function registerWebsitePruefenTool(server: McpServer): void {
               ? null
               : 'siteEnabled ist aus — /explore/<slug> zeigt die Galerie, nicht die Website',
           },
-          ...baueSeitenBericht(items, markdownJeFileId, { starCountsPublic, bannerSortJeFileId, regelsaetze }),
+          ...baueSeitenBericht(items, markdownJeFileId, { starCountsPublic, bannerSortJeFileId, kopfJeFileId, regelsaetze }),
         })
       } catch (error) {
         return errorResult(error)

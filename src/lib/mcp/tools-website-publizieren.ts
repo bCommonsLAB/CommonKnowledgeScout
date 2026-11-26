@@ -31,7 +31,7 @@ export function registerWebsitePublizierenTools(server: McpServer): void {
         'ein zweiter Aufruf aktualisiert den Eintrag. Vorher wird geprueft: detailViewType, Pflichtfelder ' +
         'der Registry, bei website die Sektions-Marker und ob Bild-URLs anonym ladbar sind. ' +
         'Warnungen blockieren, bis `trotzWarnungen: true` gesetzt ist; harte Fehler (kein Text, ' +
-        'unbekannter Typ, ungueltiger Marker) blockieren immer. Stapel via sourceIds (bis 30), Fehler ' +
+        'unbekannter Typ, ungueltiger Marker, ungueltiger hero_tone) blockieren immer. Stapel via sourceIds (bis 30), Fehler ' +
         'je Zeile. Nur nach Bestaetigung durch den Menschen.',
       inputSchema: {
         libraryId: LIBRARY_ID,

@@ -17,6 +17,25 @@ const FOOTER = doc({ fileId: 'footer', title: '#tag', site_role: 'footer-content
 const HOME_MD = '<!-- section layout=image-right bg=linen -->\n## Hi\n![a](https://blob/a.jpg)\nText [Mitmachen](?site=kontakt)\n<!-- /section -->'
 
 describe('baueSeitenBericht', () => {
+  it('hero_tone: nennt den Ton je Seite, ungueltig ist ein Fehler, wirkungslos eine Warnung', () => {
+    const kontext = (kopf: { heroTone: unknown; heroLayout?: unknown; heroImage?: unknown }) => ({
+      starCountsPublic: false,
+      bannerSortJeFileId: new Map<string, unknown>(),
+      kopfJeFileId: new Map([['home', { heroTone: kopf.heroTone, heroLayout: kopf.heroLayout, heroImage: kopf.heroImage }]]),
+    })
+    const md = new Map([['home', HOME_MD]])
+    const hell = baueSeitenBericht([HOME, KONTAKT], md, kontext({ heroTone: 'light', heroImage: 'https://b/h.jpg' })).seiten[0]
+    expect(hell.heroTon).toBe('light')
+    expect(hell.fehler).toEqual([])
+    const ungueltig = baueSeitenBericht([HOME, KONTAKT], md, kontext({ heroTone: 'hell' })).seiten[0]
+    expect(ungueltig.heroTon).toBeUndefined()
+    expect(ungueltig.fehler.some((f) => f.includes('hero_tone "hell"'))).toBe(true)
+    const band = baueSeitenBericht([HOME, KONTAKT], md, kontext({ heroTone: 'light', heroLayout: 'band' })).seiten[0]
+    expect(band.warnungen.some((w) => w.includes('wirkt nur bei hero_layout overlay'))).toBe(true)
+    const ohne = baueSeitenBericht([HOME, KONTAKT], md, kontext({ heroTone: undefined })).seiten[0]
+    expect('heroTon' in ohne).toBe(false)
+  })
+
   it('ordnet Menue, Footer-Links und Footer-Doc wie der Renderer', () => {
     const b = baueSeitenBericht([FOOTER, IMPRESSUM, KONTAKT, HOME], new Map([
       ['home', HOME_MD], ['kontakt', '<!-- section layout=contact-form -->\n## K\n<!-- /section -->'],

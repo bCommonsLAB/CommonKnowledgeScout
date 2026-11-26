@@ -10,6 +10,7 @@
 
 import { bannerLimitAus, bannerSortAus, type BannerSort } from './banner'
 import { heroBildPositionGeprueft } from './hero-bild-position'
+import { heroTonGeprueft, type HeroTon } from './hero-ton'
 import { HEADING_CASES, type HeadingCase } from './types'
 
 /** Detail-Daten fuer detailViewType `website` (Landingpage als Dokument). */
@@ -20,6 +21,8 @@ export interface WebsiteDetailData {
   heroImageAlt?: string
   /** 18.11.2026: CSS-`object-position` des Kopfbilds aus `hero_image_position` (`hero-bild-position.ts`); fehlt = Mitte. */
   heroImagePosition?: string
+  /** 26.11.2026: `hero_tone` (`hero-ton.ts`) — `light` = Standard-Kopf ohne Schleier, Text links in Profilfarben; fehlt = `dark`. */
+  heroTone?: HeroTon
   /**
    * Hero-Variante (Frontmatter `hero_layout`):
    * - `overlay` (Default): Bild full-bleed mit dunklem Overlay + zentriertem Text.
@@ -82,6 +85,8 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     heroImageAlt: toStr(docMetaJson.hero_image_alt),
     // 18.11.2026: Ausschnitt des Kopfbilds in der Hoehe; ungueltig wird laut gemeldet, Vorgabe Mitte.
     heroImagePosition: heroBildPositionGeprueft(docMetaJson.hero_image_position),
+    // 26.11.2026: heller Kopf ohne Schleier; ungueltig wird laut gemeldet, Vorgabe dunkel.
+    heroTone: heroTonGeprueft(docMetaJson.hero_tone),
     heroTitle: toStr(docMetaJson.hero_title),
     heroLayout: toStr(docMetaJson.hero_layout),
     videoUrl: toStr(docMetaJson.video_url),

@@ -336,3 +336,10 @@ Attribute, die es gibt (alles andere schluckt der Marker stumm): `layout`,
 `bg`, `kicker`, `image_width` (`1/2`, `1/3`), `image_align` (`center`,
 `top`); im Frontmatter `hero_layout` (`overlay`, `cover`, `campaign`,
 `none`). Alles ab 2.48.1; `bruecke_info` prüfen.
+
+**Heller Kopf** (ab 2.93.0): `hero_tone: light` am Standard-Kopf
+(`hero_layout: overlay` mit `hero_image`) nimmt den dunklen Schleier weg —
+für helle, gestaltete Hintergründe, deren Motiv rechts liegt. Text links
+(Titel im Akzent, Unterzeile in der Textfarbe der Fläche `default`),
+`cta_label` als eckiger Balken; `cta_url` weglassen = reine Kennzeile ohne
+Link. Ein ungültiger Wert ist beim Publizieren ein Fehler.

@@ -114,6 +114,23 @@ importiert kein `@commonux/*`.
   `packages/module-website/src/hero-bild-position.ts` (wirft bei ungueltigem Wert);
   der Mapper meldet ungueltig laut und zeigt die Mitte,
   `dokument_publizieren` nennt es als Warnung.
+- **Heller Kopf (Owner 26.11.2026, 2.93.0):** `hero_tone: light` am
+  Standard-Kopf (`hero_layout: overlay` mit `hero_image`) laesst den dunklen
+  Schleier weg (`hero-light.tsx`): Bild am rechten Rand ausgerichtet
+  (`object-position: 100% <hoehe>`, Hoehe aus `hero_image_position`), Text
+  linksbuendig, senkrecht mittig, ab `md` in den linken drei Fuenfteln von
+  `SECTION_WIDTH`, darunter ueber die volle Breite. `hero_title` gross und fett
+  im Akzent (`--site-accent`), `hero_subtitle` fett in der Textfarbe der
+  Flaeche `default` (ohne Farbwerte im Profil: Fast-Schwarz auf Weiss — der
+  helle Kopf folgt dem Bild, nicht dem Dark-Mode), `cta_label` als eckiger,
+  gefuellter Balken im Akzent; ohne `cta_url` eine reine Kennzeile (`<p>`,
+  kein Link). `dark` ist die Vorgabe. Regel in
+  `packages/module-website/src/hero-ton.ts`: `heroTon` wirft bei ungueltigem
+  Wert — `dokument_publizieren` fuehrt ihn als FEHLER (kein Publizieren),
+  `seite_pruefen` ebenso, der Mapper meldet laut und rendert dunkel (die
+  oeffentliche Seite stirbt nicht daran). `light` an einem anderen
+  `hero_layout` oder ohne `hero_image` bleibt ohne Wirkung und ist eine
+  Warnung. Die Auswahl der Kopf-Variante steht in `website-kopf.tsx`.
 - **Kein Kopf (2.48.1):** `hero_layout: none` rendert keinen `<header>`;
   die erste Sektion beginnt oben. Ein unbekannter `hero_layout`-Wert faellt
   im Renderer weiterhin auf `overlay` zurueck, `pruefeMarkdownDokument`

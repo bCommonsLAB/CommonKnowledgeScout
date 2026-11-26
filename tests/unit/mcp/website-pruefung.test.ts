@@ -127,4 +127,18 @@ describe('pruefeMarkdownDokument — Kacheln (Welle N2)', () => {
     const falschesZiel = pruefeMarkdownDokument(`${KOPF}\n<!-- section layout=text-only -->\n<!-- cards -->\n- **Archiv** [Hin](?view=karte)\n<!-- /section -->`)
     expect(falschesZiel.fehler.some((f) => f.includes('view="karte"'))).toBe(true)
   })
+
+  it('hero_tone: ungueltiger Wert ist ein Fehler, light ohne Wirkung eine Warnung', () => {
+    const basis = '---\ndetailViewType: "website"\ntitle: "T"\n'
+    const bild = 'hero_image: "https://b/h.jpg"\n'
+    const ungueltig = pruefeMarkdownDokument(basis + bild + 'hero_tone: "hell"\n---\n# T')
+    expect(ungueltig.fehler.some((f) => f.includes('hero_tone "hell" ist ungueltig'))).toBe(true)
+    const hell = pruefeMarkdownDokument(basis + bild + 'hero_tone: "light"\n---\n# T')
+    expect(hell.fehler).toEqual([])
+    expect(hell.warnungen.filter((w) => w.includes('hero_tone'))).toEqual([])
+    const band = pruefeMarkdownDokument(basis + bild + 'hero_layout: "band"\nhero_tone: "light"\n---\n# T')
+    expect(band.warnungen.some((w) => w.includes('hero_tone light wirkt nur bei hero_layout overlay'))).toBe(true)
+    const ohneBild = pruefeMarkdownDokument(basis + 'hero_tone: "light"\n---\n# T')
+    expect(ohneBild.warnungen.some((w) => w.includes('hero_tone light ohne hero_image'))).toBe(true)
+  })
 })
