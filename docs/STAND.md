@@ -313,6 +313,8 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
    nicht mehr in Ein-Wort-Absätze.
 4. `quelle_erschliessen` mit `seitenbilder` (2.91.0): Text-PDFs lassen sich
    ohne Seitenbilder erschließen.
+5. Adressen bleiben (2.92.0, Owner-Entscheid 26.11.): Template-Phase und
+   Ingest behalten die Adresse, die ein Dokument im Index schon trägt.
 
 **Geplant:**
 
@@ -323,9 +325,6 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 - Bestand neu ingestieren, sobald der Secretary mit dem Chunk-Fix ausgerollt
   ist: Transkripte mit langen Absätzen liegen sonst weiter mit einem Wort je
   Absatz im Index.
-- Adresse eines Dokuments stabil halten: der Slug kommt aus dem Frontmatter
-  der Transformation und wechselt bei jeder Neuerzeugung (Befund 26.11.);
-  braucht einen Owner-Entscheid, woran die Adresse hängt.
 
 - Wiederholung der Abnahme der berechneten Felder und des Covers nach 2d.
 - Schwankung zwischen Läufen: Temperatur der laufenden Secretary-Instanz
