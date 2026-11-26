@@ -22,6 +22,8 @@ vi.mock('@/lib/external-jobs-repository', () => ({
 import {
   documentMediaKindFromName,
   enqueueSourceDocumentJob,
+  seitenbildParameter,
+  type Seitenbilder,
 } from '@/lib/external-jobs/enqueue-document-job'
 
 const SOURCE = { itemId: 'item-1', parentId: 'parent-1', name: 'Programm.pdf' }
@@ -68,6 +70,32 @@ describe('enqueueSourceDocumentJob (A1)', () => {
     const correlation = job.correlation as { source: { itemId: string; mimeType: string } }
     expect(correlation.source.itemId).toBe('item-1')
     expect(correlation.source.mimeType).toBe('application/pdf')
+  })
+
+  it.each([
+    [undefined, true, true],
+    ['alle', true, true],
+    ['vorschau', true, false],
+    ['keine', false, false],
+  ] as Array<[Seitenbilder | undefined, boolean, boolean]>)(
+    'seitenbilder %s: die Schalter stehen in correlation.options, wo Start-Route und Secretary-Anfrage sie lesen',
+    async (seitenbilder, vorschau, highRes) => {
+      await enqueueSourceDocumentJob({
+        libraryId: 'lib-1', userEmail: 'peter@example.com', source: SOURCE, mediaKind: 'pdf', ingest: false,
+        ...(seitenbilder ? { seitenbilder } : {}),
+      })
+      const job = mocks.create.mock.calls[0][0] as { correlation: { options: Record<string, unknown> }; parameters: Record<string, unknown> }
+      expect(job.correlation.options).toMatchObject({ includePreviewPages: vorschau, includeHighResPages: highRes })
+      expect(job.parameters).toMatchObject({ includePreviewPages: vorschau, includeHighResPages: highRes, includeOcrImages: true })
+    },
+  )
+
+  it('seitenbilder gilt nur fuer PDF; ein unbekannter Wert wirft', async () => {
+    await expect(enqueueSourceDocumentJob({
+      libraryId: 'lib-1', userEmail: 'peter@example.com', source: { ...SOURCE, name: 'Protokoll.docx' }, mediaKind: 'docx', ingest: false, seitenbilder: 'keine',
+    })).rejects.toThrow(/seitenbilder gilt nur fuer PDF/)
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(() => seitenbildParameter('gross' as Seitenbilder)).toThrow(/seitenbilder "gross" ist unbekannt/)
   })
 
   it('Office-Job: job_type office, extract_office; ohne Template bleiben metadata/ingest ignore', async () => {

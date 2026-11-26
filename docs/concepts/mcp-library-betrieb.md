@@ -555,3 +555,17 @@ Zwei Befunde aus dem ersten Lauf mit Untertiteln, beide am Story-Modus.
   Vorgabe ist aus, weil das Zeigen eines ganzen Transkripts eine
   Rechte-Entscheidung der Library ist; eine Library, die nur Zusammenfassung
   und Link zeigt, lässt den Schalter weg.
+
+## Nachtrag 2.91.0 (26.11.2026): Seitenbilder eines PDF sind wählbar
+
+Die Extraktion eines PDF legt je Seite ein Vorschaubild und ein Bild in hoher
+Auflösung ab. Für Folien ist das der Zweck (Cover, Folien-Ansicht, geteilte
+Seiten), für ein PDF aus reinem Text ist es Speicher ohne Nutzen.
+
+- `quelle_erschliessen` nimmt `seitenbilder: "alle" | "vorschau" | "keine"`.
+  Die Vorgabe bleibt `alle`; wer Text-PDFs in Masse erschließt, wählt `keine`.
+- Die Wahl steht am Job in `correlation.options`, weil Start-Route und
+  Secretary-Anfrage die Bild-Schalter dort lesen. Vorher standen sie bei
+  Brücken-Jobs nur in `parameters` und blieben ohne Wirkung.
+- Was schon im Blob-Speicher liegt, bleibt liegen; die Option wirkt auf den
+  nächsten Lauf.

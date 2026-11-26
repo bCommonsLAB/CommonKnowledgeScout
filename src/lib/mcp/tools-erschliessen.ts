@@ -26,7 +26,7 @@ import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { entscheideErzwingen } from './alt-format-erkennung'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
+import { SEITENBILDER, documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
 import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { audioOptionenAusEingabe, bestimmeAudioWeg, fasseWegeZusammen, type AudioWeg } from './erschliessen-wege'
@@ -73,13 +73,17 @@ export function registerErschliessenTools(server: McpServer): void {
           'danach manuell pruefen). Weglassen = Library-Voreinstellung transcriptionSpeakerMode, sichtbar als herkunft.'),
         kontext: z.string().max(2000).optional().describe('NUR AUDIO (P3a): Thema/Anlass als Freitext fuer die Transkription'),
         begriffe: z.array(z.string().min(1)).max(100).optional().describe('NUR AUDIO (P3a): Namen und Fachwoerter fuer diese Dateien; die Library-Namen ergaenzt der Server'),
+        seitenbilder: z.enum(SEITENBILDER).optional().describe(
+          'NUR PDF. Welche Seitenbilder die Extraktion ablegt: alle (Vorgabe: Vorschau und HighRes je Seite, rund 0,7 MB je Seite), ' +
+          'vorschau (nur kleine Vorschaubilder, reichen fuer Cover und Folien-Erkennung), keine (reine Text-PDFs wie Transkripte; ' +
+          'dann gibt es kein Cover aus den Quellen). Bilder im Dokument selbst bleiben erhalten.'),
         ...TRANSFORM_INPUTS,
         ...INGEST_INPUT,
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, sprecherErkennung, kontext, begriffe, folienAlsTabelle, anhangInSuche, ingest, begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache, erzwingen, sprecherErkennung, kontext, begriffe, seitenbilder, folienAlsTabelle, anhangInSuche, ingest, begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
@@ -106,6 +110,9 @@ export function registerErschliessenTools(server: McpServer): void {
               // erspart dem Agenten eine Entscheidung, die er nur raten kann.
               const twins = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [source.itemId] })
               const entscheidung = entscheideErzwingen({ angefordert: erzwingen, doc: twins.get(source.itemId) ?? null })
+              if (seitenbilder !== undefined && documentMediaKindFromName(source.name) !== 'pdf') {
+                throw new Error(`seitenbilder gilt nur fuer PDF — "${source.name}" ist keines; ohne seitenbilder erneut aufrufen`)
+              }
               if (kind === 'audio' || kind === 'video') {
                 const weg = kind === 'audio' ? bestimmeAudioWeg(audioContext, library) : undefined
                 const { jobId } = await enqueueSourceTranscribeJob({
@@ -123,8 +130,9 @@ export function registerErschliessenTools(server: McpServer): void {
                   libraryId, userEmail, source, mediaKind: documentKind,
                   template: effectiveTemplate, llmModel: effectiveModell, targetLanguage: zielsprache,
                   erzwingen: entscheidung.erzwingen, optionen, ingest: ingestEntscheidung.ingest,
+                  ...(documentKind === 'pdf' && seitenbilder !== undefined ? { seitenbilder } : {}),
                 })
-                return { jobId, erzwungen: entscheidung.grund }
+                return { jobId, erzwungen: entscheidung.grund, ...(documentKind === 'pdf' ? { seitenbilder: seitenbilder ?? 'alle' } : {}) }
               }
               throw new Error(
                 `"${source.name}" ist ${kind} — quelle_erschliessen kann Audio/Video/PDF/DOCX/XLSX/PPTX; ` +
