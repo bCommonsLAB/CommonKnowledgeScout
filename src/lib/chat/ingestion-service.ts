@@ -20,6 +20,7 @@ import { coverKandidatAusMedienliste } from '@/lib/ingestion/cover-aus-medienlis
 import { medienVerzeichnisAusFragmenten } from '@/lib/ingestion/medien-verzeichnis'
 import { anhaengeAusQuellen, anhangReihenfolge, ersetzePdfLinks, quelldateienAusMeta } from '@/lib/ingestion/anhaenge-aus-quellen'
 import { haengeAnhaengeAn, ladeUntertitelAnhaenge, untertitelAnhangErlaubt } from '@/lib/ingestion/untertitel-anhang'
+import { entscheideSlug, ladeBestehendenSlug } from '@/lib/ingestion/adresse-bewahren'
 import { anhangPageSpans, markiereAnhangChunks } from '@/lib/ingestion/source-appendix-chunks'
 import type { SourceAppendix } from '@/types/external-jobs'
 import { buildMetadataPrefix, DOKUMENT_BODY_MARKER } from '@/lib/ingestion/metadata-formatter'
@@ -1457,6 +1458,24 @@ export class IngestionService {
       // chunksUpserted wird später nach dem Embedding gesetzt, initialisiere mit 0
       let chunksUpserted = 0
       
+      // Adresse stabil halten (Owner 26.11.2026, adresse-bewahren.ts): Traegt das Dokument im Index
+      // schon eine Adresse, bleibt sie — der neue Vorschlag aus dem Frontmatter wird verworfen und genannt.
+      try {
+        const adresse = entscheideSlug(docMetaJsonObj.slug, await ladeBestehendenSlug(libraryKey, fileId))
+        if (adresse.herkunft === 'bestehend') {
+          docMetaJsonObj.slug = adresse.slug
+          if (adresse.verworfen) {
+            FileLogger.info('ingestion', 'Bestehende Adresse behalten', { fileId, slug: adresse.slug, verworfen: adresse.verworfen })
+            if (jobId) await emitIngestTraceEvent(repo, jobId, 'slug_preserved', { slug: adresse.slug, verworfen: adresse.verworfen })
+          }
+        }
+      } catch (error) {
+        // Ohne den bisherigen Eintrag ist die alte Adresse unbekannt; der Lauf nimmt die neue und sagt es.
+        const grund = error instanceof Error ? error.message : String(error)
+        FileLogger.warn('ingestion', 'Bestehende Adresse nicht lesbar — neue Adresse gilt', { fileId, error: grund })
+        if (jobId) await emitIngestTraceEvent(repo, jobId, 'slug_preserved', { slug: null, grund })
+      }
+
       if (typeof (docMetaJsonObj as { slug?: unknown }).slug !== 'string' || !(docMetaJsonObj as { slug?: string }).slug?.trim()) {
         docMetaJsonObj.slug = buildDocumentSlugFallback(
           fileName,

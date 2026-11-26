@@ -569,3 +569,21 @@ Seiten), für ein PDF aus reinem Text ist es Speicher ohne Nutzen.
   Brücken-Jobs nur in `parameters` und blieben ohne Wirkung.
 - Was schon im Blob-Speicher liegt, bleibt liegen; die Option wirkt auf den
   nächsten Lauf.
+
+## Nachtrag 2.92.0 (26.11.2026): Eine einmal vergebene Adresse bleibt
+
+Owner-Entscheid 26.11.2026. Die Galerie öffnet ein Dokument über
+`docMetaJson.slug`. Der Slug stand im Frontmatter der Transformation, und das
+Sprachmodell füllte ihn bei jeder Neuerzeugung neu; jeder weitergegebene Link
+lief danach ins Leere.
+
+- **Maßgeblich ist die Adresse im Index**, denn auf sie zeigen die Links.
+  Template-Phase und Ingest übernehmen sie (`src/lib/ingestion/adresse-bewahren.ts`).
+  Ist das Dokument noch nicht ingestiert, zählt die Adresse der bisherigen
+  Transformation.
+- **Der neue Vorschlag des Modells wird verworfen und genannt** (Ereignis
+  `slug_preserved` in `job_status`), nicht still übergangen.
+- **Bewusst ändern** geht mit `dokument_felder_setzen` am Feld `slug`; das
+  schreibt Twin und Index, und der nächste Lauf behält den neuen Wert.
+- Die Identität eines Dokuments bleibt die Storage-Id seiner Quelle. Die
+  Adresse ist ein Name dafür, den ein Lauf nicht mehr austauscht.
