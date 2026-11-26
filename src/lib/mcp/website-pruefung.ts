@@ -13,7 +13,7 @@
 
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
-import { parseWebsiteSections, bannerSortAus, heroBildPosition, storyBloecke } from '@ks/module-website'
+import { parseWebsiteSections, bannerSortAus, heroBildPosition, heroTonHinweise, storyBloecke } from '@ks/module-website'
 
 export interface DokumentPruefung {
   meta: Record<string, unknown>
@@ -95,6 +95,12 @@ export function pruefeMarkdownDokument(markdown: string): DokumentPruefung {
       heroBildPosition(meta['hero_image_position'])
     } catch (error) {
       warnungen.push(`${error instanceof Error ? error.message : String(error)} — der Kopf zeigt die Bildmitte`)
+    }
+    // hero_tone (26.11.2026): ein ungueltiger Wert ist ein FEHLER (es wird nicht publiziert); wirkungslos gesetzt ist eine Warnung.
+    try {
+      warnungen.push(...heroTonHinweise(meta['hero_tone'], heroLayout, heroBild))
+    } catch (error) {
+      fehler.push(error instanceof Error ? error.message : String(error))
     }
     // banner_sort (F3): ein unbekannter Wert faellt im Renderer laut auf rating — hier wird er vorher genannt.
     try {

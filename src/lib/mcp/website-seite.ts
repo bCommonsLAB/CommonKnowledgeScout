@@ -22,6 +22,7 @@ import {
 } from '@ks/module-website'
 import { getEffectiveDocumentNavigationSlug } from '@ks/util'
 import { bildUrls } from './website-pruefung'
+import { heroTonBefunde, type KopfFelder } from './website-kopf-befunde'
 
 /** Was der Bericht ueber die Library hinaus braucht (F3, ADR 0012). */
 export interface SeitenBerichtKontext {
@@ -29,6 +30,8 @@ export interface SeitenBerichtKontext {
   starCountsPublic: boolean
   /** `banner_sort` je Seite aus dem Meta-Dokument (`docMetaJson.banner_sort`). */
   bannerSortJeFileId: Map<string, unknown>
+  /** Kopf-Felder je Seite aus dem Meta-Dokument (`hero_tone`, `hero_layout`, `hero_image`) — fuer die Pruefung von `hero_tone`. */
+  kopfJeFileId?: Map<string, KopfFelder>
   /** Namen der benannten Regelsaetze der Library (`config.chat.antwortregelnVarianten`) — fuer `rules=<name>` einer Story-Sektion. */
   regelsaetze?: readonly string[]
 }
@@ -69,6 +72,8 @@ export interface SeitenEintrag {
   menu_order?: number
   menu_area?: string
   site_role?: string
+  /** `hero_tone` der Seite, wenn gesetzt und gueltig (`light` = Kopf ohne Schleier). */
+  heroTon?: string
   /** `fragen` (N1) nur bei layout=story: Zahl der Beispielfragen des Blocks `questions`; `karten` (N2) nur bei Sektionen mit Block `cards`: Zahl der Kacheln; `filter` und `populaer` (09.11.2026) nur bei layout=story: Facettenfilter des Markers und n des Blocks `popular`; `kartenDarstellung` (`cards=column|inline`) und `regelsatz` (`rules=<name>`) nur bei layout=story, wenn der Marker sie nennt. */
   sektionen: Array<{ layout: string; bg: string; bild: boolean; bildBreite?: string; bildAusrichtung?: string; fragen?: number; karten?: number; filter?: Record<string, string[]>; populaer?: number; zitateSichtbar?: boolean; kartenDarstellung?: string; regelsatz?: string }>
   fehler: string[]
@@ -148,6 +153,10 @@ export function baueSeitenBericht(
     if (doc.menu_order === undefined) warnungen.push('menu_order fehlt — Doc steht am Ende des Menues')
     // F3: banner_sort stars braucht den Library-Schalter; ohne Kontext (Tests ohne Library) keine Pruefung.
     if (kontext) fehler.push(...bannerSortBefunde(kontext.bannerSortJeFileId.get(fileId), kontext.starCountsPublic))
+    // hero_tone: ungueltig ist ein Fehler, wirkungslos eine Warnung; ohne Kontext keine Pruefung.
+    const ton = heroTonBefunde(kontext?.kopfJeFileId?.get(fileId))
+    fehler.push(...ton.fehler)
+    warnungen.push(...ton.warnungen)
     return {
       fileId,
       titel: titel(doc),
@@ -155,6 +164,7 @@ export function baueSeitenBericht(
       menu_order: doc.menu_order,
       menu_area: doc.menu_area,
       site_role: doc.site_role,
+      ...(ton.heroTon ? { heroTon: ton.heroTon } : {}),
       sektionen,
       fehler,
       warnungen,
