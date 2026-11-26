@@ -4,7 +4,8 @@
  * @description
  * Dieselbe Form wie die Vortrags-Sammeldateien: `kind: composite-transcript`,
  * `_include_self: true` (der Artikeltext ist selbst Material), `_source_files`
- * (das heruntergeladene Audio/Video, wird transkribiert) und `_media_files`
+ * (das heruntergeladene Audio/Video, wird transkribiert — oder die Untertitel-Datei,
+ * deren Twin das Transkript schon traegt) und `_media_files`
  * (Medium und Coverbild als Fragmente am Twin — daraus rechnet die Pipeline
  * `audio_url` und `coverImageUrl`). Der Body traegt Titel, Herkunft und die
  * Artikelbloecke WOERTLICH; die Vorlage uebernimmt sie unveraendert. Flaches
@@ -46,6 +47,11 @@ export interface ArtikelSammeldateiInput {
    * Tritt an die Stelle des Abschnitts „Artikel"; ein leerer Artikeltext ist dann kein Fehler.
    */
   struktur?: { markdown: string; links: SeitenLink[] }
+  /**
+   * Weg `transkript: "untertitel"`: die Untertitel-Datei im selben Ordner tritt als Quelle an die
+   * Stelle des Mediums (ihr Twin traegt das Transkript); `herkunft` nennt Anbieter, Art, Sprache, Abruf.
+   */
+  untertitel?: { datei: string; herkunft: string } | null
 }
 
 /** Ueberschriften der Seite um zwei Ebenen tiefer setzen — `#` und `##` gehoeren der Sammeldatei. */
@@ -88,7 +94,7 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
     kind: 'composite-transcript',
     title: seite.title,
     _include_self: true,
-    _source_files: medienDatei ? [medienDatei] : [],
+    _source_files: [medienDatei, input.untertitel?.datei].filter((v): v is string => typeof v === 'string' && v.length > 0),
     _media_files: [einbetten ? medienDatei : null, coverDatei].filter((v): v is string => typeof v === 'string' && v.length > 0),
     source_url: seite.url,
     source: seite.siteName,
@@ -127,6 +133,9 @@ export function baueArtikelSammeldatei(input: ArtikelSammeldateiInput): string {
     zeilen.push(einbetten ? '## Eingebettetes Medium' : '## Medium (nur Quelle, nicht eingebettet)', '')
     zeilen.push(`- Audio/Video: [[${medienDatei}]]${dauer ? ` (${dauer})` : ''}`)
     zeilen.push('')
+  }
+  if (input.untertitel) {
+    zeilen.push('## Transkript aus Untertiteln', '', `- Untertitel: [[${input.untertitel.datei}]] (${input.untertitel.herkunft})`, '')
   }
   if (videoEmbedUrl) {
     zeilen.push(`Video: ${videoEmbedUrl}`, '')

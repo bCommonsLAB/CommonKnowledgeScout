@@ -12,6 +12,7 @@ import type { ExternalJob } from '@/types/external-job'
 const OPTIONEN = {
   url: 'https://www.youtube.com/watch?v=abc', folderId: 'ordner-7', wurzelId: 'wurzel', ordner: '07 Abend 7', dateiname: '07 Abend 7.md',
   targetLanguage: 'de', audioContext: { speakerMode: true }, llmModel: 'modell-x', medienEinbetten: true, position: 7, titel: 'Abend 7',
+  transkript: 'tonspur' as const, rueckfall: false,
 }
 const BATCH = { batchId: 'batch-1', batchName: 'Playlist: Dialogreihe' }
 
@@ -32,6 +33,26 @@ describe('buildWebSourceJob', () => {
     expect(() => buildWebSourceJob({ jobId: 'j', jobSecretHash: 'h', libraryId: 'lib', userEmail: 'o@x', optionen: { ...OPTIONEN, dateiname: 'x.txt' }, batch: BATCH })).toThrow(/dateiname auf \.md/)
     const kaputt = { correlation: { options: { url: 'https://x' } } } as unknown as ExternalJob
     expect(() => leseWebSourceOptionen(kaputt)).toThrow(/web-source-Job ohne folderId/)
+  })
+})
+
+describe('Schalter transkript am web-source-Job', () => {
+  it('untertitel, rueckfall und untertitelSprache kommen typgeprueft zurueck', () => {
+    const optionen = { ...OPTIONEN, audioContext: {}, transkript: 'untertitel' as const, rueckfall: true, untertitelSprache: 'en' }
+    const job = buildWebSourceJob({ jobId: 'j', jobSecretHash: 'h', libraryId: 'lib', userEmail: 'o@x', optionen, batch: BATCH })
+    expect(leseWebSourceOptionen(alsJob(job))).toEqual(optionen)
+  })
+
+  it('ein Job von vor dem Schalter (ohne das Feld) laeuft ueber die Tonspur; ein unbekannter Wert wirft', () => {
+    const job = buildWebSourceJob({ jobId: 'j', jobSecretHash: 'h', libraryId: 'lib', userEmail: 'o@x', optionen: OPTIONEN, batch: BATCH })
+    const alt = alsJob(job)
+    const optionenAlt = { ...(alt.correlation.options as Record<string, unknown>) }
+    delete optionenAlt['transkript']
+    delete optionenAlt['rueckfall']
+    alt.correlation.options = optionenAlt
+    expect(leseWebSourceOptionen(alt)).toMatchObject({ transkript: 'tonspur', rueckfall: false })
+    alt.correlation.options = { ...optionenAlt, transkript: 'captions' }
+    expect(() => leseWebSourceOptionen(alt)).toThrow(/transkript "captions" ist unbekannt/)
   })
 })
 

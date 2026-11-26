@@ -44,12 +44,13 @@ async function erschliesseVideo(job: ExternalJob, repo: ExternalJobsRepository):
   const batchId = job.correlation?.batchId
   const provider = await getServerProvider(job.userEmail, job.libraryId)
   if (!provider) throw new Error('Storage-Provider nicht verfuegbar')
-  await repo.pushLog(job.jobId, { phase: WEB_SOURCE_STEP, progress: 5, message: `Video ${optionen.position} „${optionen.titel}": Metadaten und Tonspur werden geholt` })
+  await repo.pushLog(job.jobId, { phase: WEB_SOURCE_STEP, progress: 5, message: `Video ${optionen.position} „${optionen.titel}": Metadaten und ${optionen.transkript === 'untertitel' ? 'Untertitel' : 'Tonspur'} werden geholt` })
   const ergebnis = await webseiteErschliessen({
     libraryId: job.libraryId, userEmail: job.userEmail, provider,
     url: optionen.url, folderId: optionen.folderId, dateiname: optionen.dateiname,
     targetLanguage: optionen.targetLanguage, audioContext: optionen.audioContext, llmModel: optionen.llmModel,
     medienHolen: true, medienEinbetten: optionen.medienEinbetten,
+    transkript: optionen.transkript, rueckfall: optionen.rueckfall, untertitelSprache: optionen.untertitelSprache,
     ...(batchId ? { batch: { batchId, batchName: job.correlation?.batchName } } : {}),
   })
   await repo.appendMeta(job.jobId, { webSource: { ordner: optionen.ordner, ...ergebnis } }, 'phase-web-source')
@@ -58,6 +59,8 @@ async function erschliesseVideo(job: ExternalJob, repo: ExternalJobsRepository):
     details: {
       sammeldatei: ergebnis.sammeldatei.name, metadatenQuelle: ergebnis.metadatenQuelle, datum: ergebnis.seite.datePublished || null,
       transkriptionJobId: ergebnis.medium?.jobId ?? null, mediumGrund: ergebnis.mediumGrund, coverGrund: ergebnis.coverGrund,
+      transkriptWeg: ergebnis.transkript.weg, transkriptSpur: ergebnis.transkript.spur, transkriptHerkunft: ergebnis.transkript.herkunft,
+      rueckfallGrund: ergebnis.transkript.rueckfallGrund,
     },
   })
 }

@@ -501,3 +501,35 @@ Plan `docs/plans/webseiten-erschliessen.plan.md`, Wellen 2b und 2c.
   `job_status.befunde`. Eine Bitte in der Vorlage ist keine Regel.
 - **Das Material sagt, was es ist.** Quellblöcke tragen ihre Art; nur Audio
   und Video sind Transkripte.
+
+## Nachtrag 2.89.0 (26.11.2026): Untertitel statt Tonspur
+
+Anlass: eine Konferenz-Library mit mehreren hundert aufgezeichneten Videos. Je
+Video die Tonspur zu laden und zu transkribieren kostet Minuten und Geld; die
+Plattform hält den Wortlaut als Untertitel schon bereit.
+
+- **Ein Schalter, zwei Wege.** `webseite_erschliessen` und
+  `playlist_erschliessen` nehmen `transkript: "tonspur" | "untertitel"`. Die
+  Vorgabe bleibt `tonspur`, bis der neue Weg an echten Videos abgenommen ist.
+- **Welche Spur gilt, entscheidet der Secretary** (`POST /api/media/subtitles`):
+  die von Hand gepflegte Spur der gewünschten Sprache, sonst die automatisch
+  erzeugte Spur in der Originalsprache. Maschinell übersetzte Spuren sind
+  Übersetzungen der automatischen Spur und gelten nie als Transkript.
+- **Die Untertitel sind eine Quelle wie jede andere.** `<Basis> - Untertitel.txt`
+  liegt im Ordner (Text mit Zeitmarken), ihr Twin trägt das Transkript. Die
+  Sammeldatei löst sie auf wie eine transkribierte Tonspur, und
+  `transkript_korrigieren` arbeitet darauf. Es gibt kein Medium im Ordner und
+  keinen Transkriptions-Job.
+- **Die Herkunft ist überall lesbar**: in der Antwort (`transkript.weg`,
+  `spur`, `herkunft`), im Kopf der Datei, im Frontmatter des Transkripts
+  (`transcript_origin: subtitles`, `subtitle_kind`, `subtitle_language`,
+  `subtitle_fetched_at` …) und in der Sammeldatei.
+- **Kein stiller Rückfall.** Trägt das Video keine brauchbare Spur, scheitert
+  der Aufruf mit dem Grund und schreibt nichts. Nur `rueckfall: true` erlaubt
+  die Tonspur; die Antwort nennt dann den Grund (`transkript.rueckfallGrund`).
+- **Was die Antwort über die Qualität sagt.** `hinweise` nennen automatisch
+  erzeugte Spuren (Namen, Fachwörter und Zahlen sind unsicherer), eine Spur,
+  die vor dem Ende des Videos aufhört, und Lücken ab fünf Minuten. Ob eine
+  Spur für eine Zusammenfassung reicht, bleibt eine Abnahme am Material.
+- **Vorlagen.** Ein Muster in `=quellenarten(…)`, das die Tonspur am Namen
+  erkennt (`"* - Audio.*"`), braucht für diesen Weg `"* - Untertitel.*"`.
