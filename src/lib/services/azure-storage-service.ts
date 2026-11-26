@@ -654,6 +654,33 @@ export class AzureStorageService {
   }
 
   /**
+   * Laedt ein Textdokument (UTF-8) in den Scope eines Dokuments, unter demselben Pfadschema wie PDFs.
+   * Der Inhalt kann sich unter gleichem Namen aendern (korrigiertes Transkript): kurzer Cache statt ein Jahr.
+   */
+  async uploadTextToScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    fileName: string,
+    text: string
+  ): Promise<string> {
+    if (!this.isConfigured()) throw new Error('Azure Storage nicht konfiguriert')
+    const containerClient = this.getContainerClient(containerName)
+    if (!containerClient) throw new Error('Container Client konnte nicht erstellt werden')
+    const blobPath = this.getPdfBlobPathWithScope(libraryId, scope, ownerId, fileName)
+    try {
+      await containerClient.getBlockBlobClient(blobPath).uploadData(Buffer.from(text, 'utf-8'), {
+        blobHTTPHeaders: { blobContentType: 'text/plain; charset=utf-8', blobCacheControl: 'public, max-age=300' },
+      })
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Upload des Textdokuments', error)
+      throw new Error(`Text-Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`)
+    }
+    return this.getPdfUrlWithScope(containerName, libraryId, scope, ownerId, fileName)
+  }
+
+  /**
    * Bestimmt Content-Type basierend auf Dateiendung
    */
   private getContentType(extension: string, mimeType?: string): string {

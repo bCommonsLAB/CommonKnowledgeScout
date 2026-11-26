@@ -85,6 +85,15 @@ describe('classifyReferences', () => {
     })
   })
 
+  it('Anzeigename ohne Endung: die Adresse bestimmt das Format, der Name bleibt die Beschriftung', () => {
+    const out = classifyReferences([
+      { url: 'https://blob.core/lib/sessions/doc/Side_Event_-_Untertitel.txt', name: 'Untertitel von YouTube' },
+      { url: 'https://example.org/seite', name: 'Programm der Tagung' },
+    ])
+    expect(out[0]).toEqual({ url: 'https://blob.core/lib/sessions/doc/Side_Event_-_Untertitel.txt', format: 'markdown', name: 'Untertitel von YouTube' })
+    expect(out[1]).toMatchObject({ format: 'web', name: 'Programm der Tagung' })
+  })
+
   it('faellt ohne Namen auf die URL-Klassifikation zurueck', () => {
     const out = classifyReferences([{ url: 'https://x/clip.mp4' }])
     expect(out[0]).toMatchObject({ format: 'video', name: 'clip.mp4' })

@@ -533,3 +533,25 @@ Plattform hält den Wortlaut als Untertitel schon bereit.
   Spur für eine Zusammenfassung reicht, bleibt eine Abnahme am Material.
 - **Vorlagen.** Ein Muster in `=quellenarten(…)`, das die Tonspur am Namen
   erkennt (`"* - Audio.*"`), braucht für diesen Weg `"* - Untertitel.*"`.
+
+## Nachtrag 2.90.0 (26.11.2026): Zitierte Quellen ganz lesen und einsehen
+
+Zwei Befunde aus dem ersten Lauf mit Untertiteln, beide am Story-Modus.
+
+- **Textstellen gehen ganz in den Prompt.** `buildContext` schnitt jede Stelle
+  nach 800 Zeichen ab, während der Ingest Chunks von 1000 Zeichen bildet und
+  der Retriever sein Zeichenbudget mit der vollen Länge rechnet. Dem Modell
+  fehlte das Ende jeder Stelle, mitten im Satz. Das Budget liegt jetzt nur noch
+  beim Retriever.
+- **Lange Absätze bleiben Fließtext.** Der Secretary zerlegte Absätze über der
+  Chunk-Größe wortweise; der Rest landete mit einem Wort je Absatz im Index.
+  Betroffen sind vor allem Transkripte mit einem Absatz je Sprecher. Behoben im
+  Secretary; wirksam nach dessen Ausrollen und einem neuen Ingest.
+- **Was zitiert wird, soll man nachsehen können.** Die Transkripte der Quellen
+  bleiben ein unsichtbarer Anhang für die Suche (Owner-Entscheid 05.10.). Für
+  Transkripte aus Untertiteln gibt es jetzt den Schalter
+  `attachments_subtitles: true`: Der Ingest legt das Transkript vom Twin als
+  Textdokument „Untertitel von <Anbieter>" zu den Anhängen des Dokuments. Die
+  Vorgabe ist aus, weil das Zeigen eines ganzen Transkripts eine
+  Rechte-Entscheidung der Library ist; eine Library, die nur Zusammenfassung
+  und Link zeigt, lässt den Schalter weg.

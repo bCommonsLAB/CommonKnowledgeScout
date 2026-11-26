@@ -307,6 +307,10 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
    mit Transkript am Twin, ohne Medium und ohne Transkriptions-Job; kein
    stiller Rückfall auf die Tonspur (`rueckfall`).
 2. Secretary: Route `media/subtitles` (eigenes Repo).
+3. Nach dem ersten Lauf (2.90.0): Story-Modus schneidet Textstellen nicht mehr
+   nach 800 Zeichen ab; Schalter `attachments_subtitles` legt Untertitel als
+   einsehbares Textdokument an den Eintrag; Secretary zerlegt lange Absätze
+   nicht mehr in Ein-Wort-Absätze.
 
 **Geplant:**
 
@@ -314,6 +318,12 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
   `media/subtitles` ausgerollt ist: Abruf gegen die Plattform (bisher nur
   gegen nachgebaute Antworten getestet), Vergleich Untertitel gegen
   Transkription der Tonspur, dann die Vorgabe des Schalters entscheiden.
+- Bestand neu ingestieren, sobald der Secretary mit dem Chunk-Fix ausgerollt
+  ist: Transkripte mit langen Absätzen liegen sonst weiter mit einem Wort je
+  Absatz im Index.
+- Adresse eines Dokuments stabil halten: der Slug kommt aus dem Frontmatter
+  der Transformation und wechselt bei jeder Neuerzeugung (Befund 26.11.);
+  braucht einen Owner-Entscheid, woran die Adresse hängt.
 
 - Wiederholung der Abnahme der berechneten Felder und des Covers nach 2d.
 - Schwankung zwischen Läufen: Temperatur der laufenden Secretary-Instanz
