@@ -17,6 +17,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { MAX_PLAYLIST_STAPEL } from '@/lib/web-source/playlist-auswahl'
 import { playlistAnlegen, playlistVorschau } from '@/lib/web-source/playlist-erschliessen'
+import { TRANSKRIPT_WEGE } from '@/lib/web-source/untertitel'
 import { audioOptionenAusEingabe, bestimmeAudioWeg } from './erschliessen-wege'
 import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
@@ -37,6 +38,9 @@ export function registerPlaylistTool(server: McpServer): void {
         'modus anlegen: legt je gewaehltem Video (auswahl, bis ' + MAX_PLAYLIST_STAPEL + ') unter ordner einen Ordner an und startet je Video ' +
         'einen Job, der dort Sammeldatei (Titel, Beschreibung woertlich, Datum, Kanal, Kapitel, video_url), ' +
         '„<Ordner> - Audio.m4a" und „<Ordner> - Cover.jpg" anlegt und die Transkription startet (kein Ingest). ' +
+        'Mit transkript "untertitel" holt der Job statt Tonspur und Transkription die fertigen Untertitel des Videos ' +
+        '(„<Ordner> - Untertitel.txt", Transkript am Twin, kein Transkriptions-Job); ohne brauchbare Spur scheitert die Zeile ' +
+        'mit Grund, ausser rueckfall: true erlaubt die Tonspur. ' +
         'Antwort sofort mit batchId; Fortschritt mit batch_bilanz, Wiederholung mit batch_neustart. Vorhandene Ordner ' +
         'werden nicht ueberschrieben (Befund je Zeile), mehr als ' + MAX_PLAYLIST_STAPEL + ' ist eine Absage. Ordnernamen hier entscheiden — ' +
         'Umbenennen nach dem Erschliessen setzt Twin-Familien auf twin_stale. anlegen nur nach Bestaetigung.',
@@ -51,6 +55,9 @@ export function registerPlaylistTool(server: McpServer): void {
         ordnernamen: z.record(z.string().min(1).max(120)).optional().describe('optional: Position (als Text) → Ordnername; sonst der Vorschlag aus der Vorschau'),
         mitDatum: z.boolean().optional().describe('nur bei vorschau: Lesejob fuer Ordnernamen mit Upload-Datum starten (braucht ordner/ordnerId)'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache der Transkription, Default de'),
+        transkript: z.enum(TRANSKRIPT_WEGE).optional().describe('tonspur (Vorgabe) = Medium laden und transkribieren; untertitel = die fertigen Untertitel je Video holen (von Hand gepflegte Spur, sonst die automatische in der Originalsprache) — kein Medium, kein Transkriptions-Job'),
+        rueckfall: z.boolean().optional().describe('nur mit transkript untertitel: true = ohne brauchbare Spur die Tonspur transkribieren; Vorgabe false = die Zeile scheitert mit Grund'),
+        untertitelSprache: z.string().min(2).max(20).optional().describe('nur mit transkript untertitel: gewuenschte Sprache der von Hand gepflegten Spur (z. B. en); weglassen = Originalsprache des Videos'),
         medienEinbetten: z.boolean().optional().describe('false = Video nur transkribieren, OHNE Player und Embed im Eintrag; Default true (Einverstaendnis des Urhebers einholen)'),
         sprecherErkennung: z.boolean().optional().describe('true = Sprecher-Modell fuer die Tonspur (Dialoge), false = ohne; weglassen = Library-Voreinstellung'),
         kontext: z.string().max(2000).optional().describe('Thema/Anlass als Freitext fuer die Transkription, gilt fuer alle Videos'),
@@ -59,7 +66,7 @@ export function registerPlaylistTool(server: McpServer): void {
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ libraryId, url, modus, ordner, ordnerId, auswahl, ordnernamen, mitDatum, zielsprache, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
+    async ({ libraryId, url, modus, ordner, ordnerId, auswahl, ordnernamen, mitDatum, zielsprache, transkript, rueckfall, untertitelSprache, medienEinbetten, sprecherErkennung, kontext, begriffe, begruendung }) => {
       const gewaehlt = modus ?? 'vorschau'
       try {
         return await mitProtokoll(
@@ -81,14 +88,21 @@ export function registerPlaylistTool(server: McpServer): void {
             if (!auswahl || auswahl.length === 0) throw new Error('anlegen braucht auswahl (Positionen oder Video-Ids aus der Vorschau)')
             const provider = await requireProvider(userEmail, libraryId)
             const audioContext = audioOptionenAusEingabe({ sprecherErkennung, kontext, begriffe })
+            const untertitel = transkript === 'untertitel'
+            if (!untertitel && (rueckfall !== undefined || untertitelSprache !== undefined)) throw new Error('rueckfall und untertitelSprache gelten nur mit transkript "untertitel"')
+            if (untertitel && rueckfall !== true && Object.keys(audioContext).length > 0) {
+              throw new Error('sprecherErkennung, kontext und begriffe gelten nur fuer die Transkription der Tonspur — mit transkript "untertitel" weglassen (oder rueckfall: true setzen)')
+            }
             const ergebnis = await playlistAnlegen({
               libraryId, userEmail, provider, url, wurzelId, auswahl, ordnernamen,
               targetLanguage: zielsprache ?? 'de', audioContext, llmModel: standardLlmModell(library), medienEinbetten: medienEinbetten ?? true,
+              transkript: transkript ?? 'tonspur', rueckfall: rueckfall === true, untertitelSprache,
             })
             return jsonResult({
               modus: 'anlegen', ...ergebnis,
-              transkription: bestimmeAudioWeg(audioContext, library),
-              naechsterSchritt: `batch_bilanz mit batchId ${ergebnis.batchId} abwarten (je Video ein web-source-Job und ein Transkriptions-Job); ` +
+              transkript: untertitel ? { weg: 'untertitel', rueckfall: rueckfall === true } : { weg: 'tonspur' },
+              ...(untertitel && rueckfall !== true ? {} : { transkription: bestimmeAudioWeg(audioContext, library) }),
+              naechsterSchritt: `batch_bilanz mit batchId ${ergebnis.batchId} abwarten (je Video ein web-source-Job${untertitel ? '; Untertitel liegen danach als Transkript am Twin, job_status je Zeile nennt transkriptWeg und transkriptHerkunft' : ' und ein Transkriptions-Job'}); ` +
                 'danach Transkripte pruefen und mit transformation_starten je Sammeldatei weiter (Stationen 4–7 aus veranstaltung-aufbereiten).',
             })
           },

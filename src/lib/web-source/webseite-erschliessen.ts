@@ -14,67 +14,47 @@
  * `<Basis>.mp3`, das gilt im Twin-System als Transkript (Geschwister-Regel,
  * Befund 13.10.2026). Transkriptions-Job wie bei `quelle_erschliessen` (kein
  * Ingest). Jeder ausgelassene Teil steht mit Grund im Ergebnis; nichts wird geraten.
+ * Mit `transkript: "untertitel"` entfallen Medium und Job: der Secretary liefert die
+ * fertigen Untertitel der Videoseite, sie liegen als `<Basis> - Untertitel.txt` im
+ * Ordner und als Transkript an deren Twin (`untertitel-ablage.ts`). Ohne brauchbare
+ * Spur ist das ein Fehler — ausser `rueckfall: true` erlaubt die Tonspur.
  *
  * @module web-source
  */
 
 import { enqueueSourceTranscribeJob } from '@/lib/external-jobs/enqueue-secretary-job'
-import type { StorageProvider } from '@/lib/storage/types'
 import { ladeVideoCookies } from '@/lib/video-login/video-login-service'
 import { basisName, baueArtikelSammeldatei, verlinkteDateien } from './artikel-sammeldatei'
 import { resolveMediaViaSecretary, type ResolvedMedia } from './media-resolve'
-import { holeCover, holeMedium, type MediumWeg } from './medium-und-cover'
-import type { WebPageExtract } from './page-extract'
-import { leseSeitenbild, type MetadatenQuelle, type SeitenModus } from './seitenbild'
+import { holeCover, holeMedium } from './medium-und-cover'
+import { leseSeitenbild } from './seitenbild'
+import { holeUntertitelViaSecretary, type Untertitel } from './untertitel'
+import { schreibeUntertitelTranskript, untertitelDateiInhalt, untertitelDateiname, untertitelHerkunft, untertitelHinweise, untertitelSpur, untertitelTranskript } from './untertitel-ablage'
 import { embedUrlFuerVideo } from './video-embed'
+import type { WebseiteErschliessenInput, WebseiteErschliessenResult } from './webseite-erschliessen-typen'
 
 export type { MetadatenQuelle, SeitenModus } from './seitenbild'
+export type { TranskriptErgebnis, WebseiteErschliessenInput, WebseiteErschliessenResult } from './webseite-erschliessen-typen'
 export { ladeSeiteHtml } from './seite-laden'
 
-export interface WebseiteErschliessenInput {
-  libraryId: string
-  userEmail: string
-  provider: StorageProvider
-  url: string
-  folderId: string
-  /** Dateiname der Sammeldatei, endet auf .md. */
-  dateiname: string
-  targetLanguage: string
-  /** Typgepruefte Audio-Optionen (Sprechererkennung, Kontext, Begriffe) wie bei quelle_erschliessen. */
-  audioContext: Record<string, unknown>
-  llmModel?: string
-  /** false = Seite nur lesen und Sammeldatei anlegen, kein Medium holen. */
-  medienHolen: boolean
-  /** false = Medium nur als Quelle (Transkription), ohne Player und Video-Embed. Default true. */
-  medienEinbetten?: boolean
-  /** Fertiges HTML der Seite (z. B. aus einem Browser) — dann laedt der Server die Seite nicht selbst. */
-  seitenHtml?: string
-  /** `struktur` = Seite woertlich mit Listen, Tabellen und Links statt Artikeltext. Default `artikel`. */
-  seitenModus?: SeitenModus
-  /** Welle K3: Stapel-Zugehoerigkeit, die der Transkriptions-Job erbt. */
-  batch?: { batchId: string; batchName?: string }
-  /** Welle C3: Video-Anmeldung (cookies.txt); weggelassen = vom Konto der Person laden, null = ohne. */
-  videoCookies?: string | null
+function meldung(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
-export interface WebseiteErschliessenResult {
-  sammeldatei: { sourceId: string; name: string; ordnerId: string }
-  seite: Pick<WebPageExtract, 'title' | 'siteName' | 'author' | 'datePublished' | 'imageUrl' | 'language'> & { bloecke: number; medienGefunden: number }
-  /** Woher Titel, Text, Datum und Cover kommen: yt-dlp-Metadaten oder das HTML der Seite. */
-  metadatenQuelle: MetadatenQuelle
-  /** Wie die Seite in die Sammeldatei kam; bei `struktur` zaehlt `verlinkteDateien` die gefundenen PDF-, Dokument- und Medien-Links. */
-  seitenModus: SeitenModus
-  verlinkteDateien: number
-  /** Zahl der Kapitel aus yt-dlp (0 ohne). */
-  kapitel: number
-  /** Was der Mensch wissen sollte (Datum ist Upload-Datum, Video ohne Beschreibung, Secretary ohne Metadaten-Block). */
-  hinweise: string[]
-  medium: { sourceId: string; name: string; bytes: number; dauerSekunden: number | null; weg: MediumWeg; jobId: string } | null
-  /** Embed-Adresse (YouTube/Vimeo/PeerTube) fuer video_url, sonst null. */
-  videoEmbedUrl: string | null
-  mediumGrund: string | null
-  cover: { sourceId: string; name: string; bytes: number } | null
-  coverGrund: string | null
+/**
+ * Weg `untertitel`: die fertige Spur der Videoseite. Ohne brauchbare Spur ein Fehler mit dem Grund
+ * des Secretary — nur mit `rueckfall` kommt der Grund zurueck und der Aufrufer nimmt die Tonspur.
+ */
+async function versucheUntertitel(input: WebseiteErschliessenInput, cookies: string | null): Promise<{ untertitel: Untertitel } | { grund: string }> {
+  if (Object.keys(input.audioContext).length > 0 && input.rueckfall !== true) {
+    throw new Error('sprecherErkennung, kontext und begriffe gelten nur fuer die Transkription der Tonspur — mit transkript "untertitel" weglassen (oder rueckfall: true setzen). Nichts geschrieben.')
+  }
+  try {
+    return { untertitel: await holeUntertitelViaSecretary(input.url, cookies, input.untertitelSprache) }
+  } catch (error) {
+    if (input.rueckfall === true) return { grund: meldung(error) }
+    throw new Error(`Keine Untertitel: ${meldung(error)} — nichts geschrieben. Mit rueckfall: true wird stattdessen die Tonspur transkribiert.`)
+  }
 }
 
 /** Fuehrt den ganzen Weg aus; wirft bei Seite ohne Text oder vorhandenem Dateinamen, nichts geschrieben. */
@@ -89,17 +69,26 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
 
   // Welle C3: Die Video-Anmeldung der Person geht mit jedem yt-dlp-Aufruf mit (Cookie-Datei am Konto, nie am Server).
   const cookies = input.videoCookies === undefined ? await ladeVideoCookies(userEmail) : input.videoCookies
+  const wegUntertitel = input.transkript === 'untertitel'
+  if (wegUntertitel && !medienHolen) throw new Error('transkript "untertitel" und medienHolen: false widersprechen sich — eines von beiden weglassen. Nichts geschrieben.')
+  const versuch = wegUntertitel ? await versucheUntertitel(input, cookies) : null
+  const untertitel = versuch && 'untertitel' in versuch ? versuch.untertitel : null
+  const abgerufenAm = new Date()
   let resolved: ResolvedMedia | { fehler: string } | null = null
-  if (medienHolen) {
+  if (medienHolen && !untertitel) {
     try {
       resolved = await resolveMediaViaSecretary(url, cookies)
     } catch (error) {
-      resolved = { fehler: error instanceof Error ? error.message : String(error) }
+      resolved = { fehler: meldung(error) }
     }
   }
-  const { seite, metadatenQuelle, kapitel, hinweise, struktur } = await leseSeitenbild(url, resolved, cookies !== null, input.seitenModus ?? 'artikel', input.seitenHtml)
+  const bild = await leseSeitenbild(url, untertitel ?? resolved, cookies !== null, input.seitenModus ?? 'artikel', input.seitenHtml)
+  const { seite, metadatenQuelle, kapitel, struktur } = bild
+  const hinweise = untertitel ? [...bild.hinweise, ...untertitelHinweise(untertitel)] : bild.hinweise
 
-  const medium = medienHolen && resolved ? await holeMedium(seite, resolved, cookies) : { grund: 'medienHolen: false' }
+  const medium = untertitel
+    ? { grund: 'transkript: untertitel — kein Medium geladen' }
+    : medienHolen && resolved ? await holeMedium(seite, resolved, cookies) : { grund: 'medienHolen: false' }
   const cover = await holeCover(seite.imageUrl, url)
 
   const istVideo = 'datei' in medium && medium.datei.mimeType.startsWith('video/')
@@ -111,16 +100,20 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
   }
   const medienDatei = 'datei' in medium ? `${basis} - ${istVideo ? 'Video' : 'Audio'}.${medium.datei.ext}` : null
   const coverDatei = 'buffer' in cover ? `${basis} - Cover.${cover.ext}` : null
+  const untertitelDatei = untertitel ? untertitelDateiname(basis) : null
+  const herkunft = untertitel ? untertitelHerkunft(untertitel, abgerufenAm) : null
   const medienEinbetten = input.medienEinbetten !== false
   const videoEmbedUrl = medienEinbetten ? embedUrlFuerVideo(url, seite.media) : null
   const markdown = baueArtikelSammeldatei({
     seite, medienDatei, coverDatei, medienDauerSekunden: 'dauer' in medium ? medium.dauer : null, videoEmbedUrl, medienEinbetten,
     kapitel, ohneTextErlaubt: metadatenQuelle === 'ytdlp', struktur,
+    untertitel: untertitelDatei && herkunft ? { datei: untertitelDatei, herkunft } : null,
   })
 
   const geschrieben: Array<{ id: string; name: string }> = []
   let mediumErgebnis: WebseiteErschliessenResult['medium'] = null
   let coverErgebnis: WebseiteErschliessenResult['cover'] = null
+  let untertitelErgebnis: WebseiteErschliessenResult['untertitel'] = null
   let md: { id: string }
   try {
     let mediumItemId: string | null = null
@@ -134,8 +127,20 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
       geschrieben.push({ id: item.id, name: coverDatei })
       coverErgebnis = { sourceId: item.id, name: coverDatei, bytes: cover.buffer.length }
     }
+    const untertitelItem = untertitel && untertitelDatei
+      ? await provider.uploadFile(folderId, new File([untertitelDateiInhalt(untertitel, url, abgerufenAm)], untertitelDatei, { type: 'text/plain' }))
+      : null
+    if (untertitelItem && untertitelDatei) geschrieben.push({ id: untertitelItem.id, name: untertitelDatei })
     md = await provider.uploadFile(folderId, new File([markdown], dateiname, { type: 'text/markdown' }))
     geschrieben.push({ id: md.id, name: dateiname })
+    if (untertitel && untertitelItem && untertitelDatei) {
+      // Zuletzt, damit ein Fehler davor keinen Twin ohne Quelldatei hinterlaesst.
+      await schreibeUntertitelTranskript({ libraryId, userEmail, provider, quelle: untertitelItem, targetLanguage, markdown: untertitelTranskript(untertitel, url, abgerufenAm) })
+      untertitelErgebnis = {
+        sourceId: untertitelItem.id, name: untertitelDatei, bytes: untertitelItem.metadata.size,
+        woerter: untertitel.abdeckung.woerter, abdeckungAnteil: untertitel.abdeckung.anteil,
+      }
+    }
     if ('datei' in medium && medienDatei && mediumItemId) {
       const { jobId } = await enqueueSourceTranscribeJob({
         libraryId, userEmail,
@@ -154,9 +159,8 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
         nichtEntfernt.push(g.name)
       }
     }
-    const grund = error instanceof Error ? error.message : String(error)
     throw new Error(
-      `${grund} — ${geschrieben.length - nichtEntfernt.length} schon hochgeladene Datei(en) wieder entfernt` +
+      `${meldung(error)} — ${geschrieben.length - nichtEntfernt.length} schon hochgeladene Datei(en) wieder entfernt` +
         (nichtEntfernt.length > 0 ? `; NICHT entfernt, bitte von Hand loeschen: ${nichtEntfernt.join(', ')}` : ''),
     )
   }
@@ -169,7 +173,14 @@ export async function webseiteErschliessen(input: WebseiteErschliessenInput): Pr
     },
     metadatenQuelle, kapitel: kapitel.length, hinweise,
     seitenModus: struktur ? 'struktur' : 'artikel', verlinkteDateien: struktur ? verlinkteDateien(struktur.links).length : 0,
+    transkript: {
+      weg: untertitel ? 'untertitel' : mediumErgebnis ? 'tonspur' : 'keins',
+      spur: untertitel ? untertitelSpur(untertitel) : null,
+      herkunft,
+      rueckfallGrund: versuch && 'grund' in versuch ? versuch.grund : null,
+    },
     medium: mediumErgebnis,
+    untertitel: untertitelErgebnis,
     videoEmbedUrl,
     mediumGrund: 'grund' in medium ? medium.grund : null,
     cover: coverErgebnis,

@@ -300,7 +300,20 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
 3. `htmlDatei` an `seite_lesen` und `webseite_erschliessen`; Feld-Paare einer
    Seite in einer Zeile; keine Seitenadresse mehr als Bild.
 
+**Gemacht (26.11., Werkzeugsatz 2.89.0), Untertitel statt Tonspur:**
+
+1. `webseite_erschliessen` und `playlist_erschliessen` mit
+   `transkript: "untertitel"`: fertige Untertitel der Videoseite als Quelle
+   mit Transkript am Twin, ohne Medium und ohne Transkriptions-Job; kein
+   stiller Rückfall auf die Tonspur (`rueckfall`).
+2. Secretary: Route `media/subtitles` (eigenes Repo).
+
 **Geplant:**
+
+- Abnahme des Untertitel-Wegs an echten Videos, sobald der Secretary mit
+  `media/subtitles` ausgerollt ist: Abruf gegen die Plattform (bisher nur
+  gegen nachgebaute Antworten getestet), Vergleich Untertitel gegen
+  Transkription der Tonspur, dann die Vorgabe des Schalters entscheiden.
 
 - Wiederholung der Abnahme der berechneten Felder und des Covers nach 2d.
 - Schwankung zwischen Läufen: Temperatur der laufenden Secretary-Instanz

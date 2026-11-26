@@ -19,6 +19,7 @@
 
 import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
+import { leseTranskriptWeg, type TranskriptWeg } from '@/lib/web-source/untertitel'
 import type { ExternalJob } from '@/types/external-job'
 
 export const WEB_SOURCE_JOB_TYPE = 'web-source'
@@ -42,6 +43,12 @@ export interface WebSourceJobOptionen {
   medienEinbetten: boolean
   position: number
   titel: string
+  /** `tonspur` laedt das Medium und transkribiert; `untertitel` holt die fertigen Untertitel (kein Medium, kein Transkriptions-Job). */
+  transkript: TranskriptWeg
+  /** Nur mit `untertitel`: ohne brauchbare Spur die Tonspur transkribieren statt zu scheitern. */
+  rueckfall: boolean
+  /** Nur mit `untertitel`: gewuenschte Sprache der von Hand gepflegten Spur. */
+  untertitelSprache?: string
 }
 
 export interface PlaylistLesenOptionen {
@@ -145,6 +152,10 @@ export function leseWebSourceOptionen(job: ExternalJob): WebSourceJobOptionen {
     medienEinbetten: o['medienEinbetten'] !== false,
     position: typeof o['position'] === 'number' ? o['position'] : 0,
     titel: typeof o['titel'] === 'string' ? o['titel'] : '',
+    // Jobs von vor dem Schalter tragen das Feld nicht: weggelassen heisst Tonspur. Ein unbekannter Wert wirft.
+    transkript: leseTranskriptWeg(o['transkript']),
+    rueckfall: o['rueckfall'] === true,
+    ...(typeof o['untertitelSprache'] === 'string' && o['untertitelSprache'] ? { untertitelSprache: o['untertitelSprache'] } : {}),
   }
 }
 
