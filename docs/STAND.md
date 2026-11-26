@@ -311,6 +311,8 @@ Owner-Entscheidungen im Wortlaut, Dialogfall): Archiv
    nach 800 Zeichen ab; Schalter `attachments_subtitles` legt Untertitel als
    einsehbares Textdokument an den Eintrag; Secretary zerlegt lange Absätze
    nicht mehr in Ein-Wort-Absätze.
+4. `quelle_erschliessen` mit `seitenbilder` (2.91.0): Text-PDFs lassen sich
+   ohne Seitenbilder erschließen.
 
 **Geplant:**
 
