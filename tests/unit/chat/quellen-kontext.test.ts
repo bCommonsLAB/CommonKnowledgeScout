@@ -66,6 +66,17 @@ describe('buildContext mit Facetten-Definitionen', () => {
     expect(ohne).toContain('| lv_bewertung: nicht_umsetzbar | arbeitsgruppe: Mobilität)')
   })
 
+  it('jede Textstelle geht ganz in den Prompt — kein Schnitt nach 800 Zeichen (Befund 26.11.2026)', () => {
+    const lang = `${'wort '.repeat(190)}It can be seen in Bangladesh, where climate-resilient roads were built.`
+    expect(lang.length).toBeGreaterThan(1000)
+    const quelle: RetrievedSource[] = [{ id: 'b-0', fileId: 'b', fileName: 'Webcast.md', chunkIndex: 0, text: lang, sourceType: 'anhang' }]
+    expect(buildContext(quelle)).toContain('where climate-resilient roads were built.')
+    const user = buildChatMessages('Frage?', quelle, 'kurz', { targetLanguage: 'de' }).find((m) => m.role === 'user')
+    expect(user?.content).toContain('where climate-resilient roads were built.')
+    // Nur ein ausdruecklich verlangtes Limit kuerzt.
+    expect(buildContext(quelle, 800)).not.toContain('Bangladesh')
+  })
+
   it('buildChatMessages reicht facetDefs in den Header durch', () => {
     const user = buildChatMessages('Frage?', sources, 'mittel', {
       targetLanguage: 'de',

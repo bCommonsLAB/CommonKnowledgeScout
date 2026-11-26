@@ -145,6 +145,11 @@ und `attachments_order: source_files` als feste Felder der Vorlage.
    `begriffe` und `sprecherErkennung` gelten nur für die Tonspur. Vorlagen, die
    die Quelle am Namen erkennen (`=quellenarten`), brauchen das Muster
    `"* - Untertitel.*"`.
+   Soll die Leserin die Untertitel am Eintrag nachsehen können (der Story-Modus
+   zitiert daraus), setzt die Vorlage das feste Feld
+   `attachments_subtitles: true`; der Ingest hängt dann „Untertitel von
+   <Anbieter>" an die Anhänge. Vorgabe aus — vorher mit dem Menschen klären, ob
+   die Library das ganze Transkript zeigen darf.
 3. **`job_status`** mit der `jobId` des Mediums abwarten (`completed`,
    Schritt `extract_audio` nicht übersprungen). Transkript von Hand prüfen,
    wenn Namen oder Zahlen wichtig sind (`artefakt_lesen`, `transkript_korrigieren`).
